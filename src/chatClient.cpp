@@ -9,6 +9,7 @@
 #ifdef _WIN32
     #include <winsock2.h>
     #include <direct.h>
+    #include <sys/timeb.h>  
     #define mkdir(dir, mode) _mkdir(dir)
 #endif
 #include <stdio.h>
@@ -60,6 +61,11 @@ std::string encodeFirstName(const std::string& first);
 bool Client::anonymousMode() const
 {
     return (mInitState == kInitAnonymousMode);
+}
+
+bool Client::isInBackground() const
+{
+    return mIsInBackground;
 }
 
 /* Warning - the database is not initialzed at construction, but only after
@@ -276,6 +282,14 @@ bool Client::openDb(const std::string& sid)
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
                 }
             }
+            else if (cachedVersionSuffix == "6" && (strcmp(gDbSchemaVersionSuffix, "7") == 0))
+            {
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.query("update history set keyid=0 where type=?", chatd::Message::Type::kMsgTruncate);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -344,15 +358,38 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     }
 }
 
+promise::Promise<void> Client::notifyUserStatus(bool background)
+{
+    bool oldStatus = mIsInBackground;
+    mIsInBackground = background;
+    if (mIsInBackground && !mInitStats.isCompleted())
+    {
+        mInitStats.onCanceled();
+    }
+
+    if (oldStatus == mIsInBackground)
+    {
+        return promise::_Void();
+    }
+
+    mPresencedClient.notifyUserStatus();
+    if (!mChatdClient)
+    {
+        return promise::Error("Chatd client not initialized yet");
+    }
+
+    return mChatdClient->notifyUserStatus();
+}
+
 promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
 {
     auto wptr = weakHandle();
     return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle);
 }
 
-void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, int numPeers, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts)
+void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts)
 {
-    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, numPeers, url);
+    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, url);
     chats->emplace(chatId, room);
     room->connect(url.c_str());
 }
@@ -597,6 +634,7 @@ Client::InitState Client::initWithAnonymousSession()
         return kInitErrAlready;
     }
 
+    mInitStats.stageStart(InitStats::kStatsInit);
     setInitState(kInitAnonymousMode);
     mSid.clear();
     createDb();
@@ -604,7 +642,8 @@ Client::InitState Client::initWithAnonymousSession()
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this));
     mSessionReadyPromise.resolve();
-
+    mInitStats.stageEnd(InitStats::kStatsInit);
+    mInitStats.setInitState(mInitState);
     return mInitState;
 }
 
@@ -625,8 +664,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
-    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
+    mMyIdentity = initMyIdentity();
 
     mUserAttrCache.reset(new UserAttrCache(*this));
     api.sdk.addGlobalListener(this);
@@ -776,6 +814,8 @@ Client::InitState Client::init(const char* sid)
         return kInitErrAlready;
     }
 
+    mInitStats.stageStart(InitStats::kStatsInit);
+
     if (sid)
     {
         initWithDbSession(sid);
@@ -789,8 +829,33 @@ Client::InitState Client::init(const char* sid)
     {
         setInitState(kInitWaitingNewSession);
     }
+
+    mInitStats.stageEnd(InitStats::kStatsInit);
+    mInitStats.setInitState(mInitState);
     api.sdk.addRequestListener(this);
     return mInitState;
+}
+
+void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *request)
+{
+    int reqType = request->getType();
+    switch (reqType)
+    {
+        case ::mega::MegaRequest::TYPE_LOGIN:
+        {
+            mInitStats.stageStart(InitStats::kStatsLogin);
+            break;
+        }
+        case ::mega::MegaRequest::TYPE_FETCH_NODES:
+        {
+            mInitStats.stageStart(InitStats::kStatsFetchNodes);
+            break;
+        }
+        default:    // no action to be taken for other type of requests
+        {
+            break;
+        }
+    }
 }
 
 void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *request, ::mega::MegaError* e)
@@ -805,6 +870,12 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 
     switch (reqType)
     {
+    case ::mega::MegaRequest::TYPE_LOGIN:
+    {
+        mInitStats.stageEnd(InitStats::kStatsLogin);
+        break;
+    }
+
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
         bool loggedOut = ((errorCode == ::mega::MegaError::API_OK || errorCode == ::mega::MegaError::API_ESID)
@@ -838,6 +909,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
+        mInitStats.stageEnd(InitStats::kStatsFetchNodes);
+        mInitStats.stageStart(InitStats::kStatsPostFetchNodes);
+
         auto state = mInitState;
         char* pscsn = api.sdk.getSequenceNumber();
         std::string scsn;
@@ -870,6 +944,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 setInitState(kInitHasOnlineSession);
                 mSessionReadyPromise.resolve();
+                mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                 api.sdk.resumeActionPackets();
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
@@ -887,6 +962,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 {
                     setInitState(kInitHasOnlineSession);
                     mSessionReadyPromise.resolve();
+                    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                     api.sdk.resumeActionPackets();
                 });
             }
@@ -1022,8 +1098,15 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
+promise::Promise<void> Client::connect(bool isInBackground)
 {
+    mIsInBackground = isInBackground;
+
+    if (mIsInBackground && !mInitStats.isCompleted())
+    {
+        mInitStats.onCanceled();
+    }
+
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
 // the connect immediately
@@ -1042,7 +1125,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     switch (sessDone)
     {
         case promise::kSucceeded:   // if session is ready...
-            return doConnect(pres, isInBackground);
+            return doConnect();
 
         case promise::kFailed:      // if session failed...
             return mSessionReadyPromise.error();
@@ -1050,17 +1133,18 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
         default:                    // if session is not ready yet... wait for it and then connect
             assert(sessDone == promise::kNotResolved);
             mConnectPromise = mSessionReadyPromise
-            .then([this, pres, isInBackground]() mutable
+            .then([this]() mutable
             {
-                return doConnect(pres, isInBackground);
+                return doConnect();
             });
             return mConnectPromise;
     }
 }
 
-promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
+promise::Promise<void> Client::doConnect()
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+    mInitStats.stageStart(InitStats::kStatsConnection);
 
     setConnState(kConnecting);
     assert(mSessionReadyPromise.succeeded());
@@ -1069,8 +1153,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     // notify user-attr cache
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
-
-    connectToChatd(isInBackground);
+    connectToChatd();
 
     auto wptr = weakHandle();
     assert(!mHeartbeatTimer);
@@ -1110,7 +1193,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     rtc->init();
 #endif
 
-    auto pms = mPresencedClient.connect(presenced::Config(pres))
+    auto pms = mPresencedClient.connect()
     .then([this, wptr]()
     {
         if (wptr.deleted())
@@ -1134,6 +1217,24 @@ void Client::setConnState(ConnState newState)
     mConnState = newState;
     KR_LOG_DEBUG("Client connection state changed to %s", connStateToStr(newState));
 }
+
+void Client::sendStats()
+{
+    if (mInitStats.isCompleted())
+    {
+        return;
+    }
+
+    std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), contactList->size());
+    KR_LOG_DEBUG("Init stats: %s", stats.c_str());
+    api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str());
+}
+
+InitStats& Client::initStats()
+{
+    return mInitStats;
+}
+
 karere::Id Client::getMyHandleFromSdk()
 {
     SdkString uh = api.sdk.getMyUserHandle();
@@ -1189,8 +1290,7 @@ uint64_t Client::getMyIdentityFromDb()
     if (!stmt.step())
     {
         KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
-        result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-        db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+        result = initMyIdentity();
     }
     else
     {
@@ -1198,10 +1298,23 @@ uint64_t Client::getMyIdentityFromDb()
         if (result == 0)
         {
             KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
-            result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-            db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+            result = initMyIdentity();
         }
     }
+    return result;
+}
+
+void Client::resetMyIdentity()
+{
+   assert(mInitState == kInitWaitingNewSession || mInitState == kInitHasOfflineSession);
+   KR_LOG_WARNING("Reset clientid_seed");
+   mMyIdentity = initMyIdentity();
+}
+
+uint64_t Client::initMyIdentity()
+{
+    uint64_t result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
     return result;
 }
 
@@ -1324,21 +1437,6 @@ void Client::updateAndNotifyLastGreen(Id userid)
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 {
 
-}
-
-void Client::notifyUserIdle()
-{
-    if (mChatdClient)
-    {
-        mChatdClient->notifyUserIdle();
-    }
-}
-void Client::notifyUserActive()
-{
-    if (mChatdClient)
-    {
-        mChatdClient->notifyUserActive();
-    }
 }
 
 void Client::terminate(bool deleteDb)
@@ -1798,8 +1896,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     std::vector<promise::Promise<void>> promises;
     if (peers)
     {
-        mNumPeers = peers->size();
-        for (int i = 0; i < mNumPeers; i++)
+        int numPeers = peers->size();
+        for (int i = 0; i < numPeers; i++)
         {
             auto handle = peers->getPeerHandle(i);
             assert(handle != parent.mKarereClient.myHandle());
@@ -1894,9 +1992,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl)
+    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, std::string aUrl)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
-  mRoomGui(nullptr), mNumPeers(aNumPeers)
+  mRoomGui(nullptr)
 {
     initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
@@ -2014,9 +2112,11 @@ void PeerChatRoom::initContact(const uint64_t& peer)
                 getAttr(peer, USER_ATTR_FULLNAME, this,[](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
+            //one byte - the firstname-size-prefix, which will be zero but
+            //if lastname is not null the first byte will contain the
+            //firstname-size-prefix but datasize will be bigger than 1 byte.
             auto self = static_cast<PeerChatRoom*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
             {
                 self->updateTitle(self->mEmail);
             }
@@ -3049,12 +3149,6 @@ promise::Promise<std::shared_ptr<std::string>> GroupChatRoom::unifiedKey()
 {
     return mChat->crypto()->getUnifiedKey();
 }
-
-int GroupChatRoom::getNumPeers() const
-{
-    return mNumPeers;
-}
-
 // return true if new peer or peer removed. Updates peer privileges as well
 bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 {
@@ -3342,10 +3436,8 @@ promise::Promise<void> GroupChatRoom::Member::nameResolved() const
     return mNameResolved;
 }
 
-void Client::connectToChatd(bool isInBackground)
+void Client::connectToChatd()
 {
-    mChatdClient->setKeepaliveType(isInBackground);
-
     for (auto& item: *chats)
     {
         auto& chat = *item.second;
@@ -3541,9 +3633,11 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         [](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
+            //one byte - the firstname-size-prefix, which will be zero but
+            //if lastname is not null the first byte will contain the
+            //firstname-size-prefix but datasize will be bigger than 1 byte.
             auto self = static_cast<Contact*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
                 self->updateTitle(encodeFirstName(self->mEmail));
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()));
@@ -3692,6 +3786,350 @@ std::string encodeFirstName(const std::string& first)
     {
         result.append(first);
     }
+    return result;
+}
+
+// Init Stats methods
+
+bool InitStats::isCompleted() const
+{
+    return mCompleted;
+}
+
+void InitStats::onCanceled()
+{
+    mCompleted = true;
+
+    // clear maps to free some memory
+    mStageShardStats.clear();
+    mStageStats.clear();
+    KR_LOG_WARNING("Init stats have been cancelled");
+}
+
+std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t numContacts)
+{
+    assert(!mCompleted);
+    mCompleted = true;
+
+    if (mInitState == kInitAnonymous)
+    {
+        // these stages don't occur in anonymous mode
+        mStageStats[kStatsLogin] = 0;
+        mStageStats[kStatsFetchNodes] = 0;
+        mStageStats[kStatsPostFetchNodes] = 0;
+    }
+
+    mNumNodes = numNodes;
+    mNumChats = numChats;
+    mNumContacts = numContacts;
+
+    std::string json = toJson();
+
+    // clear maps to free some memory
+    mStageShardStats.clear();
+    mStageStats.clear();
+
+    return json;
+}
+
+mega::dstime InitStats::currentTime()
+{
+#if defined(_WIN32) && defined(_MSC_VER)
+    struct __timeb64 tb;
+    _ftime64(&tb);
+    return (tb.time * 1000) + (tb.millitm);
+#else
+    timespec ts;
+    mega::m_clock_getmonotonictime(&ts);
+    return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+#endif
+}
+
+void InitStats::shardStart(uint8_t stage, uint8_t shard)
+{
+    if (mCompleted)
+    {
+        return;
+    }
+
+    mStageShardStats[stage][shard].tsStart = currentTime();
+}
+
+void InitStats::shardEnd(uint8_t stage, uint8_t shard)
+{
+    if (mCompleted)
+    {
+        return;
+    }
+
+    InitStats::ShardStats *shardStats = &mStageShardStats[stage][shard];
+    if (shardStats->tsStart)    // if starting ts not recorded --> discard
+    {
+        shardStats->elapsed = currentTime() - shardStats->tsStart;
+
+        if (shardStats->elapsed > shardStats->maxElapsed)
+        {
+            shardStats->maxElapsed = shardStats->elapsed;
+        }
+
+        shardStats->tsStart = 0;
+    }
+}
+
+void InitStats::incrementRetries(uint8_t stage, uint8_t shard)
+{
+    if (mCompleted)
+    {
+        return;
+    }
+
+    mStageShardStats[stage][shard].mRetries++;
+}
+
+void InitStats::handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard)
+{
+    if (mCompleted)
+    {
+        return;
+    }
+
+    switch (newState)
+    {
+        case chatd::Connection::State::kStateFetchingUrl:
+            shardStart(InitStats::kStatsFetchChatUrl, shard);
+            break;
+
+        case chatd::Connection::State::kStateResolving:
+            shardEnd(InitStats::kStatsFetchChatUrl, shard);
+            break;
+
+        case chatd::Connection::State::kStateConnecting:
+            shardStart(InitStats::kStatsConnect, shard);
+            break;
+
+        case chatd::Connection::State::kStateConnected:
+             shardEnd(InitStats::kStatsConnect, shard);
+             shardStart(InitStats::kStatsLoginChatd, shard);
+             break;
+
+        case chatd::Connection::State::kStateDisconnected:  //Increments connection retries
+            switch (oldState)
+            {
+                case chatd::Connection::State::kStateFetchingUrl:
+                    incrementRetries(InitStats::kStatsFetchChatUrl, shard);
+                    break;
+                case chatd::Connection::State::kStateConnecting:
+                    incrementRetries(InitStats::kStatsConnect, shard);
+                    break;
+                case chatd::Connection::State::kStateConnected:
+                    incrementRetries(InitStats::kStatsLoginChatd, shard);
+                    break;
+                default:
+                    break;
+            }
+            break;
+
+        default:
+            break;
+
+    }
+}
+
+void InitStats::stageStart(uint8_t stage)
+{
+    if (mCompleted)
+    {
+        return;
+    }
+
+    mStageStats[stage] = currentTime();
+}
+
+void InitStats::stageEnd(uint8_t stage)
+{
+    if (mCompleted)
+    {
+        return;
+    }
+
+    assert(mStageStats[stage]);
+    mStageStats[stage] = currentTime() - mStageStats[stage];
+}
+
+void InitStats::setInitState(uint8_t state)
+{
+    if (mCompleted)
+    {
+        return;
+    }
+
+    switch (state)
+    {
+        case  Client::kInitErrNoCache:
+        case  Client::kInitErrCorruptCache:
+            mInitState = kInitInvalidCache;
+            break;
+
+        case  Client::kInitHasOfflineSession:
+            mInitState = kInitResumeSession;
+            break;
+
+        case  Client::kInitWaitingNewSession:
+            mInitState = kInitNewSession;
+            break;
+
+        case  Client::kInitAnonymousMode:
+            mInitState = kInitAnonymous;
+            break;
+
+        default:
+            break;
+    }
+}
+
+std::string InitStats::stageToString(uint8_t stage)
+{
+    switch(stage)
+    {
+        case kStatsInit: return "Init";
+        case kStatsLogin: return "Login";
+        case kStatsFetchNodes: return "Fetch nodes";
+        case kStatsPostFetchNodes: return "Post fetch nodes";
+        case kStatsConnection: return "Connection";
+        default: return "(unknown)";
+    }
+}
+
+std::string InitStats::shardStageToString(uint8_t stage)
+{
+    switch(stage)
+    {
+        case kStatsFetchChatUrl: return "Fetch chat url";
+        case kStatsQueryDns: return "Query DNS";
+        case kStatsConnect: return "Connect";
+        case kStatsLoginChatd: return "Login all chats";
+        default: return "(unknown)";
+    }
+}
+
+std::string InitStats::toJson()
+{
+    std::string result;
+    mega::dstime totalElapsed = 0; //Total elapsed time to finish all stages
+    rapidjson::Document jSonDocument(rapidjson::kArrayType);
+    rapidjson::Value jSonObject(rapidjson::kObjectType);
+    rapidjson::Value jsonValue(rapidjson::kNumberType);
+
+    // Generate stages array
+    rapidjson::Document stageArray(rapidjson::kArrayType);
+    for (StageMap::const_iterator itStages = mStageStats.begin(); itStages != mStageStats.end(); itStages++)
+    {
+        rapidjson::Value jSonStage(rapidjson::kObjectType);
+        uint8_t stage = itStages->first;
+        mega::dstime elapsed = itStages->second;
+
+        // Add stage
+        jsonValue.SetInt64(stage);
+        jSonStage.AddMember(rapidjson::Value("stg"), jsonValue, jSonDocument.GetAllocator());
+
+        std::string tag = stageToString(stage);
+        rapidjson::Value stageTag(rapidjson::kStringType);
+        stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
+        jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
+
+        // Add stage elapsed time
+        totalElapsed += elapsed;
+        jsonValue.SetInt64(elapsed);
+        jSonStage.AddMember(rapidjson::Value("elap"), jsonValue, jSonDocument.GetAllocator());
+        stageArray.PushBack(jSonStage, jSonDocument.GetAllocator());
+    }
+
+    // Generate sharded stages array
+    rapidjson::Value shardStagesArray(rapidjson::kArrayType);
+    StageShardMap::iterator itshstgs;
+    for (itshstgs = this->mStageShardStats.begin(); itshstgs != mStageShardStats.end(); itshstgs++)
+    {
+        rapidjson::Value jSonStage(rapidjson::kObjectType);
+        rapidjson::Document shardArray(rapidjson::kArrayType);
+        uint8_t stage = itshstgs->first;
+
+        ShardMap *shardMap = &(itshstgs->second);
+        if (shardMap)
+        {
+            ShardMap::iterator itShard;
+            for (itShard = shardMap->begin(); itShard != shardMap->end(); itShard++)
+            {
+                rapidjson::Value jSonShard(rapidjson::kObjectType);
+                uint8_t shard = itShard->first;
+                ShardStats &shardStats = itShard->second;
+
+                // Add stage
+                jsonValue.SetInt(shard);
+                jSonShard.AddMember(rapidjson::Value("sh"), jsonValue, jSonDocument.GetAllocator());
+
+                // Add stage elapsed time
+                jsonValue.SetInt(shardStats.elapsed);
+                jSonShard.AddMember(rapidjson::Value("elap"), jsonValue, jSonDocument.GetAllocator());
+
+                // Add stage elapsed time
+                jsonValue.SetInt(shardStats.maxElapsed);
+                jSonShard.AddMember(rapidjson::Value("max"), jsonValue, jSonDocument.GetAllocator());
+
+                // Add stage retries
+                jsonValue.SetInt(shardStats.mRetries);
+                jSonShard.AddMember(rapidjson::Value("ret"), jsonValue, jSonDocument.GetAllocator());
+                shardArray.PushBack(jSonShard, jSonDocument.GetAllocator());
+            }
+        }
+
+        jsonValue.SetInt(stage);
+        jSonStage.AddMember(rapidjson::Value("stg"), jsonValue, jSonDocument.GetAllocator());
+
+        std::string tag = shardStageToString(stage);
+        rapidjson::Value stageTag(rapidjson::kStringType);
+        stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
+        jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
+
+        jSonStage.AddMember(rapidjson::Value("sa"), shardArray, jSonDocument.GetAllocator());
+        shardStagesArray.PushBack(jSonStage, jSonDocument.GetAllocator());
+    }
+
+    // Add number of nodes
+    jsonValue.SetInt64(mNumNodes);
+    jSonObject.AddMember(rapidjson::Value("nn"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add number of contacts
+    jsonValue.SetInt64(mNumContacts);
+    jSonObject.AddMember(rapidjson::Value("ncn"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add number of chats
+    jsonValue.SetInt64(mNumChats);
+    jSonObject.AddMember(rapidjson::Value("nch"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add number of contacts
+    jsonValue.SetInt64(mInitState);
+    jSonObject.AddMember(rapidjson::Value("sid"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add init stats version
+    uint32_t version = INITSTATSVERSION;
+    jsonValue.SetUint(version);
+    jSonObject.AddMember(rapidjson::Value("v"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add total elapsed
+    jsonValue.SetInt64(totalElapsed);
+    jSonObject.AddMember(rapidjson::Value("telap"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add stages array
+    jSonObject.AddMember(rapidjson::Value("stgs"), stageArray, jSonDocument.GetAllocator());
+
+    // Add sharded stages array
+    jSonObject.AddMember(rapidjson::Value("shstgs"), shardStagesArray, jSonDocument.GetAllocator());
+
+    jSonDocument.PushBack(jSonObject, jSonDocument.GetAllocator());
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    jSonDocument.Accept(writer);
+    result.assign(buffer.GetString(), buffer.GetSize());
     return result;
 }
 

@@ -42,10 +42,21 @@
 #include <sdkApi.h>
 #include <karereCommon.h>
 #include <logger.h>
-#include <rapidjson/document.h>
 #include <stdint.h>
 #include "net/libwebsocketsIO.h"
 #include "waiter/libuvWaiter.h"
+
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#endif
+
+#include <rapidjson/document.h>
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
+
 
 typedef LibwebsocketsIO MegaWebsocketsIO;
 typedef ::mega::LibuvWaiter MegaChatWaiter;
@@ -135,7 +146,6 @@ public:
     virtual int64_t getAutoawayTimeout() const;
     virtual bool isPersist() const;
     virtual bool isPending() const;
-    virtual bool isSignalActivityRequired() const;
     virtual bool isLastGreenVisible() const;
 
 private:
@@ -435,7 +445,7 @@ public:
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
 public:
-    MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaChatHandle chatid);
+    MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, mega::MegaApi *megaApi, MegaChatHandle chatid);
 
     void addChatRoomListener(MegaChatRoomListener *listener);
     void removeChatRoomListener(MegaChatRoomListener *listener);
@@ -502,6 +512,7 @@ protected:
 private:
     MegaChatApiImpl *chatApiImpl;
     MegaChatApi *chatApi;       // for notifications in callbacks
+    mega::MegaApi *megaApi;
     MegaChatHandle chatid;
 
     chatd::Chat *mChat;
@@ -551,7 +562,7 @@ public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
 
 private:
-    mega::MegaMutex mutex;
+    std::recursive_mutex mutex;
     MegaChatLogger *megaLogger;
 };
 
@@ -582,8 +593,9 @@ public:
     virtual void setInitialTimeStamp(int64_t timeStamp);
     virtual int64_t getInitialTimeStamp();
     virtual bool hasBeenNotifiedRinging() const;
+    virtual void onReconnectingState(bool start);
+    virtual rtcModule::ICall *getCall();
 
-    rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
     void setCallNotPresent(karere::Id chatid, karere::Id callid, uint32_t duration);
 private:
@@ -857,10 +869,9 @@ class ChatRequestQueue
 {
     protected:
         std::deque<MegaChatRequestPrivate *> requests;
-        mega::MegaMutex mutex;
+        std::mutex mutex;
 
     public:
-        ChatRequestQueue();
         void push(MegaChatRequestPrivate *request);
         void push_front(MegaChatRequestPrivate *request);
         MegaChatRequestPrivate * pop();
@@ -872,10 +883,9 @@ class EventQueue
 {
 protected:
     std::deque<void *> events;
-    mega::MegaMutex mutex;
+    std::mutex mutex;
 
 public:
-    EventQueue();
     void push(void* event);
     void push_front(void *event);
     void* pop();
@@ -892,8 +902,8 @@ public:
     MegaChatApiImpl(MegaChatApi *chatApi, mega::MegaApi *megaApi);
     virtual ~MegaChatApiImpl();
 
-    mega::MegaMutex sdkMutex;
-    mega::MegaMutex videoMutex;
+    std::recursive_mutex sdkMutex;
+    std::recursive_mutex videoMutex;
     mega::Waiter *waiter;
 private:
     MegaChatApi *chatApi;
@@ -952,6 +962,7 @@ public:
     int init(const char *sid);
     int initAnonymous();
     void createKarereClient();
+    void resetClientid();
     int getInitState();
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);

@@ -14,6 +14,7 @@
 #include "MegaChatApplication.h"
 #include "listItemController.h"
 #include "chatWindow.h"
+#include "SettingWindow.h"
 
 const int chatNotArchivedStatus = 0;
 const int chatArchivedStatus = 1;
@@ -45,6 +46,7 @@ struct ChatComparator
 class ChatSettings;
 class ChatSettingsDialog;
 class ChatItemWidget;
+class ChatListItemController;
 class ContactItemWidget;
 class QTMegaChatCallListener;
 class ChatWindow;
@@ -174,7 +176,7 @@ class MainWindow :
         bool mAllowOrder = false;
         bool mNeedReorder = false;
         QMenu *onlineStatus;
-        ChatSettings *mChatSettings;
+        ChatSettings *mChatSettings;    // dialog to set WebRTC input device/s
         MegaChatApplication *mApp;
         ::mega::MegaApi *mMegaApi;
         megachat::MegaChatApi *mMegaChatApi;
@@ -186,6 +188,8 @@ class MainWindow :
 
         //Maps UserId to to ContactListItemController
         std::map<mega::MegaHandle, ContactListItemController *> mContactControllers;
+
+        SettingWindow *mSettings = NULL;
 
     private slots:
         void on_bSettings_clicked();
@@ -202,15 +206,19 @@ class MainWindow :
         void on_mLogout_clicked();
         void onCatchUp();
         void onlastGreenVisibleClicked();
+        void onChatsSettingsClicked();
+        void onChatCheckPushNotificationRestrictionClicked();
         void onReconnect(bool disconnect);
         void onPushReceived(unsigned int type);
         void onUseApiStagingClicked(bool);
+        void onBackgroundStatusClicked(bool status);
 
     signals:
         void esidLogout();
         void onAnonymousLogout();
 
      friend class ChatItemWidget;
+     friend class ChatListItemController;
      friend class ContactItemWidget;
      friend class MegaChatApplication;
      friend class ChatSettingsDialog;

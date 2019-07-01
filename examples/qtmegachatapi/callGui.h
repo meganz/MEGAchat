@@ -52,14 +52,13 @@ class CallGui: public QWidget
         MegaChatHandle getPeerid();
         MegaChatHandle getClientid();
 
-
-    friend class RemoteCallListener;
-    friend class LocalCallListener;
-    friend class MainWindow;
-    megachat::MegaChatCall *getCall() const;
-    void setCall(megachat::MegaChatCall *call);
-    int getIndex() const;
-    void setIndex(int index);
+        friend class RemoteCallListener;
+        friend class LocalCallListener;
+        friend class MainWindow;
+        megachat::MegaChatCall *getCall() const;
+        void setCall(megachat::MegaChatCall *call);
+        int getIndex() const;
+        void setIndex(int index);
 };
 
 #endif // MAINWINDOW_H
