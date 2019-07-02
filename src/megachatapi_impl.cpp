@@ -341,7 +341,9 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_LOGOUT:
         {
             bool deleteDb = request->getFlag();
+#ifndef KARERE_DISABLE_WEBRTC
             cleanChatHandlers();
+#endif
             terminating = true;
             mClient->terminate(deleteDb);
 
@@ -362,7 +364,9 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             if (mClient && !terminating)
             {
+#ifndef KARERE_DISABLE_WEBRTC
                 cleanChatHandlers();
+#endif
                 mClient->terminate();
                 API_LOG_INFO("Chat engine closed!");
 
@@ -4236,32 +4240,6 @@ void MegaChatApiImpl::cleanCallHandlerMap()
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::cleanChatHandlers()
-{
-    MegaChatHandle chatid;
-    for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
-    {
-        chatid = it->first;
-        it++;
-
-        closeChatRoom(chatid, NULL);
-    }
-    assert(chatRoomHandler.empty());
-
-    for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end();)
-    {
-        chatid = it->first;
-        it++;
-
-        closeNodeHistory(chatid, NULL);
-    }
-    assert(nodeHistoryHandlers.empty());
-
-#ifndef KARERE_DISABLE_WEBRTC
-    cleanCallHandlerMap();
-#endif
-}
-
 MegaChatCallHandler *MegaChatApiImpl::findChatCallHandler(MegaChatHandle chatid)
 {
     MegaChatCallHandler *callHandler = NULL;
@@ -4283,6 +4261,32 @@ void MegaChatApiImpl::removeCall(MegaChatHandle chatid)
 }
 
 #endif
+
+void MegaChatApiImpl::cleanChatHandlers()
+{
+	MegaChatHandle chatid;
+	for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
+	{
+		chatid = it->first;
+		it++;
+
+		closeChatRoom(chatid, NULL);
+	}
+	assert(chatRoomHandler.empty());
+
+	for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end();)
+	{
+		chatid = it->first;
+		it++;
+
+		closeNodeHistory(chatid, NULL);
+	}
+	assert(nodeHistoryHandlers.empty());
+
+#ifndef KARERE_DISABLE_WEBRTC
+	cleanCallHandlerMap();
+#endif
+}
 
 void MegaChatApiImpl::onInitStateChange(int newState)
 {
