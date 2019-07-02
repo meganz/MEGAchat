@@ -3361,7 +3361,7 @@ int main()
 
     const std::string megaclc_path = "temp_MEGAclc";
 #ifdef WIN32
-    const std::string basePath = (fs::u8path(getenv("USERPROFILE")) / megaclc_path).string();
+    const std::string basePath = (fs::u8path(getenv("USERPROFILE")) / megaclc_path).u8string();
     fs::create_directories(basePath);
 #else
     // No std::fileystem before OSX10.15
