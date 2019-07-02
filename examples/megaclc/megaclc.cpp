@@ -3359,15 +3359,17 @@ int main()
     m::SimpleLogger::setAllOutputs(&cout);
 #endif 
 
+    const std::string megaclc_path = "temp_MEGAclc";
 #ifdef WIN32
-    fs::path basePath = fs::u8path(getenv("USERPROFILE"));
+    const std::string basePath = (fs::u8path(getenv("USERPROFILE")) / megaclc_path).string();
+    fs::create_directories(basePath);
 #else
-    fs::path basePath = fs::u8path(getenv("HOME"));
+    // No std::fileystem before OSX10.15
+    const std::string basePath = getenv("HOME") + std::string{'/'} + megaclc_path;
+    mkdir(basePath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 #endif
-    basePath /= "temp_MEGAclc";
-    fs::create_directory(basePath);
 
-    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.u8string().c_str(), "MEGAclc"));
+    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.c_str(), "MEGAclc"));
     g_megaApi->addListener(&g_megaclcListener);
     g_megaApi->addGlobalListener(&g_globalListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));
