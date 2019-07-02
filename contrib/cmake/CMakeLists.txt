@@ -58,7 +58,7 @@ if (WIN32)
     endif()
 else(WIN32)
     include_directories("${Mega3rdPartyDir}/include")
-    link_directories("${Mega3rdPartyDir}/lib")
+    link_directories("${Mega3rdPartyDir}/lib/${CONFIGURATION}")
 endif(WIN32)
 
 add_definitions( -DUSE_LIBWEBSOCKETS )
