@@ -341,7 +341,9 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_LOGOUT:
         {
             bool deleteDb = request->getFlag();
+#ifndef KARERE_DISABLE_WEBRTC
             cleanChatHandlers();
+#endif
             terminating = true;
             mClient->terminate(deleteDb);
 
@@ -362,7 +364,9 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             if (mClient && !terminating)
             {
+#ifndef KARERE_DISABLE_WEBRTC
                 cleanChatHandlers();
+#endif
                 mClient->terminate();
                 API_LOG_INFO("Chat engine closed!");
 
