@@ -141,10 +141,10 @@ public:
 private:
     void log(const char* time, int loglevel, const char*, const char *message) override
     {
-//#ifdef _WIN32
-//        OutputDebugStringA(message);
-//        OutputDebugStringA("\r\n");
-//#endif
+#ifdef _WIN32
+        OutputDebugStringA(message);
+        OutputDebugStringA("\r\n");
+#endif
         if (loglevel <= m::logError)
         {
             conlock(cout) << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << endl;
@@ -166,14 +166,14 @@ public:
 private:
     void log(int loglevel, const char *message) override
     {
-//#ifdef _WIN32
-//        if (message && *message)
-//        {
-//            OutputDebugStringA(message);
-//            if (message[strlen(message)-1] != '\n')
-//                OutputDebugStringA("\r\n");
-//        }
-//#endif
+#ifdef _WIN32
+        if (message && *message)
+        {
+            OutputDebugStringA(message);
+            if (message[strlen(message)-1] != '\n')
+                OutputDebugStringA("\r\n");
+        }
+#endif
         if (loglevel <= c::MegaChatApi::LOG_LEVEL_ERROR)
         {
             auto cl = conlock(cout);
@@ -3409,12 +3409,7 @@ void megaclc()
 
 int main()
 {
-//#ifdef _WIN32
-//    m::SimpleLogger::setLogLevel(m::logMax);  // warning and stronger to console; info and lesser to debug output
-//    m::SimpleLogger::setOutputClass(&g_apiLogger);
-//#else
     m::SimpleLogger::setOutputClass(&g_apiLogger);
-//#endif
 
     const std::string megaclc_path = "temp_MEGAclc";
 #ifdef WIN32
