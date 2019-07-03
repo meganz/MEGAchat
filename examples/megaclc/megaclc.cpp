@@ -1880,7 +1880,7 @@ void exec_reviewpublicchat(ac::ACState& s)
                 }
                 const auto chatid = request->getChatHandle();
                 conlock(cout) << "openChatPreview: chatlink loaded. Chatid: " << k::Id(chatid).toString() << endl;
-                const int user_count = request->getNumber();
+                const int user_count = static_cast<int>(request->getNumber());
                 conlock(cout) << "openChatPreview: User count: " << user_count << endl;
                 get_user_email_listener.setUserCount(user_count);
                 get_user_email_listener.setChatId(chatid);
