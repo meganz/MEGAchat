@@ -210,34 +210,52 @@ string ch_s(c::MegaChatHandle h)
     return (h == 0 || h == c::MEGACHAT_INVALID_HANDLE) ? "<Null>" : k::Id(h).toString();
 }
 
-bool check_err(const string& opName, m::MegaError* e)
+enum ReportOnConsole { NoConsoleReport, ReportFailure, ReportResult };
+
+bool check_err(const string& opName, m::MegaError* e, ReportOnConsole report = NoConsoleReport)
 {
     if (e->getErrorCode() == c::MegaChatError::ERROR_OK)
     {
         const std::string message = opName + " succeeded.";
         g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, message);
+        if (report == ReportResult)
+        {
+            conlock(cout) << message << endl;
+        }
         return true;
     }
     else
     {
         const std::string message = opName + " failed. Error: " + string{e->getErrorString()};
         g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_ERROR, message);
+        if (report != NoConsoleReport)
+        {
+            conlock(cout) << message << endl;
+        }
         return false;
     }
 }
 
-bool check_err(const string& opName, c::MegaChatError* e)
+bool check_err(const string& opName, c::MegaChatError* e, ReportOnConsole report = NoConsoleReport)
 {
     if (e->getErrorCode() == c::MegaChatError::ERROR_OK)
     {
         const std::string message = opName + " succeeded.";
         g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message);
+        if (report == ReportResult)
+        {
+            conlock(cout) << message << endl;
+        }
         return true;
     }
     else
     {
         const std::string message = opName + " failed. Error: " + string{e->getErrorString()};
         g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message);
+        if (report != NoConsoleReport)
+        {
+            conlock(cout) << message << endl;
+        }
         return false;
     }
 }
@@ -1383,35 +1401,17 @@ string chatlistDetails(const c::MegaChatListItem& cli)
 class OneShotRequestListener : public m::MegaRequestListener
 {
 public:
-    std::function<void(m::MegaApi* api, m::MegaRequest *request)> onRequestStartFunc;
     std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
-    std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
-    std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
 
     explicit OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f = {})
         :onRequestFinishFunc(f)
     {
     }
 
-    void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
-    {
-        if (onRequestStartFunc) onRequestStartFunc(api, request);
-    }
-
     void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
     {
         if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
         delete this;  // one-shot is done so auto-delete
-    }
-
-    void onRequestUpdate(m::MegaApi*api, m::MegaRequest *request) override
-    {
-        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
-    }
-
-    void onRequestTemporaryError(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error) override
-    {
-        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
     }
 };
 
@@ -2826,9 +2826,13 @@ void exec_getspecificaccountdetails(ac::ACState& s)
         storage = transfer = pro = true;
     }
 
-    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, -1, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, -1, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
             {
-                check_err("getSpecificAccountDetails", e);
+                if (check_err("getSpecificAccountDetails", e, ReportFailure))
+                {
+                    unique_ptr<m::MegaAccountDetails> ad(r->getMegaAccountDetails());
+                    conlock(cout) << "Storage used: " << ad->getStorageUsed() << " free: " << (ad->getStorageMax() - ad->getStorageUsed()) << " max: " << ad->getStorageMax() <<  endl;
+                }
             }));
 }
 
@@ -3053,6 +3057,37 @@ void exec_renamenode(ac::ACState& s)
     }
 }
 
+void exec_pushreceived(ac::ACState& s)
+{
+    bool beep = s.extractflag("-beep");
+
+    if (s.words.size() == 2)
+    {
+        g_chatApi->pushReceived(beep, s_ch(s.words[1].s), new OneShotChatRequestListener([](c::MegaChatApi*, c::MegaChatRequest *, c::MegaChatError* e)
+        {
+            check_err("pushReceived (iOS style)", e, ReportResult);
+        }));
+    }
+    else
+    {
+        g_chatApi->pushReceived(beep, new OneShotChatRequestListener([](c::MegaChatApi*, c::MegaChatRequest *, c::MegaChatError* e)
+        {
+            check_err("pushReceived (Android style)", e, ReportResult);
+        }));
+    }
+}
+
+void exec_getcloudstorageused(ac::ACState& s)
+{
+    g_megaApi->getCloudStorageUsed(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+    {
+        if (check_err("getcloudstorageused", e, ReportFailure))
+        {
+            conlock(cout) << "Cloud storage used (locally calculated): " << r->getNumber() << endl;
+        }
+    }));
+}
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -3196,6 +3231,10 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
     p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-refilter"), param("regex")))), param("path")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
+
+    p->Add(exec_pushreceived, sequence(text("pushreceived"), opt(flag("-beep")), opt(param("chatid"))));
+    p->Add(exec_getcloudstorageused, sequence(text("getcloudstorageused")));
+
     return p;
 }
 
