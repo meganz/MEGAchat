@@ -53,6 +53,13 @@ namespace ac = m::autocomplete;
 namespace c = ::megachat;
 namespace k = ::karere;
 
+using m::SimpleLogger;
+using m::logFatal;
+using m::logError;
+using m::logWarning;
+using m::logInfo;
+using m::logDebug;
+
 #ifdef WIN32
 #define strdup _strdup
 #endif
@@ -608,13 +615,14 @@ public:
         case m::MegaEvent::EVENT_STORAGE: return "EVENT_STORAGE";
         case m::MegaEvent::EVENT_NODES_CURRENT: return "EVENT_NODES_CURRENT";
         case m::MegaEvent::EVENT_MEDIA_INFO_READY: return "EVENT_MEDIA_INFO_READY";
+        case m::MegaEvent::EVENT_STORAGE_SUM_CHANGED: return "EVENT_STORAGE_SUM_CHANGED";
         }
         return "new event type";
     }
 
     void onEvent(m::MegaApi*, m::MegaEvent *e) override
     {
-        g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, std::string{"Event: "} + (e ? eventName(e->getType()) : "(null)") );
+        LOG_info << "Event: " << (e ? eventName(e->getType()) : "(null)") << " number: " << (e ? std::to_string(e->getNumber()) : "<not supplied>");
     }
 
 };
@@ -3088,6 +3096,32 @@ void exec_getcloudstorageused(ac::ACState& s)
     }));
 }
 
+void exec_cp(ac::ACState& s)
+{
+    std::unique_ptr<m::MegaNode> srcnode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
+    std::unique_ptr<m::MegaNode> dstnode(g_megaApi->getNodeByPath(s.words[2].s.c_str()));
+
+    if (!srcnode)
+    {
+        conlock(cout) << "source not found" << endl;
+    }
+    else if (!dstnode)
+    {
+        conlock(cout) << "destination not found" << endl;
+    }
+    else if (dstnode->getType() <= m::MegaNode::TYPE_FILE)
+    {
+        conlock(cout) << "destination is not a folder" << endl;
+    }
+    else
+    {
+        g_megaApi->copyNode(srcnode.get(), dstnode.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("copyNode", e, ReportResult);
+        }));
+    }
+}
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -3234,6 +3268,9 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_pushreceived, sequence(text("pushreceived"), opt(flag("-beep")), opt(param("chatid"))));
     p->Add(exec_getcloudstorageused, sequence(text("getcloudstorageused")));
+
+    p->Add(exec_cp, sequence(text("cp"), param("remotesrc"), param("remotedst")));
+
 
     return p;
 }
