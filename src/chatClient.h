@@ -14,10 +14,20 @@
 #include "IGui.h"
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
+#include "stringUtils.h"
+
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#endif
+
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
-#include "stringUtils.h"
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
 
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
@@ -527,10 +537,6 @@ public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
 
-    /** @brief Returns the contact object from the specified XMPP jid if one exists,
-     * otherwise returns NULL
-     */
-    Contact* contactFromJid(const std::string& jid) const;
     Contact* contactFromUserId(uint64_t userid) const;
     Contact* contactFromEmail(const std::string& email) const;
 
@@ -542,7 +548,6 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
     bool isExContact(karere::Id userid);
     /** @endcond */
@@ -613,6 +618,10 @@ public:
 class InitStats
 {
     public:
+
+        /** @brief MEGAchat init stats version */
+        const uint32_t INITSTATSVERSION = 2;
+
         /** @brief Init states in init stats */
         enum
         {
@@ -644,7 +653,7 @@ class InitStats
 
         std::string onCompleted(long long numNodes, size_t numChats, size_t numContacts);
         bool isCompleted() const;
-
+        void onCanceled();
 
         /*  Stages Methods */
 
@@ -1040,8 +1049,6 @@ public:
      * disabled in foreground).
      */
     promise::Promise<void> notifyUserStatus(bool background);
-
-    void startKeepalivePings();
 
     /** Terminates the karere client, logging it out, hanging up calls,
      * and cleaning up state

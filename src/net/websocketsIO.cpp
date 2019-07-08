@@ -1,9 +1,8 @@
 #include "net/websocketsIO.h"
 
-WebsocketsIO::WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx)
-    : mApi(*megaApi, ctx, false)
+WebsocketsIO::WebsocketsIO(Mutex &m, ::mega::MegaApi *megaApi, void *ctx)
+    : mApi(*megaApi, ctx, false), mutex(m)
 {
-    this->mutex = mutex;
     this->appCtx = ctx;
 }
 
@@ -12,9 +11,9 @@ WebsocketsIO::~WebsocketsIO()
     
 }
 
-WebsocketsClientImpl::WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClient *client)
+WebsocketsClientImpl::WebsocketsClientImpl(WebsocketsIO::Mutex &m, WebsocketsClient *client)
+    : mutex(m)
 {
-    this->mutex = mutex;
     this->client = client;
     this->disconnecting = false;
 }
@@ -24,37 +23,16 @@ WebsocketsClientImpl::~WebsocketsClientImpl()
 
 }
 
-class ScopedLock
-{
-    ::mega::Mutex *m;
-    
-public:
-    ScopedLock(::mega::Mutex *mutex) : m(mutex)
-    {
-        if (m)
-        {    
-            m->lock();
-        }
-    }
-    ~ScopedLock()
-    {
-        if (m)
-        {
-            m->unlock();
-        }
-    }
-};
-
 void WebsocketsClientImpl::wsConnectCb()
 {
-    ScopedLock lock(this->mutex);
+    WebsocketsIO::MutexGuard lock(this->mutex);
     WEBSOCKETS_LOG_DEBUG("Connection established");
     client->wsConnectCb();
 }
 
 void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    ScopedLock lock(this->mutex);
+    WebsocketsIO::MutexGuard lock(this->mutex);
 
     if (disconnecting)
     {
@@ -70,14 +48,14 @@ void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preas
 
 void WebsocketsClientImpl::wsHandleMsgCb(char *data, size_t len)
 {
-    ScopedLock lock(this->mutex);
+    WebsocketsIO::MutexGuard lock(this->mutex);
     WEBSOCKETS_LOG_DEBUG("Received %d bytes", len);
     client->wsHandleMsgCb(data, len);
 }
 
 void WebsocketsClientImpl::wsSendMsgCb(const char *data, size_t len)
 {
-    ScopedLock lock(this->mutex);
+    WebsocketsIO::MutexGuard lock(this->mutex);
     WEBSOCKETS_LOG_DEBUG("Sent %d bytes", len);
     client->wsSendMsgCb(data, len);
 }

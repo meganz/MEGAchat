@@ -22,9 +22,12 @@
 // This program is intended for exploring the chat API, performing testing and so on.
 // It's not well tested and should be considered alpha at best. 
 
+#include <atomic>
 #include <iomanip>
 #include <fstream>
 #include <mutex>
+#include <thread>
+#include <regex>
 
 #define USE_VARARGS
 #define PREFER_STDARG
@@ -39,6 +42,10 @@
 #include <megachatapi.h>
 #include <karereId.h>
 #include <mega/autocomplete.h>
+
+#ifdef WIN32
+#include <winhttp.h>
+#endif
 
 using namespace std;
 namespace m = ::mega;
@@ -67,6 +74,7 @@ void WaitMillisec(unsigned n)
 {
 #ifdef WIN32
     Sleep(n);
+    #define strdup _strdup
 #else
     usleep(n*1000);
 #endif
@@ -75,7 +83,7 @@ void WaitMillisec(unsigned n)
 
 struct ConsoleLock
 {
-    static std::mutex outputlock;
+    static std::recursive_mutex outputlock;
     std::ostream& os;
     bool locking = false;
     inline ConsoleLock(std::ostream& o)
@@ -103,7 +111,7 @@ struct ConsoleLock
     }
 };
 
-std::mutex ConsoleLock::outputlock;
+std::recursive_mutex ConsoleLock::outputlock;
 
 ConsoleLock conlock(std::ostream& o)
 {
@@ -152,6 +160,13 @@ bool check_err(const string& opName, c::MegaChatError* e)
     return success;
 }
 
+string OwnStr(const char* s)
+{
+    // takes ownership of a string from MegaApi, prevents leaks
+    string str(s ? s : "");
+    delete[] s;
+    return str;
+}
 
 unique_ptr<m::Console> console;
 
@@ -320,7 +335,12 @@ public:
                 }
                 break;
 
-
+            case c::MegaChatRequest::TYPE_LOAD_PREVIEW:
+                if (check_err("OpenChatPreview", e))
+                {
+                    conlock(cout) << "openchatpreview: chatlink loaded. Chatid: " << k::Id(request->getChatHandle()).toString() << endl;
+                }
+                break;
             }
         }
     }
@@ -462,8 +482,11 @@ public:
         case m::MegaEvent::EVENT_CHANGE_TO_HTTPS: return "EVENT_CHANGE_TO_HTTPS";
         case m::MegaEvent::EVENT_DISCONNECT: return "EVENT_DISCONNECT";
         case m::MegaEvent::EVENT_ACCOUNT_BLOCKED: return "EVENT_ACCOUNT_BLOCKED";
-        default: return "new event type";
+        case m::MegaEvent::EVENT_STORAGE: return "EVENT_STORAGE";
+        case m::MegaEvent::EVENT_NODES_CURRENT: return "EVENT_NODES_CURRENT";
+        case m::MegaEvent::EVENT_MEDIA_INFO_READY: return "EVENT_MEDIA_INFO_READY";
         }
+        return "new event type";
     }
 
     void onEvent(m::MegaApi*, m::MegaEvent *e) override
@@ -473,9 +496,35 @@ public:
 
 };
 
+
+class ClcMegaGlobalListener : public m::MegaGlobalListener
+{
+public:
+    void onUsersUpdate(m::MegaApi* api, m::MegaUserList *users) override {}
+
+    void onUserAlertsUpdate(m::MegaApi* api, m::MegaUserAlertList *alerts) override {}
+
+    void onNodesUpdate(m::MegaApi* api, m::MegaNodeList *nodes) override {}
+
+    void onAccountUpdate(m::MegaApi *api) override {}
+
+    void onContactRequestsUpdate(m::MegaApi* api, m::MegaContactRequestList* requests) override {}
+
+    void onReloadNeeded(m::MegaApi* api) override {}
+
+#ifdef ENABLE_SYNC
+    void onGlobalSyncStateChanged(m::MegaApi* api) override {}
+#endif
+
+    void onChatsUpdate(m::MegaApi* api, m::MegaTextChatList *chats) override {}
+
+    void onEvent(m::MegaApi* api, m::MegaEvent *event) override {}
+};
+
 CLCListener g_clcListener;
 MegaclcListener g_megaclcListener;
 MegaclChatListener g_chatListener;
+ClcMegaGlobalListener g_globalListener;
 unique_ptr<m::MegaApi> g_megaApi;
 unique_ptr<c::MegaChatApi> g_chatApi;
 
@@ -535,8 +584,128 @@ bool oneOpenRoom(c::MegaChatHandle room);
 
 bool g_detailHigh = false;
 
+std::atomic<bool> g_reportMessagesDeveloper{false};
+
+void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
+{
+    auto cl = conlock(cout);
+    if (!msg)
+    {
+        cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
+        return;
+    }
+
+    const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
+    const std::string room_title = room ? room->getTitle() : "<No Title>";
+
+    auto fullname = [chatid,room](const c::MegaChatHandle handle)
+    {
+        const char* fullname_ptr = nullptr;
+        if (room)
+        {
+            fullname_ptr = room->getPeerFullnameByHandle(handle);
+        }
+        return fullname_ptr ? std::string{fullname_ptr} : std::string{"<No Fullname>"};
+    };
+
+    auto email = [chatid,room](const c::MegaChatHandle handle)
+    {
+        const char* email_ptr = nullptr;
+        if (room)
+        {
+            email_ptr = room->getPeerEmailByHandle(handle);
+        }
+        return email_ptr ? std::string{email_ptr} : std::string{"<No Email>"};
+    };
+
+    auto time_to_string_utc = [](const int64_t time)
+    {
+        struct tm dt;
+        m::m_gmtime(time, &dt);
+        char buffer[40];
+        std::strftime(buffer, 40, "%FT%T", &dt);
+        return std::string{buffer};
+    };
+
+    if (msg->getType() == c::MegaChatMessage::TYPE_NORMAL)
+    {
+        cout << room_title
+             << " | " << "TEXT"
+             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << ch_s(msg->getUserHandle())
+             << " | " << fullname(msg->getUserHandle())
+             << " | " << email(msg->getUserHandle())
+             << " | " << (msg->isEdited() ? "edited" : "not edited")
+             << " | " << (msg->isDeleted() ? "deleted" : "not deleted")
+             << " | " << (msg->getContent() ? msg->getContent() : "<No Content>")
+                ;
+        cout << endl;
+    }
+    else if (msg->getType() == c::MegaChatMessage::TYPE_ALTER_PARTICIPANTS)
+    {
+        auto joined_or_left = [msg](const c::MegaChatHandle handle)
+        {
+            for (unsigned i = 0; i < msg->getUsersCount(); ++i)
+            {
+                if (handle == msg->getUserHandle(i))
+                {
+                    return std::string{"left"};
+                }
+            }
+            return std::string{"joined"};
+        };
+
+        cout << room_title
+             << " | " << "PARTICIPANT"
+             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << ch_s(msg->getHandleOfAction())
+             << " | " << fullname(msg->getHandleOfAction())
+             << " | " << email(msg->getHandleOfAction())
+             << " | " << joined_or_left(msg->getHandleOfAction())
+           ;
+        cout << endl;
+    }
+    else if (msg->getType() == c::MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    {
+        auto nodeinfo = [](m::MegaNodeList* list)
+        {
+            if (!list || list->size() == 0)
+            {
+                return std::string{"<No Attachement>"};
+            }
+            std::stringstream ss;
+            for (int i = 0; i < list->size(); ++i)
+            {
+                const auto node = list->get(i);
+                ss << node->getName() << "(" << node->getSize() << ")";
+                if (i + 1 < list->size())
+                {
+                    ss << ", ";
+                }
+            }
+            return ss.str();
+        };
+
+        cout << room_title
+             << " | " << "ATTACHEMENT"
+             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << ch_s(msg->getUserHandle())
+             << " | " << fullname(msg->getUserHandle())
+             << " | " << email(msg->getUserHandle())
+             << " | " << nodeinfo(msg->getMegaNodeList())
+           ;
+        cout << endl;
+    }
+}
+
 void reportMessage(c::MegaChatHandle room, c::MegaChatMessage *msg, const char* loadorreceive)
 {
+    if (!g_reportMessagesDeveloper)
+    {
+        reportMessageHuman(room, msg, loadorreceive);
+        return;
+    }
+
     auto cl = conlock(cout);
 
     if (!msg)
@@ -686,7 +855,7 @@ bool extractflag(const string& flag, vector<ac::ACState::quoted_word>& words)
 {
     for (auto i = words.begin(); i != words.end(); ++i)
     {
-        if (i->s == flag)
+        if (i->s == flag && !i->q.quoted)
         {
             words.erase(i);
             return true;
@@ -714,14 +883,47 @@ bool extractflagparam(const string& flag, string& param, vector<ac::ACState::quo
     return false;
 }
 
+unique_ptr<m::MegaNode> GetNodeByPath(const string& path)
+{
+    if (path.find("//handle/") == 0)
+    {
+        m::MegaHandle h = g_megaApi->base64ToHandle(path.c_str() + 9);
+        unique_ptr<m::MegaNode> node(g_megaApi->getNodeByHandle(h));
+        if (!node)
+        {
+            conlock(cout) << "No node found by looking up handle: '" << (path.c_str() + 9) << "'" << endl;
+        }
+        return node;
+    }
+
+    unique_ptr<m::MegaNode> node(g_megaApi->getNodeByPath(path.c_str()));
+    if (!node)
+    {
+        conlock(cout) << "No node found at path: '" << path << "'" << endl;
+    }
+    return node;
+}
 
 static bool quit_flag = false;
 static string login;
 static string password;
 
+void exec_initanonymous(ac::ACState& s)
+{
+    if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
+    {
+        g_chatApi->initAnonymous();
+        g_chatApi->connect(&g_chatListener);
+    }
+    else
+    {
+        conlock(cout) << "Already initialized. Please log out first." << endl;
+    }
+}
+
 void exec_login(ac::ACState& s)
 {
-    if (!g_megaApi->isLoggedIn())
+    if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
     {
         bool hasemail = s.words[1].s.find_first_of('@') != string::npos;
         if (s.words.size() == 3 && hasemail)
@@ -778,7 +980,11 @@ void exec_login(ac::ACState& s)
 void exec_logout(ac::ACState& s)
 {
     unique_ptr<const char[]>session(g_megaApi->dumpSession());
-    if (g_megaApi->isLoggedIn())
+    if (g_chatApi->getInitState() == c::MegaChatApi::INIT_ANONYMOUS)
+    {
+        g_chatApi->logout();
+    }
+    else if (g_chatApi->getInitState() != c::MegaChatApi::INIT_NOT_DONE)
     {
         setprompt(NOPROMPT);
         g_megaApi->logout();
@@ -1070,6 +1276,76 @@ string chatlistDetails(const c::MegaChatListItem& cli)
     return s.str();
 };
 
+class OneShotRequestListener : public m::MegaRequestListener
+{
+public:
+    std::function<void(m::MegaApi* api, m::MegaRequest *request)> onRequestStartFunc;
+    std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
+    std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
+    std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
+
+    explicit OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f = {})
+        :onRequestFinishFunc(f)
+    {
+    }
+
+    void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
+    {
+        if (onRequestStartFunc) onRequestStartFunc(api, request);
+    }
+
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
+    {
+        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+
+    void onRequestUpdate(m::MegaApi*api, m::MegaRequest *request) override
+    {
+        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
+    }
+
+    void onRequestTemporaryError(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error) override
+    {
+        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
+    }
+};
+
+class OneShotChatRequestListener : public c::MegaChatRequestListener
+{
+public:
+    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request)> onRequestStartFunc;
+    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> onRequestFinishFunc;
+    std::function<void(c::MegaChatApi*api, c::MegaChatRequest *request)> onRequestUpdateFunc;
+    std::function<void(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error)> onRequestTemporaryErrorFunc;
+
+    explicit OneShotChatRequestListener(std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> f = {})
+        :onRequestFinishFunc(f)
+    {
+    }
+
+    void onRequestStart(c::MegaChatApi* api, c::MegaChatRequest *request) override
+    {
+        if (onRequestStartFunc) onRequestStartFunc(api, request);
+    }
+
+    void onRequestFinish(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e) override
+    {
+        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+
+    void onRequestUpdate(c::MegaChatApi*api, c::MegaChatRequest *request) override
+    {
+        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
+    }
+
+    void onRequestTemporaryError(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error) override
+    {
+        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
+    }
+};
+
 void exec_getchatlistitems(ac::ACState&)
 {
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getChatListItems());
@@ -1144,6 +1420,29 @@ void exec_getunreadchatlistitems(ac::ACState&)
                 cout << chatlistDetails(*cli) << endl;
             }
         }
+    }
+}
+
+void exec_chatinfo(ac::ACState& s)
+{
+    c::MegaChatHandle chatid = s_ch(s.words[1].s);
+    c::MegaChatRoom *room = g_chatApi->getChatRoom(chatid);
+    if (room)
+    {
+        conlock(cout) << room->getPeerCount() << " participants in chat " << s.words[1].s << endl;
+        for (unsigned i = 0; i < room->getPeerCount(); i++)
+        {
+            conlock(cout) << ch_s(room->getPeerHandle(i)) << "\t" << room->getPeerFullname(i);
+            if (room->getPeerEmail(i))
+            {
+                conlock(cout) << " (" << room->getPeerEmail(i) << ")";
+            }
+            conlock(cout) << "\tPriv: " << c::MegaChatRoom::privToString(room->getPeerPrivilege(i)) << endl;
+        }
+    }
+    else
+    {
+         conlock(cout) << "Room not found" << endl;
     }
 }
 
@@ -1309,9 +1608,21 @@ void exec_closechatroom(ac::ACState& s)
     g_roomListeners.erase(room);
 }
 
+void exec_openchatpreview(ac::ACState& s)
+{
+    g_chatApi->openChatPreview(s.words[1].s.c_str(), &g_chatListener);
+}
+
+void exec_closechatpreview(ac::ACState& s)
+{
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    g_chatApi->closeChatPreview(room);
+}
 
 void exec_loadmessages(ac::ACState& s)
 {
+    g_reportMessagesDeveloper = s.words.size() > 3 && s.words[3].s == "developer";
+
     auto source = g_chatApi->loadMessages(s_ch(s.words[1].s), stoi(s.words[2].s));
 
     auto cl = conlock(cout);
@@ -1322,6 +1633,155 @@ void exec_loadmessages(ac::ACState& s)
     case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
     case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
     }
+}
+
+class ReviewPublicChat_GetUserEmail_Listener : public m::MegaListener
+{
+public:
+    explicit ReviewPublicChat_GetUserEmail_Listener(int msg_count)
+    : m_msgCount{msg_count}
+    {}
+
+    ReviewPublicChat_GetUserEmail_Listener(const ReviewPublicChat_GetUserEmail_Listener&) = delete;
+    ReviewPublicChat_GetUserEmail_Listener& operator=(const ReviewPublicChat_GetUserEmail_Listener&) = delete;
+
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
+    {
+        // Called on Mega API thread
+        if (request->getType() != m::MegaRequest::TYPE_GET_USER_EMAIL || !check_err("TYPE_GET_USER_EMAIL", e))
+        {
+            return;
+        }
+        conlock(cout) << "ReviewPublicChat: TYPE_GET_USER_EMAIL finished" << endl;
+        if (!request->getEmail())
+        {
+            return;
+        }
+        conlock(cout) << "ReviewPublicChat: Email: " << request->getEmail() << endl;
+        m_emails.emplace(request->getEmail());
+        if (m_emails.size() < static_cast<size_t>(m_userCount.load()))
+        {
+            // Wait until we've received emails for all users
+            return;
+        }
+
+        api->removeListener(this);
+
+        const auto chatid = m_chatId.load();
+        const auto msg_count = m_msgCount;
+
+        auto push_received_listener = new OneShotChatRequestListener;
+
+        push_received_listener->onRequestFinishFunc =
+                [chatid, msg_count](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
+                {
+                    // Called on Mega Chat API thread
+                    if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED || !check_err("TYPE_PUSH_RECEIVED", e))
+                    {
+                        return;
+                    }
+                    conlock(cout) << "ReviewPublicChat: TYPE_PUSH_RECEIVED finished" << endl;
+
+                    // Access to g_roomListeners is safe because no other thread accesses this map
+                    // while the Mega Chat API thread is using it here.
+                    auto& rec = g_roomListeners[chatid];
+                    if (!rec.open)
+                    {
+                        if (!api->openChatRoom(chatid, rec.listener.get()))
+                        {
+                            conlock(cout) << "Failed to open chat room." << endl;
+                            g_roomListeners.erase(chatid);
+                        }
+                        else
+                        {
+                            rec.listener->room = chatid;
+                            rec.open = true;
+                        }
+                    }
+
+                    if (rec.open)
+                    {
+                        g_reportMessagesDeveloper = false;
+
+                        const auto source = api->loadMessages(chatid, msg_count);
+
+                        auto cl = conlock(cout);
+                        switch (source)
+                        {
+                        case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; break;
+                        case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; break;
+                        case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
+                        case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
+                        }
+                    }
+                };
+
+        g_chatApi->pushReceived(false, push_received_listener);
+    }
+
+    void setUserCount(int count)
+    {
+        m_userCount = count;
+    }
+
+    void setChatId(c::MegaChatHandle chatid)
+    {
+        m_chatId = chatid;
+    }
+
+private:
+
+    std::set<std::string> m_emails;
+    int m_msgCount;
+    std::atomic<int> m_userCount{0};
+    std::atomic<c::MegaChatHandle> m_chatId{0};
+};
+
+void exec_reviewpublicchat(ac::ACState& s)
+{
+    if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
+    {
+        conlock(cout) << "Error: Not logged in" << endl;
+        return;
+    }
+
+    const auto chat_link = s.words[1].s;
+    const int msg_count = s.words.size() > 2 ? stoi(s.words[2].s) : 100;
+    static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener{msg_count};
+
+    auto connect_listener = new OneShotChatRequestListener;
+    auto open_chat_preview_listener = new OneShotChatRequestListener;
+
+    connect_listener->onRequestFinishFunc =
+            [chat_link, open_chat_preview_listener](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
+            {
+                // Called on Mega Chat API thread
+                if (request->getType() != c::MegaChatRequest::TYPE_CONNECT || !check_err("connect", e))
+                {
+                    return;
+                }
+                conlock(cout) << "Connection state " << api->getConnectionState() << endl;
+                g_chatApi->openChatPreview(chat_link.c_str(), open_chat_preview_listener);
+            };
+
+    open_chat_preview_listener->onRequestFinishFunc =
+            [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+            {
+                // Called on Mega Chat API thread
+                if (request->getType() != c::MegaChatRequest::TYPE_LOAD_PREVIEW || !check_err("openChatPreview", e))
+                {
+                    return;
+                }
+                const auto chatid = request->getChatHandle();
+                conlock(cout) << "openChatPreview: chatlink loaded. Chatid: " << k::Id(chatid).toString() << endl;
+                const int user_count = request->getNumber();
+                conlock(cout) << "openChatPreview: User count: " << user_count << endl;
+                get_user_email_listener.setUserCount(user_count);
+                get_user_email_listener.setChatId(chatid);
+                g_megaApi->addListener(&get_user_email_listener);
+            };
+
+    g_chatApi->connect(connect_listener);
 }
 
 void exec_isfullhistoryloaded(ac::ACState& s)
@@ -1690,41 +2150,6 @@ void exec_getchatcallsids(ac::ACState&)
 
 #endif
 
-class OneShotRequestListener : public m::MegaRequestListener
-{
-public:
-    std::function<void(m::MegaApi* api, m::MegaRequest *request)> onRequestStartFunc;
-    std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
-    std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
-    std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
-
-    OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f)
-        :onRequestFinishFunc(f)
-    {
-    }
-
-    void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
-    {
-        if (onRequestStartFunc) onRequestStartFunc(api, request);
-    }
-
-    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
-    {
-        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
-        delete this;  // one-shot is done so auto-delete
-    }
-
-    void onRequestUpdate(m::MegaApi*api, m::MegaRequest *request) override
-    {
-        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
-    }
-
-    void onRequestTemporaryError(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error) override
-    {
-        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
-    }
-};
-
 
 void exec_apiurl(ac::ACState& s)
 {
@@ -1771,6 +2196,472 @@ void exec_catchup(ac::ACState& s)
         conlock(cout) << "catchup " << id << " requested" << endl;
     }
 }
+
+map<string, unique_ptr<m::MegaBackgroundMediaUpload>> g_megaBackgroundMediaUploads;
+
+bool getNamedBackgroundMediaUpload(const string& name, m::MegaBackgroundMediaUpload*& p)
+{
+    p = NULL;
+    auto i = g_megaBackgroundMediaUploads.find(name);
+    if (i != g_megaBackgroundMediaUploads.end())
+    {
+        p = i->second.get();
+        return true;
+    }
+    return false;
+}
+
+string toHex(const string& binary)
+{
+    ostringstream s;
+    s << std::hex;
+
+    for (unsigned char c : binary)
+    {
+        s << setw(2) << setfill('0') << (unsigned)c;
+    }
+
+    return s.str();
+}
+
+unsigned char toBinary(unsigned char c)
+{
+    if (c >= 0 && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'Z') return c - 'A' + 10;
+    return 0;
+}
+
+string toBinary(const string& hex)
+{
+    string bin;
+    for (string::const_iterator i = hex.cbegin(); i != hex.cend(); ++i)
+    {
+        unsigned char c = toBinary(*i);
+        c <<= 4;
+        ++i;
+        if (i != hex.cend())
+        {
+            c |= toBinary(*i);
+        }
+        bin.push_back(c);
+    }
+    return bin;
+}
+
+#ifdef WIN32  // functions to perform background-upload like http request
+
+// handle WinHTTP callbacks (which can be in a worker thread context)
+VOID CALLBACK asynccallback(HINTERNET hInternet, DWORD_PTR dwContext,
+    DWORD dwInternetStatus,
+    LPVOID lpvStatusInformation,
+    DWORD dwStatusInformationLength)
+{
+    using namespace m;
+
+    if (dwInternetStatus == WINHTTP_CALLBACK_STATUS_HANDLE_CLOSING)
+    {
+        LOG_verbose << "Closing request";
+        return;
+    }
+
+    switch (dwInternetStatus)
+    {
+    case WINHTTP_CALLBACK_STATUS_DATA_AVAILABLE:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_DATA_AVAILABLE";
+        break;
+    }
+
+    case WINHTTP_CALLBACK_STATUS_READ_COMPLETE:
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_READ_COMPLETE";
+        break;
+
+    case WINHTTP_CALLBACK_STATUS_HEADERS_AVAILABLE:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_HEADERS_AVAILABLE";
+        break;
+    }
+
+    case WINHTTP_CALLBACK_STATUS_REQUEST_ERROR:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_REQUEST_ERROR";
+        break;
+    }
+    case WINHTTP_CALLBACK_STATUS_SECURE_FAILURE:
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_SECURE_FAILURE";
+        break;
+
+    case WINHTTP_CALLBACK_STATUS_SENDING_REQUEST:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_SENDING_REQUEST";
+        break;
+    }
+
+    case WINHTTP_CALLBACK_STATUS_REQUEST_SENT:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_REQUEST_SENT";
+        break;
+    }
+
+    case WINHTTP_CALLBACK_STATUS_SENDREQUEST_COMPLETE:
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_SENDREQUEST_COMPLETE";
+        break;
+    case WINHTTP_CALLBACK_STATUS_WRITE_COMPLETE:
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_WRITE_COMPLETE";
+        break;
+    default:
+        LOG_verbose << dwInternetStatus;
+    }
+}
+
+void synchronousHttpRequest(const string& url, const string& senddata, string& responsedata)
+{
+    using namespace m;
+    LOG_info << "Sending file to " << url << ", size: " << senddata.size();
+
+    BOOL  bResults = TRUE;
+    HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
+
+    // Use WinHttpOpen to obtain a session handle.
+    hSession = WinHttpOpen(L"testmega/1.0",
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        WINHTTP_NO_PROXY_NAME,
+        WINHTTP_NO_PROXY_BYPASS, 0);
+
+    WCHAR szURL[8192];
+    WCHAR szHost[256];
+    URL_COMPONENTS urlComp = { sizeof urlComp };
+
+    urlComp.lpszHostName = szHost;
+    urlComp.dwHostNameLength = sizeof szHost / sizeof *szHost;
+    urlComp.dwUrlPathLength = (DWORD)-1;
+    urlComp.dwSchemeLength = (DWORD)-1;
+
+    if (MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, szURL,
+        sizeof szURL / sizeof *szURL)
+        && WinHttpCrackUrl(szURL, 0, 0, &urlComp))
+    {
+        if ((hConnect = WinHttpConnect(hSession, szHost, urlComp.nPort, 0)))
+        {
+            hRequest = WinHttpOpenRequest(hConnect, L"POST",
+                urlComp.lpszUrlPath, NULL,
+                WINHTTP_NO_REFERER,
+                WINHTTP_DEFAULT_ACCEPT_TYPES,
+                (urlComp.nScheme == INTERNET_SCHEME_HTTPS)
+                ? WINHTTP_FLAG_SECURE
+                : 0);
+        }
+    }
+
+    // Send a Request.
+    if (hRequest)
+    {
+        WinHttpSetTimeouts(hRequest, 58000, 58000, 0, 0);
+
+        LPCWSTR pwszHeaders = L"Content-Type: application/octet-stream";
+
+        // HTTPS connection: ignore certificate errors, send no data yet
+        DWORD flags = SECURITY_FLAG_IGNORE_CERT_CN_INVALID
+            | SECURITY_FLAG_IGNORE_CERT_DATE_INVALID
+            | SECURITY_FLAG_IGNORE_UNKNOWN_CA;
+
+        WinHttpSetOption(hRequest, WINHTTP_OPTION_SECURITY_FLAGS, &flags, sizeof flags);
+
+        if (WinHttpSendRequest(hRequest, pwszHeaders,
+            DWORD(wcslen(pwszHeaders)),
+            (LPVOID)senddata.data(),
+            (DWORD)senddata.size(),
+            (DWORD)senddata.size(),
+            NULL))
+        {
+        }
+    }
+
+    DWORD dwSize = 0;
+
+    // End the request.
+    if (bResults)
+        bResults = WinHttpReceiveResponse(hRequest, NULL);
+
+    // Continue to verify data until there is nothing left.
+    if (bResults)
+        do
+        {
+            // Verify available data.
+            dwSize = 0;
+            if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
+                printf("Error %u in WinHttpQueryDataAvailable.\n",
+                    GetLastError());
+
+            size_t offset = responsedata.size();
+            responsedata.resize(offset + dwSize);
+
+            ZeroMemory(responsedata.data() + offset, dwSize);
+
+            DWORD dwDownloaded = 0;
+            if (!WinHttpReadData(hRequest, responsedata.data() + offset, dwSize, &dwDownloaded))
+                printf("Error %u in WinHttpReadData.\n", GetLastError());
+
+        } while (dwSize > 0);
+
+        // Report errors.
+        if (!bResults)
+            printf("Error %d has occurred.\n", GetLastError());
+
+        // Close open handles.
+        if (hRequest) WinHttpCloseHandle(hRequest);
+        if (hConnect) WinHttpCloseHandle(hConnect);
+        if (hSession) WinHttpCloseHandle(hSession);
+}
+#endif
+
+string loadfile(const string& filename)
+{
+    string filedata;
+    ifstream f(filename, ios::binary);
+    f.seekg(0, std::ios::end);
+    filedata.resize(unsigned(f.tellg()));
+    f.seekg(0, std::ios::beg);
+    f.read((char*)filedata.data(), filedata.size());
+    return filedata;
+}
+
+void exec_backgroundupload(ac::ACState& s)
+{
+    m::MegaBackgroundMediaUpload* mbmu = nullptr;
+
+    if (s.words[1].s == "new" && s.words.size() == 3)
+    {
+        g_megaBackgroundMediaUploads[s.words[2].s].reset(m::MegaBackgroundMediaUpload::createInstance(g_megaApi.get()));
+    }
+    else if (s.words[1].s == "resume" && s.words.size() == 4)
+    {
+        g_megaBackgroundMediaUploads[s.words[2].s].reset(m::MegaBackgroundMediaUpload::unserialize(s.words[3].s.c_str(), g_megaApi.get()));
+    }
+    else if (s.words[1].s == "analyse" && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        mbmu->analyseMediaInfo(s.words[3].s.c_str());
+    }
+    else if (s.words[1].s == "encrypt" && s.words.size() == 8 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        int64_t startPos = atol(s.words[5].s.c_str());
+        int64_t length = atol(s.words[6].s.c_str());
+        bool adjustsizeonly = s.words[7].s == "true";
+        string urlSuffix = OwnStr(mbmu->encryptFile(s.words[3].s.c_str(), startPos, &length, s.words[4].s.c_str(), adjustsizeonly));
+        if (!urlSuffix.empty())
+        {
+            conlock(cout) << "Encrypt complete, URL suffix: " << urlSuffix << " and updated length: " << length << endl;
+        }
+        else
+        {
+            conlock(cout) << "Encrypt failed" << endl;
+        }
+    }
+    else if (s.words[1].s == "geturl" && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        auto ln = new OneShotRequestListener;
+        ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) 
+        { 
+            if (check_err("Get upload URL", e))
+            {
+                conlock(cout) << "Upload URL: " << OwnStr(request->getMegaBackgroundMediaUploadPtr()->getUploadURL()) << endl;
+            }
+        };
+
+        g_megaApi->backgroundMediaUploadRequestUploadURL(atoll(s.words[3].s.c_str()), mbmu, ln);
+    }
+    else if (s.words[1].s == "serialize"  && s.words.size() == 3 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        unique_ptr<char[]> serialized(mbmu->serialize());
+        conlock(cout) << serialized.get() << endl;
+    }
+    else if (s.words[1].s == "upload"  && s.words.size() == 4)
+    {
+#ifdef WIN32
+        string responsedata;
+        synchronousHttpRequest(s.words[2].s, loadfile(s.words[3].s), responsedata);
+        unique_ptr<char[]> base64(m::MegaApi::binaryToBase64(responsedata.data(), responsedata.size()));
+        conlock(cout) << "Synchronous upload response (converted to base 64): " << (responsedata.size() <= 3 ? responsedata : base64.get()) << endl;
+#endif
+    }
+    else if (s.words[1].s == "putthumbnail"  && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        g_megaApi->putThumbnail(mbmu, s.words[3].s.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+        {
+            if (check_err("putthumbnail", e))
+            {
+                conlock(cout) << "thumbnail file attribute handle: " << unique_ptr<char[]>(m::MegaApi::userHandleToBase64(r->getNodeHandle())).get() << endl;
+            }
+        }));
+    }
+    else if (s.words[1].s == "putpreview"  && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        g_megaApi->putPreview(mbmu, s.words[3].s.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+        {
+            if (check_err("putpreview", e))
+            {
+                conlock(cout) << "preview file attribute handle: " << unique_ptr<char[]>(m::MegaApi::userHandleToBase64(r->getNodeHandle())).get() << endl;
+            }
+        }));
+    }
+    else if (s.words[1].s == "setthumbnail"  && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        mbmu->setThumbnail(m::MegaApi::base64ToUserHandle(s.words[3].s.c_str()));
+    }
+    else if (s.words[1].s == "setpreview"  && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        mbmu->setPreview(m::MegaApi::base64ToUserHandle(s.words[3].s.c_str()));
+    }
+    else if (s.words[1].s == "setcoordinates" && s.words.size() == 5 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        bool shareable = extractflag("-shareable", s.words);
+        mbmu->setCoordinates(atof(s.words[3].s.c_str()), atof(s.words[4].s.c_str()), !shareable);
+    }
+    else if (s.words[1].s == "complete" && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        const char* fingerprint = s.words[5].s.empty() ? NULL : s.words[5].s.c_str();
+        const char* fingerprintoriginal = s.words[6].s.empty() ? NULL : s.words[6].s.c_str();
+        const char* uploadtoken64 = s.words[7].s.c_str();
+        if (auto parent = GetNodeByPath(s.words[4].s))
+        {
+            auto ln = new OneShotRequestListener;
+            ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+            {
+                check_err("Background upload completion", e);
+            };
+
+            g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent.get(), fingerprint, fingerprintoriginal, uploadtoken64, ln);
+        }
+    }
+    else
+    {
+        conlock(cout) << "incorrect subcommand" << endl;
+    }
+}
+
+void exec_setthumbnailbyhandle(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->setThumbnailByHandle(node.get(), s_ch(s.words[2].s), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setThumbnailByHandle", e);
+        }));
+    }
+}
+
+void exec_setpreviewbyhandle(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->setPreviewByHandle(node.get(), s_ch(s.words[2].s), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setThumbnailByHandle", e);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "Path not found" << endl;
+    }
+}
+
+void exec_ensuremediainfo(ac::ACState& s)
+{
+    bool b = g_megaApi->ensureMediaInfo();
+    if (b)
+    {
+        conlock(cout) << "media info already available" << endl;
+    }
+    else
+    {
+        conlock(cout) << "media info request sent" << endl;
+    }
+}
+
+void exec_getfingerprint(ac::ACState& s)
+{
+    if (s.words[1].s == "local" && s.words.size() == 3)
+    {
+        char* fp = g_megaApi->getFingerprint(s.words[2].s.c_str());
+        conlock(cout) << (fp ? fp : "<NULL>") << endl;
+        delete[] fp;
+    }
+    else if (s.words[1].s == "remote" && s.words.size() == 3)
+    {
+        if (auto n = GetNodeByPath(s.words[2].s))
+        {
+            char* fp = g_megaApi->getFingerprint(n.get());
+            conlock(cout) << (fp ? fp : "<NULL>") << endl;
+            delete[] fp;
+        }
+    }
+    else if (s.words[1].s == "original" && s.words.size() == 3)
+    {
+        if (auto n = GetNodeByPath(s.words[2].s))
+        {
+            const char* fp = n->getOriginalFingerprint();
+            conlock(cout) << (fp ? fp : "<NULL>") << endl;
+        }
+    }
+}
+
+void exec_createthumbnail(ac::ACState& s)
+{
+    string parallelcount;
+    bool tempmegaapi = extractflag("-tempmegaapi", s.words);
+    bool parallel = extractflagparam("-parallel", parallelcount, s.words);
+
+    if (!parallel)
+    {
+        parallelcount = "1";
+    }
+
+    vector<unique_ptr<thread>> ts;
+
+    // investigate thumbnal generation memory usage after reports of memory leaks in iOS
+    int N = atoi(parallelcount.c_str());
+    for (int i = N; i--; )
+    {
+        string path1 = s.words[1].s;
+        string path2 = s.words[2].s + (N > 1 ? "-" + to_string(i) : string());
+
+        ts.emplace_back(new thread([path1, path2, tempmegaapi]() {
+            bool done = false;
+
+            if (tempmegaapi)
+            {
+                ::mega::MegaApi megaApi("temp");
+                done = megaApi.createThumbnail(path1.c_str(), path2.c_str());
+            }
+            else
+            {
+                done = g_megaApi->createThumbnail(path1.c_str(), path2.c_str());
+            }
+            conlock(cout) << (done ? "succeeded" : "failed") << endl;
+        }));
+    }
+
+    for (int i = atoi(parallelcount.c_str()); i--; )
+    {
+        ts[i]->join();
+    }
+}
+
+void exec_createpreview(ac::ACState& s)
+{
+    string path1 = s.words[1].s;
+    string path2 = s.words[2].s;
+    bool done = g_megaApi->createThumbnail(path1.c_str(), path2.c_str());
+    conlock(cout) << (done ? "succeeded" : "failed") << endl;
+}
+
+void exec_testAllocation(ac::ACState& s)
+{
+    bool success = g_megaApi->testAllocation(unsigned(atoi(s.words[1].s.c_str())), size_t(atoll(s.words[2].s.c_str())));
+    conlock(cout) << (success ? "succeeded" : "failed") << endl;
+}
+
 
 
 void exec_recentactions(ac::ACState& s)
@@ -1829,18 +2720,239 @@ void exec_getspecificaccountdetails(ac::ACState& s)
         storage = transfer = pro = true;
     }
 
-    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, -1, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
             {
                 check_err("getSpecificAccountDetails", e);
             }));
 }
 
 
+string joinStringList(m::MegaStringList& msl, const string& separator)
+{
+    string s;
+    for (int i = 0; i < msl.size(); ++i)
+    {
+        if (s.empty()) s += separator;
+        s += msl.get(i) ? msl.get(i) : "<null>";
+    }
+    return s;
+}
+
+void exec_setnodecoordinates(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->setNodeCoordinates(node.get(), atof(s.words[2].s.c_str()), atof(s.words[3].s.c_str()), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setNodeCoordinates", e);
+        }));
+    }
+}
+
+void exec_setunshareablenodecoordinates(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->setUnshareableNodeCoordinates(node.get(), atof(s.words[2].s.c_str()), atof(s.words[3].s.c_str()), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setUnshareableNodeCoordinates", e);
+        }));
+    }
+}
+
+void exec_getnodebypath(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        auto guard = conlock(cout);
+
+        cout << "type: " << node->getType() << endl;
+        cout << "name: " << (node->getName() ? node->getName() : "<null>") << endl;
+        cout << "fingerprint: " << (node->getFingerprint() ? node->getFingerprint() : "<null>") << endl;
+        cout << "original fingerprint: " << (node->getOriginalFingerprint() ? node->getOriginalFingerprint() : "<null>") << endl;
+        cout << "has custom attrs: " << node->hasCustomAttrs() << endl;
+        unique_ptr<m::MegaStringList> can(node->getCustomAttrNames());
+        for (int i = 0; i < can->size(); ++i)
+        {
+            cout << "  " << can->get(i) << ": " << node->getCustomAttr(can->get(i)) << endl;
+        }
+        cout << "duration (seconds): " << node->getDuration() << endl;
+        cout << "width: " << node->getWidth() << endl;
+        cout << "height: " << node->getHeight() << endl;
+        cout << "shortformat: " << node->getShortformat() << endl;
+        cout << "videoCodecId: " << node->getVideocodecid() << endl;
+        cout << "latitude: " << node->getLatitude() << endl;
+        cout << "longitude: " << node->getLongitude() << endl;
+        cout << "handle: " << node->getBase64Handle() << endl;
+        cout << "size: " << node->getSize() << endl;
+        cout << "creation time: " << node->getCreationTime() << endl;
+        cout << "modification time: " << node->getModificationTime() << endl;
+        cout << "handle: " << ch_s(node->getHandle()) << endl;
+        cout << "restore handle: " << ch_s(node->getRestoreHandle()) << endl;
+        cout << "parent handle: " << ch_s(node->getParentHandle()) << endl;
+        //getBase64Key();
+        cout << "tag: " << node->getTag() << endl;
+        cout << "expiration time: " << node->getExpirationTime() << endl;
+        cout << "public handle: " << ch_s(node->getPublicHandle()) << endl;
+        //getPublicNode();
+        unique_ptr<char[]> publink(node->getPublicLink(true));
+        cout << "public link: " << (publink.get() ? publink.get() : "<null>") << endl;
+        cout << "is file: " << node->isFile() << endl;
+        cout << "is folder: " << node->isFolder() << endl;
+        cout << "is removed: " << node->isRemoved() << endl;
+        cout << "changes: " << hex << node->getChanges() << dec << endl;
+        cout << "has thumbnail: " << node->hasThumbnail() << endl;
+        cout << "has preview: " << node->hasPreview() << endl;
+        cout << "isPublic: " << node->isPublic() << endl;
+        cout << "isShared: " << node->isShared() << endl;
+        cout << "isOutShare: " << node->isOutShare() << endl;
+        cout << "isInShare: " << node->isInShare() << endl;
+        cout << "isExported: " << node->isExported() << endl;
+        cout << "isExpired: " << node->isExpired() << endl;
+        cout << "isTakenDown: " << node->isTakenDown() << endl;
+        cout << "isForeign: " << node->isForeign() << endl;
+        //getNodeKey();
+        cout << "binary attriutes (hexed): " << (node->getAttrString() ? toHex(*node->getAttrString()) : "<null>") << endl;
+        unique_ptr<char[]> fileattr(node->getFileAttrString());
+        cout << "chatroom file attributes: " << (fileattr ? fileattr.get() : "<null>") << endl;
+        //getPrivateAuth();
+        //setPrivateAuth(const char *privateAuth);
+        //getPublicAuth();
+        //getChatAuth();
+        //getChildren();
+#ifdef ENABLE_SYNC
+        //virtual bool isSyncDeleted();
+        cout << "local sync path: " << node->getLocalPath() << endl;
+#endif
+        cout << "owner handle: " << ch_s(node->getOwner()) << endl;
+        cout << "serialized: " << unique_ptr<char[]>(node->serialize()).get() << endl;
+        //unserialize(const char *d);
+    }
+}
+
+struct ls_flags
+{
+    string regexfilterstring;
+    std::regex re;
+    bool recursive = false;
+    bool regexfilter = false;
+    bool handle = false;
+    bool ctime = false;
+    bool mtime = false;
+    bool size = false;
+    bool versions = false;
+};
+
+
+
+void ls(m::MegaNode* node, const string& basepath, const ls_flags& flags, int depth)
+{
+    bool show = true;
+
+    if (depth > 0 || node->getType() == m::MegaNode::TYPE_FILE)
+    {
+        string utf8path(g_megaApi->getNodePath(node));
+        if (utf8path.size() > basepath.size() && 0 == memcmp(utf8path.data(), basepath.data(), basepath.size()))
+        {
+            utf8path.erase(0, basepath.size());
+        }
+
+        if (flags.regexfilter)
+        {
+            if (!std::regex_search(utf8path, flags.re))
+            {
+                show = false;
+            }
+        }
+
+        if (show)
+        {
+            cout << utf8path;
+            if (node->getType() == m::MegaNode::TYPE_FOLDER) cout << "/";
+
+            if (flags.size) cout << " " << node->getSize();
+            if (flags.ctime) cout << " " << node->getCreationTime();
+            if (flags.mtime) cout << " " << node->getModificationTime();
+            if (flags.handle) cout << " " << OwnStr(g_megaApi->handleToBase64(node->getHandle()));
+        }
+    }
+
+    switch (node->getType())
+    {
+    case m::MegaNode::TYPE_UNKNOWN:
+        if (show) cout << " TYPE_UNKNOWN" << endl;
+        break;
+
+    case m::MegaNode::TYPE_FILE:
+        if (show) cout << endl;
+        break;
+
+    case m::MegaNode::TYPE_FOLDER:
+    case m::MegaNode::TYPE_ROOT:
+    case m::MegaNode::TYPE_INCOMING:
+    case m::MegaNode::TYPE_RUBBISH:
+        if (show && depth > 0) cout << endl;
+        if (flags.recursive || depth == 0)
+        {
+            unique_ptr<m::MegaNodeList> children(g_megaApi->getChildren(node));
+            if (children) for (int i = 0; i < children->size(); ++i)
+            {
+                ls(children->get(i), basepath, flags, depth + 1);
+            }
+        }
+        break;
+    }
+}
+
+void exec_ls(ac::ACState& s)
+{
+    ls_flags flags;
+    flags.recursive = extractflag("-recursive", s.words);
+    flags.regexfilter = extractflagparam("-refilter", flags.regexfilterstring, s.words);
+    flags.handle = extractflag("-handles", s.words);
+    flags.ctime = extractflag("-ctime", s.words);
+    flags.mtime = extractflag("-mtime", s.words);
+    flags.size = extractflag("-size", s.words);
+    flags.versions = extractflag("-versions", s.words);
+
+    if (flags.regexfilter)
+    {
+        flags.re = std::regex(flags.regexfilterstring);
+    }
+
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        string basepath = OwnStr(g_megaApi->getNodePath(node.get()));
+        switch (node->getType())
+        {
+        case m::MegaNode::TYPE_FILE: basepath.clear(); break;
+        case m::MegaNode::TYPE_FOLDER:
+        case m::MegaNode::TYPE_INCOMING:
+        case m::MegaNode::TYPE_RUBBISH: basepath += "/"; break;
+        default:;
+        }
+        auto guard = conlock(cout);
+        ls(node.get(), basepath, flags, 0);
+    }
+}
+
+void exec_renamenode(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->renameNode(node.get(), s.words[2].s.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("renamenode", e);
+        }));
+    }
+}
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
     unique_ptr<Either> p(new Either("      "));
 
+    p->Add(exec_initanonymous, sequence(text("initanonymous")));
     p->Add(exec_login,      sequence(text("login"), either(sequence(param("email"), opt(param("password"))), param("session"), sequence(text("autoresume"), opt(param("id"))) )));
     p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
@@ -1861,8 +2973,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getmylastname,      sequence(text("getmylastname")));
     p->Add(exec_getmyfullname,      sequence(text("getmyfullname")));
     p->Add(exec_getmyemail,         sequence(text("getmyemail")));
-    p->Add(exec_getchatrooms,       sequence(text("getchatrooms")));
 
+    p->Add(exec_getchatrooms,       sequence(text("getchatrooms")));
     p->Add(exec_getchatroom,        sequence(text("getchatroom"), param("roomid")));
     p->Add(exec_getchatroombyuser,  sequence(text("getchatroombyuser"), param("userid")));
     p->Add(exec_getchatlistitems,   sequence(text("getchatlistitems")));
@@ -1871,6 +2983,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getinactivechatlistitems, sequence(text("getinactivechatlistitems"), param("roomid")));
     p->Add(exec_getunreadchatlistitems, sequence(text("getunreadchatlistitems"), param("roomid")));
     p->Add(exec_getchathandlebyuser, sequence(text("getchathandlebyuser"), param("userid")));
+    p->Add(exec_chatinfo,           sequence(text("chatinfo"), param("roomid")));
+
     p->Add(exec_createchat,         sequence(text("createchat"), opt(flag("-group")), repeat(param("userid"))));
     p->Add(exec_invitetochat,       sequence(text("invitetochat"), param("roomid"), param("userid")));
     p->Add(exec_removefromchat,     sequence(text("removefromchat"), param("roomid"), param("userid")));
@@ -1879,9 +2993,11 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_truncatechat,       sequence(text("truncatechat"), param("roomid"), param("msgid")));
     p->Add(exec_clearchathistory,   sequence(text("clearchathistory"), param("roomid")));
     p->Add(exec_setchattitle,       sequence(text("setchattitle"), param("roomid"), param("title")));
+
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
-    p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10)));
+    p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10), opt(either(text("human"), text("developer")))));
+    p->Add(exec_reviewpublicchat,   sequence(text("reviewpublicchat"), param("chatlink"), opt(wholenumber(100))));
     p->Add(exec_isfullhistoryloaded, sequence(text("isfullhistoryloaded"), param("roomid")));
     p->Add(exec_getmessage,         sequence(text("getmessage"), param("roomid"), param("msgid")));
     p->Add(exec_getmanualsendingmessage, sequence(text("getmanualsendingmessage"), param("roomid"), param("tempmsgid")));
@@ -1896,6 +3012,9 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_sendtypingnotification, sequence(text("sendtypingnotification"), param("roomid")));
     p->Add(exec_ismessagereceptionconfirmationactive, sequence(text("ismessagereceptionconfirmationactive")));
     p->Add(exec_savecurrentstate, sequence(text("savecurrentstate")));
+
+    p->Add(exec_openchatpreview,    sequence(text("openchatpreview"), param("chatlink")));
+    p->Add(exec_closechatpreview,   sequence(text("closechatpreview"), param("chatid")));
      
 #ifndef KARERE_DISABLE_WEBRTC
     p->Add(exec_getchataudioindevices, sequence(text("getchataudioindevices")));
@@ -1938,6 +3057,39 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_recentactions, sequence(text("recentactions"), opt(sequence(param("days"), param("nodecount")))));
     p->Add(exec_getspecificaccountdetails, sequence(text("getspecificaccountdetails"), repeat(either(flag("-storage"), flag("-transfer"), flag("-pro")))));
 
+
+    p->Add(exec_backgroundupload, sequence(text("backgroundupload"), either(
+        sequence(text("new"), param("name")),
+        sequence(text("resume"), param("name"), param("serializeddata")),
+        sequence(text("analyse"), param("name"), localFSFile()),
+        sequence(text("encrypt"), param("name"), localFSFile(), localFSFile(), param("startPos"), param("length"), either(text("false"), text("true"))),
+        sequence(text("geturl"), param("name"), param("filesize")),
+        sequence(text("serialize"), param("name")),
+        sequence(text("upload"), param("url"), localFSFile()),
+        sequence(text("putthumbnail"), param("name"), localFSFile()),
+        sequence(text("putpreview"), param("name"), localFSFile()),
+        sequence(text("setthumbnail"), param("name"), param("handle")),
+        sequence(text("setpreview"), param("name"), param("handle")),
+        sequence(text("setcoordinates"), param("name"), opt(flag("-shareable")), param("latitude"), param("longitude")),
+        sequence(text("complete"), param("name"), param("nodename"), param("remoteparentpath"), param("fingerprint"), param("originalfingerprint"), param("uploadtoken")))));
+
+    p->Add(exec_ensuremediainfo, sequence(text("ensuremediainfo")));
+
+    p->Add(exec_getfingerprint, sequence(text("getfingerprint"), either(
+        sequence(text("local"), localFSFile()),
+        sequence(text("remote"), param("remotefile")),
+        sequence(text("original"), param("remotefile")))));
+
+    p->Add(exec_setthumbnailbyhandle, sequence(text("setthumbnailbyhandle"), param("remotepath"), param("attributehandle")));
+    p->Add(exec_setpreviewbyhandle, sequence(text("setpreviewbyhandle"), param("remotepath"), param("attributehandle")));
+    p->Add(exec_setnodecoordinates, sequence(text("setnodecoordinates"), param("remotepath"), param("latitude"), param("longitude")));
+    p->Add(exec_setunshareablenodecoordinates, sequence(text("setunshareablenodecoordinates"), param("remotepath"), param("latitude"), param("longitude")));
+    p->Add(exec_createthumbnail, sequence(text("createthumbnail"), opt(flag("-tempmegaapi")), opt(sequence(flag("-parallel"), param("count"))), localFSFile(), localFSFile()));
+    p->Add(exec_createpreview, sequence(text("createpreview"), localFSFile(), localFSFile()));
+    p->Add(exec_testAllocation, sequence(text("testAllocation"), param("count"), param("size")));
+    p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
+    p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-refilter"), param("regex")))), param("path")));
+    p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
     return p;
 }
 
@@ -2207,16 +3359,19 @@ int main()
     m::SimpleLogger::setAllOutputs(&cout);
 #endif 
 
+    const std::string megaclc_path = "temp_MEGAclc";
 #ifdef WIN32
-    fs::path basePath = fs::u8path(getenv("USERPROFILE"));
+    const std::string basePath = (fs::u8path(getenv("USERPROFILE")) / megaclc_path).u8string();
+    fs::create_directories(basePath);
 #else
-    fs::path basePath = fs::u8path(getenv("HOME"));
+    // No std::fileystem before OSX10.15
+    const std::string basePath = getenv("HOME") + std::string{'/'} + megaclc_path;
+    mkdir(basePath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 #endif
-    basePath /= "temp_MEGAclc";
-    fs::create_directory(basePath);
 
-    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.u8string().c_str(), "MEGAclc"));
+    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.c_str(), "MEGAclc"));
     g_megaApi->addListener(&g_megaclcListener);
+    g_megaApi->addGlobalListener(&g_globalListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));
     g_chatApi->setLoggerObject(&g_chatLogger);
     g_chatApi->setLogLevel(c::MegaChatApi::LOG_LEVEL_MAX);
@@ -2232,6 +3387,11 @@ int main()
 #endif
 
     megaclc();
+
+    g_megaApi->removeListener(&g_megaclcListener);
+    g_megaApi->removeGlobalListener(&g_globalListener);
+    g_chatApi->removeChatListener(&g_clcListener);
+
     g_chatApi.reset();
     g_megaApi.reset();
 }
