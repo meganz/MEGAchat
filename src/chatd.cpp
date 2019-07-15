@@ -3697,6 +3697,7 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
             msg->keyid = keyid;
             delete item.keyCmd;
             item.keyCmd = NULL;
+            item.msgCmd->setKeyId(keyid);
             count++;
         }
     }
