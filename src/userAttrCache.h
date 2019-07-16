@@ -30,6 +30,9 @@ enum {
     /** The email of the user, as returned bh getUserEmail() */
     USER_ATTR_EMAIL,
 
+    /** The alias of the user (encoded in B64), returned by getUserAlias() */
+    USER_ATTR_ALIAS,
+
     /** The most significant bit in the attribute type is 1, then the attribute is
      * not directly backed by the db, but rather synthesized by other attributes
      */
@@ -55,7 +58,7 @@ struct UserAttrDesc
         :type(aType), getData(aGetData), changeMask(aChangeMask){}
 };
 
-extern UserAttrDesc gUserAttrDescs[21];
+extern UserAttrDesc gUserAttrDescs[22];
 
 struct UserAttrPair
 {
@@ -75,7 +78,7 @@ struct UserAttrPair
     {
         if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
          && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME)
-         && (attrType != USER_ATTR_EMAIL))
+         && (attrType != USER_ATTR_EMAIL)  && (attrType != USER_ATTR_ALIAS))
             throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
     }
     std::string toString()
@@ -138,6 +141,7 @@ protected:
     void fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
+    void fetchAlias(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
 //==
     void onUserAttrChange(uint64_t userid, int changed);
     void onUserAttrChange(::mega::MegaUser& user);

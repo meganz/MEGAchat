@@ -60,7 +60,7 @@ Buffer* getDataNotImpl(const ::mega::MegaRequest& /*req*/)
      throw std::runtime_error("Not implemented");
 }
 
-UserAttrDesc gUserAttrDescs[21] =
+UserAttrDesc gUserAttrDescs[22] =
 { //attrib code, getData func, changeMask
   //avatar
     {
@@ -175,7 +175,12 @@ UserAttrDesc gUserAttrDescs[21] =
       &getDataNotImpl,
       ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME
     },
-
+  //Aliases
+    {
+      USER_ATTR_ALIAS,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getName()); },
+      ::mega::MegaUser::CHANGE_TYPE_ALIAS
+    },
 };
 
 UserAttrCache::~UserAttrCache()
@@ -242,6 +247,7 @@ const char* attrName(uint8_t type)
     case USER_ATTR_EMAIL: return "EMAIL";
     case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
     case USER_ATTR_FULLNAME: return "FULLNAME";
+    case USER_ATTR_ALIAS: return "ALIAS";
     default: return "(invalid)";
     }
 }
@@ -421,6 +427,9 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
         case USER_ATTR_EMAIL:
             fetchEmail(key, item);
             break;
+        case USER_ATTR_ALIAS:
+            fetchAlias(key, item);
+            break;
         default:
             fetchStandardAttr(key, item);
             break;
@@ -564,6 +573,24 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
     });
 }
 
+void UserAttrCache::fetchAlias(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
+{
+    auto wptr = weakHandle();
+    mClient.api.call(&::mega::MegaApi::getUserAlias, key.user.val)
+    .then([wptr, this, key, item](ReqResult result)
+    {
+        wptr.throwIfDeleted();
+        auto alias = result->getName();
+        item->data.reset(new Buffer(alias, strlen(alias)));
+        item->resolve(key);
+    })
+    .fail([wptr, this, key, item](const ::promise::Error& err)
+    {
+        wptr.throwIfDeleted();
+        item->error(key, err.code());
+        return err;
+    });
+}
 void UserAttrCache::invalidate()
 {
     mClient.db.query("delete from userattrs");
