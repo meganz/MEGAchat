@@ -7,6 +7,7 @@
 #endif
 #include <locale>
 #include <mega/types.h>
+#include <mega/utils.h>
 
 using namespace promise;
 using namespace std;
@@ -24,6 +25,33 @@ Buffer* ecKeyBase64ToBin(const ::mega::MegaRequest& result)
     base64urldecode(text, len, buf->buf(), 32);
     return buf;
 }
+
+Buffer* getAlias(const ::mega::MegaRequest& result)
+{
+    // Create a TLV and serialize the aliases map
+    ::mega::TLVstore tlv;
+    ::mega::MegaStringMap *stringMap = result.getMegaStringMap();
+    if (stringMap)
+    {
+        ::mega::MegaStringList *keys = stringMap->getKeys();
+        const char *key = NULL;
+        for (int i=0; i < keys->size(); i++)
+        {
+            key = keys->get(i);
+            tlv.set(key, stringMap->get(key));
+        }
+        delete keys;
+    }
+
+    Buffer *buf = NULL;
+    string *aux = tlv.tlvRecordsToContainer();
+    if (aux)
+    {
+        buf = new Buffer(aux->c_str(), aux->size());
+    }
+    return buf;
+}
+
 const char* nonWhitespaceStr(const char* str)
 {
 #ifndef _MSC_VER
@@ -60,7 +88,7 @@ Buffer* getDataNotImpl(const ::mega::MegaRequest& /*req*/)
      throw std::runtime_error("Not implemented");
 }
 
-UserAttrDesc gUserAttrDescs[21] =
+UserAttrDesc gUserAttrDescs[22] =
 { //attrib code, getData func, changeMask
   //avatar
     {
@@ -175,7 +203,12 @@ UserAttrDesc gUserAttrDescs[21] =
       &getDataNotImpl,
       ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME
     },
-
+  //Aliases
+    {
+      ::mega::MegaApi::USER_ATTR_ALIAS,
+      [](const ::mega::MegaRequest& req)->Buffer* { return getAlias(req); },
+      ::mega::MegaUser::CHANGE_TYPE_ALIAS
+    },
 };
 
 UserAttrCache::~UserAttrCache()
@@ -239,6 +272,7 @@ const char* attrName(uint8_t type)
     case ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY: return "PUB_CU25519";
     case ::mega::MegaApi::USER_ATTR_KEYRING: return "KEYRING";
     case ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS: return "RICH_LINKS";
+    case ::mega::MegaApi::USER_ATTR_ALIAS: return "ALIAS";
     case USER_ATTR_EMAIL: return "EMAIL";
     case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
     case USER_ATTR_FULLNAME: return "FULLNAME";
@@ -439,8 +473,17 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
     .then([wptr, this, key, item](ReqResult result)
     {
         wptr.throwIfDeleted();
-        item->data.reset(gUserAttrDescs[key.attrType].getData(*result));
-        item->resolve(key);
+
+        for (size_t i = 0; i < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); i++)
+        {
+            auto& desc = gUserAttrDescs[i];
+            if (desc.type == key.attrType)
+            {
+                item->data.reset(desc.getData(*result));
+                item->resolve(key);
+                break;
+            }
+        }
     })
     .fail([wptr, this, key, item](const ::promise::Error& err)
     {

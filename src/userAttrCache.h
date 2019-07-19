@@ -55,7 +55,7 @@ struct UserAttrDesc
         :type(aType), getData(aGetData), changeMask(aChangeMask){}
 };
 
-extern UserAttrDesc gUserAttrDescs[21];
+extern UserAttrDesc gUserAttrDescs[22];
 
 struct UserAttrPair
 {
@@ -75,7 +75,7 @@ struct UserAttrPair
     {
         if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
          && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME)
-         && (attrType != USER_ATTR_EMAIL))
+         && (attrType != USER_ATTR_EMAIL) && (attrType != ::mega::MegaApi::USER_ATTR_ALIAS))
             throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
     }
     std::string toString()
