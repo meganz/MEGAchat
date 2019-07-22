@@ -220,8 +220,7 @@ public:
             // if message was already encrypted, restore the MsgCommand
             if (stmt.hasBlobCol(11))
             {
-                chatd::KeyId chatdKeyid = (keyid < 0xffff0001) ? keyid : CHATD_KEYID_UNCONFIRMED;
-                chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, chatdKeyid);
+                chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, keyid);
                 Buffer buf;
                 stmt.blobCol(11, buf);
                 msgCmd->setMsg(buf.buf(), buf.dataSize());
