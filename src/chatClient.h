@@ -907,6 +907,8 @@ protected:
 
     megaHandle mHeartbeatTimer = 0;
     InitStats mInitStats;
+
+    // Maps uhBin to user alias encoded in B64
     AliasesMap mAliasesMap;
     bool mIsInBackground = false;
 

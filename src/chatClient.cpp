@@ -798,7 +798,7 @@ void Client::initWithDbSession(const char* sid)
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
 
-        // Get aliases once contacts and chats has been loaded
+        // Get aliases, once contacts and chats has been loaded
         mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
         ::mega::MegaApi::USER_ATTR_ALIAS, this,
         [](Buffer *data, void *userp)
@@ -3884,16 +3884,19 @@ void Client::updateAliases(Buffer *data)
         for (it = aliasesUpdated.begin(); it != aliasesUpdated.end(); it++)
         {
             uint64_t userHandle = it->first;
-            std::string aliasBin;
-            ::mega::Base64::atob(it->second, aliasBin);
             if (chatroom->isGroup())
             {
                 // If chatroom is a group chatroom and there's at least a chat member included
                 // in aliasesUpdated map we need to re-generate the default title
                 // if there's no custom title
                 GroupChatRoom *room = static_cast<GroupChatRoom *>(chatroom);
+                if (room->hasTitle())
+                {
+                    continue;
+                }
+
                 auto it = room->peers().find(userHandle);
-                if (it != room->peers().end() && !room->hasTitle())
+                if (it != room->peers().end())
                 {
                     room->makeTitleFromMemberNames();
                     break;
@@ -3901,10 +3904,11 @@ void Client::updateAliases(Buffer *data)
             }
             else
             {
-                // If chatroom is a peer chatroom update the title of the room with the alias
                 PeerChatRoom *room = static_cast<PeerChatRoom *>(chatroom);
                 if (userHandle == room->peer())
                 {
+                    std::string aliasBin;
+                    ::mega::Base64::atob(it->second, aliasBin);
                     room->updateChatRoomTitle(encodeFirstName(aliasBin));
                 }
             }

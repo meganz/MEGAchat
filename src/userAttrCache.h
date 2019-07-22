@@ -54,7 +54,7 @@ struct UserAttrDesc
         getData(aGetData), changeMask(aChangeMask){}
 };
 
-// Maps uh_Bin to UserAttrDesc struct
+// Maps uhBin to UserAttrDesc struct
 typedef std::map <int, UserAttrDesc> UserAttrDescMap;
 extern UserAttrDescMap gUserAttrDescsMap;
 
