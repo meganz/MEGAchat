@@ -1104,6 +1104,7 @@ public:
     uint64_t initMyIdentity();
 
     bool isInBackground() const;
+    const char *getUserAlias(uint64_t userId);
 
 protected:
     void heartbeat();

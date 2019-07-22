@@ -3827,6 +3827,21 @@ bool Client::isCallInProgress(karere::Id chatid) const
     return participantingInCall;
 }
 
+const char *Client::getUserAlias(uint64_t userId)
+{
+    std::map<uint64_t, std::string>::iterator it;
+    it = mAliasesMap.find(userId);
+    if (it != mAliasesMap.end())
+    {
+        std::string alias = it->second;
+        if (alias.size() > 1)
+        {
+            return it->second.c_str();
+        }
+    }
+    return NULL;
+}
+
 std::string encodeFirstName(const std::string& first)
 {
     std::string result;
