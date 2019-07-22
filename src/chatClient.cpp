@@ -797,6 +797,17 @@ void Client::initWithDbSession(const char* sid)
         mContactsLoaded = true;
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
+
+        // Get aliases once contacts and chats has been loaded
+        mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
+        ::mega::MegaApi::USER_ATTR_ALIAS, this,
+        [](Buffer *data, void *userp)
+        {
+            if (data && !data->empty())
+            {
+                static_cast<Client*>(userp)->updateAliases(data);
+            }
+        });
     }
     catch(std::runtime_error& e)
     {
@@ -1197,6 +1208,16 @@ promise::Promise<void> Client::doConnect()
         auto& name = static_cast<Client*>(userp)->mMyName;
         name.assign(buf->buf(), buf->dataSize());
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
+    });
+
+    mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
+    ::mega::MegaApi::USER_ATTR_ALIAS, this,
+    [](Buffer *data, void *userp)
+    {
+        if (data && !data->empty())
+        {
+            static_cast<Client*>(userp)->updateAliases(data);
+        }
     });
 
 #ifndef KARERE_DISABLE_WEBRTC
