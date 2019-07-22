@@ -1105,7 +1105,9 @@ public:
 
     bool isInBackground() const;
     void updateAliases(Buffer *data);
-    const char *getUserAlias(uint64_t userId);
+
+    /** @brief Returns a string that contains the user alias in UTF-8 if exists, otherwise returns an empty string*/
+    std::string getUserAlias(uint64_t userId);
 
 protected:
     void heartbeat();

@@ -2153,8 +2153,8 @@ void PeerChatRoom::initContact(const uint64_t& peer)
 
             // If the contact has alias don't update the title
             auto self = static_cast<PeerChatRoom*>(userp);
-            const char *alias = self->parent.mKarereClient.getUserAlias(self->mPeer);
-            if (!alias)
+            std::string alias = self->parent.mKarereClient.getUserAlias(self->mPeer);
+            if (alias.size() <= 1)
             {
                 if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
                 {
@@ -2681,38 +2681,41 @@ void GroupChatRoom::makeTitleFromMemberNames()
     {
         for (auto& m: mPeers)
         {
-            const char *alias = parent.mKarereClient.getUserAlias(m.first);
-            //name has binary layout
-            auto& name = m.second->mName;
-            assert(!name.empty()); //is initialized to '\0', so is never empty
-
-            if (alias)
+            std::string alias = parent.mKarereClient.getUserAlias(m.first);
+            if (alias.size() > 1)
             {
                 // Add user's alias to the title
                 newTitle.append(alias).append(", ");
             }
-            else if (name.size() > 1)
-            {
-                int firstnameLen = name.at(0);
-                if (firstnameLen)
-                {
-                    // Add user's first name to the title
-                    newTitle.append(name.substr(1, firstnameLen)).append(", ");
-                }
-                else
-                {
-                    // Add user's last name to the title
-                    newTitle.append(name.substr(1)).append(", ");
-                }
-            }
             else
             {
-                // Add user's email to the title
-                auto& email = m.second->mEmail;
-                if (!email.empty())
-                    newTitle.append(email).append(", ");
+                //name has binary layout
+                auto& name = m.second->mName;
+                assert(!name.empty()); //is initialized to '\0', so is never empty
+
+                if (name.size() > 1)
+                {
+                    int firstnameLen = name.at(0);
+                    if (firstnameLen)
+                    {
+                        // Add user's first name to the title
+                        newTitle.append(name.substr(1, firstnameLen)).append(", ");
+                    }
+                    else
+                    {
+                        // Add user's last name to the title
+                        newTitle.append(name.substr(1)).append(", ");
+                    }
+                }
                 else
-                    newTitle.append("..., ");
+                {
+                    // Add user's email to the title
+                    auto& email = m.second->mEmail;
+                    if (!email.empty())
+                        newTitle.append(email).append(", ");
+                    else
+                        newTitle.append("..., ");
+                }
             }
         }
         newTitle.resize(newTitle.size()-2); //truncate last ", "
@@ -3702,8 +3705,8 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
 
             // If the contact has alias don't update the title
             auto self = static_cast<Contact*>(userp);
-            const char *alias = self->mClist.client.getUserAlias(self->userId());
-            if (!alias)
+            std::string alias = self->mClist.client.getUserAlias(self->userId());
+            if (alias.size() <= 1)
             {
                 if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
                     self->updateTitle(encodeFirstName(self->mEmail));
@@ -3889,7 +3892,6 @@ void Client::updateAliases(Buffer *data)
                 // in aliasesUpdated map we need to re-generate the default title
                 // if there's no custom title
                 GroupChatRoom *room = static_cast<GroupChatRoom *>(chatroom);
-                auto member = room->peers().find(userHandle)->second;
                 auto it = room->peers().find(userHandle);
                 if (it != room->peers().end() && !room->hasTitle())
                 {
@@ -3910,19 +3912,16 @@ void Client::updateAliases(Buffer *data)
     }
 }
 
-const char *Client::getUserAlias(uint64_t userId)
+std::string Client::getUserAlias(uint64_t userId)
 {
+    std::string aliasBin;
     std::map<uint64_t, std::string>::iterator it;
     it = mAliasesMap.find(userId);
     if (it != mAliasesMap.end())
     {
-        std::string alias = it->second;
-        if (alias.size() > 1)
-        {
-            return it->second.c_str();
-        }
+        ::mega::Base64::atob(it->second, aliasBin);
     }
-    return NULL;
+    return aliasBin;
 }
 
 std::string encodeFirstName(const std::string& first)
