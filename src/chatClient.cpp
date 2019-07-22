@@ -2175,11 +2175,15 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     }
 }
 
-void PeerChatRoom::updateContactTitle(const std::string& str)
+void PeerChatRoom::updateChatRoomTitle(const std::string& str)
 {
     if (mContact)
     {
         mContact->updateTitle(str);
+    }
+    else
+    {
+        updateTitle(str.substr(1));
     }
 }
 
@@ -3899,7 +3903,7 @@ void Client::updateAliases(Buffer *data)
                 PeerChatRoom *room = static_cast<PeerChatRoom *>(chatroom);
                 if (userHandle == room->peer())
                 {
-                    room->updateContactTitle(encodeFirstName(aliasBin));
+                    room->updateChatRoomTitle(encodeFirstName(aliasBin));
                 }
             }
         }
