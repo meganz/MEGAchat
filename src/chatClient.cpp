@@ -2177,7 +2177,10 @@ void PeerChatRoom::initContact(const uint64_t& peer)
 
 void PeerChatRoom::updateContactTitle(const std::string& str)
 {
-    mContact->updateTitle(str);
+    if (mContact)
+    {
+        mContact->updateTitle(str);
+    }
 }
 
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
@@ -3837,6 +3840,70 @@ bool Client::isCallInProgress(karere::Id chatid) const
 #endif
 
     return participantingInCall;
+}
+
+void Client::updateAliases(Buffer *data)
+{
+    // Save the aliases from cache attr in a tlv container
+    const std::string container(data->buf(), data->size());
+    ::mega::TLVstore *tlvRecords = ::mega::TLVstore::containerToTLVrecords(&container);
+    std::vector<std::string> *keys = tlvRecords->getKeys();
+    AliasesMap aliasesUpdated;
+
+    // Create a new map <uhBin, aliasB64> for the aliases that has been updated
+    for (int i=0; i < keys->size(); i++)
+    {
+        uint64_t handleBin = 0;
+        std::string key(keys->at(i));
+        ::mega::Base64::atob(key.data(), (::mega::byte*)&handleBin, ::mega::MegaClient::USERHANDLE);
+        if (handleBin && key.size())
+        {
+            if (mAliasesMap[handleBin] != tlvRecords->get(key))
+            {
+                aliasesUpdated[handleBin] = tlvRecords->get(key);
+                mAliasesMap[handleBin] = tlvRecords->get(key);
+            }
+        }
+    }
+    delete tlvRecords;
+    delete keys;
+
+    // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
+    ChatRoomList::iterator it;
+    for (it = chats->begin(); it != chats->end(); it++)
+    {
+        ChatRoom *chatroom = it->second;
+        AliasesMap::iterator it;
+        for (it = aliasesUpdated.begin(); it != aliasesUpdated.end(); it++)
+        {
+            uint64_t userHandle = it->first;
+            std::string aliasBin;
+            ::mega::Base64::atob(it->second, aliasBin);
+            if (chatroom->isGroup())
+            {
+                // If chatroom is a group chatroom and there's at least a chat member included
+                // in aliasesUpdated map we need to re-generate the default title
+                // if there's no custom title
+                GroupChatRoom *room = static_cast<GroupChatRoom *>(chatroom);
+                auto member = room->peers().find(userHandle)->second;
+                auto it = room->peers().find(userHandle);
+                if (it != room->peers().end() && !room->hasTitle())
+                {
+                    room->makeTitleFromMemberNames();
+                    break;
+                }
+            }
+            else
+            {
+                // If chatroom is a peer chatroom update the title of the room with the alias
+                PeerChatRoom *room = static_cast<PeerChatRoom *>(chatroom);
+                if (userHandle == room->peer())
+                {
+                    room->updateContactTitle(encodeFirstName(aliasBin));
+                }
+            }
+        }
+    }
 }
 
 const char *Client::getUserAlias(uint64_t userId)

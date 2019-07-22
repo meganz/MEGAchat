@@ -1104,6 +1104,7 @@ public:
     uint64_t initMyIdentity();
 
     bool isInBackground() const;
+    void updateAliases(Buffer *data);
     const char *getUserAlias(uint64_t userId);
 
 protected:
