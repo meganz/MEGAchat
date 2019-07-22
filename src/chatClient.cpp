@@ -2153,7 +2153,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
 
             // If the contact has alias don't update the title
             auto self = static_cast<PeerChatRoom*>(userp);
-            const char *alias = self->parent.mKarereClient.getUserAlias(self->contact()->userId());
+            const char *alias = self->parent.mKarereClient.getUserAlias(self->mPeer);
             if (!alias)
             {
                 if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
