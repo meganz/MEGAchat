@@ -1508,8 +1508,10 @@ void Client::terminate(bool deleteDb)
 
         // stop syncing own-name and close user-attributes cache
         mUserAttrCache->removeCb(mOwnNameAttrHandle);
+        mUserAttrCache->removeCb(mAliasAttrHandle);
         mUserAttrCache->onLogOut();
         mUserAttrCache.reset();
+        mAliasesMap.clear();
 
         // stop heartbeats
         if (mHeartbeatTimer)

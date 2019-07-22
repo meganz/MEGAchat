@@ -56,7 +56,7 @@ class Contact;
 class ContactList;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
-typedef std::map<uint64_t, std::string> AliasMap;
+typedef std::map<uint64_t, std::string> AliasesMap;
 class ChatRoomList;
 
 /** @brief An abstract class representing a chatd chatroom. It has two
@@ -888,6 +888,7 @@ protected:
     uint64_t mMyIdentity = 0; // seed for CLIENTID
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     UserAttrCache::Handle mOwnNameAttrHandle;
+    UserAttrCache::Handle mAliasAttrHandle;
 
     std::string mSid;
     std::string mLastScsn;
@@ -906,7 +907,7 @@ protected:
 
     megaHandle mHeartbeatTimer = 0;
     InitStats mInitStats;
-    AliasMap aliasMap;
+    AliasesMap mAliasesMap;
     bool mIsInBackground = false;
 
 public:
