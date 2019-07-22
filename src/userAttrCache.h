@@ -48,14 +48,15 @@ class Client;
 struct UserAttrDesc
 {
     typedef Buffer*(*GetDataFunc)(const ::mega::MegaRequest&);
-    int type;
     GetDataFunc getData;
     int changeMask;
-    UserAttrDesc(int aType, GetDataFunc aGetData, int aChangeMask)
-        :type(aType), getData(aGetData), changeMask(aChangeMask){}
+    UserAttrDesc(GetDataFunc aGetData, int aChangeMask):
+        getData(aGetData), changeMask(aChangeMask){}
 };
 
-extern UserAttrDesc gUserAttrDescs[22];
+// Maps uh_Bin to UserAttrDesc struct
+typedef std::map <int, UserAttrDesc> UserAttrDescMap;
+extern UserAttrDescMap gUserAttrDescsMap;
 
 struct UserAttrPair
 {
@@ -73,10 +74,10 @@ struct UserAttrPair
     }
     UserAttrPair(uint64_t aUser, uint8_t aType, uint64_t ph = Id::inval()): user(aUser), attrType(aType), mPh(ph)
     {
-        if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
-         && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME)
-         && (attrType != USER_ATTR_EMAIL) && (attrType != ::mega::MegaApi::USER_ATTR_ALIAS))
+        if (gUserAttrDescsMap.find(attrType) == gUserAttrDescsMap.end())
+        {
             throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
+        }
     }
     std::string toString()
     {
