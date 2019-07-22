@@ -2661,28 +2661,38 @@ void GroupChatRoom::makeTitleFromMemberNames()
     {
         for (auto& m: mPeers)
         {
+            const char *alias = parent.mKarereClient.getUserAlias(m.first);
             //name has binary layout
             auto& name = m.second->mName;
             assert(!name.empty()); //is initialized to '\0', so is never empty
-            if (name.size() <= 1)
+
+            if (alias)
             {
+                // Add user's alias to the title
+                newTitle.append(alias).append(", ");
+            }
+            else if (name.size() > 1)
+            {
+                int firstnameLen = name.at(0);
+                if (firstnameLen)
+                {
+                    // Add user's first name to the title
+                    newTitle.append(name.substr(1, firstnameLen)).append(", ");
+                }
+                else
+                {
+                    // Add user's last name to the title
+                    newTitle.append(name.substr(1)).append(", ");
+                }
+            }
+            else
+            {
+                // Add user's email to the title
                 auto& email = m.second->mEmail;
                 if (!email.empty())
                     newTitle.append(email).append(", ");
                 else
                     newTitle.append("..., ");
-            }
-            else
-            {
-                int firstnameLen = name.at(0);
-                if (firstnameLen)
-                {
-                    newTitle.append(name.substr(1, firstnameLen)).append(", ");
-                }
-                else
-                {
-                    newTitle.append(name.substr(1)).append(", ");
-                }
             }
         }
         newTitle.resize(newTitle.size()-2); //truncate last ", "
