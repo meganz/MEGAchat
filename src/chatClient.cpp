@@ -2150,14 +2150,20 @@ void PeerChatRoom::initContact(const uint64_t& peer)
             //one byte - the firstname-size-prefix, which will be zero but
             //if lastname is not null the first byte will contain the
             //firstname-size-prefix but datasize will be bigger than 1 byte.
+
+            // If the contact has alias don't update the title
             auto self = static_cast<PeerChatRoom*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
+            const char *alias = self->parent.mKarereClient.getUserAlias(self->contact()->userId());
+            if (!alias)
             {
-                self->updateTitle(self->mEmail);
-            }
-            else
-            {
-                self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
+                if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
+                {
+                    self->updateTitle(self->mEmail);
+                }
+                else
+                {
+                    self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
+                }
             }
         });
 
@@ -3686,11 +3692,17 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             //one byte - the firstname-size-prefix, which will be zero but
             //if lastname is not null the first byte will contain the
             //firstname-size-prefix but datasize will be bigger than 1 byte.
+
+            // If the contact has alias don't update the title
             auto self = static_cast<Contact*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
-                self->updateTitle(encodeFirstName(self->mEmail));
-            else
-                self->updateTitle(std::string(data->buf(), data->dataSize()));
+            const char *alias = self->mClist.client.getUserAlias(self->userId());
+            if (!alias)
+            {
+                if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
+                    self->updateTitle(encodeFirstName(self->mEmail));
+                else
+                    self->updateTitle(std::string(data->buf(), data->dataSize()));
+            }
         });
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
