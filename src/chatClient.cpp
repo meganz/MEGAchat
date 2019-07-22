@@ -2167,6 +2167,11 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     }
 }
 
+void PeerChatRoom::updateContactTitle(const std::string& str)
+{
+    mContact->updateTitle(str);
+}
+
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
 {
     auto peers = chat.getPeerList();
