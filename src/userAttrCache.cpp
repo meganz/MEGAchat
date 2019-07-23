@@ -38,7 +38,7 @@ Buffer* getAlias(const ::mega::MegaRequest& result)
         for (int i=0; i < keys->size(); i++)
         {
             key = keys->get(i);
-            tlv.set(key, stringMap->get(key));
+            tlv.set(std::string(key), std::string(stringMap->get(key)));
         }
         delete keys;
     }
@@ -48,6 +48,7 @@ Buffer* getAlias(const ::mega::MegaRequest& result)
     if (aux)
     {
         buf = new Buffer(aux->c_str(), aux->size());
+        delete aux;
     }
     return buf;
 }
