@@ -2155,7 +2155,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
             // If the contact has alias don't update the title
             auto self = static_cast<PeerChatRoom*>(userp);
             std::string alias = self->parent.mKarereClient.getUserAlias(self->mPeer);
-            if (alias.size() <= 1)
+            if (!alias.size())
             {
                 if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
                 {
@@ -2683,7 +2683,7 @@ void GroupChatRoom::makeTitleFromMemberNames()
         for (auto& m: mPeers)
         {
             std::string alias = parent.mKarereClient.getUserAlias(m.first);
-            if (alias.size() > 1)
+            if (alias.size())
             {
                 // Add user's alias to the title
                 newTitle.append(alias).append(", ");
@@ -3707,7 +3707,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             // If the contact has alias don't update the title
             auto self = static_cast<Contact*>(userp);
             std::string alias = self->mClist.client.getUserAlias(self->userId());
-            if (alias.size() <= 1)
+            if (!alias.size())
             {
                 if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
                     self->updateTitle(encodeFirstName(self->mEmail));

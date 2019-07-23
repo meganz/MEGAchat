@@ -305,7 +305,6 @@ public:
         UserAttrCache::Handle mEmailAttrCbHandle;
         std::string mName;
         std::string mEmail;
-        void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
 
     public:
@@ -468,7 +467,6 @@ class Contact: public karere::DeleteTrackable
 /** @cond PRIVATE */
 protected:
     ContactList& mClist;
-    Presence mPresence;
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
     UserAttrCache::Handle mUsernameAttrCbId;
