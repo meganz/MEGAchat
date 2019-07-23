@@ -2180,11 +2180,11 @@ void PeerChatRoom::updateChatRoomTitle(const std::string& str)
 {
     if (mContact)
     {
-        mContact->updateTitle(str);
+        mContact->updateTitle(encodeFirstName(str));
     }
     else
     {
-        updateTitle(str.substr(1));
+        updateTitle(str);
     }
 }
 
@@ -3861,10 +3861,9 @@ void Client::updateAliases(Buffer *data)
     // Create a new map <uhBin, aliasB64> for the aliases that has been updated
     for (int i=0; i < keys->size(); i++)
     {
-        uint64_t handleBin = 0;
         std::string key(keys->at(i));
-        ::mega::Base64::atob(key.data(), (::mega::byte*)&handleBin, ::mega::MegaClient::USERHANDLE);
-        if (handleBin && key.size())
+        Id handleBin(key.data());
+        if (handleBin.isValid() && key.size())
         {
             if (mAliasesMap[handleBin] != tlvRecords->get(key))
             {
@@ -3908,9 +3907,10 @@ void Client::updateAliases(Buffer *data)
                 PeerChatRoom *room = static_cast<PeerChatRoom *>(chatroom);
                 if (userHandle == room->peer())
                 {
-                    std::string aliasBin;
-                    ::mega::Base64::atob(it->second, aliasBin);
-                    room->updateChatRoomTitle(encodeFirstName(aliasBin));
+                    std::string aliasB64 = it->second;
+                    Buffer buf(aliasB64.size());
+                    size_t decLen = base64urldecode(aliasB64.c_str(), aliasB64.size(), buf.buf(), buf.bufSize());
+                    room->updateChatRoomTitle(std::string(buf.buf(), decLen));
                 }
             }
         }
@@ -3924,7 +3924,10 @@ std::string Client::getUserAlias(uint64_t userId)
     it = mAliasesMap.find(userId);
     if (it != mAliasesMap.end())
     {
-        ::mega::Base64::atob(it->second, aliasBin);
+        std::string aliasB64 = it->second;
+        Buffer buf(aliasB64.size());
+        size_t decLen = base64urldecode(aliasB64.c_str(), aliasB64.size(), buf.buf(), buf.bufSize());
+        aliasBin.assign(buf.buf(), decLen);
     }
     return aliasBin;
 }
