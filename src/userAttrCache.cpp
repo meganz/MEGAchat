@@ -150,6 +150,13 @@ UserAttrDescMap gUserAttrDescsMap =
 
     // VIRTUAL ATTRIBUTES
 
+    //RSA Public key
+      {
+        USER_ATTR_RSA_PUBKEY,
+        UserAttrDesc(
+            &getDataNotImpl,
+            ::mega::MegaUser::CHANGE_TYPE_SIG_PUBKEY_RSA)
+      },
     //email
       {
         USER_ATTR_EMAIL,
