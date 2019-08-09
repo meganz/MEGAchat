@@ -6,6 +6,7 @@
 #include <buffer.h>
 #include <memory>
 #include "karereId.h"
+#include <map>
 
 enum
 {
@@ -590,6 +591,7 @@ public:
     mutable void* userp;
     mutable uint8_t userFlags = 0;
     bool richLinkRemoved = 0;
+    std::map<std::string, std::vector<karere::Id>> mReactions;
 
     karere::Id id() const { return mId; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
@@ -778,6 +780,11 @@ public:
     {
         append<uint32_t>(msg.dataSize());
         append(msg.buf(), msg.dataSize());
+        return std::move(*this);
+    }
+    Command&& operator+(const std::string& msg)
+    {
+        append(msg.data(), msg.size());
         return std::move(*this);
     }
     bool isMessage() const

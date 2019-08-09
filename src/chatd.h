@@ -851,6 +851,7 @@ protected:
     bool msgNodeHistIncoming(Message* msg);
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
+    void onAddReaction(karere::Id msgId, std::string reaction);
     void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
     void loadAndProcessUnsent();
@@ -1280,6 +1281,7 @@ public:
     uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
+    void addReaction(Message *message, const char *reaction);
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;
     bool previewMode();
@@ -1386,7 +1388,9 @@ public:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
     // - Version 5:
     //  * Changes at CALLDATA protocol (new state)
-    static const unsigned chatdVersion = 5;
+    // - Version 6:
+    //  * Add commands ADDREACTION DELREACTION REACTIONSN
+    static const unsigned chatdVersion = 6;
 
     Client(karere::Client *aKarereClient);
     ~Client();

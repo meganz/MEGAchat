@@ -1353,6 +1353,26 @@ string Command::toString(const StaticBuffer& data)
             return tmpString;
         }
 
+        case OP_ADDREACTION:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id userid = data.read<uint64_t>(9);
+            karere::Id msgid = data.read<uint64_t>(17);
+            int8_t len = data.read<int8_t>(25);
+            const char *reaction = data.readPtr(26, len);
+            tmpString.append("ADDREACTION chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", userid: ");
+            tmpString.append(ID_CSTR(userid));
+            tmpString.append(", msgid: ");
+            tmpString.append(ID_CSTR(msgid));
+            tmpString.append(", len: ");
+            tmpString.append(std::to_string(len));
+            tmpString.append(", reaction: ");
+            tmpString.append(std::string(reaction, len));
+            return tmpString;
+        }
         default:
             return opcodeToStr(opcode);
     }
@@ -2170,9 +2190,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_ID(msgid, 16);
-                READ_32(reaction, 24);
+                READ_8(payloadLen, 24);
+                std::string reaction (buf.readPtr(pos, payloadLen), payloadLen);
+                pos += payloadLen;
+
                 CHATDS_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %d",
-                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction);
+                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction.c_str());
+
+                auto& chat =  mChatdClient.chats(chatid);
+                chat.onAddReaction(msgid, reaction);
                 break;
             }
             case OP_DELREACTION:
@@ -2478,6 +2504,28 @@ void Chat::sendSync()
 {
     sendCommand(Command(OP_SYNC) + mChatId);
 }
+
+
+void Chat::addReaction(Message *message, const char *reaction)
+{
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, message, reaction]()
+    {
+        if (wptr.deleted())
+            return;
+
+        mCrypto->reactionEncrypt(message, reaction)
+        .then([this, wptr, message](std::shared_ptr<Buffer> data)
+        {
+            if (wptr.deleted())
+                return;
+
+           std::string encReaction (data->buf(), data->bufSize());
+           sendCommand(Command(OP_ADDREACTION) + mChatId + message->userid + message->id() + (int8_t)data->bufSize() + encReaction);
+        });
+    }, mChatdClient.mKarereClient->appCtx);
+}
+
 
 bool Chat::isFetchingNodeHistory() const
 {
@@ -4685,6 +4733,25 @@ void Chat::onUserLeave(Id userid)
                 mChatdClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
             }
         }
+    }
+}
+
+void Chat::onAddReaction(Id msgId, std::string reaction)
+{
+    Idx messageIdx = msgIndexFromId(msgId);
+    Message *message = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
+    if (message)
+    {
+        auto wptr = weakHandle();
+        mCrypto->reactionDecrypt(message, reaction)
+        .then([this, wptr, message](std::shared_ptr<Buffer> data)
+        {
+            if (wptr.deleted())
+                return;
+
+            std::string reaction (data->buf(), data->bufSize());
+            message->mReactions[reaction].push_back(message->userid);
+        });
     }
 }
 
