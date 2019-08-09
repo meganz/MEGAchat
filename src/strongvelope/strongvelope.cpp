@@ -651,9 +651,18 @@ std::string ProtocolHandler::a32_to_str(std::vector<T> data)
 promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
 {
+    promise::Promise<std::shared_ptr<SendKey>> symPms;
+    if (isPublicChat())
+    {
+        symPms = mUnifiedKeyDecrypted;
+    }
+    else
+    {
+        symPms = getKey(UserKeyId(msg->userid, msg->keyid));
+    }
+
     auto wptr = weakHandle();
-    return getKey(UserKeyId(msg->userid, msg->keyid))
-    .then([this, wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
+    return symPms.then([this, wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
     {
         std::string msgId = msg->id().toString();
         std::string react (reaction, strlen(reaction));
@@ -703,9 +712,18 @@ ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
 promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::reactionDecrypt(Message* msg, std::string reaction)
 {
+    promise::Promise<std::shared_ptr<SendKey>> symPms;
+    if (isPublicChat())
+    {
+        symPms = mUnifiedKeyDecrypted;
+    }
+    else
+    {
+        symPms = getKey(UserKeyId(msg->userid, msg->keyid));
+    }
+
     auto wptr = weakHandle();
-    return getKey(UserKeyId(msg->userid, msg->keyid))
-    .then([this, wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
+    return symPms.then([this, wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
     {
         std::string msgId = msg->id().toString();
         std::string keyBin (data->buf(), data->dataSize());
