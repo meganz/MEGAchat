@@ -460,6 +460,12 @@ public:
 
     template<typename T>
     static std::string a32_to_str(std::vector<T> data);
+
+    virtual promise::Promise<std::shared_ptr<Buffer>>
+    reactionEncrypt(chatd::Message* msg, const char *reaction);
+
+    virtual promise::Promise<std::shared_ptr<Buffer>>
+    reactionDecrypt(chatd::Message* msg, std::string reaction);
 };
 }
 namespace chatd

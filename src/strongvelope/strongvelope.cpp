@@ -648,6 +648,98 @@ std::string ProtocolHandler::a32_to_str(std::vector<T> data)
     return std::string (result, size);
 }
 
+promise::Promise<std::shared_ptr<Buffer>>
+ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
+{
+    auto wptr = weakHandle();
+    return getKey(UserKeyId(msg->userid, msg->keyid))
+    .then([this, wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
+    {
+        std::string msgId = msg->id().toString();
+        std::string react (reaction, strlen(reaction));
+        std::string keyBin (data->buf(), data->dataSize());
+
+        std::vector<uint32_t> key32 = str_to_a32<uint32_t>(keyBin);
+        std::vector<uint32_t> msgId32 = str_to_a32<uint32_t>(msgId);
+
+        // key32 XOR msgId32 --> Cypherkey to encrypt reaction
+        std::vector<uint32_t> cypherKey(key32.size());
+        for (int i = 0; i < key32.size(); i++)
+        {
+            cypherKey[i] = key32[i] ^ msgId32[i % msgId32.size()];
+        }
+
+        // Add padding to reaction
+        size_t roundSize = ceil(static_cast<float>(react.size()) / 4) * 4;
+        size_t diff = roundSize - react.size();
+        if (diff > 0)
+        {
+            for (int i = 0; i < diff; i++)
+            {
+                react.insert(react.begin(), '\0');
+            }
+        }
+
+        // Concat msgid[0..4] with emoji (padded)
+       size_t emojiLen = roundSize + 4;
+       char plaintext [emojiLen];
+       memcpy(plaintext, msgId.data(), 4);
+       memcpy(plaintext + 4, react.data(), roundSize);
+
+       // emoji32 (b_to_vector)
+       std::vector<uint32_t> emoji32 = str_to_a32<uint32_t>(std::string(plaintext, emojiLen));
+
+       // Encrypt reaction
+       ::mega::xxteaEncrypt(&emoji32[0], 2, &cypherKey[0], false);
+
+       // Convert encrypted reaction to uint32 array
+       std::string result = a32_to_str<uint32_t>(emoji32);
+       std::shared_ptr<Buffer>buf;
+       buf.reset(new Buffer(result.data(), result.size()));
+       return buf;
+    });
+}
+
+promise::Promise<std::shared_ptr<Buffer>>
+ProtocolHandler::reactionDecrypt(Message* msg, std::string reaction)
+{
+    auto wptr = weakHandle();
+    return getKey(UserKeyId(msg->userid, msg->keyid))
+    .then([this, wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
+    {
+        std::string msgId = msg->id().toString();
+        std::string keyBin (data->buf(), data->dataSize());
+        std::vector<uint32_t> key32 = str_to_a32<uint32_t>(keyBin);
+        std::vector<uint32_t> msgId32 =  str_to_a32<uint32_t>(msgId);
+
+        // key32 XOR msgId32 --> Cypherkey to encrypt reaction
+        std::vector<uint32_t> cypherKey(key32.size());
+        for (int i = 0; i < key32.size(); i++)
+        {
+            cypherKey[i] = key32[i] ^ msgId32[i % msgId32.size()];
+        }
+
+        std::vector<uint32_t> reaction32 = str_to_a32<uint32_t>(reaction);
+        ::mega::xxteaDecrypt(&reaction32[0], reaction32.size(), &cypherKey[0], false);
+        std::string decrypted = a32_to_str<uint32_t>(reaction32);
+
+        int count = 0;
+        for (int i = 4; i < decrypted.size(); ++i)
+        {
+            if (decrypted[i] != '\0')
+            {count ++;}
+        }
+
+        char *resultEmoji =  new char[count];
+        memcpy(resultEmoji, (char *) (decrypted.data() + 4 + (4-count)), count);
+        std::string aux(resultEmoji, count);
+
+        std::shared_ptr<Buffer>buf;
+        buf.reset(new Buffer(aux.data(), aux.size()));
+        return buf;
+    });
+}
+
 unsigned int ProtocolHandler::getCacheVersion() const
 {
     return mCacheVersion;

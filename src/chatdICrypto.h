@@ -159,6 +159,22 @@ public:
     virtual void setPublicHandle(const uint64_t ph) = 0;
 
     /**
+     * @brief Encrypts a reaction with xxtea.
+     * @param msg The message associated to the reaction.
+     * @param reaction An UTF-8 string.
+     */
+    virtual promise::Promise<std::shared_ptr<Buffer>>
+    reactionEncrypt(Message* msg, const char *reaction) = 0;
+
+    /**
+     * @brief Decrypts a reaction with xxtea.
+     * @param msg The message associated to the reaction.
+     * @param reaction The encrypted reaction.
+     */
+    virtual promise::Promise<std::shared_ptr<Buffer>>
+    reactionDecrypt(Message* msg, std::string reaction) = 0;
+
+    /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
      */
     virtual ~ICrypto(){}
