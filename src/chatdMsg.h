@@ -6,7 +6,6 @@
 #include <buffer.h>
 #include <memory>
 #include "karereId.h"
-#include <map>
 
 enum
 {
@@ -520,6 +519,32 @@ public:
         Priv privilege = PRIV_INVALID;
     };
 
+    struct Reaction
+    {
+        /** @brief Contains a UTF-8 string that represents the reaction
+         * and a vector of userid associated to that reaction. */
+        std::string mReaction;
+        std::vector<karere::Id> mUsers;
+
+        Reaction(std::string reaction)
+        {
+            this->mReaction = reaction;
+        }
+
+         /** @brief Returns the userId index in case that exists. Otherwise returns -1 **/
+        int userIndex(karere::Id userId)
+        {
+            for (size_t i = 0; i < mUsers.size(); i++)
+            {
+                if (mUsers.at(i) == userId)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+    };
+
     class CallEndedInfo
     {
         public:
@@ -591,7 +616,7 @@ public:
     mutable void* userp;
     mutable uint8_t userFlags = 0;
     bool richLinkRemoved = 0;
-    std::map<std::string, std::vector<karere::Id>> mReactions;
+    std::vector<Reaction> mReactions;
 
     karere::Id id() const { return mId; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
@@ -731,6 +756,89 @@ public:
         //special messages have a 2-byte binary prefix
         assert(dataSize() > 2);
         return std::string(buf()+2, dataSize()-2);
+    }
+
+    /** @brief Returns a vector with all the reactions of the message **/
+    std::vector<std::string> getReactions()
+    {
+        std::vector<std::string> reactions;
+        for (size_t i = 0; i < mReactions.size(); i++)
+        {
+            reactions.push_back(mReactions.at(i).mReaction);
+        }
+        return reactions;
+    }
+
+    /** @brief Returns a vector with the userid's associated to an specific reaction **/
+    std::vector<karere::Id>* getReactionUsers(std::string reaction)
+    {
+        for (size_t i = 0; i < mReactions.size(); i++)
+        {
+            if (mReactions.at(i).mReaction.compare(reaction) == 0)
+            {
+                return &(mReactions.at(i).mUsers);
+            }
+        }
+        return NULL;
+    }
+
+    /** @brief Returns the reaction index in case that exists. Otherwise returns -1 **/
+    int getReactionIndex(std::string reaction)
+    {
+        for (int i = 0; i < mReactions.size(); i++)
+        {
+            if (mReactions.at(i).mReaction.compare(reaction) == 0)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** @brief Add a reaction for an specific userid **/
+    void addReaction(std::string reaction, karere::Id userId)
+    {
+        Reaction *r = NULL;
+        int reactIndex = getReactionIndex(reaction);
+        if (reactIndex > 0)
+        {
+            r =  &mReactions.at(reactIndex);
+        }
+        else
+        {
+            Reaction auxr = Reaction(reaction);
+            mReactions.emplace_back(auxr);
+            reactIndex = getReactionIndex(reaction);
+            r = &mReactions.at(reactIndex);
+        }
+
+        assert(r);
+        int userIndex = r->userIndex(userId);
+        if (userIndex < 0)
+        {
+            r->mUsers.emplace_back(userId);
+        }
+    }
+
+    /** @brief Delete a reaction for an specific userid **/
+    void delReaction(std::string reaction, karere::Id userId)
+    {
+        int reactIndex = getReactionIndex(reaction);
+        if (reactIndex >= 0)
+        {
+            Reaction *r = &mReactions.at(reactIndex);
+            assert(r);
+
+            int userIndex = r->userIndex(userId);
+            if (userIndex >= 0)
+            {
+                r->mUsers.erase(r->mUsers.begin() + userIndex);
+                if (r->mUsers.size() == 0)
+                {
+                    mReactions.erase(mReactions.begin() + reactIndex);
+                }
+            }
+        }
     }
 
     /** @brief Throws an exception if this is not a management message. */

@@ -2186,7 +2186,6 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_ADDREACTION:
             {
-                //TODO: to be implemented
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_ID(msgid, 16);
@@ -2198,7 +2197,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction.c_str());
 
                 auto& chat =  mChatdClient.chats(chatid);
-                chat.onAddReaction(msgid, reaction);
+                chat.onAddReaction(msgid, userid, reaction);
                 break;
             }
             case OP_DELREACTION:
@@ -4736,7 +4735,7 @@ void Chat::onUserLeave(Id userid)
     }
 }
 
-void Chat::onAddReaction(Id msgId, std::string reaction)
+void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 {
     Idx messageIdx = msgIndexFromId(msgId);
     Message *message = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
@@ -4744,13 +4743,15 @@ void Chat::onAddReaction(Id msgId, std::string reaction)
     {
         auto wptr = weakHandle();
         mCrypto->reactionDecrypt(message, reaction)
-        .then([this, wptr, message](std::shared_ptr<Buffer> data)
+        .then([this, wptr, message, userId](std::shared_ptr<Buffer> data)
         {
             if (wptr.deleted())
                 return;
 
-            std::string reaction (data->buf(), data->bufSize());
-            message->mReactions[reaction].push_back(message->userid);
+            message->addReaction(std::string (data->buf(), data->bufSize()), userId);
+        });
+    }
+}
         });
     }
 }

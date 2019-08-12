@@ -851,7 +851,7 @@ protected:
     bool msgNodeHistIncoming(Message* msg);
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
-    void onAddReaction(karere::Id msgId, std::string reaction);
+    void onAddReaction(karere::Id msgId, karere::Id userId, std::string reaction);
     void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
     void loadAndProcessUnsent();
