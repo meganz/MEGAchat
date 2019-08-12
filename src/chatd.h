@@ -852,6 +852,7 @@ protected:
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
     void onAddReaction(karere::Id msgId, karere::Id userId, std::string reaction);
+    void onDelReaction(karere::Id msgId, karere::Id userId, std::string reaction);
     void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
     void loadAndProcessUnsent();
@@ -1282,6 +1283,7 @@ public:
     void clearHistory();
     void sendSync();
     void addReaction(Message *message, const char *reaction);
+    void delReaction(Message *message, const char *reaction);
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;
     bool previewMode();
