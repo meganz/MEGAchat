@@ -29,26 +29,26 @@ Buffer* ecKeyBase64ToBin(const ::mega::MegaRequest& result)
 Buffer* getAlias(const ::mega::MegaRequest& result)
 {
     // Create a TLV and serialize the aliases map
-    ::mega::TLVstore tlv;
     ::mega::MegaStringMap *stringMap = result.getMegaStringMap();
-    if (stringMap)
+    if (!stringMap)
     {
-        ::mega::MegaStringList *keys = stringMap->getKeys();
-        const char *key = NULL;
-        for (int i=0; i < keys->size(); i++)
-        {
-            key = keys->get(i);
-            tlv.set(std::string(key), std::string(stringMap->get(key)));
-        }
-        delete keys;
+        return nullptr;
     }
 
-    Buffer *buf = NULL;
-    string *aux = tlv.tlvRecordsToContainer();
+    ::mega::TLVstore tlv;
+    std::unique_ptr<::mega::MegaStringList> keys(stringMap->getKeys());
+    const char *key = nullptr;
+    for (int i = 0; i < keys->size(); i++)
+    {
+        key = keys->get(i);
+        tlv.set(std::string(key), std::string(stringMap->get(key)));
+    }
+
+    Buffer *buf = nullptr;
+    std::unique_ptr<string> aux(tlv.tlvRecordsToContainer());
     if (aux)
     {
         buf = new Buffer(aux->c_str(), aux->size());
-        delete aux;
     }
     return buf;
 }
