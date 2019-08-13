@@ -3936,14 +3936,11 @@ void Client::updateAliases(Buffer *data)
 std::string Client::getUserAlias(uint64_t userId)
 {
     std::string aliasBin;
-    std::map<uint64_t, std::string>::iterator it;
-    it = mAliasesMap.find(userId);
+    AliasesMap::iterator it = mAliasesMap.find(userId);
     if (it != mAliasesMap.end())
     {
-        std::string aliasB64 = it->second;
-        Buffer buf(aliasB64.size());
-        size_t decLen = base64urldecode(aliasB64.c_str(), aliasB64.size(), buf.buf(), buf.bufSize());
-        aliasBin.assign(buf.buf(), decLen);
+        const std::string &aliasB64 = it->second;
+        ::mega::Base64::atob(aliasB64, aliasBin);
     }
     return aliasBin;
 }
