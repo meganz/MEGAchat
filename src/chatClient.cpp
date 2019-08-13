@@ -2123,14 +2123,20 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui && !parent.mKarereClient.isTerminated())
+    auto &client = parent.mKarereClient;
+    if (!client.isTerminated())
     {
-        parent.mKarereClient.app.chatListHandler()->removePeerChatItem(*mRoomGui);
+        client.userAttrCache().removeCb(mUsernameAttrCbId);
+
+        if (mRoomGui)
+        {
+            client.app.chatListHandler()->removePeerChatItem(*mRoomGui);
+        }
     }
 
-    if (parent.mKarereClient.mChatdClient)
+    if (client.mChatdClient)
     {
-        parent.mKarereClient.mChatdClient->leave(mChatid);
+        client.mChatdClient->leave(mChatid);
     }
 }
 
