@@ -22,6 +22,7 @@
 // This program is intended for exploring the chat API, performing testing and so on.
 // It's not well tested and should be considered alpha at best. 
 
+#include <atomic>
 #include <iomanip>
 #include <fstream>
 #include <mutex>
@@ -51,6 +52,13 @@ namespace m = ::mega;
 namespace ac = m::autocomplete;
 namespace c = ::megachat;
 namespace k = ::karere;
+
+using m::SimpleLogger;
+using m::logFatal;
+using m::logError;
+using m::logWarning;
+using m::logInfo;
+using m::logDebug;
 
 #ifdef WIN32
 #define strdup _strdup
@@ -121,7 +129,71 @@ ConsoleLock conlock(std::ostream& o)
     return ConsoleLock(o);
 }
 
+std::string timeToLocalTimeString(const int64_t time)
+{
+    struct tm dt;
+    m::m_localtime(time, &dt);
+    char buffer[40];
+    std::strftime(buffer, 40, "%FT%T", &dt);
+    return std::string{buffer};
+}
 
+class MegaCLLogger : public m::Logger {
+public:
+    void logMsg(const int loglevel, const std::string& message)
+    {
+        log(timeToLocalTimeString(time(0)).c_str(), loglevel, nullptr, message.c_str());
+    }
+
+private:
+    void log(const char* time, int loglevel, const char*, const char *message) override
+    {
+#ifdef _WIN32
+        OutputDebugStringA(message);
+        OutputDebugStringA("\r\n");
+#endif
+        if (loglevel <= m::logError)
+        {
+            conlock(cout) << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << endl;
+        }
+    }
+};
+
+MegaCLLogger g_apiLogger;
+
+struct MegaclcChatChatLogger : public c::MegaChatLogger
+{
+public:
+    void logMsg(const int loglevel, const std::string& message)
+    {
+        const std::string msg = "[" + timeToLocalTimeString(time(0)) + "] Level(" + std::to_string(loglevel) + "): " + message;
+        log(loglevel, msg.c_str());
+    }
+
+private:
+    void log(int loglevel, const char *message) override
+    {
+#ifdef _WIN32
+        if (message && *message)
+        {
+            OutputDebugStringA(message);
+            if (message[strlen(message)-1] != '\n')
+                OutputDebugStringA("\r\n");
+        }
+#endif
+        if (loglevel <= c::MegaChatApi::LOG_LEVEL_ERROR)
+        {
+            auto cl = conlock(cout);
+            cout << "CHAT " << message;
+            if (*message && message[strlen(message) - 1] != '\n')
+            {
+                cout << endl;
+            }
+        }
+    }
+};
+
+MegaclcChatChatLogger g_chatLogger;
 
 
 // convert string to handle
@@ -145,18 +217,54 @@ string ch_s(c::MegaChatHandle h)
     return (h == 0 || h == c::MEGACHAT_INVALID_HANDLE) ? "<Null>" : k::Id(h).toString();
 }
 
-bool check_err(const string& opName, m::MegaError* e)
+enum ReportOnConsole { NoConsoleReport, ReportFailure, ReportResult };
+
+bool check_err(const string& opName, m::MegaError* e, ReportOnConsole report = NoConsoleReport)
 {
-    bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
-    conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
-    return success;
+    if (e->getErrorCode() == c::MegaChatError::ERROR_OK)
+    {
+        const std::string message = opName + " succeeded.";
+        g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, message);
+        if (report == ReportResult)
+        {
+            conlock(cout) << message << endl;
+        }
+        return true;
+    }
+    else
+    {
+        const std::string message = opName + " failed. Error: " + string{e->getErrorString()};
+        g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_ERROR, message);
+        if (report != NoConsoleReport)
+        {
+            conlock(cout) << message << endl;
+        }
+        return false;
+    }
 }
 
-bool check_err(const string& opName, c::MegaChatError* e)
+bool check_err(const string& opName, c::MegaChatError* e, ReportOnConsole report = NoConsoleReport)
 {
-    bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
-    conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
-    return success;
+    if (e->getErrorCode() == c::MegaChatError::ERROR_OK)
+    {
+        const std::string message = opName + " succeeded.";
+        g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message);
+        if (report == ReportResult)
+        {
+            conlock(cout) << message << endl;
+        }
+        return true;
+    }
+    else
+    {
+        const std::string message = opName + " failed. Error: " + string{e->getErrorString()};
+        g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message);
+        if (report != NoConsoleReport)
+        {
+            conlock(cout) << message << endl;
+        }
+        return false;
+    }
 }
 
 string OwnStr(const char* s)
@@ -244,17 +352,40 @@ struct CLCListener : public c::MegaChatListener
 {
     void onChatInitStateUpdate(c::MegaChatApi*, int newState) override
     {
-        auto cl = conlock(cout);
-        cout << "Status update : ";
+        std::string message = "Status update : ";
         switch (newState)
         {
-        case c::MegaChatApi::INIT_ERROR: cout << "INIT_ERROR" << endl; break;
-        case c::MegaChatApi::INIT_WAITING_NEW_SESSION: cout << "INIT_WAITING_NEW_SESSION"; break;
-        case c::MegaChatApi::INIT_OFFLINE_SESSION: cout << "INIT_OFFLINE_SESSION"; break;
-        case c::MegaChatApi::INIT_ONLINE_SESSION: cout << "INIT_ONLINE_SESSION"; break;
-        default: cout << "INIT_ERROR"; break;
+            case c::MegaChatApi::INIT_ERROR:
+            {
+                message += "INIT_ERROR";
+                g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message);
+                break;
+            }
+            case c::MegaChatApi::INIT_WAITING_NEW_SESSION:
+            {
+                message += "INIT_WAITING_NEW_SESSION";
+                g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message);
+                break;
+            }
+            case c::MegaChatApi::INIT_OFFLINE_SESSION:
+            {
+                message += "INIT_OFFLINE_SESSION";
+                g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message);
+                break;
+            }
+            case c::MegaChatApi::INIT_ONLINE_SESSION:
+            {
+                message += "INIT_ONLINE_SESSION";
+                g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message);
+                break;
+            }
+            default:
+            {
+                message += "INIT_ERROR";
+                g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message);
+                break;
+            }
         }
-        cout << endl;
     }
 };
 
@@ -485,13 +616,14 @@ public:
         case m::MegaEvent::EVENT_STORAGE: return "EVENT_STORAGE";
         case m::MegaEvent::EVENT_NODES_CURRENT: return "EVENT_NODES_CURRENT";
         case m::MegaEvent::EVENT_MEDIA_INFO_READY: return "EVENT_MEDIA_INFO_READY";
+        case m::MegaEvent::EVENT_STORAGE_SUM_CHANGED: return "EVENT_STORAGE_SUM_CHANGED";
         }
         return "new event type";
     }
 
     void onEvent(m::MegaApi*, m::MegaEvent *e) override
     {
-        conlock(cout) << "Event: " << (e ? eventName(e->getType()) : "(null)") << " Text: " << (e && e->getText() ? e->getText() : "(null)")<< endl;
+        LOG_info << "Event: " << (e ? eventName(e->getType()) : "(null)") << " Text: " << (e && e->getText() ? e->getText() : "(null)") << " number: " << (e ? std::to_string(e->getNumber()) : "<not supplied>");
     }
 
 };
@@ -579,13 +711,132 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
     }
 }
 
-
 bool oneOpenRoom(c::MegaChatHandle room);
 
 bool g_detailHigh = false;
 
+std::atomic<bool> g_reportMessagesDeveloper{false};
+
+void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
+{
+    auto cl = conlock(cout);
+    if (!msg)
+    {
+        cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
+        return;
+    }
+
+    const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
+    const std::string room_title = room ? room->getTitle() : "<No Title>";
+
+    auto fullname = [chatid,room](const c::MegaChatHandle handle)
+    {
+        const char* fullname_ptr = nullptr;
+        if (room)
+        {
+            fullname_ptr = room->getPeerFullnameByHandle(handle);
+        }
+        return fullname_ptr ? std::string{fullname_ptr} : std::string{"<No Fullname>"};
+    };
+
+    auto email = [chatid,room](const c::MegaChatHandle handle)
+    {
+        const char* email_ptr = nullptr;
+        if (room)
+        {
+            email_ptr = room->getPeerEmailByHandle(handle);
+        }
+        return email_ptr ? std::string{email_ptr} : std::string{"<No Email>"};
+    };
+
+    auto time_to_string_utc = [](const int64_t time)
+    {
+        struct tm dt;
+        m::m_gmtime(time, &dt);
+        char buffer[40];
+        std::strftime(buffer, 40, "%FT%T", &dt);
+        return std::string{buffer};
+    };
+
+    if (msg->getType() == c::MegaChatMessage::TYPE_NORMAL)
+    {
+        cout << room_title
+             << " | " << "TEXT"
+             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << ch_s(msg->getUserHandle())
+             << " | " << fullname(msg->getUserHandle())
+             << " | " << email(msg->getUserHandle())
+             << " | " << (msg->isEdited() ? "edited" : "not edited")
+             << " | " << (msg->isDeleted() ? "deleted" : "not deleted")
+             << " | " << (msg->getContent() ? msg->getContent() : "<No Content>")
+                ;
+        cout << endl;
+    }
+    else if (msg->getType() == c::MegaChatMessage::TYPE_ALTER_PARTICIPANTS)
+    {
+        auto joined_or_left = [msg](const c::MegaChatHandle handle)
+        {
+            for (unsigned i = 0; i < msg->getUsersCount(); ++i)
+            {
+                if (handle == msg->getUserHandle(i))
+                {
+                    return std::string{"left"};
+                }
+            }
+            return std::string{"joined"};
+        };
+
+        cout << room_title
+             << " | " << "PARTICIPANT"
+             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << ch_s(msg->getHandleOfAction())
+             << " | " << fullname(msg->getHandleOfAction())
+             << " | " << email(msg->getHandleOfAction())
+             << " | " << joined_or_left(msg->getHandleOfAction())
+           ;
+        cout << endl;
+    }
+    else if (msg->getType() == c::MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    {
+        auto nodeinfo = [](m::MegaNodeList* list)
+        {
+            if (!list || list->size() == 0)
+            {
+                return std::string{"<No Attachement>"};
+            }
+            std::stringstream ss;
+            for (int i = 0; i < list->size(); ++i)
+            {
+                const auto node = list->get(i);
+                ss << node->getName() << "(" << node->getSize() << ")";
+                if (i + 1 < list->size())
+                {
+                    ss << ", ";
+                }
+            }
+            return ss.str();
+        };
+
+        cout << room_title
+             << " | " << "ATTACHEMENT"
+             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << ch_s(msg->getUserHandle())
+             << " | " << fullname(msg->getUserHandle())
+             << " | " << email(msg->getUserHandle())
+             << " | " << nodeinfo(msg->getMegaNodeList())
+           ;
+        cout << endl;
+    }
+}
+
 void reportMessage(c::MegaChatHandle room, c::MegaChatMessage *msg, const char* loadorreceive)
 {
+    if (!g_reportMessagesDeveloper)
+    {
+        reportMessageHuman(room, msg, loadorreceive);
+        return;
+    }
+
     auto cl = conlock(cout);
 
     if (!msg)
@@ -691,7 +942,7 @@ struct CLCRoomListener : public c::MegaChatRoomListener
 
     void onChatRoomUpdate(c::MegaChatApi*, c::MegaChatRoom *chat) override
     {
-        conlock(cout) << "Room " << ch_s(chat->getChatId()) << " updated" << endl;
+        g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, "Room " + ch_s(chat->getChatId()) + " updated");
     }
 
     void onMessageLoaded(c::MegaChatApi*, c::MegaChatMessage *msg) override
@@ -1156,6 +1407,58 @@ string chatlistDetails(const c::MegaChatListItem& cli)
     return s.str();
 };
 
+class OneShotRequestListener : public m::MegaRequestListener
+{
+public:
+    std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
+
+    explicit OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f = {})
+        :onRequestFinishFunc(f)
+    {
+    }
+
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
+    {
+        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+};
+
+class OneShotChatRequestListener : public c::MegaChatRequestListener
+{
+public:
+    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request)> onRequestStartFunc;
+    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> onRequestFinishFunc;
+    std::function<void(c::MegaChatApi*api, c::MegaChatRequest *request)> onRequestUpdateFunc;
+    std::function<void(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error)> onRequestTemporaryErrorFunc;
+
+    explicit OneShotChatRequestListener(std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> f = {})
+        :onRequestFinishFunc(f)
+    {
+    }
+
+    void onRequestStart(c::MegaChatApi* api, c::MegaChatRequest *request) override
+    {
+        if (onRequestStartFunc) onRequestStartFunc(api, request);
+    }
+
+    void onRequestFinish(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e) override
+    {
+        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+
+    void onRequestUpdate(c::MegaChatApi*api, c::MegaChatRequest *request) override
+    {
+        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
+    }
+
+    void onRequestTemporaryError(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error) override
+    {
+        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
+    }
+};
+
 void exec_getchatlistitems(ac::ACState&)
 {
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getChatListItems());
@@ -1431,6 +1734,8 @@ void exec_closechatpreview(ac::ACState& s)
 
 void exec_loadmessages(ac::ACState& s)
 {
+    g_reportMessagesDeveloper = s.words.size() > 3 && s.words[3].s == "developer";
+
     auto source = g_chatApi->loadMessages(s_ch(s.words[1].s), stoi(s.words[2].s));
 
     auto cl = conlock(cout);
@@ -1441,6 +1746,157 @@ void exec_loadmessages(ac::ACState& s)
     case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
     case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
     }
+}
+
+class ReviewPublicChat_GetUserEmail_Listener : public m::MegaListener
+{
+public:
+    explicit ReviewPublicChat_GetUserEmail_Listener(int msg_count)
+    : m_msgCount{msg_count}
+    {}
+
+    ReviewPublicChat_GetUserEmail_Listener(const ReviewPublicChat_GetUserEmail_Listener&) = delete;
+    ReviewPublicChat_GetUserEmail_Listener& operator=(const ReviewPublicChat_GetUserEmail_Listener&) = delete;
+
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
+    {
+        // Called on Mega API thread
+        if (request->getType() != m::MegaRequest::TYPE_GET_USER_EMAIL || !check_err("TYPE_GET_USER_EMAIL", e))
+        {
+            return;
+        }
+        g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: TYPE_GET_USER_EMAIL finished");
+        if (!request->getEmail())
+        {
+            return;
+        }
+        g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: Email: " + std::string{request->getEmail()});
+        m_emails.emplace(request->getEmail());
+        if (m_emails.size() < static_cast<size_t>(m_userCount.load()))
+        {
+            // Wait until we've received emails for all users
+            return;
+        }
+
+        api->removeListener(this);
+
+        const auto chatid = m_chatId.load();
+        const auto msg_count = m_msgCount;
+
+        auto push_received_listener = new OneShotChatRequestListener;
+
+        push_received_listener->onRequestFinishFunc =
+                [chatid, msg_count](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
+                {
+                    // Called on Mega Chat API thread
+                    if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED || !check_err("TYPE_PUSH_RECEIVED", e))
+                    {
+                        return;
+                    }
+                    g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
+                                        "ReviewPublicChat: TYPE_PUSH_RECEIVED finished");
+
+                    // Access to g_roomListeners is safe because no other thread accesses this map
+                    // while the Mega Chat API thread is using it here.
+                    auto& rec = g_roomListeners[chatid];
+                    if (!rec.open)
+                    {
+                        if (!api->openChatRoom(chatid, rec.listener.get()))
+                        {
+                            g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                                                "Failed to open chat room");
+                            g_roomListeners.erase(chatid);
+                        }
+                        else
+                        {
+                            rec.listener->room = chatid;
+                            rec.open = true;
+                        }
+                    }
+
+                    if (rec.open)
+                    {
+                        g_reportMessagesDeveloper = false;
+
+                        const auto source = api->loadMessages(chatid, msg_count);
+
+                        auto cl = conlock(cout);
+                        switch (source)
+                        {
+                        case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; break;
+                        case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; break;
+                        case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
+                        case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
+                        }
+                    }
+                };
+
+        g_chatApi->pushReceived(false, push_received_listener);
+    }
+
+    void setUserCount(int count)
+    {
+        m_userCount = count;
+    }
+
+    void setChatId(c::MegaChatHandle chatid)
+    {
+        m_chatId = chatid;
+    }
+
+private:
+
+    std::set<std::string> m_emails;
+    int m_msgCount;
+    std::atomic<int> m_userCount{0};
+    std::atomic<c::MegaChatHandle> m_chatId{0};
+};
+
+void exec_reviewpublicchat(ac::ACState& s)
+{
+    if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
+    {
+        conlock(cout) << "Error: Not logged in" << endl;
+        return;
+    }
+
+    const auto chat_link = s.words[1].s;
+    const int msg_count = s.words.size() > 2 ? stoi(s.words[2].s) : 100;
+    static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener{msg_count};
+
+    auto connect_listener = new OneShotChatRequestListener;
+    auto open_chat_preview_listener = new OneShotChatRequestListener;
+
+    connect_listener->onRequestFinishFunc =
+            [chat_link, open_chat_preview_listener](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
+            {
+                // Called on Mega Chat API thread
+                if (request->getType() != c::MegaChatRequest::TYPE_CONNECT || !check_err("connect", e))
+                {
+                    return;
+                }
+                conlock(cout) << "Connection state " << api->getConnectionState() << endl;
+                g_chatApi->openChatPreview(chat_link.c_str(), open_chat_preview_listener);
+            };
+
+    open_chat_preview_listener->onRequestFinishFunc =
+            [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+            {
+                // Called on Mega Chat API thread
+                if (request->getType() != c::MegaChatRequest::TYPE_LOAD_PREVIEW || !check_err("openChatPreview", e))
+                {
+                    return;
+                }
+                const auto chatid = request->getChatHandle();
+                conlock(cout) << "openChatPreview: chatlink loaded. Chatid: " << k::Id(chatid).toString() << endl;
+                const int user_count = static_cast<int>(request->getNumber());
+                conlock(cout) << "openChatPreview: User count: " << user_count << endl;
+                get_user_email_listener.setUserCount(user_count);
+                get_user_email_listener.setChatId(chatid);
+                g_megaApi->addListener(&get_user_email_listener);
+            };
+
+    g_chatApi->connect(connect_listener);
 }
 
 void exec_isfullhistoryloaded(ac::ACState& s)
@@ -1808,45 +2264,6 @@ void exec_getchatcallsids(ac::ACState&)
 }
 
 #endif
-
-class OneShotRequestListener : public m::MegaRequestListener
-{
-public:
-    std::function<void(m::MegaApi* api, m::MegaRequest *request)> onRequestStartFunc;
-    std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
-    std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
-    std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
-
-    OneShotRequestListener()
-    {
-    }
-
-    OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f)
-        :onRequestFinishFunc(f)
-    {
-    }
-
-    void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
-    {
-        if (onRequestStartFunc) onRequestStartFunc(api, request);
-    }
-
-    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
-    {
-        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
-        delete this;  // one-shot is done so auto-delete
-    }
-
-    void onRequestUpdate(m::MegaApi*api, m::MegaRequest *request) override
-    {
-        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
-    }
-
-    void onRequestTemporaryError(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error) override
-    {
-        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
-    }
-};
 
 void exec_smsverify(ac::ACState& s)
 {
@@ -2448,9 +2865,13 @@ void exec_getspecificaccountdetails(ac::ACState& s)
         storage = transfer = pro = true;
     }
 
-    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, -1, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, -1, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
             {
-                check_err("getSpecificAccountDetails", e);
+                if (check_err("getSpecificAccountDetails", e, ReportFailure))
+                {
+                    unique_ptr<m::MegaAccountDetails> ad(r->getMegaAccountDetails());
+                    conlock(cout) << "Storage used: " << ad->getStorageUsed() << " free: " << (ad->getStorageMax() - ad->getStorageUsed()) << " max: " << ad->getStorageMax() <<  endl;
+                }
             }));
 }
 
@@ -2675,6 +3096,63 @@ void exec_renamenode(ac::ACState& s)
     }
 }
 
+void exec_pushreceived(ac::ACState& s)
+{
+    bool beep = s.extractflag("-beep");
+
+    if (s.words.size() == 2)
+    {
+        g_chatApi->pushReceived(beep, s_ch(s.words[1].s), new OneShotChatRequestListener([](c::MegaChatApi*, c::MegaChatRequest *, c::MegaChatError* e)
+        {
+            check_err("pushReceived (iOS style)", e, ReportResult);
+        }));
+    }
+    else
+    {
+        g_chatApi->pushReceived(beep, new OneShotChatRequestListener([](c::MegaChatApi*, c::MegaChatRequest *, c::MegaChatError* e)
+        {
+            check_err("pushReceived (Android style)", e, ReportResult);
+        }));
+    }
+}
+
+void exec_getcloudstorageused(ac::ACState& s)
+{
+    g_megaApi->getCloudStorageUsed(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+    {
+        if (check_err("getcloudstorageused", e, ReportFailure))
+        {
+            conlock(cout) << "Cloud storage used (locally calculated): " << r->getNumber() << endl;
+        }
+    }));
+}
+
+void exec_cp(ac::ACState& s)
+{
+    std::unique_ptr<m::MegaNode> srcnode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
+    std::unique_ptr<m::MegaNode> dstnode(g_megaApi->getNodeByPath(s.words[2].s.c_str()));
+
+    if (!srcnode)
+    {
+        conlock(cout) << "source not found" << endl;
+    }
+    else if (!dstnode)
+    {
+        conlock(cout) << "destination not found" << endl;
+    }
+    else if (dstnode->getType() <= m::MegaNode::TYPE_FILE)
+    {
+        conlock(cout) << "destination is not a folder" << endl;
+    }
+    else
+    {
+        g_megaApi->copyNode(srcnode.get(), dstnode.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("copyNode", e, ReportResult);
+        }));
+    }
+}
+
 void PrintAchievements(m::MegaAchievementsDetails & ad)
 {
     auto cl = conlock(cout);
@@ -2810,7 +3288,8 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
-    p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10)));
+    p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10), opt(either(text("human"), text("developer")))));
+    p->Add(exec_reviewpublicchat,   sequence(text("reviewpublicchat"), param("chatlink"), opt(wholenumber(100))));
     p->Add(exec_isfullhistoryloaded, sequence(text("isfullhistoryloaded"), param("roomid")));
     p->Add(exec_getmessage,         sequence(text("getmessage"), param("roomid"), param("msgid")));
     p->Add(exec_getmanualsendingmessage, sequence(text("getmanualsendingmessage"), param("roomid"), param("tempmsgid")));
@@ -2906,6 +3385,13 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
     p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-refilter"), param("regex")))), param("path")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
+
+    p->Add(exec_pushreceived, sequence(text("pushreceived"), opt(flag("-beep")), opt(param("chatid"))));
+    p->Add(exec_getcloudstorageused, sequence(text("getcloudstorageused")));
+
+    p->Add(exec_cp, sequence(text("cp"), param("remotesrc"), param("remotedst")));
+
+
     return p;
 }
 
@@ -3117,73 +3603,21 @@ void megaclc()
 }
 
 
-class MegaCLLogger : public m::Logger {
-public:
-    virtual void log(const char *, int loglevel, const char *, const char *message)
-    {
-#ifdef _WIN32
-        OutputDebugStringA(message);
-        OutputDebugStringA("\r\n");
-#endif
-
-        if (loglevel <= m::logWarning)
-        {
-            auto cl = conlock(cout);
-            cl << message;
-            if (*message && message[strlen(message) - 1] != '\n')
-            {
-                cout << endl;
-            }
-        }
-    }
-};
-
-MegaCLLogger g_apiLogger;
-
-struct MegaclcChatChatLogger : public c::MegaChatLogger
-{
-    void log(int loglevel, const char *message) override
-    {
-#ifdef _WIN32
-        if (message && *message)
-        {
-            OutputDebugStringA(message);
-            if (message[strlen(message)-1] != '\n')
-                OutputDebugStringA("\r\n");
-        }
-#endif
-        if (loglevel <= c::MegaChatApi::LOG_LEVEL_WARNING)
-        {
-            auto cl = conlock(cout);
-            cl << message;
-            if (*message && message[strlen(message) - 1] != '\n')
-            {
-                cout << endl;
-            }
-        }
-    }
-};
-
-MegaclcChatChatLogger g_chatLogger;
-
 int main()
 {
-#ifdef _WIN32
-    m::SimpleLogger::setLogLevel(m::logMax);  // warning and stronger to console; info and lesser to debug output
     m::SimpleLogger::setOutputClass(&g_apiLogger);
-#else
-    m::SimpleLogger::setAllOutputs(&cout);
-#endif 
 
+    const std::string megaclc_path = "temp_MEGAclc";
 #ifdef WIN32
-    fs::path basePath = fs::u8path(getenv("USERPROFILE"));
+    const std::string basePath = (fs::u8path(getenv("USERPROFILE")) / megaclc_path).u8string();
+    fs::create_directories(basePath);
 #else
-    fs::path basePath = fs::u8path(getenv("HOME"));
+    // No std::fileystem before OSX10.15
+    const std::string basePath = getenv("HOME") + std::string{'/'} + megaclc_path;
+    mkdir(basePath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 #endif
-    basePath /= "temp_MEGAclc";
-    fs::create_directory(basePath);
 
-    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.u8string().c_str(), "MEGAclc"));
+    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.c_str(), "MEGAclc"));
     g_megaApi->addListener(&g_megaclcListener);
     g_megaApi->addGlobalListener(&g_globalListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));

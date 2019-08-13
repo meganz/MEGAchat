@@ -859,7 +859,7 @@ void RtcModule::removeCall(Id chatid, bool retry)
     Promise<void> pms = promise::_Void();
     if (itCall != mCalls.end())
     {
-        if (retry)
+        if (retry && (itCall->second->state() == Call::kStateJoining || itCall->second->state() == Call::kStateInProgress))
         {
             launchCallRetry(chatid, itCall->second->sentAv());
         }
