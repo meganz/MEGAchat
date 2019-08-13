@@ -2151,7 +2151,8 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     else    // 1on1 with ex-user
     {
         mUsernameAttrCbId = parent.mKarereClient.userAttrCache().
-                getAttr(peer, USER_ATTR_FULLNAME, this,[](Buffer* data, void* userp)
+                getAttr(peer, USER_ATTR_FULLNAME, this,
+        [](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
             //one byte - the firstname-size-prefix, which will be zero but
@@ -2161,7 +2162,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
             // If the contact has alias don't update the title
             auto self = static_cast<PeerChatRoom*>(userp);
             std::string alias = self->parent.mKarereClient.getUserAlias(self->mPeer);
-            if (!alias.size())
+            if (alias.empty())
             {
                 if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
                 {
@@ -2688,8 +2689,11 @@ void GroupChatRoom::makeTitleFromMemberNames()
     {
         for (auto& m: mPeers)
         {
-            std::string alias = parent.mKarereClient.getUserAlias(m.first);
-            if (alias.size())
+            Id userid = m.first;
+            const Member *user = m.second;
+
+            std::string alias = parent.mKarereClient.getUserAlias(userid);
+            if (!alias.empty())
             {
                 // Add user's alias to the title
                 newTitle.append(alias).append(", ");
@@ -2697,7 +2701,7 @@ void GroupChatRoom::makeTitleFromMemberNames()
             else
             {
                 //name has binary layout
-                auto& name = m.second->mName;
+                auto& name = user->mName;
                 assert(!name.empty()); //is initialized to '\0', so is never empty
 
                 if (name.size() > 1)
@@ -2717,7 +2721,7 @@ void GroupChatRoom::makeTitleFromMemberNames()
                 else
                 {
                     // Add user's email to the title
-                    auto& email = m.second->mEmail;
+                    auto& email = user->mEmail;
                     if (!email.empty())
                         newTitle.append(email).append(", ");
                     else
@@ -3701,26 +3705,31 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
      mSince(since), mVisibility(visibility)
 {
-    mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
-        USER_ATTR_FULLNAME, this,
-        [](Buffer* data, void* userp)
-        {
-            //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero but
-            //if lastname is not null the first byte will contain the
-            //firstname-size-prefix but datasize will be bigger than 1 byte.
+    mUsernameAttrCbId = mClist.client.userAttrCache()
+            .getAttr(userid, USER_ATTR_FULLNAME, this,
+    [](Buffer* data, void* userp)
+    {
+        //even if both first and last name are null, the data is at least
+        //one byte - the firstname-size-prefix, which will be zero but
+        //if lastname is not null the first byte will contain the
+        //firstname-size-prefix but datasize will be bigger than 1 byte.
 
-            // If the contact has alias don't update the title
-            auto self = static_cast<Contact*>(userp);
-            std::string alias = self->mClist.client.getUserAlias(self->userId());
-            if (!alias.size())
+        // If the contact has alias don't update the title
+        auto self = static_cast<Contact*>(userp);
+        std::string alias = self->mClist.client.getUserAlias(self->userId());
+        if (alias.empty())
+        {
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
             {
-                if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
-                    self->updateTitle(encodeFirstName(self->mEmail));
-                else
-                    self->updateTitle(std::string(data->buf(), data->dataSize()));
+                self->updateTitle(encodeFirstName(self->mEmail));
             }
-        });
+            else
+            {
+                self->updateTitle(std::string(data->buf(), data->dataSize()));
+            }
+        }
+    });
+
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
         updateTitle(encodeFirstName(email));
@@ -3864,10 +3873,10 @@ void Client::updateAliases(Buffer *data)
     std::vector<std::string> *keys = tlvRecords->getKeys();
     AliasesMap aliasesUpdated;
 
-    // Create a new map <uhBin, aliasB64> for the aliases that has been updated
-    for (int i=0; i < keys->size(); i++)
+    // Create a new map <uhBin, aliasB64> for the aliases that have been updated
+    for (size_t i = 0; i < keys->size(); i++)
     {
-        std::string key(keys->at(i));
+        const std::string &key = keys->at(i);
         Id handleBin(key.data());
         if (handleBin.isValid() && key.size())
         {
@@ -3882,14 +3891,12 @@ void Client::updateAliases(Buffer *data)
     delete keys;
 
     // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
-    ChatRoomList::iterator it;
-    for (it = chats->begin(); it != chats->end(); it++)
+    for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
     {
-        ChatRoom *chatroom = it->second;
-        AliasesMap::iterator it;
-        for (it = aliasesUpdated.begin(); it != aliasesUpdated.end(); it++)
+        ChatRoom *chatroom = itChats->second;
+        for (AliasesMap::iterator itAliases = aliasesUpdated.begin(); itAliases != aliasesUpdated.end(); itAliases++)
         {
-            uint64_t userHandle = it->first;
+            uint64_t userHandle = itAliases->first;
             if (chatroom->isGroup())
             {
                 // If chatroom is a group chatroom and there's at least a chat member included
