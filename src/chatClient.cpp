@@ -3878,15 +3878,19 @@ void Client::updateAliases(Buffer *data)
     {
         const std::string &key = keys->at(i);
         Id handleBin(key.data());
-        if (handleBin.isValid() && key.size())
+        if (!handleBin.isValid() || key.empty())
         {
-            if (mAliasesMap[handleBin] != tlvRecords->get(key))
-            {
-                aliasesUpdated[handleBin] = tlvRecords->get(key);
-                mAliasesMap[handleBin] = tlvRecords->get(key);
-            }
+            KR_LOG_ERROR("Invalid handle in aliases");
+            continue;
+        }
+
+        const std::string &newAlias = tlvRecords->get(key);
+        if (mAliasesMap[handleBin] != newAlias)
+        {
+            mAliasesMap[handleBin] = aliasesUpdated[handleBin] = newAlias;
         }
     }
+    // TODO: handle removed aliases and proceed accordingly
     delete tlvRecords;
     delete keys;
 
@@ -3903,28 +3907,27 @@ void Client::updateAliases(Buffer *data)
                 // in aliasesUpdated map we need to re-generate the default title
                 // if there's no custom title
                 GroupChatRoom *room = static_cast<GroupChatRoom *>(chatroom);
-                if (room->hasTitle())
+                if (room->hasTitle() || room->peers().find(userHandle) != room->peers().end())
                 {
                     continue;
                 }
 
-                auto it = room->peers().find(userHandle);
-                if (it != room->peers().end())
-                {
-                    room->makeTitleFromMemberNames();
-                    break;
-                }
+                room->makeTitleFromMemberNames();
+                break;
             }
             else
             {
                 PeerChatRoom *room = static_cast<PeerChatRoom *>(chatroom);
-                if (userHandle == room->peer())
+                if (userHandle != room->peer())
                 {
-                    std::string aliasB64 = it->second;
-                    Buffer buf(aliasB64.size());
-                    size_t decLen = base64urldecode(aliasB64.c_str(), aliasB64.size(), buf.buf(), buf.bufSize());
-                    room->updateChatRoomTitle(std::string(buf.buf(), decLen));
+                    continue;
                 }
+
+                std::string aliasB64 = itAliases->second;
+                Buffer buf(aliasB64.size());
+                size_t decLen = base64urldecode(aliasB64.c_str(), aliasB64.size(), buf.buf(), buf.bufSize());
+                room->updateChatRoomTitle(std::string(buf.buf(), decLen));
+                break;
             }
         }
     }
