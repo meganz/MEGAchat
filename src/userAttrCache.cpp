@@ -428,14 +428,9 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
     .then([wptr, this, key, item](ReqResult result)
     {
         wptr.throwIfDeleted();
-
-        UserAttrDescMap::iterator it = gUserAttrDescsMap.find(key.attrType);
-        if (it != gUserAttrDescsMap.end())
-        {
-            auto& desc = it->second;
-            item->data.reset(desc.getData(*result));
-            item->resolve(key);
-        }
+        auto& desc = gUserAttrDescsMap.at(key.attrType);
+        item->data.reset(desc.getData(*result));
+        item->resolve(key);
     })
     .fail([wptr, this, key, item](const ::promise::Error& err)
     {

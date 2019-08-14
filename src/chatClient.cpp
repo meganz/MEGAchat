@@ -1512,7 +1512,6 @@ void Client::terminate(bool deleteDb)
         mUserAttrCache->removeCb(mAliasAttrHandle);
         mUserAttrCache->onLogOut();
         mUserAttrCache.reset();
-        mAliasesMap.clear();
 
         // stop heartbeats
         if (mHeartbeatTimer)
