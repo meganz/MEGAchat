@@ -362,6 +362,10 @@ promise::Promise<void> Client::notifyUserStatus(bool background)
 {
     bool oldStatus = mIsInBackground;
     mIsInBackground = background;
+    if (mIsInBackground && !mInitStats.isCompleted())
+    {
+        mInitStats.onCanceled();
+    }
 
     if (oldStatus == mIsInBackground)
     {
@@ -563,13 +567,25 @@ promise::Promise<void> Client::pushReceived(Id chatid)
             return promise::Error("Up to date with API, but instance was removed");
 
         // if already sent SYNCs or we are not logged in right now...
-        if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+        if (mSyncTimer)
         {
+            KR_LOG_WARNING("pushReceived: a previous PUSH is being processed. Both will finish at the same time");
+            assert(!mSyncPromise.done());
             return mSyncPromise;
             // promise will resolve once logged in for all chats or after receive all SYNCs back
         }
 
-        mSyncPromise = Promise<void>();
+        if (mSyncPromise.done())
+        {
+            KR_LOG_WARNING("pushReceived: previous PUSH was already resolved. New promise to track the progress");
+            mSyncPromise = Promise<void>();
+        }
+        if (!mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+        {
+            KR_LOG_WARNING("pushReceived: not logged in into all chats");
+            return mSyncPromise;
+        }
+
         mSyncCount = 0;
         mSyncTimer = karere::setTimeout([this, wptr]()
         {
@@ -1097,6 +1113,11 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 promise::Promise<void> Client::connect(bool isInBackground)
 {
     mIsInBackground = isInBackground;
+
+    if (mIsInBackground && !mInitStats.isCompleted())
+    {
+        mInitStats.onCanceled();
+    }
 
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
@@ -3787,6 +3808,16 @@ bool InitStats::isCompleted() const
     return mCompleted;
 }
 
+void InitStats::onCanceled()
+{
+    mCompleted = true;
+
+    // clear maps to free some memory
+    mStageShardStats.clear();
+    mStageStats.clear();
+    KR_LOG_WARNING("Init stats have been cancelled");
+}
+
 std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t numContacts)
 {
     assert(!mCompleted);
@@ -4090,6 +4121,11 @@ std::string InitStats::toJson()
     // Add number of contacts
     jsonValue.SetInt64(mInitState);
     jSonObject.AddMember(rapidjson::Value("sid"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add init stats version
+    uint32_t version = INITSTATSVERSION;
+    jsonValue.SetUint(version);
+    jSonObject.AddMember(rapidjson::Value("v"), jsonValue, jSonDocument.GetAllocator());
 
     // Add total elapsed
     jsonValue.SetInt64(totalElapsed);

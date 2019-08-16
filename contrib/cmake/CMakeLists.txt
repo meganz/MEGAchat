@@ -15,14 +15,16 @@ else()
 endif()
 
 # create these cache variables first, these must be on for MEGAchat.  The default in the SDK is off, but it will see they are already on in the CMakeCache.txt
-set (USE_SODIUM 1 CACHE TYPE BOOL)
-set (ENABLE_CHAT 1 CACHE TYPE BOOL)
-set (USE_WEBRTC 1 CACHE TYPE BOOL)
+set (USE_SODIUM 1 CACHE STRING "Sodium is a requirement for MEGAchat, turn on in the MEGA SDK")
+set (ENABLE_CHAT 1 CACHE STRING "Turn on ENBABLE_CHAT in the MEGA SDK")
+set (USE_WEBRTC 1 CACHE STRING "Turn on WEBRTC to support voice and/or video calls, turn off for much simpler dependencies")
 
-set (UNCHECKED_ITERATORS 0 CACHE TYPE BOOL)  # to use libwebrtc on windows with checked iterators turned off in the debug VC++ runtime, modify your stl headers first to disable that, and then build it
+if (WIN32)
+set (UNCHECKED_ITERATORS 0 CACHE STRING "Turn off UNCHECKED_ITERATORS if your third party dependencies were built without them (only relevant for DEBUG)")  # to use libwebrtc on windows with checked iterators turned off in the debug VC++ runtime, modify your stl headers first to disable that, and then build it
+endif()
 
 #specify where 3rd party libraries are available
-set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../third-party"  CACHE TYPE STRING)
+set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../third-party"  CACHE STRING "Controllable third party library location")
 set(KarereDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 
 message("CONFIG: ${CONFIG}")
@@ -43,13 +45,20 @@ endif()
 
 if (WIN32)
     ImportVcpkgLibrary(websockets         "${Mega3rdPartyDir}/libwebsockets/build32debug/include" "${Mega3rdPartyDir}/libwebsockets/build32debug/lib/Debug/websockets_static.lib" "${Mega3rdPartyDir}/build32release/lib/websockets.lib")
-    ImportVcpkgLibrary(uv                 "${vcpkg_dir}/include" "${vcpkg_dir}/debug/lib/libuv.lib" "${vcpkg_dir}/lib/libuv.lib")
+    if (USE_PREBUILT_3RDPARTY)
+        ImportVcpkgLibrary(uv             "${Mega3rdPartyDir}/include/libuv" "${Mega3rdPartyDir}/libs/x32d/libuv.lib" "${Mega3rdPartyDir}/libs/x32/libuv.lib")
+    else()
+        ImportVcpkgLibrary(uv             "${vcpkg_dir}/include" "${vcpkg_dir}/debug/lib/libuv.lib" "${vcpkg_dir}/lib/libuv.lib")
+    endif()
 
     if (USE_WEBRTC)
         # additional directories used in this project, after the main one incluced by the MEGA SDK
         include_directories( "${WebRtcDir}/include/webrtc" )
         include_directories( "${WebRtcDir}/webrtc/src/third_party/libyuv/include" )
     endif()
+else(WIN32)
+    include_directories("${Mega3rdPartyDir}/include")
+    link_directories("${Mega3rdPartyDir}/lib")
 endif(WIN32)
 
 add_definitions( -DUSE_LIBWEBSOCKETS )
@@ -93,7 +102,7 @@ target_include_directories(karere PRIVATE ${KarereDir}/src/base rapidjson)
 target_include_directories(karere PUBLIC ${KarereDir}/src )
 target_include_directories(karere PUBLIC $<${USE_WEBRTC}:${KarereDir}/src/rtcModule>  )
 target_compile_definitions(karere PUBLIC MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC> )
-target_link_libraries(karere PUBLIC Mega sqlite3 rapidjson websockets uv $<${USE_WEBRTC}:webrtc> )
+target_link_libraries(karere PUBLIC Mega $<$<NOT:${USE_PREBUILT_3RDPARTY}>:sqlite3> rapidjson websockets uv $<${USE_WEBRTC}:webrtc> )
 if (WIN32)
 target_link_libraries(karere PUBLIC Iphlpapi.lib Psapi.lib Userenv.lib Msdmo.lib Strmiids.lib Dmoguids.lib Winmm.dll wmcodecdspuuid.lib Wldap32.lib)
 endif()

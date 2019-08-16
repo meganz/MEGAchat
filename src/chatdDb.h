@@ -220,8 +220,7 @@ public:
             // if message was already encrypted, restore the MsgCommand
             if (stmt.hasBlobCol(11))
             {
-                chatd::KeyId chatdKeyid = (keyid < 0xffff0001) ? keyid : CHATD_KEYID_UNCONFIRMED;
-                chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, chatdKeyid);
+                chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, keyid);
                 Buffer buf;
                 stmt.blobCol(11, buf);
                 msgCmd->setMsg(buf.buf(), buf.dataSize());
@@ -307,7 +306,7 @@ public:
             auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().myHandle(),
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
-            items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), (chatd::ManualSendReason)stmt.intCol(7));
+            items.emplace_back(msg, stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(6)), static_cast<chatd::ManualSendReason>(stmt.intCol(7)));
         }
     }
     virtual bool deleteManualSendItem(uint64_t rowid)
