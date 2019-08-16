@@ -3586,6 +3586,16 @@ void Contact::onVisibilityChanged(int newVisibility)
     }
 }
 
+void Contact::setContactName(std::string name)
+{
+    mName = name;
+}
+
+std::string Contact::getContactName()
+{
+    return mName;
+}
+
 void ContactList::syncWithApi(mega::MegaUserList& users)
 {
     std::set<uint64_t> apiUsers;
@@ -3724,7 +3734,9 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             }
             else
             {
-                self->updateTitle(std::string(data->buf(), data->dataSize()));
+                std::string name(data->buf(), data->dataSize());
+                self->setContactName(name.substr(1));
+                self->updateTitle(name);
             }
         }
     });

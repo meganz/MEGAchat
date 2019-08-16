@@ -473,6 +473,7 @@ protected:
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
+    std::string mName;
     int mVisibility;
     bool mIsInitializing = true;
     void updateTitle(const std::string& str);
@@ -523,6 +524,12 @@ public:
     bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
+
+    /** @brief Set the full name of this contact */
+    void setContactName(std::string name);
+
+    /** @brief Returns the full name of this contact */
+    std::string getContactName();
 };
 
 /** @brief This is the karere contactlist class. It maps user ids
