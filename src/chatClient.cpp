@@ -3892,7 +3892,7 @@ void Client::updateAliases(Buffer *data)
     const std::string container(data->buf(), data->size());
     ::mega::TLVstore *tlvRecords = ::mega::TLVstore::containerToTLVrecords(&container);
     std::vector<std::string> *keys = tlvRecords->getKeys();
-    AliasesMap aliasesUpdated;
+    std::vector<Id>aliasesUpdated;
 
     // Create a new map <uhBin, aliasB64> for the aliases that have been updated
     for (size_t i = 0; i < keys->size(); i++)
@@ -3908,10 +3908,24 @@ void Client::updateAliases(Buffer *data)
         const std::string &newAlias = tlvRecords->get(key);
         if (mAliasesMap[handleBin] != newAlias)
         {
-            mAliasesMap[handleBin] = aliasesUpdated[handleBin] = newAlias;
+            mAliasesMap[handleBin] = newAlias;
+            aliasesUpdated.emplace_back(handleBin);
         }
     }
-    // TODO: handle removed aliases and proceed accordingly
+
+    AliasesMap::iterator itAliases = mAliasesMap.begin();
+    while (itAliases != mAliasesMap.end())
+    {
+        Id userid = itAliases->first;
+        std::string useridB64(::mega::Base64Str<sizeof(uint64_t)>(userid.val));
+        auto it = itAliases++;
+        if (!tlvRecords->find(useridB64))
+        {
+            mAliasesMap.erase(it);
+            aliasesUpdated.emplace_back(userid);
+        }
+    }
+
     delete tlvRecords;
     delete keys;
 
@@ -3919,9 +3933,9 @@ void Client::updateAliases(Buffer *data)
     for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
     {
         ChatRoom *chatroom = itChats->second;
-        for (AliasesMap::iterator itAliases = aliasesUpdated.begin(); itAliases != aliasesUpdated.end(); itAliases++)
+        for (int i = 0; i < aliasesUpdated.size(); i++)
         {
-            uint64_t userHandle = itAliases->first;
+            uint64_t userHandle = aliasesUpdated.at(i);
             if (chatroom->isGroup())
             {
                 // If chatroom is a group chatroom and there's at least a chat member included
@@ -3943,11 +3957,7 @@ void Client::updateAliases(Buffer *data)
                 {
                     continue;
                 }
-
-                std::string aliasB64 = itAliases->second;
-                Buffer buf(aliasB64.size());
-                size_t decLen = base64urldecode(aliasB64.c_str(), aliasB64.size(), buf.buf(), buf.bufSize());
-                room->updateChatRoomTitle(std::string(buf.buf(), decLen));
+                room->updateChatRoomTitle();
                 break;
             }
         }
