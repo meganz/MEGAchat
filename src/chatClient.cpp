@@ -2182,15 +2182,25 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     }
 }
 
-void PeerChatRoom::updateChatRoomTitle(const std::string& str)
+void PeerChatRoom::updateChatRoomTitle()
 {
+    std::string title = parent.mKarereClient.getUserAlias(mPeer);
+    if (title.empty())
+    {
+        title = mContact->getContactName();
+        if (title.empty())
+        {
+            title = mEmail;
+        }
+    }
+
     if (mContact)
     {
-        mContact->updateTitle(encodeFirstName(str));
+        mContact->updateTitle(encodeFirstName(title));
     }
     else
     {
-        updateTitle(str);
+        updateTitle(title);
     }
 }
 

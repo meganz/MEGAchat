@@ -278,7 +278,7 @@ public:
     virtual const std::string& email() const { return mEmail; }
 
     void initContact(const uint64_t& peer);
-    void updateChatRoomTitle(const std::string& str);
+    void updateChatRoomTitle();
 
 /** @cond PRIVATE */
     //chatd::Listener interface
