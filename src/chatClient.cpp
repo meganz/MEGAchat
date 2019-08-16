@@ -3906,7 +3906,7 @@ void Client::updateAliases(Buffer *data)
                 // in aliasesUpdated map we need to re-generate the default title
                 // if there's no custom title
                 GroupChatRoom *room = static_cast<GroupChatRoom *>(chatroom);
-                if (room->hasTitle() || room->peers().find(userHandle) != room->peers().end())
+                if (room->hasTitle() || room->peers().find(userHandle) == room->peers().end())
                 {
                     continue;
                 }
