@@ -258,7 +258,20 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
                 {
                     mMegaApi->getPushNotificationSettings();
                 }
+
+                if (user->hasChanged(MegaUser::CHANGE_TYPE_ALIAS) && !user->isOwnChange())
+                {
+                    mMegaApi->getUserAttribute(::mega::MegaApi::USER_ATTR_ALIAS);
+                }
+
                 break;
+            }
+            else
+            {
+                if (user->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME)&& !user->isOwnChange())
+                {
+                    getFirstname(user->getHandle(), NULL, true);
+                }
             }
         }
     }
@@ -279,7 +292,7 @@ void MegaChatApplication::onChatNotification(MegaChatApi *, MegaChatHandle chati
     delete [] msgid;
 }
 
-const char *MegaChatApplication::getFirstname(MegaChatHandle uh, const char *authorizationToken)
+const char *MegaChatApplication::getFirstname(MegaChatHandle uh, const char *authorizationToken, bool force)
 {
     if (uh == mMegaChatApi->getMyUserHandle())
     {
@@ -292,7 +305,7 @@ const char *MegaChatApplication::getFirstname(MegaChatHandle uh, const char *aut
     }
 
     auto it = mFirstnamesMap.find(uh);
-    if (it != mFirstnamesMap.end())
+    if (it != mFirstnamesMap.end() && !force)
     {
         return MegaApi::strdup(it->second.c_str());
     }
