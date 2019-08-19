@@ -698,10 +698,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         ::mega::MegaApi::USER_ATTR_ALIAS, this,
         [](Buffer *data, void *userp)
         {
-            if (data && !data->empty())
-            {
-                static_cast<Client*>(userp)->updateAliases(data);
-            }
+            static_cast<Client*>(userp)->updateAliases(data);
         });
     });
 }
@@ -814,10 +811,7 @@ void Client::initWithDbSession(const char* sid)
         ::mega::MegaApi::USER_ATTR_ALIAS, this,
         [](Buffer *data, void *userp)
         {
-            if (data && !data->empty())
-            {
-                static_cast<Client*>(userp)->updateAliases(data);
-            }
+            static_cast<Client*>(userp)->updateAliases(data);
         });
     }
     catch(std::runtime_error& e)
@@ -3888,46 +3882,62 @@ bool Client::isCallInProgress(karere::Id chatid) const
 
 void Client::updateAliases(Buffer *data)
 {
-    // Save the aliases from cache attr in a tlv container
-    const std::string container(data->buf(), data->size());
-    ::mega::TLVstore *tlvRecords = ::mega::TLVstore::containerToTLVrecords(&container);
-    std::vector<std::string> *keys = tlvRecords->getKeys();
+    // Clean aliases map in case alias attr has been removed
     std::vector<Id>aliasesUpdated;
-
-    // Create a new map <uhBin, aliasB64> for the aliases that have been updated
-    for (size_t i = 0; i < keys->size(); i++)
+    if (!data || data->empty())
     {
-        const std::string &key = keys->at(i);
-        Id handleBin(key.data());
-        if (!handleBin.isValid() || key.empty())
+        AliasesMap::iterator itAliases = mAliasesMap.begin();
+        while (itAliases != mAliasesMap.end())
         {
-            KR_LOG_ERROR("Invalid handle in aliases");
-            continue;
-        }
-
-        const std::string &newAlias = tlvRecords->get(key);
-        if (mAliasesMap[handleBin] != newAlias)
-        {
-            mAliasesMap[handleBin] = newAlias;
-            aliasesUpdated.emplace_back(handleBin);
-        }
-    }
-
-    AliasesMap::iterator itAliases = mAliasesMap.begin();
-    while (itAliases != mAliasesMap.end())
-    {
-        Id userid = itAliases->first;
-        std::string useridB64(::mega::Base64Str<sizeof(uint64_t)>(userid.val));
-        auto it = itAliases++;
-        if (!tlvRecords->find(useridB64))
-        {
+            Id userid = itAliases->first;
+            auto it = itAliases++;
             mAliasesMap.erase(it);
             aliasesUpdated.emplace_back(userid);
         }
     }
+    else
+    {
+        // Save the aliases from cache attr in a tlv container
+        const std::string container(data->buf(), data->size());
+        ::mega::TLVstore *tlvRecords = ::mega::TLVstore::containerToTLVrecords(&container);
+        std::vector<std::string> *keys = tlvRecords->getKeys();
 
-    delete tlvRecords;
-    delete keys;
+
+        // Create a new map <uhBin, aliasB64> for the aliases that have been updated
+        for (size_t i = 0; i < keys->size(); i++)
+        {
+            const std::string &key = keys->at(i);
+            Id handleBin(key.data());
+            if (!handleBin.isValid() || key.empty())
+            {
+                KR_LOG_ERROR("Invalid handle in aliases");
+                continue;
+            }
+
+            const std::string &newAlias = tlvRecords->get(key);
+            if (mAliasesMap[handleBin] != newAlias)
+            {
+                mAliasesMap[handleBin] = newAlias;
+                aliasesUpdated.emplace_back(handleBin);
+            }
+        }
+
+        AliasesMap::iterator itAliases = mAliasesMap.begin();
+        while (itAliases != mAliasesMap.end())
+        {
+            Id userid = itAliases->first;
+            std::string useridB64(::mega::Base64Str<sizeof(uint64_t)>(userid.val));
+            auto it = itAliases++;
+            if (!tlvRecords->find(useridB64))
+            {
+                mAliasesMap.erase(it);
+                aliasesUpdated.emplace_back(userid);
+            }
+        }
+
+        delete tlvRecords;
+        delete keys;
+    }
 
     // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
     for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
