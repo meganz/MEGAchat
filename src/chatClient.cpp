@@ -1015,6 +1015,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         {
             changeType = ::mega::MegaUser::CHANGE_TYPE_LASTNAME;
         }
+        else if (attrType == ::mega::MegaApi::USER_ATTR_ALIAS)
+        {
+            changeType = ::mega::MegaUser::CHANGE_TYPE_ALIAS;
+        }
         else
         {
             return;
@@ -3901,7 +3905,6 @@ void Client::updateAliases(Buffer *data)
         const std::string container(data->buf(), data->size());
         ::mega::TLVstore *tlvRecords = ::mega::TLVstore::containerToTLVrecords(&container);
         std::vector<std::string> *keys = tlvRecords->getKeys();
-
 
         // Create a new map <uhBin, aliasB64> for the aliases that have been updated
         for (size_t i = 0; i < keys->size(); i++)
