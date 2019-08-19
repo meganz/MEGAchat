@@ -21,14 +21,12 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     ui->mPreviewersIndicator->hide();
     QString text = QString::fromUtf8(contactEmail);
     ui->mName->setText(contactEmail);
-    ui->mAvatar->setText(QString(text[0].toUpper()));
 
     const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle(), NULL);
-    if (firstname)
-    {
-        updateTitle(firstname);
-    }
+    mName = firstname ? std::string(firstname) : std::string();
     delete [] firstname;
+    mAlias = mMainWin->mApp->getLocalUserAlias(mUserHandle);
+    updateTitle();
 
     int status = mMegaChatApi->getUserOnlineStatus(mUserHandle);
     updateOnlineIndicator(status);
@@ -247,18 +245,28 @@ void ContactItemWidget::onCopyHandle()
     delete []handel_64;
 }
 
-void ContactItemWidget::updateTitle(const char *firstname)
+void ContactItemWidget::updateName(const char *name)
+{
+    mName = name ? name : std::string();
+    updateTitle();
+}
+
+void ContactItemWidget::updateTitle()
 {
     QString text;
-    if (strcmp(firstname, "") == 0)
+    if (!mAlias.empty())
+    {
+        text = QString::fromUtf8(mAlias.c_str());
+    }
+    else if (!mName.empty())
+    {
+        text = QString::fromUtf8(mName.c_str());
+    }
+    else
     {
         const char *auxEmail = mMegaChatApi->getContactEmail(mUserHandle);
         text = QString::fromUtf8(auxEmail);
         delete [] auxEmail;
-    }
-    else
-    {
-        text = QString::fromUtf8(firstname);
     }
 
     switch (mUserVisibility)

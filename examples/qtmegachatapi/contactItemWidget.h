@@ -20,7 +20,8 @@ class ContactItemWidget : public QWidget
         void setAvatarStyle();
         void updateOnlineIndicator(int newState);
         void updateToolTip(mega::MegaUser *contact);
-        void updateTitle(const char *firstname);
+        void updateName(const char *name);
+        void updateTitle();
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);
         void createChatRoom(megachat::MegaChatHandle uh, bool isGroup, bool isPublic);
@@ -33,6 +34,8 @@ class ContactItemWidget : public QWidget
         ::mega::MegaApi *mMegaApi;
         QListWidgetItem *mListWidgetItem;
         MainWindow *mMainWin;
+        std::string mName;
+        std::string mAlias;
 
     void createChatRoom(megachat::MegaChatHandle uh, bool isGroup);
 
