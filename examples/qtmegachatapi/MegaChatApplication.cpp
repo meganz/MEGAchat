@@ -259,7 +259,7 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
                     mMegaApi->getPushNotificationSettings();
                 }
 
-                if (user->hasChanged(MegaUser::CHANGE_TYPE_ALIAS) && !user->isOwnChange())
+                if (user->hasChanged(MegaUser::CHANGE_TYPE_ALIAS))
                 {
                     mMegaApi->getUserAttribute(::mega::MegaApi::USER_ATTR_ALIAS);
                 }
@@ -606,6 +606,11 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 mMainWin->mSettings->onPushNotificationSettingsUpdate();
             }
         }
+        break;
+        case MegaRequest::TYPE_SET_ATTR_USER:
+        {
+        }
+        break;
 
         default:
             break;
