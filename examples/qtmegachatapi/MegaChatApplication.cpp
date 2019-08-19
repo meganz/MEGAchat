@@ -372,6 +372,31 @@ void MegaChatApplication::resetLoginDialog()
     mLoginDialog = NULL;
 }
 
+std::string MegaChatApplication::base64ToBinary(const char *base64)
+{
+    std::string result;
+    if (!base64)
+        return result;
+
+    unsigned char* bin;
+    size_t binSize;
+    MegaApi::base64ToBinary(base64, &bin, &binSize);
+    result = std::string(reinterpret_cast<char*>(bin), binSize);
+    delete [] bin;
+    return result;
+}
+
+std::string MegaChatApplication::getLocalUserAlias(MegaChatHandle uh)
+{
+    std::string alias;
+    std::map<MegaChatHandle, std::string>::iterator it = mAliasesMap.find(uh);
+    if (it != mAliasesMap.end())
+    {
+        alias = it->second;
+    }
+    return alias;
+}
+
 LoginDialog *MegaChatApplication::loginDialog() const
 {
     return mLoginDialog;
@@ -535,6 +560,29 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                     mMainWin->mSettings->onPushNotificationSettingsUpdate();
                 }
             }
+            else if (request->getParamType() == ::mega::MegaApi::USER_ATTR_ALIAS)
+            {
+                mAliasesMap.clear();
+                MegaStringMap *aliasesmap = request->getMegaStringMap();
+                if (!aliasesmap)
+                {
+                    mMainWin->reorderAppContactList();
+                    break;
+                }
+
+                std::unique_ptr<MegaStringList> keys(aliasesmap->getKeys());
+                for (int i = 0; i < keys->size(); i++)
+                {
+                    const char *key = keys->get(i);
+                    MegaChatHandle uhBin = mMegaApi->base64ToUserHandle(key);
+                    std::string aliasBin = base64ToBinary(aliasesmap->get(key));
+                    if (!aliasBin.empty())
+                    {
+                        mAliasesMap[uhBin] = aliasBin;
+                    }
+                }
+                mMainWin->reorderAppContactList();
+            }
             break;
         case MegaRequest::TYPE_FETCH_TIMEZONE:
         {
@@ -566,6 +614,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 MegaUserList *contactList = mMegaApi->getContacts();
                 mMainWin->addOrUpdateContactControllersItems(contactList);
                 mMainWin->reorderAppContactList();
+                //Fetch alias attr
+                mMegaApi->getUserAttribute(::mega::MegaApi::USER_ATTR_ALIAS);
                 delete contactList;
             }
             break;

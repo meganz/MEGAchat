@@ -36,6 +36,8 @@ class MegaChatApplication : public QApplication,
         void removeSid();
         LoginDialog *loginDialog() const;
         void resetLoginDialog();
+        std::string base64ToBinary(const char *base64);
+        std::string getLocalUserAlias(megachat::MegaChatHandle uh);
 
         virtual void onRequestFinish(megachat::MegaChatApi *mMegaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError *e);
         virtual void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e);
@@ -67,6 +69,7 @@ protected:
 
     private:
         std::map<megachat::MegaChatHandle, std::string> mFirstnamesMap;
+        std::map<megachat::MegaChatHandle, std::string> mAliasesMap;
         std::map<megachat::MegaChatHandle, bool> mFirstnameFetching;
         bool useStaging = false;
         std::shared_ptr<::mega::MegaPushNotificationSettings> mNotificationSettings;
