@@ -107,7 +107,7 @@ void MegaChatApplication::login()
    mLoginDialog->show();
 }
 
-std::string MegaChatApplication::getText(std::string title)
+std::string MegaChatApplication::getText(std::string title, bool allowEmpty)
 {
     bool ok;
     std::string text;
@@ -121,7 +121,7 @@ std::string MegaChatApplication::getText(std::string title)
         if (ok)
         {
             text = qText.toStdString();
-            if (text.size() > 0)
+            if (text.size() > 0 || allowEmpty)
             {
                 return text;
             }

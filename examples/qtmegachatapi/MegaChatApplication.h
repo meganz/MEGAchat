@@ -29,7 +29,7 @@ class MegaChatApplication : public QApplication,
         void login();
         void configureLogs();
         bool initAnonymous(std::string chatlink);
-        std::string getText(std::string title);
+        std::string getText(std::string title, bool allowEmpty = false);
         const char *readSid();
         const char *sid() const;
         void saveSid(const char *sid);

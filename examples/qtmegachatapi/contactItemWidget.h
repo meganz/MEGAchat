@@ -48,5 +48,6 @@ class ContactItemWidget : public QWidget
         void onRequestLastGreen();
         void onExContactInvite();
         void onCopyHandle();
+        void onSetNickname();
 };
 #endif // CONTACITEMWIDGET_H
