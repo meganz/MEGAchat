@@ -272,6 +272,12 @@ void ContactItemWidget::updateTitle()
     if (!mAlias.empty())
     {
         text = QString::fromUtf8(mAlias.c_str());
+        if (!mName.empty())
+        {
+            text.append("(")
+            .append(QString::fromUtf8(mName.c_str()))
+            .append(")");
+        }
     }
     else if (!mName.empty())
     {
