@@ -624,30 +624,6 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     }
 }
 
-template<typename T>
-std::vector<T> ProtocolHandler::str_to_a32(std::string data)
-{
-    std::vector<T> data32((data.size() + 3) >> 2);
-    for (int i = 0; i < data.size(); ++i)
-    {
-        data32[i >> 2] |= (data[i] & 255) << (24 - (i & 3) * 8);
-    }
-    return data32;
-}
-
-template<typename T>
-std::string ProtocolHandler::a32_to_str(std::vector<T> data)
-{
-    size_t size =  data.size() * sizeof(T);
-    char result [size];
-    for (int i = 0; i < size; ++i)
-    {
-        result[i] = (data[i >> 2] >> (24 - (i & 3) * 8)) & 255;
-    }
-
-    return std::string (result, size);
-}
-
 promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
 {
@@ -668,8 +644,9 @@ ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
         std::string react (reaction, strlen(reaction));
         std::string keyBin (data->buf(), data->dataSize());
 
-        std::vector<uint32_t> key32 = str_to_a32<uint32_t>(keyBin);
-        std::vector<uint32_t> msgId32 = str_to_a32<uint32_t>(msgId);
+        // Inside this function str_to_a32 and a32_to_str calls must be done with type <T> = <uint32_t>
+        std::vector<uint32_t> key32 = ::mega::Utils::str_to_a32<uint32_t>(keyBin);
+        std::vector<uint32_t> msgId32 = ::mega::Utils::str_to_a32<uint32_t>(msgId);
 
         // key32 XOR msgId32 --> Cypherkey to encrypt reaction
         std::vector<uint32_t> cypherKey(key32.size());
@@ -695,14 +672,14 @@ ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
        memcpy(plaintext, msgId.data(), 4);
        memcpy(plaintext + 4, react.data(), roundSize);
 
-       // emoji32 (b_to_vector)
-       std::vector<uint32_t> emoji32 = str_to_a32<uint32_t>(std::string(plaintext, emojiLen));
+       // emoji32
+       std::vector<uint32_t> emoji32 = ::mega::Utils::str_to_a32<uint32_t>(std::string(plaintext, emojiLen));
 
        // Encrypt reaction
        ::mega::xxteaEncrypt(&emoji32[0], 2, &cypherKey[0], false);
 
        // Convert encrypted reaction to uint32 array
-       std::string result = a32_to_str<uint32_t>(emoji32);
+       std::string result = ::mega::Utils::a32_to_str<uint32_t>(emoji32);
        std::shared_ptr<Buffer>buf;
        buf.reset(new Buffer(result.data(), result.size()));
        return buf;
@@ -727,8 +704,10 @@ ProtocolHandler::reactionDecrypt(Message* msg, std::string reaction)
     {
         std::string msgId = msg->id().toString();
         std::string keyBin (data->buf(), data->dataSize());
-        std::vector<uint32_t> key32 = str_to_a32<uint32_t>(keyBin);
-        std::vector<uint32_t> msgId32 =  str_to_a32<uint32_t>(msgId);
+
+        // Inside this function str_to_a32 and a32_to_str calls must be done with type <T> = <uint32_t>
+        std::vector<uint32_t> key32 = ::mega::Utils::str_to_a32<uint32_t>(keyBin);
+        std::vector<uint32_t> msgId32 =  ::mega::Utils::str_to_a32<uint32_t>(msgId);
 
         // key32 XOR msgId32 --> Cypherkey to encrypt reaction
         std::vector<uint32_t> cypherKey(key32.size());
@@ -737,9 +716,9 @@ ProtocolHandler::reactionDecrypt(Message* msg, std::string reaction)
             cypherKey[i] = key32[i] ^ msgId32[i % msgId32.size()];
         }
 
-        std::vector<uint32_t> reaction32 = str_to_a32<uint32_t>(reaction);
+        std::vector<uint32_t> reaction32 = ::mega::Utils::str_to_a32<uint32_t>(reaction);
         ::mega::xxteaDecrypt(&reaction32[0], reaction32.size(), &cypherKey[0], false);
-        std::string decrypted = a32_to_str<uint32_t>(reaction32);
+        std::string decrypted = ::mega::Utils::a32_to_str<uint32_t>(reaction32);
 
         int count = 0;
         for (int i = 4; i < decrypted.size(); ++i)

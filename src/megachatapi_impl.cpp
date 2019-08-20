@@ -8384,38 +8384,6 @@ MegaChatRichPreviewPrivate::~MegaChatRichPreviewPrivate()
 
 }
 
-std::vector<int32_t> DataTranslation::b_to_vector(const std::string& data)
-{
-    int length = data.length();
-    std::vector<int32_t> vector(length / sizeof(int32_t));
-
-    for (int i = 0; i < length; ++i)
-    {
-        // i >> 2 = i / 4
-        vector[i >> 2] |= (data[i] & 255) << (24 - (i & 3) * 8);
-    }
-
-    return vector;
-}
-
-std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
-{
-    int length = vector.size() * sizeof(int32_t);
-    char* data = new char[length];
-
-    for (int i = 0; i < length; ++i)
-    {
-        // i >> 2 = i / 4
-        data[i] = (vector[i >> 2] >> (24 - (i & 3) * 8)) & 255;
-    }
-
-    std::string dataToReturn(data, length);
-
-    delete[] data;
-
-    return dataToReturn;
-}
-
 std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
 {
     std::string ret;
@@ -8450,7 +8418,8 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         Base64::atob(base64Key, (::mega::byte*)tempKey, FILENODEKEYLENGTH);
         delete [] base64Key;
 
-        std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(tempKey, FILENODEKEYLENGTH));
+        // This call must be done with type <T> = <int32_t>
+        std::vector<int32_t> keyVector = ::mega::Utils::str_to_a32<int32_t>(std::string(tempKey, FILENODEKEYLENGTH));
         rapidjson::Value keyVectorNode(rapidjson::kArrayType);
         if (keyVector.size() != 8)
         {
@@ -8600,7 +8569,9 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
                 return NULL;
             }
         }
-        std::string key = DataTranslation::vector_to_b(kElements);
+
+        // This call must be done with type <T> = <int32_t>
+        std::string key = ::mega::Utils::a32_to_str<int32_t>(kElements);
 
         // size
         rapidjson::Value::ConstMemberIterator iteratorSize = file.FindMember("s");

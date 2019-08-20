@@ -455,12 +455,6 @@ public:
     virtual uint64_t getPublicHandle() const;
     virtual void setPublicHandle(const uint64_t ph);
 
-    template<typename T>
-    static std::vector<T> str_to_a32(std::string data);
-
-    template<typename T>
-    static std::string a32_to_str(std::vector<T> data);
-
     virtual promise::Promise<std::shared_ptr<Buffer>>
     reactionEncrypt(chatd::Message* msg, const char *reaction);
 
