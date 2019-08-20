@@ -20,7 +20,7 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     ui->mUnreadIndicator->hide();
     ui->mPreviewersIndicator->hide();
     QString text = QString::fromUtf8(contactEmail);
-    ui->mName->setText(contactEmail);
+    ui->mName->setText(text);
 
     const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle(), NULL);
     mName = firstname ? std::string(firstname) : std::string();
