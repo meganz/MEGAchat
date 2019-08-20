@@ -274,7 +274,7 @@ void ContactItemWidget::updateTitle()
         text = QString::fromUtf8(mAlias.c_str());
         if (!mName.empty())
         {
-            text.append("(")
+            text.append(" (")
             .append(QString::fromUtf8(mName.c_str()))
             .append(")");
         }
