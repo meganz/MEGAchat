@@ -3899,29 +3899,28 @@ void Client::updateAliases(Buffer *data)
             aliasesUpdated.emplace_back(userid);
         }
     }
-    else
+    else    // still some records/aliases in the attribute
     {
         // Save the aliases from cache attr in a tlv container
         const std::string container(data->buf(), data->size());
-        ::mega::TLVstore *tlvRecords = ::mega::TLVstore::containerToTLVrecords(&container);
-        std::vector<std::string> *keys = tlvRecords->getKeys();
+        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
+        std::unique_ptr<std::vector<std::string>> keys(tlvRecords->getKeys());
 
         // Create a new map <uhBin, aliasB64> for the aliases that have been updated
-        for (size_t i = 0; i < keys->size(); i++)
+        for (auto &key : *keys)
         {
-            const std::string &key = keys->at(i);
-            Id handleBin(key.data());
-            if (!handleBin.isValid() || key.empty())
+            Id userid(key.data());
+            if (key.empty() || !userid.isValid())
             {
                 KR_LOG_ERROR("Invalid handle in aliases");
                 continue;
             }
 
             const std::string &newAlias = tlvRecords->get(key);
-            if (mAliasesMap[handleBin] != newAlias)
+            if (mAliasesMap[userid] != newAlias)
             {
-                mAliasesMap[handleBin] = newAlias;
-                aliasesUpdated.emplace_back(handleBin);
+                mAliasesMap[userid] = newAlias;
+                aliasesUpdated.emplace_back(userid);
             }
         }
 
@@ -3929,44 +3928,39 @@ void Client::updateAliases(Buffer *data)
         while (itAliases != mAliasesMap.end())
         {
             Id userid = itAliases->first;
-            std::string useridB64(::mega::Base64Str<sizeof(uint64_t)>(userid.val));
             auto it = itAliases++;
-            if (!tlvRecords->find(useridB64))
+            if (!tlvRecords->find(userid.toString()))
             {
                 mAliasesMap.erase(it);
                 aliasesUpdated.emplace_back(userid);
             }
         }
-
-        delete tlvRecords;
-        delete keys;
     }
 
     // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
     for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
+    for (auto &itChats : *chats)
     {
-        ChatRoom *chatroom = itChats->second;
-        for (int i = 0; i < aliasesUpdated.size(); i++)
+        ChatRoom *chatroom = itChats.second;
+        for (auto &userid : aliasesUpdated)
         {
-            uint64_t userHandle = aliasesUpdated.at(i);
             if (chatroom->isGroup())
             {
                 // If chatroom is a group chatroom and there's at least a chat member included
                 // in aliasesUpdated map we need to re-generate the default title
                 // if there's no custom title
                 GroupChatRoom *room = static_cast<GroupChatRoom *>(chatroom);
-                if (room->hasTitle() || room->peers().find(userHandle) == room->peers().end())
+                if (room->hasTitle() || room->peers().find(userid) == room->peers().end())
                 {
                     continue;
                 }
-
                 room->makeTitleFromMemberNames();
                 break;
             }
             else
             {
                 PeerChatRoom *room = static_cast<PeerChatRoom *>(chatroom);
-                if (userHandle != room->peer())
+                if (userid != room->peer())
                 {
                     continue;
                 }
