@@ -44,12 +44,11 @@ Buffer* getAlias(const ::mega::MegaRequest& result)
         tlv.set(std::string(key), std::string(stringMap->get(key)));
     }
 
-    Buffer *buf = nullptr;
+    // If attr alias is empty generate a valid empty buffer with bufsize 1
     std::unique_ptr<string> aux(tlv.tlvRecordsToContainer());
-    if (aux)
-    {
-        buf = new Buffer(aux->c_str(), aux->size());
-    }
+    Buffer *buf = aux->size()
+            ? new Buffer(aux->data(), aux->size())
+            : new Buffer(1);
     return buf;
 }
 
