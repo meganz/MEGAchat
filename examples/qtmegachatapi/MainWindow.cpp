@@ -1241,7 +1241,7 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
     if (itContacts != mContactControllers.end())
     {
         ContactListItemController *itemController = itContacts->second;
-        itemController->getWidget()->updateTitle(firstname);
+        itemController->getWidget()->updateName(firstname);
     }
 }
 

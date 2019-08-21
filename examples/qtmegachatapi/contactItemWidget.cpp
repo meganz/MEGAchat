@@ -20,15 +20,13 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     ui->mUnreadIndicator->hide();
     ui->mPreviewersIndicator->hide();
     QString text = QString::fromUtf8(contactEmail);
-    ui->mName->setText(contactEmail);
-    ui->mAvatar->setText(QString(text[0].toUpper()));
+    ui->mName->setText(text);
 
     const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle(), NULL);
-    if (firstname)
-    {
-        updateTitle(firstname);
-    }
+    mName = firstname ? std::string(firstname) : std::string();
     delete [] firstname;
+    mAlias = mMainWin->mApp->getLocalUserAlias(mUserHandle);
+    updateTitle();
 
     int status = mMegaChatApi->getUserOnlineStatus(mUserHandle);
     updateOnlineIndicator(status);
@@ -50,33 +48,42 @@ void ContactItemWidget::setAvatarStyle()
 void ContactItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
-    auto chatPeerInviteAction = menu.addAction(tr("Invite to 1on1 chat"));
+
+    QMenu *chatMenu = menu.addMenu("Chats");
+
+    auto chatPeerInviteAction = chatMenu->addAction(tr("Invite to 1on1 chat"));
     connect(chatPeerInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePeerChat()));
 
-    auto chatInviteAction = menu.addAction(tr("Invite to group chat"));
+    auto chatInviteAction = chatMenu->addAction(tr("Invite to group chat"));
     connect(chatInviteAction, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
 
-    auto publicChatInviteAction = menu.addAction(tr("Invite to PUBLIC group chat"));
+    auto publicChatInviteAction = chatMenu->addAction(tr("Invite to PUBLIC group chat"));
     connect(publicChatInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePublicGroupChat()));
-
-    auto printAction = menu.addAction(tr("Print contact info"));
-    connect(printAction, SIGNAL(triggered()), this, SLOT(onPrintContactInfo()));
-
-    if (mUserVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
-    {
-        auto removeAction = menu.addAction(tr("Remove contact"));
-        connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
-    }
-    else if (mUserVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
-    {
-        auto addAction = menu.addAction(tr("Invite ex-contact"));
-        connect(addAction, SIGNAL(triggered()), this, SLOT(onExContactInvite()));
-    }
 
     auto lastGreenAction = menu.addAction(tr("Last time user was online"));
     connect(lastGreenAction, SIGNAL(triggered()), this, SLOT(onRequestLastGreen()));
 
+    QMenu *othersMenu = menu.addMenu("Others");
+
+    auto printAction = othersMenu->addAction(tr("Print contact info"));
+    connect(printAction, SIGNAL(triggered()), this, SLOT(onPrintContactInfo()));
+
+    if (mUserVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+    {
+        auto removeAction = othersMenu->addAction(tr("Remove contact"));
+        connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
+    }
+    else if (mUserVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
+    {
+        auto addAction = othersMenu->addAction(tr("Invite ex-contact"));
+        connect(addAction, SIGNAL(triggered()), this, SLOT(onExContactInvite()));
+    }
+
+    auto aliasAction = othersMenu->addAction(tr("Set nickname"));
+    connect(aliasAction, SIGNAL(triggered()), this, SLOT(onSetNickname()));
+
     menu.addSeparator();
+
     auto copyHandleAction = menu.addAction(tr("Copy to clipboard user id"));
     connect(copyHandleAction, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
 
@@ -247,18 +254,40 @@ void ContactItemWidget::onCopyHandle()
     delete []handel_64;
 }
 
-void ContactItemWidget::updateTitle(const char *firstname)
+void ContactItemWidget::onSetNickname()
+{
+    std::string nickname = mMainWin->mApp->getText("Set nickname: ", true);
+    mMegaApi->setUserAlias(mUserHandle, nickname.c_str());
+}
+
+void ContactItemWidget::updateName(const char *name)
+{
+    mName = name ? name : std::string();
+    updateTitle();
+}
+
+void ContactItemWidget::updateTitle()
 {
     QString text;
-    if (strcmp(firstname, "") == 0)
+    if (!mAlias.empty())
+    {
+        text = QString::fromUtf8(mAlias.c_str());
+        if (!mName.empty())
+        {
+            text.append(" (")
+            .append(QString::fromUtf8(mName.c_str()))
+            .append(")");
+        }
+    }
+    else if (!mName.empty())
+    {
+        text = QString::fromUtf8(mName.c_str());
+    }
+    else
     {
         const char *auxEmail = mMegaChatApi->getContactEmail(mUserHandle);
         text = QString::fromUtf8(auxEmail);
         delete [] auxEmail;
-    }
-    else
-    {
-        text = QString::fromUtf8(firstname);
     }
 
     switch (mUserVisibility)
