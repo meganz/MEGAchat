@@ -1352,7 +1352,6 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(std::to_string(count));
             return tmpString;
         }
-
         case OP_ADDREACTION:
         {
             string tmpString;
@@ -1391,6 +1390,18 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(std::to_string(len));
             tmpString.append(", reaction: ");
             tmpString.append(std::string(reaction, len));
+            return tmpString;
+        }
+        case OP_REACTIONSN:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            int8_t rsn = data.read<int8_t>(9);
+
+            tmpString.append("REACTIONSN chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", rsn: ");
+            tmpString.append(std::to_string(rsn));
             return tmpString;
         }
         default:
@@ -2236,6 +2247,16 @@ void Connection::execCommand(const StaticBuffer& buf)
                 chat.onDelReaction(msgid, userid, reaction);
                 break;
             }
+            case OP_REACTIONSN:
+            {
+                READ_CHATID(0);
+                READ_8(rsn, 8);
+
+                CHATDS_LOG_DEBUG("%s: recv REACTIONSN rsn %d", ID_CSTR(chatid), rsn);
+                auto& chat =  mChatdClient.chats(chatid);
+                chat.onReactionSn(rsn);
+                break;
+            }
             case OP_SYNC:
             {
                 READ_CHATID(0);
@@ -2570,6 +2591,15 @@ void Chat::delReaction(Message *message, const char *reaction)
     }, mChatdClient.mKarereClient->appCtx);
 }
 
+void Chat::sendReactionSn()
+{
+    if (!mReactionSn)
+    {
+        return;
+    }
+
+    sendCommand(Command(OP_REACTIONSN) + mChatId + static_cast<int8_t>(mReactionSn));
+}
 
 bool Chat::isFetchingNodeHistory() const
 {
@@ -4816,6 +4846,11 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
     }
 }
 
+void Chat::onReactionSn(int rsn)
+{
+    mReactionSn = rsn;
+}
+
 void Chat::onPreviewersUpdate(uint32_t numPrev)
 {
     if ((mNumPreviewers == numPrev)
@@ -4871,6 +4906,9 @@ void Chat::setOnlineState(ChatState state)
 
     if (state == kChatStateOnline)
     {
+        // Send REACTIONSN after a reconnection
+        sendReactionSn();
+
         if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
             mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsLoginChatd, connection().shardNo());
@@ -5133,7 +5171,11 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(HANDLEJOINRANGEHIST);
         RET_ENUM_NAME(SYNC);
         RET_ENUM_NAME(NEWNODEMSG);
+        RET_ENUM_NAME(CALLTIME);
         RET_ENUM_NAME(NODEHIST);
+        RET_ENUM_NAME(NUMBYHANDLE);
+        RET_ENUM_NAME(HANDLELEAVE);
+        RET_ENUM_NAME(REACTIONSN);
         default: return "(invalid opcode)";
     };
 }
