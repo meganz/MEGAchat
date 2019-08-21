@@ -56,6 +56,7 @@ class Contact;
 class ContactList;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
+typedef std::map<uint64_t, std::string> AliasesMap;
 class ChatRoomList;
 
 /** @brief An abstract class representing a chatd chatroom. It has two
@@ -277,6 +278,7 @@ public:
     virtual const std::string& email() const { return mEmail; }
 
     void initContact(const uint64_t& peer);
+    void updateChatRoomTitle();
 
 /** @cond PRIVATE */
     //chatd::Listener interface
@@ -303,7 +305,6 @@ public:
         UserAttrCache::Handle mEmailAttrCbHandle;
         std::string mName;
         std::string mEmail;
-        void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
 
     public:
@@ -466,13 +467,13 @@ class Contact: public karere::DeleteTrackable
 /** @cond PRIVATE */
 protected:
     ContactList& mClist;
-    Presence mPresence;
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
     UserAttrCache::Handle mUsernameAttrCbId;
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
+    std::string mName;
     int mVisibility;
     bool mIsInitializing = true;
     void updateTitle(const std::string& str);
@@ -523,6 +524,12 @@ public:
     bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
+
+    /** @brief Set the full name of this contact */
+    void setContactName(std::string name);
+
+    /** @brief Returns the full name of this contact */
+    std::string getContactName();
 };
 
 /** @brief This is the karere contactlist class. It maps user ids
@@ -886,6 +893,7 @@ protected:
     uint64_t mMyIdentity = 0; // seed for CLIENTID
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     UserAttrCache::Handle mOwnNameAttrHandle;
+    UserAttrCache::Handle mAliasAttrHandle;
 
     std::string mSid;
     std::string mLastScsn;
@@ -905,6 +913,8 @@ protected:
     megaHandle mHeartbeatTimer = 0;
     InitStats mInitStats;
 
+    // Maps uhBin to user alias encoded in B64
+    AliasesMap mAliasesMap;
     bool mIsInBackground = false;
 
 public:
@@ -1101,6 +1111,10 @@ public:
     uint64_t initMyIdentity();
 
     bool isInBackground() const;
+    void updateAliases(Buffer *data);
+
+    /** @brief Returns a string that contains the user alias in UTF-8 if exists, otherwise returns an empty string*/
+    std::string getUserAlias(uint64_t userId);
 
 protected:
     void heartbeat();
