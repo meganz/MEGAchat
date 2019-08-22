@@ -323,14 +323,14 @@ enum Opcode
     OP_ECHO = 32,
 
     /**
-      * @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid> <userid> <msgid> <reaction>
       *
       * User add a reaction to message
       */
     OP_ADDREACTION = 33,
 
     /**
-      * @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid> <userid> <msgid> <reaction>
       *
       * User delete a reaction to message
       */
@@ -414,6 +414,22 @@ enum Opcode
       * Send: <public_handle.6> <userid.8> <user_priv.1>
       */
     OP_HANDLELEAVE = 47,
+
+    /**
+      ** @brief <chatid> <rsn.1>
+      *
+      * C->S: send to chatd the current reaction sequence number for a chatroom.
+      * This command must be send upon a reconnection, only if we have stored
+      * a valid rsn (rsn != 0) and only after send JOIN/JOINRANGEHIST
+      * or HANDLEJOIN/HANDLEJOINRANGEHIST.
+      *
+      * S->C: inform about any change in the reactions associated to a chatroom
+      * by receiving the current reaction sequence number.
+      *
+      * Send: <chatid> <rsn.1>
+      * Receive: <chatid> <rsn.1>
+      */
+    OP_REACTIONSN = 48,
 
     OP_LAST = OP_HANDLELEAVE,
     OP_INVALIDCODE = 0xFF
