@@ -1510,11 +1510,22 @@ void Call::msgJoin(RtMessage& packet)
         assert(packet.callid);
         for (auto itSession = mSessions.begin(); itSession != mSessions.end(); itSession++)
         {
-            if (itSession->second->peer() == packet.userid && itSession->second->peerClient() == packet.clientid)
+            if (itSession->second->peer() == packet.userid && itSession->second->peerClient() == packet.clientid && itSession->second->getState() < Session::kStateTerminating)
             {
                 SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: 0x%x) to whom we already have a session",
                                 itSession->second->peer().toString().c_str(), itSession->second->peerClient());
                 return;
+            }
+            else if (itSession->second->peer() == packet.userid && itSession->second->peerClient() == packet.clientid)
+            {
+                SUB_LOG_WARNING("Force to finish session with User: %s (client: 0x%x)",
+                                itSession->second->peer().toString().c_str(), itSession->second->peerClient());
+
+                if (!itSession->second->mTerminatePromise.done())
+                {
+                    auto pms = itSession->second->mTerminatePromise;
+                    pms.resolve();
+                }
             }
         }
 
