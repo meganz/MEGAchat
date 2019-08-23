@@ -1396,12 +1396,11 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id chatid = data.read<uint64_t>(1);
-            int8_t rsn = data.read<int8_t>(9);
-
+            karere::Id rsn = data.read<uint64_t>(9);
             tmpString.append("REACTIONSN chatid: ");
             tmpString.append(ID_CSTR(chatid));
             tmpString.append(", rsn: ");
-            tmpString.append(std::to_string(rsn));
+            tmpString.append(ID_CSTR(rsn));
             return tmpString;
         }
         default:
@@ -1756,6 +1755,9 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
     mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
+
+    std::string rsn(mDbInterface->getReactionSn());
+    mReactionSn = (!rsn.empty()) ? Id(rsn.data(), rsn.size()) : Id::inval();
 
     if ((mHaveAllHistory = mDbInterface->chatVar("have_all_history")))
     {
@@ -2250,9 +2252,8 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_REACTIONSN:
             {
                 READ_CHATID(0);
-                READ_8(rsn, 8);
-
-                CHATDS_LOG_DEBUG("%s: recv REACTIONSN rsn %d", ID_CSTR(chatid), rsn);
+                READ_ID(rsn, 8);
+                CHATDS_LOG_DEBUG("%s: recv REACTIONSN rsn %s", ID_CSTR(chatid), ID_CSTR(rsn));
                 auto& chat =  mChatdClient.chats(chatid);
                 chat.onReactionSn(rsn);
                 break;
@@ -2601,12 +2602,12 @@ void Chat::delReaction(Message *message, const char *reaction)
 
 void Chat::sendReactionSn()
 {
-    if (!mReactionSn)
+    if (!mReactionSn.isValid())
     {
         return;
     }
 
-    sendCommand(Command(OP_REACTIONSN) + mChatId + static_cast<int8_t>(mReactionSn));
+    sendCommand(Command(OP_REACTIONSN) + mChatId + mReactionSn.val);
 }
 
 bool Chat::isFetchingNodeHistory() const
@@ -4870,9 +4871,10 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
     }
 }
 
-void Chat::onReactionSn(int rsn)
+void Chat::onReactionSn(Id rsn)
 {
     mReactionSn = rsn;
+    CALL_DB(setReactionSn, mReactionSn.toString());
 }
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)

@@ -830,7 +830,7 @@ protected:
     /** True when node-attachments are pending to decrypt and history is truncated --> discard message being decrypted */
     bool mTruncateAttachment = false;
     /** Indicates the reaction sequence number for this chatroom */
-    int mReactionSn = 0;
+    karere::Id mReactionSn = karere::Id::inval();
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -855,7 +855,7 @@ protected:
     void onUserLeave(karere::Id userid);
     void onAddReaction(karere::Id msgId, karere::Id userId, std::string reaction);
     void onDelReaction(karere::Id msgId, karere::Id userId, std::string reaction);
-    void onReactionSn(int rsn);
+    void onReactionSn(karere::Id rsn);
     void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
     void loadAndProcessUnsent();
@@ -1570,6 +1570,10 @@ public:
     virtual void clearHistory() = 0;
 
     virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
+
+    //  <<<--- Reaction methods --->>>
+    virtual std::string getReactionSn() = 0;
+    virtual void setReactionSn(std::string rsn) = 0;
 };
 
 }
