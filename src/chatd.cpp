@@ -2226,7 +2226,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 std::string reaction (buf.readPtr(pos, payloadLen), payloadLen);
                 pos += payloadLen;
 
-                CHATDS_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %d",
+                CHATDS_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %s",
                                 ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction.c_str());
 
                 auto& chat =  mChatdClient.chats(chatid);
@@ -2242,7 +2242,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 std::string reaction (buf.readPtr(pos, payloadLen), payloadLen);
                 pos += payloadLen;
 
-                CHATDS_LOG_DEBUG("%s: recv DELREACTION from user %s to message %s reaction %d",
+                CHATDS_LOG_DEBUG("%s: recv DELREACTION from user %s to message %s reaction %s",
                                 ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction.c_str());
 
                 auto& chat =  mChatdClient.chats(chatid);
@@ -4825,6 +4825,11 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
     Message *message = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
     if (message)
     {
+        if (reaction.empty())
+        {
+            CHATID_LOG_DEBUG("onAddReaction: Error, reaction received is empty");
+            return;
+        }
         auto wptr = weakHandle();
         mCrypto->reactionDecrypt(message, reaction)
         .then([this, wptr, message, userId](std::shared_ptr<Buffer> data)
@@ -4832,7 +4837,9 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
             if (wptr.deleted())
                 return;
 
-            message->addReaction(std::string (data->buf(), data->bufSize()), userId);
+            std::string reaction (data->buf(), data->bufSize());
+            message->addReaction(reaction, userId);
+            CALL_DB(addReaction, message->mId, userId, reaction.c_str());
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -4851,6 +4858,11 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
     Message *message = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
     if (message)
     {
+        if (reaction.empty())
+        {
+            CHATID_LOG_DEBUG("onDelReaction: Error, reaction received is empty");
+            return;
+        }
         auto wptr = weakHandle();
         mCrypto->reactionDecrypt(message, reaction)
         .then([this, wptr, message, userId](std::shared_ptr<Buffer> data)
@@ -4858,7 +4870,9 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
             if (wptr.deleted())
                 return;
 
-            message->delReaction(std::string (data->buf(), data->bufSize()), userId);
+            std::string reaction (data->buf(), data->bufSize());
+            message->delReaction(reaction, userId);
+            CALL_DB(delReaction, message->mId, userId, reaction.c_str());
         })
         .fail([this](const ::promise::Error& err)
         {
