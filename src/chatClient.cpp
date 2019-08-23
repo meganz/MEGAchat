@@ -274,7 +274,7 @@ bool Client::openDb(const std::string& sid)
                 {
                     // no chats --> only update cache schema
                     KR_LOG_WARNING("Updating schema of MEGAchat cache...");
-                    db.query("ALTER TABLE `chats` ADD mode tinyint");
+                    db.query("ALTER TABLE `chats` ADD mode tinyint default 0");
                     db.query("ALTER TABLE `chats` ADD unified_key blob");
                     db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();
@@ -286,6 +286,23 @@ bool Client::openDb(const std::string& sid)
             {
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.query("update history set keyid=0 where type=?", chatd::Message::Type::kMsgTruncate);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
+            else if (cachedVersionSuffix == "7" && (strcmp(gDbSchemaVersionSuffix, "8") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Add reactionsn to chats table
+                db.query("ALTER TABLE `chats` ADD rsn blob");
+
+                // Create new table for chat reactions
+                db.simpleQuery("CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null,"
+                               "    userid int64 not null, reaction text,"
+                               "    UNIQUE(chatid, msgid, userid, reaction))");
+
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);

@@ -532,6 +532,43 @@ public:
             messages.push_back(msg);
         }
     }
+
+    virtual std::string getReactionSn()
+    {
+        SqliteStmt stmt(mDb, "select rsn from chats where chatid = ?");
+        stmt << mChat.chatId();
+        stmt.stepMustHaveData(__FUNCTION__);
+        return stmt.stringCol(0);
+    }
+
+    virtual void setReactionSn(std::string rsn)
+    {
+        mDb.query("update chats set rsn = ? where chatid = ?", rsn, mChat.chatId());
+        assertAffectedRowCount(1);
+    }
+
+    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction)
+    {
+        mDb.query("insert into chat_reactions(chatid, msgid, userid, reaction)"
+            "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
+    }
+
+    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction)
+    {
+        mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
+            mChat.chatId(), msgId, userId, reaction);
+    }
+
+    virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions)
+    {
+        SqliteStmt stmt(mDb, "select reaction, userid from chat_reactions where chatid = ? and msgid = ?");
+        stmt << mChat.chatId();
+        stmt << msgId;
+        while (stmt.step())
+        {
+            reactions.insert(std::pair<std::string, karere::Id>(stmt.stringCol(0), stmt.uint64Col(1)));
+        }
+    }
 };
 
 #endif
