@@ -3380,9 +3380,8 @@ const StateDesc Session::sStateDesc = {
     {
         { kStateWaitSdpOffer, kStateWaitSdpAnswer, kStateWaitLocalSdpAnswer},
         { kStateWaitLocalSdpAnswer, kStateTerminating, kStateDestroyed }, //for kStateWaitSdpOffer
-        { kStateConnecting, kStateTerminating, kStateDestroyed },         //for kStateWaitLocalSdpAnswer
-        { kStateConnecting, kStateTerminating, kStateDestroyed },         //for kStateWaitSdpAnswer
-        { kStateInProgress, kStateTerminating, kStateDestroyed},          //for kStateConnecting
+        { kStateInProgress, kStateTerminating, kStateDestroyed },         //for kStateWaitLocalSdpAnswer
+        { kStateInProgress, kStateTerminating, kStateDestroyed },         //for kStateWaitSdpAnswer
         { kStateTerminating, kStateDestroyed },                           //for kStateInProgress
         { kStateDestroyed },                             //for kStateTerminating
         {}                                               //for kStateDestroyed
