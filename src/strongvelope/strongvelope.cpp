@@ -683,6 +683,10 @@ ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
        std::shared_ptr<Buffer>buf;
        buf.reset(new Buffer(result.data(), result.size()));
        return buf;
+    })
+    .fail([](const ::promise::Error& err)
+    {
+        return err;
     });
 }
 
@@ -734,6 +738,10 @@ ProtocolHandler::reactionDecrypt(Message* msg, std::string reaction)
         std::shared_ptr<Buffer>buf;
         buf.reset(new Buffer(aux.data(), aux.size()));
         return buf;
+    })
+    .fail([](const ::promise::Error& err)
+    {
+        return err;
     });
 }
 

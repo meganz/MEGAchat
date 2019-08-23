@@ -2567,6 +2567,10 @@ void Chat::addReaction(Message *message, const char *reaction)
 
            std::string encReaction (data->buf(), data->bufSize());
            sendCommand(Command(OP_ADDREACTION) + mChatId + message->userid + message->id() + (int8_t)data->bufSize() + encReaction);
+        })
+        .fail([this](const ::promise::Error& err)
+        {
+            CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
         });
     }, mChatdClient.mKarereClient->appCtx);
 }
@@ -2587,6 +2591,10 @@ void Chat::delReaction(Message *message, const char *reaction)
 
            std::string encReaction (data->buf(), data->bufSize());
            sendCommand(Command(OP_DELREACTION) + mChatId + message->userid + message->id() + (int8_t)data->bufSize() + encReaction);
+        })
+        .fail([this](const ::promise::Error& err)
+        {
+            CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
         });
     }, mChatdClient.mKarereClient->appCtx);
 }
@@ -4824,7 +4832,15 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
                 return;
 
             message->addReaction(std::string (data->buf(), data->bufSize()), userId);
+        })
+        .fail([this](const ::promise::Error& err)
+        {
+            CHATID_LOG_DEBUG("Error decrypting reaction: %s", err.what());
         });
+    }
+    else
+    {
+        CHATID_LOG_DEBUG("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", messageIdx, msgId);
     }
 }
 
@@ -4842,7 +4858,15 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
                 return;
 
             message->delReaction(std::string (data->buf(), data->bufSize()), userId);
+        })
+        .fail([this](const ::promise::Error& err)
+        {
+            CHATID_LOG_DEBUG("Error decrypting reaction: %s", err.what());
         });
+    }
+    else
+    {
+        CHATID_LOG_DEBUG("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", messageIdx, msgId);
     }
 }
 
