@@ -1819,6 +1819,15 @@ Idx Chat::getHistoryFromDb(unsigned count)
     CALL_DB(fetchDbHistory, lownum()-1, count, messages);
     for (auto msg: messages)
     {
+        // Load msg reactions from cache
+        ::mega::multimap<std::string, karere::Id> reactions;
+        CALL_DB(getMessageReactions, msg->id(), reactions);
+        ::mega::multimap<std::string, karere::Id>::iterator it;
+        for (it = reactions.begin(); it != reactions.end(); it++)
+        {
+            msg->addReaction(it->first, it->second);
+        }
+
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
     }
     if (mNextHistFetchIdx == CHATD_IDX_INVALID)
