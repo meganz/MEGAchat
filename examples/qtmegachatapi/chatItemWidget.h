@@ -3,20 +3,20 @@
 #include <QWidget>
 #include "megachatapi.h"
 #include "MainWindow.h"
-class MainWindow;
 
 namespace Ui {
 class ChatItem;
 }
 
+class ChatListItemController;
+class MainWindow;
+
 class ChatItemWidget : public QWidget
 {
     Q_OBJECT
     public:
-        ChatItemWidget(QWidget *parent , megachat::MegaChatApi *megaChatApi, const megachat::MegaChatListItem *item);
+        ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatListItem *item);
         virtual ~ChatItemWidget();
-        void unshowAsHidden();
-        void showAsHidden();
         void contextMenuEvent(QContextMenuEvent *event);
         megachat::MegaChatHandle getChatId() const;
         QListWidgetItem *getWidgetItem() const;
@@ -31,28 +31,17 @@ class ChatItemWidget : public QWidget
 
     protected:
         Ui::ChatItem *ui;
-        int mLastOverlayCount;
+        MainWindow *mMainWin;
         megachat::MegaChatHandle mChatId;
         ::megachat::MegaChatApi *mMegaChatApi;
-        ::mega::MegaApi *mMegaApi;
-        QListWidgetItem *mListWidgetItem;
-
-    protected:
-        MainWindow *mMainWin;
+        ChatListItemController *mController;
         std::string mLastMsgAuthor;
+        int mLastOverlayCount;
+        QListWidgetItem *mListWidgetItem = NULL;
 
-    protected slots:
-        void leaveGroupChat();
-        void setTitle();
+    public slots:
         void onPrintChatInfo();
-        void truncateChat();
-        void queryChatLink();
-        void createChatLink();
-        void setPublicChatToPrivate();
-        void closeChatPreview();
-        void removeChatLink();
-        void archiveChat(bool checked);
-        void autojoinChatLink();
+        void onCopyHandle();
 
     friend class MainWindow;
     friend class ContactItemWidget;

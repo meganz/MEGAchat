@@ -77,6 +77,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->initAnonymous();
 }
 
+- (void)resetClientId {
+    self.megaChatApi->resetClientid();
+}
+
 - (MEGAChatInit)initState {
     return (MEGAChatInit) self.megaChatApi->getInitState();
 }
@@ -989,14 +993,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (BOOL)hasCallInChatRoom:(uint64_t)chatId {
     return self.megaChatApi ? self.megaChatApi->hasCallInChatRoom(chatId) : NO;
-}
-
-- (void)enableGroupChatCalls:(BOOL)enable {
-    self.megaChatApi->enableGroupChatCalls(enable);
-}
-
-- (BOOL)areGroupChatCallEnabled {
-    return self.megaChatApi->areGroupChatCallEnabled();
 }
 
 - (NSInteger)getMaxVideoCallParticipants {

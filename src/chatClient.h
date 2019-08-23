@@ -14,10 +14,20 @@
 #include "IGui.h"
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
+#include "stringUtils.h"
+
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#endif
+
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
-#include "stringUtils.h"
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
 
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
@@ -46,6 +56,7 @@ class Contact;
 class ContactList;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
+typedef std::map<uint64_t, std::string> AliasesMap;
 class ChatRoomList;
 
 /** @brief An abstract class representing a chatd chatroom. It has two
@@ -267,6 +278,7 @@ public:
     virtual const std::string& email() const { return mEmail; }
 
     void initContact(const uint64_t& peer);
+    void updateChatRoomTitle();
 
 /** @cond PRIVATE */
     //chatd::Listener interface
@@ -293,7 +305,6 @@ public:
         UserAttrCache::Handle mEmailAttrCbHandle;
         std::string mName;
         std::string mEmail;
-        void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
 
     public:
@@ -456,13 +467,13 @@ class Contact: public karere::DeleteTrackable
 /** @cond PRIVATE */
 protected:
     ContactList& mClist;
-    Presence mPresence;
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
     UserAttrCache::Handle mUsernameAttrCbId;
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
+    std::string mName;
     int mVisibility;
     bool mIsInitializing = true;
     void updateTitle(const std::string& str);
@@ -513,6 +524,12 @@ public:
     bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
+
+    /** @brief Set the full name of this contact */
+    void setContactName(std::string name);
+
+    /** @brief Returns the full name of this contact */
+    std::string getContactName();
 };
 
 /** @brief This is the karere contactlist class. It maps user ids
@@ -527,10 +544,6 @@ public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
 
-    /** @brief Returns the contact object from the specified XMPP jid if one exists,
-     * otherwise returns NULL
-     */
-    Contact* contactFromJid(const std::string& jid) const;
     Contact* contactFromUserId(uint64_t userid) const;
     Contact* contactFromEmail(const std::string& email) const;
 
@@ -542,7 +555,6 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
     bool isExContact(karere::Id userid);
     /** @endcond */
@@ -613,6 +625,10 @@ public:
 class InitStats
 {
     public:
+
+        /** @brief MEGAchat init stats version */
+        const uint32_t INITSTATSVERSION = 2;
+
         /** @brief Init states in init stats */
         enum
         {
@@ -642,20 +658,11 @@ class InitStats
             kStatsLoginChatd        = 3
         };
 
-        void setNumNodes(long long numNodes);
-        void setNumContacts(long numContacts);
-        void setNumChats(long numChats);
-        void onCompleted();
+        std::string onCompleted(long long numNodes, size_t numChats, size_t numContacts);
         bool isCompleted() const;
-
-        /** @brief Returns a string that contains init stats in JSON format */
-        std::string toJson();
-
+        void onCanceled();
 
         /*  Stages Methods */
-
-        /** @brief Reset the elapsed time for a stage */
-        void resetStage(uint8_t stage);
 
         /** @brief Obtain initial ts for a stage */
         void stageStart(uint8_t stage);
@@ -739,6 +746,9 @@ private:
 
     /** @brief  Returns a string with the associated tag to the stage **/
     std::string shardStageToString(uint8_t stage);
+
+    /** @brief Returns a string that contains init stats in JSON format */
+    std::string toJson();
 
 };
 
@@ -883,6 +893,7 @@ protected:
     uint64_t mMyIdentity = 0; // seed for CLIENTID
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     UserAttrCache::Handle mOwnNameAttrHandle;
+    UserAttrCache::Handle mAliasAttrHandle;
 
     std::string mSid;
     std::string mLastScsn;
@@ -901,6 +912,10 @@ protected:
 
     megaHandle mHeartbeatTimer = 0;
     InitStats mInitStats;
+
+    // Maps uhBin to user alias encoded in B64
+    AliasesMap mAliasesMap;
+    bool mIsInBackground = false;
 
 public:
 
@@ -1017,15 +1032,12 @@ public:
     /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes
-     * @param pres The presence which should be set. This is a forced presence,
-     * i.e. it will be preserved even if the client disconnects. To disable
-     * setting such a forced presence and assume whatever presence was last used,
-     * and/or use only dynamic presence, set this param to \c Presence::kClear
      * @param isInBackground In case the app requests to connect from a service in
-     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY. Hence, it will
-     * avoid to tell chatd that the client is active.
+     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY to chatd. Hence, it will
+     * avoid to tell chatd that the client is active. Also, the presenced client will
+     * prevent to send USERACTIVE 1 in background, since the user is not active.
      */
-    promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
+    promise::Promise<void> connect(bool isInBackground = false);
 
     /**
      * @brief Retry pending connections to chatd and presenced
@@ -1047,8 +1059,6 @@ public:
      * disabled in foreground).
      */
     promise::Promise<void> notifyUserStatus(bool background);
-
-    void startKeepalivePings();
 
     /** Terminates the karere client, logging it out, hanging up calls,
      * and cleaning up state
@@ -1097,6 +1107,14 @@ public:
     void updateAndNotifyLastGreen(Id userid);
     InitStats &initStats();
     void sendStats();
+    void resetMyIdentity();
+    uint64_t initMyIdentity();
+
+    bool isInBackground() const;
+    void updateAliases(Buffer *data);
+
+    /** @brief Returns a string that contains the user alias in UTF-8 if exists, otherwise returns an empty string*/
+    std::string getUserAlias(uint64_t userId);
 
 protected:
     void heartbeat();
@@ -1124,7 +1142,7 @@ protected:
             std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
 
     // connection-related methods
-    void connectToChatd(bool isInBackground);
+    void connectToChatd();
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<int> initializeContactList();
 
@@ -1135,7 +1153,7 @@ protected:
      * connect() waits for the mCanConnect promise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(Presence pres, bool isInBackground);
+    promise::Promise<void> doConnect();
     void setConnState(ConnState newState);
 
     // mega::MegaGlobalListener interface, called by worker thread

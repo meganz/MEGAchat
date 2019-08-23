@@ -342,6 +342,7 @@ public:
     virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
     virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
     virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid) = 0;
+    virtual void retryCalls(int shard) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
@@ -880,7 +881,6 @@ protected:
     void handleBroadcast(karere::Id userid, uint8_t type);
     void findAndNotifyLastTextMsg();
     void notifyLastTextMsg();
-    void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
     void onInCall(karere::Id userid, uint32_t clientid);
     void onEndCall(karere::Id userid, uint32_t clientid);
     void initChat();
@@ -1335,7 +1335,7 @@ public:
 //===
 };
 
-class Client
+class Client : public karere::DeleteTrackable
 {
 protected:
     karere::Id mMyHandle;
@@ -1363,7 +1363,6 @@ protected:
     // to track changes in the richPreview's user-attribute
     karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
 
-    uint8_t mKeepaliveType = OP_KEEPALIVE;
     int mKeepaliveCount = 0;                    // number of keepalives to be sent (one per connection)
     bool mKeepaliveFailed = false;              // true means any pending keepalive failed to send
     promise::Promise<void> mKeepalivePromise;   // resolved when all keepalive have been sent (or failed)
@@ -1422,7 +1421,7 @@ public:
     void retryPendingConnections(bool disconnect, bool refreshURL = false);
     void heartbeat();
 
-    promise::Promise<void> notifyUserStatus(bool background);
+    promise::Promise<void> notifyUserStatus();
 
     /** Changes the Rtc handler, returning the old one */
     IRtcHandler* setRtcHandler(IRtcHandler* handler);
@@ -1553,7 +1552,7 @@ public:
     virtual Idx getOldestIdx() = 0;
     virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
-    virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
+    virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
 
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;

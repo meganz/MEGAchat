@@ -84,6 +84,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (MEGAChatInit)initKarereWithSid:(NSString *)sid;
 - (MEGAChatInit)initAnonymous;
+- (void)resetClientId;
 
 - (MEGAChatInit)initState;
 
@@ -306,8 +307,6 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAHandleList *)chatCallsWithState:(MEGAChatCallStatus)callState;
 - (MEGAHandleList *)chatCallsIds;
 - (BOOL)hasCallInChatRoom:(uint64_t)chatId;
-- (void)enableGroupChatCalls:(BOOL)enable;
-- (BOOL)areGroupChatCallEnabled;
 - (NSInteger)getMaxVideoCallParticipants;
 - (NSInteger)getMaxCallParticipants;
 - (uint64_t)myClientIdHandleForChatId:(uint64_t)chatId;

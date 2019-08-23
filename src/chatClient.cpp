@@ -9,6 +9,7 @@
 #ifdef _WIN32
     #include <winsock2.h>
     #include <direct.h>
+    #include <sys/timeb.h>  
     #define mkdir(dir, mode) _mkdir(dir)
 #endif
 #include <stdio.h>
@@ -60,6 +61,11 @@ std::string encodeFirstName(const std::string& first);
 bool Client::anonymousMode() const
 {
     return (mInitState == kInitAnonymousMode);
+}
+
+bool Client::isInBackground() const
+{
+    return mIsInBackground;
 }
 
 /* Warning - the database is not initialzed at construction, but only after
@@ -276,6 +282,14 @@ bool Client::openDb(const std::string& sid)
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
                 }
             }
+            else if (cachedVersionSuffix == "6" && (strcmp(gDbSchemaVersionSuffix, "7") == 0))
+            {
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.query("update history set keyid=0 where type=?", chatd::Message::Type::kMsgTruncate);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -346,11 +360,25 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 
 promise::Promise<void> Client::notifyUserStatus(bool background)
 {
-    if (mChatdClient)
+    bool oldStatus = mIsInBackground;
+    mIsInBackground = background;
+    if (mIsInBackground && !mInitStats.isCompleted())
     {
-        return mChatdClient->notifyUserStatus(background);
+        mInitStats.onCanceled();
     }
-    return promise::Error("Chatd client not initialized yet");
+
+    if (oldStatus == mIsInBackground)
+    {
+        return promise::_Void();
+    }
+
+    mPresencedClient.notifyUserStatus();
+    if (!mChatdClient)
+    {
+        return promise::Error("Chatd client not initialized yet");
+    }
+
+    return mChatdClient->notifyUserStatus();
 }
 
 promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
@@ -539,13 +567,25 @@ promise::Promise<void> Client::pushReceived(Id chatid)
             return promise::Error("Up to date with API, but instance was removed");
 
         // if already sent SYNCs or we are not logged in right now...
-        if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+        if (mSyncTimer)
         {
+            KR_LOG_WARNING("pushReceived: a previous PUSH is being processed. Both will finish at the same time");
+            assert(!mSyncPromise.done());
             return mSyncPromise;
             // promise will resolve once logged in for all chats or after receive all SYNCs back
         }
 
-        mSyncPromise = Promise<void>();
+        if (mSyncPromise.done())
+        {
+            KR_LOG_WARNING("pushReceived: previous PUSH was already resolved. New promise to track the progress");
+            mSyncPromise = Promise<void>();
+        }
+        if (!mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+        {
+            KR_LOG_WARNING("pushReceived: not logged in into all chats");
+            return mSyncPromise;
+        }
+
         mSyncCount = 0;
         mSyncTimer = karere::setTimeout([this, wptr]()
         {
@@ -636,8 +676,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
-    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
+    mMyIdentity = initMyIdentity();
 
     mUserAttrCache.reset(new UserAttrCache(*this));
     api.sdk.addGlobalListener(this);
@@ -653,6 +692,14 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
+
+        // Get aliases from cache
+        mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
+        ::mega::MegaApi::USER_ATTR_ALIAS, this,
+        [](Buffer *data, void *userp)
+        {
+            static_cast<Client*>(userp)->updateAliases(data);
+        });
     });
 }
 
@@ -758,6 +805,14 @@ void Client::initWithDbSession(const char* sid)
         mContactsLoaded = true;
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
+
+        // Get aliases from cache
+        mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
+        ::mega::MegaApi::USER_ATTR_ALIAS, this,
+        [](Buffer *data, void *userp)
+        {
+            static_cast<Client*>(userp)->updateAliases(data);
+        });
     }
     catch(std::runtime_error& e)
     {
@@ -917,6 +972,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 setInitState(kInitHasOnlineSession);
                 mSessionReadyPromise.resolve();
+                mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                 api.sdk.resumeActionPackets();
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
@@ -934,6 +990,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 {
                     setInitState(kInitHasOnlineSession);
                     mSessionReadyPromise.resolve();
+                    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                     api.sdk.resumeActionPackets();
                 });
             }
@@ -957,6 +1014,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         else if (attrType == ::mega::MegaApi::USER_ATTR_LASTNAME)
         {
             changeType = ::mega::MegaUser::CHANGE_TYPE_LASTNAME;
+        }
+        else if (attrType == ::mega::MegaApi::USER_ATTR_ALIAS)
+        {
+            changeType = ::mega::MegaUser::CHANGE_TYPE_ALIAS;
         }
         else
         {
@@ -1069,8 +1130,15 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
+promise::Promise<void> Client::connect(bool isInBackground)
 {
+    mIsInBackground = isInBackground;
+
+    if (mIsInBackground && !mInitStats.isCompleted())
+    {
+        mInitStats.onCanceled();
+    }
+
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
 // the connect immediately
@@ -1089,7 +1157,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     switch (sessDone)
     {
         case promise::kSucceeded:   // if session is ready...
-            return doConnect(pres, isInBackground);
+            return doConnect();
 
         case promise::kFailed:      // if session failed...
             return mSessionReadyPromise.error();
@@ -1097,18 +1165,17 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
         default:                    // if session is not ready yet... wait for it and then connect
             assert(sessDone == promise::kNotResolved);
             mConnectPromise = mSessionReadyPromise
-            .then([this, pres, isInBackground]() mutable
+            .then([this]() mutable
             {
-                return doConnect(pres, isInBackground);
+                return doConnect();
             });
             return mConnectPromise;
     }
 }
 
-promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
+promise::Promise<void> Client::doConnect()
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
-    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
     mInitStats.stageStart(InitStats::kStatsConnection);
 
     setConnState(kConnecting);
@@ -1118,7 +1185,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     // notify user-attr cache
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
-    connectToChatd(isInBackground);
+    connectToChatd();
 
     auto wptr = weakHandle();
     assert(!mHeartbeatTimer);
@@ -1158,7 +1225,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     rtc->init();
 #endif
 
-    auto pms = mPresencedClient.connect(presenced::Config(pres))
+    auto pms = mPresencedClient.connect()
     .then([this, wptr]()
     {
         if (wptr.deleted())
@@ -1190,22 +1257,9 @@ void Client::sendStats()
         return;
     }
 
-    if (anonymousMode())
-    {
-        mInitStats.resetStage(InitStats::kStatsLogin);
-        mInitStats.resetStage(InitStats::kStatsFetchNodes);
-        mInitStats.resetStage(InitStats::kStatsPostFetchNodes);
-    }
-
-    mInitStats.setNumNodes(api.sdk.getNumNodes());
-    mInitStats.setNumChats(chats->size());
-    mInitStats.setNumContacts(contactList->size());
-
-    std::string stats = mInitStats.toJson();
+    std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), contactList->size());
     KR_LOG_DEBUG("Init stats: %s", stats.c_str());
     api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str());
-
-    mInitStats.onCompleted();
 }
 
 InitStats& Client::initStats()
@@ -1268,8 +1322,7 @@ uint64_t Client::getMyIdentityFromDb()
     if (!stmt.step())
     {
         KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
-        result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-        db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+        result = initMyIdentity();
     }
     else
     {
@@ -1277,10 +1330,23 @@ uint64_t Client::getMyIdentityFromDb()
         if (result == 0)
         {
             KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
-            result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-            db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+            result = initMyIdentity();
         }
     }
+    return result;
+}
+
+void Client::resetMyIdentity()
+{
+   assert(mInitState == kInitWaitingNewSession || mInitState == kInitHasOfflineSession);
+   KR_LOG_WARNING("Reset clientid_seed");
+   mMyIdentity = initMyIdentity();
+}
+
+uint64_t Client::initMyIdentity()
+{
+    uint64_t result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
     return result;
 }
 
@@ -1441,6 +1507,7 @@ void Client::terminate(bool deleteDb)
 
         // stop syncing own-name and close user-attributes cache
         mUserAttrCache->removeCb(mOwnNameAttrHandle);
+        mUserAttrCache->removeCb(mAliasAttrHandle);
         mUserAttrCache->onLogOut();
         mUserAttrCache.reset();
 
@@ -2053,14 +2120,20 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui && !parent.mKarereClient.isTerminated())
+    auto &client = parent.mKarereClient;
+    if (!client.isTerminated())
     {
-        parent.mKarereClient.app.chatListHandler()->removePeerChatItem(*mRoomGui);
+        client.userAttrCache().removeCb(mUsernameAttrCbId);
+
+        if (mRoomGui)
+        {
+            client.app.chatListHandler()->removePeerChatItem(*mRoomGui);
+        }
     }
 
-    if (parent.mKarereClient.mChatdClient)
+    if (client.mChatdClient)
     {
-        parent.mKarereClient.mChatdClient->leave(mChatid);
+        client.mChatdClient->leave(mChatid);
     }
 }
 
@@ -2075,18 +2148,27 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     else    // 1on1 with ex-user
     {
         mUsernameAttrCbId = parent.mKarereClient.userAttrCache().
-                getAttr(peer, USER_ATTR_FULLNAME, this,[](Buffer* data, void* userp)
+                getAttr(peer, USER_ATTR_FULLNAME, this,
+        [](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
+            //one byte - the firstname-size-prefix, which will be zero but
+            //if lastname is not null the first byte will contain the
+            //firstname-size-prefix but datasize will be bigger than 1 byte.
+
+            // If the contact has alias don't update the title
             auto self = static_cast<PeerChatRoom*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            std::string alias = self->parent.mKarereClient.getUserAlias(self->mPeer);
+            if (alias.empty())
             {
-                self->updateTitle(self->mEmail);
-            }
-            else
-            {
-                self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
+                if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
+                {
+                    self->updateTitle(self->mEmail);
+                }
+                else
+                {
+                    self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
+                }
             }
         });
 
@@ -2095,6 +2177,28 @@ void PeerChatRoom::initContact(const uint64_t& peer)
             updateTitle(mEmail);
             assert(!mTitleString.empty());
         }
+    }
+}
+
+void PeerChatRoom::updateChatRoomTitle()
+{
+    std::string title = parent.mKarereClient.getUserAlias(mPeer);
+    if (title.empty())
+    {
+        title = mContact->getContactName();
+        if (title.empty())
+        {
+            title = mEmail;
+        }
+    }
+
+    if (mContact)
+    {
+        mContact->updateTitle(encodeFirstName(title));
+    }
+    else
+    {
+        updateTitle(title);
     }
 }
 
@@ -2592,27 +2696,43 @@ void GroupChatRoom::makeTitleFromMemberNames()
     {
         for (auto& m: mPeers)
         {
-            //name has binary layout
-            auto& name = m.second->mName;
-            assert(!name.empty()); //is initialized to '\0', so is never empty
-            if (name.size() <= 1)
+            Id userid = m.first;
+            const Member *user = m.second;
+
+            std::string alias = parent.mKarereClient.getUserAlias(userid);
+            if (!alias.empty())
             {
-                auto& email = m.second->mEmail;
-                if (!email.empty())
-                    newTitle.append(email).append(", ");
-                else
-                    newTitle.append("..., ");
+                // Add user's alias to the title
+                newTitle.append(alias).append(", ");
             }
             else
             {
-                int firstnameLen = name.at(0);
-                if (firstnameLen)
+                //name has binary layout
+                auto& name = user->mName;
+                assert(!name.empty()); //is initialized to '\0', so is never empty
+
+                if (name.size() > 1)
                 {
-                    newTitle.append(name.substr(1, firstnameLen)).append(", ");
+                    int firstnameLen = name.at(0);
+                    if (firstnameLen)
+                    {
+                        // Add user's first name to the title
+                        newTitle.append(name.substr(1, firstnameLen)).append(", ");
+                    }
+                    else
+                    {
+                        // Add user's last name to the title
+                        newTitle.append(name.substr(1)).append(", ");
+                    }
                 }
                 else
                 {
-                    newTitle.append(name.substr(1)).append(", ");
+                    // Add user's email to the title
+                    auto& email = user->mEmail;
+                    if (!email.empty())
+                        newTitle.append(email).append(", ");
+                    else
+                        newTitle.append("..., ");
                 }
             }
         }
@@ -3400,10 +3520,8 @@ promise::Promise<void> GroupChatRoom::Member::nameResolved() const
     return mNameResolved;
 }
 
-void Client::connectToChatd(bool isInBackground)
+void Client::connectToChatd()
 {
-    mChatdClient->setKeepaliveType(isInBackground);
-
     for (auto& item: *chats)
     {
         auto& chat = *item.second;
@@ -3474,6 +3592,16 @@ void Contact::onVisibilityChanged(int newVisibility)
     {
         mChatRoom->notifyRejoinedChat();
     }
+}
+
+void Contact::setContactName(std::string name)
+{
+    mName = name;
+}
+
+std::string Contact::getContactName()
+{
+    return mName;
 }
 
 void ContactList::syncWithApi(mega::MegaUserList& users)
@@ -3594,18 +3722,33 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
      mSince(since), mVisibility(visibility)
 {
-    mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
-        USER_ATTR_FULLNAME, this,
-        [](Buffer* data, void* userp)
+    mUsernameAttrCbId = mClist.client.userAttrCache()
+            .getAttr(userid, USER_ATTR_FULLNAME, this,
+    [](Buffer* data, void* userp)
+    {
+        //even if both first and last name are null, the data is at least
+        //one byte - the firstname-size-prefix, which will be zero but
+        //if lastname is not null the first byte will contain the
+        //firstname-size-prefix but datasize will be bigger than 1 byte.
+
+        // If the contact has alias don't update the title
+        auto self = static_cast<Contact*>(userp);
+        std::string alias = self->mClist.client.getUserAlias(self->userId());
+        if (alias.empty())
         {
-            //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
-            auto self = static_cast<Contact*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
+            {
                 self->updateTitle(encodeFirstName(self->mEmail));
+            }
             else
-                self->updateTitle(std::string(data->buf(), data->dataSize()));
-        });
+            {
+                std::string name(data->buf(), data->dataSize());
+                self->setContactName(name.substr(1));
+                self->updateTitle(name);
+            }
+        }
+    });
+
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
         updateTitle(encodeFirstName(email));
@@ -3741,6 +3884,105 @@ bool Client::isCallInProgress(karere::Id chatid) const
     return participantingInCall;
 }
 
+void Client::updateAliases(Buffer *data)
+{
+    // Clean aliases map in case alias attr has been removed
+    std::vector<Id>aliasesUpdated;
+    if (!data || data->empty())
+    {
+        AliasesMap::iterator itAliases = mAliasesMap.begin();
+        while (itAliases != mAliasesMap.end())
+        {
+            Id userid = itAliases->first;
+            auto it = itAliases++;
+            mAliasesMap.erase(it);
+            aliasesUpdated.emplace_back(userid);
+        }
+    }
+    else    // still some records/aliases in the attribute
+    {
+        // Save the aliases from cache attr in a tlv container
+        const std::string container(data->buf(), data->size());
+        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
+        std::unique_ptr<std::vector<std::string>> keys(tlvRecords->getKeys());
+
+        // Create a new map <uhBin, aliasB64> for the aliases that have been updated
+        for (auto &key : *keys)
+        {
+            Id userid(key.data());
+            if (key.empty() || !userid.isValid())
+            {
+                KR_LOG_ERROR("Invalid handle in aliases");
+                continue;
+            }
+
+            const std::string &newAlias = tlvRecords->get(key);
+            if (mAliasesMap[userid] != newAlias)
+            {
+                mAliasesMap[userid] = newAlias;
+                aliasesUpdated.emplace_back(userid);
+            }
+        }
+
+        AliasesMap::iterator itAliases = mAliasesMap.begin();
+        while (itAliases != mAliasesMap.end())
+        {
+            Id userid = itAliases->first;
+            auto it = itAliases++;
+            if (!tlvRecords->find(userid.toString()))
+            {
+                mAliasesMap.erase(it);
+                aliasesUpdated.emplace_back(userid);
+            }
+        }
+    }
+
+    // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
+    for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
+    for (auto &itChats : *chats)
+    {
+        ChatRoom *chatroom = itChats.second;
+        for (auto &userid : aliasesUpdated)
+        {
+            if (chatroom->isGroup())
+            {
+                // If chatroom is a group chatroom and there's at least a chat member included
+                // in aliasesUpdated map we need to re-generate the default title
+                // if there's no custom title
+                GroupChatRoom *room = static_cast<GroupChatRoom *>(chatroom);
+                if (room->hasTitle() || room->peers().find(userid) == room->peers().end())
+                {
+                    continue;
+                }
+                room->makeTitleFromMemberNames();
+                break;
+            }
+            else
+            {
+                PeerChatRoom *room = static_cast<PeerChatRoom *>(chatroom);
+                if (userid != room->peer())
+                {
+                    continue;
+                }
+                room->updateChatRoomTitle();
+                break;
+            }
+        }
+    }
+}
+
+std::string Client::getUserAlias(uint64_t userId)
+{
+    std::string aliasBin;
+    AliasesMap::iterator it = mAliasesMap.find(userId);
+    if (it != mAliasesMap.end())
+    {
+        const std::string &aliasB64 = it->second;
+        ::mega::Base64::atob(aliasB64, aliasBin);
+    }
+    return aliasBin;
+}
+
 std::string encodeFirstName(const std::string& first)
 {
     std::string result;
@@ -3753,43 +3995,60 @@ std::string encodeFirstName(const std::string& first)
     return result;
 }
 
-// Init Stats metods
-
-void InitStats::setNumNodes(long long numNodes)
-{
-    mNumNodes = numNodes;
-}
-
-void InitStats::setNumContacts(long numContacts)
-{
-    mNumContacts = numContacts;
-}
-
-void InitStats::setNumChats(long numChats)
-{
-    mNumChats = numChats;
-}
+// Init Stats methods
 
 bool InitStats::isCompleted() const
 {
     return mCompleted;
 }
 
-void InitStats::onCompleted()
+void InitStats::onCanceled()
 {
-    assert(!mCompleted);
     mCompleted = true;
 
     // clear maps to free some memory
     mStageShardStats.clear();
     mStageStats.clear();
+    KR_LOG_WARNING("Init stats have been cancelled");
+}
+
+std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t numContacts)
+{
+    assert(!mCompleted);
+    mCompleted = true;
+
+    if (mInitState == kInitAnonymous)
+    {
+        // these stages don't occur in anonymous mode
+        mStageStats[kStatsLogin] = 0;
+        mStageStats[kStatsFetchNodes] = 0;
+        mStageStats[kStatsPostFetchNodes] = 0;
+    }
+
+    mNumNodes = numNodes;
+    mNumChats = numChats;
+    mNumContacts = numContacts;
+
+    std::string json = toJson();
+
+    // clear maps to free some memory
+    mStageShardStats.clear();
+    mStageStats.clear();
+
+    return json;
 }
 
 mega::dstime InitStats::currentTime()
 {
+#if defined(_WIN32) && defined(_MSC_VER)
+    struct __timeb64 tb;
+    _ftime64(&tb);
+    return (tb.time * 1000) + (tb.millitm);
+#else
     timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
+    mega::m_clock_getmonotonictime(&ts);
     return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+#endif
 }
 
 void InitStats::shardStart(uint8_t stage, uint8_t shard)
@@ -3882,11 +4141,6 @@ void InitStats::handleShardStats(chatd::Connection::State oldState, chatd::Conne
     }
 }
 
-void InitStats::resetStage(uint8_t stage)
-{
-    mStageStats[stage] = 0;
-}
-
 void InitStats::stageStart(uint8_t stage)
 {
     if (mCompleted)
@@ -3967,7 +4221,7 @@ std::string InitStats::shardStageToString(uint8_t stage)
 std::string InitStats::toJson()
 {
     std::string result;
-    mega::dstime totalElapsed; //Total elapsed time to finish all stages
+    mega::dstime totalElapsed = 0; //Total elapsed time to finish all stages
     rapidjson::Document jSonDocument(rapidjson::kArrayType);
     rapidjson::Value jSonObject(rapidjson::kObjectType);
     rapidjson::Value jsonValue(rapidjson::kNumberType);
@@ -4061,6 +4315,11 @@ std::string InitStats::toJson()
     // Add number of contacts
     jsonValue.SetInt64(mInitState);
     jSonObject.AddMember(rapidjson::Value("sid"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add init stats version
+    uint32_t version = INITSTATSVERSION;
+    jsonValue.SetUint(version);
+    jSonObject.AddMember(rapidjson::Value("v"), jsonValue, jSonDocument.GetAllocator());
 
     // Add total elapsed
     jsonValue.SetInt64(totalElapsed);
