@@ -7143,6 +7143,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->status = msg->getStatus();
     this->ts = msg->getTimestamp();
     this->type = msg->getType();
+    this->mHasReactions = msg->hasReactions();
     this->changed = msg->getChanges();
     this->edited = msg->isEdited();
     this->deleted = msg->isDeleted();
@@ -7186,6 +7187,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
     this->rowId = MEGACHAT_INVALID_HANDLE;
     this->type = msg.type;
+    this->mHasReactions = msg.mReactions.size() ? true : false;
     this->ts = msg.ts;
     this->status = status;
     this->index = index;
@@ -7323,6 +7325,11 @@ MegaChatHandle MegaChatMessagePrivate::getUserHandle() const
 int MegaChatMessagePrivate::getType() const
 {
     return type;
+}
+
+bool MegaChatMessagePrivate::hasReactions() const
+{
+    return mHasReactions;
 }
 
 int64_t MegaChatMessagePrivate::getTimestamp() const

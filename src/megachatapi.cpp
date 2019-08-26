@@ -1550,6 +1550,11 @@ int MegaChatMessage::getType() const
     return MegaChatMessage::TYPE_INVALID;
 }
 
+bool MegaChatMessage::hasReactions() const
+{
+    return false;
+}
+
 int64_t MegaChatMessage::getTimestamp() const
 {
     return 0;

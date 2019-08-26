@@ -808,6 +808,7 @@ public:
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual int getType() const;
+    virtual bool hasReactions() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
     virtual bool isEdited() const;
@@ -858,6 +859,7 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
+    bool mHasReactions;
     std::vector<MegaChatAttachedUser> *megaChatUsers = NULL;
     mega::MegaNodeList *megaNodeList = NULL;
     mega::MegaHandleList *megaHandleList = NULL;
