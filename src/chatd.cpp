@@ -4839,6 +4839,13 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
             CHATID_LOG_DEBUG("onAddReaction: Error, reaction received is empty");
             return;
         }
+
+        if (message->isManagementMessage())
+        {
+            CHATID_LOG_DEBUG("onAddReaction: Error, reaction received for a management message");
+            return;
+        }
+
         auto wptr = weakHandle();
         mCrypto->reactionDecrypt(message, reaction)
         .then([this, wptr, message, userId](std::shared_ptr<Buffer> data)
@@ -4872,6 +4879,13 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
             CHATID_LOG_DEBUG("onDelReaction: Error, reaction received is empty");
             return;
         }
+
+        if (message->isManagementMessage())
+        {
+            CHATID_LOG_DEBUG("onDelReaction: Error, reaction received for a management message");
+            return;
+        }
+
         auto wptr = weakHandle();
         mCrypto->reactionDecrypt(message, reaction)
         .then([this, wptr, message, userId](std::shared_ptr<Buffer> data)
