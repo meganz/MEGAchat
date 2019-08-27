@@ -291,6 +291,7 @@ static prompttype prompt = COMMAND;
 
 #if defined(WIN32) && defined(NO_READLINE)
 static char pw_buf[512];  // double space for unicode
+#define strdup _strdup
 #else
 static char pw_buf[256];  
 #endif
@@ -622,7 +623,7 @@ public:
 
     void onEvent(m::MegaApi*, m::MegaEvent *e) override
     {
-        LOG_info << "Event: " << (e ? eventName(e->getType()) : "(null)") << " number: " << (e ? std::to_string(e->getNumber()) : "<not supplied>");
+        LOG_info << "Event: " << (e ? eventName(e->getType()) : "(null)") << " Text: " << (e && e->getText() ? e->getText() : "(null)") << " number: " << (e ? std::to_string(e->getNumber()) : "<not supplied>");
     }
 
 };
@@ -2264,6 +2265,36 @@ void exec_getchatcallsids(ac::ACState&)
 
 #endif
 
+void exec_smsverify(ac::ACState& s)
+{
+    if (s.words[1].s == "send")
+    {
+        auto listener = new OneShotRequestListener;
+        listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) 
+            { 
+                conlock(cout) << "SMS Verify Text Result: " << e->getErrorString() << endl;
+            };
+        g_megaApi->sendSMSVerificationCode(s.words[2].s.c_str(), listener, s.words.size() > 3 && s.words[3].s == "to");
+    }
+    else if (s.words[1].s == "code")
+    {
+        auto listener = new OneShotRequestListener;
+        listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+        {
+            conlock(cout) << "SMS Verify Text Result: " << e->getErrorString() << endl;
+        };
+        g_megaApi->checkSMSVerificationCode(s.words[2].s.c_str(), listener);
+    }
+    else if (s.words[1].s == "allowed")
+    {
+        conlock(cout) << "SMS Verify Text Result: " << g_megaApi->smsAllowedState() << endl;
+    }
+    else if (s.words[1].s == "phone")
+    {
+        unique_ptr<char[]> number(g_megaApi->smsVerifiedPhoneNumber());
+        conlock(cout) << "Verified phone: " << (number ? number.get() : "<none>") << endl;
+    }
+}
 
 void exec_apiurl(ac::ACState& s)
 {
@@ -3122,6 +3153,92 @@ void exec_cp(ac::ACState& s)
     }
 }
 
+void PrintAchievements(m::MegaAchievementsDetails & ad)
+{
+    auto cl = conlock(cout);
+
+    cl << "getBaseStorage: " << ad.getBaseStorage() << endl;
+
+    int classes[] = {   m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_WELCOME, 
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_INVITE, 
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_DESKTOP_INSTALL, 
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_MOBILE_INSTALL, 
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_ADD_PHONE };
+
+    for (int i = 0; i < sizeof(classes) / sizeof(*classes); ++i)
+    {
+        cl << "class " << classes[i];
+        cl << "  getClassStorage: " << ad.getClassStorage(classes[i]);
+        cl << "  getClassTransfer: " << ad.getClassTransfer(classes[i]);
+        cl << "  getClassExpire: " << ad.getClassExpire(classes[i]) << endl;
+    }
+    cl << "getAwardsCount: " << ad.getAwardsCount() << endl;
+    for (unsigned i = 0; i < ad.getAwardsCount(); ++i)
+    {
+        cl << "Award " << i << endl;
+        cl << "  getAwardClass: " << ad.getAwardClass(i) << endl;
+        cl << "  getAwardId: " << ad.getAwardId(i) << endl;
+        cl << "  getAwardTimestamp: " << ad.getAwardTimestamp(i) << endl;
+        cl << "  getAwardExpirationTs: " << ad.getAwardExpirationTs(i) << endl;
+        cl << "  getAwardClass: " << ad.getAwardClass(i) << endl;
+        cl << "  getAwardEmails: <todo>" << endl; // << ad.getAwardEmails(i) << endl;
+    }
+    cl << "getRewardsCount: " << ad.getRewardsCount() << endl;
+    for (int i = 0; i < ad.getRewardsCount(); ++i)
+    {
+        cl << "Reward " << i << endl;
+        cl << "  getRewardAwardId: " << ad.getRewardAwardId(i) << endl;
+        cl << "  getRewardStorage: " << ad.getRewardStorage(i) << endl;
+        cl << "  getRewardTransfer: " << ad.getRewardTransfer(i) << endl;
+        cl << "  getRewardStorageByAwardId: " << ad.getRewardStorageByAwardId(ad.getRewardAwardId(i)) << endl;
+        cl << "  getRewardTransferByAwardId: " << ad.getRewardTransferByAwardId(ad.getRewardAwardId(i)) << endl;
+        cl << "  getRewardExpire: " << ad.getRewardExpire(i) << endl;
+    }
+    cl << "currentStorage: " << ad.currentStorage() << endl;
+    cl << "currentTransfer: " << ad.currentTransfer() << endl;
+    cl << "currentStorageReferrals: " << ad.currentStorageReferrals() << endl;
+    cl << "currentTransferReferrals: " << ad.currentTransferReferrals() << endl;
+};
+
+void exec_getaccountachievements(ac::ACState& s)
+{
+    auto listener = new OneShotRequestListener;
+    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+    {
+        conlock(cout) << "getAccountAchievements Result: " << e->getErrorString() << endl;
+        if (!e->getErrorCode())
+        {
+            unique_ptr<m::MegaAchievementsDetails> ad(request->getMegaAchievementsDetails());
+            if (ad)
+            {
+                PrintAchievements(*ad);
+            }
+        }
+    };
+
+    g_megaApi->getAccountAchievements(listener);
+}
+
+
+void exec_getmegaachievements(ac::ACState& s)
+{
+    auto listener = new OneShotRequestListener;
+    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+    {
+        conlock(cout) << "getAccountAchievements Result: " << e->getErrorString() << endl;
+        if (!e->getErrorCode())
+        {
+            unique_ptr<m::MegaAchievementsDetails> ad(request->getMegaAchievementsDetails());
+            if (ad)
+            {
+                PrintAchievements(*ad);
+            }
+        }
+    };
+
+    g_megaApi->getMegaAchievements(listener);
+}
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -3226,8 +3343,11 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_quit,       sequence(text("exit")));
 
     // sdk level commands (intermediate layer of megacli commands)
-    p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
     p->Add(exec_catchup, sequence(text("catchup"), opt(wholenumber(3))));
+    p->Add(exec_smsverify, sequence(text("smsverify"), either(sequence(text("send"), param("phoneNumber"), opt(text("to"))), sequence(text("code"), param("code")), text("allowed"), text("phone"))));
+    p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
+    p->Add(exec_getaccountachievements, sequence(text("getaccountachievements")));
+    p->Add(exec_getmegaachievements, sequence(text("getmegaachievements")));
 
     p->Add(exec_recentactions, sequence(text("recentactions"), opt(sequence(param("days"), param("nodecount")))));
     p->Add(exec_getspecificaccountdetails, sequence(text("getspecificaccountdetails"), repeat(either(flag("-storage"), flag("-transfer"), flag("-pro")))));
