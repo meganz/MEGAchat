@@ -811,12 +811,18 @@ public:
         return -1;
     }
 
+    /** @brief Clean reactions */
+    void cleanReactions()
+    {
+        mReactions.clear();
+    }
+
     /** @brief Add a reaction for an specific userid **/
     void addReaction(std::string reaction, karere::Id userId)
     {
         Reaction *r = NULL;
         int reactIndex = getReactionIndex(reaction);
-        if (reactIndex > 0)
+        if (reactIndex >= 0)
         {
             r =  &mReactions.at(reactIndex);
         }
