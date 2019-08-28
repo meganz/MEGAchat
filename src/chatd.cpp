@@ -2576,7 +2576,7 @@ void Chat::addReaction(Message *message, const char *reaction)
                 return;
 
            std::string encReaction (data->buf(), data->bufSize());
-           sendCommand(Command(OP_ADDREACTION) + mChatId + message->userid + message->id() + (int8_t)data->bufSize() + encReaction);
+           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + encReaction);
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -2600,7 +2600,7 @@ void Chat::delReaction(Message *message, const char *reaction)
                 return;
 
            std::string encReaction (data->buf(), data->bufSize());
-           sendCommand(Command(OP_DELREACTION) + mChatId + message->userid + message->id() + (int8_t)data->bufSize() + encReaction);
+           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + encReaction);
         })
         .fail([this](const ::promise::Error& err)
         {
