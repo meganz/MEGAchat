@@ -1574,6 +1574,7 @@ public:
     //  <<<--- Reaction methods --->>>
     virtual std::string getReactionSn() = 0;
     virtual void setReactionSn(std::string rsn) = 0;
+    virtual void cleanReactions() = 0;
     virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) = 0;

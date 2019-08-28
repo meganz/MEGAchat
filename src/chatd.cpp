@@ -4160,6 +4160,16 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         deleteMessagesBefore(idx);
         removePendingRichLinks(idx);
 
+        // clean reactions for truncate message
+        Message *truncatemsg = (idx != CHATD_IDX_INVALID) ? findOrNull(idx) : NULL;
+        if (truncatemsg)
+        {
+            truncatemsg->cleanReactions();
+        }
+
+        // clean all reactions for this chat in DB
+        CALL_DB(cleanReactions);
+
         // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)
         {

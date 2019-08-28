@@ -547,6 +547,11 @@ public:
         assertAffectedRowCount(1);
     }
 
+    virtual void cleanReactions()
+    {
+        mDb.query("delete from chat_reactions where chatid = ?", mChat.chatId());
+    }
+
     virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction)
     {
         mDb.query("insert into chat_reactions(chatid, msgid, userid, reaction)"
