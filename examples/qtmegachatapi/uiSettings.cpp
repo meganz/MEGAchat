@@ -21,3 +21,16 @@ QColor gAvatarColors[16] = {
     "cadetblue", "#db00d3", "darkturquoise", "lightblue",
     "honeydew", "lightyellow", "violet", "turquoise"
 };
+
+QStringList utf8reactionsList = {
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 80")),
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 81")),
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 82")),
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 83")),
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 84")),
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 85")),
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 86")),
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 87")),
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 88")),
+    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 89"))
+};
