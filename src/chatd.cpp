@@ -1369,7 +1369,7 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(", len: ");
             tmpString.append(std::to_string(len));
             tmpString.append(", reaction: ");
-            tmpString.append(std::string(reaction, len));
+            tmpString.append(base64urlencode(reaction, len));
             return tmpString;
         }
         case OP_DELREACTION:
@@ -1380,6 +1380,7 @@ string Command::toString(const StaticBuffer& data)
             karere::Id msgid = data.read<uint64_t>(17);
             int8_t len = data.read<int8_t>(25);
             const char *reaction = data.readPtr(26, len);
+
             tmpString.append("DELREACTION chatid: ");
             tmpString.append(ID_CSTR(chatid));
             tmpString.append(", userid: ");
@@ -1389,7 +1390,7 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(", len: ");
             tmpString.append(std::to_string(len));
             tmpString.append(", reaction: ");
-            tmpString.append(std::string(reaction, len));
+            tmpString.append(base64urlencode(reaction, len));
             return tmpString;
         }
         case OP_REACTIONSN:
@@ -2236,7 +2237,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += payloadLen;
 
                 CHATDS_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %s",
-                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction.c_str());
+                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid),
+                                base64urlencode(reaction.data(), reaction.size()).c_str());
 
                 auto& chat =  mChatdClient.chats(chatid);
                 chat.onAddReaction(msgid, userid, reaction);
@@ -2252,7 +2254,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += payloadLen;
 
                 CHATDS_LOG_DEBUG("%s: recv DELREACTION from user %s to message %s reaction %s",
-                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction.c_str());
+                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid),
+                                base64urlencode(reaction.data(), reaction.size()).c_str());
 
                 auto& chat =  mChatdClient.chats(chatid);
                 chat.onDelReaction(msgid, userid, reaction);
