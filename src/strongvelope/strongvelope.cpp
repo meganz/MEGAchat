@@ -625,7 +625,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
+ProtocolHandler::reactionEncrypt(Message *msg, std::string reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (isPublicChat())
@@ -638,10 +638,9 @@ ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
     }
 
     auto wptr = weakHandle();
-    return symPms.then([this, wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
+    return symPms.then([this, wptr, msg, &reaction](const std::shared_ptr<SendKey>& data)
     {
         std::string msgId = msg->id().toString();
-        std::string react (reaction, strlen(reaction));
         std::string keyBin (data->buf(), data->dataSize());
 
         // Inside this function str_to_a32 and a32_to_str calls must be done with type <T> = <uint32_t>
@@ -656,13 +655,13 @@ ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
         }
 
         // Add padding to reaction
-        size_t roundSize = ceil(static_cast<float>(react.size()) / 4) * 4;
-        size_t diff = roundSize - react.size();
+        size_t roundSize = ceil(static_cast<float>(reaction.size()) / 4) * 4;
+        size_t diff = roundSize - reaction.size();
         if (diff > 0)
         {
             for (int i = 0; i < diff; i++)
             {
-                react.insert(react.begin(), '\0');
+                reaction.insert(reaction.begin(), '\0');
             }
         }
 
@@ -670,7 +669,7 @@ ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
        size_t emojiLen = roundSize + 4;
        char plaintext [emojiLen];
        memcpy(plaintext, msgId.data(), 4);
-       memcpy(plaintext + 4, react.data(), roundSize);
+       memcpy(plaintext + 4, reaction.data(), roundSize);
 
        // emoji32
        std::vector<uint32_t> emoji32 = ::mega::Utils::str_to_a32<uint32_t>(std::string(plaintext, emojiLen));
@@ -691,7 +690,7 @@ ProtocolHandler::reactionEncrypt(Message* msg, const char *reaction)
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::reactionDecrypt(Message* msg, std::string reaction)
+ProtocolHandler::reactionDecrypt(Message *msg, std::string reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (isPublicChat())

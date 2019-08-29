@@ -2563,13 +2563,14 @@ void Chat::sendSync()
 
 void Chat::addReaction(Message *message, const char *reaction)
 {
+    std::string reactionString (reaction, strlen(reaction));
     auto wptr = weakHandle();
-    marshallCall([wptr, this, message, reaction]()
+    marshallCall([wptr, this, message, &reactionString]()
     {
         if (wptr.deleted())
             return;
 
-        mCrypto->reactionEncrypt(message, reaction)
+        mCrypto->reactionEncrypt(message, reactionString)
         .then([this, wptr, message](std::shared_ptr<Buffer> data)
         {
             if (wptr.deleted())
@@ -2587,13 +2588,14 @@ void Chat::addReaction(Message *message, const char *reaction)
 
 void Chat::delReaction(Message *message, const char *reaction)
 {
+    std::string reactionString (reaction, strlen(reaction));
     auto wptr = weakHandle();
-    marshallCall([wptr, this, message, reaction]()
+    marshallCall([wptr, this, message, &reactionString]()
     {
         if (wptr.deleted())
             return;
 
-        mCrypto->reactionEncrypt(message, reaction)
+        mCrypto->reactionEncrypt(message, reactionString)
         .then([this, wptr, message](std::shared_ptr<Buffer> data)
         {
             if (wptr.deleted())

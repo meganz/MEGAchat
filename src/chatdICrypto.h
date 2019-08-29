@@ -164,7 +164,7 @@ public:
      * @param reaction An UTF-8 string.
      */
     virtual promise::Promise<std::shared_ptr<Buffer>>
-    reactionEncrypt(Message* msg, const char *reaction) = 0;
+    reactionEncrypt(Message *msg, std::string reaction) = 0;
 
     /**
      * @brief Decrypts a reaction with xxtea.
@@ -172,7 +172,7 @@ public:
      * @param reaction The encrypted reaction.
      */
     virtual promise::Promise<std::shared_ptr<Buffer>>
-    reactionDecrypt(Message* msg, std::string reaction) = 0;
+    reactionDecrypt(Message *msg, std::string reaction) = 0;
 
     /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed

@@ -456,10 +456,10 @@ public:
     virtual void setPublicHandle(const uint64_t ph);
 
     virtual promise::Promise<std::shared_ptr<Buffer>>
-    reactionEncrypt(chatd::Message* msg, const char *reaction);
+    reactionEncrypt(chatd::Message *msg, std::string reaction);
 
     virtual promise::Promise<std::shared_ptr<Buffer>>
-    reactionDecrypt(chatd::Message* msg, std::string reaction);
+    reactionDecrypt(chatd::Message *msg, std::string reaction);
 };
 }
 namespace chatd
