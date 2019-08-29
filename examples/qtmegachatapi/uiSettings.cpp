@@ -23,14 +23,14 @@ QColor gAvatarColors[16] = {
 };
 
 QStringList utf8reactionsList = {
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 80")),
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 81")),
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 82")),
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 83")),
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 84")),
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 85")),
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 86")),
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 87")),
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 88")),
-    QString::fromUtf8(QByteArray::fromHex("F0 9F 98 89"))
+    QString::fromUtf8("\xF0\x9F\x98\x80"),
+    QString::fromUtf8("\xF0\x9F\x98\x81"),
+    QString::fromUtf8("\xF0\x9F\x98\x82"),
+    QString::fromUtf8("\xF0\x9F\x98\x83"),
+    QString::fromUtf8("\xF0\x9F\x98\x84"),
+    QString::fromUtf8("\xF0\x9F\x98\x85"),
+    QString::fromUtf8("\xF0\x9F\x98\x86"),
+    QString::fromUtf8("\xF0\x9F\x98\x87"),
+    QString::fromUtf8("\xF0\x9F\x98\x88"),
+    QString::fromUtf8("\xF0\x9F\x98\x89")
 };
