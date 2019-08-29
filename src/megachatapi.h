@@ -4573,6 +4573,47 @@ public:
      */
     void removeChatNotificationListener(MegaChatNotificationListener* listener);
 
+    /**
+     * @brief Adds a reaction for a message in a chatroom.
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     */
+    void addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+
+    /**
+     * @brief Removes a reaction for a message in a chatroom.
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     */
+    void delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+
+     /**
+      * @brief Gets a list of reactions associated to a message
+      * You take the ownership of the returned value.
+      *
+      * @param chatid MegaChatHandle that identifies the chatroom
+      * @param msgid MegaChatHandle that identifies the message
+      *
+      * @return a list with the reactions associated to a message
+      */
+    mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
+
+     /**
+      * @brief Gets a list of users that reacted to a message with a specific reaction
+      * You take the ownership of the returned value.
+      *
+      * @param chatid MegaChatHandle that identifies the chatroom
+      * @param msgid MegaChatHandle that identifies the message
+      * @param reaction UTF-8 NULL terminated string that represents the reaction
+      *
+      * @return a list with the users that reacted to a message with a specific reaction
+      */
+    mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Register a listener to receive all events about calls
@@ -5476,6 +5517,7 @@ public:
      * @param chat MegaChatRoom whose local history is about to be discarded
      */
     virtual void onHistoryReloaded(MegaChatApi* api, MegaChatRoom *chat);
+    virtual void onReactionUpdate(MegaChatApi* /*api*/, MegaChatHandle /*msgid*/, const char* /*reaction*/, int /*count*/);
 };
 
 /**

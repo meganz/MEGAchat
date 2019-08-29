@@ -1001,6 +1001,8 @@ public:
     void removeChatListener(MegaChatListener *listener);
     void removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
     void removeChatNotificationListener(MegaChatNotificationListener *listener);
+    mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
+    mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
@@ -1111,6 +1113,8 @@ public:
 
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
+    void addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    void delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);

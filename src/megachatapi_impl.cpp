@@ -4162,6 +4162,117 @@ void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListene
     sdkMutex.unlock();
 }
 
+void MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+{
+    sdkMutex.lock();
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        Idx index = chat.msgIndexFromId(msgid);
+        if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
+        {
+            Message *msg = chat.findOrNull(index);
+            if (msg)
+            {
+                if (!msg->isManagementMessage())
+                {
+                    chat.addReaction(msg, reaction);
+                }
+            }
+            else
+            {
+                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+            }
+        }
+    }
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+{
+    sdkMutex.lock();
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        Idx index = chat.msgIndexFromId(msgid);
+        if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
+        {
+            Message *msg = chat.findOrNull(index);
+            if (msg)
+            {
+                if (!msg->isManagementMessage())
+                {
+                    chat.delReaction(msg, reaction);
+                }
+            }
+            else
+            {
+                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+            }
+        }
+    }
+    sdkMutex.unlock();
+}
+
+MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    MegaStringList *reacts = NULL;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        Message *msg = findMessage(chatid, msgid);
+        if (msg)
+        {
+            std::vector<std::string> reactions = msg->getReactions();
+            char **reactArray = NULL;
+            if (reactions.size())
+            {
+                reactArray = new char*[reactions.size()];
+                for (int i = 0; i < reactions.size(); ++i)
+                {
+                    char *device = MegaApi::strdup(reactions[i].c_str());
+                    reactArray[i] = device;
+                }
+            }
+            reacts = new MegaStringListPrivate(reactArray, reactions.size());
+            delete [] reactArray;
+        }
+    }
+    sdkMutex.unlock();
+    return reacts;
+}
+
+MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+{
+    MegaHandleListPrivate *userList = NULL;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Message *msg = findMessage(chatid, msgid);
+        if (msg)
+        {
+            std::vector<karere::Id>*users = msg->getReactionUsers(std::string(reaction));
+            if (users)
+            {
+                userList = new MegaHandleListPrivate();
+                for (int i = 0; i < users->size(); ++i)
+                {
+                    userList->addMegaHandle(users->at(i));
+                }
+            }
+        }
+    }
+    sdkMutex.unlock();
+    return userList;
+}
+
 IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
 {
     return getChatRoomHandler(room.chatid());
@@ -5745,6 +5856,10 @@ void MegaChatRoomHandler::handleHistoryMessage(MegaChatMessage *message)
     if (message->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
         MegaNodeList *nodeList = message->getMegaNodeList();
+        if (!nodeList)
+        {
+            return;
+        }
         for (int i = 0; i < nodeList->size(); i++)
         {
             MegaChatHandle h = nodeList->get(i)->getHandle();
