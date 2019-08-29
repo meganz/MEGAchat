@@ -4164,6 +4164,11 @@ void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListene
 
 void MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
+    if (!reaction)
+    {
+        return;
+    }
+
     sdkMutex.lock();
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
@@ -4191,6 +4196,11 @@ void MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, c
 
 void MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
+    if (!reaction)
+    {
+        return;
+    }
+
     sdkMutex.lock();
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
@@ -4249,6 +4259,11 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
+    if (!reaction)
+    {
+        return NULL;
+    }
+
     MegaHandleListPrivate *userList = NULL;
     sdkMutex.lock();
 
