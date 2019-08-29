@@ -3,6 +3,7 @@
 #include "ui_chatMessageWidget.h"
 #include <QMessageBox>
 #include <QClipboard>
+#include "uiSettings.h"
 
 const char *messageStatus[] =
 {
@@ -35,6 +36,19 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     delete chatRoom;
     updateContent();
 
+    std::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
+    if (reactions)
+    {
+        for (int i = 0; i < reactions->size(); i++)
+        {
+            std::unique_ptr<::mega::MegaHandleList> users(megaChatApi->getReactionUsers(this->mChatId, this->mMessage->getMsgId(),reactions->get(i)));
+            int count = users ? users->size() : 0;
+            Reaction *reaction = new Reaction(this, reactions->get(i), count);
+            ui->mReactions->layout()->addWidget(reaction);
+            mReactions.emplace_back(std::shared_ptr<Reaction>(reaction));
+        }
+    }
+
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
     updateToolTip();
     show();
@@ -42,8 +56,41 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
 
 ChatMessage::~ChatMessage()
 {
+    clearReactions();
     delete mMessage;
     delete ui;
+}
+
+void ChatMessage::updateReaction(const char *reaction, int count)
+{
+    bool found = false;
+    for (int i = 0; i < mReactions.size(); i++)
+    {
+        std::shared_ptr <Reaction> r = mReactions.at(i);
+        if (r && r->getReactionString().compare(reaction) ==  0)
+        {
+           found = true;
+           if (count == 0)
+           {
+              QLayoutItem *item = ui->mReactions->layout()->takeAt(i);
+              if (item)
+              {
+                  item->widget()->deleteLater();
+                  delete item;
+              }
+              mReactions.erase(mReactions.begin() + i);
+           }
+           r->updateReactionCount(count);
+           break;
+        }
+    }
+
+    if (!found && count)
+    {
+        Reaction *r = new Reaction(this, reaction, count);
+        ui->mReactions->layout()->addWidget(r);
+        mReactions.emplace_back(std::shared_ptr<Reaction>(r));
+    }
 }
 
 void ChatMessage::updateToolTip()
@@ -177,6 +224,11 @@ QString ChatMessage::nodelistText()
 {
     QString text;
     ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+    if (!nodeList)
+    {
+        return text;
+    }
+
     for(int i = 0; i < nodeList->size(); i++)
     {
         const char *auxNodeHandle_64 = mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
@@ -191,6 +243,32 @@ QString ChatMessage::nodelistText()
         delete [] auxNodeHandle_64;
     }
     return text;
+}
+
+megachat::MegaChatHandle ChatMessage::getChatId() const
+{
+    return mChatId;
+}
+
+megachat::MegaChatApi *ChatMessage::getMegaChatApi() const
+{
+    return megaChatApi;
+}
+
+ChatWindow *ChatMessage::getChatWindow() const
+{
+    return mChatWindow;
+}
+
+void ChatMessage::clearReactions()
+{
+    QLayoutItem *item;
+    while ((item = ui->mReactions->layout()->takeAt(0)) != NULL)
+    {
+        item->widget()->deleteLater();
+        delete item;
+    }
+    mReactions.clear();
 }
 
 void ChatMessage::updateContent()
@@ -481,6 +559,21 @@ void ChatMessage::markAsEdited()
 void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
     QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
+    if (!mMessage->isManagementMessage())
+    {
+        QMenu *reactMenu = menu->addMenu("Add reaction");
+        for (int i = 0; i < utf8reactionsList.size(); i++)
+        {
+            std::string react = utf8reactionsList.at(i).toStdString();
+            auto actR = reactMenu->addAction(tr(react.c_str()));
+            connect(actR, &QAction::triggered, this, [=](){onMessageAddReaction(react.c_str());});
+        }
+
+        auto action = menu->addAction(tr("Add reaction (CUSTOM)"));
+        action->setData(QVariant::fromValue(this));
+        connect(action, SIGNAL(triggered()), this, SLOT(onMessageAddReaction()));
+    }
+
     if (isMine() && !mMessage->isManagementMessage())
     {
         if (mMessage->isEditable())
@@ -521,6 +614,21 @@ void ChatMessage::onMessageDelAction()
 void ChatMessage::onMessageEditAction()
 {
     startEditingMsgWidget();
+}
+
+void ChatMessage::onMessageAddReaction(const char *reactionStr)
+{
+    QString reaction = reactionStr
+            ? reactionStr
+            : mChatWindow->mMainWin->mApp->getText("Add reaction").c_str();
+
+    if (reaction.isEmpty())
+    {
+        return;
+    }
+
+    std::string utfstring = reaction.toUtf8().toStdString();
+    mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str());
 }
 
 void ChatMessage::onMessageRemoveLinkAction()

@@ -1,13 +1,17 @@
 #ifndef CHATMESSAGE_H
 #define CHATMESSAGE_H
 
+#include <memory>
 #include <QWidget>
 #include <QDateTime>
 #include <QListWidgetItem>
 #include "megachatapi.h"
 #include "ui_chatMessageWidget.h"
 #include "chatWindow.h"
+#include "reaction.h"
+
 class ChatWindow;
+class Reaction;
 namespace Ui {
 class ChatMessageWidget;
 }
@@ -26,6 +30,7 @@ protected:
         QListWidgetItem *mListWidgetItem;
         ChatWindow *mChatWindow;
         friend class ChatWindow;
+        std::vector<std::shared_ptr<Reaction> > mReactions;
 
     public:
         ChatMessage(ChatWindow *window, megachat::MegaChatApi *mChatApi, megachat::MegaChatHandle mChatId, megachat::MegaChatMessage *msg);
@@ -47,6 +52,11 @@ protected:
         void setMessage(megachat::MegaChatMessage *message);
         void clearEdit();
         void setManualMode(bool manualMode);
+        ChatWindow *getChatWindow() const;
+        megachat::MegaChatApi *getMegaChatApi() const;
+        megachat::MegaChatHandle getChatId() const;
+        void updateReaction(const char *reaction, int count);
+        void clearReactions();
 
     public slots:
         void onDiscardManualSending();
@@ -56,6 +66,7 @@ protected:
         void onMessageCtxMenu(const QPoint& point);
         void onMessageDelAction();
         void onMessageEditAction();
+        void onMessageAddReaction(const char *reactionStr = NULL);
         void onMessageRemoveLinkAction();
         void onNodeDownloadOrImport(mega::MegaNode *node, bool import);
         void onNodePlay(::mega::MegaNode *node);
