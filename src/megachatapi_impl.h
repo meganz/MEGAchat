@@ -456,7 +456,7 @@ public:
     void fireOnMessageReceived(MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
     void fireOnHistoryReloaded(MegaChatRoom *chat);
-
+    void fireOnReactionUpdate(MegaChatHandle msgid, const char *reaction, int count);
     // karere::IApp::IChatHandler implementation
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler* callHandler();
@@ -500,6 +500,7 @@ public:
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onHistoryReloaded();
     virtual void onChatModeChanged(bool mode);
+    virtual void onReactionUpdate(karere::Id msgid, const char *reaction, int count);
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments

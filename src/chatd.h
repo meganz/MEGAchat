@@ -303,6 +303,16 @@ public:
     virtual void onLastMessageTsUpdated(uint32_t /*ts*/) {}
 
     /**
+     * @brief Called when the number of users that reacted to a message with a
+     * specific reaction has changed.
+     *
+     * @param msgid The id of the message associated to the reaction.
+     * @param reaction The UTF-8 reaction
+     * @param count The number of users that reacted to that message
+     */
+    virtual void onReactionUpdate(karere::Id /*msgid*/, const char* /*reaction*/, int /*count*/){}
+
+    /**
      * @brief Called when a chat is going to reload its history after the server rejects JOINRANGEHIST
      */
     virtual void onHistoryReloaded(){}

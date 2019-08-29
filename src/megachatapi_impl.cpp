@@ -5656,6 +5656,14 @@ void MegaChatRoomHandler::fireOnMessageReceived(MegaChatMessage *msg)
     delete msg;
 }
 
+void MegaChatRoomHandler::fireOnReactionUpdate(MegaChatHandle msgid, const char *reaction, int count)
+{
+    for (set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end(); it++)
+    {
+        (*it)->onReactionUpdate(chatApi, msgid, reaction, count);
+    }
+}
+
 void MegaChatRoomHandler::fireOnMessageUpdate(MegaChatMessage *msg)
 {
     for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
@@ -5682,6 +5690,11 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
     chat->setUserTyping(user.val);
 
     fireOnChatRoomUpdate(chat);
+}
+
+void MegaChatRoomHandler::onReactionUpdate(karere::Id msgid, const char *reaction, int count)
+{
+    fireOnReactionUpdate(msgid, reaction, count);
 }
 
 void MegaChatRoomHandler::onUserStopTyping(karere::Id user)
