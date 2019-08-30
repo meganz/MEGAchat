@@ -675,8 +675,7 @@ public:
     /** @brief Returns whether this message is a management message. */
     bool isManagementMessage() const
     {
-        return (userid == karere::Id::COMMANDER() || type == Message::kMsgTruncate)
-                && (isManagementMessageKnownType());
+        return isManagementMessageKnownType() || (userid == karere::Id::COMMANDER() && keyid == 0);
     }
     bool isManagementMessageKnownType() const
     {
