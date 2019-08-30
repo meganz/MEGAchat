@@ -1756,8 +1756,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
     mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
-
-    std::string rsn(mDbInterface->getReactionSn());
+    std::string rsn = (!this->previewMode()) ? mDbInterface->getReactionSn() : std::string();
     mReactionSn = (!rsn.empty()) ? Id(rsn.data(), rsn.size()) : Id::inval();
 
     if ((mHaveAllHistory = mDbInterface->chatVar("have_all_history")))
@@ -4173,7 +4172,10 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         }
 
         // clean all reactions for this chat in DB
-        CALL_DB(cleanReactions);
+        if (!previewMode())
+        {
+            CALL_DB(cleanReactions);
+        }
 
         // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)
@@ -4870,7 +4872,11 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 
             std::string reaction (data->buf(), data->bufSize());
             message->addReaction(reaction, userId);
-            CALL_DB(addReaction, message->mId, userId, reaction.c_str());
+
+            if (!previewMode())
+            {
+                CALL_DB(addReaction, message->mId, userId, reaction.c_str());
+            }
 
             std::vector<karere::Id> *users = message->getReactionUsers(reaction);
             int count = users ? users->size() : 0;
@@ -4914,8 +4920,11 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 
             std::string reaction (data->buf(), data->bufSize());
             message->delReaction(reaction, userId);
-            CALL_DB(delReaction, message->mId, userId, reaction.c_str());
 
+            if (!previewMode())
+            {
+                CALL_DB(delReaction, message->mId, userId, reaction.c_str());
+            }
 
             std::vector<karere::Id> *users = message->getReactionUsers(reaction);
             int count = users ? users->size() : 0;
@@ -4935,7 +4944,10 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 void Chat::onReactionSn(Id rsn)
 {
     mReactionSn = rsn;
-    CALL_DB(setReactionSn, mReactionSn.toString());
+    if (!previewMode())
+    {
+        CALL_DB(setReactionSn, mReactionSn.toString());
+    }
 }
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)
