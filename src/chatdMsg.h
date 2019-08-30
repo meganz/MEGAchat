@@ -675,12 +675,12 @@ public:
     /** @brief Returns whether this message is a management message. */
     bool isManagementMessage() const
     {
-        return (keyid == 0) && !isSending();    // msgs in sending status use keyid=CHATD_KEYID_INVALID (0)
+        return (userid == karere::Id::COMMANDER() || type == Message::kMsgTruncate)
+                && (isManagementMessageKnownType());
     }
-    bool isManagementMessageKnownType()
+    bool isManagementMessageKnownType() const
     {
-        return (isManagementMessage()
-                && type >= Message::kMsgManagementLowest
+        return (type >= Message::kMsgManagementLowest
                 && type <= Message::kMsgManagementHighest);
     }
     bool isOwnMessage(karere::Id myHandle) const { return (userid == myHandle); }
