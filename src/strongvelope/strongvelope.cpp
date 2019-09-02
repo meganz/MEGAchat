@@ -1288,8 +1288,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
         message->type = parsedMsg->type;
 
-        // if message comes from API and uses keyid=0, it's a management message
-        if (message->userid == karere::Id::COMMANDER() && message->keyid == 0)
+        if (message->isManagementMessage())
         {
             return handleManagementMessage(parsedMsg, message);
         }

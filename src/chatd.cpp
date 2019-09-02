@@ -5363,15 +5363,13 @@ bool Message::parseUrl(const std::string &url)
         }
     }
 
-    if (urlToParse.find("mega.co.nz/#!") != std::string::npos || urlToParse.find("mega.co.nz/#F!") != std::string::npos ||
-            urlToParse.find("mega.nz/#!") != std::string::npos || urlToParse.find("mega.nz/#F!") != std::string::npos ||
-            urlToParse.find("mega.nz/chat/") != std::string::npos)
+    std::regex megaUrlExpression("^((WWW.|www.)?mega.+(nz/|co.nz/)).*((#F!|#!|C!|chat/)[a-z0-9A-Z-._~:\/?#!$&'()*+,;=\-@]+)$");
+    if (regex_match(urlToParse, megaUrlExpression))
     {
         return false;
     }
 
     std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+[.][a-zA-Z]{2,5}(:[0-9]{1,5})?([a-z0-9A-Z-._~:/?#@!$&'()*+,;=]*)?$");
-
 
     return regex_match(urlToParse, regularExpresion);
 }

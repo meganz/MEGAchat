@@ -655,9 +655,11 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
             auto it = mContacts.find(userid);
             if (it == mContacts.end())  // new contact
             {
-                assert(newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE);
                 mContacts[userid] = newVisibility;
-                addPeer(userid);
+                if (newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+                {
+                    addPeer(userid);
+                }
             }
             else    // existing (ex)contact
             {
