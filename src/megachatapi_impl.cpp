@@ -4162,68 +4162,118 @@ void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListene
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+int MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
     if (!reaction)
     {
-        return;
+        return MegaChatError::ERROR_ARGS;
     }
 
+    int errorCode = MegaChatError::ERROR_OK;
     sdkMutex.lock();
     ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    if (!chatroom)
     {
-        Chat &chat = chatroom->chat();
-        Idx index = chat.msgIndexFromId(msgid);
-        if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
+        errorCode = MegaChatError::ERROR_NOENT;
+    }
+    else
+    {
+        if (chatroom->ownPriv() < MegaChatPeerList::PRIV_STANDARD)
         {
-            Message *msg = chat.findOrNull(index);
-            if (msg)
+            errorCode = MegaChatError::ERROR_ACCESS;
+        }
+        else
+        {
+            Chat &chat = chatroom->chat();
+            Idx index = chat.msgIndexFromId(msgid);
+            if (index == CHATD_IDX_INVALID)
             {
-                if (!msg->isManagementMessage())
-                {
-                    chat.addReaction(msg, reaction);
-                }
+                errorCode = MegaChatError::ERROR_NOENT;
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+                Message *msg = chat.findOrNull(index);
+                if (!msg)
+                {
+                    errorCode = MegaChatError::ERROR_NOENT;
+                }
+                else
+                {
+                    if (msg->isManagementMessage())
+                    {
+                        errorCode = MegaChatError::ERROR_NOENT;
+                    }
+                    else if (msg->hasReacted(reaction, mClient->myHandle()))
+                    {
+                        errorCode = MegaChatError::ERROR_EXIST;
+                    }
+                    else
+                    {
+                        chat.addReaction(msg, reaction);
+                    }
+                }
             }
         }
     }
     sdkMutex.unlock();
+    return errorCode;
 }
 
-void MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+int MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
     if (!reaction)
     {
-        return;
+        return MegaChatError::ERROR_ARGS;
     }
 
+    int errorCode = MegaChatError::ERROR_OK;
     sdkMutex.lock();
     ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    if (!chatroom)
     {
-        Chat &chat = chatroom->chat();
-        Idx index = chat.msgIndexFromId(msgid);
-        if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
+        errorCode = MegaChatError::ERROR_ARGS;
+    }
+    else
+    {
+        if (chatroom->ownPriv() < MegaChatPeerList::PRIV_STANDARD)
         {
-            Message *msg = chat.findOrNull(index);
-            if (msg)
+            errorCode = MegaChatError::ERROR_ACCESS;
+        }
+        else
+        {
+            Chat &chat = chatroom->chat();
+            Idx index = chat.msgIndexFromId(msgid);
+            if (index == CHATD_IDX_INVALID)
             {
-                if (!msg->isManagementMessage())
-                {
-                    chat.delReaction(msg, reaction);
-                }
+                errorCode = MegaChatError::ERROR_ARGS;
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+                Message *msg = chat.findOrNull(index);
+                if (!msg)
+                {
+                    errorCode = MegaChatError::ERROR_ARGS;
+                }
+                else
+                {
+                    if (msg->isManagementMessage())
+                    {
+                        errorCode = MegaChatError::ERROR_ARGS;
+                    }
+                    else if (!msg->hasReacted(reaction, mClient->myHandle()))
+                    {
+                        errorCode = MegaChatError::ERROR_EXIST;
+                    }
+                    else
+                    {
+                        chat.delReaction(msg, reaction);
+                    }
+                }
             }
         }
     }
     sdkMutex.unlock();
+    return errorCode;
 }
 
 MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)

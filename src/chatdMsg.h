@@ -785,6 +785,19 @@ public:
         return reactions;
     }
 
+    /** @brief Returns true if the user has reacted to this message with this reaction **/
+    bool hasReacted(std::string reaction, karere::Id uh)
+    {
+        for (size_t i = 0; i < mReactions.size(); i++)
+        {
+            if (mReactions.at(i).mReaction.compare(reaction) == 0)
+            {
+                return (mReactions.at(i).userIndex(uh) >= 0);
+            }
+        }
+        return false;
+    }
+
     /** @brief Returns a vector with the userid's associated to an specific reaction **/
     std::vector<karere::Id>* getReactionUsers(std::string reaction)
     {
