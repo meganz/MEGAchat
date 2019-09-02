@@ -561,17 +561,25 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
     QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
     if (!mMessage->isManagementMessage())
     {
-        QMenu *reactMenu = menu->addMenu("Add reaction");
+        QMenu *addReactMenu = menu->addMenu("Add reaction");
         for (int i = 0; i < utf8reactionsList.size(); i++)
         {
             std::string react = utf8reactionsList.at(i).toStdString();
-            auto actR = reactMenu->addAction(tr(react.c_str()));
-            connect(actR, &QAction::triggered, this, [=](){onMessageAddReaction(react.c_str());});
+            auto actReact = addReactMenu->addAction(tr(react.c_str()));
+            connect(actReact, &QAction::triggered, this, [=](){onManageReaction(false, react.c_str());});
         }
+        auto actReact = addReactMenu->addAction(tr("Add reaction (CUSTOM)"));
+        connect(actReact, &QAction::triggered, this, [=](){onManageReaction(false);});
 
-        auto action = menu->addAction(tr("Add reaction (CUSTOM)"));
-        action->setData(QVariant::fromValue(this));
-        connect(action, SIGNAL(triggered()), this, SLOT(onMessageAddReaction()));
+        QMenu *delReactMenu = menu->addMenu("Del reaction");
+        for (int i = 0; i < utf8reactionsList.size(); i++)
+        {
+            std::string react = utf8reactionsList.at(i).toStdString();
+            auto delReact = delReactMenu->addAction(tr(react.c_str()));
+            connect(delReact, &QAction::triggered, this, [=](){onManageReaction(true, react.c_str());});
+        }
+        auto delReact = delReactMenu->addAction(tr("Del reaction (CUSTOM)"));
+        connect(delReact, &QAction::triggered, this, [=](){onManageReaction(true);});
     }
 
     if (isMine() && !mMessage->isManagementMessage())
@@ -616,7 +624,7 @@ void ChatMessage::onMessageEditAction()
     startEditingMsgWidget();
 }
 
-void ChatMessage::onMessageAddReaction(const char *reactionStr)
+void ChatMessage::onManageReaction(bool del, const char *reactionStr)
 {
     QString reaction = reactionStr
             ? reactionStr
@@ -628,7 +636,24 @@ void ChatMessage::onMessageAddReaction(const char *reactionStr)
     }
 
     std::string utfstring = reaction.toUtf8().toStdString();
-    mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str());
+
+    int res = 0;
+    if (del)
+    {
+        res = mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str());
+    }
+    else
+    {
+        res = mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str());
+    }
+
+    if (res != MegaChatError::ERROR_OK)
+    {
+        QMessageBox msg;
+        msg.setIcon(QMessageBox::Information);
+        msg.setText(std::to_string(res).c_str());
+        msg.exec();
+    }
 }
 
 void ChatMessage::onMessageRemoveLinkAction()

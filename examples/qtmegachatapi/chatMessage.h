@@ -66,7 +66,7 @@ protected:
         void onMessageCtxMenu(const QPoint& point);
         void onMessageDelAction();
         void onMessageEditAction();
-        void onMessageAddReaction(const char *reactionStr = NULL);
+        void onManageReaction(bool del, const char *reactionStr = NULL);
         void onMessageRemoveLinkAction();
         void onNodeDownloadOrImport(mega::MegaNode *node, bool import);
         void onNodePlay(::mega::MegaNode *node);

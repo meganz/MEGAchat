@@ -79,7 +79,15 @@ void Reaction::onRemoveReact()
     MegaChatHandle chatid = mChatMessage->getChatId();
     MegaChatHandle msgid = mChatMessage->getMessage()->getMsgId();
     const char *reaction = mReactionString.c_str();
-    chatwindow->getMegaChatApi()->delReaction(chatid, msgid, reaction);
+    int res = chatwindow->getMegaChatApi()->delReaction(chatid, msgid, reaction);
+    if (res != MegaChatError::ERROR_OK)
+    {
+        QMessageBox msg;
+        msg.setParent(nullptr);
+        msg.setIcon(QMessageBox::Information);
+        msg.setText(std::to_string(res).c_str());
+        msg.exec();
+    }
 }
 
 void Reaction::onAddReact()
@@ -93,7 +101,16 @@ void Reaction::onAddReact()
     MegaChatHandle chatid = mChatMessage->getChatId();
     MegaChatHandle msgid = mChatMessage->getMessage()->getMsgId();
     const char *reaction = mReactionString.c_str();
-    chatwindow->getMegaChatApi()->addReaction(chatid, msgid, reaction);
+    int res = chatwindow->getMegaChatApi()->addReaction(chatid, msgid, reaction);
+    if (res != MegaChatError::ERROR_OK)
+    {
+        QMessageBox msg;
+        msg.setParent(nullptr);
+        msg.setIcon(QMessageBox::Information);
+        msg.setText(std::to_string(res).c_str());
+        msg.exec();
+    }
+
 }
 
 void Reaction::enterEvent(QEvent *event)
