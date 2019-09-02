@@ -675,6 +675,7 @@ public:
     /** @brief Returns whether this message is a management message. */
     bool isManagementMessage() const
     {
+        // if message comes from API and uses keyid=0, it's a management message
         return isManagementMessageKnownType() || (userid == karere::Id::COMMANDER() && keyid == 0);
     }
     bool isManagementMessageKnownType() const
