@@ -2567,7 +2567,7 @@ void Chat::addReaction(Message *message, const char *reaction)
 {
     std::string reactionString (reaction, strlen(reaction));
     auto wptr = weakHandle();
-    marshallCall([wptr, this, message, &reactionString]()
+    marshallCall([wptr, this, message, reactionString]()
     {
         if (wptr.deleted())
             return;
@@ -2592,7 +2592,7 @@ void Chat::delReaction(Message *message, const char *reaction)
 {
     std::string reactionString (reaction, strlen(reaction));
     auto wptr = weakHandle();
-    marshallCall([wptr, this, message, &reactionString]()
+    marshallCall([wptr, this, message, reactionString]()
     {
         if (wptr.deleted())
             return;
