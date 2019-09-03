@@ -638,8 +638,9 @@ ProtocolHandler::reactionEncrypt(Message *msg, std::string reaction)
     }
 
     auto wptr = weakHandle();
-    return symPms.then([this, wptr, msg, &reaction](const std::shared_ptr<SendKey>& data)
+    return symPms.then([wptr, msg, &reaction](const std::shared_ptr<SendKey>& data)
     {
+        wptr.throwIfDeleted();
         std::string msgId = msg->id().toString();
         std::string keyBin (data->buf(), data->dataSize());
 
@@ -665,7 +666,7 @@ ProtocolHandler::reactionEncrypt(Message *msg, std::string reaction)
             }
         }
 
-        // Concat msgid[0..4] with emoji (padded)
+        // Concat msgid[0..4] with emoji (previously padded)
        size_t emojiLen = roundSize + 4;
        char plaintext [emojiLen];
        memcpy(plaintext, msgId.data(), 4);
@@ -675,7 +676,7 @@ ProtocolHandler::reactionEncrypt(Message *msg, std::string reaction)
        std::vector<uint32_t> emoji32 = ::mega::Utils::str_to_a32<uint32_t>(std::string(plaintext, emojiLen));
 
        // Encrypt reaction
-       ::mega::xxteaEncrypt(&emoji32[0], 2, &cypherKey[0], false);
+       ::mega::xxteaEncrypt(&emoji32[0], emoji32.size(), &cypherKey[0], false);
 
        // Convert encrypted reaction to uint32 array
        std::string result = ::mega::Utils::a32_to_str<uint32_t>(emoji32);
@@ -703,8 +704,9 @@ ProtocolHandler::reactionDecrypt(Message *msg, std::string reaction)
     }
 
     auto wptr = weakHandle();
-    return symPms.then([this, wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
+    return symPms.then([wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
     {
+        wptr.throwIfDeleted();
         std::string msgId = msg->id().toString();
         std::string keyBin (data->buf(), data->dataSize());
 
@@ -727,10 +729,12 @@ ProtocolHandler::reactionDecrypt(Message *msg, std::string reaction)
         for (int i = 4; i < decrypted.size(); ++i)
         {
             if (decrypted[i] != '\0')
-            {count ++;}
+            {
+                count ++;
+            }
         }
 
-        char *resultEmoji =  new char[count];
+        char *resultEmoji = new char[count];
         memcpy(resultEmoji, (char *) (decrypted.data() + 4 + (4-count)), count);
         std::string aux(resultEmoji, count);
 
