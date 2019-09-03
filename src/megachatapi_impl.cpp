@@ -4162,14 +4162,16 @@ void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListene
     sdkMutex.unlock();
 }
 
-int MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
+    int errorCode = MegaChatError::ERROR_OK;
+    MegaChatErrorPrivate *megaChatError;
     if (!reaction)
     {
-        return MegaChatError::ERROR_ARGS;
+        megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
+        return megaChatError;
     }
 
-    int errorCode = MegaChatError::ERROR_OK;
     sdkMutex.lock();
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
@@ -4217,17 +4219,20 @@ int MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, co
         }
     }
     sdkMutex.unlock();
-    return errorCode;
+    megaChatError = new MegaChatErrorPrivate(errorCode);
+    return megaChatError;
 }
 
-int MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
+    int errorCode = MegaChatError::ERROR_OK;
+    MegaChatErrorPrivate *megaChatError;
     if (!reaction)
     {
-        return MegaChatError::ERROR_ARGS;
+        megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
+        return megaChatError;
     }
 
-    int errorCode = MegaChatError::ERROR_OK;
     sdkMutex.lock();
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
@@ -4275,7 +4280,8 @@ int MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, co
         }
     }
     sdkMutex.unlock();
-    return errorCode;
+    megaChatError = new MegaChatErrorPrivate(errorCode);
+    return megaChatError;
 }
 
 MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)

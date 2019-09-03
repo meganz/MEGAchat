@@ -28,9 +28,9 @@ Reaction::~Reaction()
 void Reaction::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);    
-    auto actAdd = menu.addAction(tr("React"));
+    auto actAdd = menu.addAction(tr("React to this message"));
     connect(actAdd, SIGNAL(triggered()), this, SLOT(onAddReact()));
-    auto actRemove = menu.addAction(tr("Del react"));
+    auto actRemove = menu.addAction(tr("Del reaction"));
     connect(actRemove, SIGNAL(triggered()), this, SLOT(onRemoveReact()));
     auto actCopy = menu.addAction(tr("Copy UTF-8"));
     connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyReact()));
@@ -79,15 +79,17 @@ void Reaction::onRemoveReact()
     MegaChatHandle chatid = mChatMessage->getChatId();
     MegaChatHandle msgid = mChatMessage->getMessage()->getMsgId();
     const char *reaction = mReactionString.c_str();
-    int res = chatwindow->getMegaChatApi()->delReaction(chatid, msgid, reaction);
-    if (res != MegaChatError::ERROR_OK)
+
+    MegaChatError *res = chatwindow->getMegaChatApi()->delReaction(chatid, msgid, reaction);
+    if (res->getErrorCode() != MegaChatError::ERROR_OK)
     {
         QMessageBox msg;
         msg.setParent(nullptr);
         msg.setIcon(QMessageBox::Information);
-        msg.setText(std::to_string(res).c_str());
+        msg.setText(res->toString());
         msg.exec();
     }
+    delete res;
 }
 
 void Reaction::onAddReact()
@@ -101,16 +103,17 @@ void Reaction::onAddReact()
     MegaChatHandle chatid = mChatMessage->getChatId();
     MegaChatHandle msgid = mChatMessage->getMessage()->getMsgId();
     const char *reaction = mReactionString.c_str();
-    int res = chatwindow->getMegaChatApi()->addReaction(chatid, msgid, reaction);
-    if (res != MegaChatError::ERROR_OK)
+
+    MegaChatError *res = chatwindow->getMegaChatApi()->addReaction(chatid, msgid, reaction);
+    if (res->getErrorCode() != MegaChatError::ERROR_OK)
     {
         QMessageBox msg;
         msg.setParent(nullptr);
         msg.setIcon(QMessageBox::Information);
-        msg.setText(std::to_string(res).c_str());
+        msg.setText(res->toString());
         msg.exec();
     }
-
+     delete res;
 }
 
 void Reaction::enterEvent(QEvent *event)

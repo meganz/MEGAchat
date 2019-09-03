@@ -4583,8 +4583,10 @@ public:
      * specified at MegaChatApi::openChatRoom (and through any other listener you may have
      * registered by calling MegaChatApi::addChatRoomListener).
      *
+     * You take the ownership of the returned value.
+     *
      * The corresponding callback is MegaChatRoomListener::onReactionUpdate.
-     * Possible return values for this function are:
+     * Possible error codes associated to MegaChatError can be:
      * - MegaChatError::ERROR_OK - If no errors occurred.
      * - MegaChatError::ERROR_ARGS - If reaction is NULL
      * - MegaChatError::ERROR_NOENT - If the chatroom or message
@@ -4598,9 +4600,9 @@ public:
      * @param msgid MegaChatHandle that identifies the message
      * @param reaction UTF-8 NULL terminated string that represents the reaction
      *
-     * @return returns an error code.
+     * @return returns MegaChatError with an error code associated.
      */
-    int addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    MegaChatError *addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 
     /**
      * @brief Removes a reaction for a message in a chatroom.
@@ -4608,8 +4610,10 @@ public:
      * specified at MegaChatApi::openChatRoom (and through any other listener you may have
      * registered by calling MegaChatApi::addChatRoomListener).
      *
+     * You take the ownership of the returned value.
+     *
      * The corresponding callback is MegaChatRoomListener::onReactionUpdate
-     * Possible return values for this function are:
+     * Possible error codes associated to MegaChatError can be:
      * - MegaChatError::ERROR_OK - If no errors occurred.
      * - MegaChatError::ERROR_ARGS - If reaction is NULL
      * - MegaChatError::ERROR_NOENT - If the chatroom or message
@@ -4623,9 +4627,9 @@ public:
      * @param msgid MegaChatHandle that identifies the message
      * @param reaction UTF-8 NULL terminated string that represents the reaction
      *
-     * @return returns an error code.
+     * @return returns MegaChatError with an error code associated.
      */
-    int delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    MegaChatError *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 
      /**
       * @brief Gets a list of reactions associated to a message
