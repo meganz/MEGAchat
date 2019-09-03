@@ -7711,12 +7711,14 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
     if (chatCall != NULL)
     {
         chatid = chatCall->getChatid();
+        MegaChatRoom *chatRoom = megaChatApi->getChatRoom(chatid);
+        assert(chatRoom);
         MegaHandleList *peeridParticipants = chatCall->getPeeridParticipants();
         MegaHandleList *clientidParticipants = chatCall->getClientidParticipants();
         bool uniqueParticipant = (peeridParticipants && peeridParticipants->size() == 1 &&
                                   peeridParticipants->get(0) == megaChatApi->getMyUserHandle() &&
                                   clientidParticipants->get(0) == megaChatApi->getMyClientidHandle(chatid));
-        if (peeridParticipants && peeridParticipants->size() > 0 && !uniqueParticipant)
+        if (peeridParticipants && peeridParticipants->size() > 0 && !uniqueParticipant && chatRoom->isGroup())
         {
             if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
             {
@@ -7732,6 +7734,7 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
             megaChatApi->removeCall(chatid);
         }
 
+        delete chatRoom;
         delete peeridParticipants;
         delete clientidParticipants;
     }
