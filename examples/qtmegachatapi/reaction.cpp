@@ -28,9 +28,9 @@ Reaction::~Reaction()
 void Reaction::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);    
-    auto actAdd = menu.addAction(tr("Add reaction"));
+    auto actAdd = menu.addAction(tr("React"));
     connect(actAdd, SIGNAL(triggered()), this, SLOT(onAddReact()));
-    auto actRemove = menu.addAction(tr("Remove reaction"));
+    auto actRemove = menu.addAction(tr("Del react"));
     connect(actRemove, SIGNAL(triggered()), this, SLOT(onRemoveReact()));
     auto actCopy = menu.addAction(tr("Copy UTF-8"));
     connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyReact()));

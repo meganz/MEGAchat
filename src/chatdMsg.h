@@ -323,16 +323,18 @@ enum Opcode
     OP_ECHO = 32,
 
     /**
-      * @brief <chatid> <userid> <msgid> <reaction>
+      * @brief <chatid.8> <userid.8> <msgid.8> <payloadLen.1> <reaction>
       *
-      * User add a reaction to message
+      * C->S: user adds a reaction to message
+      * S->C: server response to the command
       */
     OP_ADDREACTION = 33,
 
     /**
-      * @brief <chatid> <userid> <msgid> <reaction>
+      * @brief <chatid.8> <userid.8> <msgid.8> <payloadLen.1> <reaction>
       *
-      * User delete a reaction to message
+      * C->S: user delete a reaction to message
+      * S->C: server response to the command
       */
     OP_DELREACTION = 34,
 
@@ -416,18 +418,16 @@ enum Opcode
     OP_HANDLELEAVE = 47,
 
     /**
-      ** @brief <chatid> <rsn.1>
+      ** @brief <chatid.8> <rsn.8>
       *
       * C->S: send to chatd the current reaction sequence number for a chatroom.
       * This command must be send upon a reconnection, only if we have stored
-      * a valid rsn (rsn != 0) and only after send JOIN/JOINRANGEHIST
+      * a valid rsn and only after send JOIN/JOINRANGEHIST
       * or HANDLEJOIN/HANDLEJOINRANGEHIST.
       *
       * S->C: inform about any change in the reactions associated to a chatroom
       * by receiving the current reaction sequence number.
       *
-      * Send: <chatid> <rsn.1>
-      * Receive: <chatid> <rsn.1>
       */
     OP_REACTIONSN = 48,
 
@@ -538,13 +538,13 @@ public:
     struct Reaction
     {
         /** @brief Contains a UTF-8 string that represents the reaction
-         * and a vector of userid associated to that reaction. */
+         * and a vector of userid's associated to that reaction. */
         std::string mReaction;
         std::vector<karere::Id> mUsers;
 
         Reaction(std::string reaction)
         {
-            this->mReaction = reaction;
+            mReaction = reaction;
         }
 
          /** @brief Returns the userId index in case that exists. Otherwise returns -1 **/
@@ -785,7 +785,7 @@ public:
         return reactions;
     }
 
-    /** @brief Returns true if the user has reacted to this message with this reaction **/
+    /** @brief Returns true if the user has reacted to this message with the specified reaction **/
     bool hasReacted(std::string reaction, karere::Id uh)
     {
         for (size_t i = 0; i < mReactions.size(); i++)

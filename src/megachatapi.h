@@ -3287,8 +3287,10 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to truncate their chat, i.e. to clear
      * the entire chat history up to a certain message. All earlier messages are wiped,
-     * but this specific message will be overwritten by a management message. You can
-     * expect a call to \c MegaChatRoomListener::onMessageUpdate where the message
+     * but this specific message will be overwritten by a management message. In addition
+     * all reactions associated to the message are wiped and must be cleared by applications.
+     *
+     * You can expect a call to \c MegaChatRoomListener::onMessageUpdate where the message
      * will have no content and it will be of type \c MegaChatMessage::TYPE_TRUNCATE.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
@@ -3308,10 +3310,12 @@ public:
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Allows a logged in operator/moderator to clear the entire history of a chat
+     * @brief Allows a logged in operator/moderator to clear the entire chat history up
+     * to a certain message. All earlier messages are wiped, but this specific message
+     * will be overwritten by a management message. In addition all reactions associated
+     * to the message are wiped and must be cleared by applications.
      *
-     * If the history is not already empty, the latest message will be overwritten by
-     * a management message. You can expect a call to \c MegaChatRoomListener::onMessageUpdate
+     * You can expect a call to \c MegaChatRoomListener::onMessageUpdate
      * where the message will have no content and it will be of type
      * \c MegaChatMessage::TYPE_TRUNCATE.
      *
@@ -4579,10 +4583,9 @@ public:
      * specified at MegaChatApi::openChatRoom (and through any other listener you may have
      * registered by calling MegaChatApi::addChatRoomListener).
      *
-     * The corresponding callback is MegaChatRoomListener::onReactionUpdate
-     *
+     * The corresponding callback is MegaChatRoomListener::onReactionUpdate.
      * Possible return values for this function are:
-     * - MegaChatError::ERROR_OK - If any error occurred.
+     * - MegaChatError::ERROR_OK - If no errors occurred.
      * - MegaChatError::ERROR_ARGS - If reaction is NULL
      * - MegaChatError::ERROR_NOENT - If the chatroom or message
      * doesn't exists or if the message it's a management message
@@ -4606,9 +4609,8 @@ public:
      * registered by calling MegaChatApi::addChatRoomListener).
      *
      * The corresponding callback is MegaChatRoomListener::onReactionUpdate
-     *
      * Possible return values for this function are:
-     * - MegaChatError::ERROR_OK - If any error occurred.
+     * - MegaChatError::ERROR_OK - If no errors occurred.
      * - MegaChatError::ERROR_ARGS - If reaction is NULL
      * - MegaChatError::ERROR_NOENT - If the chatroom or message
      * doesn't exists or if the message it's a management message

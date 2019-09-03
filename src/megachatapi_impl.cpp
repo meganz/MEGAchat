@@ -4209,7 +4209,8 @@ int MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, co
                     }
                     else
                     {
-                        chat.addReaction(msg, reaction);
+                        std::string reactionString(reaction, strlen(reaction));
+                        chat.addReaction(msg, reactionString);
                     }
                 }
             }
@@ -4266,7 +4267,8 @@ int MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, co
                     }
                     else
                     {
-                        chat.delReaction(msg, reaction);
+                        std::string reactionString(reaction, strlen(reaction));
+                        chat.delReaction(msg, reactionString);
                     }
                 }
             }
@@ -4295,8 +4297,8 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
                 reactArray = new char*[reactions.size()];
                 for (int i = 0; i < reactions.size(); ++i)
                 {
-                    char *device = MegaApi::strdup(reactions[i].c_str());
-                    reactArray[i] = device;
+                    char *reaction = MegaApi::strdup(reactions[i].c_str());
+                    reactArray[i] = reaction;
                 }
             }
             reacts = new MegaStringListPrivate(reactArray, reactions.size());

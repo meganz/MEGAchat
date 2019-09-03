@@ -308,7 +308,7 @@ public:
      *
      * @param msgid The id of the message associated to the reaction.
      * @param reaction The UTF-8 reaction
-     * @param count The number of users that reacted to that message
+     * @param count The number of users that reacted to that message with this reaction
      */
     virtual void onReactionUpdate(karere::Id /*msgid*/, const char* /*reaction*/, int /*count*/){}
 
@@ -1295,8 +1295,8 @@ public:
     uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
-    void addReaction(Message *message, const char *reaction);
-    void delReaction(Message *message, const char *reaction);
+    void addReaction(Message *message, std::string reaction);
+    void delReaction(Message *message, std::string reaction);
     void sendReactionSn();
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;

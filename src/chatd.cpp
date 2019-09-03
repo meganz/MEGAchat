@@ -1380,7 +1380,6 @@ string Command::toString(const StaticBuffer& data)
             karere::Id msgid = data.read<uint64_t>(17);
             int8_t len = data.read<int8_t>(25);
             const char *reaction = data.readPtr(26, len);
-
             tmpString.append("DELREACTION chatid: ");
             tmpString.append(ID_CSTR(chatid));
             tmpString.append(", userid: ");
@@ -1756,7 +1755,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
     mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
-    std::string rsn = (!this->previewMode()) ? mDbInterface->getReactionSn() : std::string();
+    std::string rsn = (!previewMode()) ? mDbInterface->getReactionSn() : std::string();
     mReactionSn = (!rsn.empty()) ? Id(rsn.data(), rsn.size()) : Id::inval();
 
     if ((mHaveAllHistory = mDbInterface->chatVar("have_all_history")))
@@ -2563,16 +2562,15 @@ void Chat::sendSync()
 }
 
 
-void Chat::addReaction(Message *message, const char *reaction)
+void Chat::addReaction(Message *message, std::string reaction)
 {
-    std::string reactionString (reaction, strlen(reaction));
     auto wptr = weakHandle();
-    marshallCall([wptr, this, message, reactionString]()
+    marshallCall([wptr, this, message, reaction]()
     {
         if (wptr.deleted())
             return;
 
-        mCrypto->reactionEncrypt(message, reactionString)
+        mCrypto->reactionEncrypt(message, reaction)
         .then([this, wptr, message](std::shared_ptr<Buffer> data)
         {
             if (wptr.deleted())
@@ -2588,16 +2586,15 @@ void Chat::addReaction(Message *message, const char *reaction)
     }, mChatdClient.mKarereClient->appCtx);
 }
 
-void Chat::delReaction(Message *message, const char *reaction)
+void Chat::delReaction(Message *message, std::string reaction)
 {
-    std::string reactionString (reaction, strlen(reaction));
     auto wptr = weakHandle();
-    marshallCall([wptr, this, message, reactionString]()
+    marshallCall([wptr, this, message, reaction]()
     {
         if (wptr.deleted())
             return;
 
-        mCrypto->reactionEncrypt(message, reactionString)
+        mCrypto->reactionEncrypt(message, reaction)
         .then([this, wptr, message](std::shared_ptr<Buffer> data)
         {
             if (wptr.deleted())
@@ -4859,7 +4856,7 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 
         if (message->isManagementMessage())
         {
-            CHATID_LOG_DEBUG("onAddReaction: Error, reaction received for a management message");
+            CHATID_LOG_DEBUG("onAddReaction: Error, reaction received for a management message with id(%d)", msgId);
             return;
         }
 
@@ -4884,12 +4881,12 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
         })
         .fail([this](const ::promise::Error& err)
         {
-            CHATID_LOG_DEBUG("Error decrypting reaction: %s", err.what());
+            CHATID_LOG_DEBUG("onAddReaction: Error decrypting reaction: %s", err.what());
         });
     }
     else
     {
-        CHATID_LOG_DEBUG("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", messageIdx, msgId);
+        CHATID_LOG_DEBUG("onAddReaction: Failed to find the message by index, being index retrieved from message id (index: %d, id: %d)", messageIdx, msgId);
     }
 }
 
@@ -4907,7 +4904,7 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 
         if (message->isManagementMessage())
         {
-            CHATID_LOG_DEBUG("onDelReaction: Error, reaction received for a management message");
+            CHATID_LOG_DEBUG("onDelReaction: Error, reaction received for a management message with id(%d)", msgId);
             return;
         }
 
@@ -4932,12 +4929,12 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
         })
         .fail([this](const ::promise::Error& err)
         {
-            CHATID_LOG_DEBUG("Error decrypting reaction: %s", err.what());
+            CHATID_LOG_DEBUG("onDelReaction: Error decrypting reaction: %s", err.what());
         });
     }
     else
     {
-        CHATID_LOG_DEBUG("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", messageIdx, msgId);
+        CHATID_LOG_DEBUG("onDelReaction: Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", messageIdx, msgId);
     }
 }
 

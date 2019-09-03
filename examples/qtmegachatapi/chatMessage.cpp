@@ -561,7 +561,7 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
     QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
     if (!mMessage->isManagementMessage())
     {
-        QMenu *addReactMenu = menu->addMenu("Add reaction");
+        QMenu *addReactMenu = menu->addMenu("React");
         for (int i = 0; i < utf8reactionsList.size(); i++)
         {
             std::string react = utf8reactionsList.at(i).toStdString();
@@ -571,7 +571,7 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
         auto actReact = addReactMenu->addAction(tr("Add reaction (CUSTOM)"));
         connect(actReact, &QAction::triggered, this, [=](){onManageReaction(false);});
 
-        QMenu *delReactMenu = menu->addMenu("Del reaction");
+        QMenu *delReactMenu = menu->addMenu("Del react");
         for (int i = 0; i < utf8reactionsList.size(); i++)
         {
             std::string react = utf8reactionsList.at(i).toStdString();
