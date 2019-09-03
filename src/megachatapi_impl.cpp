@@ -7671,6 +7671,12 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateTerminating:
             {
+                if (chatCall->getStatus() == MegaChatCall::CALL_STATUS_RECONNECTING)
+                {
+                    // if reconnecting skip terminating state, if reconnection not successful finisht notify call destroyed
+                    return;
+                }
+
                 chatCall->setIsRinging(false);
                 state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
                 chatCall->setTermCode(call->termCode());
