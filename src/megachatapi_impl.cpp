@@ -4306,9 +4306,9 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
                     char *reaction = MegaApi::strdup(reactions[i].c_str());
                     reactArray[i] = reaction;
                 }
+                reacts = new MegaStringListPrivate(reactArray, reactions.size());
+                delete [] reactArray;
             }
-            reacts = new MegaStringListPrivate(reactArray, reactions.size());
-            delete [] reactArray;
         }
     }
     sdkMutex.unlock();
