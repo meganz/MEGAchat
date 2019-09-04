@@ -1358,18 +1358,6 @@ void Call::msgSdpOffer(RtMessage& packet)
     sess->veryfySdpOfferSendAnswer();
 }
 
-void Call::msgTerminate(RtMessage &packet)
-{
-    TermCode code = static_cast<TermCode>(packet.payload.read<uint8_t>(8));
-    if (code != TermCode::kAnsElsewhere && mState != Call::kStateJoining)
-    {
-        SUB_LOG_ERROR("Unexpected RTCMD_CALL_TERMINATE with invalid termCode or state");
-        return;
-    }
-
-    destroy(static_cast<TermCode>(code| TermCode::kPeer), false);
-}
-
 void Call::handleReject(RtMessage& packet)
 {
     if (packet.callid != mId)

@@ -169,7 +169,6 @@ protected:
     void msgCallReqDecline(RtMessage& packet);
     void msgCallReqCancel(RtMessage& packet);
     void msgSdpOffer(RtMessage& packet);
-    void msgTerminate(RtMessage& packet);
     void handleReject(RtMessage& packet);
     void handleBusy(RtMessage& packet);
     void getLocalStream(karere::AvFlags av, std::string& errors);
