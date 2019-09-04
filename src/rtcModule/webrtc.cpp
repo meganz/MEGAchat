@@ -2392,24 +2392,9 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         {
             mManager.launchCallRetry(mChat.chatId(), sentAv(), false);
         }
-    }
-    else if (mState >= kStateInProgress)
-    {
-        if (userid == mManager.mKarereClient.myHandle())
-        {
-            SUB_LOG_DEBUG("Discard ENDCALL received for ourselves but with other client in 1to1 chatroom");
-            return;
-        }
 
-        EndpointId pointId(userid, clientid);
-        bool hasSessionWihtOtherClient = (mSentSessions.find(pointId) == mSentSessions.end());
-        if (hasSessionWihtOtherClient)
-        {
-            SUB_LOG_DEBUG("Discard ENDCALL received for other client from the peer that we have session");
-            return;
-        }
-
-        destroy(TermCode::kErrPeerOffline, userid == mChat.client().mKarereClient->myHandle());
+        cancelSessionRetryTimer(userid, clientid);
+        destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
     }
 }
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)
