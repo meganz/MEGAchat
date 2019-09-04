@@ -1533,11 +1533,26 @@ void Call::msgJoin(RtMessage& packet)
         assert(packet.callid);
         for (auto itSession = mSessions.begin(); itSession != mSessions.end(); itSession++)
         {
-            if (itSession->second->peer() == packet.userid && itSession->second->peerClient() == packet.clientid)
+            if (itSession->second->peer() != packet.userid && itSession->second->peerClient() != packet.clientid)
+            {
+                continue;
+            }
+
+            if (itSession->second->getState() < Session::kStateTerminating)
             {
                 SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: 0x%x) to whom we already have a session",
                                 itSession->second->peer().toString().c_str(), itSession->second->peerClient());
                 return;
+            }
+
+            if (!itSession->second->mTerminatePromise.done())
+            {
+                SUB_LOG_WARNING("Force to finish session with User: %s (client: 0x%x)",
+                                itSession->second->peer().toString().c_str(), itSession->second->peerClient());
+
+                assert(itSession->second->getState() == Session::kStateTerminating);
+                auto pms = itSession->second->mTerminatePromise;
+                pms.resolve();
             }
         }
 
@@ -2373,15 +2388,12 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         auto sess = item.second;
         if (sess->mPeer == userid && sess->mPeerClient == clientid)
         {
-            marshallCall([sess]()
-            {
-                sess->terminateAndDestroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
-            }, mManager.mKarereClient.appCtx);
-
             if (mSessions.size() == 1)
             {
                 mManager.launchCallRetry(mChat.chatId(), sentAv(), false);
             }
+
+            sess->destroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
             return;
         }
     }
@@ -3027,7 +3039,7 @@ Promise<void> Session::sendOffer()
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
-        if (!wptr.deleted())
+        if (wptr.deleted())
             return;
         terminateAndDestroy(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
     });
@@ -3136,13 +3148,6 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         }
     }
 
-    unsigned timeout = RtcModule::kSessFinishTimeout;
-    // If peer is offline it's not neccessary wait for the answer
-    if ((code & (~TermCode::kPeer)) == TermCode::kErrPeerOffline)
-    {
-        timeout = 0;
-    }
-
     auto wptr = weakHandle();
     setTimeout([wptr, this]()
     {
@@ -3155,7 +3160,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
             auto pms = mTerminatePromise;
             pms.resolve();
         }
-    }, timeout, mManager.mKarereClient.appCtx);
+    }, RtcModule::kSessFinishTimeout, mManager.mKarereClient.appCtx);
 
     auto pms = mTerminatePromise;
     return pms
@@ -3434,10 +3439,10 @@ const StateDesc Call::sStateDesc = {
 const StateDesc Session::sStateDesc = {
     {
         { kStateWaitSdpOffer, kStateWaitSdpAnswer, kStateWaitLocalSdpAnswer},
-        { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kStateWaitSdpOffer
-        { kStateInProgress, kStateTerminating },         //for kStateWaitLocalSdpAnswer
-        { kStateInProgress, kStateTerminating },         //for kStateWaitSdpAnswer
-        { kStateTerminating },                           //for kStateInProgress
+        { kStateWaitLocalSdpAnswer, kStateTerminating, kStateDestroyed }, //for kStateWaitSdpOffer
+        { kStateInProgress, kStateTerminating, kStateDestroyed },         //for kStateWaitLocalSdpAnswer
+        { kStateInProgress, kStateTerminating, kStateDestroyed },         //for kStateWaitSdpAnswer
+        { kStateTerminating, kStateDestroyed },                           //for kStateInProgress
         { kStateDestroyed },                             //for kStateTerminating
         {}                                               //for kStateDestroyed
     },
