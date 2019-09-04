@@ -1472,10 +1472,17 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     // Login in primary account
     char *sessionPrimary = login(a1);
 
-    // Init anonymous in secondary account
+    // Init anonymous in secondary account and connect
     initState[a2] = megaChatApi[a2]->initAnonymous();
     ASSERT_CHAT_TEST(initState[a2] == MegaChatApi::INIT_ANONYMOUS, "Init sesion in anonymous mode failed");
     char *sessionAnonymous = megaApi[a2]->dumpSession();
+
+    bool *flagRequestConnect = &requestFlagsChat[a2][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
+    bool *loggedInFlag = &mLoggedInAllChats[a2]; *loggedInFlag = false;
+    mChatConnectionOnline[a2] = false;
+    megaChatApi[a2]->connect();
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
+    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Error connect to chat. Error: " + std::to_string(lastErrorChat[a2]));
 
     // Create a public chat with no peers nor title, this chat will be reused by the rest of the tests
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
