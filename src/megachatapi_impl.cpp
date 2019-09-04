@@ -4237,7 +4237,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
-        errorCode = MegaChatError::ERROR_ARGS;
+        errorCode = MegaChatError::ERROR_NOENT;
     }
     else
     {
@@ -4251,20 +4251,20 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
             Idx index = chat.msgIndexFromId(msgid);
             if (index == CHATD_IDX_INVALID)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
             }
             else
             {
                 Message *msg = chat.findOrNull(index);
                 if (!msg)
                 {
-                    errorCode = MegaChatError::ERROR_ARGS;
+                    errorCode = MegaChatError::ERROR_NOENT;
                 }
                 else
                 {
                     if (msg->isManagementMessage())
                     {
-                        errorCode = MegaChatError::ERROR_ARGS;
+                        errorCode = MegaChatError::ERROR_NOENT;
                     }
                     else if (!msg->hasReacted(reaction, mClient->myHandle()))
                     {
