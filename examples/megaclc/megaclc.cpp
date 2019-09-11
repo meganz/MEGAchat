@@ -275,6 +275,11 @@ string OwnStr(const char* s)
     return str;
 }
 
+string base64NodeHandle(m::MegaHandle h)
+{
+    return OwnStr(m::MegaApi::handleToBase64(h));
+}
+
 unique_ptr<m::Console> console;
 
 static const char* prompts[] =
@@ -3246,7 +3251,7 @@ void exec_setCameraUploadsFolder(ac::ACState& s)
     
     if (!srcnode)
     {
-        cout << "folder not found";
+        conlock(cout) << "Folder not found.";
     }
     else
     {
@@ -3267,7 +3272,7 @@ void exec_getCameraUploadsFolder(ac::ACState& s)
             unique_ptr<m::MegaNode> node(g_megaApi->getNodeByHandle(r->getNodeHandle()));
             if (!node)
             {
-                conlock(cout) << "No node found by looking up handle: '" << r->getNodeHandle() << "'" << endl;
+                conlock(cout) << "No node found by looking up handle: " << base64NodeHandle(r->getNodeHandle()) << endl;
             }
             else
             {
