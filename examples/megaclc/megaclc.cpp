@@ -3276,8 +3276,7 @@ void exec_getCameraUploadsFolder(ac::ACState& s)
             }
             else
             {
-                unique_ptr<char[]> path(g_megaApi->getNodePath(node.get()));
-                conlock(cout) << "Camera upload folder: " << path << endl;
+                conlock(cout) << "Camera upload folder: " << OwnStr(g_megaApi->getNodePath(node.get())) << endl;
             }
         }
     }));
