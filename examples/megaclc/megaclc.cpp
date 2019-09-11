@@ -2870,7 +2870,8 @@ void exec_getspecificaccountdetails(ac::ACState& s)
                 if (check_err("getSpecificAccountDetails", e, ReportFailure))
                 {
                     unique_ptr<m::MegaAccountDetails> ad(r->getMegaAccountDetails());
-                    conlock(cout) << "Storage used: " << ad->getStorageUsed() << " free: " << (ad->getStorageMax() - ad->getStorageUsed()) << " max: " << ad->getStorageMax() <<  endl;
+                    conlock(cout) << "Storage used: " << ad->getStorageUsed() << " free: " << (ad->getStorageMax() - ad->getStorageUsed()) << " max: " << ad->getStorageMax() <<  endl
+                                  << "Version bytes used: " << ad->getVersionStorageUsed() << endl;
                 }
             }));
 }
@@ -3239,6 +3240,45 @@ void exec_getmegaachievements(ac::ACState& s)
     g_megaApi->getMegaAchievements(listener);
 }
 
+void exec_setCameraUploadsFolder(ac::ACState& s)
+{
+    std::unique_ptr<m::MegaNode> srcnode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
+    
+    if (!srcnode)
+    {
+        cout << "folder not found";
+    }
+    else
+    {
+        g_megaApi->setCameraUploadsFolder(srcnode->getHandle(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setCameraUploadsFolder", e, ReportResult);
+        }));
+    }
+
+}
+
+void exec_getCameraUploadsFolder(ac::ACState& s)
+{
+    g_megaApi->getCameraUploadsFolder(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+    {
+        if (check_err("getCameraUploadsFolder", e, ReportFailure))
+        {
+            unique_ptr<m::MegaNode> node(g_megaApi->getNodeByHandle(r->getNodeHandle()));
+            if (!node)
+            {
+                conlock(cout) << "No node found by looking up handle: '" << r->getNodeHandle() << "'" << endl;
+            }
+            else
+            {
+                unique_ptr<char[]> path(g_megaApi->getNodePath(node.get()));
+                conlock(cout) << "Camera upload folder: " << path << endl;
+            }
+        }
+    }));
+}
+
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -3390,6 +3430,9 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getcloudstorageused, sequence(text("getcloudstorageused")));
 
     p->Add(exec_cp, sequence(text("cp"), param("remotesrc"), param("remotedst")));
+
+    p->Add(exec_setCameraUploadsFolder, sequence(text("setcamerauploadsfolder"), param("remotedst")));
+    p->Add(exec_getCameraUploadsFolder, sequence(text("getcamerauploadsfolder")));
 
 
     return p;
