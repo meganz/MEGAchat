@@ -628,7 +628,7 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
 {
     QString reaction = reactionStr
             ? reactionStr
-            : mChatWindow->mMainWin->mApp->getText("Add reaction").c_str();
+            : mChatWindow->mMainWin->mApp->getText(del ? "Del reaction" : "Add reaction", false).c_str();
 
     if (reaction.isEmpty())
     {
