@@ -41,7 +41,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     {
         for (int i = 0; i < reactions->size(); i++)
         {
-            std::unique_ptr<::mega::MegaHandleList> users(megaChatApi->getReactionUsers(this->mChatId, this->mMessage->getMsgId(),reactions->get(i)));
+            std::unique_ptr<::mega::MegaHandleList> users(megaChatApi->getReactionUsers(mChatId, mMessage->getMsgId(), reactions->get(i)));
             int count = users ? users->size() : 0;
             Reaction *reaction = new Reaction(this, reactions->get(i), count);
             ui->mReactions->layout()->addWidget(reaction);
