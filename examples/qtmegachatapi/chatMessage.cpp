@@ -67,7 +67,7 @@ void ChatMessage::updateReaction(const char *reaction, int count)
     for (int i = 0; i < mReactions.size(); i++)
     {
         std::shared_ptr<Reaction> r = mReactions.at(i);
-        if (r && r->getReactionString().compare(reaction) ==  0)
+        if (r->getReactionString().compare(reaction) == 0)
         {
            found = true;
            if (count == 0)
