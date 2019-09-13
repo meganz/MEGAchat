@@ -263,7 +263,7 @@ ChatWindow *ChatMessage::getChatWindow() const
 void ChatMessage::clearReactions()
 {
     QLayoutItem *item;
-    while ((item = ui->mReactions->layout()->takeAt(0)) != NULL)
+    while ((item = ui->mReactions->layout()->takeAt(0)))
     {
         item->widget()->deleteLater();
         delete item;
