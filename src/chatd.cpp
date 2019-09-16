@@ -4866,9 +4866,7 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
                 CALL_DB(addReaction, message->mId, userId, reaction.c_str());
             }
 
-            std::vector<karere::Id> *users = message->getReactionUsers(reaction);
-            int count = users ? users->size() : 0;
-            CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), count);
+            CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), message->getReactionCount(reaction));
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -4914,9 +4912,7 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
                 CALL_DB(delReaction, message->mId, userId, reaction.c_str());
             }
 
-            std::vector<karere::Id> *users = message->getReactionUsers(reaction);
-            int count = users ? users->size() : 0;
-            CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), count);
+            CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), message->getReactionCount(reaction));
         })
         .fail([this](const ::promise::Error& err)
         {

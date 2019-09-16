@@ -548,14 +548,16 @@ public:
         }
 
          /** @brief Returns the userId index in case that exists. Otherwise returns -1 **/
-        int userIndex(karere::Id userId)
+        int userIndex(karere::Id userId) const
         {
-            for (size_t i = 0; i < mUsers.size(); i++)
+            int i = 0;
+            for (auto &it : mUsers)
             {
-                if (mUsers.at(i) == userId)
+                if (it == userId)
                 {
                     return i;
                 }
+                i++;
             }
             return -1;
         }
@@ -775,51 +777,66 @@ public:
     }
 
     /** @brief Returns a vector with all the reactions of the message **/
-    std::vector<std::string> getReactions()
+    std::vector<std::string> getReactions() const
     {
         std::vector<std::string> reactions;
-        for (size_t i = 0; i < mReactions.size(); i++)
+        for (auto &it : mReactions)
         {
-            reactions.push_back(mReactions.at(i).mReaction);
+            reactions.push_back(it.mReaction);
         }
         return reactions;
     }
 
     /** @brief Returns true if the user has reacted to this message with the specified reaction **/
-    bool hasReacted(std::string reaction, karere::Id uh)
+    bool hasReacted(std::string reaction, karere::Id uh) const
     {
-        for (size_t i = 0; i < mReactions.size(); i++)
+        for (auto &it : mReactions)
         {
-            if (mReactions.at(i).mReaction.compare(reaction) == 0)
+            if (it.mReaction == reaction)
             {
-                return (mReactions.at(i).userIndex(uh) >= 0);
+                return it.userIndex(uh) >= 0;
             }
         }
         return false;
     }
 
     /** @brief Returns a vector with the userid's associated to an specific reaction **/
-    std::vector<karere::Id>* getReactionUsers(std::string reaction)
+    const std::vector<karere::Id>* getReactionUsers(std::string reaction) const
     {
-        for (size_t i = 0; i < mReactions.size(); i++)
+        for (auto &it : mReactions)
         {
-            if (mReactions.at(i).mReaction.compare(reaction) == 0)
+            if (it.mReaction == reaction)
             {
-                return &(mReactions.at(i).mUsers);
+                return &(it.mUsers);
             }
         }
-        return NULL;
+        return nullptr;
+    }
+
+    /** @brief Returns the number of users for an specific reaction **/
+    size_t getReactionCount(std::string reaction) const
+    {
+        for (auto const &it : mReactions)
+        {
+            if (it.mReaction == reaction)
+            {
+                return it.mUsers.size();
+            }
+        }
+        return 0;
     }
 
     /** @brief Returns the reaction index in case that exists. Otherwise returns -1 **/
-    int getReactionIndex(std::string reaction)
+    int getReactionIndex(std::string reaction) const
     {
-        for (int i = 0; i < mReactions.size(); i++)
+        int i = 0;
+        for (auto &it : mReactions)
         {
-            if (mReactions.at(i).mReaction.compare(reaction) == 0)
+            if (it.mReaction == reaction)
             {
                 return i;
             }
+            i++;
         }
         return -1;
     }

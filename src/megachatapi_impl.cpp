@@ -4331,13 +4331,13 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
         Message *msg = findMessage(chatid, msgid);
         if (msg)
         {
-            std::vector<karere::Id>*users = msg->getReactionUsers(std::string(reaction));
+            const std::vector<karere::Id> *users = msg->getReactionUsers(std::string(reaction));
             if (users)
             {
                 userList = new MegaHandleListPrivate();
-                for (int i = 0; i < users->size(); ++i)
+                for (auto &userid : *users)
                 {
-                    userList->addMegaHandle(users->at(i));
+                    userList->addMegaHandle(userid);
                 }
             }
         }
