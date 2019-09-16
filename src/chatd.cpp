@@ -475,6 +475,8 @@ void Chat::login()
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId;
 
+    sendReactionSn();
+
     if (previewMode())
     {
         if (mOldestKnownMsgId) //if we have local history
@@ -4928,10 +4930,7 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 void Chat::onReactionSn(Id rsn)
 {
     mReactionSn = rsn;
-    if (!previewMode())
-    {
-        CALL_DB(setReactionSn, mReactionSn.toString());
-    }
+    CALL_DB(setReactionSn, mReactionSn.toString());
 }
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)
@@ -4989,9 +4988,6 @@ void Chat::setOnlineState(ChatState state)
 
     if (state == kChatStateOnline)
     {
-        // Send REACTIONSN after a reconnection
-        sendReactionSn();
-
         if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
             mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsLoginChatd, connection().shardNo());
