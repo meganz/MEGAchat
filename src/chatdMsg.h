@@ -814,13 +814,13 @@ public:
     }
 
     /** @brief Returns the number of users for an specific reaction **/
-    size_t getReactionCount(std::string reaction) const
+    int getReactionCount(std::string reaction) const
     {
         for (auto const &it : mReactions)
         {
             if (it.mReaction == reaction)
             {
-                return it.mUsers.size();
+                return static_cast<int>(it.mUsers.size());
             }
         }
         return 0;

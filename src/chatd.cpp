@@ -4841,13 +4841,13 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
     {
         if (reaction.empty())
         {
-            CHATID_LOG_DEBUG("onAddReaction: Error, reaction received is empty");
+            CHATID_LOG_ERROR("onAddReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
             return;
         }
 
         if (message->isManagementMessage())
         {
-            CHATID_LOG_DEBUG("onAddReaction: Error, reaction received for a management message with id(%d)", msgId);
+            CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
             return;
         }
 
@@ -4868,14 +4868,14 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 
             CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), message->getReactionCount(reaction));
         })
-        .fail([this](const ::promise::Error& err)
+        .fail([this, msgId](const ::promise::Error& err)
         {
-            CHATID_LOG_DEBUG("onAddReaction: Error decrypting reaction: %s", err.what());
+            CHATID_LOG_ERROR("onAddReaction: failed to decrypt reaction. msgid: %s, error: %s", ID_CSTR(msgId), err.what());
         });
     }
     else
     {
-        CHATID_LOG_DEBUG("onAddReaction: failed to find message. idx: %d, msgid: %s)", messageIdx, ID_CSTR(msgId));
+        CHATID_LOG_ERROR("onAddReaction: failed to find message. idx: %d, msgid: %s)", messageIdx, ID_CSTR(msgId));
     }
 }
 
@@ -4887,13 +4887,13 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
     {
         if (reaction.empty())
         {
-            CHATID_LOG_DEBUG("onDelReaction: Error, reaction received is empty");
+            CHATID_LOG_ERROR("onDelReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
             return;
         }
 
         if (message->isManagementMessage())
         {
-            CHATID_LOG_DEBUG("onDelReaction: Error, reaction received for a management message with id(%d)", msgId);
+            CHATID_LOG_WARNING("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
             return;
         }
 
@@ -4914,14 +4914,14 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 
             CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), message->getReactionCount(reaction));
         })
-        .fail([this](const ::promise::Error& err)
+        .fail([this, msgId](const ::promise::Error& err)
         {
-            CHATID_LOG_DEBUG("onDelReaction: Error decrypting reaction: %s", err.what());
+            CHATID_LOG_ERROR("onDelReaction: failed to decryp reaction. msgid: %s, error: %s", ID_CSTR(msgId), err.what());
         });
     }
     else
     {
-        CHATID_LOG_DEBUG("ondELReaction: failed to find message by index. idx: %d, msgid: %s)", messageIdx, ID_CSTR(msgId));
+        CHATID_LOG_ERROR("onDelReaction: failed to find message by index. idx: %d, msgid: %s)", messageIdx, ID_CSTR(msgId));
     }
 }
 
