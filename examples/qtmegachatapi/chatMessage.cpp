@@ -41,7 +41,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     {
         for (int i = 0; i < reactions->size(); i++)
         {
-            std::unique_ptr<::mega::MegaHandleList> users(megaChatApi->getReactionUsers(this->mChatId, this->mMessage->getMsgId(),reactions->get(i)));
+            std::unique_ptr<::mega::MegaHandleList> users(megaChatApi->getReactionUsers(mChatId, mMessage->getMsgId(), reactions->get(i)));
             int count = users ? users->size() : 0;
             Reaction *reaction = new Reaction(this, reactions->get(i), count);
             ui->mReactions->layout()->addWidget(reaction);
@@ -66,8 +66,8 @@ void ChatMessage::updateReaction(const char *reaction, int count)
     bool found = false;
     for (int i = 0; i < mReactions.size(); i++)
     {
-        std::shared_ptr <Reaction> r = mReactions.at(i);
-        if (r && r->getReactionString().compare(reaction) ==  0)
+        std::shared_ptr<Reaction> r = mReactions.at(i);
+        if (r->getReactionString().compare(reaction) == 0)
         {
            found = true;
            if (count == 0)
@@ -263,7 +263,7 @@ ChatWindow *ChatMessage::getChatWindow() const
 void ChatMessage::clearReactions()
 {
     QLayoutItem *item;
-    while ((item = ui->mReactions->layout()->takeAt(0)) != NULL)
+    while ((item = ui->mReactions->layout()->takeAt(0)))
     {
         item->widget()->deleteLater();
         delete item;
@@ -628,7 +628,7 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
 {
     QString reaction = reactionStr
             ? reactionStr
-            : mChatWindow->mMainWin->mApp->getText("Add reaction").c_str();
+            : mChatWindow->mMainWin->mApp->getText(del ? "Del reaction" : "Add reaction", false).c_str();
 
     if (reaction.isEmpty())
     {
@@ -636,7 +636,7 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
     }
 
     std::string utfstring = reaction.toUtf8().toStdString();
-    MegaChatError *res = NULL;
+    std::unique_ptr<MegaChatError> res;
     if (del)
     {
         res = mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str());
@@ -653,7 +653,6 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
         msg.setText(res->toString());
         msg.exec();
     }
-    delete res;
 }
 
 void ChatMessage::onMessageRemoveLinkAction()

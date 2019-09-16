@@ -4,13 +4,13 @@
 #include "ui_reaction.h"
 
 Reaction::Reaction(ChatMessage *parent, const char *reactionString, int count) :
-    QWidget((QWidget *)parent),
+    static_cast<QWidget *>(parent),
     ui(new Ui::Reaction)
 {        
     mChatMessage = parent;
     ui->setupUi(this);
     mCount = count;    
-    mReactionString = reactionString ? reactionString :std::string();
+    mReactionString = reactionString ? reactionString : std::string();
 
     QString text(mReactionString.c_str());
     text.append(" ")
@@ -80,16 +80,15 @@ void Reaction::onRemoveReact()
     MegaChatHandle msgid = mChatMessage->getMessage()->getMsgId();
     const char *reaction = mReactionString.c_str();
 
-    MegaChatError *res = chatwindow->getMegaChatApi()->delReaction(chatid, msgid, reaction);
+    std::unique_ptr<MegaChatError> res(chatwindow->getMegaChatApi()->delReaction(chatid, msgid, reaction));
     if (res->getErrorCode() != MegaChatError::ERROR_OK)
     {
         QMessageBox msg;
         msg.setParent(nullptr);
-        msg.setIcon(QMessageBox::Information);
-        msg.setText(res->toString());
+        msg.setIcon(QMessageBox::Error);
+        msg.setText(res->toErrorString());
         msg.exec();
     }
-    delete res;
 }
 
 void Reaction::onAddReact()
@@ -119,8 +118,8 @@ void Reaction::onAddReact()
 void Reaction::enterEvent(QEvent *event)
 {
     megachat::MegaChatApi *megachatApi = mChatMessage->getMegaChatApi();
-    std::unique_ptr <::mega::MegaHandleList> users (megachatApi->getReactionUsers(mChatMessage->getChatId(), mChatMessage->getMessage()->getMsgId(), mReactionString.c_str()));
-    std::unique_ptr <megachat::MegaChatRoom> chatRoom(megachatApi->getChatRoom(mChatMessage->getChatId()));
+    std::unique_ptr <::mega::MegaHandleList> users(megachatApi->getReactionUsers(mChatMessage->getChatId(), mChatMessage->getMessage()->getMsgId(), mReactionString.c_str()));
+    std::unique_ptr<megachat::MegaChatRoom> chatRoom(megachatApi->getChatRoom(mChatMessage->getChatId()));
     if (!megachatApi || !users || !chatRoom)
     {
         return;

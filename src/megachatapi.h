@@ -4633,11 +4633,11 @@ public:
 
      /**
       * @brief Gets a list of reactions associated to a message
+      *
       * You take the ownership of the returned value.
       *
       * @param chatid MegaChatHandle that identifies the chatroom
       * @param msgid MegaChatHandle that identifies the message
-      *
       * @return return a list with the reactions associated to a message. If there's no reactions
       * associated to the message return NULL.
       */
