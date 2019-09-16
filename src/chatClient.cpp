@@ -2046,10 +2046,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
   mRoomGui(nullptr)
 {
-    initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
-    mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
-    mUrl = aUrl;
-
     //save to db
     auto db = parent.mKarereClient.db;
 
@@ -2061,6 +2057,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
         "own_priv, ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
         mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
+
+    initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
+    mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
+    mUrl = aUrl;
 
     initChatTitle(title, strongvelope::kDecrypted, true);
 
