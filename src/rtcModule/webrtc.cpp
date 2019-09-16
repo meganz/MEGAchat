@@ -1544,13 +1544,13 @@ void Call::msgJoin(RtMessage& packet)
             }
         }
 
-        if (mState == Call::kStateReqSent)
+        if (mState == Call::kStateReqSent || mState == Call::kStateJoining)
         {
             setState(Call::kStateInProgress);
             monitorCallSetupTimeout();
 
             // Send OP_CALLDATA with call inProgress
-            if (!chat().isGroup())
+            if (mState == Call::kStateReqSent && !chat().isGroup())
             {
                 mIsRingingOut = false;
                 if (!sendCallData(CallDataState::kCallDataNotRinging))
