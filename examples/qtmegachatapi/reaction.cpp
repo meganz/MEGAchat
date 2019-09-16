@@ -4,7 +4,7 @@
 #include "ui_reaction.h"
 
 Reaction::Reaction(ChatMessage *parent, const char *reactionString, int count) :
-    static_cast<QWidget *>(parent),
+    QWidget(static_cast<QWidget *>(parent)),
     ui(new Ui::Reaction)
 {        
     mChatMessage = parent;
@@ -85,8 +85,8 @@ void Reaction::onRemoveReact()
     {
         QMessageBox msg;
         msg.setParent(nullptr);
-        msg.setIcon(QMessageBox::Error);
-        msg.setText(res->toErrorString());
+        msg.setIcon(QMessageBox::Warning);
+        msg.setText(res->getErrorString());
         msg.exec();
     }
 }

@@ -1821,10 +1821,9 @@ Idx Chat::getHistoryFromDb(unsigned count)
         // Load msg reactions from cache
         ::mega::multimap<std::string, karere::Id> reactions;
         CALL_DB(getMessageReactions, msg->id(), reactions);
-        ::mega::multimap<std::string, karere::Id>::iterator it;
-        for (it = reactions.begin(); it != reactions.end(); it++)
+        for (auto &it : reactions)
         {
-            msg->addReaction(it->first, it->second);
+            msg->addReaction(it.first, it.second);
         }
 
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid

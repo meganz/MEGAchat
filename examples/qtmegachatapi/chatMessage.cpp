@@ -639,11 +639,11 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
     std::unique_ptr<MegaChatError> res;
     if (del)
     {
-        res = mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str());
+        res.reset(mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()));
     }
     else
     {
-        res = mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str());
+        res.reset(mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()));
     }
 
     if (res->getErrorCode() != MegaChatError::ERROR_OK)
