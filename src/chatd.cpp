@@ -2563,7 +2563,7 @@ void Chat::sendSync()
 }
 
 
-void Chat::addReaction(Message *message, std::string reaction)
+void Chat::addReaction(const Message *message, std::string reaction)
 {
     auto wptr = weakHandle();
     marshallCall([wptr, this, message, reaction]()
@@ -2587,7 +2587,7 @@ void Chat::addReaction(Message *message, std::string reaction)
     }, mChatdClient.mKarereClient->appCtx);
 }
 
-void Chat::delReaction(Message *message, std::string reaction)
+void Chat::delReaction(const Message *message, std::string reaction)
 {
     auto wptr = weakHandle();
     marshallCall([wptr, this, message, reaction]()

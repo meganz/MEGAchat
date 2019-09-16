@@ -1295,8 +1295,8 @@ public:
     uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
-    void addReaction(Message *message, std::string reaction);
-    void delReaction(Message *message, std::string reaction);
+    void addReaction(const Message *message, std::string reaction);
+    void delReaction(const Message *message, std::string reaction);
     void sendReactionSn();
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;

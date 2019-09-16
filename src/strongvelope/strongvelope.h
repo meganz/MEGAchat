@@ -455,11 +455,8 @@ public:
     virtual uint64_t getPublicHandle() const;
     virtual void setPublicHandle(const uint64_t ph);
 
-    virtual promise::Promise<std::shared_ptr<Buffer>>
-    reactionEncrypt(chatd::Message *msg, std::string reaction);
-
-    virtual promise::Promise<std::shared_ptr<Buffer>>
-    reactionDecrypt(chatd::Message *msg, std::string reaction);
+    virtual promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const chatd::Message *msg, std::string reaction);
+    virtual promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const chatd::Message *msg, std::string reaction);
 };
 }
 namespace chatd

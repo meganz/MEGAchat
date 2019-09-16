@@ -625,7 +625,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::reactionEncrypt(Message *msg, std::string reaction)
+ProtocolHandler::reactionEncrypt(const Message *msg, std::string reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (isPublicChat())
@@ -691,7 +691,7 @@ ProtocolHandler::reactionEncrypt(Message *msg, std::string reaction)
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::reactionDecrypt(Message *msg, std::string reaction)
+ProtocolHandler::reactionDecrypt(const Message *msg, std::string reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (isPublicChat())
