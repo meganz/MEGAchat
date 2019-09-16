@@ -4160,18 +4160,10 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         deleteMessagesBefore(idx);
         removePendingRichLinks(idx);
 
-        // clean reactions for truncate message
-        Message *truncatemsg = (idx != CHATD_IDX_INVALID) ? findOrNull(idx) : NULL;
-        if (truncatemsg)
-        {
-            truncatemsg->cleanReactions();
-        }
-
-        // clean all reactions for this chat in DB
-        if (!previewMode())
-        {
-            CALL_DB(cleanReactions);
-        }
+        // clean reactions for truncate message and for all message in this chat (DB)
+        at(idx).cleanReactions();
+        // TODO: if reactions consider a foreign key with delete on cascade, we can save the line below
+        CALL_DB(cleanReactions);
 
         // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)
@@ -4885,7 +4877,7 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
     }
     else
     {
-        CHATID_LOG_DEBUG("onAddReaction: Failed to find the message by index, being index retrieved from message id (index: %d, id: %d)", messageIdx, msgId);
+        CHATID_LOG_DEBUG("onAddReaction: failed to find message. idx: %d, msgid: %s)", messageIdx, ID_CSTR(msgId));
     }
 }
 
@@ -4933,7 +4925,7 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
     }
     else
     {
-        CHATID_LOG_DEBUG("onDelReaction: Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", messageIdx, msgId);
+        CHATID_LOG_DEBUG("ondELReaction: failed to find message by index. idx: %d, msgid: %s)", messageIdx, ID_CSTR(msgId));
     }
 }
 
