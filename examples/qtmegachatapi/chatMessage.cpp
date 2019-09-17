@@ -39,8 +39,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     mega::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
     for (int i = 0; i < reactions->size(); i++)
     {
-        mega::unique_ptr<::mega::MegaHandleList> users(megaChatApi->getReactionUsers(mChatId, mMessage->getMsgId(), reactions->get(i)));
-        int count = users ? static_cast<int>(users->size()) : 0;
+        int count = megaChatApi->getMessageReactionCount(mChatId, mMessage->getMsgId(), reactions->get(i));
         Reaction *reaction = new Reaction(this, reactions->get(i), count);
         ui->mReactions->layout()->addWidget(reaction);
         mReactions.emplace_back(std::shared_ptr<Reaction>(reaction));
@@ -61,21 +60,23 @@ ChatMessage::~ChatMessage()
 void ChatMessage::updateReaction(const char *reaction, int count)
 {
     bool found = false;
-    for (int i = 0; i < mReactions.size(); i++)
+    for (auto it = mReactions.begin(); it != mReactions.end(); it++)
     {
-        std::shared_ptr<Reaction> r = mReactions.at(i);
+        std::shared_ptr<Reaction> r = *it;
         if (r->getReactionString().compare(reaction) == 0)
         {
            found = true;
            if (count == 0)
            {
-              QLayoutItem *item = ui->mReactions->layout()->takeAt(i);
+              int index = static_cast<int>(distance(mReactions.begin(), it));
+              QLayoutItem *item = ui->mReactions->layout()->takeAt(index);
               if (item)
               {
                   item->widget()->deleteLater();
                   delete item;
               }
-              mReactions.erase(mReactions.begin() + i);
+              auto auxit = it;
+              mReactions.erase(auxit);
            }
            r->updateReactionCount(count);
            break;

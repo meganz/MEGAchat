@@ -4631,6 +4631,17 @@ public:
      */
     MegaChatError *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 
+    /**
+     * @brief Returns the number of users that reacted to a message with a specific reaction.
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     *
+     * @return return the number of users that reacted to a message with a specific reaction.
+     */
+    int getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction) const;
+
      /**
       * @brief Gets a list of reactions associated to a message
       *

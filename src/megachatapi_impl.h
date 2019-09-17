@@ -1001,6 +1001,7 @@ public:
     void removeChatListener(MegaChatListener *listener);
     void removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
     void removeChatNotificationListener(MegaChatNotificationListener *listener);
+    int getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
     mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
     mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 #ifndef KARERE_DISABLE_WEBRTC

@@ -4284,6 +4284,23 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
     return megaChatError;
 }
 
+int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+{
+    int count = 0;
+    sdkMutex.lock();
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Message *msg = findMessage(chatid, msgid);
+        if (msg)
+        {
+            count = msg->getReactionCount(reaction);
+        }
+    }
+    sdkMutex.unlock();
+    return count;
+}
+
 MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     MegaStringList *reactionList = NULL;

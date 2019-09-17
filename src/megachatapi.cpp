@@ -1021,6 +1021,11 @@ MegaChatError *MegaChatApi::delReaction(MegaChatHandle chatid, MegaChatHandle ms
    return pImpl->delReaction(chatid, msgid, reaction);
 }
 
+int MegaChatApi::getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction) const
+{
+    return pImpl->getMessageReactionCount(chatid, msgid, reaction);
+}
+
 MegaStringList* MegaChatApi::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     return pImpl->getMessageReactions(chatid, msgid);

@@ -1776,9 +1776,8 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     ::mega::unique_ptr <MegaStringList> reactionsList;
     reactionsList.reset(megaChatApi[a1]->getMessageReactions(chatid, msgId));
     ASSERT_CHAT_TEST(!reactionsList->size(), "getMessageReactions Error: The message shouldn't have reactions");
-    ::mega::unique_ptr <MegaHandleList> userList;
-    userList.reset(megaChatApi[a1]->getReactionUsers(chatid, msgId, "😰"));
-    ASSERT_CHAT_TEST(!userList->size(), "getReactionUsers Error: The reaction shouldn't exist");
+    int userCount = megaChatApi[a1]->getMessageReactionCount(chatid, msgId, "😰");
+    ASSERT_CHAT_TEST(!userCount, "getReactionUsers Error: The reaction shouldn't exist");
 
     // Add reaction
     ::mega::unique_ptr <MegaChatError> res;
@@ -1800,8 +1799,8 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     // Check reactions
     reactionsList.reset(megaChatApi[a1]->getMessageReactions(chatid, msgId));
     ASSERT_CHAT_TEST(reactionsList->size(), "getMessageReactions Error: The message doesn't have reactions");
-    userList.reset(megaChatApi[a1]->getReactionUsers(chatid, msgId, "😰"));
-    ASSERT_CHAT_TEST(userList->size(), "getReactionUsers Error: The reaction doesn't exists");
+    userCount = megaChatApi[a1]->getMessageReactionCount(chatid, msgId, "😰");
+    ASSERT_CHAT_TEST(userCount, "getReactionUsers Error: The reaction doesn't exists");
 
     // Del reaction
     res.reset(megaChatApi[a1]->delReaction(chatid, msgId, NULL));
