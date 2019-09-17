@@ -36,17 +36,14 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     delete chatRoom;
     updateContent();
 
-    std::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
-    if (reactions)
+    mega::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
+    for (int i = 0; i < reactions->size(); i++)
     {
-        for (int i = 0; i < reactions->size(); i++)
-        {
-            std::unique_ptr<::mega::MegaHandleList> users(megaChatApi->getReactionUsers(mChatId, mMessage->getMsgId(), reactions->get(i)));
-            int count = users ? users->size() : 0;
-            Reaction *reaction = new Reaction(this, reactions->get(i), count);
-            ui->mReactions->layout()->addWidget(reaction);
-            mReactions.emplace_back(std::shared_ptr<Reaction>(reaction));
-        }
+        mega::unique_ptr<::mega::MegaHandleList> users(megaChatApi->getReactionUsers(mChatId, mMessage->getMsgId(), reactions->get(i)));
+        int count = users ? static_cast<int>(users->size()) : 0;
+        Reaction *reaction = new Reaction(this, reactions->get(i), count);
+        ui->mReactions->layout()->addWidget(reaction);
+        mReactions.emplace_back(std::shared_ptr<Reaction>(reaction));
     }
 
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
@@ -524,24 +521,27 @@ void ChatMessage::setAuthor(const char *author)
     }
     else
     {
-        megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
-        const char *msgAuthor = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
-        const char *autorizationToken = chatRoom->getAuthorizationToken();
-        if (msgAuthor && strlen(msgAuthor) > 0)
+        mega::unique_ptr<megachat::MegaChatRoom> chatRoom(megaChatApi->getChatRoom(mChatId));
+        const char *firstName = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
+        mega::unique_ptr<const char[]> msgAuthor(::mega::MegaApi::strdup(firstName));
+        mega::unique_ptr<const char[]> autorizationToken(chatRoom->getAuthorizationToken());
+
+        if (msgAuthor && strlen(msgAuthor.get()) > 0)
         {
-            ui->mAuthorDisplay->setText(tr(msgAuthor));
-        }
-        else if ((msgAuthor = mChatWindow->mMainWin->mApp->getFirstname(uh, autorizationToken)))
-        {
-            ui->mAuthorDisplay->setText(tr(msgAuthor));
-            delete [] msgAuthor;
+            ui->mAuthorDisplay->setText(tr(msgAuthor.get()));
         }
         else
         {
-            ui->mAuthorDisplay->setText(tr("Loading firstname..."));
+            msgAuthor.reset(mChatWindow->mMainWin->mApp->getFirstname(uh, autorizationToken.get()));
+            if (msgAuthor)
+            {
+                ui->mAuthorDisplay->setText(tr(msgAuthor.get()));
+            }
+            else
+            {
+                ui->mAuthorDisplay->setText(tr("Loading firstname..."));
+            }
         }
-        delete chatRoom;
-        delete []autorizationToken;
     }
 }
 
