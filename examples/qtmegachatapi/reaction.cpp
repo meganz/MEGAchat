@@ -71,16 +71,11 @@ void Reaction::onCopyReact()
 void Reaction::onRemoveReact()
 {
     ChatWindow *chatwindow = mChatMessage->getChatWindow();
-    if (!chatwindow)
-    {
-        return;
-    }
-
     MegaChatHandle chatid = mChatMessage->getChatId();
     MegaChatHandle msgid = mChatMessage->getMessage()->getMsgId();
     const char *reaction = mReactionString.c_str();
 
-    std::unique_ptr<MegaChatError> res(chatwindow->getMegaChatApi()->delReaction(chatid, msgid, reaction));
+    mega::unique_ptr<MegaChatError> res(chatwindow->getMegaChatApi()->delReaction(chatid, msgid, reaction));
     if (res->getErrorCode() != MegaChatError::ERROR_OK)
     {
         QMessageBox msg;
@@ -118,26 +113,22 @@ void Reaction::onAddReact()
 void Reaction::enterEvent(QEvent *event)
 {
     megachat::MegaChatApi *megachatApi = mChatMessage->getMegaChatApi();
-    std::unique_ptr <::mega::MegaHandleList> users(megachatApi->getReactionUsers(mChatMessage->getChatId(), mChatMessage->getMessage()->getMsgId(), mReactionString.c_str()));
-    std::unique_ptr<megachat::MegaChatRoom> chatRoom(megachatApi->getChatRoom(mChatMessage->getChatId()));
-    if (!megachatApi || !users || !chatRoom)
+    mega::unique_ptr <::mega::MegaHandleList> users(megachatApi->getReactionUsers(mChatMessage->getChatId(), mChatMessage->getMessage()->getMsgId(), mReactionString.c_str()));
+    mega::unique_ptr<megachat::MegaChatRoom> chatRoom(megachatApi->getChatRoom(mChatMessage->getChatId()));
+    if (!users || !chatRoom)
     {
         return;
     }
 
     QString text;
+    mega::unique_ptr<const char[]> autorizationToken(chatRoom->getAuthorizationToken());
     for (unsigned int i = 0; i < users->size(); i++)
-    {        
-        const char *autorizationToken = chatRoom->getAuthorizationToken();
-        const char *firstName = mChatMessage->getChatWindow()->getMainWin()->getApp()->getFirstname(users->get(i), autorizationToken);
-
+    {
+        mega::unique_ptr<const char[]>firstName(mChatMessage->getChatWindow()->getMainWin()->getApp()->getFirstname(users->get(i), autorizationToken.get()));
         if (firstName)
         {
-            text.append(firstName).append("\n");
+            text.append(firstName.get()).append("\n");
         }
-
-        delete [] autorizationToken;
-        delete [] firstName;
     }
     ui->mReaction->setToolTip(text);
 }

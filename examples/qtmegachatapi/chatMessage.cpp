@@ -636,7 +636,7 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
     }
 
     std::string utfstring = reaction.toUtf8().toStdString();
-    std::unique_ptr<MegaChatError> res;
+    mega::unique_ptr<MegaChatError> res;
     if (del)
     {
         res.reset(mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()));

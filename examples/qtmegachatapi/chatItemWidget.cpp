@@ -85,11 +85,6 @@ ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatL
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
 {
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
-    if (!chatRoom)
-    {
-        return;
-    }
-
     QString text = NULL;
     std::string senderHandle;
     megachat::MegaChatHandle lastMessageId = item->getLastMessageId();

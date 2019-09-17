@@ -274,7 +274,7 @@ bool Client::openDb(const std::string& sid)
                 {
                     // no chats --> only update cache schema
                     KR_LOG_WARNING("Updating schema of MEGAchat cache...");
-                    db.query("ALTER TABLE `chats` ADD mode tinyint default 0");
+                    db.query("ALTER TABLE `chats` ADD mode tinyint");
                     db.query("ALTER TABLE `chats` ADD unified_key blob");
                     db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();

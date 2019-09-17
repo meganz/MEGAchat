@@ -507,10 +507,8 @@ void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRo
 void ChatWindow::onReactionUpdate(megachat::MegaChatApi *, megachat::MegaChatHandle msgid, const char *reaction, int count)
 {
    ChatMessage *msg = findChatMessage(msgid);
-   if (msg)
-   {
-        msg->updateReaction(reaction, count);
-   }
+   assert(msg);
+   msg->updateReaction(reaction, count);
 }
 
 void ChatWindow::onAttachmentLoaded(MegaChatApi */*api*/, MegaChatMessage *msg)
