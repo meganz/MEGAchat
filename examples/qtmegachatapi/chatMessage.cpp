@@ -41,8 +41,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     {
         int count = megaChatApi->getMessageReactionCount(mChatId, mMessage->getMsgId(), reactions->get(i));
         Reaction *reaction = new Reaction(this, reactions->get(i), count);
-        ui->mReactions->layout()->addWidget(reaction);
-        mReactions.emplace_back(std::shared_ptr<Reaction>(reaction));
+        ui->mReactions->layout()->addWidget(reaction);  // takes ownership
     }
 
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
@@ -57,37 +56,34 @@ ChatMessage::~ChatMessage()
     delete ui;
 }
 
-void ChatMessage::updateReaction(const char *reaction, int count)
+void ChatMessage::updateReaction(const char *reactionString, int count)
 {
     bool found = false;
-    for (auto it = mReactions.begin(); it != mReactions.end(); it++)
+    int size = ui->mReactions->layout()->count();
+    for (int i = 0; i < size; i++)
     {
-        std::shared_ptr<Reaction> r = *it;
-        if (r->getReactionString().compare(reaction) == 0)
+        QLayoutItem *item = ui->mReactions->layout()->itemAt(i);
+        Reaction *reaction = static_cast<Reaction*>(item->widget());
+        if (reaction->getReactionString() == reactionString)
         {
-           found = true;
-           if (count == 0)
-           {
-              int index = static_cast<int>(distance(mReactions.begin(), it));
-              QLayoutItem *item = ui->mReactions->layout()->takeAt(index);
-              if (item)
-              {
-                  item->widget()->deleteLater();
-                  delete item;
-              }
-              auto auxit = it;
-              mReactions.erase(auxit);
-           }
-           r->updateReactionCount(count);
-           break;
+            found = true;
+            if (count == 0)
+            {
+                item->widget()->deleteLater();
+                delete ui->mReactions->layout()->takeAt(i);
+            }
+            else
+            {
+                reaction->updateReactionCount(count);
+            }
+            break;
         }
     }
 
     if (!found && count)
     {
-        Reaction *r = new Reaction(this, reaction, count);
-        ui->mReactions->layout()->addWidget(r);
-        mReactions.emplace_back(std::shared_ptr<Reaction>(r));
+        Reaction *reaction = new Reaction(this, reactionString, count);
+        ui->mReactions->layout()->addWidget(reaction);
     }
 }
 
@@ -266,7 +262,6 @@ void ChatMessage::clearReactions()
         item->widget()->deleteLater();
         delete item;
     }
-    mReactions.clear();
 }
 
 void ChatMessage::updateContent()

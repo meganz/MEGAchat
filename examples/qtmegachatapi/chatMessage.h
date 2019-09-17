@@ -30,7 +30,6 @@ protected:
         QListWidgetItem *mListWidgetItem;
         ChatWindow *mChatWindow;
         friend class ChatWindow;
-        std::vector<std::shared_ptr<Reaction> > mReactions;
 
     public:
         ChatMessage(ChatWindow *window, megachat::MegaChatApi *mChatApi, megachat::MegaChatHandle mChatId, megachat::MegaChatMessage *msg);
