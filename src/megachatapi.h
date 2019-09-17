@@ -4638,8 +4638,7 @@ public:
       *
       * @param chatid MegaChatHandle that identifies the chatroom
       * @param msgid MegaChatHandle that identifies the message
-      * @return return a list with the reactions associated to a message. If there's no reactions
-      * associated to the message return NULL.
+      * @return return a list with the reactions associated to a message.
       */
     mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
 
@@ -4652,7 +4651,6 @@ public:
       * @param reaction UTF-8 NULL terminated string that represents the reaction
       *
       * @return return a list with the users that reacted to a message with a specific reaction.
-      * If the reaction doesn't exists for this message return NULL.
       */
     mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 

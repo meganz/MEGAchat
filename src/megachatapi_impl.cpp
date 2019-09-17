@@ -4286,43 +4286,41 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
 
 MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
 {
-    MegaStringList *reacts = NULL;
+    MegaStringList *reactionList = NULL;
     sdkMutex.lock();
 
+    int numReactions = 0;
+    ::mega::unique_ptr <char*[]> reactArray = nullptr;
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        Chat &chat = chatroom->chat();
         Message *msg = findMessage(chatid, msgid);
         if (msg)
         {
             std::vector<std::string> reactions = msg->getReactions();
-            char **reactArray = NULL;
-            if (reactions.size())
+            if (!reactions.empty())
             {
-                reactArray = new char*[reactions.size()];
-                for (int i = 0; i < reactions.size(); ++i)
+                numReactions = static_cast<int>(reactions.size());
+                reactArray.reset(new char*[numReactions]);
+
+                size_t i = 0;
+                for (auto &it : reactions)
                 {
-                    char *reaction = MegaApi::strdup(reactions[i].c_str());
-                    reactArray[i] = reaction;
+                    reactArray[i] = MegaApi::strdup(it.c_str());
+                    i++;
                 }
-                reacts = new MegaStringListPrivate(reactArray, reactions.size());
-                delete [] reactArray;
             }
         }
     }
+
+    reactionList = new MegaStringListPrivate(reactArray.get(), numReactions);
     sdkMutex.unlock();
-    return reacts;
+    return reactionList;
 }
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
-    if (!reaction)
-    {
-        return NULL;
-    }
-
-    MegaHandleListPrivate *userList = NULL;
+    MegaHandleListPrivate *userList = new MegaHandleListPrivate();
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
@@ -4334,7 +4332,6 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
             const std::vector<karere::Id> *users = msg->getReactionUsers(std::string(reaction));
             if (users)
             {
-                userList = new MegaHandleListPrivate();
                 for (auto &userid : *users)
                 {
                     userList->addMegaHandle(userid);
