@@ -4151,6 +4151,9 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 // avoid the whole replay (even the idempotent part), and just bail out.
 
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
+    /* clean reactions in RAM, reactions in cache will be cleared in cascade except for truncate message
+    that will be cleared in DBInterface method truncateHistory*/
+    at(idx).cleanReactions();
     CALL_CRYPTO(resetSendKey);      // discard current key, if any
     CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)   // message is loaded in RAM
@@ -4161,11 +4164,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
         deleteMessagesBefore(idx);
         removePendingRichLinks(idx);
-
-        // clean reactions for truncate message and for all message in this chat (DB)
-        at(idx).cleanReactions();
-        // TODO: if reactions consider a foreign key with delete on cascade, we can save the line below
-        CALL_DB(cleanReactions);
 
         // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)

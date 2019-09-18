@@ -634,6 +634,9 @@ public:
     mutable void* userp;
     mutable uint8_t userFlags = 0;
     bool richLinkRemoved = 0;
+
+    /* Reactions must be ordered in the same order as they were added,
+    so we need a sequence container */
     std::vector<Reaction> mReactions;
 
     karere::Id id() const { return mId; }
