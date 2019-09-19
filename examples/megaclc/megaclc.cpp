@@ -609,28 +609,20 @@ public:
         conlock(cout) << "Chats updated:  " << (chats ? chats->size() : -1) << endl;
     }
 
-    const char* eventName(int i)
-    {
-        switch (i)
-        {
-        case m::MegaEvent::EVENT_COMMIT_DB: return "EVENT_COMMIT_DB";
-        case m::MegaEvent::EVENT_ACCOUNT_CONFIRMATION: return "EVENT_ACCOUNT_CONFIRMATION";
-        case m::MegaEvent::EVENT_CHANGE_TO_HTTPS: return "EVENT_CHANGE_TO_HTTPS";
-        case m::MegaEvent::EVENT_DISCONNECT: return "EVENT_DISCONNECT";
-        case m::MegaEvent::EVENT_ACCOUNT_BLOCKED: return "EVENT_ACCOUNT_BLOCKED";
-        case m::MegaEvent::EVENT_STORAGE: return "EVENT_STORAGE";
-        case m::MegaEvent::EVENT_NODES_CURRENT: return "EVENT_NODES_CURRENT";
-        case m::MegaEvent::EVENT_MEDIA_INFO_READY: return "EVENT_MEDIA_INFO_READY";
-        case m::MegaEvent::EVENT_STORAGE_SUM_CHANGED: return "EVENT_STORAGE_SUM_CHANGED";
-        }
-        return "new event type";
-    }
-
     void onEvent(m::MegaApi*, m::MegaEvent *e) override
     {
-        LOG_info << "Event: " << (e ? eventName(e->getType()) : "(null)") << " Text: " << (e && e->getText() ? e->getText() : "(null)") << " number: " << (e ? std::to_string(e->getNumber()) : "<not supplied>");
+        if (e)
+        {
+            LOG_info << "Event: " << e->getEventString();
+            LOG_info << "\tText: " << e->getText() ? e->getText() : "(null)";
+            LOG_info << "\tNumber: " << std::to_string(e->getNumber());
+            LOG_info << "\tHandle: " << ::mega::Base64Str(e->getHandle());
+        }
+        else
+        {
+            assert(false);
+        }
     }
-
 };
 
 
