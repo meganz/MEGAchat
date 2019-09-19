@@ -614,9 +614,9 @@ public:
         if (e)
         {
             LOG_info << "Event: " << e->getEventString();
-            LOG_info << "\tText: " << e->getText() ? e->getText() : "(null)";
+            LOG_info << "\tText: " << (e->getText() ? e->getText() : "(null)");
             LOG_info << "\tNumber: " << std::to_string(e->getNumber());
-            LOG_info << "\tHandle: " << ::mega::Base64Str(e->getHandle());
+            LOG_info << "\tHandle: " << m::Base64Str<sizeof(m::MegaHandle)>(e->getHandle());
         }
         else
         {
