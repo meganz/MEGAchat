@@ -5066,7 +5066,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
 
     this->participants = call.participants;
 
-    this->termCode = call.termCode;
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
 }
@@ -7671,6 +7670,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateTerminating:
             {
+                chatCall->setTermCode(call->termCode());
                 if (chatCall->getStatus() == MegaChatCall::CALL_STATUS_RECONNECTING)
                 {
                     // if reconnecting skip terminating state, if reconnection not successful finisht notify call destroyed
@@ -7679,7 +7679,6 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
 
                 chatCall->setIsRinging(false);
                 state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
-                chatCall->setTermCode(call->termCode());
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
                              karere::Id(chatCall->getChatid()).toString().c_str(),
                              karere::Id(chatCall->getId()).toString().c_str(),
