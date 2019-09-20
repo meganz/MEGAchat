@@ -221,6 +221,7 @@ public:
     virtual bool hasBeenNotifiedRinging() const = 0;
 
     virtual void onReconnectingState(bool start) = 0;
+    virtual void setReconnectionFailed() = 0;
 };
 class IGlobalHandler
 {

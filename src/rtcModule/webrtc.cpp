@@ -657,6 +657,7 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
             mRetryCall.erase(chatid);
             auto itHandler = mCallHandlers.find(chatid);
             assert(itHandler != mCallHandlers.end());
+            itHandler->second->setReconnectionFailed();
             removeCallWithoutParticipants(chatid);
 
         }, kRetryCallTimeout, mKarereClient.appCtx);
@@ -2082,6 +2083,7 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
         mManager.mRetryCallTimers.erase(chatid);
 
         SUB_LOG_DEBUG("Everybody left, terminating call- After reconnection");
+        mHandler->setReconnectionFailed();
         destroy(reason, false, "Everybody left - After reconnection");
 
     }, RtcModule::kRetryCallTimeout, mManager.mKarereClient.appCtx);

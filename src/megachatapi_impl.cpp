@@ -7720,14 +7720,14 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
                                   clientidParticipants->get(0) == megaChatApi->getMyClientidHandle(chatid));
         if (peeridParticipants && peeridParticipants->size() > 0 && !uniqueParticipant && chatRoom->isGroup())
         {
-            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
+            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING || mReconnectionFailed)
             {
                 chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
                 megaChatApi->fireOnChatCallUpdate(chatCall);
             }
         }
         else if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
-                 || reason != rtcModule::TermCode::kErrPeerOffline)
+                 || reason != rtcModule::TermCode::kErrPeerOffline || mReconnectionFailed)
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
             megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -7928,6 +7928,11 @@ void MegaChatCallHandler::onReconnectingState(bool start)
     }
 
     megaChatApi->fireOnChatCallUpdate(chatCall);
+}
+
+void MegaChatCallHandler::setReconnectionFailed()
+{
+    mReconnectionFailed = true;
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()
