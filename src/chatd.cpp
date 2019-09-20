@@ -4859,13 +4859,9 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
             if (wptr.deleted())
                 return;
 
-            std::string reaction (data->buf(), data->bufSize());
-            message->addReaction(reaction, userId);
-
-            if (!previewMode())
-            {
-                CALL_DB(addReaction, message->mId, userId, reaction.c_str());
-            }
+            std::string reaction(data->buf(), data->bufSize());
+            message->addReaction(reaction, userId);            
+            CALL_DB(addReaction, message->mId, userId, reaction.c_str());
 
             CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), message->getReactionCount(reaction));
         })
