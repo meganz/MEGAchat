@@ -5094,7 +5094,7 @@ bool Message::parseUrl(const std::string &url)
         }
     }
 
-    std::regex megaUrlExpression("^((WWW.|www.)?mega.+(nz/|co.nz/)).*((#F!|#!|C!|chat/)[a-z0-9A-Z-._~:\/?#!$&'()*+,;=\-@]+)$");
+    std::regex megaUrlExpression("^((WWW.|www.)?mega.+(nz/|co.nz/)).*((#F!|#!|C!|chat/|file/|folder/)[a-z0-9A-Z-._~:\/?#!$&'()*+,;=\-@]+)$");
     if (regex_match(urlToParse, megaUrlExpression))
     {
         return false;
