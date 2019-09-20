@@ -645,7 +645,7 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
     if (res->getErrorCode() != MegaChatError::ERROR_OK)
     {
         QMessageBox msg;
-        msg.setIcon(QMessageBox::Information);
+        msg.setIcon(QMessageBox::Warning);
         msg.setText(res->toString());
         msg.exec();
     }

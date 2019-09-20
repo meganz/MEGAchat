@@ -9,14 +9,13 @@ Reaction::Reaction(ChatMessage *parent, const char *reactionString, int count) :
 {        
     mChatMessage = parent;
     ui->setupUi(this);
-    mCount = count;    
-    mReactionString = reactionString ? reactionString : std::string();
+    mCount = count;
+    if (reactionString)
+    {
+        mReactionString = reactionString;
+    }
 
-    QString text(mReactionString.c_str());
-    text.append(" ")
-        .append(std::to_string(count).c_str());
-
-    ui->mReaction->setText(text);
+    ui->mReaction->setText((mReactionString + " " + std::to_string(count)).c_str());
     setAttribute(::Qt::WA_Hover, true);
 }
 
@@ -49,65 +48,24 @@ std::string Reaction::getReactionString() const
 
 void Reaction::updateReactionCount(int count)
 {
-    if (!count)
-    {
-        return;
-    }
-
+    assert(count);  // it should not be called with count == 0
     mCount = count;
-    QString text(mReactionString.c_str());
-    text.append(" ")
-        .append(std::to_string(count).c_str());
-
-    ui->mReaction->setText(text.toStdString().c_str());
+    ui->mReaction->setText((mReactionString + " " + std::to_string(count)).c_str());
 }
 
 void Reaction::onCopyReact()
 {
-    QClipboard *clipboard = QApplication::clipboard();
-    clipboard->setText(mReactionString.c_str());
+    QApplication::clipboard()->setText(mReactionString.c_str());
 }
 
 void Reaction::onRemoveReact()
 {
-    ChatWindow *chatwindow = mChatMessage->getChatWindow();
-    MegaChatHandle chatid = mChatMessage->getChatId();
-    MegaChatHandle msgid = mChatMessage->getMessage()->getMsgId();
-    const char *reaction = mReactionString.c_str();
-
-    mega::unique_ptr<MegaChatError> res(chatwindow->getMegaChatApi()->delReaction(chatid, msgid, reaction));
-    if (res->getErrorCode() != MegaChatError::ERROR_OK)
-    {
-        QMessageBox msg;
-        msg.setParent(nullptr);
-        msg.setIcon(QMessageBox::Warning);
-        msg.setText(res->getErrorString());
-        msg.exec();
-    }
+    mChatMessage->onManageReaction(true, mReactionString.c_str());
 }
 
 void Reaction::onAddReact()
 {
-    ChatWindow *chatwindow = mChatMessage->getChatWindow();
-    if (!chatwindow)
-    {
-        return;
-    }
-
-    MegaChatHandle chatid = mChatMessage->getChatId();
-    MegaChatHandle msgid = mChatMessage->getMessage()->getMsgId();
-    const char *reaction = mReactionString.c_str();
-
-    MegaChatError *res = chatwindow->getMegaChatApi()->addReaction(chatid, msgid, reaction);
-    if (res->getErrorCode() != MegaChatError::ERROR_OK)
-    {
-        QMessageBox msg;
-        msg.setParent(nullptr);
-        msg.setIcon(QMessageBox::Information);
-        msg.setText(res->toString());
-        msg.exec();
-    }
-     delete res;
+    mChatMessage->onManageReaction(false, mReactionString.c_str());
 }
 
 void Reaction::enterEvent(QEvent *event)
@@ -125,10 +83,12 @@ void Reaction::enterEvent(QEvent *event)
     for (unsigned int i = 0; i < users->size(); i++)
     {
         mega::unique_ptr<const char[]>firstName(mChatMessage->getChatWindow()->getMainWin()->getApp()->getFirstname(users->get(i), autorizationToken.get()));
+        mega::unique_ptr<const char[]>b64handle(::mega::MegaApi::userHandleToBase64(users->get(i)));
         if (firstName)
         {
-            text.append(firstName.get()).append("\n");
+            text.append(firstName.get()).append(" ");
         }
+        text.append("(").append(b64handle.get()).append(")\n");
     }
     ui->mReaction->setToolTip(text);
 }
