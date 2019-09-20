@@ -474,6 +474,13 @@ void MegaChatApiImpl::sendPendingRequests()
                     errorCode = MegaChatError::ERROR_ACCESS;
                     break;
                 }
+                if (it->second->chatRoom())
+                {
+                    // chat already exists
+                    request->setChatHandle(it->second->chatRoom()->chatid());
+                    errorCode = MegaChatError::ERROR_OK;
+                    break;
+                }
                 it->second->createChatRoom()
                 .then([request,this](ChatRoom* room)
                 {
