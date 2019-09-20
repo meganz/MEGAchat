@@ -2265,6 +2265,8 @@ bool Call::answer(AvFlags av)
 
 void Call::hangup(TermCode reason)
 {
+    mManager.removeCallRetry(mChat.chatId());
+
     switch (mState)
     {
     case kStateReqSent:
