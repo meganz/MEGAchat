@@ -1758,7 +1758,10 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
     mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
     std::string reactionSn = mDbInterface->getReactionSn();
-    mReactionSn = !reactionSn.empty() ? Id(reactionSn.data(), reactionSn.size()) : Id::inval();
+    if (!reactionSn.empty())
+    {
+        mReactionSn = Id(reactionSn.data(), reactionSn.size());
+    }
 
     if ((mHaveAllHistory = mDbInterface->chatVar("have_all_history")))
     {
@@ -2232,15 +2235,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_ID(msgid, 16);
                 READ_8(payloadLen, 24);
-                std::string reaction (buf.readPtr(pos, payloadLen), payloadLen);
+                std::string reaction(buf.readPtr(pos, payloadLen), payloadLen);
                 pos += payloadLen;
 
                 CHATDS_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %s",
                                 ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid),
                                 base64urlencode(reaction.data(), reaction.size()).c_str());
 
-                auto& chat =  mChatdClient.chats(chatid);
-                chat.onAddReaction(msgid, userid, reaction);
+                auto& chat = mChatdClient.chats(chatid);
+                chat.onAddReaction(msgid, userid, std::move(reaction));
                 break;
             }
             case OP_DELREACTION:
@@ -2249,15 +2252,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_ID(msgid, 16);
                 READ_8(payloadLen, 24);
-                std::string reaction (buf.readPtr(pos, payloadLen), payloadLen);
+                std::string reaction(buf.readPtr(pos, payloadLen), payloadLen);
                 pos += payloadLen;
 
                 CHATDS_LOG_DEBUG("%s: recv DELREACTION from user %s to message %s reaction %s",
                                 ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid),
                                 base64urlencode(reaction.data(), reaction.size()).c_str());
 
-                auto& chat =  mChatdClient.chats(chatid);
-                chat.onDelReaction(msgid, userid, reaction);
+                auto& chat = mChatdClient.chats(chatid);
+                chat.onDelReaction(msgid, userid, std::move(reaction));
                 break;
             }
             case OP_REACTIONSN:
@@ -2265,7 +2268,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_ID(rsn, 8);
                 CHATDS_LOG_DEBUG("%s: recv REACTIONSN rsn %s", ID_CSTR(chatid), ID_CSTR(rsn));
-                auto& chat =  mChatdClient.chats(chatid);
+                auto& chat = mChatdClient.chats(chatid);
                 chat.onReactionSn(rsn);
                 break;
             }
@@ -2577,8 +2580,7 @@ void Chat::addReaction(const Message *message, std::string reaction)
             if (wptr.deleted())
                 return;
 
-           std::string encReaction (data->buf(), data->bufSize());
-           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + encReaction);
+           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + data->buf());
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -2601,8 +2603,7 @@ void Chat::delReaction(const Message *message, std::string reaction)
             if (wptr.deleted())
                 return;
 
-           std::string encReaction (data->buf(), data->bufSize());
-           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + encReaction);
+           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + data->buf());
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -4836,7 +4837,7 @@ void Chat::onUserLeave(Id userid)
 void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 {
     Idx messageIdx = msgIndexFromId(msgId);
-    Message *message = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
+    Message *message = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : nullptr;
     if (message)
     {
         if (reaction.empty())
