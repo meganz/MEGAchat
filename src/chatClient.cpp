@@ -300,7 +300,8 @@ bool Client::openDb(const std::string& sid)
                 // Create new table for chat reactions
                 db.simpleQuery("CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null,"
                                "    userid int64 not null, reaction text,"
-                               "    UNIQUE(chatid, msgid, userid, reaction))");
+                               "    UNIQUE(chatid, msgid, userid, reaction),"
+                               "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
 
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
