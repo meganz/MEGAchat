@@ -2580,7 +2580,8 @@ void Chat::addReaction(const Message *message, std::string reaction)
             if (wptr.deleted())
                 return;
 
-           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + data->buf());
+           std::string encReaction (data->buf(), data->bufSize());
+           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + std::move(encReaction));
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -2603,7 +2604,8 @@ void Chat::delReaction(const Message *message, std::string reaction)
             if (wptr.deleted())
                 return;
 
-           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + data->buf());
+           std::string encReaction (data->buf(), data->bufSize());
+           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + std::move(encReaction));
         })
         .fail([this](const ::promise::Error& err)
         {
