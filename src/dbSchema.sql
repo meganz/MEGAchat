@@ -40,4 +40,4 @@ CREATE TABLE node_history(idx int not null, chatid int64 not null, msgid int64 n
     is_encrypted tinyint, data blob, backrefid int64 not null, UNIQUE(chatid,msgid), UNIQUE(chatid,idx));
 
 CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null, userid int64 not null, reaction text,
-    UNIQUE(chatid, msgid, userid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);
+    status tinyint default 0, UNIQUE(chatid, msgid, userid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);

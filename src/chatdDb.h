@@ -555,10 +555,10 @@ public:
         mDb.query("delete from chat_reactions where chatid = ?", mChat.chatId());
     }
 
-    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction)
+    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status)
     {
-        mDb.query("insert into chat_reactions(chatid, msgid, userid, reaction)"
-            "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
+        mDb.query("insert or replace into chat_reactions(chatid, msgid, userid, reaction, status)"
+            "values(?,?,?,?,?)", mChat.chatId(), msgId, userId, reaction, status);
     }
 
     virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction)
@@ -567,14 +567,14 @@ public:
             mChat.chatId(), msgId, userId, reaction);
     }
 
-    virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions)
+    virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions)
     {
-        SqliteStmt stmt(mDb, "select reaction, userid from chat_reactions where chatid = ? and msgid = ?");
+        SqliteStmt stmt(mDb, "select reaction, userid, status from chat_reactions where chatid = ? and msgid = ?");
         stmt << mChat.chatId();
         stmt << msgId;
         while (stmt.step())
         {
-            reactions.insert(std::pair<std::string, karere::Id>(stmt.stringCol(0), stmt.uint64Col(1)));
+            reactions.emplace_back(chatd::Chat::PendingReaction(chatd::Chat::PendingReaction(stmt.stringCol(0), stmt.uint64Col(1), stmt.uint64Col(2))));
         }
     }
 };

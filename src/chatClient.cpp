@@ -299,7 +299,7 @@ bool Client::openDb(const std::string& sid)
 
                 // Create new table for chat reactions
                 db.simpleQuery("CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null,"
-                               "    userid int64 not null, reaction text,"
+                               "    userid int64 not null, reaction text, status tinyint default 0,"
                                "    UNIQUE(chatid, msgid, userid, reaction),"
                                "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
 
