@@ -29,8 +29,6 @@ private:
 
 public slots:
     void onCopyReact();
-    void onRemoveReact();
-    void onAddReact();
 };
 
 #endif // REACTION_H

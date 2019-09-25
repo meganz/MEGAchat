@@ -28,9 +28,9 @@ void Reaction::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);    
     auto actAdd = menu.addAction(tr("React to this message"));
-    connect(actAdd, SIGNAL(triggered()), this, SLOT(onAddReact()));
+    connect(actAdd, &QAction::triggered, this, [=](){mChatMessage->onManageReaction(false, mReactionString.c_str());});
     auto actRemove = menu.addAction(tr("Del reaction"));
-    connect(actRemove, SIGNAL(triggered()), this, SLOT(onRemoveReact()));
+    connect(actRemove, &QAction::triggered, this, [=](){mChatMessage->onManageReaction(true, mReactionString.c_str());});
     auto actCopy = menu.addAction(tr("Copy UTF-8"));
     connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyReact()));
 
@@ -56,16 +56,6 @@ void Reaction::updateReactionCount(int count)
 void Reaction::onCopyReact()
 {
     QApplication::clipboard()->setText(mReactionString.c_str());
-}
-
-void Reaction::onRemoveReact()
-{
-    mChatMessage->onManageReaction(true, mReactionString.c_str());
-}
-
-void Reaction::onAddReact()
-{
-    mChatMessage->onManageReaction(false, mReactionString.c_str());
 }
 
 void Reaction::enterEvent(QEvent *event)
