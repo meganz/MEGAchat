@@ -903,6 +903,7 @@ protected:
     void requestPendingRichLinks();
     void removePendingRichLinks();
     void removePendingRichLinks(Idx idx);
+    void removeMessageReactions(Idx idx);
     void manageRichLinkMessage(Message &message);
     void attachmentHistDone();
     friend class Connection;

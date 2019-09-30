@@ -2888,6 +2888,17 @@ void Chat::removePendingRichLinks(Idx idx)
     }
 }
 
+void Chat::removeMessageReactions(Idx idx)
+{
+    Message *msg = findOrNull(idx);
+    if (msg)
+    {
+        msg->cleanReactions();
+        // reactions in DB are removed along with messages (FK delete on cascade)
+    }
+    // TODO: clear any pending reaction in the queue for older messages than `idx` (see removePendingRichLinks(idx))
+}
+
 void Chat::manageRichLinkMessage(Message &message)
 {
     std::string url;
@@ -4154,9 +4165,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 // avoid the whole replay (even the idempotent part), and just bail out.
 
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
-    /* clean reactions in RAM, reactions in cache will be cleared in cascade except for truncate message
-    that will be cleared in DBInterface method truncateHistory*/
-    at(idx).cleanReactions();
     CALL_CRYPTO(resetSendKey);      // discard current key, if any
     CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)   // message is loaded in RAM
@@ -4167,6 +4175,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
         deleteMessagesBefore(idx);
         removePendingRichLinks(idx);
+        removeMessageReactions(idx);
 
         // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)
