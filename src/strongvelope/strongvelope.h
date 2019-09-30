@@ -427,33 +427,33 @@ protected:
 public:
 //chatd::ICrypto interface
     promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
-    msgEncrypt(chatd::Message *message, const karere::SetOfIds &recipients, chatd::MsgCommand* msgCmd);
-    virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);
-    virtual void onKeyReceived(chatd::KeyId keyid, karere::Id sender,
-        karere::Id receiver, const char* data, uint16_t dataLen);
-    virtual void onKeyConfirmed(chatd::KeyId localkeyid, chatd::KeyId keyid);
-    virtual void onKeyRejected();
-    virtual void setUsers(karere::SetOfIds* users);
-    virtual void onUserJoin(karere::Id userid);
-    virtual void onUserLeave(karere::Id userid);
-    virtual void resetSendKey();
-    virtual bool handleLegacyKeys(chatd::Message& msg);
-    virtual void randomBytes(void* buf, size_t bufsize) const;
-    virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser = 0, bool encryptAsPrivate = false);
-    virtual promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0);
+    msgEncrypt(chatd::Message *message, const karere::SetOfIds &recipients, chatd::MsgCommand* msgCmd) override;
+    promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message) override;
+    void onKeyReceived(chatd::KeyId keyid, karere::Id sender,
+        karere::Id receiver, const char* data, uint16_t dataLen) override;
+    void onKeyConfirmed(chatd::KeyId localkeyid, chatd::KeyId keyid) override;
+    void onKeyRejected() override;
+    void setUsers(karere::SetOfIds* users) override;
+    void onUserJoin(karere::Id userid) override;
+    void onUserLeave(karere::Id userid) override;
+    void resetSendKey() override;
+    bool handleLegacyKeys(chatd::Message& msg) override;
+    void randomBytes(void* buf, size_t bufsize) const override;
+    promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser = 0, bool encryptAsPrivate = false) override;
+    promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0) override;
 
-    virtual promise::Promise<std::string> decryptChatTitleFromApi(const Buffer& data);
+    promise::Promise<std::string> decryptChatTitleFromApi(const Buffer& data) override;
 
-    virtual promise::Promise<std::string>
-    decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver);
+    promise::Promise<std::string>
+    decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver) override;
     static Buffer* createUnifiedKey();
-    virtual promise::Promise<std::shared_ptr<std::string> > getUnifiedKey();
-    virtual bool previewMode();
-    virtual void setPrivateChatMode();
-    virtual void onHistoryReload();
-    virtual uint64_t getPublicHandle() const;
-    virtual void setPublicHandle(const uint64_t ph);
+    promise::Promise<std::shared_ptr<std::string> > getUnifiedKey() override;
+    bool previewMode() override;
     bool isPublicChat() const override;
+    void setPrivateChatMode() override;
+    void onHistoryReload() override;
+    uint64_t getPublicHandle() const override;
+    void setPublicHandle(const uint64_t ph) override;
 
     promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const chatd::Message &msg, std::string reaction) override;
     promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const chatd::Message &msg, std::string reaction) override;
