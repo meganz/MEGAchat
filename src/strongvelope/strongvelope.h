@@ -449,14 +449,14 @@ public:
     static Buffer* createUnifiedKey();
     virtual promise::Promise<std::shared_ptr<std::string> > getUnifiedKey();
     virtual bool previewMode();
-    virtual bool isPublicChat();
     virtual void setPrivateChatMode();
     virtual void onHistoryReload();
     virtual uint64_t getPublicHandle() const;
     virtual void setPublicHandle(const uint64_t ph);
+    bool isPublicChat() const override;
 
-    virtual promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const chatd::Message *msg, std::string reaction);
-    virtual promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const chatd::Message *msg, std::string reaction);
+    promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const chatd::Message &msg, std::string reaction) override;
+    promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const chatd::Message &msg, std::string reaction) override;
 };
 }
 namespace chatd

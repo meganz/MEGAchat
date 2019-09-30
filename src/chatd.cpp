@@ -2566,7 +2566,7 @@ void Chat::sendSync()
 }
 
 
-void Chat::addReaction(const Message *message, std::string reaction)
+void Chat::addReaction(const Message &message, std::string reaction)
 {
     auto wptr = weakHandle();
     marshallCall([wptr, this, message, reaction]()
@@ -2581,7 +2581,7 @@ void Chat::addReaction(const Message *message, std::string reaction)
                 return;
 
            std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
-           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + encReaction);
+           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -2590,7 +2590,7 @@ void Chat::addReaction(const Message *message, std::string reaction)
     }, mChatdClient.mKarereClient->appCtx);
 }
 
-void Chat::delReaction(const Message *message, std::string reaction)
+void Chat::delReaction(const Message &message, std::string reaction)
 {
     auto wptr = weakHandle();
     marshallCall([wptr, this, message, reaction]()
@@ -2605,7 +2605,7 @@ void Chat::delReaction(const Message *message, std::string reaction)
                 return;
 
            std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
-           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + encReaction);
+           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -4848,89 +4848,87 @@ void Chat::onUserLeave(Id userid)
 void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 {
     Idx messageIdx = msgIndexFromId(msgId);
-    Message *message = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : nullptr;
-    if (message)
+    if (messageIdx == CHATD_IDX_INVALID)
     {
-        if (reaction.empty())
-        {
-            CHATID_LOG_ERROR("onAddReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
-            return;
-        }
-
-        if (message->isManagementMessage())
-        {
-            CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
-            return;
-        }
-
-        auto wptr = weakHandle();
-        mCrypto->reactionDecrypt(message, reaction)
-        .then([this, wptr, message, userId](std::shared_ptr<Buffer> data)
-        {
-            if (wptr.deleted())
-                return;
-
-            std::string reaction(data->buf(), data->bufSize());
-            message->addReaction(reaction, userId);            
-            CALL_DB(addReaction, message->mId, userId, reaction.c_str());
-
-            CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), message->getReactionCount(reaction));
-        })
-        .fail([this, msgId](const ::promise::Error& err)
-        {
-            CHATID_LOG_ERROR("onAddReaction: failed to decrypt reaction. msgid: %s, error: %s", ID_CSTR(msgId), err.what());
-        });
+        CHATID_LOG_WARNING("onAddReaction: message id not found. msgid: %s", ID_CSTR(msgId));
+        return;
     }
-    else
+
+    if (reaction.empty())
     {
-        CHATID_LOG_ERROR("onAddReaction: failed to find message. idx: %d, msgid: %s)", messageIdx, ID_CSTR(msgId));
+        CHATID_LOG_ERROR("onAddReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
+        return;
     }
+
+    Message &message = at(messageIdx);
+    if (message.isManagementMessage())
+    {
+        CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+        return;
+    }
+
+    auto wptr = weakHandle();
+    mCrypto->reactionDecrypt(message, reaction)
+    .then([this, wptr, &message, userId](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
+    {
+        if (wptr.deleted())
+            return;
+
+        const std::string reaction(data->buf(), data->size());
+        message.addReaction(reaction, userId);
+        CALL_DB(addReaction, message.mId, userId, reaction.c_str());
+
+        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+    })
+    .fail([this, msgId](const ::promise::Error& err)
+    {
+        CHATID_LOG_ERROR("onAddReaction: failed to decrypt reaction. msgid: %s, error: %s", ID_CSTR(msgId), err.what());
+    });
 }
 
 void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 {
     Idx messageIdx = msgIndexFromId(msgId);
-    Message *message = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
-    if (message)
+    if (messageIdx == CHATD_IDX_INVALID)
     {
-        if (reaction.empty())
-        {
-            CHATID_LOG_ERROR("onDelReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
+        CHATID_LOG_WARNING("onDelReaction: message id not found. msgid: %s)", ID_CSTR(msgId));
+        return;
+    }
+
+    if (reaction.empty())
+    {
+        CHATID_LOG_ERROR("onDelReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
+        return;
+    }
+
+    Message &message = at(messageIdx);
+    if (message.isManagementMessage())
+    {
+        CHATID_LOG_WARNING("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+        return;
+    }
+
+    auto wptr = weakHandle();
+    mCrypto->reactionDecrypt(message, reaction)
+    .then([this, wptr, &message, userId](std::shared_ptr<Buffer> data)
+    {
+        if (wptr.deleted())
             return;
+
+        const std::string reaction(data->buf(), data->bufSize());
+        message.delReaction(reaction, userId);
+
+        if (!previewMode())
+        {
+            CALL_DB(delReaction, message.mId, userId, reaction.c_str());
         }
 
-        if (message->isManagementMessage())
-        {
-            CHATID_LOG_WARNING("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
-            return;
-        }
-
-        auto wptr = weakHandle();
-        mCrypto->reactionDecrypt(message, reaction)
-        .then([this, wptr, message, userId](std::shared_ptr<Buffer> data)
-        {
-            if (wptr.deleted())
-                return;
-
-            std::string reaction (data->buf(), data->bufSize());
-            message->delReaction(reaction, userId);
-
-            if (!previewMode())
-            {
-                CALL_DB(delReaction, message->mId, userId, reaction.c_str());
-            }
-
-            CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), message->getReactionCount(reaction));
-        })
-        .fail([this, msgId](const ::promise::Error& err)
-        {
-            CHATID_LOG_ERROR("onDelReaction: failed to decryp reaction. msgid: %s, error: %s", ID_CSTR(msgId), err.what());
-        });
-    }
-    else
+        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+    })
+    .fail([this, msgId](const ::promise::Error& err)
     {
-        CHATID_LOG_ERROR("onDelReaction: failed to find message by index. idx: %d, msgid: %s)", messageIdx, ID_CSTR(msgId));
-    }
+        CHATID_LOG_ERROR("onDelReaction: failed to decryp reaction. msgid: %s, error: %s", ID_CSTR(msgId), err.what());
+    });
 }
 
 void Chat::onReactionSn(Id rsn)
