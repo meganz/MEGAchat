@@ -7388,7 +7388,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     this->tempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
     this->rowId = MEGACHAT_INVALID_HANDLE;
     this->type = msg.type;
-    this->mHasReactions = msg.mReactions.size() ? true : false;
+    this->mHasReactions = msg.hasReactions();
     this->ts = msg.ts;
     this->status = status;
     this->index = index;
