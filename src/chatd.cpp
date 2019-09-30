@@ -2566,7 +2566,7 @@ void Chat::sendSync()
 }
 
 
-void Chat::addReaction(const Message &message, std::string reaction)
+void Chat::addReaction(const Message &message, const std::string &reaction)
 {
     auto wptr = weakHandle();
     marshallCall([wptr, this, message, reaction]()
@@ -2575,7 +2575,7 @@ void Chat::addReaction(const Message &message, std::string reaction)
             return;
 
         mCrypto->reactionEncrypt(message, reaction)
-        .then([this, wptr, message](std::shared_ptr<Buffer> data)
+        .then([this, wptr, &message](std::shared_ptr<Buffer> data)
         {
             if (wptr.deleted())
                 return;
@@ -2590,16 +2590,16 @@ void Chat::addReaction(const Message &message, std::string reaction)
     }, mChatdClient.mKarereClient->appCtx);
 }
 
-void Chat::delReaction(const Message &message, std::string reaction)
+void Chat::delReaction(const Message &message, const std::string &reaction)
 {
     auto wptr = weakHandle();
-    marshallCall([wptr, this, message, reaction]()
+    marshallCall([wptr, this, &message, reaction]()
     {
         if (wptr.deleted())
             return;
 
         mCrypto->reactionEncrypt(message, reaction)
-        .then([this, wptr, message](std::shared_ptr<Buffer> data)
+        .then([this, wptr, &message](std::shared_ptr<Buffer> data)
         {
             if (wptr.deleted())
                 return;

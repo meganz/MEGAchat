@@ -625,7 +625,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::reactionEncrypt(const Message &msg, std::string reaction)
+ProtocolHandler::reactionEncrypt(const Message &msg, const std::string &reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (isPublicChat())
@@ -638,7 +638,7 @@ ProtocolHandler::reactionEncrypt(const Message &msg, std::string reaction)
     }
 
     auto wptr = weakHandle();
-    return symPms.then([wptr, msg, &reaction](const std::shared_ptr<SendKey>& data)
+    return symPms.then([wptr, &msg, &reaction](const std::shared_ptr<SendKey>& data)
     {
         wptr.throwIfDeleted();
         std::string msgId = msg.id().toString();
@@ -658,13 +658,10 @@ ProtocolHandler::reactionEncrypt(const Message &msg, std::string reaction)
         // Add padding to reaction
         size_t emojiLenWithPadding = ceil(static_cast<float>(reaction.size()) / 4) * 4;
         size_t paddingSize = emojiLenWithPadding - reaction.size();
-        for (size_t i = 0; i < paddingSize; i++)
-        {
-            reaction.insert(reaction.begin(), '\0');
-        }
 
-        // Concat msgid[0..3] with emoji (previously padded)
+        // Concat msgid[0..3] with emoji and padding
         std::string buf(msgId.data(), 4);
+        buf.append(paddingSize, '\0');
         buf.append(reaction);
 
         // Convert into a unit32 array --> emoji32
@@ -685,7 +682,7 @@ ProtocolHandler::reactionEncrypt(const Message &msg, std::string reaction)
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::reactionDecrypt(const Message &msg, std::string reaction)
+ProtocolHandler::reactionDecrypt(const Message &msg, const std::string &reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (isPublicChat())
@@ -698,7 +695,7 @@ ProtocolHandler::reactionDecrypt(const Message &msg, std::string reaction)
     }
 
     auto wptr = weakHandle();
-    return symPms.then([wptr, msg, reaction](const std::shared_ptr<SendKey>& data)
+    return symPms.then([wptr, &msg, &reaction](const std::shared_ptr<SendKey>& data)
     {
         wptr.throwIfDeleted();
         std::string msgId = msg.id().toString();

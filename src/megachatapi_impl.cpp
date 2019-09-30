@@ -4205,8 +4205,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
                 }
                 else
                 {
-                    std::string reactionString(reaction);
-                    chat.addReaction(msg, reactionString);
+                    chat.addReaction(msg, reaction);
                 }
             }
         }
@@ -4259,8 +4258,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
                 }
                 else
                 {
-                    std::string reactionString(reaction);
-                    chat.delReaction(msg, reactionString);
+                    chat.delReaction(msg, reaction);
                 }
             }
         }
