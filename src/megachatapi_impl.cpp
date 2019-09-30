@@ -4205,14 +4205,22 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
                     {
                         errorCode = MegaChatError::ERROR_NOENT;
                     }
-                    else if (msg->hasReacted(reaction, mClient->myHandle()))
-                    {
-                        errorCode = MegaChatError::ERROR_EXIST;
-                    }
                     else
                     {
                         std::string reactionString(reaction, strlen(reaction));
-                        chat.addReaction(msg, reactionString);
+                        if ((msg->hasReacted(reaction, mClient->myHandle())
+                                && !chat.isPendingReaction(reactionString, msg->id(), OP_DELREACTION))
+                            || (!msg->hasReacted(reaction, mClient->myHandle())
+                                && chat.isPendingReaction(reactionString, msg->id(), OP_ADDREACTION)))
+                        {
+                            // If the reaction exists and there's not a pending DELREACTION
+                            // or the reaction doesn't exists and a ADDREACTION is pending
+                            errorCode = MegaChatError::ERROR_EXIST;
+                        }
+                        else
+                        {
+                            chat.addReaction(msg, reactionString);
+                        }
                     }
                 }
             }
@@ -4266,14 +4274,22 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
                     {
                         errorCode = MegaChatError::ERROR_NOENT;
                     }
-                    else if (!msg->hasReacted(reaction, mClient->myHandle()))
-                    {
-                        errorCode = MegaChatError::ERROR_EXIST;
-                    }
                     else
                     {
                         std::string reactionString(reaction, strlen(reaction));
-                        chat.delReaction(msg, reactionString);
+                        if ((!msg->hasReacted(reaction, mClient->myHandle())
+                                && !chat.isPendingReaction(reactionString, msg->id(), OP_ADDREACTION))
+                            || (msg->hasReacted(reaction, mClient->myHandle())
+                                && chat.isPendingReaction(reactionString, msg->id(), OP_DELREACTION)))
+                        {
+                            // If the reaction doesn't exist and there's not a pending ADDREACTION
+                            // or reaction exists and a DELREACTION is pending
+                            errorCode = MegaChatError::ERROR_EXIST;
+                        }
+                        else
+                        {
+                            chat.delReaction(msg, reactionString);
+                        }
                     }
                 }
             }
