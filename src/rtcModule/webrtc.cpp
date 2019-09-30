@@ -1356,6 +1356,7 @@ void Call::msgSdpOffer(RtMessage& packet)
     notifyCallStarting(*sess);
     sess->createRtcConn();
     sess->veryfySdpOfferSendAnswer();
+    mSentSessions.erase(endPoint);
 }
 
 void Call::handleReject(RtMessage& packet)
