@@ -574,7 +574,7 @@ public:
         stmt << msgId;
         while (stmt.step())
         {
-            reactions.emplace_back(chatd::Chat::PendingReaction(chatd::Chat::PendingReaction(stmt.stringCol(0), stmt.uint64Col(1), stmt.uint64Col(2))));
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(0), mChat.chatId().val, stmt.uint64Col(1), stmt.uint64Col(2)));
         }
     }
 };

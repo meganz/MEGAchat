@@ -738,6 +738,16 @@ public:
         ManualSendReason reason;
     };
 
+    struct PendingReaction
+    {
+        PendingReaction(std::string aReactionString, uint64_t aMsgId, uint64_t aUserId, uint8_t status);
+        std::string mReactionString;
+        uint64_t mMsgId;
+        uint64_t mUserId;
+        uint8_t mStatus;
+    };
+    typedef std::list<PendingReaction> PendingReactions;
+
     Client& mChatdClient;
 
     enum FetchType
@@ -754,6 +764,7 @@ protected:
     std::vector<std::unique_ptr<Message>> mBackwardList;
     std::unique_ptr<FilteredHistory> mAttachmentNodes;
     OutputQueue mSending;
+    PendingReactions mPendingReactions;
     OutputQueue::iterator mNextUnsent;
     bool mIsFirstJoin = true;
     std::map<karere::Id, Idx> mIdToIndexMap;

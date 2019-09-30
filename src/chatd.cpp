@@ -1824,11 +1824,20 @@ Idx Chat::getHistoryFromDb(unsigned count)
     for (auto msg: messages)
     {
         // Load msg reactions from cache
-        ::mega::multimap<std::string, karere::Id> reactions;
+        std::vector<PendingReaction> reactions;
         CALL_DB(getMessageReactions, msg->id(), reactions);
-        for (auto &it : reactions)
+        for (auto &auxReaction : reactions)
         {
-            msg->addReaction(it.first, it.second);
+            if (auxReaction.mStatus == 0)
+            {
+                // Add reaction to confirmed reactions queue
+                msg->addReaction(auxReaction.mReactionString, auxReaction.mUserId);
+            }
+            else
+            {
+                // Add reaction to pending reactions queue
+                addPendingReaction(auxReaction.mReactionString, auxReaction.mMsgId, auxReaction.mStatus);
+            }
         }
 
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
