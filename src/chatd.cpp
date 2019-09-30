@@ -2580,7 +2580,7 @@ void Chat::addReaction(const Message *message, std::string reaction)
             if (wptr.deleted())
                 return;
 
-           std::string encReaction (data->buf(), data->bufSize());
+           std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
            sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + std::move(encReaction));
         })
         .fail([this](const ::promise::Error& err)
@@ -2604,7 +2604,7 @@ void Chat::delReaction(const Message *message, std::string reaction)
             if (wptr.deleted())
                 return;
 
-           std::string encReaction (data->buf(), data->bufSize());
+           std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
            sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + std::move(encReaction));
         })
         .fail([this](const ::promise::Error& err)

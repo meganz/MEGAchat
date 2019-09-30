@@ -4194,26 +4194,19 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
             }
             else
             {
-                Message *msg = chat.findOrNull(index);
-                if (!msg)
+                const Message &msg = chat.at(index);
+                if (msg.isManagementMessage())
                 {
-                    errorCode = MegaChatError::ERROR_NOENT;
+                    errorCode = MegaChatError::ERROR_ARGS;
+                }
+                else if (msg.hasReacted(reaction, mClient->myHandle()))
+                {
+                    errorCode = MegaChatError::ERROR_EXIST;
                 }
                 else
                 {
-                    if (msg->isManagementMessage())
-                    {
-                        errorCode = MegaChatError::ERROR_NOENT;
-                    }
-                    else if (msg->hasReacted(reaction, mClient->myHandle()))
-                    {
-                        errorCode = MegaChatError::ERROR_EXIST;
-                    }
-                    else
-                    {
-                        std::string reactionString(reaction, strlen(reaction));
-                        chat.addReaction(msg, reactionString);
-                    }
+                    std::string reactionString(reaction);
+                    chat.addReaction(&msg, reactionString);
                 }
             }
         }
@@ -4255,26 +4248,19 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
             }
             else
             {
-                Message *msg = chat.findOrNull(index);
-                if (!msg)
+                const Message &msg = chat.at(index);
+                if (msg.isManagementMessage())
+                {
+                    errorCode = MegaChatError::ERROR_ARGS;
+                }
+                else if (!msg.hasReacted(reaction, mClient->myHandle()))
                 {
                     errorCode = MegaChatError::ERROR_NOENT;
                 }
                 else
                 {
-                    if (msg->isManagementMessage())
-                    {
-                        errorCode = MegaChatError::ERROR_NOENT;
-                    }
-                    else if (!msg->hasReacted(reaction, mClient->myHandle()))
-                    {
-                        errorCode = MegaChatError::ERROR_EXIST;
-                    }
-                    else
-                    {
-                        std::string reactionString(reaction, strlen(reaction));
-                        chat.delReaction(msg, reactionString);
-                    }
+                    std::string reactionString(reaction);
+                    chat.delReaction(&msg, reactionString);
                 }
             }
         }
