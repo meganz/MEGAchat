@@ -561,10 +561,10 @@ public:
             "values(?,?,?,?,?)", mChat.chatId(), msgId, userId, reaction, status);
     }
 
-    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction)
+    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status)
     {
-        mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
-            mChat.chatId(), msgId, userId, reaction);
+        mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ? and status = ?",
+            mChat.chatId(), msgId, userId, reaction, status);
     }
 
     virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions)

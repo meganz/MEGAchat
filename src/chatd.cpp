@@ -2574,6 +2574,92 @@ void Chat::sendSync()
     sendCommand(Command(OP_SYNC) + mChatId);
 }
 
+bool Chat::isPendingReaction(std::string reaction, Id msgId, uint8_t status)
+{
+    for (auto &auxReaction : mPendingReactions)
+    {
+        if (auxReaction.mMsgId == msgId
+            && auxReaction.mReactionString == reaction
+            && auxReaction.mStatus == status)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+Chat::PendingReactions& Chat::getPendingReactions()
+{
+    return mPendingReactions;
+}
+
+void Chat::addPendingReaction(std::string reaction, Id msgId, uint8_t status)
+{
+    assert (status != 0);
+    for (auto &auxReaction : mPendingReactions)
+    {
+        // If reaction already exists in pending list, only update it's status
+        if (auxReaction.mMsgId == msgId
+            && auxReaction.mReactionString == reaction)
+        {
+            auxReaction.mStatus = status;
+            return;
+        }
+    }
+
+    mPendingReactions.emplace_back(reaction, msgId, Id::inval(), status);
+}
+
+void Chat::removePendingReaction(std::string reaction, Id msgId, uint8_t status)
+{
+    assert (status != 0);
+    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
+    {
+        if (it->mMsgId == msgId
+            && it->mReactionString == reaction
+            && it->mStatus == status)
+        {
+            mPendingReactions.erase(it);
+            return;
+        }
+    }
+}
+
+void Chat::retryPendingReactions()
+{
+    for (PendingReactions::iterator it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
+    {
+        karere::Id msgid = it->mMsgId;
+        Idx messageIdx = msgIndexFromId(msgid);
+        Message *message = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
+        if (!message)
+        {
+            CHATID_LOG_ERROR("retryPendingReactions: failed to find message with id(%d)", msgid);
+            mPendingReactions.erase(it);
+            return;
+        }
+        else
+        {
+            switch (it->mStatus)
+            {
+                case OP_ADDREACTION:
+                    addReaction(message, it->mReactionString);
+                    break;
+                case OP_DELREACTION:
+                    delReaction(message, it->mReactionString);
+                    break;
+                default:
+                    CHATID_LOG_ERROR("Error invalid status for pending reaction");
+                    break;
+            }
+        }
+    }
+}
+
+void Chat::cleanPendingReactions()
+{
+    mPendingReactions.clear();
+}
 
 void Chat::addReaction(const Message *message, std::string reaction)
 {
@@ -2584,13 +2670,15 @@ void Chat::addReaction(const Message *message, std::string reaction)
             return;
 
         mCrypto->reactionEncrypt(message, reaction)
-        .then([this, wptr, message](std::shared_ptr<Buffer> data)
+        .then([this, wptr, message, reaction](std::shared_ptr<Buffer> data)
         {
             if (wptr.deleted())
                 return;
 
            std::string encReaction (data->buf(), data->bufSize());
            sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + std::move(encReaction));
+           addPendingReaction(reaction, message->id(), OP_ADDREACTION);
+           CALL_DB(addReaction, message->mId, client().myHandle(), reaction.c_str(), OP_ADDREACTION);
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -2608,13 +2696,15 @@ void Chat::delReaction(const Message *message, std::string reaction)
             return;
 
         mCrypto->reactionEncrypt(message, reaction)
-        .then([this, wptr, message](std::shared_ptr<Buffer> data)
+        .then([this, wptr, message, reaction](std::shared_ptr<Buffer> data)
         {
             if (wptr.deleted())
                 return;
 
            std::string encReaction (data->buf(), data->bufSize());
            sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message->id() + (int8_t)data->bufSize() + std::move(encReaction));
+           addPendingReaction(reaction, message->id(), OP_DELREACTION);
+           CALL_DB(addReaction, message->mId, client().myHandle(), reaction.c_str(), OP_DELREACTION);
         })
         .fail([this](const ::promise::Error& err)
         {
@@ -4166,6 +4256,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     /* clean reactions in RAM, reactions in cache will be cleared in cascade except for truncate message
     that will be cleared in DBInterface method truncateHistory*/
     at(idx).cleanReactions();
+    cleanPendingReactions();
     CALL_CRYPTO(resetSendKey);      // discard current key, if any
     CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)   // message is loaded in RAM
@@ -4871,9 +4962,9 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
                 return;
 
             std::string reaction(data->buf(), data->bufSize());
-            message->addReaction(reaction, userId);            
-            CALL_DB(addReaction, message->mId, userId, reaction.c_str());
-
+            removePendingReaction(reaction, message->id(), OP_ADDREACTION);
+            message->addReaction(reaction, userId);
+            CALL_DB(addReaction, message->mId, userId, reaction.c_str(), 0);
             CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), message->getReactionCount(reaction));
         })
         .fail([this, msgId](const ::promise::Error& err)
@@ -4913,13 +5004,9 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
                 return;
 
             std::string reaction (data->buf(), data->bufSize());
+            removePendingReaction(reaction, message->id(), OP_DELREACTION);
             message->delReaction(reaction, userId);
-
-            if (!previewMode())
-            {
-                CALL_DB(delReaction, message->mId, userId, reaction.c_str());
-            }
-
+            CALL_DB(delReaction, message->mId, userId, reaction.c_str(), 0);
             CALL_LISTENER(onReactionUpdate, message->mId, reaction.c_str(), message->getReactionCount(reaction));
         })
         .fail([this, msgId](const ::promise::Error& err)
@@ -4935,8 +5022,12 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 
 void Chat::onReactionSn(Id rsn)
 {
-    mReactionSn = rsn;
-    CALL_DB(setReactionSn, mReactionSn.toString());
+    if (mReactionSn != rsn)
+    {
+        mReactionSn = rsn;
+        CALL_DB(setReactionSn, mReactionSn.toString());
+    }
+    retryPendingReactions();
 }
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)
@@ -5383,6 +5474,15 @@ Chat::ManualSendItem::ManualSendItem()
     :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason)
 {
 
+}
+
+Chat::PendingReaction::PendingReaction(std::string aReactionString, uint64_t aMsgId, uint64_t aUserId, uint8_t aStatus)
+{
+    mMsgId = aMsgId;
+    mUserId = aUserId;
+    mStatus = aStatus;
+    mReactionString = std::move(aReactionString);
+    mReactionString.append(aReactionString);
 }
 
 void Message::removeUnnecessaryLastCharacters(string &buf)

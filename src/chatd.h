@@ -1308,6 +1308,12 @@ public:
     void sendSync();
     void addReaction(const Message *message, std::string reaction);
     void delReaction(const Message *message, std::string reaction);
+    PendingReactions& getPendingReactions();
+    bool isPendingReaction(std::string reaction, karere::Id msgId, uint8_t status);
+    void addPendingReaction(std::string reaction, karere::Id msgId, uint8_t status);
+    void removePendingReaction(std::string reaction, karere::Id msgId, uint8_t status);
+    void retryPendingReactions();
+    void cleanPendingReactions();
     void sendReactionSn();
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;
@@ -1596,9 +1602,9 @@ public:
     virtual std::string getReactionSn() = 0;
     virtual void setReactionSn(std::string rsn) = 0;
     virtual void cleanReactions() = 0;
-    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
-    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
-    virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) = 0;
+    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status) = 0;
+    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status) = 0;
+    virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) = 0;
 };
 
 }
