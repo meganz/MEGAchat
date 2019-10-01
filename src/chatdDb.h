@@ -536,7 +536,7 @@ public:
         }
     }
 
-    virtual std::string getReactionSn()
+    std::string getReactionSn() override
     {
         SqliteStmt stmt(mDb, "select rsn from chats where chatid = ?");
         stmt << mChat.chatId();
@@ -544,30 +544,30 @@ public:
         return stmt.stringCol(0);
     }
 
-    virtual void setReactionSn(std::string rsn)
+    void setReactionSn(const std::string &rsn) override
     {
         mDb.query("update chats set rsn = ? where chatid = ?", rsn, mChat.chatId());
         assertAffectedRowCount(1);
     }
 
-    virtual void cleanReactions()
+    void cleanReactions() override
     {
         mDb.query("delete from chat_reactions where chatid = ?", mChat.chatId());
     }
 
-    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction)
+    void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
     {
         mDb.query("insert into chat_reactions(chatid, msgid, userid, reaction)"
             "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
     }
 
-    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction)
+    void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
     {
         mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
             mChat.chatId(), msgId, userId, reaction);
     }
 
-    virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions)
+    void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) override
     {
         SqliteStmt stmt(mDb, "select reaction, userid from chat_reactions where chatid = ? and msgid = ?");
         stmt << mChat.chatId();
