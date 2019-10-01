@@ -522,16 +522,16 @@ void ChatMessage::setAuthor(const char *author)
         mega::unique_ptr<const char[]> msgAuthor(::mega::MegaApi::strdup(firstName));
         mega::unique_ptr<const char[]> autorizationToken(chatRoom->getAuthorizationToken());
 
-        if (msgAuthor && strlen(msgAuthor.get()) > 0)
+        if (msgAuthor && msgAuthor[0] != '\0')
         {
-            ui->mAuthorDisplay->setText(tr(msgAuthor.get()));
+            ui->mAuthorDisplay->setText(msgAuthor.get());
         }
         else
         {
             msgAuthor.reset(mChatWindow->mMainWin->mApp->getFirstname(uh, autorizationToken.get()));
             if (msgAuthor)
             {
-                ui->mAuthorDisplay->setText(tr(msgAuthor.get()));
+                ui->mAuthorDisplay->setText(msgAuthor.get());
             }
             else
             {
@@ -555,28 +555,26 @@ void ChatMessage::markAsEdited()
 void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
     QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
-    if (!mMessage->isManagementMessage())
-    {
-        QMenu *addReactMenu = menu->addMenu("React to this message");
-        for (int i = 0; i < utf8reactionsList.size(); i++)
-        {
-            std::string react = utf8reactionsList.at(i).toStdString();
-            auto actReact = addReactMenu->addAction(tr(react.c_str()));
-            connect(actReact, &QAction::triggered, this, [=](){onManageReaction(false, react.c_str());});
-        }
-        auto actReact = addReactMenu->addAction(tr("Add reaction (CUSTOM)"));
-        connect(actReact, &QAction::triggered, this, [=](){onManageReaction(false);});
 
-        QMenu *delReactMenu = menu->addMenu("Del reaction");
-        for (int i = 0; i < utf8reactionsList.size(); i++)
-        {
-            std::string react = utf8reactionsList.at(i).toStdString();
-            auto delReact = delReactMenu->addAction(tr(react.c_str()));
-            connect(delReact, &QAction::triggered, this, [=](){onManageReaction(true, react.c_str());});
-        }
-        auto delReact = delReactMenu->addAction(tr("Del reaction (CUSTOM)"));
-        connect(delReact, &QAction::triggered, this, [=](){onManageReaction(true);});
+    QMenu *addReactMenu = menu->addMenu("React to this message");
+    for (int i = 0; i < utf8reactionsList.size(); i++)
+    {
+        std::string react = utf8reactionsList.at(i).toStdString();
+        auto actReact = addReactMenu->addAction(react.c_str());
+        connect(actReact, &QAction::triggered, this, [=](){onManageReaction(false, react.c_str());});
     }
+    auto actReact = addReactMenu->addAction(tr("Add reaction (CUSTOM)"));
+    connect(actReact, &QAction::triggered, this, [=](){onManageReaction(false);});
+
+    QMenu *delReactMenu = menu->addMenu("Del reaction");
+    for (int i = 0; i < utf8reactionsList.size(); i++)
+    {
+        std::string react = utf8reactionsList.at(i).toStdString();
+        auto delReact = delReactMenu->addAction(react.c_str());
+        connect(delReact, &QAction::triggered, this, [=](){onManageReaction(true, react.c_str());});
+    }
+    auto delReact = delReactMenu->addAction(tr("Del reaction (CUSTOM)"));
+    connect(delReact, &QAction::triggered, this, [=](){onManageReaction(true);});
 
     if (isMine() && !mMessage->isManagementMessage())
     {

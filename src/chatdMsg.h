@@ -620,6 +620,10 @@ private:
     karere::Id mId;
     bool mIdIsXid = false;
 
+    /* Reactions must be ordered in the same order as they were added,
+    so we need a sequence container */
+    std::vector<Reaction> mReactions;
+
 protected:
     uint8_t mIsEncrypted = kNotEncrypted;
 
@@ -634,10 +638,6 @@ public:
     mutable void* userp;
     mutable uint8_t userFlags = 0;
     bool richLinkRemoved = 0;
-
-    /* Reactions must be ordered in the same order as they were added,
-    so we need a sequence container */
-    std::vector<Reaction> mReactions;
 
     karere::Id id() const { return mId; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
@@ -817,7 +817,7 @@ public:
     }
 
     /** @brief Returns the number of users for an specific reaction **/
-    int getReactionCount(std::string reaction) const
+    int getReactionCount(const std::string &reaction) const
     {
         for (auto const &it : mReactions)
         {
@@ -830,7 +830,7 @@ public:
     }
 
     /** @brief Returns the reaction index in case that exists. Otherwise returns -1 **/
-    int getReactionIndex(std::string reaction) const
+    int getReactionIndex(const std::string &reaction) const
     {
         int i = 0;
         for (auto &it : mReactions)
@@ -849,9 +849,13 @@ public:
     {
         mReactions.clear();
     }
+    bool hasReactions() const
+    {
+        return !mReactions.empty();
+    }
 
     /** @brief Add a reaction for an specific userid **/
-    void addReaction(std::string reaction, karere::Id userId)
+    void addReaction(const std::string &reaction, karere::Id userId)
     {
         Reaction *r = NULL;
         int reactIndex = getReactionIndex(reaction);
@@ -859,15 +863,12 @@ public:
         {
             r =  &mReactions.at(reactIndex);
         }
-        else
+        else    // not found, add
         {
-            Reaction auxr = Reaction(reaction);
-            mReactions.emplace_back(auxr);
-            reactIndex = getReactionIndex(reaction);
-            r = &mReactions.at(reactIndex);
+            mReactions.emplace_back(reaction);
+            r = &mReactions.back();
         }
 
-        assert(r);
         int userIndex = r->userIndex(userId);
         if (userIndex < 0)
         {
@@ -876,19 +877,18 @@ public:
     }
 
     /** @brief Delete a reaction for an specific userid **/
-    void delReaction(std::string reaction, karere::Id userId)
+    void delReaction(const std::string &reaction, karere::Id userId)
     {
         int reactIndex = getReactionIndex(reaction);
         if (reactIndex >= 0)
         {
-            Reaction *r = &mReactions.at(reactIndex);
-            assert(r);
+            Reaction &r = mReactions.at(reactIndex);
 
-            int userIndex = r->userIndex(userId);
+            int userIndex = r.userIndex(userId);
             if (userIndex >= 0)
             {
-                r->mUsers.erase(r->mUsers.begin() + userIndex);
-                if (r->mUsers.size() == 0)
+                r.mUsers.erase(r.mUsers.begin() + userIndex);
+                if (r.mUsers.empty())
                 {
                     mReactions.erase(mReactions.begin() + reactIndex);
                 }

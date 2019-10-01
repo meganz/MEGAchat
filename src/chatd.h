@@ -914,6 +914,7 @@ protected:
     void requestPendingRichLinks();
     void removePendingRichLinks();
     void removePendingRichLinks(Idx idx);
+    void removeMessageReactions(Idx idx);
     void manageRichLinkMessage(Message &message);
     void attachmentHistDone();
     friend class Connection;
@@ -1306,8 +1307,8 @@ public:
     uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
-    void addReaction(const Message *message, std::string reaction);
-    void delReaction(const Message *message, std::string reaction);
+    void addReaction(const Message &message, const std::string &reaction);
+    void delReaction(const Message &message, const std::string &reaction);
     PendingReactions& getPendingReactions();
     bool isPendingReaction(std::string reaction, karere::Id msgId, uint8_t status);
     void addPendingReaction(std::string reaction, karere::Id msgId, uint8_t status);
