@@ -2574,7 +2574,12 @@ void Chat::sendSync()
     sendCommand(Command(OP_SYNC) + mChatId);
 }
 
-bool Chat::isPendingReaction(std::string reaction, Id msgId, uint8_t status)
+const Chat::PendingReactions& Chat::getPendingReactions() const
+{
+    return mPendingReactions;
+}
+
+bool Chat::isPendingReaction(std::string reaction, Id msgId, uint8_t status) const
 {
     for (auto &auxReaction : mPendingReactions)
     {
@@ -2588,12 +2593,7 @@ bool Chat::isPendingReaction(std::string reaction, Id msgId, uint8_t status)
     return false;
 }
 
-Chat::PendingReactions& Chat::getPendingReactions()
-{
-    return mPendingReactions;
-}
-
-void Chat::addPendingReaction(std::string reaction, Id msgId, uint8_t status)
+void Chat::addPendingReaction(const std::string reaction, Id msgId, uint8_t status)
 {
     assert (status != 0);
     for (auto &auxReaction : mPendingReactions)
@@ -2610,7 +2610,7 @@ void Chat::addPendingReaction(std::string reaction, Id msgId, uint8_t status)
     mPendingReactions.emplace_back(reaction, msgId, Id::inval(), status);
 }
 
-void Chat::removePendingReaction(std::string reaction, Id msgId, uint8_t status)
+void Chat::removePendingReaction(const std::string reaction, Id msgId, uint8_t status)
 {
     assert (status != 0);
     for (auto it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
@@ -2643,11 +2643,29 @@ void Chat::retryPendingReactions()
             switch (it->mStatus)
             {
                 case OP_ADDREACTION:
-                    addReaction(msg, it->mReactionString);
+                {
+                    if (msg.hasReacted(it->mReactionString, client().myHandle()))
+                    {
+                        removePendingReaction(it->mReactionString, msg.id(), OP_ADDREACTION);
+                    }
+                    else
+                    {
+                        addReaction(msg, it->mReactionString);
+                    }
                     break;
+                }
                 case OP_DELREACTION:
-                    delReaction(msg, it->mReactionString);
+                {
+                    if (msg.hasReacted(it->mReactionString, client().myHandle()))
+                    {
+                        delReaction(msg, it->mReactionString);
+                    }
+                    else
+                    {
+                        removePendingReaction(it->mReactionString, msg.id(), OP_ADDREACTION);
+                    }
                     break;
+                 }
                 default:
                     CHATID_LOG_ERROR("Error invalid status for pending reaction");
                     break;

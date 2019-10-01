@@ -1309,10 +1309,10 @@ public:
     void sendSync();
     void addReaction(const Message &message, const std::string &reaction);
     void delReaction(const Message &message, const std::string &reaction);
-    PendingReactions& getPendingReactions();
-    bool isPendingReaction(std::string reaction, karere::Id msgId, uint8_t status);
-    void addPendingReaction(std::string reaction, karere::Id msgId, uint8_t status);
-    void removePendingReaction(std::string reaction, karere::Id msgId, uint8_t status);
+    const PendingReactions &getPendingReactions() const;
+    bool isPendingReaction(const std::string reaction, karere::Id msgId, uint8_t status) const;
+    void addPendingReaction(const std::string reaction, karere::Id msgId, uint8_t status);
+    void removePendingReaction(const std::string reaction, karere::Id msgId, uint8_t status);
     void retryPendingReactions();
     void cleanPendingReactions();
     void sendReactionSn();
