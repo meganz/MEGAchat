@@ -4290,6 +4290,19 @@ int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHand
         {
             count = msg->getReactionCount(reaction);
         }
+
+        // Update users of confirmed reactions with pending reactions
+        auto pendingReactions = chatroom->chat().getPendingReactions();
+        for (auto &auxReact : pendingReactions)
+        {
+            if (auxReact.mMsgId == msgid && auxReact.mReactionString == reaction)
+            {
+                assert(auxReact.mStatus != 0);
+                (auxReact.mStatus == OP_ADDREACTION)
+                    ? count++
+                    : count--;
+            }
+        }
     }
     sdkMutex.unlock();
     return count;
