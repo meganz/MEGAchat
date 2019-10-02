@@ -561,6 +561,10 @@ public:
             }
             return -1;
         }
+        bool hasReacted(karere::Id userId) const
+        {
+            return userIndex(userId) != -1;
+        }
     };
 
     class CallEndedInfo
@@ -797,7 +801,7 @@ public:
         {
             if (it.mReaction == reaction)
             {
-                return it.userIndex(uh) >= 0;
+                return it.hasReacted(uh);
             }
         }
         return false;
@@ -869,8 +873,7 @@ public:
             r = &mReactions.back();
         }
 
-        int userIndex = r->userIndex(userId);
-        if (userIndex < 0)
+        if (!r->hasReacted(userId))
         {
             r->mUsers.emplace_back(userId);
         }
