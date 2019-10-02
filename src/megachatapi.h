@@ -4578,61 +4578,60 @@ public:
     void removeChatNotificationListener(MegaChatNotificationListener* listener);
 
     /**
-     * @brief Adds a reaction for a message in a chatroom.
+     * @brief Adds a reaction for a message in a chatroom
+     *
      * The reactions updates will be notified one by one through the MegaChatRoomListener
      * specified at MegaChatApi::openChatRoom (and through any other listener you may have
-     * registered by calling MegaChatApi::addChatRoomListener).
+     * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
+     * is MegaChatRoomListener::onReactionUpdate.
      *
      * You take the ownership of the returned value.
      *
-     * The corresponding callback is MegaChatRoomListener::onReactionUpdate.
      * Possible error codes associated to MegaChatError can be:
-     * - MegaChatError::ERROR_OK - If no errors occurred.
-     * - MegaChatError::ERROR_ARGS - If reaction is NULL
-     * - MegaChatError::ERROR_NOENT - If the chatroom or message
-     * doesn't exists or if the message it's a management message
-     * - MegaChatError::ERROR_ACCESS if our own privilege is different than
-     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR
-     * - MegaChatError::API_EEXIST if our own user has reacted previously with this reaction
+     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
+     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     * - MegaChatError::API_EEXIST: if our own user has reacted previously with this reaction
      * for this message
      *
      * @param chatid MegaChatHandle that identifies the chatroom
      * @param msgid MegaChatHandle that identifies the message
-     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
      *
      * @return returns MegaChatError with an error code associated.
      */
     MegaChatError *addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 
     /**
-     * @brief Removes a reaction for a message in a chatroom.
+     * @brief Removes a reaction for a message in a chatroom
+     *
      * The reactions updates will be notified one by one through the MegaChatRoomListener
      * specified at MegaChatApi::openChatRoom (and through any other listener you may have
-     * registered by calling MegaChatApi::addChatRoomListener).
+     * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
+     * is MegaChatRoomListener::onReactionUpdate.
      *
      * You take the ownership of the returned value.
      *
-     * The corresponding callback is MegaChatRoomListener::onReactionUpdate
      * Possible error codes associated to MegaChatError can be:
-     * - MegaChatError::ERROR_OK - If no errors occurred.
-     * - MegaChatError::ERROR_ARGS - If reaction is NULL
-     * - MegaChatError::ERROR_NOENT - If the chatroom or message
-     * doesn't exists or if the message it's a management message
-     * - MegaChatError::ERROR_ACCESS if our own privilege is different than
+     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists, or if your own user has
+     * not reacted to the message with the specified reaction.
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
      * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR
-     * - MegaChatError::API_EEXIST if our own user has not reacted previously with this reaction
-     * for this message
      *
      * @param chatid MegaChatHandle that identifies the chatroom
      * @param msgid MegaChatHandle that identifies the message
-     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
      *
      * @return returns MegaChatError with an error code associated.
      */
     MegaChatError *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 
     /**
-     * @brief Returns the number of users that reacted to a message with a specific reaction.
+     * @brief Returns the number of users that reacted to a message with a specific reaction
      *
      * @param chatid MegaChatHandle that identifies the chatroom
      * @param msgid MegaChatHandle that identifies the message
@@ -4651,10 +4650,11 @@ public:
       * @param msgid MegaChatHandle that identifies the message
       * @return return a list with the reactions associated to a message.
       */
-    mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
+    ::mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
 
      /**
       * @brief Gets a list of users that reacted to a message with a specific reaction
+      *
       * You take the ownership of the returned value.
       *
       * @param chatid MegaChatHandle that identifies the chatroom
@@ -4663,7 +4663,7 @@ public:
       *
       * @return return a list with the users that reacted to a message with a specific reaction.
       */
-    mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    ::mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 
 #ifndef KARERE_DISABLE_WEBRTC
     /**
