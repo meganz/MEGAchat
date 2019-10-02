@@ -5908,19 +5908,18 @@ void MegaChatRoomHandler::handleHistoryMessage(MegaChatMessage *message)
     if (message->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
         MegaNodeList *nodeList = message->getMegaNodeList();
-        if (!nodeList)
+        if (nodeList)
         {
-            return;
-        }
-        for (int i = 0; i < nodeList->size(); i++)
-        {
-            MegaChatHandle h = nodeList->get(i)->getHandle();
-            auto itAccess = attachmentsAccess.find(h);
-            if (itAccess == attachmentsAccess.end())
+            for (int i = 0; i < nodeList->size(); i++)
             {
-                attachmentsAccess[h] = true;
+                MegaChatHandle h = nodeList->get(i)->getHandle();
+                auto itAccess = attachmentsAccess.find(h);
+                if (itAccess == attachmentsAccess.end())
+                {
+                    attachmentsAccess[h] = true;
+                }
+                attachmentsIds[h].insert(message->getMsgId());
             }
-            attachmentsIds[h].insert(message->getMsgId());
         }
     }
     else if (message->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT)
@@ -5942,21 +5941,24 @@ std::set<MegaChatHandle> *MegaChatRoomHandler::handleNewMessage(MegaChatMessage 
     if (message->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
         MegaNodeList *nodeList = message->getMegaNodeList();
-        for (int i = 0; i < nodeList->size(); i++)
+        if (nodeList)
         {
-            MegaChatHandle h = nodeList->get(i)->getHandle();
-            auto itAccess = attachmentsAccess.find(h);
-            if (itAccess != attachmentsAccess.end() && !itAccess->second)
+            for (int i = 0; i < nodeList->size(); i++)
             {
-                // access changed from revoked to granted --> update attachment messages
-                if (!msgToUpdate)
+                MegaChatHandle h = nodeList->get(i)->getHandle();
+                auto itAccess = attachmentsAccess.find(h);
+                if (itAccess != attachmentsAccess.end() && !itAccess->second)
                 {
-                    msgToUpdate = new set <MegaChatHandle>;
+                    // access changed from revoked to granted --> update attachment messages
+                    if (!msgToUpdate)
+                    {
+                        msgToUpdate = new set <MegaChatHandle>;
+                    }
+                    msgToUpdate->insert(attachmentsIds[h].begin(), attachmentsIds[h].end());
                 }
-                msgToUpdate->insert(attachmentsIds[h].begin(), attachmentsIds[h].end());
+                attachmentsAccess[h] = true;
+                attachmentsIds[h].insert(message->getMsgId());
             }
-            attachmentsAccess[h] = true;
-            attachmentsIds[h].insert(message->getMsgId());
         }
     }
     else if (message->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT)
