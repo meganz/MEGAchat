@@ -5568,7 +5568,17 @@ public:
      * @param chat MegaChatRoom whose local history is about to be discarded
      */
     virtual void onHistoryReloaded(MegaChatApi* api, MegaChatRoom *chat);
-    virtual void onReactionUpdate(MegaChatApi* /*api*/, MegaChatHandle /*msgid*/, const char* /*reaction*/, int /*count*/);
+
+
+    /**
+     * @brief This function is called when a message has been reacted (or an existing reaction has been removed)
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
+     * @param count Number of users who have reacted to this message with the same reaction
+     */
+    virtual void onReactionUpdate(MegaChatApi* api, MegaChatHandle msgid, const char* reaction, int count);
 };
 
 /**

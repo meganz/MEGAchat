@@ -905,6 +905,7 @@ public:
     MegaChatApiImpl(MegaChatApi *chatApi, mega::MegaApi *megaApi);
     virtual ~MegaChatApiImpl();
 
+    using SdkMutexGuard = std::unique_lock<std::recursive_mutex>;   // (equivalent to typedef)
     std::recursive_mutex sdkMutex;
     std::recursive_mutex videoMutex;
     mega::Waiter *waiter;

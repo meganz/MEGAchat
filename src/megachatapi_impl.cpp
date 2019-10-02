@@ -4172,7 +4172,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
         return megaChatError;
     }
 
-    sdkMutex.lock();
+    SdkMutexGuard g(sdkMutex);
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
@@ -4180,7 +4180,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
     }
     else
     {
-        if (chatroom->ownPriv() < MegaChatPeerList::PRIV_STANDARD)
+        if (chatroom->ownPriv() < static_cast<chatd::Priv>(MegaChatPeerList::PRIV_STANDARD))
         {
             errorCode = MegaChatError::ERROR_ACCESS;
         }
@@ -4210,9 +4210,8 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
             }
         }
     }
-    sdkMutex.unlock();
-    megaChatError = new MegaChatErrorPrivate(errorCode);
-    return megaChatError;
+
+    return new MegaChatErrorPrivate(errorCode);
 }
 
 MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
@@ -4225,7 +4224,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
         return megaChatError;
     }
 
-    sdkMutex.lock();
+    SdkMutexGuard g(sdkMutex);
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
@@ -4233,7 +4232,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
     }
     else
     {
-        if (chatroom->ownPriv() < MegaChatPeerList::PRIV_STANDARD)
+        if (chatroom->ownPriv() < static_cast<chatd::Priv>(MegaChatPeerList::PRIV_STANDARD))
         {
             errorCode = MegaChatError::ERROR_ACCESS;
         }
@@ -4263,15 +4262,16 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
             }
         }
     }
-    sdkMutex.unlock();
-    megaChatError = new MegaChatErrorPrivate(errorCode);
-    return megaChatError;
+
+    return new MegaChatErrorPrivate(errorCode);
 }
 
 int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
     int count = 0;
-    sdkMutex.lock();
+
+    SdkMutexGuard g(sdkMutex);
+
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
@@ -4281,56 +4281,45 @@ int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHand
             count = msg->getReactionCount(reaction);
         }
     }
-    sdkMutex.unlock();
+
     return count;
 }
 
 MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
-{
-    MegaStringList *reactionList = NULL;
-    sdkMutex.lock();
+{    
+    SdkMutexGuard g(sdkMutex);
 
-    int numReactions = 0;
-    ::mega::unique_ptr <char*[]> reactArray = nullptr;
+    vector<char*> reactArray;
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
         Message *msg = findMessage(chatid, msgid);
         if (msg)
         {
-            std::vector<std::string> reactions = msg->getReactions();
-            if (!reactions.empty())
+            std::vector<std::string> reactions(msg->getReactions());
+            for (auto &it : reactions)
             {
-                numReactions = static_cast<int>(reactions.size());
-                reactArray.reset(new char*[numReactions]);
-
-                size_t i = 0;
-                for (auto &it : reactions)
-                {
-                    reactArray[i] = MegaApi::strdup(it.c_str());
-                    i++;
-                }
+                reactArray.push_back(MegaApi::strdup(it.c_str()));
             }
         }
     }
 
-    reactionList = new MegaStringListPrivate(reactArray.get(), numReactions);
-    sdkMutex.unlock();
-    return reactionList;
+    return new MegaStringListPrivate(reactArray.data(), static_cast<int>(reactArray.size()));
 }
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
     MegaHandleListPrivate *userList = new MegaHandleListPrivate();
-    sdkMutex.lock();
+
+    SdkMutexGuard g(sdkMutex);
 
     ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    if (chatroom && reaction)
     {
         Message *msg = findMessage(chatid, msgid);
         if (msg)
         {
-            const std::vector<karere::Id> *users = msg->getReactionUsers(std::string(reaction));
+            const std::vector<karere::Id> *users = msg->getReactionUsers(reaction);
             if (users)
             {
                 for (auto &userid : *users)
@@ -4340,7 +4329,7 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
             }
         }
     }
-    sdkMutex.unlock();
+
     return userList;
 }
 
