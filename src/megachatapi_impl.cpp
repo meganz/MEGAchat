@@ -9126,9 +9126,10 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
 string JSonUtils::getImageFormat(const char *imagen)
 {
     std::string format;
+    unsigned long size = strlen(imagen);
 
     size_t i = 0;
-    while (imagen[i] != ':')
+    while (imagen[i] != ':' && size < i)
     {
         format += imagen[i];
         i++;
