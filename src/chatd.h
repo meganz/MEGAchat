@@ -1310,12 +1310,18 @@ public:
     void addReaction(const Message &message, const std::string &reaction);
     void delReaction(const Message &message, const std::string &reaction);
     const PendingReactions &getPendingReactions() const;
-    bool isPendingReaction(const std::string reaction, karere::Id msgId, uint8_t status) const;
     void addPendingReaction(const std::string reaction, karere::Id msgId, uint8_t status);
     void removePendingReaction(const std::string reaction, karere::Id msgId, uint8_t status);
     void retryPendingReactions();
     void cleanPendingReactions();
     void sendReactionSn();
+
+    /** @brief Return the status of a reaction:
+     *  - returns OP_ADDREACTION:   If reaction is pending to be added
+     *  - returns OP_DELREACTION:   If reaction is pending to be removed
+     *  - returns -1:               If pending reaction not exists
+     */
+    int getPendingReactionStatus(const std::string reaction, karere::Id msgId) const;
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;
     bool previewMode();

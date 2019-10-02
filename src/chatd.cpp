@@ -2579,18 +2579,17 @@ const Chat::PendingReactions& Chat::getPendingReactions() const
     return mPendingReactions;
 }
 
-bool Chat::isPendingReaction(std::string reaction, Id msgId, uint8_t status) const
+int Chat::getPendingReactionStatus(const std::string reaction, Id msgId) const
 {
     for (auto &auxReaction : mPendingReactions)
     {
         if (auxReaction.mMsgId == msgId
-            && auxReaction.mReactionString == reaction
-            && auxReaction.mStatus == status)
+            && auxReaction.mReactionString == reaction)
         {
-            return true;
+            return auxReaction.mStatus;
         }
     }
-    return false;
+    return -1;
 }
 
 void Chat::addPendingReaction(const std::string reaction, Id msgId, uint8_t status)

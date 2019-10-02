@@ -4199,18 +4199,22 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
                 {
                     errorCode = MegaChatError::ERROR_ARGS;
                 }
-                else if ((msg.hasReacted(reaction, mClient->myHandle())
-                          && !chat.isPendingReaction(reaction, msg.id(), OP_DELREACTION))
-                      || (!msg.hasReacted(reaction, mClient->myHandle())
-                          && chat.isPendingReaction(reaction, msg.id(), OP_ADDREACTION)))
-                {
-                    // If the reaction exists and there's not a pending DELREACTION
-                    // or the reaction doesn't exists and a ADDREACTION is pending
-                    errorCode = MegaChatError::ERROR_EXIST;
-                }
                 else
                 {
-                    chat.addReaction(msg, reaction);
+                    int pendingStatus = chat.getPendingReactionStatus(reaction, msg.id());
+                    bool hasReacted = msg.hasReacted(reaction, mClient->myHandle());
+
+                    if ((hasReacted && pendingStatus != OP_DELREACTION)
+                        || (!hasReacted && pendingStatus == OP_ADDREACTION))
+                    {
+                        // If the reaction exists and there's not a pending DELREACTION
+                        // or the reaction doesn't exists and a ADDREACTION is pending
+                        errorCode = MegaChatError::ERROR_EXIST;
+                    }
+                    else
+                    {
+                        chat.addReaction(msg, reaction);
+                    }
                 }
             }
         }
@@ -4257,18 +4261,22 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
                 {
                     errorCode = MegaChatError::ERROR_ARGS;
                 }
-                else if ((!msg.hasReacted(reaction, mClient->myHandle())
-                          && !chat.isPendingReaction(reaction, msg.id(), OP_ADDREACTION))
-                      || (msg.hasReacted(reaction, mClient->myHandle())
-                          && chat.isPendingReaction(reaction, msg.id(), OP_DELREACTION)))
-                {
-                    // If the reaction doesn't exist and there's not a pending ADDREACTION
-                    // or reaction exists and a DELREACTION is pending
-                    errorCode = MegaChatError::ERROR_NOENT;
-                }
                 else
                 {
-                    chat.delReaction(msg, reaction);
+                    int pendingStatus = chat.getPendingReactionStatus(reaction, msg.id());
+                    bool hasReacted = msg.hasReacted(reaction, mClient->myHandle());
+
+                    if ((!hasReacted && pendingStatus != OP_ADDREACTION)
+                        || (hasReacted && pendingStatus == OP_DELREACTION))
+                    {
+                        // If the reaction doesn't exist and there's not a pending ADDREACTION
+                        // or reaction exists and a DELREACTION is pending
+                        errorCode = MegaChatError::ERROR_NOENT;
+                    }
+                    else
+                    {
+                        chat.delReaction(msg, reaction);
+                    }
                 }
             }
         }
@@ -4360,6 +4368,13 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
                 {
                     userList->addMegaHandle(userid);
                 }
+            }
+            bool reacted = msg->hasReacted(reaction, mClient->myHandle());
+            int pendingStatus = chatroom->chat().getPendingReactionStatus(reaction, msgid);
+            if ((reacted && pendingStatus != OP_DELREACTION)
+                || (!reacted && pendingStatus == OP_ADDREACTION))
+            {
+                userList->addMegaHandle(mClient->myHandle());
             }
         }
     }
