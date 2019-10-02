@@ -1600,12 +1600,12 @@ public:
     virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
 
     //  <<<--- Reaction methods --->>>
-    virtual std::string getReactionSn() = 0;
+    virtual const std::string getReactionSn() const = 0;
     virtual void setReactionSn(std::string rsn) = 0;
     virtual void cleanReactions() = 0;
     virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status) = 0;
     virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status) = 0;
-    virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) = 0;
+    virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
 };
 
 }
