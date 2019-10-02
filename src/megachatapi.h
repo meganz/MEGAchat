@@ -3291,7 +3291,8 @@ public:
      * all reactions associated to the message are wiped and must be cleared by applications.
      *
      * You can expect a call to \c MegaChatRoomListener::onMessageUpdate where the message
-     * will have no content and it will be of type \c MegaChatMessage::TYPE_TRUNCATE.
+     * will have no content and it will be of type \c MegaChatMessage::TYPE_TRUNCATE. Any
+     * reactions associated to the original message will be cleared.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -3310,14 +3311,13 @@ public:
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Allows a logged in operator/moderator to clear the entire chat history up
-     * to a certain message. All earlier messages are wiped, but this specific message
-     * will be overwritten by a management message. In addition all reactions associated
-     * to the message are wiped and must be cleared by applications.
+     * @brief Allows a logged in operator/moderator to clear the entire chat history
      *
+     * If the history is not already empty, the latest message will be overwritten by
      * You can expect a call to \c MegaChatRoomListener::onMessageUpdate
      * where the message will have no content and it will be of type
-     * \c MegaChatMessage::TYPE_TRUNCATE.
+     * \c MegaChatMessage::TYPE_TRUNCATE. Any reactions associated to the original
+     * message will be cleared.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
