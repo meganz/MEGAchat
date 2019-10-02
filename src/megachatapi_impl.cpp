@@ -4376,23 +4376,13 @@ rtcModule::ICallHandler *MegaChatApiImpl::onGroupCallActive(Id chatid, Id callid
 
 MegaStringList *MegaChatApiImpl::getChatInDevices(const std::vector<string> &devicesVector)
 {
-    int devicesNumber = devicesVector.size();
-    char **devicesArray = NULL;
-    if (devicesNumber > 0)
+    vector<char *> devicesArray;
+    for (auto &device : devicesVector)
     {
-        devicesArray = new char*[devicesNumber];
-        for (int i = 0; i < devicesNumber; ++i)
-        {
-            char *device = MegaApi::strdup(devicesVector[i].c_str());
-            devicesArray[i] = device;
-        }
+        devicesArray.push_back(::mega::MegaApi::strdup(device.c_str()));
     }
 
-    MegaStringList *devices = new MegaStringListPrivate(devicesArray, devicesNumber);
-    delete [] devicesArray;
-
-    return devices;
-
+    return new MegaStringListPrivate(devicesArray.data(), static_cast<int>(devicesArray.size()));
 }
 
 void MegaChatApiImpl::cleanCallHandlerMap()
