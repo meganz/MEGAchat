@@ -4352,7 +4352,7 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
-    MegaHandleListPrivate *userList = new MegaHandleListPrivate();
+    MegaHandleList *userList = MegaHandleList::createInstance();
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
@@ -4361,19 +4361,21 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
         Message *msg = findMessage(chatid, msgid);
         if (msg)
         {
-            const std::vector<karere::Id> *users = msg->getReactionUsers(std::string(reaction));
-            if (users)
+            const std::vector<karere::Id> &users = msg->getReactionUsers(std::string(reaction));
+            for (auto user: users)
             {
-                for (auto &userid : *users)
+                if (user != mClient->myHandle())
                 {
-                    userList->addMegaHandle(userid);
+                    userList->addMegaHandle(user);
                 }
             }
+
             bool reacted = msg->hasReacted(reaction, mClient->myHandle());
             int pendingStatus = chatroom->chat().getPendingReactionStatus(reaction, msgid);
             if ((reacted && pendingStatus != OP_DELREACTION)
                 || (!reacted && pendingStatus == OP_ADDREACTION))
             {
+                // Own user only must be added to userlist after check pending reactions
                 userList->addMegaHandle(mClient->myHandle());
             }
         }
