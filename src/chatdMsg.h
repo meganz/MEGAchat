@@ -780,7 +780,7 @@ public:
     }
 
     /** @brief Returns a vector with all the reactions of the message **/
-    std::vector<std::string> getReactions() const
+    const std::vector<std::string> getReactions() const
     {
         std::vector<std::string> reactions;
         for (auto &it : mReactions)
@@ -804,16 +804,16 @@ public:
     }
 
     /** @brief Returns a vector with the userid's associated to an specific reaction **/
-    const std::vector<karere::Id>* getReactionUsers(std::string reaction) const
+    const std::vector<karere::Id> getReactionUsers(std::string reaction) const
     {
         for (auto &it : mReactions)
         {
             if (it.mReaction == reaction)
             {
-                return &(it.mUsers);
+                return it.mUsers;
             }
         }
-        return nullptr;
+        return std::vector<karere::Id>();
     }
 
     /** @brief Returns the number of users for an specific reaction **/
@@ -849,6 +849,8 @@ public:
     {
         mReactions.clear();
     }
+
+    /** @brief Returns true if the message has reactions, otherwise returns false */
     bool hasReactions() const
     {
         return !mReactions.empty();

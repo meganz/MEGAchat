@@ -1757,7 +1757,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
     mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
-    std::string reactionSn = mDbInterface->getReactionSn();
+    const std::string &reactionSn = mDbInterface->getReactionSn();
     if (!reactionSn.empty())
     {
         mReactionSn = Id(reactionSn.data(), reactionSn.size());
