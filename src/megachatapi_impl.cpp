@@ -4268,21 +4268,16 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
 
 int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
-    int count = 0;
-
     SdkMutexGuard g(sdkMutex);
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    Message *msg = findMessage(chatid, msgid);
+    if (!msg)
     {
-        Message *msg = findMessage(chatid, msgid);
-        if (msg)
-        {
-            count = msg->getReactionCount(reaction);
-        }
+        API_LOG_ERROR("Chatroom or message not found");
+        return -1;
     }
 
-    return count;
+    return msg->getReactionCount(reaction);
 }
 
 MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
@@ -4290,18 +4285,18 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
     SdkMutexGuard g(sdkMutex);
 
     vector<char*> reactArray;
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    Message *msg = findMessage(chatid, msgid);
+    if (msg)
     {
-        Message *msg = findMessage(chatid, msgid);
-        if (msg)
+        std::vector<std::string> reactions(msg->getReactions());
+        for (auto &it : reactions)
         {
-            std::vector<std::string> reactions(msg->getReactions());
-            for (auto &it : reactions)
-            {
-                reactArray.push_back(MegaApi::strdup(it.c_str()));
-            }
+            reactArray.push_back(MegaApi::strdup(it.c_str()));
         }
+    }
+    else
+    {
+        API_LOG_ERROR("Chatroom or message not found");
     }
 
     return new MegaStringListPrivate(reactArray.data(), static_cast<int>(reactArray.size()));
@@ -4313,8 +4308,7 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
 
     SdkMutexGuard g(sdkMutex);
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom && reaction)
+    if (reaction && reaction[0] != '\0')
     {
         Message *msg = findMessage(chatid, msgid);
         if (msg)
@@ -4328,6 +4322,14 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
                 }
             }
         }
+        else
+        {
+            API_LOG_ERROR("Chatroom or message not found");
+        }
+    }
+    else
+    {
+        API_LOG_ERROR("Empty reaction");
     }
 
     return userList;

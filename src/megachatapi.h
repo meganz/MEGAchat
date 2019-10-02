@@ -4637,7 +4637,8 @@ public:
      * @param msgid MegaChatHandle that identifies the message
      * @param reaction UTF-8 NULL terminated string that represents the reaction
      *
-     * @return return the number of users that reacted to a message with a specific reaction.
+     * @return return the number of users that reacted to a message with a specific reaction,
+     * or -1 if the chatroom or message is not found.
      */
     int getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction) const;
 
