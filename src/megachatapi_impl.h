@@ -1339,6 +1339,7 @@ public:
 
 private:
     static std::string getImageFormat(const char* imagen);
+    static void getRichLinckImageFromJson(const std::string& field, const rapidjson::Value& richPreviewValue, std::string& image, std::string& format);
     static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document, std::string &textMessage);
     static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
 };

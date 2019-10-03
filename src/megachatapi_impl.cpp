@@ -8934,7 +8934,7 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
     rapidjson::Value::ConstMemberIterator iteratorTextMessage = document.FindMember("textMessage");
     if (iteratorTextMessage == document.MemberEnd() || !iteratorTextMessage->value.IsString())
     {
-        API_LOG_ERROR("parseRichPreview: invalid JSON struct - \"textMessage\" field not found");
+        API_LOG_ERROR("parseContainsMeta: invalid JSON struct - \"textMessage\" field not found");
         return containsMeta;
     }
     std::string textMessage = iteratorTextMessage->value.GetString();
@@ -9000,57 +9000,8 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
             description = iteratorDescription->value.GetString();
         }
 
-        rapidjson::Value::ConstMemberIterator iteratorImage = richPreview.FindMember("i");
-        if (iteratorImage != richPreview.MemberEnd() && iteratorImage->value.IsString())
-        {
-            const char *imagePointer = iteratorImage->value.GetString();
-            imageFormat = getImageFormat(imagePointer);
-            imagePointer = imagePointer + imageFormat.size() + 1; // remove format.size() + ':'
-
-            // Check if the image format in B64 is valid
-            std::string imgBin, imgB64(imagePointer);
-            size_t binSize = Base64::atob(imgB64, imgBin);
-            size_t paddingSize = std::count(imgB64.begin(), imgB64.end(), '=');
-            if (binSize == (imgB64.size() * 3) / 4 - paddingSize)
-            {
-                rapidjson::SizeType sizeImage = iteratorImage->value.GetStringLength() - (imageFormat.size() + 1);
-                image = std::string(imagePointer, sizeImage);
-            }
-            else
-            {
-                API_LOG_ERROR("Parse rich link: \"i\" field has a invalid format");
-            }
-        }
-        else
-        {
-            API_LOG_ERROR("Parse rich link: invalid JSON struct - \"i\" field not found");
-        }
-
-        rapidjson::Value::ConstMemberIterator iteratorIcon = richPreview.FindMember("ic");
-        if (iteratorIcon != richPreview.MemberEnd() && iteratorIcon->value.IsString())
-        {
-            const char *iconPointer = iteratorIcon->value.GetString();
-            iconFormat = getImageFormat(iconPointer);
-            iconPointer = iconPointer + iconFormat.size() + 1; // remove format.size() + ':'
-
-            // Check if the image format in B64 is valid
-            std::string iconBin, iconB64(iconPointer);
-            size_t binSize = Base64::atob(iconB64, iconBin);
-            size_t paddingSize = std::count(iconB64.begin(), iconB64.end(), '=');
-            if (binSize == (iconB64.size() * 3) / 4 - paddingSize)
-            {
-                rapidjson::SizeType sizeIcon = iteratorIcon->value.GetStringLength() - (iconFormat.size() + 1);
-                icon = std::string(iconPointer, sizeIcon);
-            }
-            else
-            {
-                API_LOG_ERROR("Parse rich link: \"ic\" field has a invalid format");
-            }
-        }
-        else
-        {
-            API_LOG_ERROR("Parse rich link: invalid JSON struct - \"ic\" field not found");
-        }
+        getRichLinckImageFromJson("i", richPreview, image, imageFormat);
+        getRichLinckImageFromJson("ic", richPreview, icon, iconFormat);
 
         rapidjson::Value::ConstMemberIterator iteratorURL = richPreview.FindMember("url");
         if (iteratorURL != richPreview.MemberEnd() && iteratorURL->value.IsString())
@@ -9136,6 +9087,42 @@ string JSonUtils::getImageFormat(const char *imagen)
     }
 
     return format;
+}
+
+void JSonUtils::getRichLinckImageFromJson(const string &field, const rapidjson::Value& richPreviewValue, string &image, string &format)
+{
+    rapidjson::Value::ConstMemberIterator iteratorImage = richPreviewValue.FindMember(field.c_str());
+    if (iteratorImage != richPreviewValue.MemberEnd() && iteratorImage->value.IsString())
+    {
+        const char *imagePointer = iteratorImage->value.GetString();
+        format = getImageFormat(imagePointer);
+        rapidjson::SizeType sizeImage = iteratorImage->value.GetStringLength();
+        if (format.size() > 10 || format.size() == sizeImage)
+        {
+            format = "";
+            API_LOG_ERROR("Parse rich link: \"%s\" Invalid image extension", field.c_str());
+            return;
+        }
+
+        imagePointer = imagePointer + format.size() + 1; // remove format.size() + ':'
+
+        // Check if the image format in B64 is valid
+        std::string imgBin, imgB64(imagePointer);
+        size_t binSize = Base64::atob(imgB64, imgBin);
+        size_t paddingSize = std::count(imgB64.begin(), imgB64.end(), '=');
+        if (binSize == (imgB64.size() * 3) / 4 - paddingSize)
+        {
+            image = std::string(imagePointer, sizeImage - (format.size() + 1));
+        }
+        else
+        {
+            API_LOG_ERROR("Parse rich link: \"%s\" field has a invalid format", field.c_str());
+        }
+    }
+    else
+    {
+        API_LOG_ERROR("Parse rich link: invalid JSON struct - \"%s\" field not found", field.c_str());
+    }
 }
 
 const char *MegaChatRichPreviewPrivate::getDomainName() const
