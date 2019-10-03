@@ -20,6 +20,7 @@ public:
     std::string getReactionString() const;
     void updateReactionCount(int mCount);
     void enterEvent(QEvent * event);
+    int getCount() const;
 
 private:
     Ui::Reaction *ui;
