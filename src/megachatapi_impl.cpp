@@ -4318,34 +4318,49 @@ int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHand
 
 MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
 {
-    MegaStringList *reactionList = NULL;
+    MegaStringList *reactionList;
     sdkMutex.lock();
 
-    int numReactions = 0;
-    ::mega::unique_ptr <char*[]> reactArray = nullptr;
+    vector<char *> reactArray;
+    std::map<std::string, int> auxReactMap;
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
         Message *msg = findMessage(chatid, msgid);
         if (msg)
         {
-            std::vector<std::string> reactions = msg->getReactions();
-            if (!reactions.empty())
+            // Insert confirmed reactions
+            const std::vector<std::string> &reactions = msg->getReactions();
+            for (auto &auxReact : reactions)
             {
-                numReactions = static_cast<int>(reactions.size());
-                reactArray.reset(new char*[numReactions]);
+                auxReactMap[auxReact] = msg->getReactionCount(auxReact);
+            }
 
-                size_t i = 0;
-                for (auto &it : reactions)
+            // Update confirmed reactions with pending reactions
+            auto pendingReactions = chatroom->chat().getPendingReactions();
+            for (auto &auxReact : pendingReactions)
+            {
+                if (auxReact.mMsgId == msgid)
                 {
-                    reactArray[i] = MegaApi::strdup(it.c_str());
-                    i++;
+                    (auxReact.mStatus == OP_ADDREACTION)
+                        ? auxReactMap[auxReact.mReactionString]++
+                        : auxReactMap[auxReact.mReactionString]--;
+
+                    if (auxReactMap[auxReact.mReactionString] <= 0)
+                    {
+                        auxReactMap.erase(auxReact.mReactionString);
+                    }
                 }
+            }
+
+            for (auto &auxReact: auxReactMap)
+            {
+                reactArray.push_back(MegaApi::strdup(auxReact.first.c_str()));
             }
         }
     }
 
-    reactionList = new MegaStringListPrivate(reactArray.get(), numReactions);
+    reactionList = new MegaStringListPrivate(reactArray.data(), static_cast<int>(reactArray.size()));
     sdkMutex.unlock();
     return reactionList;
 }
