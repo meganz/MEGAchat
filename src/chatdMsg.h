@@ -535,10 +535,10 @@ public:
         Priv privilege = PRIV_INVALID;
     };
 
+    /** @brief Contains a UTF-8 string that represents the reaction
+     * and a vector of userid's associated to that reaction. */
     struct Reaction
     {
-        /** @brief Contains a UTF-8 string that represents the reaction
-         * and a vector of userid's associated to that reaction. */
         std::string mReaction;
         std::vector<karere::Id> mUsers;
 
