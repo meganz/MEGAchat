@@ -3275,6 +3275,21 @@ void exec_getCameraUploadsFolder(ac::ACState& s)
 }
 
 
+void exec_getContact(ac::ACState& s)
+{
+
+    unique_ptr<m::MegaUser> user(g_megaApi->getContact(s.words[1].s.c_str()));
+    if (user)
+    {
+        conlock(cout) << "found with handle: " << ch_s(user->getHandle()) << " timestamp: " << user->getTimestamp() << endl;
+    }
+    else
+    {
+        conlock(cout) << "No user found with that email" << endl;
+    }
+}
+
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -3430,6 +3445,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_setCameraUploadsFolder, sequence(text("setcamerauploadsfolder"), param("remotedst")));
     p->Add(exec_getCameraUploadsFolder, sequence(text("getcamerauploadsfolder")));
 
+    p->Add(exec_getContact, sequence(text("getcontact"), param("email")));
 
     return p;
 }
