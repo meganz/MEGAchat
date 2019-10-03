@@ -3,6 +3,7 @@
 #include "ui_chatMessageWidget.h"
 #include <QMessageBox>
 #include <QClipboard>
+#include "uiSettings.h"
 
 const char *messageStatus[] =
 {
@@ -35,6 +36,14 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     delete chatRoom;
     updateContent();
 
+    mega::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
+    for (int i = 0; i < reactions->size(); i++)
+    {
+        int count = megaChatApi->getMessageReactionCount(mChatId, mMessage->getMsgId(), reactions->get(i));
+        Reaction *reaction = new Reaction(this, reactions->get(i), count);
+        ui->mReactions->layout()->addWidget(reaction);  // takes ownership
+    }
+
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
     updateToolTip();
     show();
@@ -42,8 +51,40 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
 
 ChatMessage::~ChatMessage()
 {
+    clearReactions();
     delete mMessage;
     delete ui;
+}
+
+void ChatMessage::updateReaction(const char *reactionString, int count)
+{
+    bool found = false;
+    int size = ui->mReactions->layout()->count();
+    for (int i = 0; i < size; i++)
+    {
+        QLayoutItem *item = ui->mReactions->layout()->itemAt(i);
+        Reaction *reaction = static_cast<Reaction*>(item->widget());
+        if (reaction->getReactionString() == reactionString)
+        {
+            found = true;
+            if (count == 0)
+            {
+                item->widget()->deleteLater();
+                delete ui->mReactions->layout()->takeAt(i);
+            }
+            else
+            {
+                reaction->updateReactionCount(count);
+            }
+            break;
+        }
+    }
+
+    if (!found && count)
+    {
+        Reaction *reaction = new Reaction(this, reactionString, count);
+        ui->mReactions->layout()->addWidget(reaction);
+    }
 }
 
 void ChatMessage::updateToolTip()
@@ -177,6 +218,11 @@ QString ChatMessage::nodelistText()
 {
     QString text;
     ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+    if (!nodeList)
+    {
+        return text;
+    }
+
     for(int i = 0; i < nodeList->size(); i++)
     {
         const char *auxNodeHandle_64 = mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
@@ -191,6 +237,31 @@ QString ChatMessage::nodelistText()
         delete [] auxNodeHandle_64;
     }
     return text;
+}
+
+megachat::MegaChatHandle ChatMessage::getChatId() const
+{
+    return mChatId;
+}
+
+megachat::MegaChatApi *ChatMessage::getMegaChatApi() const
+{
+    return megaChatApi;
+}
+
+ChatWindow *ChatMessage::getChatWindow() const
+{
+    return mChatWindow;
+}
+
+void ChatMessage::clearReactions()
+{
+    QLayoutItem *item;
+    while ((item = ui->mReactions->layout()->takeAt(0)))
+    {
+        item->widget()->deleteLater();
+        delete item;
+    }
 }
 
 void ChatMessage::updateContent()
@@ -446,24 +517,27 @@ void ChatMessage::setAuthor(const char *author)
     }
     else
     {
-        megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
-        const char *msgAuthor = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
-        const char *autorizationToken = chatRoom->getAuthorizationToken();
-        if (msgAuthor && strlen(msgAuthor) > 0)
+        mega::unique_ptr<megachat::MegaChatRoom> chatRoom(megaChatApi->getChatRoom(mChatId));
+        const char *firstName = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
+        mega::unique_ptr<const char[]> msgAuthor(::mega::MegaApi::strdup(firstName));
+        mega::unique_ptr<const char[]> autorizationToken(chatRoom->getAuthorizationToken());
+
+        if (msgAuthor && msgAuthor[0] != '\0')
         {
-            ui->mAuthorDisplay->setText(tr(msgAuthor));
-        }
-        else if ((msgAuthor = mChatWindow->mMainWin->mApp->getFirstname(uh, autorizationToken)))
-        {
-            ui->mAuthorDisplay->setText(tr(msgAuthor));
-            delete [] msgAuthor;
+            ui->mAuthorDisplay->setText(msgAuthor.get());
         }
         else
         {
-            ui->mAuthorDisplay->setText(tr("Loading firstname..."));
+            msgAuthor.reset(mChatWindow->mMainWin->mApp->getFirstname(uh, autorizationToken.get()));
+            if (msgAuthor)
+            {
+                ui->mAuthorDisplay->setText(msgAuthor.get());
+            }
+            else
+            {
+                ui->mAuthorDisplay->setText(tr("Loading firstname..."));
+            }
         }
-        delete chatRoom;
-        delete []autorizationToken;
     }
 }
 
@@ -481,6 +555,27 @@ void ChatMessage::markAsEdited()
 void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
     QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
+
+    QMenu *addReactMenu = menu->addMenu("React to this message");
+    for (int i = 0; i < utf8reactionsList.size(); i++)
+    {
+        std::string react = utf8reactionsList.at(i).toStdString();
+        auto actReact = addReactMenu->addAction(react.c_str());
+        connect(actReact, &QAction::triggered, this, [=](){onManageReaction(false, react.c_str());});
+    }
+    auto actReact = addReactMenu->addAction(tr("Add reaction (CUSTOM)"));
+    connect(actReact, &QAction::triggered, this, [=](){onManageReaction(false);});
+
+    QMenu *delReactMenu = menu->addMenu("Del reaction");
+    for (int i = 0; i < utf8reactionsList.size(); i++)
+    {
+        std::string react = utf8reactionsList.at(i).toStdString();
+        auto delReact = delReactMenu->addAction(react.c_str());
+        connect(delReact, &QAction::triggered, this, [=](){onManageReaction(true, react.c_str());});
+    }
+    auto delReact = delReactMenu->addAction(tr("Del reaction (CUSTOM)"));
+    connect(delReact, &QAction::triggered, this, [=](){onManageReaction(true);});
+
     if (isMine() && !mMessage->isManagementMessage())
     {
         if (mMessage->isEditable())
@@ -521,6 +616,37 @@ void ChatMessage::onMessageDelAction()
 void ChatMessage::onMessageEditAction()
 {
     startEditingMsgWidget();
+}
+
+void ChatMessage::onManageReaction(bool del, const char *reactionStr)
+{
+    QString reaction = reactionStr
+            ? reactionStr
+            : mChatWindow->mMainWin->mApp->getText(del ? "Del reaction" : "Add reaction", false).c_str();
+
+    if (reaction.isEmpty())
+    {
+        return;
+    }
+
+    std::string utfstring = reaction.toUtf8().toStdString();
+    mega::unique_ptr<MegaChatError> res;
+    if (del)
+    {
+        res.reset(mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()));
+    }
+    else
+    {
+        res.reset(mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()));
+    }
+
+    if (res->getErrorCode() != MegaChatError::ERROR_OK)
+    {
+        QMessageBox msg;
+        msg.setIcon(QMessageBox::Warning);
+        msg.setText(res->toString());
+        msg.exec();
+    }
 }
 
 void ChatMessage::onMessageRemoveLinkAction()

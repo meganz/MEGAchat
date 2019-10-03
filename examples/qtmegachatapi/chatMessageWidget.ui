@@ -298,6 +298,33 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
+   <item alignment="Qt::AlignLeft">
+    <widget class="QWidget" name="mReactions" native="true">
+     <property name="minimumSize">
+      <size>
+       <width>40</width>
+       <height>40</height>
+      </size>
+     </property>
+     <layout class="QHBoxLayout" name="reactionsLayout">
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+     </layout>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources/>

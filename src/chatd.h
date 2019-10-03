@@ -303,6 +303,16 @@ public:
     virtual void onLastMessageTsUpdated(uint32_t /*ts*/) {}
 
     /**
+     * @brief Called when the number of users that reacted to a message with a
+     * specific reaction has changed.
+     *
+     * @param msgid The id of the message associated to the reaction.
+     * @param reaction The UTF-8 reaction
+     * @param count The number of users that reacted to that message with this reaction
+     */
+    virtual void onReactionUpdate(karere::Id /*msgid*/, const char* /*reaction*/, int /*count*/){}
+
+    /**
      * @brief Called when a chat is going to reload its history after the server rejects JOINRANGEHIST
      */
     virtual void onHistoryReloaded(){}
@@ -829,6 +839,8 @@ protected:
     bool mDecryptionAttachmentsHalted = false;
     /** True when node-attachments are pending to decrypt and history is truncated --> discard message being decrypted */
     bool mTruncateAttachment = false;
+    /** Indicates the reaction sequence number for this chatroom */
+    karere::Id mReactionSn = karere::Id::inval();
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -851,6 +863,9 @@ protected:
     bool msgNodeHistIncoming(Message* msg);
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
+    void onAddReaction(karere::Id msgId, karere::Id userId, std::string reaction);
+    void onDelReaction(karere::Id msgId, karere::Id userId, std::string reaction);
+    void onReactionSn(karere::Id rsn);
     void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
     void loadAndProcessUnsent();
@@ -888,6 +903,7 @@ protected:
     void requestPendingRichLinks();
     void removePendingRichLinks();
     void removePendingRichLinks(Idx idx);
+    void removeMessageReactions(Idx idx);
     void manageRichLinkMessage(Message &message);
     void attachmentHistDone();
     friend class Connection;
@@ -1280,6 +1296,9 @@ public:
     uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
+    void addReaction(const Message &message, const std::string &reaction);
+    void delReaction(const Message &message, const std::string &reaction);
+    void sendReactionSn();
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;
     bool previewMode();
@@ -1386,7 +1405,9 @@ public:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
     // - Version 5:
     //  * Changes at CALLDATA protocol (new state)
-    static const unsigned chatdVersion = 5;
+    // - Version 6:
+    //  * Add commands ADDREACTION DELREACTION REACTIONSN
+    static const unsigned chatdVersion = 6;
 
     Client(karere::Client *aKarereClient);
     ~Client();
@@ -1560,6 +1581,14 @@ public:
     virtual void clearHistory() = 0;
 
     virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
+
+    //  <<<--- Reaction methods --->>>
+    virtual std::string getReactionSn() = 0;
+    virtual void setReactionSn(const std::string &rsn) = 0;
+    virtual void cleanReactions(karere::Id msgId) = 0;
+    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
+    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
+    virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) = 0;
 };
 
 }

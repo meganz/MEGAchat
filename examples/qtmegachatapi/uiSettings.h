@@ -7,4 +7,5 @@
     extern QChar kOnlineSymbol_InProgress;
     extern QChar kOnlineSymbol_Set;
     extern QString kOnlineStatusBtnStyle;
+    extern QStringList utf8reactionsList;
 #endif // UI_SETTINGS_H

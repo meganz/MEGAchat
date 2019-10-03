@@ -3074,16 +3074,6 @@ bool Session::cmd(uint8_t type, Args... args)
     }
     return true;
 }
-void Session::asyncDestroy(TermCode code, const std::string& msg)
-{
-    auto wptr = weakHandle();
-    marshallCall([this, wptr, code, msg]()
-    {
-        if (wptr.deleted())
-            return;
-        destroy(code, msg);
-    }, mManager.mKarereClient.appCtx);
-}
 
 Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)
 {

@@ -50,6 +50,7 @@ class ChatWindow : public QDialog,
         void onMessageUpdate(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
         void onMessageLoaded(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
         void onHistoryReloaded(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
+        void onReactionUpdate(megachat::MegaChatApi *, megachat::MegaChatHandle msgid, const char *reaction, int count);
         void onAttachmentLoaded(MegaChatApi *api, MegaChatMessage *msg);
         void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
         void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
@@ -85,6 +86,7 @@ class ChatWindow : public QDialog,
         void setCallGui(CallGui *callGui);
 #endif
         ChatListItemController *getChatItemController();
+        MainWindow *getMainWin() const;
 
     protected:
         Ui::ChatWindowUi *ui;

@@ -19,7 +19,7 @@ public:
     virtual void onMessageReceived(MegaChatApi* api, MegaChatMessage *msg);
     virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);
     virtual void onHistoryReloaded(MegaChatApi *api, MegaChatRoom *chat);
-
+    virtual void onReactionUpdate(MegaChatApi *api, MegaChatHandle msgid, const char *reaction, int count);
 
 protected:
     virtual void customEvent(QEvent * event);

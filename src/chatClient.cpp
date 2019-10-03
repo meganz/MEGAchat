@@ -290,6 +290,24 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "7" && (strcmp(gDbSchemaVersionSuffix, "8") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Add reactionsn to chats table
+                db.query("ALTER TABLE `chats` ADD rsn blob");
+
+                // Create new table for chat reactions
+                db.simpleQuery("CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null,"
+                               "    userid int64 not null, reaction text,"
+                               "    UNIQUE(chatid, msgid, userid, reaction),"
+                               "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
+
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -2029,10 +2047,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
   mRoomGui(nullptr)
 {
-    initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
-    mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
-    mUrl = aUrl;
-
     //save to db
     auto db = parent.mKarereClient.db;
 
@@ -2044,6 +2058,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
         "own_priv, ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
         mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
+
+    initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
+    mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
+    mUrl = aUrl;
 
     initChatTitle(title, strongvelope::kDecrypted, true);
 

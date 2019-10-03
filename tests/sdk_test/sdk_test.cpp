@@ -32,6 +32,7 @@ int main(int argc, char **argv)
     // Tests that requires a groupchat (start with public chat, converted into private)
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
     EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
+    EXECUTE_TEST(t.TEST_Reactions(0, 1), "TEST Chat Reactions");
     EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
 
@@ -1478,10 +1479,17 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     // Login in primary account
     char *sessionPrimary = login(a1);
 
-    // Init anonymous in secondary account
+    // Init anonymous in secondary account and connect
     initState[a2] = megaChatApi[a2]->initAnonymous();
     ASSERT_CHAT_TEST(initState[a2] == MegaChatApi::INIT_ANONYMOUS, "Init sesion in anonymous mode failed");
     char *sessionAnonymous = megaApi[a2]->dumpSession();
+
+    bool *flagRequestConnect = &requestFlagsChat[a2][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
+    bool *loggedInFlag = &mLoggedInAllChats[a2]; *loggedInFlag = false;
+    mChatConnectionOnline[a2] = false;
+    megaChatApi[a2]->connect();
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
+    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Error connect to chat. Error: " + std::to_string(lastErrorChat[a2]));
 
     // Create a public chat with no peers nor title, this chat will be reused by the rest of the tests
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
@@ -1669,6 +1677,152 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
     ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+
+    // Close chatroom
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
+    delete chatroomListener;
+    delete [] sessionPrimary;
+    sessionPrimary = NULL;
+    delete [] sessionSecondary;
+    sessionSecondary = NULL;
+}
+
+/**
+ * @brief TEST_Reactions
+ *
+ * Requirements:
+ * - Both accounts should be conctacts
+ * (if not accomplished, the test automatically solves the above)
+ *
+ * This test does the following:
+ * - Create a group chat room or select an existing one
+ * - Change another account privileges to readonly
+ * - Send message
+ * - Check reactions in message (error)
+ * - Add reaction with NULL reaction (error)
+ * - Add reaction with invalid chat (error)
+ * - Add reaction with invalid message (error)
+ * + Add reaction without enough permissions (error)
+ * - Add reaction
+ * - Add duplicate reaction (error)
+ * - Check reactions in message
+ * - Remove reaction with NULL reaction (error)
+ * - Remove reaction with invalid chat (error)
+ * - Remove reaction with invalid message (error)
+ * + Remove reaction without enough permissions (error)
+ * - Remove reaction
+ * - Remove non-existent reaction (error)
+ */
+void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
+{
+    // Login both accounts
+    char *sessionPrimary = login(a1);
+    char *sessionSecondary = login(a2);
+
+    // Prepare peers, privileges...
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
+    {
+        makeContact(a1, a2);
+        delete user;
+        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    }
+
+    // Get a group chatroom with both users
+    MegaChatHandle uh = user->getHandle();
+    delete user;
+    user = NULL;
+    MegaChatPeerList *peers = MegaChatPeerList::createInstance();
+    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers, MegaChatPeerList::PRIV_MODERATOR);
+    delete peers;
+    peers = NULL;
+
+    // Open chatroom
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+
+    // Change peer privileges to Read-only
+    bool *flagUpdatePeerPermision = &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
+    bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
+    bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
+    bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
+    megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
+    ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
+    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
+    ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
+
+    // Send a message and wait for reception by target user
+    string msg0 = "HI " + mAccounts[a1].getEmail() + " - Testing reactions";
+    bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
+    bool *msgReceived = &chatroomListener->msgReceived[a2]; *msgReceived = false;
+    bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
+    chatroomListener->clearMessages(a1);
+    chatroomListener->clearMessages(a2);
+    MegaChatMessage *messageSent = megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
+    ASSERT_CHAT_TEST(waitForResponse(msgConfirmed), "Timeout expired for receiving confirmation by server");    // for confirmation, sendMessage() is synchronous
+    MegaChatHandle msgId = chatroomListener->mConfirmedMessageHandle[a1];
+    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a1, msgId), "Message not received");
+    ASSERT_CHAT_TEST(msgId != MEGACHAT_INVALID_HANDLE, "Wrong message id at origin");
+    ASSERT_CHAT_TEST(waitForResponse(msgReceived), "Timeout expired for receiving message by target user");    // for reception
+    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId), "Wrong message id at destination");
+    MegaChatMessage *messageReceived = megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in RAM
+    ASSERT_CHAT_TEST(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent()), "Content of message doesn't match");
+
+    // Check reactions for the message sent above (It shouldn't exist any reaction)
+    ::mega::unique_ptr <MegaStringList> reactionsList;
+    reactionsList.reset(megaChatApi[a1]->getMessageReactions(chatid, msgId));
+    ASSERT_CHAT_TEST(!reactionsList->size(), "getMessageReactions Error: The message shouldn't have reactions");
+    int userCount = megaChatApi[a1]->getMessageReactionCount(chatid, msgId, "😰");
+    ASSERT_CHAT_TEST(!userCount, "getReactionUsers Error: The reaction shouldn't exist");
+
+    // Add reaction
+    ::mega::unique_ptr <MegaChatError> res;
+    res.reset(megaChatApi[a1]->addReaction(chatid, msgId, NULL));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_ARGS, "addReaction: Unexpected error for NULL reaction param. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a1]->addReaction(NULL, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "addReaction: Unexpected error for invalid chat. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a1]->addReaction(chatid, NULL, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "addReaction: Unexpected error for invalid message. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a2]->addReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_ACCESS, "addReaction: Unexpected error adding reaction without enough permissions. Error:" + std::string(res->getErrorString()));
+    bool *reactionReceived = &chatroomListener->reactionReceived[a1]; *reactionReceived = false;
+    res.reset(megaChatApi[a1]->addReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_OK, "addReaction: failed to add a reaction. Error:" + std::string(res->getErrorString()));
+    ASSERT_CHAT_TEST(waitForResponse(reactionReceived), "Expired timeout for add reaction");
+    res.reset(megaChatApi[a1]->addReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_EXIST, "addReaction: Unexpected error for existing reaction. Error:" + std::string(res->getErrorString()));
+
+    // Check reactions
+    reactionsList.reset(megaChatApi[a1]->getMessageReactions(chatid, msgId));
+    ASSERT_CHAT_TEST(reactionsList->size(), "getMessageReactions Error: The message doesn't have reactions");
+    userCount = megaChatApi[a1]->getMessageReactionCount(chatid, msgId, "😰");
+    ASSERT_CHAT_TEST(userCount, "getReactionUsers Error: The reaction doesn't exists");
+
+    // Del reaction
+    res.reset(megaChatApi[a1]->delReaction(chatid, msgId, NULL));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_ARGS, "delReaction: Unexpected error for NULL reaction param. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a1]->delReaction(NULL, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "delReaction: Unexpected error for invalid chat. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a1]->delReaction(chatid, NULL, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "delReaction: Unexpected error for invalid message. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a2]->delReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_ACCESS, "delReaction: Unexpected error removing reaction without enough permissions. Error:" + std::string(res->getErrorString()));
+    reactionReceived = &chatroomListener->reactionReceived[a1]; *reactionReceived = false;
+    res.reset(megaChatApi[a1]->delReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_OK, "delReaction: failed to remove a reaction. Error:" + std::string(res->getErrorString()));
+    ASSERT_CHAT_TEST(waitForResponse(reactionReceived), "Expired timeout for remove reaction");
+    res.reset(megaChatApi[a1]->delReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "delReaction: Unexpected error for unexisting reaction. Error:" + std::string(res->getErrorString()));
 
     // Close chatroom
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
@@ -4187,6 +4341,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApiTest *t, MegaChatApi **api
         this->msgAttachmentReceived[i] = false;
         this->msgContactReceived[i] = false;
         this->msgRevokeAttachmentReceived[i] = false;
+        this->reactionReceived[i] = false;
         this->mConfirmedMessageHandle[i] = MEGACHAT_INVALID_HANDLE;
         this->mEditedMessageHandle[i] = MEGACHAT_INVALID_HANDLE;
     }
@@ -4348,6 +4503,12 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
     }
 
     msgReceived[apiIndex] = true;
+}
+
+void TestChatRoomListener::onReactionUpdate(MegaChatApi *api, MegaChatHandle msgid, const char *reaction, int count)
+{
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+    reactionReceived[apiIndex] = true;
 }
 
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)

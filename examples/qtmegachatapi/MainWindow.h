@@ -164,6 +164,7 @@ class MainWindow :
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
 #endif
+        MegaChatApplication* getApp() const;
 
     protected:
         MegaLoggerApplication *mLogger;

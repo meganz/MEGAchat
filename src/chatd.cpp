@@ -475,6 +475,8 @@ void Chat::login()
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId;
 
+    sendReactionSn();
+
     if (previewMode())
     {
         if (mOldestKnownMsgId) //if we have local history
@@ -1352,7 +1354,57 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(std::to_string(count));
             return tmpString;
         }
-
+        case OP_ADDREACTION:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id userid = data.read<uint64_t>(9);
+            karere::Id msgid = data.read<uint64_t>(17);
+            int8_t len = data.read<int8_t>(25);
+            const char *reaction = data.readPtr(26, len);
+            tmpString.append("ADDREACTION chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", userid: ");
+            tmpString.append(ID_CSTR(userid));
+            tmpString.append(", msgid: ");
+            tmpString.append(ID_CSTR(msgid));
+            tmpString.append(", len: ");
+            tmpString.append(std::to_string(len));
+            tmpString.append(", reaction: ");
+            tmpString.append(base64urlencode(reaction, len));
+            return tmpString;
+        }
+        case OP_DELREACTION:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id userid = data.read<uint64_t>(9);
+            karere::Id msgid = data.read<uint64_t>(17);
+            int8_t len = data.read<int8_t>(25);
+            const char *reaction = data.readPtr(26, len);
+            tmpString.append("DELREACTION chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", userid: ");
+            tmpString.append(ID_CSTR(userid));
+            tmpString.append(", msgid: ");
+            tmpString.append(ID_CSTR(msgid));
+            tmpString.append(", len: ");
+            tmpString.append(std::to_string(len));
+            tmpString.append(", reaction: ");
+            tmpString.append(base64urlencode(reaction, len));
+            return tmpString;
+        }
+        case OP_REACTIONSN:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id rsn = data.read<uint64_t>(9);
+            tmpString.append("REACTIONSN chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", rsn: ");
+            tmpString.append(ID_CSTR(rsn));
+            return tmpString;
+        }
         default:
             return opcodeToStr(opcode);
     }
@@ -1705,6 +1757,11 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
     mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
+    std::string reactionSn = mDbInterface->getReactionSn();
+    if (!reactionSn.empty())
+    {
+        mReactionSn = Id(reactionSn.data(), reactionSn.size());
+    }
 
     if ((mHaveAllHistory = mDbInterface->chatVar("have_all_history")))
     {
@@ -1766,6 +1823,14 @@ Idx Chat::getHistoryFromDb(unsigned count)
     CALL_DB(fetchDbHistory, lownum()-1, count, messages);
     for (auto msg: messages)
     {
+        // Load msg reactions from cache
+        ::mega::multimap<std::string, karere::Id> reactions;
+        CALL_DB(getMessageReactions, msg->id(), reactions);
+        for (auto &it : reactions)
+        {
+            msg->addReaction(it.first, it.second);
+        }
+
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
     }
     if (mNextHistFetchIdx == CHATD_IDX_INVALID)
@@ -2166,24 +2231,45 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_ADDREACTION:
             {
-                //TODO: to be implemented
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_ID(msgid, 16);
-                READ_32(reaction, 24);
-                CHATDS_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %d",
-                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction);
+                READ_8(payloadLen, 24);
+                std::string reaction(buf.readPtr(pos, payloadLen), payloadLen);
+                pos += payloadLen;
+
+                CHATDS_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %s",
+                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid),
+                                base64urlencode(reaction.data(), reaction.size()).c_str());
+
+                auto& chat = mChatdClient.chats(chatid);
+                chat.onAddReaction(msgid, userid, std::move(reaction));
                 break;
             }
             case OP_DELREACTION:
             {
-                //TODO: to be implemented
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_ID(msgid, 16);
-                READ_32(reaction, 24);
-                CHATDS_LOG_DEBUG("%s: recv DELREACTION from user %s to message %s reaction %d",
-                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction);
+                READ_8(payloadLen, 24);
+                std::string reaction(buf.readPtr(pos, payloadLen), payloadLen);
+                pos += payloadLen;
+
+                CHATDS_LOG_DEBUG("%s: recv DELREACTION from user %s to message %s reaction %s",
+                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid),
+                                base64urlencode(reaction.data(), reaction.size()).c_str());
+
+                auto& chat = mChatdClient.chats(chatid);
+                chat.onDelReaction(msgid, userid, std::move(reaction));
+                break;
+            }
+            case OP_REACTIONSN:
+            {
+                READ_CHATID(0);
+                READ_ID(rsn, 8);
+                CHATDS_LOG_DEBUG("%s: recv REACTIONSN rsn %s", ID_CSTR(chatid), ID_CSTR(rsn));
+                auto& chat = mChatdClient.chats(chatid);
+                chat.onReactionSn(rsn);
                 break;
             }
             case OP_SYNC:
@@ -2479,6 +2565,65 @@ void Chat::sendSync()
     sendCommand(Command(OP_SYNC) + mChatId);
 }
 
+
+void Chat::addReaction(const Message &message, const std::string &reaction)
+{
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, message, reaction]()
+    {
+        if (wptr.deleted())
+            return;
+
+        mCrypto->reactionEncrypt(message, reaction)
+        .then([this, wptr, &message](std::shared_ptr<Buffer> data)
+        {
+            if (wptr.deleted())
+                return;
+
+           std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
+           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
+        })
+        .fail([this](const ::promise::Error& err)
+        {
+            CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
+        });
+    }, mChatdClient.mKarereClient->appCtx);
+}
+
+void Chat::delReaction(const Message &message, const std::string &reaction)
+{
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, &message, reaction]()
+    {
+        if (wptr.deleted())
+            return;
+
+        mCrypto->reactionEncrypt(message, reaction)
+        .then([this, wptr, &message](std::shared_ptr<Buffer> data)
+        {
+            if (wptr.deleted())
+                return;
+
+           std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
+           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
+        })
+        .fail([this](const ::promise::Error& err)
+        {
+            CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
+        });
+    }, mChatdClient.mKarereClient->appCtx);
+}
+
+void Chat::sendReactionSn()
+{
+    if (!mReactionSn.isValid())
+    {
+        return;
+    }
+
+    sendCommand(Command(OP_REACTIONSN) + mChatId + mReactionSn.val);
+}
+
 bool Chat::isFetchingNodeHistory() const
 {
     return (!mFetchRequest.empty() && (mFetchRequest.front() == FetchType::kFetchNodeHistory));
@@ -2741,6 +2886,17 @@ void Chat::removePendingRichLinks(Idx idx)
             mMsgsToUpdateWithRichLink.erase(msgid);
         }
     }
+}
+
+void Chat::removeMessageReactions(Idx idx)
+{
+    Message *msg = findOrNull(idx);
+    if (msg)
+    {
+        msg->cleanReactions();
+        // reactions in DB are removed along with messages (FK delete on cascade)
+    }
+    // TODO: clear any pending reaction in the queue for older messages than `idx` (see removePendingRichLinks(idx))
 }
 
 void Chat::manageRichLinkMessage(Message &message)
@@ -3934,6 +4090,10 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 {
                     mAttachmentNodes->deleteMessage(*msg);
                 }
+
+                // Clean message reactions
+                msg->cleanReactions();
+                CALL_DB(cleanReactions, msg->id());
             }
 
             if (msg->type == Message::kMsgTruncate)
@@ -4019,6 +4179,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
         deleteMessagesBefore(idx);
         removePendingRichLinks(idx);
+        removeMessageReactions(idx);
 
         // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)
@@ -4688,6 +4849,98 @@ void Chat::onUserLeave(Id userid)
     }
 }
 
+void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
+{
+    Idx messageIdx = msgIndexFromId(msgId);
+    if (messageIdx == CHATD_IDX_INVALID)
+    {
+        CHATID_LOG_WARNING("onAddReaction: message id not found. msgid: %s", ID_CSTR(msgId));
+        return;
+    }
+
+    if (reaction.empty())
+    {
+        CHATID_LOG_ERROR("onAddReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
+        return;
+    }
+
+    Message &message = at(messageIdx);
+    if (message.isManagementMessage())
+    {
+        CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+        return;
+    }
+
+    auto wptr = weakHandle();
+    mCrypto->reactionDecrypt(message, reaction)
+    .then([this, wptr, &message, userId](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
+    {
+        if (wptr.deleted())
+            return;
+
+        const std::string reaction(data->buf(), data->size());
+        message.addReaction(reaction, userId);
+        CALL_DB(addReaction, message.mId, userId, reaction.c_str());
+
+        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+    })
+    .fail([this, msgId](const ::promise::Error& err)
+    {
+        CHATID_LOG_ERROR("onAddReaction: failed to decrypt reaction. msgid: %s, error: %s", ID_CSTR(msgId), err.what());
+    });
+}
+
+void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
+{
+    Idx messageIdx = msgIndexFromId(msgId);
+    if (messageIdx == CHATD_IDX_INVALID)
+    {
+        CHATID_LOG_WARNING("onDelReaction: message id not found. msgid: %s)", ID_CSTR(msgId));
+        return;
+    }
+
+    if (reaction.empty())
+    {
+        CHATID_LOG_ERROR("onDelReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
+        return;
+    }
+
+    Message &message = at(messageIdx);
+    if (message.isManagementMessage())
+    {
+        CHATID_LOG_WARNING("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+        return;
+    }
+
+    auto wptr = weakHandle();
+    mCrypto->reactionDecrypt(message, reaction)
+    .then([this, wptr, &message, userId](std::shared_ptr<Buffer> data)
+    {
+        if (wptr.deleted())
+            return;
+
+        const std::string reaction(data->buf(), data->bufSize());
+        message.delReaction(reaction, userId);
+
+        if (!previewMode())
+        {
+            CALL_DB(delReaction, message.mId, userId, reaction.c_str());
+        }
+
+        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+    })
+    .fail([this, msgId](const ::promise::Error& err)
+    {
+        CHATID_LOG_ERROR("onDelReaction: failed to decryp reaction. msgid: %s, error: %s", ID_CSTR(msgId), err.what());
+    });
+}
+
+void Chat::onReactionSn(Id rsn)
+{
+    mReactionSn = rsn;
+    CALL_DB(setReactionSn, mReactionSn.toString());
+}
+
 void Chat::onPreviewersUpdate(uint32_t numPrev)
 {
     if ((mNumPreviewers == numPrev)
@@ -5005,7 +5258,11 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(HANDLEJOINRANGEHIST);
         RET_ENUM_NAME(SYNC);
         RET_ENUM_NAME(NEWNODEMSG);
+        RET_ENUM_NAME(CALLTIME);
         RET_ENUM_NAME(NODEHIST);
+        RET_ENUM_NAME(NUMBYHANDLE);
+        RET_ENUM_NAME(HANDLELEAVE);
+        RET_ENUM_NAME(REACTIONSN);
         default: return "(invalid opcode)";
     };
 }
