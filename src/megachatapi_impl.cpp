@@ -4172,7 +4172,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
         return megaChatError;
     }
 
-    sdkMutex.lock();
+    SdkMutexGuard g(sdkMutex);
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
@@ -4180,7 +4180,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
     }
     else
     {
-        if (chatroom->ownPriv() < MegaChatPeerList::PRIV_STANDARD)
+        if (chatroom->ownPriv() < static_cast<chatd::Priv>(MegaChatPeerList::PRIV_STANDARD))
         {
             errorCode = MegaChatError::ERROR_ACCESS;
         }
@@ -4219,9 +4219,8 @@ MegaChatErrorPrivate *MegaChatApiImpl::addReaction(MegaChatHandle chatid, MegaCh
             }
         }
     }
-    sdkMutex.unlock();
-    megaChatError = new MegaChatErrorPrivate(errorCode);
-    return megaChatError;
+
+    return new MegaChatErrorPrivate(errorCode);
 }
 
 MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
@@ -4234,7 +4233,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
         return megaChatError;
     }
 
-    sdkMutex.lock();
+    SdkMutexGuard g(sdkMutex);
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
@@ -4242,7 +4241,7 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
     }
     else
     {
-        if (chatroom->ownPriv() < MegaChatPeerList::PRIV_STANDARD)
+        if (chatroom->ownPriv() < static_cast<chatd::Priv>(MegaChatPeerList::PRIV_STANDARD))
         {
             errorCode = MegaChatError::ERROR_ACCESS;
         }
@@ -4281,121 +4280,123 @@ MegaChatErrorPrivate *MegaChatApiImpl::delReaction(MegaChatHandle chatid, MegaCh
             }
         }
     }
-    sdkMutex.unlock();
-    megaChatError = new MegaChatErrorPrivate(errorCode);
-    return megaChatError;
+
+    return new MegaChatErrorPrivate(errorCode);
 }
 
 int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
-    int count = 0;
-    sdkMutex.lock();
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    if (!reaction)
     {
-        Message *msg = findMessage(chatid, msgid);
-        if (msg)
-        {
-            count = msg->getReactionCount(reaction);
-        }
+        return -1;
+    }
 
-        // Update users of confirmed reactions with pending reactions
-        auto pendingReactions = chatroom->chat().getPendingReactions();
-        for (auto &auxReact : pendingReactions)
+    SdkMutexGuard g(sdkMutex);
+    ChatRoom *chatroom = findChatRoom(chatid);
+    Message *msg = findMessage(chatid, msgid);
+    if (!msg || !chatroom)
+    {
+        API_LOG_ERROR("Chatroom or message not found");
+        return -1;
+    }
+
+    // Update users of confirmed reactions with pending reactions
+    int count = msg->getReactionCount(reaction);
+    auto pendingReactions = chatroom->chat().getPendingReactions();
+    for (auto &auxReact : pendingReactions)
+    {
+        if (auxReact.mMsgId == msgid && auxReact.mReactionString == reaction)
         {
-            if (auxReact.mMsgId == msgid && auxReact.mReactionString == reaction)
-            {
-                assert(auxReact.mStatus != 0);
-                (auxReact.mStatus == OP_ADDREACTION)
-                    ? count++
-                    : count--;
-            }
+            (auxReact.mStatus == OP_ADDREACTION)
+                ? count++
+                : count--;
+
+            break;
         }
     }
-    sdkMutex.unlock();
+
     return count;
 }
 
 MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
 {
-    MegaStringList *reactionList;
-    sdkMutex.lock();
-
-    vector<char *> reactArray;
-    std::map<std::string, int> auxReactMap;
+    SdkMutexGuard g(sdkMutex);
     ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    Message *msg = findMessage(chatid, msgid);
+    if (!msg || !chatroom)
     {
-        Message *msg = findMessage(chatid, msgid);
-        if (msg)
+        API_LOG_ERROR("Chatroom or message not found");
+        return new MegaStringListPrivate();
+    }
+
+    // Insert confirmed reactions
+    std::map<std::string, int> auxReactMap;
+    const std::vector<std::string> &reactions = msg->getReactions();
+    for (auto &auxReact : reactions)
+    {
+       auxReactMap[auxReact] = msg->getReactionCount(auxReact);
+    }
+
+    // Update confirmed reactions with pending reactions
+    auto pendingReactions = chatroom->chat().getPendingReactions();
+    for (auto &auxReact : pendingReactions)
+    {
+        if (auxReact.mMsgId == msgid)
         {
-            // Insert confirmed reactions
-            const std::vector<std::string> &reactions = msg->getReactions();
-            for (auto &auxReact : reactions)
-            {
-                auxReactMap[auxReact] = msg->getReactionCount(auxReact);
-            }
+            (auxReact.mStatus == OP_ADDREACTION)
+                ? auxReactMap[auxReact.mReactionString]++
+                : auxReactMap[auxReact.mReactionString]--;
 
-            // Update confirmed reactions with pending reactions
-            auto pendingReactions = chatroom->chat().getPendingReactions();
-            for (auto &auxReact : pendingReactions)
+            if (auxReactMap[auxReact.mReactionString] <= 0)
             {
-                if (auxReact.mMsgId == msgid)
-                {
-                    (auxReact.mStatus == OP_ADDREACTION)
-                        ? auxReactMap[auxReact.mReactionString]++
-                        : auxReactMap[auxReact.mReactionString]--;
-
-                    if (auxReactMap[auxReact.mReactionString] <= 0)
-                    {
-                        auxReactMap.erase(auxReact.mReactionString);
-                    }
-                }
-            }
-
-            for (auto &auxReact: auxReactMap)
-            {
-                reactArray.push_back(MegaApi::strdup(auxReact.first.c_str()));
+                auxReactMap.erase(auxReact.mReactionString);
             }
         }
     }
 
-    reactionList = new MegaStringListPrivate(reactArray.data(), static_cast<int>(reactArray.size()));
-    sdkMutex.unlock();
-    return reactionList;
+    vector<char *> reactArray;
+    for (auto &auxReact: auxReactMap)
+    {
+        reactArray.push_back(MegaApi::strdup(auxReact.first.c_str()));
+    }
+
+    return new MegaStringListPrivate(reactArray.data(), static_cast<int>(reactArray.size()));
 }
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
-    MegaHandleList *userList = MegaHandleList::createInstance();
-    sdkMutex.lock();
-
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    if (!reaction)
     {
-        Message *msg = findMessage(chatid, msgid);
-        if (msg)
-        {
-            const std::vector<karere::Id> &users = msg->getReactionUsers(std::string(reaction));
-            for (auto user: users)
-            {
-                if (user != mClient->myHandle())
-                {
-                    userList->addMegaHandle(user);
-                }
-            }
+        return MegaHandleList::createInstance();
+    }
 
-            bool reacted = msg->hasReacted(reaction, mClient->myHandle());
-            int pendingStatus = chatroom->chat().getPendingReactionStatus(reaction, msgid);
-            if ((reacted && pendingStatus != OP_DELREACTION)
-                || (!reacted && pendingStatus == OP_ADDREACTION))
-            {
-                // Own user only must be added to userlist after check pending reactions
-                userList->addMegaHandle(mClient->myHandle());
-            }
+    SdkMutexGuard g(sdkMutex);
+    ChatRoom *chatroom = findChatRoom(chatid);
+    Message *msg = findMessage(chatid, msgid);
+    if (!msg || !chatroom)
+    {
+        API_LOG_ERROR("Chatroom or message not found");
+        return MegaHandleList::createInstance();
+    }
+
+    MegaHandleList *userList = MegaHandleList::createInstance();
+    const std::vector<karere::Id> &users = msg->getReactionUsers(std::string(reaction));
+    for (auto user: users)
+    {
+        if (user != mClient->myHandle())
+        {
+            userList->addMegaHandle(user);
         }
     }
-    sdkMutex.unlock();
+
+    bool reacted = msg->hasReacted(reaction, mClient->myHandle());
+    int pendingStatus = chatroom->chat().getPendingReactionStatus(reaction, msgid);
+    if ((reacted && pendingStatus != OP_DELREACTION)
+        || (!reacted && pendingStatus == OP_ADDREACTION))
+    {
+        // Own user only must be added to userlist after check pending reactions
+        userList->addMegaHandle(mClient->myHandle());
+    }
     return userList;
 }
 
@@ -4442,23 +4443,13 @@ rtcModule::ICallHandler *MegaChatApiImpl::onGroupCallActive(Id chatid, Id callid
 
 MegaStringList *MegaChatApiImpl::getChatInDevices(const std::vector<string> &devicesVector)
 {
-    int devicesNumber = devicesVector.size();
-    char **devicesArray = NULL;
-    if (devicesNumber > 0)
+    vector<char *> devicesArray;
+    for (auto &device : devicesVector)
     {
-        devicesArray = new char*[devicesNumber];
-        for (int i = 0; i < devicesNumber; ++i)
-        {
-            char *device = MegaApi::strdup(devicesVector[i].c_str());
-            devicesArray[i] = device;
-        }
+        devicesArray.push_back(::mega::MegaApi::strdup(device.c_str()));
     }
 
-    MegaStringList *devices = new MegaStringListPrivate(devicesArray, devicesNumber);
-    delete [] devicesArray;
-
-    return devices;
-
+    return new MegaStringListPrivate(devicesArray.data(), static_cast<int>(devicesArray.size()));
 }
 
 void MegaChatApiImpl::cleanCallHandlerMap()
@@ -5982,19 +5973,18 @@ void MegaChatRoomHandler::handleHistoryMessage(MegaChatMessage *message)
     if (message->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
         MegaNodeList *nodeList = message->getMegaNodeList();
-        if (!nodeList)
+        if (nodeList)
         {
-            return;
-        }
-        for (int i = 0; i < nodeList->size(); i++)
-        {
-            MegaChatHandle h = nodeList->get(i)->getHandle();
-            auto itAccess = attachmentsAccess.find(h);
-            if (itAccess == attachmentsAccess.end())
+            for (int i = 0; i < nodeList->size(); i++)
             {
-                attachmentsAccess[h] = true;
+                MegaChatHandle h = nodeList->get(i)->getHandle();
+                auto itAccess = attachmentsAccess.find(h);
+                if (itAccess == attachmentsAccess.end())
+                {
+                    attachmentsAccess[h] = true;
+                }
+                attachmentsIds[h].insert(message->getMsgId());
             }
-            attachmentsIds[h].insert(message->getMsgId());
         }
     }
     else if (message->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT)
@@ -6016,21 +6006,24 @@ std::set<MegaChatHandle> *MegaChatRoomHandler::handleNewMessage(MegaChatMessage 
     if (message->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
         MegaNodeList *nodeList = message->getMegaNodeList();
-        for (int i = 0; i < nodeList->size(); i++)
+        if (nodeList)
         {
-            MegaChatHandle h = nodeList->get(i)->getHandle();
-            auto itAccess = attachmentsAccess.find(h);
-            if (itAccess != attachmentsAccess.end() && !itAccess->second)
+            for (int i = 0; i < nodeList->size(); i++)
             {
-                // access changed from revoked to granted --> update attachment messages
-                if (!msgToUpdate)
+                MegaChatHandle h = nodeList->get(i)->getHandle();
+                auto itAccess = attachmentsAccess.find(h);
+                if (itAccess != attachmentsAccess.end() && !itAccess->second)
                 {
-                    msgToUpdate = new set <MegaChatHandle>;
+                    // access changed from revoked to granted --> update attachment messages
+                    if (!msgToUpdate)
+                    {
+                        msgToUpdate = new set <MegaChatHandle>;
+                    }
+                    msgToUpdate->insert(attachmentsIds[h].begin(), attachmentsIds[h].end());
                 }
-                msgToUpdate->insert(attachmentsIds[h].begin(), attachmentsIds[h].end());
+                attachmentsAccess[h] = true;
+                attachmentsIds[h].insert(message->getMsgId());
             }
-            attachmentsAccess[h] = true;
-            attachmentsIds[h].insert(message->getMsgId());
         }
     }
     else if (message->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT)

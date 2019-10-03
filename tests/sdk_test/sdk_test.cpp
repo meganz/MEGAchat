@@ -1816,7 +1816,7 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_OK, "delReaction: failed to remove a reaction. Error:" + std::string(res->getErrorString()));
     ASSERT_CHAT_TEST(waitForResponse(reactionReceived), "Expired timeout for remove reaction");
     res.reset(megaChatApi[a1]->delReaction(chatid, msgId, "😰"));
-    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_EXIST, "delReaction: Unexpected error for unexisting reaction. Error:" + std::string(res->getErrorString()));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "delReaction: Unexpected error for unexisting reaction. Error:" + std::string(res->getErrorString()));
 
     // Close chatroom
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);

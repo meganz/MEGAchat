@@ -4206,6 +4206,10 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 {
                     mAttachmentNodes->deleteMessage(*msg);
                 }
+
+                // Clean message reactions
+                msg->cleanReactions();
+                CALL_DB(cleanReactions, msg->id());
             }
 
             if (msg->type == Message::kMsgTruncate)

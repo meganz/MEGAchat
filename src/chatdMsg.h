@@ -535,10 +535,10 @@ public:
         Priv privilege = PRIV_INVALID;
     };
 
+    /** @brief Contains a UTF-8 string that represents the reaction
+     * and a vector of userid's associated to that reaction. */
     struct Reaction
     {
-        /** @brief Contains a UTF-8 string that represents the reaction
-         * and a vector of userid's associated to that reaction. */
         std::string mReaction;
         std::vector<karere::Id> mUsers;
 
@@ -560,6 +560,10 @@ public:
                 i++;
             }
             return -1;
+        }
+        bool hasReacted(karere::Id userId) const
+        {
+            return userIndex(userId) != -1;
         }
     };
 
@@ -797,7 +801,7 @@ public:
         {
             if (it.mReaction == reaction)
             {
-                return it.userIndex(uh) >= 0;
+                return it.hasReacted(uh);
             }
         }
         return false;
@@ -871,8 +875,7 @@ public:
             r = &mReactions.back();
         }
 
-        int userIndex = r->userIndex(userId);
-        if (userIndex < 0)
+        if (!r->hasReacted(userId))
         {
             r->mUsers.emplace_back(userId);
         }
