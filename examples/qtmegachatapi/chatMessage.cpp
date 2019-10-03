@@ -56,7 +56,21 @@ ChatMessage::~ChatMessage()
     delete ui;
 }
 
-void ChatMessage::updateReaction(const char *reactionString, int count)
+Reaction *ChatMessage::getLocalReaction(const char *reactionStr)
+{
+    for (int i = 0; i < ui->mReactions->layout()->count(); i++)
+    {
+        QLayoutItem *item = ui->mReactions->layout()->itemAt(i);
+        Reaction *reaction = static_cast<Reaction*>(item->widget());
+        if (reaction->getReactionString() == reactionStr)
+        {
+            return reaction;
+        }
+    }
+    return nullptr;
+}
+
+void ChatMessage::updateReaction(const char *reactionStr, int count)
 {
     bool found = false;
     int size = ui->mReactions->layout()->count();
@@ -64,7 +78,7 @@ void ChatMessage::updateReaction(const char *reactionString, int count)
     {
         QLayoutItem *item = ui->mReactions->layout()->itemAt(i);
         Reaction *reaction = static_cast<Reaction*>(item->widget());
-        if (reaction->getReactionString() == reactionString)
+        if (reaction->getReactionString() == reactionStr)
         {
             found = true;
             if (count == 0)
@@ -82,7 +96,7 @@ void ChatMessage::updateReaction(const char *reactionString, int count)
 
     if (!found && count)
     {
-        Reaction *reaction = new Reaction(this, reactionString, count);
+        Reaction *reaction = new Reaction(this, reactionStr, count);
         ui->mReactions->layout()->addWidget(reaction);
     }
 }
@@ -631,20 +645,24 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
 
     std::string utfstring = reaction.toUtf8().toStdString();
     mega::unique_ptr<MegaChatError> res;
-    if (del)
+
+    del ? res.reset(mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()))
+        : res.reset(mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()));
+
+    if (res->getErrorCode() == MegaChatError::ERROR_OK)
     {
-        res.reset(mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()));
+        int count = 0;
+        Reaction *r = getLocalReaction(utfstring.c_str());
+        r ? count = del ? r->getCount() - 1 : r->getCount() + 1
+          : count = del ? 0 : 1;
+
+        //Local update
+        updateReaction(utfstring.c_str(), count);
     }
     else
     {
-        res.reset(mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()));
-    }
-
-    if (res->getErrorCode() != MegaChatError::ERROR_OK)
-    {
-        QMessageBox msg;
-        msg.setIcon(QMessageBox::Warning);
-        msg.setText(res->toString());
+        QString title = del ? "DEL REACTION" : "ADD REACTION";
+        QMessageBox msg(QMessageBox::Critical, title.toStdString().c_str(), res->toString());
         msg.exec();
     }
 }

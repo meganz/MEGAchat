@@ -54,7 +54,8 @@ protected:
         ChatWindow *getChatWindow() const;
         megachat::MegaChatApi *getMegaChatApi() const;
         megachat::MegaChatHandle getChatId() const;
-        void updateReaction(const char *reaction, int count);
+        void updateReaction(const char *reactionStr, int count);
+        Reaction *getLocalReaction(const char *reactionStr);
         void clearReactions();
 
     public slots:
