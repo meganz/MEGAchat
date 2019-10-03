@@ -550,9 +550,9 @@ public:
         assertAffectedRowCount(1);
     }
 
-    void cleanReactions() override
+    void cleanReactions(karere::Id msgId) override
     {
-        mDb.query("delete from chat_reactions where chatid = ?", mChat.chatId());
+        mDb.query("delete from chat_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
     void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) override

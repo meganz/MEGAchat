@@ -4092,8 +4092,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 }
 
                 // Clean message reactions
-                removeMessageReactions(idx);
-                CALL_DB(cleanReactions);
+                msg->cleanReactions();
+                CALL_DB(cleanReactions, msg->id());
             }
 
             if (msg->type == Message::kMsgTruncate)
