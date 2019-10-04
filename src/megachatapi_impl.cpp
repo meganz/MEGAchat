@@ -5235,10 +5235,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     }
 
     this->participants = call.participants;
-
-    this->termCode = call.termCode;
-    this->localTermCode = call.localTermCode;
-    this->ringing = call.ringing;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -7867,19 +7863,27 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateTerminating:
             {
-                chatCall->setIsRinging(false);
-                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
                 chatCall->setTermCode(call->termCode());
+                chatCall->setIsRinging(false);
+
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
                              karere::Id(chatCall->getChatid()).toString().c_str(),
                              karere::Id(chatCall->getId()).toString().c_str(),
                              rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
                              chatCall->isLocalTermCode(), chatCall->getDuration());
+
+                if (chatCall->getStatus() == MegaChatCall::CALL_STATUS_RECONNECTING)
+                {
+                    // if reconnecting, then skip notify terminating state. If reconnection fails, call's destruction will be notified later
+                    API_LOG_INFO("Skip notification of termination due to reconnection in progress");
+                    return;
+                }
+
+                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
             }
                 break;
             case rtcModule::ICall::kStateDestroyed:
                 return;
-                break;
             default:
                 state = newState;
         }
@@ -7901,29 +7905,28 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
     if (chatCall != NULL)
     {
         chatid = chatCall->getChatid();
-        MegaHandleList *peeridParticipants = chatCall->getPeeridParticipants();
-        MegaHandleList *clientidParticipants = chatCall->getClientidParticipants();
+        unique_ptr<MegaChatRoom> chatRoom(megaChatApi->getChatRoom(chatid));
+        assert(chatRoom);
+        unique_ptr<MegaHandleList> peeridParticipants(chatCall->getPeeridParticipants());
+        unique_ptr<MegaHandleList> clientidParticipants(chatCall->getClientidParticipants());
         bool uniqueParticipant = (peeridParticipants && peeridParticipants->size() == 1 &&
                                   peeridParticipants->get(0) == megaChatApi->getMyUserHandle() &&
                                   clientidParticipants->get(0) == megaChatApi->getMyClientidHandle(chatid));
-        if (peeridParticipants && peeridParticipants->size() > 0 && !uniqueParticipant)
+        if (peeridParticipants && peeridParticipants->size() > 0 && !uniqueParticipant && chatRoom->isGroup())
         {
-            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
+            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING || mReconnectionFailed)
             {
                 chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
                 megaChatApi->fireOnChatCallUpdate(chatCall);
             }
         }
         else if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
-                 || reason != rtcModule::TermCode::kErrPeerOffline)
+                 || reason != rtcModule::TermCode::kErrPeerOffline || mReconnectionFailed)
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
             megaChatApi->fireOnChatCallUpdate(chatCall);
             megaChatApi->removeCall(chatid);
         }
-
-        delete peeridParticipants;
-        delete clientidParticipants;
     }
     else
     {
@@ -8115,6 +8118,11 @@ void MegaChatCallHandler::onReconnectingState(bool start)
     }
 
     megaChatApi->fireOnChatCallUpdate(chatCall);
+}
+
+void MegaChatCallHandler::setReconnectionFailed()
+{
+    mReconnectionFailed = true;
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()
