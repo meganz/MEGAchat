@@ -5065,9 +5065,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     }
 
     this->participants = call.participants;
-
-    this->localTermCode = call.localTermCode;
-    this->ringing = call.ringing;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -7691,7 +7688,6 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateDestroyed:
                 return;
-                break;
             default:
                 state = newState;
         }
@@ -7713,10 +7709,10 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
     if (chatCall != NULL)
     {
         chatid = chatCall->getChatid();
-        MegaChatRoom *chatRoom = megaChatApi->getChatRoom(chatid);
+        unique_ptr<MegaChatRoom> chatRoom(megaChatApi->getChatRoom(chatid));
         assert(chatRoom);
-        MegaHandleList *peeridParticipants = chatCall->getPeeridParticipants();
-        MegaHandleList *clientidParticipants = chatCall->getClientidParticipants();
+        unique_ptr<MegaHandleList> peeridParticipants(chatCall->getPeeridParticipants());
+        unique_ptr<MegaHandleList> clientidParticipants(chatCall->getClientidParticipants());
         bool uniqueParticipant = (peeridParticipants && peeridParticipants->size() == 1 &&
                                   peeridParticipants->get(0) == megaChatApi->getMyUserHandle() &&
                                   clientidParticipants->get(0) == megaChatApi->getMyClientidHandle(chatid));
@@ -7735,10 +7731,6 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
             megaChatApi->fireOnChatCallUpdate(chatCall);
             megaChatApi->removeCall(chatid);
         }
-
-        delete chatRoom;
-        delete peeridParticipants;
-        delete clientidParticipants;
     }
     else
     {

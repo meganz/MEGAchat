@@ -594,7 +594,7 @@ public:
     virtual int64_t getInitialTimeStamp();
     virtual bool hasBeenNotifiedRinging() const;
     virtual void onReconnectingState(bool start);
-    virtual void setReconnectionFailed();
+    virtual void setReconnectionFailed() override;
     virtual rtcModule::ICall *getCall();
 
     MegaChatCallPrivate *getMegaChatCall();
