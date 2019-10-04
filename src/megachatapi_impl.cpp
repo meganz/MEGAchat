@@ -7671,19 +7671,22 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
             case rtcModule::ICall::kStateTerminating:
             {
                 chatCall->setTermCode(call->termCode());
-                if (chatCall->getStatus() == MegaChatCall::CALL_STATUS_RECONNECTING)
-                {
-                    // if reconnecting skip terminating state, if reconnection not successful finisht notify call destroyed
-                    return;
-                }
-
                 chatCall->setIsRinging(false);
-                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
+
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
                              karere::Id(chatCall->getChatid()).toString().c_str(),
                              karere::Id(chatCall->getId()).toString().c_str(),
                              rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
                              chatCall->isLocalTermCode(), chatCall->getDuration());
+
+                if (chatCall->getStatus() == MegaChatCall::CALL_STATUS_RECONNECTING)
+                {
+                    // if reconnecting, then skip notify terminating state. If reconnection fails, call's destruction will be notified later
+                    API_LOG_INFO("Skip notification of termination due to reconnection in progress");
+                    return;
+                }
+
+                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
             }
                 break;
             case rtcModule::ICall::kStateDestroyed:
