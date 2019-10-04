@@ -2612,29 +2612,29 @@ void Chat::addPendingReaction(const std::string reaction, Id msgId, uint8_t stat
 void Chat::removePendingReaction(const std::string reaction, Id msgId, uint8_t status)
 {
     assert (status != 0);
-    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
+    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end();)
     {
-        if (it->mMsgId == msgId
-            && it->mReactionString == reaction
-            && it->mStatus == status)
+        auto auxit = it++;
+        if (auxit->mMsgId == msgId
+            && auxit->mReactionString == reaction
+            && auxit->mStatus == status)
         {
-            mPendingReactions.erase(it);
-            return;
+            mPendingReactions.erase(auxit);
         }
     }
 }
 
 void Chat::retryPendingReactions()
 {
-    for (PendingReactions::iterator it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
+    for (PendingReactions::iterator it = mPendingReactions.begin(); it != mPendingReactions.end();)
     {
+        auto auxit = it++;
         karere::Id msgid = it->mMsgId;
         Idx index = msgIndexFromId(msgid);
         if (index == CHATD_IDX_INVALID)
         {
             CHATID_LOG_ERROR("retryPendingReactions: failed to find message with id(%d)", msgid);
-            mPendingReactions.erase(it);
-            return;
+            mPendingReactions.erase(auxit);
         }
         else
         {
@@ -2643,25 +2643,25 @@ void Chat::retryPendingReactions()
             {
                 case OP_ADDREACTION:
                 {
-                    if (msg.hasReacted(it->mReactionString, client().myHandle()))
+                    if (msg.hasReacted(auxit->mReactionString, client().myHandle()))
                     {
-                        removePendingReaction(it->mReactionString, msg.id(), OP_ADDREACTION);
+                        mPendingReactions.erase(auxit);
                     }
                     else
                     {
-                        addReaction(msg, it->mReactionString);
+                        addReaction(msg, auxit->mReactionString);
                     }
                     break;
                 }
                 case OP_DELREACTION:
                 {
-                    if (msg.hasReacted(it->mReactionString, client().myHandle()))
+                    if (msg.hasReacted(auxit->mReactionString, client().myHandle()))
                     {
-                        delReaction(msg, it->mReactionString);
+                        delReaction(msg, auxit->mReactionString);
                     }
                     else
                     {
-                        removePendingReaction(it->mReactionString, msg.id(), OP_ADDREACTION);
+                        mPendingReactions.erase(auxit);
                     }
                     break;
                  }
@@ -2673,9 +2673,25 @@ void Chat::retryPendingReactions()
     }
 }
 
-void Chat::cleanPendingReactions()
+void Chat::cleanPendingReactions(karere::Id msgid, Idx idx)
 {
-    mPendingReactions.clear();
+    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end();)
+    {
+        auto auxit = it++;
+        if (idx != CHATD_IDX_INVALID)
+        {
+            Idx currentIdx = msgIndexFromId(auxit->mMsgId);
+            assert(currentIdx != CHATD_IDX_INVALID);
+            if (currentIdx <= idx)
+            {
+                mPendingReactions.erase(auxit);
+            }
+        }
+        else if (auxit->mMsgId == msgid)
+        {
+            mPendingReactions.erase(auxit);
+        }
+    }
 }
 
 void Chat::addReaction(const Message &message, const std::string &reaction)
@@ -3004,15 +3020,16 @@ void Chat::removePendingRichLinks(Idx idx)
     }
 }
 
-void Chat::removeMessageReactions(Idx idx)
+void Chat::removeMessageReactions(Idx idx, bool cleanPrevious)
 {
     Message *msg = findOrNull(idx);
     if (msg)
     {
         msg->cleanReactions();
-        // reactions in DB are removed along with messages (FK delete on cascade)
+        Idx auxidx = cleanPrevious ? idx :CHATD_IDX_INVALID;
+        cleanPendingReactions(msg->mId, auxidx);
     }
-    // TODO: clear any pending reaction in the queue for older messages than `idx` (see removePendingRichLinks(idx))
+    // reactions in DB are removed along with messages (FK delete on cascade)
 }
 
 void Chat::manageRichLinkMessage(Message &message)
@@ -4207,8 +4224,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                     mAttachmentNodes->deleteMessage(*msg);
                 }
 
-                // Clean message reactions
-                msg->cleanReactions();
+                // Clean message reactions for the deleted message
+                removeMessageReactions(msgIndexFromId(msg->mId));
                 CALL_DB(cleanReactions, msg->id());
             }
 
@@ -4293,9 +4310,10 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         //messages older than the one specified
         CALL_LISTENER(onHistoryTruncated, msg, idx);
 
+        // Reactions must be cleared before call deleteMessagesBefore
+        removeMessageReactions(idx, true);
         deleteMessagesBefore(idx);
         removePendingRichLinks(idx);
-        removeMessageReactions(idx);
 
         // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)

@@ -914,7 +914,7 @@ protected:
     void requestPendingRichLinks();
     void removePendingRichLinks();
     void removePendingRichLinks(Idx idx);
-    void removeMessageReactions(Idx idx);
+    void removeMessageReactions(Idx idx, bool cleanPrevious = false);
     void manageRichLinkMessage(Message &message);
     void attachmentHistDone();
     friend class Connection;
@@ -1313,8 +1313,15 @@ public:
     void addPendingReaction(const std::string reaction, karere::Id msgId, uint8_t status);
     void removePendingReaction(const std::string reaction, karere::Id msgId, uint8_t status);
     void retryPendingReactions();
-    void cleanPendingReactions();
     void sendReactionSn();
+
+    /** @brief Clean pending reactions in a chat.
+     *
+     * - If idx is not valid the function will clean pending reactions for the given msgid.
+     * - Otherwise, the function will clean all pending reactions for the messages whose
+     * index is previous to idx.
+     */
+    void cleanPendingReactions(karere::Id msgid, Idx idx);
 
     /** @brief Return the status of a reaction:
      *  - returns OP_ADDREACTION:   If reaction is pending to be added
