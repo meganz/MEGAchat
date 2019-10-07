@@ -1,6 +1,7 @@
 #include "sdk_test.h"
 
 #include <megaapi.h>
+#include "../../src/chatd.h"
 #include "../../src/megachatapi.h"
 #include "../../src/karereCommon.h" // for logging with karere facility
 
@@ -61,7 +62,12 @@ int main(int argc, char **argv)
 
     t.terminate();
 
-    return t.mFailedTests;
+    MegaChatApiUnitaryTest unitaryTest;
+    std::cout << "[========] Unitary tests " << std::endl;
+    unitaryTest.UNITARYTEST_ParseUrl();
+    std::cout << "[========] End Unitary tests " << std::endl;
+
+    return t.mFailedTests + unitaryTest.mFailedTests;
 }
 
 ChatTestException::ChatTestException(const std::string &file, int line, const std::string &msg)
@@ -3361,6 +3367,8 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     secondarySession = NULL;
 }
 
+
+
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
     // first of all, ensure the chatd connection is ready
@@ -4595,4 +4603,120 @@ void MegaLoggerTest::log(int loglevel, const char *message)
 
     // message comes with a line-break at the end
     testlog  << message;
+}
+
+bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
+{
+    // Test cases
+    mOKTests ++;
+    std::map<std::string, int> checkUrls;
+    checkUrls["googl."] = 0;
+    checkUrls["googl.com\"fsdafasdf"] = 1;
+    checkUrls["googl.com<fsdafasdf"] = 1;
+    checkUrls["http://googl.com"] = 1;
+    checkUrls["http://www.googl.com"] = 1;
+    checkUrls["www.googl.com"] = 1;
+    checkUrls["esto   es un prueba   www.mega.nz dsfasdfa"] = 1;
+    checkUrls["esto   es un prueba \twww.mega.nz\tdsfasdfa"] = 1;
+    checkUrls["esto   es un prueba \nwww.mega.nz\ndsfasdfa"] = 1;
+    checkUrls["esto es un prueba www.mega. nz"] = 1;
+    checkUrls["ftp://www.googl.com"] = 0;
+    checkUrls["www.googl .com"] = 1;
+    checkUrls[" www.sfdsadfasfdsfsdf "] = 1;
+    checkUrls["example.com/products?id=1&page=2"] = 1;
+    checkUrls["www.example.com/products?iddfdsfdsfsfsdfa=1&page=2"] = 1;
+    checkUrls["https://mega.co.nz/#!p2QnF89I!Kf-m03Lwmyut-eF7RnJjSv1PRYYtYHg7oodFrW1waEQ"] = 0;
+    checkUrls["https://mega.co.nz/file/p2Qn984I#Kf-m03Lwmyut-eF7RnJjSv1PRYYtYHg7oodFrW1waEQ"] = 0;
+    checkUrls["https://mega.co.nz/folder/p2Qn984I#Kf-m03Lwmyut-eF7RnJjSv1PRYYtYHg7oodFrW1waEQ"] = 0;
+    checkUrls["https://mega.co.nz/file/p2Qn984I#"] = 0;
+    checkUrls["https://mega.co.nz/folder/p2Qn984I#"] = 0;
+    checkUrls["https://mega.co.nz/foder/p2Qn984I#"] = 1;
+    checkUrls["https://mega.nz/#F!l6h3985J!j8QVi46YEyzaISaqGVRsOA"] = 0;
+    checkUrls["https://mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk#F!xP4E98AB!FH_5HjrWyFsUMjjEHCFIHw"] = 0;
+    checkUrls["mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk#F!xP498AAB!FH_5HjrWyFsUjjnEHCFIHw"] = 0;
+    checkUrls["www.mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk#F!xP4EAYYB!FH_5HjrWyFsUMKnEHCFIHw"] = 0;
+    checkUrls["https://mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcrNK1oOSaAk#!xP4EYYAB!FH_5HjrWyFsUMKjjHCFIHw"] = 0;
+    checkUrls["https://mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcrNK1oOSaAkC!xP4EAYYB!FH_5HjrWyFsUMKnjjCFIHw"] = 0;
+    checkUrls["https://mega.nz/C!xP4E45AB!FH_5HjrWyTTUMKnEHCFIHw"] = 0;
+    checkUrls["https://mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk/chat/xP4EA55B!FH_5HjrWyFsU45nEHCFIHw"] = 0;
+    checkUrls["mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk"] = 1;
+    checkUrls["ELPAIS.com"] = 1;
+    checkUrls["ELPAIS.COM"] = 1;
+    checkUrls["https://www.ELPAIS.CoM"] = 1;
+    checkUrls["sdfsadfsad://dsfasdfasd.dsd"] = 0;
+    checkUrls["sshf://www.ELPAIS.CoM"] = 0;
+    checkUrls["Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. http://www.microsiervos.com/archivo/curiosidades/montana-mas-alta-sistema-solar-en-vesta.html Ut enim ad minim veniam,"] = 1;
+    checkUrls["googel.com:"] = 1;
+    checkUrls["5/16/18 10:43 AM] platano asdf: Os Mandi Otto link estusbeidj😒😙😓😙😙😙😙😙 www.facebook.com"] = 1;
+    checkUrls["http://15.08.02.jpg\",\"s\":3936106,\"hash\":\"GA2oPPAFx4gKx231I3odD1rTHVwOQQyAClb\",\"fa\":\"827:0*00661Rw6wWo/823:1*0Nb4JK5Gd-0\",\"ts\":1529413682}]"] = 1;
+    checkUrls["www.ta_ta.com"] = 1;
+    checkUrls["http://foo.com/blah_blah"] = 1;
+    checkUrls["http://foo.com/blah_blah/"] = 1;
+    checkUrls["http://foo.com/blah_blah_(wikipedia)"] = 1;
+    checkUrls["http://foo.com/blah_blah_(wikipedia)_(again)"] = 1;
+    checkUrls["http://www.example.com/wpstyle/?p=364"] = 1;
+    checkUrls["https://www.example.com/foo/?bar=baz&inga=42&quux"] = 1;
+    checkUrls["http://odf.ws/123"] = 1;
+    checkUrls["http://userid:password@example.com:8080)"] = 1;
+    checkUrls["http://userid:password@example.com:8080/"] = 1;
+    checkUrls["http://userid@example.com"] = 1;
+    checkUrls["http://userid@example.com/"] = 1;
+    checkUrls["http://userid@example.com:8080"] = 1;
+    checkUrls["http://userid@example.com:8080/"] = 1;
+    checkUrls["http://userid:password@example.com"] = 1;
+    checkUrls["http://userid:password@example.com/"] = 1;
+    checkUrls["http://foo.com/blah_(wikipedia)#cite-1"] = 1;
+    checkUrls["http://foo.com/unicode_(✪)_in_parens"] = 1;
+    checkUrls["http://code.google.com/events/#&product=browser"] = 1;
+    checkUrls["http://1337.net"] = 1;
+    checkUrls["http://a.b-c.de"] = 1;
+    checkUrls["https://foo_bar.example.com/"] = 1;
+    checkUrls["http://"] = 0;
+    checkUrls["http://."] = 0;
+    checkUrls["http://.."] = 0;
+    checkUrls["http://../"] = 0;
+    checkUrls["http://?"] = 0;
+    checkUrls["http://??"] = 0;
+    checkUrls["http://??/"] = 0;
+    checkUrls["http://#"] = 0;
+    checkUrls["http://foo.bar?q=Spaces should be encoded"] = 1;
+    checkUrls["///a"] = 0;
+    checkUrls["http:// shouldfail.com"] = 1;
+    checkUrls["http://foo.bar/foo(bar)baz quux"] = 1;
+    checkUrls["http://10.1.1.0"] = 0;
+    checkUrls["http://3628126748"] = 0;
+    checkUrls["http://123.123.123"] = 0;
+    checkUrls["http://.www.foo.bar./"] = 1;
+    checkUrls["Test ..www.google.es..."] = 1;
+    checkUrls["Test ..test..."] = 0;
+    checkUrls[":// should fail"] = 0;
+    checkUrls["prueba,,,"] = 0;
+    checkUrls["prueba!!"] = 0;
+    checkUrls["prueba.com!!"] = 1;
+    checkUrls["pepitoPerez@gmail.com"] = 0;
+
+    std::cout << "          TEST - Message::parseUrl()" << std::endl;
+    bool succesful = true;
+    int executedTests = 0;
+    int failureTests = 0;
+    std::string url;
+    for (auto testCase : checkUrls)
+    {
+        executedTests ++;
+        if (chatd::Message::hasUrl(testCase.first, url) != testCase.second)
+        {
+            failureTests ++;
+            std::cout << "         [" << " FAILED Parse" << "] " << testCase.first << std::endl;
+            LOG_debug << "Failed to parse: " << testCase.first;
+            succesful = false;
+        }
+    }
+
+    if (failureTests > 0)
+    {
+        mFailedTests ++;
+    }
+
+    std::cout << "          TEST - Message::parseUrl() - Executed Tests : " << executedTests << "   Failure Tests : " << failureTests << std::endl;
+    return succesful;
 }

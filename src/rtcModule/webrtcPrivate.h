@@ -204,6 +204,7 @@ protected:
     uint8_t convertTermCodeToCallDataCode();
     bool cancelSessionRetryTimer(karere::Id userid, uint32_t clientid);
     void monitorCallSetupTimeout();
+    bool hasSessionWithUser(karere::Id userId);
     friend class RtcModule;
     friend class Session;
 public:

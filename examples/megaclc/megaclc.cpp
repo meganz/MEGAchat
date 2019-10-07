@@ -275,6 +275,11 @@ string OwnStr(const char* s)
     return str;
 }
 
+string base64NodeHandle(m::MegaHandle h)
+{
+    return OwnStr(m::MegaApi::handleToBase64(h));
+}
+
 unique_ptr<m::Console> console;
 
 static const char* prompts[] =
@@ -604,28 +609,20 @@ public:
         conlock(cout) << "Chats updated:  " << (chats ? chats->size() : -1) << endl;
     }
 
-    const char* eventName(int i)
-    {
-        switch (i)
-        {
-        case m::MegaEvent::EVENT_COMMIT_DB: return "EVENT_COMMIT_DB";
-        case m::MegaEvent::EVENT_ACCOUNT_CONFIRMATION: return "EVENT_ACCOUNT_CONFIRMATION";
-        case m::MegaEvent::EVENT_CHANGE_TO_HTTPS: return "EVENT_CHANGE_TO_HTTPS";
-        case m::MegaEvent::EVENT_DISCONNECT: return "EVENT_DISCONNECT";
-        case m::MegaEvent::EVENT_ACCOUNT_BLOCKED: return "EVENT_ACCOUNT_BLOCKED";
-        case m::MegaEvent::EVENT_STORAGE: return "EVENT_STORAGE";
-        case m::MegaEvent::EVENT_NODES_CURRENT: return "EVENT_NODES_CURRENT";
-        case m::MegaEvent::EVENT_MEDIA_INFO_READY: return "EVENT_MEDIA_INFO_READY";
-        case m::MegaEvent::EVENT_STORAGE_SUM_CHANGED: return "EVENT_STORAGE_SUM_CHANGED";
-        }
-        return "new event type";
-    }
-
     void onEvent(m::MegaApi*, m::MegaEvent *e) override
     {
-        LOG_info << "Event: " << (e ? eventName(e->getType()) : "(null)") << " Text: " << (e && e->getText() ? e->getText() : "(null)") << " number: " << (e ? std::to_string(e->getNumber()) : "<not supplied>");
+        if (e)
+        {
+            LOG_info << "Event: " << e->getEventString();
+            LOG_info << "\tText: " << (e->getText() ? e->getText() : "(null)");
+            LOG_info << "\tNumber: " << std::to_string(e->getNumber());
+            LOG_info << "\tHandle: " << m::Base64Str<sizeof(m::MegaHandle)>(e->getHandle());
+        }
+        else
+        {
+            assert(false);
+        }
     }
-
 };
 
 
@@ -2870,7 +2867,8 @@ void exec_getspecificaccountdetails(ac::ACState& s)
                 if (check_err("getSpecificAccountDetails", e, ReportFailure))
                 {
                     unique_ptr<m::MegaAccountDetails> ad(r->getMegaAccountDetails());
-                    conlock(cout) << "Storage used: " << ad->getStorageUsed() << " free: " << (ad->getStorageMax() - ad->getStorageUsed()) << " max: " << ad->getStorageMax() <<  endl;
+                    conlock(cout) << "Storage used: " << ad->getStorageUsed() << " free: " << (ad->getStorageMax() - ad->getStorageUsed()) << " max: " << ad->getStorageMax() <<  endl
+                                  << "Version bytes used: " << ad->getVersionStorageUsed() << endl;
                 }
             }));
 }
@@ -3239,6 +3237,59 @@ void exec_getmegaachievements(ac::ACState& s)
     g_megaApi->getMegaAchievements(listener);
 }
 
+void exec_setCameraUploadsFolder(ac::ACState& s)
+{
+    std::unique_ptr<m::MegaNode> srcnode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
+    
+    if (!srcnode)
+    {
+        conlock(cout) << "Folder not found.";
+    }
+    else
+    {
+        g_megaApi->setCameraUploadsFolder(srcnode->getHandle(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setCameraUploadsFolder", e, ReportResult);
+        }));
+    }
+
+}
+
+void exec_getCameraUploadsFolder(ac::ACState& s)
+{
+    g_megaApi->getCameraUploadsFolder(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+    {
+        if (check_err("getCameraUploadsFolder", e, ReportFailure))
+        {
+            unique_ptr<m::MegaNode> node(g_megaApi->getNodeByHandle(r->getNodeHandle()));
+            if (!node)
+            {
+                conlock(cout) << "No node found by looking up handle: " << base64NodeHandle(r->getNodeHandle()) << endl;
+            }
+            else
+            {
+                conlock(cout) << "Camera upload folder: " << OwnStr(g_megaApi->getNodePath(node.get())) << endl;
+            }
+        }
+    }));
+}
+
+
+void exec_getContact(ac::ACState& s)
+{
+
+    unique_ptr<m::MegaUser> user(g_megaApi->getContact(s.words[1].s.c_str()));
+    if (user)
+    {
+        conlock(cout) << "found with handle: " << ch_s(user->getHandle()) << " timestamp: " << user->getTimestamp() << endl;
+    }
+    else
+    {
+        conlock(cout) << "No user found with that email" << endl;
+    }
+}
+
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -3391,6 +3442,10 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_cp, sequence(text("cp"), param("remotesrc"), param("remotedst")));
 
+    p->Add(exec_setCameraUploadsFolder, sequence(text("setcamerauploadsfolder"), param("remotedst")));
+    p->Add(exec_getCameraUploadsFolder, sequence(text("getcamerauploadsfolder")));
+
+    p->Add(exec_getContact, sequence(text("getcontact"), param("email")));
 
     return p;
 }

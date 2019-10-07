@@ -206,8 +206,8 @@ public:
     void TEST_RichLinkUserAttribute(unsigned int a1);
     void TEST_SendRichLink(unsigned int a1, unsigned int a2);
 
-    unsigned mOKTests;
-    unsigned mFailedTests;
+    unsigned mOKTests = 0;
+    unsigned mFailedTests = 0;
     bool testHasFailed = false;
 
 private:
@@ -408,6 +408,17 @@ public:
 
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
+};
+
+
+
+class MegaChatApiUnitaryTest
+{
+public:
+    bool UNITARYTEST_ParseUrl();
+
+    unsigned mOKTests = 0;
+    unsigned mFailedTests = 0;
 };
 
 #endif // CHATTEST_H

@@ -474,6 +474,13 @@ void MegaChatApiImpl::sendPendingRequests()
                     errorCode = MegaChatError::ERROR_ACCESS;
                     break;
                 }
+                if (it->second->chatRoom())
+                {
+                    // chat already exists
+                    request->setChatHandle(it->second->chatRoom()->chatid());
+                    errorCode = MegaChatError::ERROR_OK;
+                    break;
+                }
                 it->second->createChatRoom()
                 .then([request,this](ChatRoom* room)
                 {
@@ -5293,10 +5300,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     }
 
     this->participants = call.participants;
-
-    this->termCode = call.termCode;
-    this->localTermCode = call.localTermCode;
-    this->ringing = call.ringing;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -7925,19 +7928,27 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateTerminating:
             {
-                chatCall->setIsRinging(false);
-                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
                 chatCall->setTermCode(call->termCode());
+                chatCall->setIsRinging(false);
+
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
                              karere::Id(chatCall->getChatid()).toString().c_str(),
                              karere::Id(chatCall->getId()).toString().c_str(),
                              rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
                              chatCall->isLocalTermCode(), chatCall->getDuration());
+
+                if (chatCall->getStatus() == MegaChatCall::CALL_STATUS_RECONNECTING)
+                {
+                    // if reconnecting, then skip notify terminating state. If reconnection fails, call's destruction will be notified later
+                    API_LOG_INFO("Skip notification of termination due to reconnection in progress");
+                    return;
+                }
+
+                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
             }
                 break;
             case rtcModule::ICall::kStateDestroyed:
                 return;
-                break;
             default:
                 state = newState;
         }
@@ -7959,29 +7970,28 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
     if (chatCall != NULL)
     {
         chatid = chatCall->getChatid();
-        MegaHandleList *peeridParticipants = chatCall->getPeeridParticipants();
-        MegaHandleList *clientidParticipants = chatCall->getClientidParticipants();
+        unique_ptr<MegaChatRoom> chatRoom(megaChatApi->getChatRoom(chatid));
+        assert(chatRoom);
+        unique_ptr<MegaHandleList> peeridParticipants(chatCall->getPeeridParticipants());
+        unique_ptr<MegaHandleList> clientidParticipants(chatCall->getClientidParticipants());
         bool uniqueParticipant = (peeridParticipants && peeridParticipants->size() == 1 &&
                                   peeridParticipants->get(0) == megaChatApi->getMyUserHandle() &&
                                   clientidParticipants->get(0) == megaChatApi->getMyClientidHandle(chatid));
-        if (peeridParticipants && peeridParticipants->size() > 0 && !uniqueParticipant)
+        if (peeridParticipants && peeridParticipants->size() > 0 && !uniqueParticipant && chatRoom->isGroup())
         {
-            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
+            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING || mReconnectionFailed)
             {
                 chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
                 megaChatApi->fireOnChatCallUpdate(chatCall);
             }
         }
         else if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
-                 || reason != rtcModule::TermCode::kErrPeerOffline)
+                 || reason != rtcModule::TermCode::kErrPeerOffline || mReconnectionFailed)
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
             megaChatApi->fireOnChatCallUpdate(chatCall);
             megaChatApi->removeCall(chatid);
         }
-
-        delete peeridParticipants;
-        delete clientidParticipants;
     }
     else
     {
@@ -8173,6 +8183,11 @@ void MegaChatCallHandler::onReconnectingState(bool start)
     }
 
     megaChatApi->fireOnChatCallUpdate(chatCall);
+}
+
+void MegaChatCallHandler::setReconnectionFailed()
+{
+    mReconnectionFailed = true;
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()
@@ -9152,7 +9167,7 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
     rapidjson::Value::ConstMemberIterator iteratorTextMessage = document.FindMember("textMessage");
     if (iteratorTextMessage == document.MemberEnd() || !iteratorTextMessage->value.IsString())
     {
-        API_LOG_ERROR("parseRichPreview: invalid JSON struct - \"textMessage\" field not found");
+        API_LOG_ERROR("parseContainsMeta: invalid JSON struct - \"textMessage\" field not found");
         return containsMeta;
     }
     std::string textMessage = iteratorTextMessage->value.GetString();
@@ -9218,57 +9233,8 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
             description = iteratorDescription->value.GetString();
         }
 
-        rapidjson::Value::ConstMemberIterator iteratorImage = richPreview.FindMember("i");
-        if (iteratorImage != richPreview.MemberEnd() && iteratorImage->value.IsString())
-        {
-            const char *imagePointer = iteratorImage->value.GetString();
-            imageFormat = getImageFormat(imagePointer);
-            imagePointer = imagePointer + imageFormat.size() + 1; // remove format.size() + ':'
-
-            // Check if the image format in B64 is valid
-            std::string imgBin, imgB64(imagePointer);
-            size_t binSize = Base64::atob(imgB64, imgBin);
-            size_t paddingSize = std::count(imgB64.begin(), imgB64.end(), '=');
-            if (binSize == (imgB64.size() * 3) / 4 - paddingSize)
-            {
-                rapidjson::SizeType sizeImage = iteratorImage->value.GetStringLength() - (imageFormat.size() + 1);
-                image = std::string(imagePointer, sizeImage);
-            }
-            else
-            {
-                API_LOG_ERROR("Parse rich link: \"i\" field has a invalid format");
-            }
-        }
-        else
-        {
-            API_LOG_ERROR("Parse rich link: invalid JSON struct - \"i\" field not found");
-        }
-
-        rapidjson::Value::ConstMemberIterator iteratorIcon = richPreview.FindMember("ic");
-        if (iteratorIcon != richPreview.MemberEnd() && iteratorIcon->value.IsString())
-        {
-            const char *iconPointer = iteratorIcon->value.GetString();
-            iconFormat = getImageFormat(iconPointer);
-            iconPointer = iconPointer + iconFormat.size() + 1; // remove format.size() + ':'
-
-            // Check if the image format in B64 is valid
-            std::string iconBin, iconB64(iconPointer);
-            size_t binSize = Base64::atob(iconB64, iconBin);
-            size_t paddingSize = std::count(iconB64.begin(), iconB64.end(), '=');
-            if (binSize == (iconB64.size() * 3) / 4 - paddingSize)
-            {
-                rapidjson::SizeType sizeIcon = iteratorIcon->value.GetStringLength() - (iconFormat.size() + 1);
-                icon = std::string(iconPointer, sizeIcon);
-            }
-            else
-            {
-                API_LOG_ERROR("Parse rich link: \"ic\" field has a invalid format");
-            }
-        }
-        else
-        {
-            API_LOG_ERROR("Parse rich link: invalid JSON struct - \"ic\" field not found");
-        }
+        getRichLinckImageFromJson("i", richPreview, image, imageFormat);
+        getRichLinckImageFromJson("ic", richPreview, icon, iconFormat);
 
         rapidjson::Value::ConstMemberIterator iteratorURL = richPreview.FindMember("url");
         if (iteratorURL != richPreview.MemberEnd() && iteratorURL->value.IsString())
@@ -9344,15 +9310,52 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
 string JSonUtils::getImageFormat(const char *imagen)
 {
     std::string format;
+    size_t size = strlen(imagen);
 
     size_t i = 0;
-    while (imagen[i] != ':')
+    while (imagen[i] != ':' && i < size)
     {
         format += imagen[i];
         i++;
     }
 
     return format;
+}
+
+void JSonUtils::getRichLinckImageFromJson(const string &field, const rapidjson::Value& richPreviewValue, string &image, string &format)
+{
+    rapidjson::Value::ConstMemberIterator iteratorImage = richPreviewValue.FindMember(field.c_str());
+    if (iteratorImage != richPreviewValue.MemberEnd() && iteratorImage->value.IsString())
+    {
+        const char *imagePointer = iteratorImage->value.GetString();
+        format = getImageFormat(imagePointer);
+        rapidjson::SizeType sizeImage = iteratorImage->value.GetStringLength();
+        if (format.size() > 10 || format.size() == sizeImage)
+        {
+            format = "";
+            API_LOG_ERROR("Parse rich link: \"%s\" Invalid image extension", field.c_str());
+            return;
+        }
+
+        imagePointer = imagePointer + format.size() + 1; // remove format.size() + ':'
+
+        // Check if the image format in B64 is valid
+        std::string imgBin, imgB64(imagePointer);
+        size_t binSize = Base64::atob(imgB64, imgBin);
+        size_t paddingSize = std::count(imgB64.begin(), imgB64.end(), '=');
+        if (binSize == (imgB64.size() * 3) / 4 - paddingSize)
+        {
+            image = std::string(imagePointer, sizeImage - (format.size() + 1));
+        }
+        else
+        {
+            API_LOG_ERROR("Parse rich link: \"%s\" field has a invalid format", field.c_str());
+        }
+    }
+    else
+    {
+        API_LOG_ERROR("Parse rich link: invalid JSON struct - \"%s\" field not found", field.c_str());
+    }
 }
 
 const char *MegaChatRichPreviewPrivate::getDomainName() const

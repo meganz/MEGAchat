@@ -3818,6 +3818,10 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
         auto& list = *result->getMegaTextChatList();
         if (list.size() < 1)
             return ::promise::Error("Empty chat list returned from API");
+        if (mChatRoom)
+        {
+            return mChatRoom;
+        }
         auto room = mClist.client.chats->addRoom(*list.get(0));
         if (!room)
             return ::promise::Error("API created an incorrect 1on1 room");
