@@ -2629,7 +2629,7 @@ void Chat::retryPendingReactions()
     for (PendingReactions::iterator it = mPendingReactions.begin(); it != mPendingReactions.end();)
     {
         auto auxit = it++;
-        karere::Id msgid = it->mMsgId;
+        karere::Id msgid = auxit->mMsgId;
         Idx index = msgIndexFromId(msgid);
         if (index == CHATD_IDX_INVALID)
         {
@@ -2639,7 +2639,7 @@ void Chat::retryPendingReactions()
         else
         {
             const Message &msg = at(index);
-            switch (it->mStatus)
+            switch (auxit->mStatus)
             {
                 case OP_ADDREACTION:
                 {
