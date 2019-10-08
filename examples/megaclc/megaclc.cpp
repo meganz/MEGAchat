@@ -2988,6 +2988,7 @@ struct ls_flags
     bool mtime = false;
     bool size = false;
     bool versions = false;
+    int order = 1;
 };
 
 
@@ -3041,7 +3042,7 @@ void ls(m::MegaNode* node, const string& basepath, const ls_flags& flags, int de
         if (show && depth > 0) cout << endl;
         if (flags.recursive || depth == 0)
         {
-            unique_ptr<m::MegaNodeList> children(g_megaApi->getChildren(node));
+            unique_ptr<m::MegaNodeList> children(g_megaApi->getChildren(node, flags.order));
             if (children) for (int i = 0; i < children->size(); ++i)
             {
                 ls(children->get(i), basepath, flags, depth + 1);
@@ -3053,14 +3054,19 @@ void ls(m::MegaNode* node, const string& basepath, const ls_flags& flags, int de
 
 void exec_ls(ac::ACState& s)
 {
+    string orderstring;
     ls_flags flags;
-    flags.recursive = extractflag("-recursive", s.words);
-    flags.regexfilter = extractflagparam("-refilter", flags.regexfilterstring, s.words);
-    flags.handle = extractflag("-handles", s.words);
-    flags.ctime = extractflag("-ctime", s.words);
-    flags.mtime = extractflag("-mtime", s.words);
-    flags.size = extractflag("-size", s.words);
-    flags.versions = extractflag("-versions", s.words);
+    flags.recursive = s.extractflag("-recursive");
+    flags.regexfilter = s.extractflagparam("-refilter", flags.regexfilterstring);
+    flags.handle = s.extractflag("-handles");
+    flags.ctime = s.extractflag("-ctime");
+    flags.mtime = s.extractflag("-mtime");
+    flags.size = s.extractflag("-size");
+    flags.versions = s.extractflag("-versions");
+    if (s.extractflagparam("-order", orderstring))
+    {
+        flags.order = std::stoi(orderstring);
+    }
 
     if (flags.regexfilter)
     {
@@ -3434,7 +3440,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_createpreview, sequence(text("createpreview"), localFSFile(), localFSFile()));
     p->Add(exec_testAllocation, sequence(text("testAllocation"), param("count"), param("size")));
     p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
-    p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-refilter"), param("regex")))), param("path")));
+    p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-order"), param("order")), sequence(flag("-refilter"), param("regex")))), param("path")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
 
     p->Add(exec_pushreceived, sequence(text("pushreceived"), opt(flag("-beep")), opt(param("chatid"))));
