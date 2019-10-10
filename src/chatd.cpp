@@ -3558,6 +3558,9 @@ int Chat::unreadMsgCount() const
 
 void Chat::flushOutputQueue(bool fromStart)
 {
+    if (!isLoggedIn())
+        return;
+
     if (fromStart)
         mNextUnsent = mSending.begin();
 
