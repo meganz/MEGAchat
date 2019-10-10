@@ -4386,6 +4386,7 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
         return MegaHandleList::createInstance();
     }
 
+    bool reacted = false;
     MegaHandleList *userList = MegaHandleList::createInstance();
     const std::vector<karere::Id> &users = msg->getReactionUsers(std::string(reaction));
     for (auto user: users)
@@ -4394,9 +4395,12 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
         {
             userList->addMegaHandle(user);
         }
+        else
+        {
+            reacted = true;
+        }
     }
 
-    bool reacted = msg->hasReacted(reaction, mClient->myHandle());
     int pendingStatus = chatroom->chat().getPendingReactionStatus(reaction, msgid);
     if ((reacted && pendingStatus != OP_DELREACTION)
         || (!reacted && pendingStatus == OP_ADDREACTION))
