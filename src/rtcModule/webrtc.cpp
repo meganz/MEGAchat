@@ -558,6 +558,7 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
             mRetryCall.erase(chatid);
             auto itHandler = mCallHandlers.find(chatid);
             assert(itHandler != mCallHandlers.end());
+            itHandler->second->setReconnectionFailed();
             removeCallWithoutParticipants(chatid);
 
         }, kRetryCallTimeout, mKarereClient.appCtx);
@@ -1229,6 +1230,7 @@ void Call::msgSdpOffer(RtMessage& packet)
     notifyCallStarting(*sess);
     sess->createRtcConn();
     sess->processSdpOfferSendAnswer();
+    mSentSessions.erase(endPoint);
 }
 
 void Call::handleReject(RtMessage& packet)
@@ -1378,6 +1380,17 @@ void Call::msgJoin(RtMessage& packet)
         mHandler->addParticipant(packet.userid, packet.clientid, karere::AvFlags());
         destroy(TermCode::kAnsElsewhere, false);
     }
+    else if (!packet.chat.isGroup() && hasSessionWithUser(packet.userid))
+    {
+        mManager.cmdEndpoint(RTCMD_CALL_REQ_CANCEL, packet, mId, TermCode::kAnsElsewhere);
+        SUB_LOG_WARNING("Ignore a JOIN from our in 1to1 chatroom, we have a session or have sent a session request");
+        return;
+    }
+    else if (packet.userid == mManager.mKarereClient.myHandle() && !packet.chat.isGroup())
+    {
+        SUB_LOG_WARNING("Ignore a JOIN from our own user in 1to1 chatroom");
+        return;
+    }
     else if (mState == Call::kStateJoining || mState == Call::kStateInProgress || mState == Call::kStateReqSent)
     {
         packet.callid = packet.payload.read<uint64_t>(0);
@@ -1386,19 +1399,32 @@ void Call::msgJoin(RtMessage& packet)
         {
             if (itSession->second->peer() == packet.userid && itSession->second->peerClient() == packet.clientid)
             {
-                SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: 0x%x) to whom we already have a session",
-                                itSession->second->peer().toString().c_str(), itSession->second->peerClient());
-                return;
+                if (itSession->second->getState() < Session::kStateTerminating)
+                {
+                    SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: 0x%x) to whom we already have a session",
+                                    itSession->second->peer().toString().c_str(), itSession->second->peerClient());
+                    return;
+                }
+
+                if (!itSession->second->mTerminatePromise.done())
+                {
+                    SUB_LOG_WARNING("Force to finish session with User: %s (client: 0x%x)",
+                                    itSession->second->peer().toString().c_str(), itSession->second->peerClient());
+
+                    assert(itSession->second->getState() == Session::kStateTerminating);
+                    auto pms = itSession->second->mTerminatePromise;
+                    pms.resolve();
+                }
             }
         }
 
-        if (mState == Call::kStateReqSent)
+        if (mState == Call::kStateReqSent || mState == Call::kStateJoining)
         {
             setState(Call::kStateInProgress);
             monitorCallSetupTimeout();
 
             // Send OP_CALLDATA with call inProgress
-            if (!chat().isGroup())
+            if (mState == Call::kStateReqSent && !chat().isGroup())
             {
                 mIsRingingOut = false;
                 if (!sendCallData(CallDataState::kCallDataNotRinging))
@@ -1567,9 +1593,10 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         if (wptr.deleted())
             return;
 
-        if (code == TermCode::kAnsElsewhere || code == TermCode::kErrAlready || code == TermCode::kAnswerTimeout)
+        TermCode codeWithOutPeer = static_cast<TermCode>(code & ~TermCode::kPeer);
+        if (codeWithOutPeer == TermCode::kAnsElsewhere || codeWithOutPeer == TermCode::kErrAlready || codeWithOutPeer == TermCode::kAnswerTimeout)
         {
-            SUB_LOG_DEBUG("Not posting termination CALLDATA because term code is kAnsElsewhere or kErrAlready");
+            SUB_LOG_DEBUG("Not posting termination CALLDATA because term code is kAnsElsewhere, kErrAlready or kAnswerTimeout");
         }
         else if (mPredestroyState == kStateRingIn)
         {
@@ -1946,6 +1973,7 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
         mManager.mRetryCallTimers.erase(chatid);
 
         SUB_LOG_DEBUG("Everybody left, terminating call- After reconnection");
+        mHandler->setReconnectionFailed();
         destroy(reason, false, "Everybody left - After reconnection");
 
     }, RtcModule::kRetryCallTimeout, mManager.mKarereClient.appCtx);
@@ -2162,7 +2190,27 @@ void Call::enableVideo(bool enable)
 
         mVideoDevice->releaseDevice();
     }
+}
 
+bool Call::hasSessionWithUser(Id userId)
+{
+    for (auto itSession = mSessions.begin(); itSession != mSessions.end(); itSession++)
+    {
+        if (itSession->second->peer() == userId)
+        {
+            return true;
+        }
+    }
+
+    for (auto itSentSession = mSentSessions.begin(); itSentSession != mSentSessions.end(); itSentSession++)
+    {
+        if (itSentSession->first.userid == userId)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool Call::answer(AvFlags av)
@@ -2185,6 +2233,8 @@ bool Call::answer(AvFlags av)
 
 void Call::hangup(TermCode reason)
 {
+    mManager.removeCallRetry(mChat.chatId());
+
     switch (mState)
     {
     case kStateReqSent:
@@ -2303,15 +2353,12 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         auto sess = item.second;
         if (sess->mPeer == userid && sess->mPeerClient == clientid)
         {
-            marshallCall([sess]()
-            {
-                sess->terminateAndDestroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
-            }, mManager.mKarereClient.appCtx);
-
             if (mSessions.size() == 1)
             {
                 mManager.launchCallRetry(mChat.chatId(), sentAv(), false);
             }
+
+            sess->destroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
             return;
         }
     }
@@ -3068,7 +3115,7 @@ Promise<void> Session::sendOffer()
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
-        if (!wptr.deleted())
+        if (wptr.deleted())
             return;
         terminateAndDestroy(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
     });
@@ -3109,16 +3156,6 @@ bool Session::cmd(uint8_t type, Args... args)
     }
     return true;
 }
-void Session::asyncDestroy(TermCode code, const std::string& msg)
-{
-    auto wptr = weakHandle();
-    marshallCall([this, wptr, code, msg]()
-    {
-        if (wptr.deleted())
-            return;
-        destroy(code, msg);
-    }, mManager.mKarereClient.appCtx);
-}
 
 Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)
 {
@@ -3155,13 +3192,6 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         }
     }
 
-    unsigned timeout = RtcModule::kSessFinishTimeout;
-    // If peer is offline it's not neccessary wait for the answer
-    if ((code & (~TermCode::kPeer)) == TermCode::kErrPeerOffline)
-    {
-        timeout = 0;
-    }
-
     auto wptr = weakHandle();
     setTimeout([wptr, this]()
     {
@@ -3174,7 +3204,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
             auto pms = mTerminatePromise;
             pms.resolve();
         }
-    }, timeout, mManager.mKarereClient.appCtx);
+    }, RtcModule::kSessFinishTimeout, mManager.mKarereClient.appCtx);
 
     auto pms = mTerminatePromise;
     return pms
@@ -3500,11 +3530,11 @@ const StateDesc Call::sStateDesc = {
 const StateDesc Session::sStateDesc = {
     {
         { kStateWaitSdpOffer, kStateWaitSdpAnswer, kStateWaitLocalSdpAnswer},
-        { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kStateWaitSdpOffer
-        { kStateConnecting, kStateTerminating },         //for kStateWaitLocalSdpAnswer
-        { kStateConnecting, kStateTerminating },         //for kStateWaitSdpAnswer
-        { kStateInProgress, kStateTerminating},          //for kStateConnecting
-        { kStateTerminating },                           //for kStateInProgress
+        { kStateWaitLocalSdpAnswer, kStateTerminating, kStateDestroyed }, //for kStateWaitSdpOffer
+        { kStateConnecting, kStateTerminating, kStateDestroyed },         //for kStateWaitLocalSdpAnswer
+        { kStateConnecting, kStateTerminating, kStateDestroyed },         //for kStateWaitSdpAnswer
+        { kStateInProgress, kStateTerminating, kStateDestroyed},          //for kStateConnecting
+        { kStateTerminating, kStateDestroyed },                           //for kStateInProgress
         { kStateDestroyed },                             //for kStateTerminating
         {}                                               //for kStateDestroyed
     },

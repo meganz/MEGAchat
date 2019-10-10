@@ -57,6 +57,14 @@ public:
             mDb = nullptr;
             return false;
         }
+
+        if (sqlite3_exec(mDb, "PRAGMA foreign_keys = ON", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            sqlite3_close(mDb);
+            mDb = nullptr;
+            return false;
+        }
+
         mCommitEach = commitEach;
         if (!mCommitEach)
         {

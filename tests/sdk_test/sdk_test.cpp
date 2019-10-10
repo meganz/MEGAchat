@@ -1,6 +1,7 @@
 #include "sdk_test.h"
 
 #include <megaapi.h>
+#include "../../src/chatd.h"
 #include "../../src/megachatapi.h"
 #include "../../src/karereCommon.h" // for logging with karere facility
 
@@ -31,6 +32,7 @@ int main(int argc, char **argv)
     // Tests that requires a groupchat (start with public chat, converted into private)
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
     EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
+    EXECUTE_TEST(t.TEST_Reactions(0, 1), "TEST Chat Reactions");
     EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
 
@@ -60,7 +62,12 @@ int main(int argc, char **argv)
 
     t.terminate();
 
-    return t.mFailedTests;
+    MegaChatApiUnitaryTest unitaryTest;
+    std::cout << "[========] Unitary tests " << std::endl;
+    unitaryTest.UNITARYTEST_ParseUrl();
+    std::cout << "[========] End Unitary tests " << std::endl;
+
+    return t.mFailedTests + unitaryTest.mFailedTests;
 }
 
 ChatTestException::ChatTestException(const std::string &file, int line, const std::string &msg)
@@ -1472,10 +1479,17 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     // Login in primary account
     char *sessionPrimary = login(a1);
 
-    // Init anonymous in secondary account
+    // Init anonymous in secondary account and connect
     initState[a2] = megaChatApi[a2]->initAnonymous();
     ASSERT_CHAT_TEST(initState[a2] == MegaChatApi::INIT_ANONYMOUS, "Init sesion in anonymous mode failed");
     char *sessionAnonymous = megaApi[a2]->dumpSession();
+
+    bool *flagRequestConnect = &requestFlagsChat[a2][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
+    bool *loggedInFlag = &mLoggedInAllChats[a2]; *loggedInFlag = false;
+    mChatConnectionOnline[a2] = false;
+    megaChatApi[a2]->connect();
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
+    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Error connect to chat. Error: " + std::to_string(lastErrorChat[a2]));
 
     // Create a public chat with no peers nor title, this chat will be reused by the rest of the tests
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
@@ -1663,6 +1677,152 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
     ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+
+    // Close chatroom
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
+    delete chatroomListener;
+    delete [] sessionPrimary;
+    sessionPrimary = NULL;
+    delete [] sessionSecondary;
+    sessionSecondary = NULL;
+}
+
+/**
+ * @brief TEST_Reactions
+ *
+ * Requirements:
+ * - Both accounts should be conctacts
+ * (if not accomplished, the test automatically solves the above)
+ *
+ * This test does the following:
+ * - Create a group chat room or select an existing one
+ * - Change another account privileges to readonly
+ * - Send message
+ * - Check reactions in message (error)
+ * - Add reaction with NULL reaction (error)
+ * - Add reaction with invalid chat (error)
+ * - Add reaction with invalid message (error)
+ * + Add reaction without enough permissions (error)
+ * - Add reaction
+ * - Add duplicate reaction (error)
+ * - Check reactions in message
+ * - Remove reaction with NULL reaction (error)
+ * - Remove reaction with invalid chat (error)
+ * - Remove reaction with invalid message (error)
+ * + Remove reaction without enough permissions (error)
+ * - Remove reaction
+ * - Remove non-existent reaction (error)
+ */
+void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
+{
+    // Login both accounts
+    char *sessionPrimary = login(a1);
+    char *sessionSecondary = login(a2);
+
+    // Prepare peers, privileges...
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
+    {
+        makeContact(a1, a2);
+        delete user;
+        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    }
+
+    // Get a group chatroom with both users
+    MegaChatHandle uh = user->getHandle();
+    delete user;
+    user = NULL;
+    MegaChatPeerList *peers = MegaChatPeerList::createInstance();
+    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers, MegaChatPeerList::PRIV_MODERATOR);
+    delete peers;
+    peers = NULL;
+
+    // Open chatroom
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+
+    // Change peer privileges to Read-only
+    bool *flagUpdatePeerPermision = &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
+    bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
+    bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
+    bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
+    int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
+    megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
+    ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
+    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
+    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
+    ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
+
+    // Send a message and wait for reception by target user
+    string msg0 = "HI " + mAccounts[a1].getEmail() + " - Testing reactions";
+    bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
+    bool *msgReceived = &chatroomListener->msgReceived[a2]; *msgReceived = false;
+    bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
+    chatroomListener->clearMessages(a1);
+    chatroomListener->clearMessages(a2);
+    MegaChatMessage *messageSent = megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
+    ASSERT_CHAT_TEST(waitForResponse(msgConfirmed), "Timeout expired for receiving confirmation by server");    // for confirmation, sendMessage() is synchronous
+    MegaChatHandle msgId = chatroomListener->mConfirmedMessageHandle[a1];
+    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a1, msgId), "Message not received");
+    ASSERT_CHAT_TEST(msgId != MEGACHAT_INVALID_HANDLE, "Wrong message id at origin");
+    ASSERT_CHAT_TEST(waitForResponse(msgReceived), "Timeout expired for receiving message by target user");    // for reception
+    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId), "Wrong message id at destination");
+    MegaChatMessage *messageReceived = megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in RAM
+    ASSERT_CHAT_TEST(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent()), "Content of message doesn't match");
+
+    // Check reactions for the message sent above (It shouldn't exist any reaction)
+    ::mega::unique_ptr <MegaStringList> reactionsList;
+    reactionsList.reset(megaChatApi[a1]->getMessageReactions(chatid, msgId));
+    ASSERT_CHAT_TEST(!reactionsList->size(), "getMessageReactions Error: The message shouldn't have reactions");
+    int userCount = megaChatApi[a1]->getMessageReactionCount(chatid, msgId, "😰");
+    ASSERT_CHAT_TEST(!userCount, "getReactionUsers Error: The reaction shouldn't exist");
+
+    // Add reaction
+    ::mega::unique_ptr <MegaChatError> res;
+    res.reset(megaChatApi[a1]->addReaction(chatid, msgId, NULL));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_ARGS, "addReaction: Unexpected error for NULL reaction param. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a1]->addReaction(NULL, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "addReaction: Unexpected error for invalid chat. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a1]->addReaction(chatid, NULL, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "addReaction: Unexpected error for invalid message. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a2]->addReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_ACCESS, "addReaction: Unexpected error adding reaction without enough permissions. Error:" + std::string(res->getErrorString()));
+    bool *reactionReceived = &chatroomListener->reactionReceived[a1]; *reactionReceived = false;
+    res.reset(megaChatApi[a1]->addReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_OK, "addReaction: failed to add a reaction. Error:" + std::string(res->getErrorString()));
+    ASSERT_CHAT_TEST(waitForResponse(reactionReceived), "Expired timeout for add reaction");
+    res.reset(megaChatApi[a1]->addReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_EXIST, "addReaction: Unexpected error for existing reaction. Error:" + std::string(res->getErrorString()));
+
+    // Check reactions
+    reactionsList.reset(megaChatApi[a1]->getMessageReactions(chatid, msgId));
+    ASSERT_CHAT_TEST(reactionsList->size(), "getMessageReactions Error: The message doesn't have reactions");
+    userCount = megaChatApi[a1]->getMessageReactionCount(chatid, msgId, "😰");
+    ASSERT_CHAT_TEST(userCount, "getReactionUsers Error: The reaction doesn't exists");
+
+    // Del reaction
+    res.reset(megaChatApi[a1]->delReaction(chatid, msgId, NULL));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_ARGS, "delReaction: Unexpected error for NULL reaction param. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a1]->delReaction(NULL, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "delReaction: Unexpected error for invalid chat. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a1]->delReaction(chatid, NULL, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "delReaction: Unexpected error for invalid message. Error:" + std::string(res->getErrorString()));
+    res.reset(megaChatApi[a2]->delReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_ACCESS, "delReaction: Unexpected error removing reaction without enough permissions. Error:" + std::string(res->getErrorString()));
+    reactionReceived = &chatroomListener->reactionReceived[a1]; *reactionReceived = false;
+    res.reset(megaChatApi[a1]->delReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_OK, "delReaction: failed to remove a reaction. Error:" + std::string(res->getErrorString()));
+    ASSERT_CHAT_TEST(waitForResponse(reactionReceived), "Expired timeout for remove reaction");
+    res.reset(megaChatApi[a1]->delReaction(chatid, msgId, "😰"));
+    ASSERT_CHAT_TEST(res->getErrorCode() == MegaChatError::ERROR_NOENT, "delReaction: Unexpected error for unexisting reaction. Error:" + std::string(res->getErrorString()));
 
     // Close chatroom
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
@@ -3207,6 +3367,8 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     secondarySession = NULL;
 }
 
+
+
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
     // first of all, ensure the chatd connection is ready
@@ -4179,6 +4341,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApiTest *t, MegaChatApi **api
         this->msgAttachmentReceived[i] = false;
         this->msgContactReceived[i] = false;
         this->msgRevokeAttachmentReceived[i] = false;
+        this->reactionReceived[i] = false;
         this->mConfirmedMessageHandle[i] = MEGACHAT_INVALID_HANDLE;
         this->mEditedMessageHandle[i] = MEGACHAT_INVALID_HANDLE;
     }
@@ -4342,6 +4505,12 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
     msgReceived[apiIndex] = true;
 }
 
+void TestChatRoomListener::onReactionUpdate(MegaChatApi *api, MegaChatHandle msgid, const char *reaction, int count)
+{
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+    reactionReceived[apiIndex] = true;
+}
+
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
@@ -4434,4 +4603,120 @@ void MegaLoggerTest::log(int loglevel, const char *message)
 
     // message comes with a line-break at the end
     testlog  << message;
+}
+
+bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
+{
+    // Test cases
+    mOKTests ++;
+    std::map<std::string, int> checkUrls;
+    checkUrls["googl."] = 0;
+    checkUrls["googl.com\"fsdafasdf"] = 1;
+    checkUrls["googl.com<fsdafasdf"] = 1;
+    checkUrls["http://googl.com"] = 1;
+    checkUrls["http://www.googl.com"] = 1;
+    checkUrls["www.googl.com"] = 1;
+    checkUrls["esto   es un prueba   www.mega.nz dsfasdfa"] = 1;
+    checkUrls["esto   es un prueba \twww.mega.nz\tdsfasdfa"] = 1;
+    checkUrls["esto   es un prueba \nwww.mega.nz\ndsfasdfa"] = 1;
+    checkUrls["esto es un prueba www.mega. nz"] = 1;
+    checkUrls["ftp://www.googl.com"] = 0;
+    checkUrls["www.googl .com"] = 1;
+    checkUrls[" www.sfdsadfasfdsfsdf "] = 1;
+    checkUrls["example.com/products?id=1&page=2"] = 1;
+    checkUrls["www.example.com/products?iddfdsfdsfsfsdfa=1&page=2"] = 1;
+    checkUrls["https://mega.co.nz/#!p2QnF89I!Kf-m03Lwmyut-eF7RnJjSv1PRYYtYHg7oodFrW1waEQ"] = 0;
+    checkUrls["https://mega.co.nz/file/p2Qn984I#Kf-m03Lwmyut-eF7RnJjSv1PRYYtYHg7oodFrW1waEQ"] = 0;
+    checkUrls["https://mega.co.nz/folder/p2Qn984I#Kf-m03Lwmyut-eF7RnJjSv1PRYYtYHg7oodFrW1waEQ"] = 0;
+    checkUrls["https://mega.co.nz/file/p2Qn984I#"] = 0;
+    checkUrls["https://mega.co.nz/folder/p2Qn984I#"] = 0;
+    checkUrls["https://mega.co.nz/foder/p2Qn984I#"] = 1;
+    checkUrls["https://mega.nz/#F!l6h3985J!j8QVi46YEyzaISaqGVRsOA"] = 0;
+    checkUrls["https://mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk#F!xP4E98AB!FH_5HjrWyFsUMjjEHCFIHw"] = 0;
+    checkUrls["mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk#F!xP498AAB!FH_5HjrWyFsUjjnEHCFIHw"] = 0;
+    checkUrls["www.mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk#F!xP4EAYYB!FH_5HjrWyFsUMKnEHCFIHw"] = 0;
+    checkUrls["https://mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcrNK1oOSaAk#!xP4EYYAB!FH_5HjrWyFsUMKjjHCFIHw"] = 0;
+    checkUrls["https://mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcrNK1oOSaAkC!xP4EAYYB!FH_5HjrWyFsUMKnjjCFIHw"] = 0;
+    checkUrls["https://mega.nz/C!xP4E45AB!FH_5HjrWyTTUMKnEHCFIHw"] = 0;
+    checkUrls["https://mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk/chat/xP4EA55B!FH_5HjrWyFsU45nEHCFIHw"] = 0;
+    checkUrls["mega.nz/?fbclid=IwAR260bchewVmPrlijdF8-TbbvCnnKqkWcr3vrCx6VKChvI8NgLNK1oOSaAk"] = 1;
+    checkUrls["ELPAIS.com"] = 1;
+    checkUrls["ELPAIS.COM"] = 1;
+    checkUrls["https://www.ELPAIS.CoM"] = 1;
+    checkUrls["sdfsadfsad://dsfasdfasd.dsd"] = 0;
+    checkUrls["sshf://www.ELPAIS.CoM"] = 0;
+    checkUrls["Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. http://www.microsiervos.com/archivo/curiosidades/montana-mas-alta-sistema-solar-en-vesta.html Ut enim ad minim veniam,"] = 1;
+    checkUrls["googel.com:"] = 1;
+    checkUrls["5/16/18 10:43 AM] platano asdf: Os Mandi Otto link estusbeidj😒😙😓😙😙😙😙😙 www.facebook.com"] = 1;
+    checkUrls["http://15.08.02.jpg\",\"s\":3936106,\"hash\":\"GA2oPPAFx4gKx231I3odD1rTHVwOQQyAClb\",\"fa\":\"827:0*00661Rw6wWo/823:1*0Nb4JK5Gd-0\",\"ts\":1529413682}]"] = 1;
+    checkUrls["www.ta_ta.com"] = 1;
+    checkUrls["http://foo.com/blah_blah"] = 1;
+    checkUrls["http://foo.com/blah_blah/"] = 1;
+    checkUrls["http://foo.com/blah_blah_(wikipedia)"] = 1;
+    checkUrls["http://foo.com/blah_blah_(wikipedia)_(again)"] = 1;
+    checkUrls["http://www.example.com/wpstyle/?p=364"] = 1;
+    checkUrls["https://www.example.com/foo/?bar=baz&inga=42&quux"] = 1;
+    checkUrls["http://odf.ws/123"] = 1;
+    checkUrls["http://userid:password@example.com:8080)"] = 1;
+    checkUrls["http://userid:password@example.com:8080/"] = 1;
+    checkUrls["http://userid@example.com"] = 1;
+    checkUrls["http://userid@example.com/"] = 1;
+    checkUrls["http://userid@example.com:8080"] = 1;
+    checkUrls["http://userid@example.com:8080/"] = 1;
+    checkUrls["http://userid:password@example.com"] = 1;
+    checkUrls["http://userid:password@example.com/"] = 1;
+    checkUrls["http://foo.com/blah_(wikipedia)#cite-1"] = 1;
+    checkUrls["http://foo.com/unicode_(✪)_in_parens"] = 1;
+    checkUrls["http://code.google.com/events/#&product=browser"] = 1;
+    checkUrls["http://1337.net"] = 1;
+    checkUrls["http://a.b-c.de"] = 1;
+    checkUrls["https://foo_bar.example.com/"] = 1;
+    checkUrls["http://"] = 0;
+    checkUrls["http://."] = 0;
+    checkUrls["http://.."] = 0;
+    checkUrls["http://../"] = 0;
+    checkUrls["http://?"] = 0;
+    checkUrls["http://??"] = 0;
+    checkUrls["http://??/"] = 0;
+    checkUrls["http://#"] = 0;
+    checkUrls["http://foo.bar?q=Spaces should be encoded"] = 1;
+    checkUrls["///a"] = 0;
+    checkUrls["http:// shouldfail.com"] = 1;
+    checkUrls["http://foo.bar/foo(bar)baz quux"] = 1;
+    checkUrls["http://10.1.1.0"] = 0;
+    checkUrls["http://3628126748"] = 0;
+    checkUrls["http://123.123.123"] = 0;
+    checkUrls["http://.www.foo.bar./"] = 1;
+    checkUrls["Test ..www.google.es..."] = 1;
+    checkUrls["Test ..test..."] = 0;
+    checkUrls[":// should fail"] = 0;
+    checkUrls["prueba,,,"] = 0;
+    checkUrls["prueba!!"] = 0;
+    checkUrls["prueba.com!!"] = 1;
+    checkUrls["pepitoPerez@gmail.com"] = 0;
+
+    std::cout << "          TEST - Message::parseUrl()" << std::endl;
+    bool succesful = true;
+    int executedTests = 0;
+    int failureTests = 0;
+    std::string url;
+    for (auto testCase : checkUrls)
+    {
+        executedTests ++;
+        if (chatd::Message::hasUrl(testCase.first, url) != testCase.second)
+        {
+            failureTests ++;
+            std::cout << "         [" << " FAILED Parse" << "] " << testCase.first << std::endl;
+            LOG_debug << "Failed to parse: " << testCase.first;
+            succesful = false;
+        }
+    }
+
+    if (failureTests > 0)
+    {
+        mFailedTests ++;
+    }
+
+    std::cout << "          TEST - Message::parseUrl() - Executed Tests : " << executedTests << "   Failure Tests : " << failureTests << std::endl;
+    return succesful;
 }

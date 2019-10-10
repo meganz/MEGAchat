@@ -338,6 +338,9 @@ public:
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
 
+        // Clean reactions for the truncate message
+        mDb.query("delete from chat_reactions where chatid = ? and msgid = ?", mChat.chatId(), msg.id());
+
 #ifndef NDEBUG
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
         stmt << mChat.chatId() << msg.id();
@@ -530,6 +533,48 @@ public:
             msg->backRefId = stmt.uint64Col(7);
             msg->setEncrypted((uint8_t)stmt.intCol(9));
             messages.push_back(msg);
+        }
+    }
+
+    std::string getReactionSn() override
+    {
+        SqliteStmt stmt(mDb, "select rsn from chats where chatid = ?");
+        stmt << mChat.chatId();
+        stmt.stepMustHaveData(__FUNCTION__);
+        return stmt.stringCol(0);
+    }
+
+    void setReactionSn(const std::string &rsn) override
+    {
+        mDb.query("update chats set rsn = ? where chatid = ?", rsn, mChat.chatId());
+        assertAffectedRowCount(1);
+    }
+
+    void cleanReactions(karere::Id msgId) override
+    {
+        mDb.query("delete from chat_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
+    }
+
+    void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    {
+        mDb.query("insert into chat_reactions(chatid, msgid, userid, reaction)"
+            "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
+    }
+
+    void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    {
+        mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
+            mChat.chatId(), msgId, userId, reaction);
+    }
+
+    void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) override
+    {
+        SqliteStmt stmt(mDb, "select reaction, userid from chat_reactions where chatid = ? and msgid = ?");
+        stmt << mChat.chatId();
+        stmt << msgId;
+        while (stmt.step())
+        {
+            reactions.insert(std::pair<std::string, karere::Id>(stmt.stringCol(0), stmt.uint64Col(1)));
         }
     }
 };

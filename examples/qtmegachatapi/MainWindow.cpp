@@ -279,6 +279,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
 }
 
+MegaChatApplication* MainWindow::getApp() const
+{
+    return mApp;
+}
+
 #endif
 
 ChatWindow *MainWindow::getChatWindowIfExists(MegaChatHandle chatId)

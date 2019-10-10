@@ -1016,6 +1016,31 @@ void MegaChatApi::removeChatNotificationListener(MegaChatNotificationListener *l
     pImpl->removeChatNotificationListener(listener);
 }
 
+MegaChatError *MegaChatApi::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+{
+   return pImpl->addReaction(chatid, msgid, reaction);
+}
+
+MegaChatError *MegaChatApi::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+{
+   return pImpl->delReaction(chatid, msgid, reaction);
+}
+
+int MegaChatApi::getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction) const
+{
+    return pImpl->getMessageReactionCount(chatid, msgid, reaction);
+}
+
+MegaStringList* MegaChatApi::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    return pImpl->getMessageReactions(chatid, msgid);
+}
+
+MegaHandleList* MegaChatApi::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+{
+    return pImpl->getReactionUsers(chatid, msgid, reaction);
+}
+
 MegaChatRequest::~MegaChatRequest() { }
 MegaChatRequest *MegaChatRequest::copy()
 {
@@ -1520,6 +1545,11 @@ void MegaChatRoomListener::onHistoryReloaded(MegaChatApi * /*api*/, MegaChatRoom
 
 }
 
+void MegaChatRoomListener::onReactionUpdate(MegaChatApi* /*api*/, MegaChatHandle /*msgid*/, const char* /*reaction*/, int /*count*/)
+{
+
+}
+
 MegaChatMessage *MegaChatMessage::copy() const
 {
     return NULL;
@@ -1553,6 +1583,11 @@ MegaChatHandle MegaChatMessage::getUserHandle() const
 int MegaChatMessage::getType() const
 {
     return MegaChatMessage::TYPE_INVALID;
+}
+
+bool MegaChatMessage::hasReactions() const
+{
+    return false;
 }
 
 int64_t MegaChatMessage::getTimestamp() const

@@ -113,7 +113,6 @@ protected:
     template<class... Args>
     bool cmd(uint8_t type, Args... args);
     void destroy(TermCode code, const std::string& msg="");
-    void asyncDestroy(TermCode code, const std::string& msg="");
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     int calculateNetworkQuality(const stats::Sample *sample);
     void removeRtcConnection();
@@ -259,6 +258,7 @@ protected:
     void monitorCallSetupTimeout();
     void enableAudio(bool enable);
     void enableVideo(bool enable);
+    bool hasSessionWithUser(karere::Id userId);
     friend class RtcModule;
     friend class Session;
 public:

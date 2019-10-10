@@ -188,6 +188,7 @@ public:
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
     void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
     void TEST_PublicChatManagement(unsigned int a1, unsigned int a2);
+    void TEST_Reactions(unsigned int a1, unsigned int a2);
     void TEST_OfflineMode(unsigned int a1, unsigned int a2);
     void TEST_ClearHistory(unsigned int a1, unsigned int a2);
     void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
@@ -205,8 +206,8 @@ public:
     void TEST_RichLinkUserAttribute(unsigned int a1);
     void TEST_SendRichLink(unsigned int a1, unsigned int a2);
 
-    unsigned mOKTests;
-    unsigned mFailedTests;
+    unsigned mOKTests = 0;
+    unsigned mFailedTests = 0;
     bool testHasFailed = false;
 
 private:
@@ -382,6 +383,7 @@ public:
     bool msgAttachmentReceived[NUM_ACCOUNTS];
     bool msgContactReceived[NUM_ACCOUNTS];
     bool msgRevokeAttachmentReceived[NUM_ACCOUNTS];
+    bool reactionReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mConfirmedMessageHandle[NUM_ACCOUNTS];
     megachat::MegaChatHandle mEditedMessageHandle[NUM_ACCOUNTS];
 
@@ -402,9 +404,21 @@ public:
     virtual void onMessageLoaded(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // loaded by getMessages()
     virtual void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);
     virtual void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // new or updated
+    virtual void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count);
 
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
+};
+
+
+
+class MegaChatApiUnitaryTest
+{
+public:
+    bool UNITARYTEST_ParseUrl();
+
+    unsigned mOKTests = 0;
+    unsigned mFailedTests = 0;
 };
 
 #endif // CHATTEST_H

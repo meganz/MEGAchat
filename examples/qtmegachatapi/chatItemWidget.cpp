@@ -84,9 +84,9 @@ ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatL
 
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
 {
+    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     QString text = NULL;
     std::string senderHandle;
-    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     megachat::MegaChatHandle lastMessageId = item->getLastMessageId();
     int lastMessageType = item->getLastMessageType();
     std::string lastMessage;
@@ -324,15 +324,18 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
     else
     {
         megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
-        const char *msg = chatRoom->getPeerFirstnameByHandle(msgUserId);
-        size_t len = msg ? strlen(msg) : 0;
-        if (len)
+        if (chatRoom)
         {
-            msgAuthor = new char[len + 1];
-            strncpy(msgAuthor, msg, len);
-            msgAuthor[len] = '\0';
+            const char *msg = chatRoom->getPeerFirstnameByHandle(msgUserId);
+            size_t len = msg ? strlen(msg) : 0;
+            if (len)
+            {
+                msgAuthor = new char[len + 1];
+                strncpy(msgAuthor, msg, len);
+                msgAuthor[len] = '\0';
+            }
+            delete chatRoom;
         }
-        delete chatRoom;
     }
     return msgAuthor;
 }
