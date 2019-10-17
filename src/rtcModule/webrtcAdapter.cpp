@@ -58,7 +58,7 @@ bool init(void *appCtx)
     {
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
                     nullptr /* network_thread */, thread /* worker_thread */,
-                    nullptr /* signaling_thread */, nullptr /* default_adm */,
+                    thread /* signaling_thread */, nullptr /* default_adm */,
                     webrtc::CreateBuiltinAudioEncoderFactory(),
                     webrtc::CreateBuiltinAudioDecoderFactory(),
                     webrtc::CreateBuiltinVideoEncoderFactory(),
@@ -197,9 +197,9 @@ bool VideoTrackSource::remote() const
     return mRemote;
 }
 
-CapturerTrackSource* CapturerTrackSource::Create(const webrtc::VideoCaptureCapability &capabilities)
+CapturerTrackSource* CapturerTrackSource::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
 {
-    return new rtc::RefCountedObject<CapturerTrackSource>(capabilities);
+    return new rtc::RefCountedObject<CapturerTrackSource>(capabilities, deviceName);
 }
 
 void CapturerTrackSource::OnFrame(const webrtc::VideoFrame& frame)
@@ -262,8 +262,11 @@ void CapturerTrackSource::releaseDevice()
     destroy();
 }
 
-CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities)
+CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
     : VideoTrackSource(false)
+#ifdef __APPLE__
+    , mCaptureModule(deviceName)
+#endif
 {
     mCapabilities = capabilities;
 }

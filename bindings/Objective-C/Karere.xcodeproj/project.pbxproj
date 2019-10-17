@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		77875CDA2097A69400B8340F /* MEGAChatContainsMeta.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CD92097A69400B8340F /* MEGAChatContainsMeta.mm */; };
 		77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */; };
+		77CB2DCF2356FFD50095FF8C /* OBJCCaptureModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */; };
 		8394CF9E211992A200A1634A /* MEGAChatSession.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8394CF9D211992A200A1634A /* MEGAChatSession.mm */; };
 		941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977321F163DDE00A76EE3 /* websocketsIO.cpp */; };
 		947566561F3397AE00FE8664 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947566551F3397AE00FE8664 /* cservices.cpp */; };
@@ -71,6 +72,8 @@
 		77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatRichPreview.mm; sourceTree = "<group>"; };
 		77875CDE2099A6AF00B8340F /* MEGAChatContainsMeta+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatContainsMeta+init.h"; sourceTree = "<group>"; };
 		77875CDF2099A8E300B8340F /* MEGAChatRichPreview+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatRichPreview+init.h"; sourceTree = "<group>"; };
+		77CB2DCD2356FFD50095FF8C /* OBJCCaptureModule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OBJCCaptureModule.h; sourceTree = "<group>"; };
+		77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OBJCCaptureModule.mm; sourceTree = "<group>"; };
 		8394CF9C211992A200A1634A /* MEGAChatSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatSession.h; sourceTree = "<group>"; };
 		8394CF9D211992A200A1634A /* MEGAChatSession.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatSession.mm; sourceTree = "<group>"; };
 		8394CFA02119F3E700A1634A /* MEGAChatSession+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatSession+init.h"; sourceTree = "<group>"; };
@@ -507,6 +510,8 @@
 				A83D5BF11F974AF900A038F7 /* rtcStats.cpp */,
 				A83D5BF21F974AF900A038F7 /* webrtc.cpp */,
 				A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */,
+				77CB2DCD2356FFD50095FF8C /* OBJCCaptureModule.h */,
+				77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */,
 			);
 			path = rtcModule;
 			sourceTree = "<group>";
@@ -552,6 +557,7 @@
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				en,
 			);
 			mainGroup = A838B1ED1E96850700875D96;
 			productRefGroup = A838B1F91E96855400875D96 /* Products */;
@@ -602,6 +608,7 @@
 				941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */,
 				A879F3C71F96683A007C5394 /* megachatapi.cpp in Sources */,
 				A82750D41E9788A3007CD9E2 /* MEGAChatListItemList.mm in Sources */,
+				77CB2DCF2356FFD50095FF8C /* OBJCCaptureModule.mm in Sources */,
 				A82750DA1E9788A3007CD9E2 /* MEGAChatRoomList.mm in Sources */,
 				A879F3CA1F96685E007C5394 /* libuvWaiter.cpp in Sources */,
 				A879F3C31F96683A007C5394 /* url.cpp in Sources */,
@@ -750,12 +757,16 @@
 					../../src,
 					../../../SDK/include,
 					../../../SDK/bindings/ios/3rdparty/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc,
-					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src,
+					"../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/abseil-cpp",
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/libyuv/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/boringssl/src/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers/WebRTC,
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
-				LIBRARY_SEARCH_PATHS = ../../../SDK/bindings/ios/3rdparty/lib;
+				LIBRARY_SEARCH_PATHS = "";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = (
@@ -791,7 +802,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/ ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers/WebRTC";
 			};
 			name = Debug;
 		};
@@ -838,12 +849,16 @@
 					../../src,
 					../../../SDK/include,
 					../../../SDK/bindings/ios/3rdparty/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc,
-					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src,
+					"../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/abseil-cpp",
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/libyuv/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/boringssl/src/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers,
+					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers/WebRTC,
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
-				LIBRARY_SEARCH_PATHS = ../../../SDK/bindings/ios/3rdparty/lib;
+				LIBRARY_SEARCH_PATHS = "";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_CFLAGS = (
 					"-DENABLE_CHAT",
@@ -880,7 +895,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/ ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers/WebRTC";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

@@ -9,6 +9,7 @@
 #include "base/promise.h"
 #include "webrtcAsyncWaiter.h"
 #include "rtcmPrivate.h"
+#include "OBJCCaptureModule.h"
 
 namespace artc
 {
@@ -327,15 +328,18 @@ protected:
 class CapturerTrackSource : public VideoTrackSource, rtc::VideoSinkInterface<webrtc::VideoFrame>
 {
 public:
-    static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities);
+    static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
     virtual void OnFrame(const webrtc::VideoFrame& frame) override;
     ~CapturerTrackSource() override;
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice);
     void releaseDevice();
+#ifdef __APPLE__
+    OBJCCaptureModule mCaptureModule;
+#endif
 
 protected:
-    explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities);
+    explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
 private:
     rtc::VideoSourceInterface<webrtc::VideoFrame>* source() override;
     void destroy();

@@ -152,7 +152,11 @@ bool RtcModule::selectAudioInDevice(const string &devname)
 
 std::set<std::pair<std::string, std::string>> RtcModule::loadDeviceList() const
 {
+#ifdef __APPLE__
+    return artc::OBJCCaptureModule::getVideoDevices();
+#else
     return artc::CapturerTrackSource::getVideoDevices();
+#endif
 }
 
 string RtcModule::getVideoDeviceSelected()
@@ -2134,14 +2138,22 @@ void Call::enableVideo(bool enable)
                 capabilities.maxFPS = 25;
             }
 
-            mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities));
+            mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities, mManager.mVideoDeviceSelected));
             assert(mVideoDevice);
 
+#ifdef __APPLE__
+            mVideoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->mCaptureModule.getVideoSource());
+#else
             mVideoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice.get());
+#endif
             mLocalStream->addVideoTrack(mVideoTrack);
         }
 
+#ifdef __APPLE__
+        mLocalPlayer->attachVideo(mVideoDevice->mCaptureModule.getVideoSource());
+#else
         mLocalPlayer->attachVideo(mVideoDevice.get());
+#endif
         mVideoDevice->openDevice(mManager.mVideoDeviceSelected);
         std::vector<std::string> vector;
         vector.push_back("stream_id");

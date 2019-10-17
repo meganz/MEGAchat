@@ -893,7 +893,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->setChatAudioInDevice(devices ? [devices UTF8String] : NULL);
 }
 
-- (BOOL)setChatVideoInDevices:(NSString *)devices {
+- (void)setChatVideoInDevices:(NSString *)devices {
     return self.megaChatApi->setChatVideoInDevice(devices ? [devices UTF8String] : NULL);
 }
 
