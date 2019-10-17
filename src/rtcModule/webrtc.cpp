@@ -2861,7 +2861,11 @@ void Session::onAddStream(artc::tspMediaStream stream)
     });
     mRemotePlayer->attachToStream(stream);
     mRemotePlayer->enableVideo(mPeerAv.video());
-    mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
+
+    if (mRemotePlayer->isAudioAttached())
+    {
+        mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
+    }
 }
 void Session::onRemoveStream(artc::tspMediaStream stream)
 {
@@ -2872,7 +2876,10 @@ void Session::onRemoveStream(artc::tspMediaStream stream)
     }
     if(mRemotePlayer)
     {
-        mRemotePlayer->getAudioTrack()->RemoveSink(mAudioLevelMonitor.get());
+        if (mRemotePlayer->isAudioAttached())
+        {
+            mRemotePlayer->getAudioTrack()->RemoveSink(mAudioLevelMonitor.get());
+        }
         mRemotePlayer->detachFromStream();
         mRemotePlayer.reset();
     }
