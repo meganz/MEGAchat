@@ -6,7 +6,6 @@
 
 #include <api/peer_connection_interface.h>
 #include <api/scoped_refptr.h>
-#include "webrtcAdapter.h"
 
 #ifdef __OBJC__
 @class AVCaptureDevice;
@@ -18,21 +17,22 @@ typedef struct objc_object RTCCameraVideoCapturer;
 
 namespace artc
 {
-class OBJCCaptureModule : public VideoManager
+class OBJCCaptureModule
 {
     
 public:
-    OBJCCaptureModule();
+    OBJCCaptureModule(const std::string &deviceName);
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoSource();
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
-    virtual void openDevice(const std::string &videoDevice) override;
-    virtual void releaseDevice() override;
-    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource() override;
+    virtual void openDevice(const std::string &videoDevice);
+    virtual void releaseDevice();
+    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource();
 
 private:
-    AVCaptureDevice *mCaptureDevice;
-    RTCCameraVideoCapturer *mCameraViceoCapturer;
+    AVCaptureDevice *mCaptureDevice = nullptr;
+    RTCCameraVideoCapturer *mCameraViceoCapturer = nullptr;
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mVideoSource;
+    bool mRunning = false;
 };
 }
 

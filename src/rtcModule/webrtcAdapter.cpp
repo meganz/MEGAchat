@@ -206,7 +206,7 @@ std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevic
 {
 
 #ifdef __APPLE__
-    return OBJCCaptureModule::getVideoDevices()
+    return OBJCCaptureModule::getVideoDevices();
 #else
     return CaptureModuleLinux::getVideoDevices();
 #endif

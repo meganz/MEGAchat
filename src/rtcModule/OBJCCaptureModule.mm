@@ -9,17 +9,35 @@
 
 namespace artc
 {
-
+    
     OBJCCaptureModule::OBJCCaptureModule(const std::string &deviceName)
     {
-        openDevice(deviceName);
+        if (mCameraViceoCapturer)
+        {
+            return;
+        }
+        
+        mCaptureDevice = nil;
+        for (AVCaptureDevice *captureDevice in AVCaptureDevice.devices)
+        {
+            if ([captureDevice.localizedName isEqualToString:[NSString stringWithUTF8String:deviceName.c_str()]])
+            {
+                mCaptureDevice = captureDevice;
+            }
+        }
+        
+        assert(mCaptureDevice != nil);
+        mCameraViceoCapturer = [[RTCCameraVideoCapturer alloc] init];
+        [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:mCaptureDevice.activeFormat fps:30];
+        mRunning = true;
+        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraViceoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
     }
-
+    
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> OBJCCaptureModule::getVideoSource()
     {
         return mVideoSource;
     }
-
+    
     std::set<std::pair<std::string, std::string>> OBJCCaptureModule::getVideoDevices()
     {
         std::set<std::pair<std::string, std::string>> devices;
@@ -34,33 +52,27 @@ namespace artc
         
         return devices;
     }
-
+    
     void OBJCCaptureModule::openDevice(const std::string &videoDevice)
     {
-        mCaptureDevice = nil;
-        for (AVCaptureDevice *captureDevice in AVCaptureDevice.devices)
+        if (mRunning)
         {
-            if ([captureDevice.localizedName isEqualToString:[NSString stringWithUTF8String:deviceName.c_str()]])
-            {
-                mCaptureDevice = captureDevice;
-            }
+            return;
         }
-
-        assert(mCaptureDevice != nil);
-        mCameraViceoCapturer = [[RTCCameraVideoCapturer alloc] init];
-        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraViceoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
+        
         [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:mCaptureDevice.activeFormat fps:30];
+        mRunning = true;
     }
-
+    
     void OBJCCaptureModule::releaseDevice()
     {
-        // Stop capture mCameraViceoCapturer
-        //mVideoSource.
+        [mCameraViceoCapturer stopCapture];
+        mRunning = false;
     }
-
-    webrtc::VideoTrackSourceInterface *getVideoTrackSource()
+    
+    webrtc::VideoTrackSourceInterface *OBJCCaptureModule::getVideoTrackSource()
     {
-        return mVideoSource.get();
+        return mVideoSource;
     }
     
 }

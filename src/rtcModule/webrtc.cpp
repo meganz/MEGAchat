@@ -2141,8 +2141,8 @@ void Call::enableVideo(bool enable)
             mLocalStream->addVideoTrack(mVideoTrack);
         }
 
-        mLocalPlayer->attachVideo(mVideoDevice->getVideoTrackSource());
         mVideoDevice->openDevice(mManager.mVideoDeviceSelected);
+        mLocalPlayer->attachVideo(mVideoDevice->getVideoTrackSource());
         std::vector<std::string> vector;
         vector.push_back("stream_id");
         for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
