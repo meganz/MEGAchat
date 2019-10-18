@@ -162,17 +162,17 @@ unsigned long generateId()
 //}
 
 
-VideoTrackSource::VideoTrackSource(bool remote)
-    : mState(webrtc::MediaSourceInterface::kInitializing), mRemote(remote)
+CaptureModuleLinux::CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote)
+    : mState(webrtc::MediaSourceInterface::kInitializing), mRemote(remote), mCapabilities(capabilities)
 {
     mWorkerThreadChecker.Detach();
 }
 
-VideoTrackSource::~VideoTrackSource()
+CaptureModuleLinux::~CaptureModuleLinux()
 {
 }
 
-void VideoTrackSource::SetState(webrtc::MediaSourceInterface::SourceState new_state)
+void CaptureModuleLinux::SetState(webrtc::MediaSourceInterface::SourceState new_state)
 {
     if (mState != new_state) {
         mState = new_state;
@@ -180,39 +180,29 @@ void VideoTrackSource::SetState(webrtc::MediaSourceInterface::SourceState new_st
     }
 }
 
-void VideoTrackSource::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
+void CaptureModuleLinux::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
 {
     RTC_DCHECK(mWorkerThreadChecker.IsCurrent());
     mBroadcaster.AddOrUpdateSink(sink, wants);
 }
 
-void VideoTrackSource::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
+void CaptureModuleLinux::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
 {
     RTC_DCHECK(mWorkerThreadChecker.IsCurrent());
     mBroadcaster.RemoveSink(sink);
 }
 
-bool VideoTrackSource::remote() const
+bool CaptureModuleLinux::remote() const
 {
     return mRemote;
 }
 
-CapturerTrackSource* CapturerTrackSource::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
-{
-    return new rtc::RefCountedObject<CapturerTrackSource>(capabilities, deviceName);
-}
-
-void CapturerTrackSource::OnFrame(const webrtc::VideoFrame& frame)
+void CaptureModuleLinux::OnFrame(const webrtc::VideoFrame& frame)
 {
     mBroadcaster.OnFrame(frame);
 }
 
-CapturerTrackSource::~CapturerTrackSource()
-{
-    destroy();
-}
-
-std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevices()
+std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevices()
 {
     std::set<std::pair<std::string, std::string>> videoDevices;
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
@@ -232,7 +222,7 @@ std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevic
     return videoDevices;
 }
 
-void CapturerTrackSource::openDevice(const std::string &videoDevice)
+void CaptureModuleLinux::openDevice(const std::string &videoDevice)
 {
     mCameraCapturer = webrtc::VideoCaptureFactory::Create(videoDevice.c_str());
     if (!mCameraCapturer)
@@ -250,40 +240,70 @@ void CapturerTrackSource::openDevice(const std::string &videoDevice)
 
     if (mCameraCapturer->StartCapture(mCapabilities) != 0)
     {
-        destroy();
         return;
     }
 
     RTC_CHECK(mCameraCapturer->CaptureStarted());
 }
 
+void CaptureModuleLinux::releaseDevice()
+{
+    if (mCameraCapturer)
+    {
+        mCameraCapturer->StopCapture();
+        mCameraCapturer->DeRegisterCaptureDataCallback();
+        mCameraCapturer = nullptr;
+    }
+}
+
+webrtc::VideoTrackSourceInterface *CaptureModuleLinux::getVideoTrackSource()
+{
+    return this;
+}
+
+CapturerTrackSource* CapturerTrackSource::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
+{
+    return new rtc::RefCountedObject<CapturerTrackSource>(capabilities, deviceName);
+}
+
+CapturerTrackSource::~CapturerTrackSource()
+{
+    releaseDevice();
+}
+
+std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevices()
+{
+
+#ifdef __APPLE__
+    return OBJCCaptureModule::getVideoDevices()
+#else
+    return CaptureModuleLinux::getVideoDevices();
+#endif
+}
+
+void CapturerTrackSource::openDevice(const std::string &videoDevice)
+{
+    mCaptureModule.openDevice(videoDevice);
+}
+
 void CapturerTrackSource::releaseDevice()
 {
-    destroy();
+    mCaptureModule.releaseDevice();
+}
+
+webrtc::VideoTrackSourceInterface *CapturerTrackSource::getVideoTrackSource()
+{
+    return mCaptureModule.getVideoTrackSource();
 }
 
 CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
-    : VideoTrackSource(false)
+    :
 #ifdef __APPLE__
-    , mCaptureModule(deviceName)
+    mCaptureModule(deviceName)
+#else
+    mCaptureModule(capabilities)
 #endif
 {
-    mCapabilities = capabilities;
-}
-
-void CapturerTrackSource::destroy()
-{
-    if (!mCameraCapturer)
-        return;
-
-    mCameraCapturer->StopCapture();
-    mCameraCapturer->DeRegisterCaptureDataCallback();
-    mCameraCapturer = nullptr;
-}
-
-rtc::VideoSourceInterface<webrtc::VideoFrame>* CapturerTrackSource::source()
-{
-    return this;
 }
 
 }

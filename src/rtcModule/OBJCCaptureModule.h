@@ -4,8 +4,9 @@
 
 #ifdef __APPLE__
 
-#include "api/peer_connection_interface.h"
-#include "api/scoped_refptr.h"
+#include <api/peer_connection_interface.h>
+#include <api/scoped_refptr.h>
+#include "webrtcAdapter.h"
 
 #ifdef __OBJC__
 @class AVCaptureDevice;
@@ -17,13 +18,16 @@ typedef struct objc_object RTCCameraVideoCapturer;
 
 namespace artc
 {
-class OBJCCaptureModule
+class OBJCCaptureModule : public VideoManager
 {
     
 public:
-    OBJCCaptureModule(const std::string &deviceName);
+    OBJCCaptureModule();
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoSource();
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    virtual void openDevice(const std::string &videoDevice) override;
+    virtual void releaseDevice() override;
+    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource() override;
 
 private:
     AVCaptureDevice *mCaptureDevice;

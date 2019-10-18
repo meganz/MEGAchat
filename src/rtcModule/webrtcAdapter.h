@@ -10,6 +10,7 @@
 #include "webrtcAsyncWaiter.h"
 #include "rtcmPrivate.h"
 #include "OBJCCaptureModule.h"
+#include <rtc_base/ref_counter.h>
 
 namespace artc
 {
@@ -296,11 +297,20 @@ public:
     webrtc::VideoTrackInterface* video() { return mVideo ? mVideo.get() : (webrtc::VideoTrackInterface*)nullptr; }
 };
 
-class VideoTrackSource : public webrtc::Notifier<webrtc::VideoTrackSourceInterface>
+
+class VideoManager
 {
 public:
-    explicit VideoTrackSource(bool remote);
-    ~VideoTrackSource() override;
+    virtual void openDevice(const std::string &videoDevice) = 0;
+    virtual void releaseDevice() = 0;
+    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource() = 0;
+};
+
+class CaptureModuleLinux : public webrtc::Notifier<webrtc::VideoTrackSourceInterface>, public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager
+{
+public:
+    explicit CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote = false);
+    ~CaptureModuleLinux() override;
     void SetState(webrtc::MediaSourceInterface::SourceState new_state);
 
     webrtc::MediaSourceInterface::SourceState state() const override { return mState; }
@@ -315,36 +325,58 @@ public:
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
                          const rtc::VideoSinkWants& wants) override;
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-     virtual bool remote() const override;
+    virtual bool remote() const override;
+    virtual void OnFrame(const webrtc::VideoFrame& frame) override;
+    virtual void AddRef() const override
+    {
+        mRefCount.IncRef();
+    }
+
+    virtual rtc::RefCountReleaseStatus Release() const override
+    {
+        const auto status = mRefCount.DecRef();
+        if (status == rtc::RefCountReleaseStatus::kDroppedLastRef) {
+          delete this;
+        }
+
+        return status;
+    }
+
+    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    virtual void openDevice(const std::string &videoDevice) override;
+    virtual void releaseDevice() override;
+    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource() override;
 
 protected:
-    virtual rtc::VideoSourceInterface<webrtc::VideoFrame>* source() = 0;
     rtc::ThreadChecker mWorkerThreadChecker;
     rtc::VideoBroadcaster mBroadcaster;
     webrtc::MediaSourceInterface::SourceState mState;
     bool mRemote;
+    rtc::scoped_refptr<webrtc::VideoCaptureModule> mCameraCapturer;
+    webrtc::VideoCaptureCapability mCapabilities;
+    mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
 };
 
-class CapturerTrackSource : public VideoTrackSource, rtc::VideoSinkInterface<webrtc::VideoFrame>
+class CapturerTrackSource : public VideoManager
 {
 public:
     static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
-    virtual void OnFrame(const webrtc::VideoFrame& frame) override;
-    ~CapturerTrackSource() override;
+    ~CapturerTrackSource();
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
-    void openDevice(const std::string &videoDevice);
-    void releaseDevice();
+    virtual void openDevice(const std::string &videoDevice) override;
+    virtual void releaseDevice() override;
+    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource() override;
+
 #ifdef __APPLE__
     OBJCCaptureModule mCaptureModule;
+#else
+    CaptureModuleLinux mCaptureModule;
 #endif
 
 protected:
     explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
-private:
-    rtc::VideoSourceInterface<webrtc::VideoFrame>* source() override;
-    void destroy();
-    rtc::scoped_refptr<webrtc::VideoCaptureModule> mCameraCapturer;
-    webrtc::VideoCaptureCapability mCapabilities;
+
+
 };
 
 }

@@ -12,19 +12,7 @@ namespace artc
 
     OBJCCaptureModule::OBJCCaptureModule(const std::string &deviceName)
     {
-        mCaptureDevice = nil;
-        for (AVCaptureDevice *captureDevice in AVCaptureDevice.devices)
-        {
-            if ([captureDevice.localizedName isEqualToString:[NSString stringWithUTF8String:deviceName.c_str()]])
-            {
-                mCaptureDevice = captureDevice;
-            }
-        }
-        
-        assert(mCaptureDevice != nil);
-        mCameraViceoCapturer = [[RTCCameraVideoCapturer alloc] init];
-        [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:mCaptureDevice.activeFormat fps:30];
-        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraViceoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
+        openDevice(deviceName);
     }
 
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> OBJCCaptureModule::getVideoSource()
@@ -45,6 +33,34 @@ namespace artc
         }
         
         return devices;
+    }
+
+    void OBJCCaptureModule::openDevice(const std::string &videoDevice)
+    {
+        mCaptureDevice = nil;
+        for (AVCaptureDevice *captureDevice in AVCaptureDevice.devices)
+        {
+            if ([captureDevice.localizedName isEqualToString:[NSString stringWithUTF8String:deviceName.c_str()]])
+            {
+                mCaptureDevice = captureDevice;
+            }
+        }
+
+        assert(mCaptureDevice != nil);
+        mCameraViceoCapturer = [[RTCCameraVideoCapturer alloc] init];
+        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraViceoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
+        [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:mCaptureDevice.activeFormat fps:30];
+    }
+
+    void OBJCCaptureModule::releaseDevice()
+    {
+        // Stop capture mCameraViceoCapturer
+        //mVideoSource.
+    }
+
+    webrtc::VideoTrackSourceInterface *getVideoTrackSource()
+    {
+        return mVideoSource.get();
     }
     
 }
