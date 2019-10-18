@@ -757,16 +757,16 @@
 					../../src,
 					../../../SDK/include,
 					../../../SDK/bindings/ios/3rdparty/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src,
-					"../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/abseil-cpp",
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/libyuv/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/boringssl/src/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers/WebRTC,
+					../../../SDK/bindings/ios/3rdparty/webrtc,
+					"../../../SDK/bindings/ios/3rdparty/webrtc/third_party/abseil-cpp",
+					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
+					../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
+					../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
-				LIBRARY_SEARCH_PATHS = "";
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = (
@@ -802,7 +802,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/ ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers/WebRTC";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC";
 			};
 			name = Debug;
 		};
@@ -849,16 +849,16 @@
 					../../src,
 					../../../SDK/include,
 					../../../SDK/bindings/ios/3rdparty/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src,
-					"../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/abseil-cpp",
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/libyuv/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/third_party/boringssl/src/include,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers,
-					../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers/WebRTC,
+					../../../SDK/bindings/ios/3rdparty/webrtc,
+					"../../../SDK/bindings/ios/3rdparty/webrtc/third_party/abseil-cpp",
+					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
+					../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
+					../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
-				LIBRARY_SEARCH_PATHS = "";
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_CFLAGS = (
 					"-DENABLE_CHAT",
@@ -895,7 +895,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/ ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers ../../../SDK/bindings/ios/3rdparty/webrtc/src/sdk/objc/Framework/Headers/WebRTC";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
