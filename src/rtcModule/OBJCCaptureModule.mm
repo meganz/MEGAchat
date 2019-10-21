@@ -20,7 +20,9 @@ namespace artc
         mCaptureDevice = nil;
         for (AVCaptureDevice *captureDevice in AVCaptureDevice.devices)
         {
-            if ([captureDevice.localizedName isEqualToString:[NSString stringWithUTF8String:deviceName.c_str()]])
+            // TODO: Choose captureDevice by its localizedName
+            //if ([captureDevice.localizedName isEqualToString:[NSString stringWithUTF8String:deviceName.c_str()]])
+            if (captureDevice.position == AVCaptureDevicePositionFront)
             {
                 mCaptureDevice = captureDevice;
             }
@@ -28,7 +30,33 @@ namespace artc
         
         assert(mCaptureDevice != nil);
         mCameraViceoCapturer = [[RTCCameraVideoCapturer alloc] init];
-        [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:mCaptureDevice.activeFormat fps:30];
+        
+        AVCaptureDeviceFormat *selectedFormat = nil;
+        int currentDiff = INT_MAX;
+        int targetWidth = 640;
+        int targetHeight = 480;
+        for (AVCaptureDeviceFormat *format in mCaptureDevice.formats)
+        {
+            CMVideoDimensions dimension = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
+            FourCharCode pixelFormat = CMFormatDescriptionGetMediaSubType(format.formatDescription);
+            int diff = abs(targetWidth - dimension.width) + abs(targetHeight - dimension.height);
+            if (diff < currentDiff)
+            {
+                selectedFormat = format;
+                currentDiff = diff;
+            }
+            else if (diff == currentDiff && pixelFormat == [mCameraViceoCapturer preferredOutputPixelFormat])
+            {
+                selectedFormat = format;
+            }
+        }
+        
+        if (!selectedFormat)
+        {
+            selectedFormat = mCaptureDevice.activeFormat;
+        }
+        
+        [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:selectedFormat fps:30];
         mRunning = true;
         mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraViceoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
     }
