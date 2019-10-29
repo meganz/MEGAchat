@@ -10,7 +10,7 @@
 namespace artc
 {
     
-    OBJCCaptureModule::OBJCCaptureModule(const std::string &deviceName)
+    OBJCCaptureModule::OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
     {
         if (mCameraViceoCapturer)
         {
@@ -33,8 +33,8 @@ namespace artc
         
         AVCaptureDeviceFormat *selectedFormat = nil;
         int currentDiff = INT_MAX;
-        int targetWidth = 640;
-        int targetHeight = 480;
+        int targetWidth = capabilities.width;
+        int targetHeight = capabilities.height;
         for (AVCaptureDeviceFormat *format in mCaptureDevice.formats)
         {
             CMVideoDimensions dimension = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
@@ -56,7 +56,7 @@ namespace artc
             selectedFormat = mCaptureDevice.activeFormat;
         }
         
-        [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:selectedFormat fps:30];
+        [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:selectedFormat fps:capabilities.maxFPS];
         mRunning = true;
         mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraViceoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
     }

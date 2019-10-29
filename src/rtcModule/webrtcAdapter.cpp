@@ -230,7 +230,7 @@ webrtc::VideoTrackSourceInterface *CapturerTrackSource::getVideoTrackSource()
 CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
     :
 #ifdef __APPLE__
-    mCaptureModule(deviceName)
+    mCaptureModule(capabilities, deviceName)
 #else
     mCaptureModule(capabilities)
 #endif

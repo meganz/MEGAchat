@@ -6,6 +6,7 @@
 
 #include <api/peer_connection_interface.h>
 #include <api/scoped_refptr.h>
+#include <modules/video_capture/video_capture_defines.h>
 
 #ifdef __OBJC__
 @class AVCaptureDevice;
@@ -21,7 +22,7 @@ class OBJCCaptureModule
 {
     
 public:
-    OBJCCaptureModule(const std::string &deviceName);
+    OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoSource();
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     virtual void openDevice(const std::string &videoDevice);
