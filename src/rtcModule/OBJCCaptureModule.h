@@ -27,7 +27,7 @@ public:
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     virtual void openDevice(const std::string &videoDevice);
     virtual void releaseDevice();
-    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource();
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource();
 
 private:
     AVCaptureDevice *mCaptureDevice = nullptr;

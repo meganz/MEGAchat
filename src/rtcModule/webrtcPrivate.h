@@ -199,10 +199,8 @@ protected:
     promise::Promise<void> mDestroyPromise;
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideoTrack;
     std::shared_ptr<artc::CapturerTrackSource> mVideoDevice;
     std::shared_ptr<webrtc::AudioSourceInterface> mAudioSource;
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudioTrack;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
@@ -222,7 +220,7 @@ protected:
     void msgSdpOffer(RtMessage& packet);
     void handleReject(RtMessage& packet);
     void handleBusy(RtMessage& packet);
-    void getLocalStream(karere::AvFlags av, std::string& errors);
+    void getLocalStream(karere::AvFlags av);
     void muteUnmute(karere::AvFlags what, bool state);
     void onClientLeftCall(karere::Id userid, uint32_t clientid);
     /** Called by the remote media player when the first frame is about to be rendered,

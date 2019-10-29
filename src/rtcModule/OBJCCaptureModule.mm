@@ -98,7 +98,7 @@ namespace artc
         mRunning = false;
     }
     
-    webrtc::VideoTrackSourceInterface *OBJCCaptureModule::getVideoTrackSource()
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> OBJCCaptureModule::getVideoTrackSource()
     {
         return mVideoSource;
     }

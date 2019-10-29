@@ -1112,15 +1112,10 @@ void Call::setState(uint8_t newState)
     FIRE_EVENT(CALL, onStateChange, mState);
 }
 
-void Call::getLocalStream(AvFlags av, std::string& errors)
+void Call::getLocalStream(AvFlags av)
 {
     mLocalStream = std::make_shared<artc::LocalStreamHandle>();
-    mLocalStream->setAv(av);
 
-    if (!errors.empty())
-    {
-        SUB_LOG_WARNING("There were some errors getting local stream: %s", errors.c_str());
-    }
     setState(Call::kStateHasLocalStream);
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
@@ -1132,13 +1127,15 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
 
     mLocalPlayer->enableVideo(av.video());
 
-    mAudioTrack = artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
+    rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
+            artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
+
     if (!av.audio())
     {
-        mAudioTrack->set_enabled(false);
+        audioTrack->set_enabled(false);
     }
 
-    mLocalStream->addAudioTrack(mAudioTrack);
+    mLocalStream->addAudioTrack(audioTrack);
 }
 
 void Call::msgCallReqDecline(RtMessage& packet)
@@ -1806,13 +1803,11 @@ void Call::removeSession(Session& sess, TermCode reason)
 }
 bool Call::startOrJoin(AvFlags av)
 {
-    std::string errors;
-
     manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
 
     if (!mLocalPlayer)
     {
-        getLocalStream(av, errors);
+        getLocalStream(av);
     }
 
     if (mIsJoiner)
@@ -2119,6 +2114,7 @@ void Call::enableVideo(bool enable)
         return;
     }
 
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
     if (enable)
     {
         if (!mVideoDevice)
@@ -2137,8 +2133,12 @@ void Call::enableVideo(bool enable)
             mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities, mManager.mVideoDeviceSelected));
             assert(mVideoDevice);
 
-            mVideoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
-            mLocalStream->addVideoTrack(mVideoTrack);
+            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
+            mLocalStream->addVideoTrack(videoTrack);
+        }
+        else
+        {
+            videoTrack = mLocalStream->video();
         }
 
         mVideoDevice->openDevice(mManager.mVideoDeviceSelected);
@@ -2151,11 +2151,11 @@ void Call::enableVideo(bool enable)
             {
                 if (session.second->mVideoSender)
                 {
-                    session.second->mVideoSender->SetTrack(mVideoTrack);
+                    session.second->mVideoSender->SetTrack(videoTrack);
                 }
                 else
                 {
-                    webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = session.second->mRtcConn->AddTrack(mVideoTrack.get(), vector);
+                    webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = session.second->mRtcConn->AddTrack(videoTrack.get(), vector);
                     if (!error.ok())
                     {
                         SUB_LOG_WARNING("Error: %s", error.MoveError().message());
@@ -2320,11 +2320,6 @@ Call::~Call()
         cancelInterval(mStatsTimer, mManager.mKarereClient.appCtx);
     }
 
-    mVideoDevice.reset();
-    // TODO: Review possible memory leak
-    mVideoTrack.release();
-    mAudioTrack.release();
-
     SUB_LOG_DEBUG("Destroyed");
 }
 void Call::onClientLeftCall(Id userid, uint32_t clientid)
@@ -2374,6 +2369,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
     }
 }
+
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)
 {
     if (!mLocalPlayer)

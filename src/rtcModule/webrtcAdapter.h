@@ -301,9 +301,10 @@ public:
 class VideoManager
 {
 public:
+    virtual ~VideoManager(){}
     virtual void openDevice(const std::string &videoDevice) = 0;
     virtual void releaseDevice() = 0;
-    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource() = 0;
+    virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() = 0;
 };
 
 class CaptureModuleLinux : public webrtc::Notifier<webrtc::VideoTrackSourceInterface>, public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager
@@ -345,7 +346,7 @@ public:
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     virtual void openDevice(const std::string &videoDevice) override;
     virtual void releaseDevice() override;
-    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource() override;
+    virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
 
 protected:
     rtc::ThreadChecker mWorkerThreadChecker;
@@ -361,19 +362,14 @@ class CapturerTrackSource : public VideoManager
 {
 public:
     static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
-    ~CapturerTrackSource();
+    ~CapturerTrackSource() override;
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     virtual void openDevice(const std::string &videoDevice) override;
     virtual void releaseDevice() override;
-    virtual webrtc::VideoTrackSourceInterface *getVideoTrackSource() override;
-
-#ifdef __APPLE__
-    OBJCCaptureModule mCaptureModule;
-#else
-    CaptureModuleLinux mCaptureModule;
-#endif
+    virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
 
 protected:
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mCaptureModule;
     explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
 
 
