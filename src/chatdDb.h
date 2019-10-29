@@ -555,6 +555,10 @@ public:
         mDb.query("delete from chat_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
+    void flushChatPendingReactions() override
+    {
+        mDb.query("delete from chat_reactions where chatid = ? and status != 0", mChat.chatId());
+    }
 
     void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status) override
     {
@@ -562,10 +566,10 @@ public:
             "values(?,?,?,?,?)", mChat.chatId(), msgId, userId, reaction, status);
     }
 
-    void delReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status) override
+    void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
     {
-        mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ? and status = ?",
-            mChat.chatId(), msgId, userId, reaction, status);
+        mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
+            mChat.chatId(), msgId, userId, reaction);
     }
 
     void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const override

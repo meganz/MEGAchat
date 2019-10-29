@@ -1315,13 +1315,18 @@ public:
     void retryPendingReactions();
     void sendReactionSn();
 
-    /** @brief Clean pending reactions in a chat.
+    /** @brief Clean pending reactions in a chat for a specific message or range of messages.
      *
      * - If idx is not valid the function will clean pending reactions for the given msgid.
      * - Otherwise, the function will clean all pending reactions for the messages whose
      * index is previous to idx.
+     *
+     * Reactions in local DB are removed along with messages (FK delete on cascade).
      */
-    void cleanPendingReactions(karere::Id msgid, Idx idx);
+    void cleanPendingReactionsByMsg(karere::Id msgid, Idx idx);
+
+    /** @brief Flush all pending reactions (in RAM and local DB) for a chat. */
+    void flushChatPendingReactions();
 
     /** @brief Return the status of a reaction:
      *  - returns OP_ADDREACTION:   If reaction is pending to be added
@@ -1616,8 +1621,9 @@ public:
     virtual const std::string getReactionSn() const = 0;
     virtual void setReactionSn(const std::string &rsn) = 0;
     virtual void cleanReactions(karere::Id msgId) = 0;
+    virtual void flushChatPendingReactions() = 0;
     virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status) = 0;
-    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status) = 0;
+    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
 };
 

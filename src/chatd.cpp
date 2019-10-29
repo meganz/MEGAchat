@@ -476,6 +476,7 @@ void Chat::login()
     mOldestKnownMsgId = info.oldestDbId;
 
     sendReactionSn();
+    retryPendingReactions();
 
     if (previewMode())
     {
@@ -2358,6 +2359,7 @@ void Chat::onHistDone()
 {
     FetchType fetchType = mFetchRequest.front();
     mFetchRequest.pop();
+    flushChatPendingReactions();
     if (fetchType == FetchType::kFetchMessages)
     {
         // We may be fetching from memory and db because of a resetHistFetch()
@@ -2634,7 +2636,6 @@ void Chat::retryPendingReactions()
         if (index == CHATD_IDX_INVALID)
         {
             CHATID_LOG_ERROR("retryPendingReactions: failed to find message with id(%d)", msgid);
-            mPendingReactions.erase(auxit);
         }
         else
         {
@@ -2643,11 +2644,7 @@ void Chat::retryPendingReactions()
             {
                 case OP_ADDREACTION:
                 {
-                    if (msg.hasReacted(auxit->mReactionString, client().myHandle()))
-                    {
-                        mPendingReactions.erase(auxit);
-                    }
-                    else
+                    if (!msg.hasReacted(auxit->mReactionString, client().myHandle()))
                     {
                         addReaction(msg, auxit->mReactionString);
                     }
@@ -2659,10 +2656,6 @@ void Chat::retryPendingReactions()
                     {
                         delReaction(msg, auxit->mReactionString);
                     }
-                    else
-                    {
-                        mPendingReactions.erase(auxit);
-                    }
                     break;
                  }
                 default:
@@ -2673,7 +2666,7 @@ void Chat::retryPendingReactions()
     }
 }
 
-void Chat::cleanPendingReactions(karere::Id msgid, Idx idx)
+void Chat::cleanPendingReactionsByMsg(karere::Id msgid, Idx idx)
 {
     for (auto it = mPendingReactions.begin(); it != mPendingReactions.end();)
     {
@@ -2692,6 +2685,12 @@ void Chat::cleanPendingReactions(karere::Id msgid, Idx idx)
             mPendingReactions.erase(auxit);
         }
     }
+}
+
+void Chat::flushChatPendingReactions()
+{
+    mPendingReactions.clear();
+    CALL_DB(flushChatPendingReactions);
 }
 
 void Chat::addReaction(const Message &message, const std::string &reaction)
@@ -3027,7 +3026,7 @@ void Chat::removeMessageReactions(Idx idx, bool cleanPrevious)
     {
         msg->cleanReactions();
         Idx auxidx = cleanPrevious ? idx :CHATD_IDX_INVALID;
-        cleanPendingReactions(msg->mId, auxidx);
+        cleanPendingReactionsByMsg(msg->mId, auxidx);
     }
     // reactions in DB are removed along with messages (FK delete on cascade)
 }
@@ -5055,7 +5054,7 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
         const std::string reaction(data->buf(), data->bufSize());
         removePendingReaction(reaction, message.id(), OP_DELREACTION);
         message.delReaction(reaction, userId);
-        CALL_DB(delReaction, message.mId, userId, reaction.c_str(), 0);
+        CALL_DB(delReaction, message.mId, userId, reaction.c_str());
         CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
     })
     .fail([this, msgId](const ::promise::Error& err)
@@ -5071,7 +5070,6 @@ void Chat::onReactionSn(Id rsn)
         mReactionSn = rsn;
         CALL_DB(setReactionSn, mReactionSn.toString());
     }
-    retryPendingReactions();
 }
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)
