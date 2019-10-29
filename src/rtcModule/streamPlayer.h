@@ -49,7 +49,7 @@ public:
         detachAudio();
         detachVideo();
     }
-    void attachAudio(webrtc::AudioTrackInterface* audio)
+    void attachAudio(rtc::scoped_refptr<webrtc::AudioTrackInterface> audio)
     {
         assert(audio);
         detachAudio();
@@ -65,7 +65,7 @@ public:
         mAudio = nullptr;
     }
 
-    void attachVideo(webrtc::VideoTrackSourceInterface *video)
+    void attachVideo(rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video)
     {
         assert(video);
         detachVideo();
