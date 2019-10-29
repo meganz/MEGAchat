@@ -56,7 +56,7 @@ ChatMessage::~ChatMessage()
     delete ui;
 }
 
-Reaction *ChatMessage::getLocalReaction(const char *reactionStr)
+const Reaction *ChatMessage::getLocalReaction(const char *reactionStr) const
 {
     for (int i = 0; i < ui->mReactions->layout()->count(); i++)
     {
@@ -652,7 +652,7 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
     if (res->getErrorCode() == MegaChatError::ERROR_OK)
     {
         int count = 0;
-        Reaction *r = getLocalReaction(utfstring.c_str());
+        const Reaction *r = getLocalReaction(utfstring.c_str());
         r ? count = del ? r->getCount() - 1 : r->getCount() + 1
           : count = del ? 0 : 1;
 
