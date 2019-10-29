@@ -1703,6 +1703,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!mClient->rtc->selectVideoInDevice(request->getText()))
             {
+                API_LOG_ERROR("Change video streaming source - devide doesn't exist");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
