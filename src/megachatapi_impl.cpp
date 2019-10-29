@@ -1701,7 +1701,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mClient->rtc->selectVideoInDevice(request->getText());
+            if (!mClient->rtc->selectVideoInDevice(request->getText()))
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             break;

@@ -17,19 +17,18 @@ class StreamPlayer: public rtc::VideoSinkInterface<webrtc::VideoFrame>
 protected:
     void *appCtx;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
-    webrtc::VideoTrackSourceInterface *mVideo;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mVideo;
     IVideoRenderer* mRenderer;
     bool mMediaStartSignalled = false;
     std::function<void()> mOnMediaStart;
     std::mutex mMutex; //guards onMediaStart and mRenderer (stuff that is accessed by public API and by webrtc threads)
     bool mVideoEnable = true;
-    bool mLocal = false;
 
 public:
     IVideoRenderer* videoRenderer() const {return mRenderer;}
     StreamPlayer(IVideoRenderer* renderer, void *ctx, webrtc::AudioTrackInterface* audio=nullptr,
-    webrtc::VideoTrackSourceInterface *video=nullptr, bool local = false)
-     :mAudio(audio), mVideo(video), mRenderer(renderer), mLocal(local)
+    webrtc::VideoTrackSourceInterface *video=nullptr)
+     :mAudio(audio), mVideo(video), mRenderer(renderer)
     {
         appCtx = ctx;
     }
@@ -79,11 +78,11 @@ public:
         rtc::VideoSinkWants opts;
         mVideo->AddOrUpdateSink(this, opts);
     }
-    bool isVideoAttached() const { return mVideo != nullptr; }
+    bool isVideoAttached() const { return mVideo.get() != nullptr; }
     bool isAudioAttached() const { return mAudio.get() != nullptr; }
     void detachVideo()
     {
-        if (!mVideo)
+        if (!mVideo.get())
             return;
         mVideo->RemoveSink(this);
 
@@ -180,11 +179,6 @@ public:
     webrtc::AudioTrackInterface *getAudioTrack()
     {
         return mAudio.get();
-    }
-
-    webrtc::VideoTrackSourceInterface *getVideoSource()
-    {
-        return mVideo;
     }
 };
 }

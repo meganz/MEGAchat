@@ -4217,7 +4217,7 @@ public:
      *
      * Video device identifiers are obtained with function MegaChatApi::getChatVideoInDevices
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
+     * The associated request type with this request is MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getText - Returns the device
      *

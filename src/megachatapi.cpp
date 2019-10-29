@@ -801,7 +801,7 @@ bool MegaChatApi::setChatAudioInDevice(const char *device)
 
 void MegaChatApi::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
 {
-    return pImpl->setChatVideoInDevice(device, listener);
+    pImpl->setChatVideoInDevice(device, listener);
 }
 
 char *MegaChatApi::getVideoDeviceSelected()
