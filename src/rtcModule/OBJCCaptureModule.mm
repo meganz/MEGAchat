@@ -97,10 +97,4 @@ namespace artc
         [mCameraViceoCapturer stopCapture];
         mRunning = false;
     }
-    
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> OBJCCaptureModule::getVideoTrackSource()
-    {
-        return mVideoSource;
-    }
-    
 }
