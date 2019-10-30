@@ -17,7 +17,7 @@ class StreamPlayer: public rtc::VideoSinkInterface<webrtc::VideoFrame>
 protected:
     void *appCtx;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mVideo;
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
     IVideoRenderer* mRenderer;
     bool mMediaStartSignalled = false;
     std::function<void()> mOnMediaStart;
@@ -27,7 +27,7 @@ protected:
 public:
     IVideoRenderer* videoRenderer() const {return mRenderer;}
     StreamPlayer(IVideoRenderer* renderer, void *ctx, webrtc::AudioTrackInterface* audio=nullptr,
-    webrtc::VideoTrackSourceInterface *video=nullptr)
+    webrtc::VideoTrackInterface *video=nullptr)
      :mAudio(audio), mVideo(video), mRenderer(renderer)
     {
         appCtx = ctx;
@@ -65,7 +65,7 @@ public:
         mAudio = nullptr;
     }
 
-    void attachVideo(rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video)
+    void attachVideo(rtc::scoped_refptr<webrtc::VideoTrackInterface> video)
     {
         assert(video);
         detachVideo();
@@ -76,7 +76,7 @@ public:
         }
 
         rtc::VideoSinkWants opts;
-        mVideo->AddOrUpdateSink(this, opts);
+        mVideo->GetSource()->AddOrUpdateSink(this, opts);
     }
     bool isVideoAttached() const { return mVideo.get() != nullptr; }
     bool isAudioAttached() const { return mAudio.get() != nullptr; }
@@ -106,7 +106,7 @@ public:
         auto vts = stream->GetVideoTracks();
         if (!vts.empty())
         {
-            attachVideo(vts[0]->GetSource());
+            attachVideo(vts[0]);
         }
     }
 

@@ -2142,7 +2142,7 @@ void Call::enableVideo(bool enable)
         }
 
         mVideoDevice->openDevice(mManager.mVideoDeviceSelected);
-        mLocalPlayer->attachVideo(mVideoDevice->getVideoTrackSource());
+        mLocalPlayer->attachVideo(videoTrack);
         std::vector<std::string> vector;
         vector.push_back("stream_id");
         for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
@@ -3000,7 +3000,7 @@ void Session::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transc
 
     if (transceiver->media_type() == cricket::MEDIA_TYPE_VIDEO)
     {
-        mRemotePlayer->attachVideo(transceiver->receiver()->streams()[0]->GetVideoTracks()[0]->GetSource());
+        mRemotePlayer->attachVideo(transceiver->receiver()->streams()[0]->GetVideoTracks()[0]);
         mRemotePlayer->enableVideo(mPeerAv.video());
     }
     else if (transceiver->media_type() == cricket::MEDIA_TYPE_AUDIO)
