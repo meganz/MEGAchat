@@ -1612,7 +1612,7 @@ HistSource Chat::getNodeHistory(uint32_t count)
     return mAttachmentNodes->getHistory(count);
 }
 
-HistSource Chat::getHistoryFromDbOrServer(unsigned count)
+HistSource Chat::getHistoryFromDbOrServer(unsigned count, bool initialFetch)
 {
     if (mHasMoreHistoryInDb)
     {
@@ -1634,8 +1634,10 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             return kHistSourceNotLoggedIn;
         }
 
-        if (!isLoggedIn())
+        if (onlineState() < kChatStateJoining || (isJoining() && !initialFetch))
+        {
             return kHistSourceNotLoggedIn;
+        }
 
         if (mServerFetchState & kHistOldFlag)
         {
@@ -2081,7 +2083,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     chat.clearHistory();
                     // we were notifying NEWMSGs in result of JOINRANGEHIST, but after reload we start receiving OLDMSGs
                     chat.mServerOldHistCbEnabled = mChatdClient.mKarereClient->isChatRoomOpened(chatid);
-                    chat.getHistoryFromDbOrServer(chat.initialHistoryFetchCount);
+                    chat.getHistoryFromDbOrServer(chat.initialHistoryFetchCount, true);
                 }
                 else if (op == OP_NEWKEY)
                 {

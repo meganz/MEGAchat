@@ -872,7 +872,7 @@ protected:
     void initialFetchHistory(karere::Id serverNewest);
     void requestHistoryFromServer(int32_t count);
     Idx getHistoryFromDb(unsigned count);
-    HistSource getHistoryFromDbOrServer(unsigned count);
+    HistSource getHistoryFromDbOrServer(unsigned count, bool initialFetch = false);
     void onLastReceived(karere::Id msgid);
     void onLastSeen(karere::Id msgid);
     void handleLastReceivedSeen(karere::Id msgid);
