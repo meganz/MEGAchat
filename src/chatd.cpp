@@ -2081,7 +2081,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     chat.clearHistory();
                     // we were notifying NEWMSGs in result of JOINRANGEHIST, but after reload we start receiving OLDMSGs
                     chat.mServerOldHistCbEnabled = mChatdClient.mKarereClient->isChatRoomOpened(chatid);
-                    chat.getHistoryFromDbOrServer(chat.initialHistoryFetchCount);
+                    chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
                 }
                 else if (op == OP_NEWKEY)
                 {
