@@ -1,6 +1,4 @@
 
-#include "OBJCCaptureModule.h"
-
 #include <AVFoundation/AVFoundation.h>
 #import "sdk/objc/components/capturer/RTCCameraVideoCapturer.h"
 #import "sdk/objc/native/api/video_capturer.h"
@@ -60,12 +58,7 @@ namespace artc
         mRunning = true;
         mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraViceoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
     }
-    
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> OBJCCaptureModule::getVideoSource()
-    {
-        return mVideoSource;
-    }
-    
+        
     std::set<std::pair<std::string, std::string>> OBJCCaptureModule::getVideoDevices()
     {
         std::set<std::pair<std::string, std::string>> devices;
@@ -96,5 +89,10 @@ namespace artc
     {
         [mCameraViceoCapturer stopCapture];
         mRunning = false;
+    }
+
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> OBJCCaptureModule::getVideoTrackSource()
+    {
+        return mVideoSource;
     }
 }

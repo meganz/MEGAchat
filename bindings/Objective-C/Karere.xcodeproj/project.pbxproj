@@ -72,7 +72,6 @@
 		77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatRichPreview.mm; sourceTree = "<group>"; };
 		77875CDE2099A6AF00B8340F /* MEGAChatContainsMeta+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatContainsMeta+init.h"; sourceTree = "<group>"; };
 		77875CDF2099A8E300B8340F /* MEGAChatRichPreview+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatRichPreview+init.h"; sourceTree = "<group>"; };
-		77CB2DCD2356FFD50095FF8C /* OBJCCaptureModule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OBJCCaptureModule.h; sourceTree = "<group>"; };
 		77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OBJCCaptureModule.mm; sourceTree = "<group>"; };
 		8394CF9C211992A200A1634A /* MEGAChatSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatSession.h; sourceTree = "<group>"; };
 		8394CF9D211992A200A1634A /* MEGAChatSession.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatSession.mm; sourceTree = "<group>"; };
@@ -510,7 +509,6 @@
 				A83D5BF11F974AF900A038F7 /* rtcStats.cpp */,
 				A83D5BF21F974AF900A038F7 /* webrtc.cpp */,
 				A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */,
-				77CB2DCD2356FFD50095FF8C /* OBJCCaptureModule.h */,
 				77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */,
 			);
 			path = rtcModule;

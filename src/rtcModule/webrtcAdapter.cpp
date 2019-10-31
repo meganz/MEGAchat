@@ -214,32 +214,26 @@ std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevic
 
 void CapturerTrackSource::openDevice(const std::string &videoDevice)
 {
-    VideoManager *videoManager = dynamic_cast<VideoManager *>(mCaptureModule.get());
-    assert(videoManager);
-    videoManager->openDevice(videoDevice);
+    mCaptureModule->openDevice(videoDevice);
 }
 
 void CapturerTrackSource::releaseDevice()
 {
-    VideoManager *videoManager = dynamic_cast<VideoManager *>(mCaptureModule.get());
-    assert(videoManager);
-    videoManager->releaseDevice();
+    mCaptureModule->releaseDevice();
 }
 
 rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>CapturerTrackSource::getVideoTrackSource()
 {
-    VideoManager *videoManager = dynamic_cast<VideoManager *>(mCaptureModule.get());
-    assert(videoManager);
-    return videoManager->getVideoTrackSource();
+    return mCaptureModule->getVideoTrackSource();
 }
 
 CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
 {
 
 #ifdef __APPLE__
-    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new OBJCCaptureModule(capabilities, deviceName));
+    mCaptureModule = std::shared_ptr<VideoManager>(new OBJCCaptureModule(capabilities, deviceName));
 #else
-    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleLinux(capabilities));
+    mCaptureModule = std::shared_ptr<VideoManager>(new CaptureModuleLinux(capabilities));
 #endif
 }
 

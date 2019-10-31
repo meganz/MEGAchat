@@ -9,8 +9,15 @@
 #include "base/promise.h"
 #include "webrtcAsyncWaiter.h"
 #include "rtcmPrivate.h"
-#include "OBJCCaptureModule.h"
 #include <rtc_base/ref_counter.h>
+
+#ifdef __OBJC__
+@class AVCaptureDevice;
+@class RTCCameraVideoCapturer;
+#else
+typedef struct objc_object AVCaptureDevice;
+typedef struct objc_object RTCCameraVideoCapturer;
+#endif
 
 namespace artc
 {
@@ -369,10 +376,29 @@ public:
     virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
 
 protected:
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mCaptureModule;
+    std::shared_ptr<VideoManager> mCaptureModule;
     explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
 
 
 };
+
+#ifdef __APPLE__
+class OBJCCaptureModule : public VideoManager
+{
+    
+public:
+    OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
+    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    virtual void openDevice(const std::string &videoDevice) override;
+    virtual void releaseDevice() override;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+
+private:
+    AVCaptureDevice *mCaptureDevice = nullptr;
+    RTCCameraVideoCapturer *mCameraViceoCapturer = nullptr;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mVideoSource;
+    bool mRunning = false;
+};
+#endif
 
 }
