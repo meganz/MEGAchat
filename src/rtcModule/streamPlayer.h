@@ -84,7 +84,7 @@ public:
     {
         if (!mVideo.get())
             return;
-        mVideo->RemoveSink(this);
+        mVideo->GetSource()->RemoveSink(this);
 
         mVideo = nullptr;
         if (mRenderer)

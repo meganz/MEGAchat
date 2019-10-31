@@ -58,7 +58,7 @@ namespace artc
         mRunning = true;
         mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraViceoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
     }
-        
+
     std::set<std::pair<std::string, std::string>> OBJCCaptureModule::getVideoDevices()
     {
         std::set<std::pair<std::string, std::string>> devices;
@@ -93,6 +93,65 @@ namespace artc
 
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> OBJCCaptureModule::getVideoTrackSource()
     {
-        return mVideoSource;
+        return this;
+    }
+
+    bool OBJCCaptureModule::is_screencast() const
+    {
+        return mVideoSource->is_screencast();
+    }
+
+    absl::optional<bool> OBJCCaptureModule::needs_denoising() const
+    {
+        return mVideoSource->needs_denoising();
+    }
+
+    bool OBJCCaptureModule::GetStats(Stats* stats)
+    {
+        return mVideoSource->GetStats(stats);
+    }
+
+    webrtc::MediaSourceInterface::SourceState OBJCCaptureModule::state() const
+    {
+        return mVideoSource->state();
+    }
+
+    bool OBJCCaptureModule::remote() const
+    {
+        return mVideoSource->remote();
+    }
+
+    void OBJCCaptureModule::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
+    {
+        mVideoSource->AddOrUpdateSink(sink, wants);
+    }
+
+    void OBJCCaptureModule::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
+    {
+        mVideoSource->RemoveSink(sink);
+    }
+
+    void OBJCCaptureModule::AddRef() const
+    {
+        mRefCount.IncRef();
+    }
+
+    rtc::RefCountReleaseStatus OBJCCaptureModule::Release() const
+    {
+        const auto status = mRefCount.DecRef();
+        if (status == rtc::RefCountReleaseStatus::kDroppedLastRef) {
+            delete this;
+        }
+        return status;
+    }
+
+    void OBJCCaptureModule::RegisterObserver(webrtc::ObserverInterface* observer)
+    {
+        mVideoSource->RegisterObserver(observer);
+    }
+
+    void OBJCCaptureModule::UnregisterObserver(webrtc::ObserverInterface* observer)
+    {
+        mVideoSource->UnregisterObserver(observer);
     }
 }

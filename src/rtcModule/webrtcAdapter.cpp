@@ -214,26 +214,30 @@ std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevic
 
 void CapturerTrackSource::openDevice(const std::string &videoDevice)
 {
-    mCaptureModule->openDevice(videoDevice);
+    VideoManager *videoManager = dynamic_cast<VideoManager *>(mCaptureModule.get());
+    assert(videoManager);
+    videoManager->openDevice(videoDevice);
 }
 
 void CapturerTrackSource::releaseDevice()
 {
-    mCaptureModule->releaseDevice();
+    VideoManager *videoManager = dynamic_cast<VideoManager *>(mCaptureModule.get());
+    assert(videoManager);
+    videoManager->releaseDevice();
 }
 
 rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>CapturerTrackSource::getVideoTrackSource()
 {
-    return mCaptureModule->getVideoTrackSource();
+    return mCaptureModule;
 }
 
 CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
 {
 
 #ifdef __APPLE__
-    mCaptureModule = std::shared_ptr<VideoManager>(new OBJCCaptureModule(capabilities, deviceName));
+    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new OBJCCaptureModule(capabilities, deviceName));
 #else
-    mCaptureModule = std::shared_ptr<VideoManager>(new CaptureModuleLinux(capabilities));
+    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleLinux(capabilities));
 #endif
 }
 
