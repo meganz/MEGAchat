@@ -985,6 +985,13 @@ void Connection::doConnect()
             }
             CHATDS_LOG_DEBUG("Connection to chatd failed using the IP: %s", mTargetIp.c_str());
         }
+        else
+        {
+            // do not close the socket, which forces a new retry attempt and turns the DNS response obsolete
+            // Instead, let the DNS request to complete, in order to refresh IPs
+            CHATDS_LOG_DEBUG("Empty cached IP. Waiting for DNS resolution...");
+            return;
+        }
 
         onSocketClose(0, 0, "Websocket error on wsConnect (chatd)");
     }
@@ -2084,7 +2091,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     chat.clearHistory();
                     // we were notifying NEWMSGs in result of JOINRANGEHIST, but after reload we start receiving OLDMSGs
                     chat.mServerOldHistCbEnabled = mChatdClient.mKarereClient->isChatRoomOpened(chatid);
-                    chat.getHistoryFromDbOrServer(chat.initialHistoryFetchCount);
+                    chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
                 }
                 else if (op == OP_NEWKEY)
                 {
@@ -3690,6 +3697,9 @@ int Chat::unreadMsgCount() const
 
 void Chat::flushOutputQueue(bool fromStart)
 {
+    if (!isLoggedIn())
+        return;
+
     if (fromStart)
         mNextUnsent = mSending.begin();
 
@@ -5482,13 +5492,13 @@ bool Message::parseUrl(const std::string &url)
         }
     }
 
-    std::regex megaUrlExpression("^((WWW.|www.)?mega.+(nz/|co.nz/)).*((#F!|#!|C!|chat/|file/|folder/)[a-z0-9A-Z-._~:\/?#!$&'()*+,;=\-@]+)$");
+    std::regex megaUrlExpression("((WWW.|www.)?mega.+(nz/|co.nz/)).*((#F!|#!|C!|chat/|file/|folder/)[a-z0-9A-Z-._~:/?#!$&'()*+,;= \\-@]+)$");
     if (regex_match(urlToParse, megaUrlExpression))
     {
         return false;
     }
 
-    std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+[.][a-zA-Z]{2,5}(:[0-9]{1,5})?([a-z0-9A-Z-._~:/?#@!$&'()*+,;=]*)?$");
+    std::regex regularExpresion("((^([0-9]{1,3}[.]{1}[0-9]{1,3}[.]{1}[0-9]{1,3}[.]{1}[0-9]{1,3}))|((^(WWW.|www.))?([a-z0-9A-Z]+)([a-z0-9A-Z-._~?#!$&'()*+,;=])*([a-z0-9A-Z]+)([.]{1}[a-zA-Z]{2,5}){1,2}))([:]{1}[0-9]{1,5})?([/]{1}[a-z0-9A-Z-._~:?#/@!$&'()*+,;=]*)?$");
 
     return regex_match(urlToParse, regularExpresion);
 }

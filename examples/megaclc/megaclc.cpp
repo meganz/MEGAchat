@@ -126,6 +126,7 @@ ConsoleLock conlock(std::ostream& o)
     // So you can get multithreaded non-interleaved console output with just conlock(cout) << "some " << "strings " << endl;
     // (as the temporary's destructor will run at the end of the outermost enclosing expression).
     // Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output over several statements).
+    // Be careful not to have cout locked across a g_megaApi member function call, as any callbacks that also log could then deadlock.
     return ConsoleLock(o);
 }
 
@@ -277,6 +278,7 @@ string OwnStr(const char* s)
 
 string base64NodeHandle(m::MegaHandle h)
 {
+    if (h == m::INVALID_HANDLE) return "INVALID_HANDLE";
     return OwnStr(m::MegaApi::handleToBase64(h));
 }
 
@@ -564,7 +566,7 @@ public:
 
     void onNodesUpdate(m::MegaApi* , m::MegaNodeList *nodes) override
     {
-        conlock(cout) << "Node list updated:  " << (nodes ? nodes->size() : -1) << endl;
+        //conlock(cout) << "Node list updated:  " << (nodes ? nodes->size() : -1) << endl;
     }
 
     void onAccountUpdate(m::MegaApi *) override
@@ -2988,6 +2990,7 @@ struct ls_flags
     bool mtime = false;
     bool size = false;
     bool versions = false;
+    int order = 1;
 };
 
 
@@ -3014,6 +3017,7 @@ void ls(m::MegaNode* node, const string& basepath, const ls_flags& flags, int de
 
         if (show)
         {
+            auto guard = conlock(cout);
             cout << utf8path;
             if (node->getType() == m::MegaNode::TYPE_FOLDER) cout << "/";
 
@@ -3041,7 +3045,7 @@ void ls(m::MegaNode* node, const string& basepath, const ls_flags& flags, int de
         if (show && depth > 0) cout << endl;
         if (flags.recursive || depth == 0)
         {
-            unique_ptr<m::MegaNodeList> children(g_megaApi->getChildren(node));
+            unique_ptr<m::MegaNodeList> children(g_megaApi->getChildren(node, flags.order));
             if (children) for (int i = 0; i < children->size(); ++i)
             {
                 ls(children->get(i), basepath, flags, depth + 1);
@@ -3053,14 +3057,19 @@ void ls(m::MegaNode* node, const string& basepath, const ls_flags& flags, int de
 
 void exec_ls(ac::ACState& s)
 {
+    string orderstring;
     ls_flags flags;
-    flags.recursive = extractflag("-recursive", s.words);
-    flags.regexfilter = extractflagparam("-refilter", flags.regexfilterstring, s.words);
-    flags.handle = extractflag("-handles", s.words);
-    flags.ctime = extractflag("-ctime", s.words);
-    flags.mtime = extractflag("-mtime", s.words);
-    flags.size = extractflag("-size", s.words);
-    flags.versions = extractflag("-versions", s.words);
+    flags.recursive = s.extractflag("-recursive");
+    flags.regexfilter = s.extractflagparam("-refilter", flags.regexfilterstring);
+    flags.handle = s.extractflag("-handles");
+    flags.ctime = s.extractflag("-ctime");
+    flags.mtime = s.extractflag("-mtime");
+    flags.size = s.extractflag("-size");
+    flags.versions = s.extractflag("-versions");
+    if (s.extractflagparam("-order", orderstring))
+    {
+        flags.order = std::stoi(orderstring);
+    }
 
     if (flags.regexfilter)
     {
@@ -3078,7 +3087,6 @@ void exec_ls(ac::ACState& s)
         case m::MegaNode::TYPE_RUBBISH: basepath += "/"; break;
         default:;
         }
-        auto guard = conlock(cout);
         ls(node.get(), basepath, flags, 0);
     }
 }
@@ -3247,8 +3255,10 @@ void exec_setCameraUploadsFolder(ac::ACState& s)
     }
     else
     {
-        g_megaApi->setCameraUploadsFolder(srcnode->getHandle(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        g_megaApi->setCameraUploadsFolder(srcnode->getHandle(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest * r, m::MegaError* e)
         {
+            conlock(cout) << "Camera upload folder request flag: " << r->getFlag() << endl;
+            conlock(cout) << "Camera upload folder request handle: " << base64NodeHandle(r->getNodeHandle()) << endl;
             check_err("setCameraUploadsFolder", e, ReportResult);
         }));
     }
@@ -3259,6 +3269,7 @@ void exec_getCameraUploadsFolder(ac::ACState& s)
 {
     g_megaApi->getCameraUploadsFolder(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
     {
+        conlock(cout) << "Camera upload folder flag: " <<r->getFlag() << endl;
         if (check_err("getCameraUploadsFolder", e, ReportFailure))
         {
             unique_ptr<m::MegaNode> node(g_megaApi->getNodeByHandle(r->getNodeHandle()));
@@ -3269,6 +3280,47 @@ void exec_getCameraUploadsFolder(ac::ACState& s)
             else
             {
                 conlock(cout) << "Camera upload folder: " << OwnStr(g_megaApi->getNodePath(node.get())) << endl;
+            }
+        }
+    }));
+}
+
+
+void exec_setCameraUploadsFolderSecondary(ac::ACState& s)
+{
+    std::unique_ptr<m::MegaNode> srcnode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
+
+    if (!srcnode)
+    {
+        conlock(cout) << "Folder not found.";
+    }
+    else
+    {
+        g_megaApi->setCameraUploadsFolderSecondary(srcnode->getHandle(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+        {
+            conlock(cout) << "Camera upload folder request flag: " << r->getFlag() << endl;
+            conlock(cout) << "Camera upload folder request handle: " << base64NodeHandle(r->getNodeHandle()) << endl;
+            check_err("setCameraUploadsFolderSecondary", e, ReportResult);
+        }));
+    }
+
+}
+
+void exec_getCameraUploadsFolderSecondary(ac::ACState& s)
+{
+    g_megaApi->getCameraUploadsFolderSecondary(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+    {
+        conlock(cout) << "Camera upload folder flag: " << r->getFlag() << endl;
+        if (check_err("getCameraUploadsFolderSecondary", e, ReportFailure))
+        {
+            unique_ptr<m::MegaNode> node(g_megaApi->getNodeByHandle(r->getNodeHandle()));
+            if (!node)
+            {
+                conlock(cout) << "No node found by looking up handle: " << base64NodeHandle(r->getNodeHandle()) << endl;
+            }
+            else
+            {
+                conlock(cout) << "Camera upload folder (secondary): " << OwnStr(g_megaApi->getNodePath(node.get())) << endl;
             }
         }
     }));
@@ -3288,6 +3340,7 @@ void exec_getContact(ac::ACState& s)
         conlock(cout) << "No user found with that email" << endl;
     }
 }
+
 
 
 ac::ACN autocompleteSyntax()
@@ -3434,7 +3487,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_createpreview, sequence(text("createpreview"), localFSFile(), localFSFile()));
     p->Add(exec_testAllocation, sequence(text("testAllocation"), param("count"), param("size")));
     p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
-    p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-refilter"), param("regex")))), param("path")));
+    p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-order"), param("order")), sequence(flag("-refilter"), param("regex")))), param("path")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
 
     p->Add(exec_pushreceived, sequence(text("pushreceived"), opt(flag("-beep")), opt(param("chatid"))));
@@ -3444,6 +3497,8 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_setCameraUploadsFolder, sequence(text("setcamerauploadsfolder"), param("remotedst")));
     p->Add(exec_getCameraUploadsFolder, sequence(text("getcamerauploadsfolder")));
+    p->Add(exec_setCameraUploadsFolderSecondary, sequence(text("setcamerauploadsfoldersecondary"), param("remotedst")));
+    p->Add(exec_getCameraUploadsFolderSecondary, sequence(text("getcamerauploadsfoldersecondary")));
 
     p->Add(exec_getContact, sequence(text("getcontact"), param("email")));
 
