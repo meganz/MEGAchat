@@ -4401,9 +4401,9 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
         }
     }
 
-    int pendingStatus = chatroom->chat().getPendingReactionStatus(reaction, msgid);
-    if ((reacted && pendingStatus != OP_DELREACTION)
-        || (!reacted && pendingStatus == OP_ADDREACTION))
+    int pendingReactionStatus = chatroom->chat().getPendingReactionStatus(reaction, msgid);
+    if ((reacted && pendingReactionStatus != OP_DELREACTION)
+        || (!reacted && pendingReactionStatus == OP_ADDREACTION))
     {
         // Own user only must be added to userlist after check pending reactions
         userList->addMegaHandle(mClient->myHandle());

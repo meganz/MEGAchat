@@ -1838,12 +1838,12 @@ Idx Chat::getHistoryFromDb(unsigned count)
         {
             if (auxReaction.mStatus == 0)
             {
-                // Add reaction to confirmed reactions queue
+                // Add reaction to confirmed reactions queue in message
                 msg->addReaction(auxReaction.mReactionString, auxReaction.mUserId);
             }
             else
             {
-                // Add reaction to pending reactions queue
+                // Add reaction to pending reactions queue in chat
                 addPendingReaction(auxReaction.mReactionString, auxReaction.mMsgId, auxReaction.mStatus);
             }
         }
@@ -2595,6 +2595,7 @@ int Chat::getPendingReactionStatus(const std::string reaction, Id msgId) const
         if (auxReaction.mMsgId == msgId
             && auxReaction.mReactionString == reaction)
         {
+            assert(auxReaction.mStatus != 0);
             return auxReaction.mStatus;
         }
     }
@@ -2615,20 +2616,20 @@ void Chat::addPendingReaction(const std::string reaction, Id msgId, uint8_t stat
         }
     }
 
-    mPendingReactions.emplace_back(reaction, msgId, Id::inval(), status);
+    mPendingReactions.emplace_back(reaction, msgId, Id::null(), status);
 }
 
 void Chat::removePendingReaction(const std::string reaction, Id msgId, uint8_t status)
 {
     assert (status != 0);
-    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end();)
+    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
     {
-        auto auxit = it++;
-        if (auxit->mMsgId == msgId
-            && auxit->mReactionString == reaction
-            && auxit->mStatus == status)
+        if (it->mMsgId == msgId
+            && it->mReactionString == reaction
+            && it->mStatus == status)
         {
-            mPendingReactions.erase(auxit);
+            mPendingReactions.erase(it);
+            return;
         }
     }
 }
