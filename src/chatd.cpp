@@ -2652,20 +2652,14 @@ void Chat::retryPendingReactions()
             {
                 case OP_ADDREACTION:
                 {
-                    if (!msg.hasReacted(auxit->mReactionString, client().myHandle()))
-                    {
-                        addReaction(msg, auxit->mReactionString);
-                    }
+                    addReaction(msg, auxit->mReactionString);
                     break;
                 }
                 case OP_DELREACTION:
                 {
-                    if (msg.hasReacted(auxit->mReactionString, client().myHandle()))
-                    {
-                        delReaction(msg, auxit->mReactionString);
-                    }
+                    delReaction(msg, auxit->mReactionString);
                     break;
-                 }
+                }
                 default:
                     CHATID_LOG_ERROR("Error invalid status for pending reaction");
                     break;
