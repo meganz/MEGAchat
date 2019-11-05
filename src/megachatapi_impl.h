@@ -456,7 +456,7 @@ public:
     void fireOnMessageReceived(MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
     void fireOnHistoryReloaded(MegaChatRoom *chat);
-
+    void fireOnReactionUpdate(MegaChatHandle msgid, const char *reaction, int count);
     // karere::IApp::IChatHandler implementation
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler* callHandler();
@@ -500,6 +500,7 @@ public:
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onHistoryReloaded();
     virtual void onChatModeChanged(bool mode);
+    virtual void onReactionUpdate(karere::Id msgid, const char *reaction, int count);
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -594,6 +595,7 @@ public:
     virtual int64_t getInitialTimeStamp();
     virtual bool hasBeenNotifiedRinging() const;
     virtual void onReconnectingState(bool start);
+    virtual void setReconnectionFailed() override;
     virtual rtcModule::ICall *getCall();
 
     MegaChatCallPrivate *getMegaChatCall();
@@ -603,6 +605,7 @@ private:
     rtcModule::ICall *call = NULL;
     MegaChatCallPrivate *chatCall = NULL;
     bool mHasBeenNotifiedRinging = false;
+    bool mReconnectionFailed = false;
 
     rtcModule::IVideoRenderer *localVideoReceiver = NULL;
 };
@@ -808,6 +811,7 @@ public:
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual int getType() const;
+    virtual bool hasReactions() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
     virtual bool isEdited() const;
@@ -858,6 +862,7 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
+    bool mHasReactions;
     std::vector<MegaChatAttachedUser> *megaChatUsers = NULL;
     mega::MegaNodeList *megaNodeList = NULL;
     mega::MegaHandleList *megaHandleList = NULL;
@@ -902,6 +907,7 @@ public:
     MegaChatApiImpl(MegaChatApi *chatApi, mega::MegaApi *megaApi);
     virtual ~MegaChatApiImpl();
 
+    using SdkMutexGuard = std::unique_lock<std::recursive_mutex>;   // (equivalent to typedef)
     std::recursive_mutex sdkMutex;
     std::recursive_mutex videoMutex;
     mega::Waiter *waiter;
@@ -998,6 +1004,9 @@ public:
     void removeChatListener(MegaChatListener *listener);
     void removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
     void removeChatNotificationListener(MegaChatNotificationListener *listener);
+    int getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
+    mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
@@ -1108,6 +1117,8 @@ public:
 
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
+    MegaChatErrorPrivate *addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    MegaChatErrorPrivate *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
@@ -1288,27 +1299,6 @@ protected:
     std::string mText;
     MegaChatRichPreview *mRichPreview = NULL;
     MegaChatGeolocation *mGeolocation = NULL;
-};
-
-class DataTranslation
-{
-public:
-    /**
-     * @brief Transform binary string into a vector. For example: string.length() = 32 => vector.size() = 8
-     * The vector output is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
-     * @param data string in binary format
-     * @return vector
-     */
-    static std::vector<int32_t> b_to_vector(const std::string& data);
-
-    /**
-     * @brief Transform int32_t vector into a birnary string. For example: string.length() = 32 => vector.size() = 8
-     * The vector input is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
-     * @param vector vector of int32_t
-     * @return binary string
-     */
-    static std::string vector_to_b(std::vector<int32_t> vector);
-
 };
 
 class JSonUtils

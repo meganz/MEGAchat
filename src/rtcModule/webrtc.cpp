@@ -657,6 +657,7 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
             mRetryCall.erase(chatid);
             auto itHandler = mCallHandlers.find(chatid);
             assert(itHandler != mCallHandlers.end());
+            itHandler->second->setReconnectionFailed();
             removeCallWithoutParticipants(chatid);
 
         }, kRetryCallTimeout, mKarereClient.appCtx);
@@ -2093,6 +2094,7 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
         mManager.mRetryCallTimers.erase(chatid);
 
         SUB_LOG_DEBUG("Everybody left, terminating call- After reconnection");
+        mHandler->setReconnectionFailed();
         destroy(reason, false, "Everybody left - After reconnection");
 
     }, RtcModule::kRetryCallTimeout, mManager.mKarereClient.appCtx);
@@ -2262,6 +2264,8 @@ bool Call::answer(AvFlags av)
 
 void Call::hangup(TermCode reason)
 {
+    mManager.removeCallRetry(mChat.chatId());
+
     switch (mState)
     {
     case kStateReqSent:
@@ -2861,7 +2865,11 @@ void Session::onAddStream(artc::tspMediaStream stream)
     });
     mRemotePlayer->attachToStream(stream);
     mRemotePlayer->enableVideo(mPeerAv.video());
-    mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
+
+    if (mRemotePlayer->isAudioAttached())
+    {
+        mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
+    }
 }
 void Session::onRemoveStream(artc::tspMediaStream stream)
 {
@@ -2872,7 +2880,10 @@ void Session::onRemoveStream(artc::tspMediaStream stream)
     }
     if(mRemotePlayer)
     {
-        mRemotePlayer->getAudioTrack()->RemoveSink(mAudioLevelMonitor.get());
+        if (mRemotePlayer->isAudioAttached())
+        {
+            mRemotePlayer->getAudioTrack()->RemoveSink(mAudioLevelMonitor.get());
+        }
         mRemotePlayer->detachFromStream();
         mRemotePlayer.reset();
     }
@@ -3073,16 +3084,6 @@ bool Session::cmd(uint8_t type, Args... args)
         return false;
     }
     return true;
-}
-void Session::asyncDestroy(TermCode code, const std::string& msg)
-{
-    auto wptr = weakHandle();
-    marshallCall([this, wptr, code, msg]()
-    {
-        if (wptr.deleted())
-            return;
-        destroy(code, msg);
-    }, mManager.mKarereClient.appCtx);
 }
 
 Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)

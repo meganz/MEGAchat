@@ -323,16 +323,18 @@ enum Opcode
     OP_ECHO = 32,
 
     /**
-      * @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid.8> <userid.8> <msgid.8> <payloadLen.1> <reaction>
       *
-      * User add a reaction to message
+      * C->S: user adds a reaction to message
+      * S->C: server response to the command
       */
     OP_ADDREACTION = 33,
 
     /**
-      * @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid.8> <userid.8> <msgid.8> <payloadLen.1> <reaction>
       *
-      * User delete a reaction to message
+      * C->S: user delete a reaction to message
+      * S->C: server response to the command
       */
     OP_DELREACTION = 34,
 
@@ -414,6 +416,20 @@ enum Opcode
       * Send: <public_handle.6> <userid.8> <user_priv.1>
       */
     OP_HANDLELEAVE = 47,
+
+    /**
+      ** @brief <chatid.8> <rsn.8>
+      *
+      * C->S: send to chatd the current reaction sequence number for a chatroom.
+      * This command must be send upon a reconnection, only if we have stored
+      * a valid rsn and only after send JOIN/JOINRANGEHIST
+      * or HANDLEJOIN/HANDLEJOINRANGEHIST.
+      *
+      * S->C: inform about any change in the reactions associated to a chatroom
+      * by receiving the current reaction sequence number.
+      *
+      */
+    OP_REACTIONSN = 48,
 
     OP_LAST = OP_HANDLELEAVE,
     OP_INVALIDCODE = 0xFF
@@ -519,6 +535,38 @@ public:
         Priv privilege = PRIV_INVALID;
     };
 
+    /** @brief Contains a UTF-8 string that represents the reaction
+     * and a vector of userid's associated to that reaction. */
+    struct Reaction
+    {
+        std::string mReaction;
+        std::vector<karere::Id> mUsers;
+
+        Reaction(std::string reaction)
+        {
+            mReaction = reaction;
+        }
+
+         /** @brief Returns the userId index in case that exists. Otherwise returns -1 **/
+        int userIndex(karere::Id userId) const
+        {
+            int i = 0;
+            for (auto &it : mUsers)
+            {
+                if (it == userId)
+                {
+                    return i;
+                }
+                i++;
+            }
+            return -1;
+        }
+        bool hasReacted(karere::Id userId) const
+        {
+            return userIndex(userId) != -1;
+        }
+    };
+
     class CallEndedInfo
     {
         public:
@@ -575,6 +623,10 @@ private:
     //avoid setting the id and flag pairs one by one by making them accessible only by setId(Id,bool)
     karere::Id mId;
     bool mIdIsXid = false;
+
+    /* Reactions must be ordered in the same order as they were added,
+    so we need a sequence container */
+    std::vector<Reaction> mReactions;
 
 protected:
     uint8_t mIsEncrypted = kNotEncrypted;
@@ -731,6 +783,122 @@ public:
         return std::string(buf()+2, dataSize()-2);
     }
 
+    /** @brief Returns a vector with all the reactions of the message **/
+    std::vector<std::string> getReactions() const
+    {
+        std::vector<std::string> reactions;
+        for (auto &it : mReactions)
+        {
+            reactions.push_back(it.mReaction);
+        }
+        return reactions;
+    }
+
+    /** @brief Returns true if the user has reacted to this message with the specified reaction **/
+    bool hasReacted(std::string reaction, karere::Id uh) const
+    {
+        for (auto &it : mReactions)
+        {
+            if (it.mReaction == reaction)
+            {
+                return it.hasReacted(uh);
+            }
+        }
+        return false;
+    }
+
+    /** @brief Returns a vector with the userid's associated to an specific reaction **/
+    const std::vector<karere::Id>* getReactionUsers(std::string reaction) const
+    {
+        for (auto &it : mReactions)
+        {
+            if (it.mReaction == reaction)
+            {
+                return &(it.mUsers);
+            }
+        }
+        return nullptr;
+    }
+
+    /** @brief Returns the number of users for an specific reaction **/
+    int getReactionCount(const std::string &reaction) const
+    {
+        for (auto const &it : mReactions)
+        {
+            if (it.mReaction == reaction)
+            {
+                return static_cast<int>(it.mUsers.size());
+            }
+        }
+        return 0;
+    }
+
+    /** @brief Returns the reaction index in case that exists. Otherwise returns -1 **/
+    int getReactionIndex(const std::string &reaction) const
+    {
+        int i = 0;
+        for (auto &it : mReactions)
+        {
+            if (it.mReaction == reaction)
+            {
+                return i;
+            }
+            i++;
+        }
+        return -1;
+    }
+
+    /** @brief Clean reactions */
+    void cleanReactions()
+    {
+        mReactions.clear();
+    }
+    bool hasReactions() const
+    {
+        return !mReactions.empty();
+    }
+
+    /** @brief Add a reaction for an specific userid **/
+    void addReaction(const std::string &reaction, karere::Id userId)
+    {
+        Reaction *r = NULL;
+        int reactIndex = getReactionIndex(reaction);
+        if (reactIndex >= 0)
+        {
+            r =  &mReactions.at(reactIndex);
+        }
+        else    // not found, add
+        {
+            mReactions.emplace_back(reaction);
+            r = &mReactions.back();
+        }
+
+        if (!r->hasReacted(userId))
+        {
+            r->mUsers.emplace_back(userId);
+        }
+    }
+
+    /** @brief Delete a reaction for an specific userid **/
+    void delReaction(const std::string &reaction, karere::Id userId)
+    {
+        int reactIndex = getReactionIndex(reaction);
+        if (reactIndex >= 0)
+        {
+            Reaction &r = mReactions.at(reactIndex);
+
+            int userIndex = r.userIndex(userId);
+            if (userIndex >= 0)
+            {
+                r.mUsers.erase(r.mUsers.begin() + userIndex);
+                if (r.mUsers.empty())
+                {
+                    mReactions.erase(mReactions.begin() + reactIndex);
+                }
+            }
+        }
+    }
+
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
 
@@ -778,6 +946,11 @@ public:
     {
         append<uint32_t>(msg.dataSize());
         append(msg.buf(), msg.dataSize());
+        return std::move(*this);
+    }
+    Command&& operator+(const std::string& msg)
+    {
+        append(msg.data(), msg.size());
         return std::move(*this);
     }
     bool isMessage() const

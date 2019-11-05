@@ -41,7 +41,8 @@ SOURCES +=  ../../../examples/qtmegachatapi/MegaChatApplication.cpp \
     ../../../examples/qtmegachatapi/chatMessage.cpp \
     ../../../examples/qtmegachatapi/chatGroupDialog.cpp \
     ../../../examples/qtmegachatapi/listItemController.cpp \
-    ../../../examples/qtmegachatapi/SettingWindow.cpp
+    ../../../examples/qtmegachatapi/SettingWindow.cpp \
+    ../../../examples/qtmegachatapi/reaction.cpp
 
 HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
             ../../../examples/qtmegachatapi/MainWindow.h \
@@ -56,7 +57,8 @@ HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
     ../../../examples/qtmegachatapi/chatMessage.h \
     ../../../examples/qtmegachatapi/chatGroupDialog.h \
     ../../../examples/qtmegachatapi/listItemController.h \
-    ../../../examples/qtmegachatapi/SettingWindow.h
+    ../../../examples/qtmegachatapi/SettingWindow.h \
+    ../../../examples/qtmegachatapi/reaction.h
 
 FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
             ../../../examples/qtmegachatapi/MainWindow.ui \
@@ -65,7 +67,8 @@ FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
     ../../../examples/qtmegachatapi/settingsDialog.ui \
     ../../../examples/qtmegachatapi/chatMessageWidget.ui \
     ../../../examples/qtmegachatapi/chatGroupDialog.ui \
-    ../../../examples/qtmegachatapi/SettingWindow.ui
+    ../../../examples/qtmegachatapi/SettingWindow.ui \
+    ../../../examples/qtmegachatapi/reaction.ui
 
 CONFIG(USE_WEBRTC) {
     SOURCES +=  ../../../examples/qtmegachatapi/callGui.cpp \

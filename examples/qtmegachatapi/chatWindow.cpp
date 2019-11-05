@@ -359,6 +359,7 @@ void ChatWindow::truncateChatUI()
     for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end(); itMessages++)
     {
         ChatMessage *auxMessage = itMessages->second;
+        auxMessage->clearReactions();
         int row = ui->mMessageList->row(auxMessage->getWidgetItem());
         QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
         mMsgsWidgetsMap.erase(itMessages);
@@ -426,6 +427,11 @@ void ChatWindow::setCallGui(CallGui *callGui)
 ChatListItemController *ChatWindow::getChatItemController()
 {
     mMainWin->getChatControllerById(mChatRoom->getChatId());
+}
+
+MainWindow *ChatWindow::getMainWin() const
+{
+    return mMainWin;
 }
 #endif
 
@@ -496,6 +502,13 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi*, megachat::MegaChatMessa
 void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *)
 {
     truncateChatUI();
+}
+
+void ChatWindow::onReactionUpdate(megachat::MegaChatApi *, megachat::MegaChatHandle msgid, const char *reaction, int count)
+{
+   ChatMessage *msg = findChatMessage(msgid);
+   assert(msg);
+   msg->updateReaction(reaction, count);
 }
 
 void ChatWindow::onAttachmentLoaded(MegaChatApi */*api*/, MegaChatMessage *msg)
