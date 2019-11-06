@@ -740,8 +740,9 @@ public:
 
     struct PendingReaction
     {
-        PendingReaction(std::string aReactionString, uint64_t aMsgId, uint64_t aUserId, uint8_t status);
+        PendingReaction(std::string aReactionString, std::string aReactionStringEnc, uint64_t aMsgId, uint64_t aUserId, uint8_t status);
         std::string mReactionString;
+        std::string mReactionStringEnc;
         uint64_t mMsgId;
         uint64_t mUserId;
         uint8_t mStatus;
@@ -1310,7 +1311,7 @@ public:
     void addReaction(const Message &message, const std::string &reaction);
     void delReaction(const Message &message, const std::string &reaction);
     const PendingReactions &getPendingReactions() const;
-    void addPendingReaction(const std::string reaction, karere::Id msgId, uint8_t status);
+    void addPendingReaction(const std::string reaction, const std::string encReaction, karere::Id msgId, uint8_t status);
     void removePendingReaction(const std::string reaction, karere::Id msgId, uint8_t status);
     void retryPendingReactions();
     void sendReactionSn();
@@ -1622,7 +1623,8 @@ public:
     virtual void setReactionSn(const std::string &rsn) = 0;
     virtual void cleanReactions(karere::Id msgId) = 0;
     virtual void flushChatPendingReactions() = 0;
-    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, uint8_t status) = 0;
+    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction, uint8_t status) = 0;
+    virtual void confirmReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
 };

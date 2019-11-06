@@ -1844,7 +1844,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
             else
             {
                 // Add reaction to pending reactions queue in chat
-                addPendingReaction(auxReaction.mReactionString, auxReaction.mMsgId, auxReaction.mStatus);
+                addPendingReaction(auxReaction.mReactionString, auxReaction.mReactionStringEnc, auxReaction.mMsgId, auxReaction.mStatus);
             }
         }
 
@@ -2602,7 +2602,7 @@ int Chat::getPendingReactionStatus(const std::string reaction, Id msgId) const
     return -1;
 }
 
-void Chat::addPendingReaction(const std::string reaction, Id msgId, uint8_t status)
+void Chat::addPendingReaction(const std::string reaction, const std::string encReaction, Id msgId, uint8_t status)
 {
     assert (status != 0);
     for (auto &auxReaction : mPendingReactions)
@@ -2616,7 +2616,7 @@ void Chat::addPendingReaction(const std::string reaction, Id msgId, uint8_t stat
         }
     }
 
-    mPendingReactions.emplace_back(reaction, msgId, Id::null(), status);
+    mPendingReactions.emplace_back(reaction, encReaction, msgId, Id::null(), status);
 }
 
 void Chat::removePendingReaction(const std::string reaction, Id msgId, uint8_t status)
@@ -2718,6 +2718,7 @@ void Chat::addReaction(const Message &message, const std::string &reaction)
         {
             CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
         });
+        CALL_DB(addReaction, message.mId, client().myHandle(), reaction.c_str(), encReaction, OP_ADDREACTION);
     }, mChatdClient.mKarereClient->appCtx);
 }
 
@@ -2744,6 +2745,7 @@ void Chat::delReaction(const Message &message, const std::string &reaction)
         {
             CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
         });
+        CALL_DB(addReaction, message.mId, client().myHandle(), reaction.c_str(), encReaction, OP_DELREACTION);
     }, mChatdClient.mKarereClient->appCtx);
 }
 
@@ -5018,7 +5020,7 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
         const std::string reaction(data->buf(), data->size());
         removePendingReaction(reaction, message.id(), OP_ADDREACTION);
         message.addReaction(reaction, userId);
-        CALL_DB(addReaction, message.mId, userId, reaction.c_str(), 0);
+        CALL_DB(confirmReaction, message.mId, userId, reaction.c_str());
         CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
     })
     .fail([this, msgId](const ::promise::Error& err)
@@ -5523,13 +5525,13 @@ Chat::ManualSendItem::ManualSendItem()
 
 }
 
-Chat::PendingReaction::PendingReaction(std::string aReactionString, uint64_t aMsgId, uint64_t aUserId, uint8_t aStatus)
+Chat::PendingReaction::PendingReaction(std::string aReactionString, std::string aReactionStringEnc, uint64_t aMsgId, uint64_t aUserId, uint8_t aStatus)
 {
     mMsgId = aMsgId;
     mUserId = aUserId;
     mStatus = aStatus;
+    mReactionStringEnc = std::move(aReactionStringEnc);
     mReactionString = std::move(aReactionString);
-    mReactionString.append(aReactionString);
 }
 
 void Message::removeUnnecessaryLastCharacters(string &buf)
