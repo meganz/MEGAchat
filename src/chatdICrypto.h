@@ -163,7 +163,7 @@ public:
      * @param msg The message associated to the reaction.
      * @param reaction An UTF-8 string.
      */
-    virtual promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const Message &msg, const std::string &reaction) = 0;
+    virtual std::shared_ptr<Buffer> reactionEncrypt(const Message &msg, const std::string &reaction) = 0;
 
     /**
      * @brief Decrypts a reaction with xxtea.

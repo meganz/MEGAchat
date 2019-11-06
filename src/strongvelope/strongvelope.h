@@ -455,7 +455,7 @@ public:
     uint64_t getPublicHandle() const override;
     void setPublicHandle(const uint64_t ph) override;
 
-    promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const chatd::Message &msg, const std::string &reaction) override;
+    std::shared_ptr<Buffer> reactionEncrypt(const chatd::Message &msg, const std::string &reaction) override;
     promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const chatd::Message &msg, const std::string &reaction) override;
 };
 }
