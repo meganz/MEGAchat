@@ -555,11 +555,6 @@ public:
         mDb.query("delete from chat_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
-    void flushChatPendingReactions() override
-    {
-        mDb.query("delete from chat_reactions where chatid = ? and status != 0", mChat.chatId());
-    }
-
     void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction, uint8_t status) override
     {
         mDb.query("insert or replace into chat_reactions(chatid, msgid, userid, reaction, encReaction, status)"

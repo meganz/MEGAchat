@@ -2676,8 +2676,34 @@ void Chat::cleanPendingReactionsByMsg(karere::Id msgid, Idx idx)
 
 void Chat::flushChatPendingReactions()
 {
-    mPendingReactions.clear();
-    CALL_DB(flushChatPendingReactions);
+    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end();)
+    {
+        auto auxit = it++;
+        karere::Id msgid = auxit->mMsgId;
+        Idx index = msgIndexFromId(msgid);
+        if (index == CHATD_IDX_INVALID)
+        {
+            CHATID_LOG_ERROR("flushChatPendingReactions: failed to find message with id(%d)", msgid);
+            CALL_DB(cleanReactions, auxit->mMsgId);
+        }
+        else
+        {
+            assert(auxit->mStatus != 0);
+            Message &message = at(index);
+            if (auxit->mStatus == OP_ADDREACTION)
+            {
+                message.addReaction(auxit->mReactionString, client().myHandle());
+                CALL_DB(confirmReaction, message.mId, client().myHandle(), auxit->mReactionString.c_str());
+            }
+            else if (auxit->mStatus == OP_DELREACTION)
+            {
+                message.delReaction(auxit->mReactionString, client().myHandle());
+                CALL_DB(delReaction, message.mId, client().myHandle(), auxit->mReactionString.c_str());
+            }
+            CALL_LISTENER(onReactionUpdate, message.mId, auxit->mReactionString.c_str(), message.getReactionCount(auxit->mReactionString.c_str()));
+        }
+        mPendingReactions.erase(auxit);
+    }
 }
 
 void Chat::addReaction(const Message &message, const std::string &reaction)

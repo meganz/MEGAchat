@@ -1326,7 +1326,10 @@ public:
      */
     void cleanPendingReactionsByMsg(karere::Id msgid, Idx idx);
 
-    /** @brief Flush all pending reactions (in RAM and local DB) for a chat. */
+    /** @brief Flush all pending reactions (in RAM and local DB) for a chat.
+     * Upon HISTDONE reception all pending reactions has been applied in chatd,
+     * so we need to update changes in local and flush pending reactions
+     */
     void flushChatPendingReactions();
 
     /** @brief Return the status of a reaction:
@@ -1622,7 +1625,6 @@ public:
     virtual const std::string getReactionSn() const = 0;
     virtual void setReactionSn(const std::string &rsn) = 0;
     virtual void cleanReactions(karere::Id msgId) = 0;
-    virtual void flushChatPendingReactions() = 0;
     virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction, uint8_t status) = 0;
     virtual void confirmReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
