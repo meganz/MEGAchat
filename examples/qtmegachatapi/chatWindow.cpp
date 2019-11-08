@@ -507,7 +507,12 @@ void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRo
 void ChatWindow::onReactionUpdate(megachat::MegaChatApi *, megachat::MegaChatHandle msgid, const char *reaction, int count)
 {
    ChatMessage *msg = findChatMessage(msgid);
-   assert(msg);
+   if (!msg)
+   {
+      mLogger->postLog("onReactionUpdate error - reaction update received for message received but not loaded by app");
+      return;
+   }
+
    msg->updateReaction(reaction, count);
 }
 
