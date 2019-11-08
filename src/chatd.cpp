@@ -5010,9 +5010,18 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
             return;
 
         const std::string reaction(data->buf(), data->size());
-        removePendingReaction(reaction, message.id(), OP_ADDREACTION);
         message.addReaction(reaction, userId);
-        CALL_DB(confirmReaction, message.mId, userId, reaction.c_str());
+
+        if (userId == mChatdClient.myHandle())
+        {
+            removePendingReaction(reaction, message.id(), OP_ADDREACTION);
+            CALL_DB(confirmReaction, message.mId, client().myHandle(), reaction.c_str());
+        }
+        else
+        {
+            CALL_DB(addReaction, message.mId, userId, reaction.c_str(), std::string(), 0);
+        }
+
         CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
     })
     .fail([this, msgId](const ::promise::Error& err)
@@ -5053,6 +5062,12 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
         const std::string reaction(data->buf(), data->bufSize());
         removePendingReaction(reaction, message.id(), OP_DELREACTION);
         message.delReaction(reaction, userId);
+
+        if (userId == mChatdClient.myHandle())
+        {
+            removePendingReaction(reaction, message.id(), OP_DELREACTION);
+        }
+
         CALL_DB(delReaction, message.mId, userId, reaction.c_str());
         CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
     })
