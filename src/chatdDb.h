@@ -582,6 +582,14 @@ public:
             reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(0), stmt.stringCol(1), msgId.val, stmt.uint64Col(2), stmt.uint64Col(3)));
         }
     }
+
+    bool hasPendingReactions() override
+    {
+        SqliteStmt stmt(mDb, "select count(*) from chat_reactions where chatid = ? and status != 0");
+        stmt << mChat.chatId();
+        stmt.stepMustHaveData(__FUNCTION__);
+        return stmt.intCol(0);
+    }
 };
 
 #endif

@@ -1629,6 +1629,7 @@ public:
     virtual void confirmReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
+    virtual bool hasPendingReactions() = 0;
 };
 
 }
