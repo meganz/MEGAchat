@@ -1842,7 +1842,11 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
         symmetricDecrypt(*key, *msg);
         msg->setEncrypted(Message::kNotEncrypted);
         Id chatid = mProtoHandler.chatid;
-        STRONGVELOPE_LOG_DEBUG("Title decrypted successfully (private chat).");
+
+        std::string text = openmode
+                ? "(public chat)"
+                : "(private chat)";
+        STRONGVELOPE_LOG_DEBUG("Title decrypted successfully %s.", text.c_str());
         return msg;
     });
 }
