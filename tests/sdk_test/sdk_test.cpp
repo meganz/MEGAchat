@@ -1736,7 +1736,7 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     user = NULL;
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers, MegaChatPeerList::PRIV_MODERATOR);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
     peers = NULL;
 
@@ -1744,22 +1744,28 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
     ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
     ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ::mega::unique_ptr <MegaChatRoom> chatroom (megaChatApi[a1]->getChatRoom(chatid));
+    ::mega::unique_ptr<char[]> chatidB64(megaApi[a1]->handleToBase64(chatid));
+    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::string(chatidB64.get()));
 
-    // Change peer privileges to Read-only
-    bool *flagUpdatePeerPermision = &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
-    bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
-    bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
-    bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
-    MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
-    int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
-    ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
-    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
-    ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
+    if (chatroom->getPeerPrivilegeByHandle(uh) != PRIV_RO)
+    {
+        // Change peer privileges to Read-only
+        bool *flagUpdatePeerPermision = &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
+        bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
+        bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
+        bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+        MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
+        int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
+        megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
+        ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
+        ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+        ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
+        ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
+        ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
+        ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
+        ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
+    }
 
     // Send a message and wait for reception by target user
     string msg0 = "HI " + mAccounts[a1].getEmail() + " - Testing reactions";
