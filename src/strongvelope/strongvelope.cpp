@@ -1846,7 +1846,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
         std::string text = openmode
                 ? "(public chat)"
                 : "(private chat)";
-        STRONGVELOPE_LOG_DEBUG("Title decrypted successfully %s.", text.c_str());
+        STRONGVELOPE_LOG_DEBUG("Title decrypted successfully %s.", openmode ? "(public chat)" : "(private chat)");
         return msg;
     });
 }
