@@ -1745,7 +1745,8 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
     ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
     ::mega::unique_ptr <MegaChatRoom> chatroom (megaChatApi[a1]->getChatRoom(chatid));
-    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
+    ::mega::unique_ptr<char[]> chatidB64(megaApi[a1]->handleToBase64(chatid));
+    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::string(chatidB64.get()));
 
     if (chatroom->getPeerPrivilegeByHandle(uh) != PRIV_RO)
     {
