@@ -10,6 +10,9 @@
 
 #include <modules/video_capture/device_info_impl.h>
 
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
+#include "sdk/android/native_api/video/video_source.h"
+
 namespace rtcModule
 {
 namespace stats { class IRtcStats; }
@@ -200,6 +203,7 @@ protected:
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     std::shared_ptr<artc::CapturerTrackSource> mVideoDevice;
+    rtc::scoped_refptr<webrtc::JavaVideoTrackSourceInterface> mVideoSource;
     std::shared_ptr<webrtc::AudioSourceInterface> mAudioSource;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
