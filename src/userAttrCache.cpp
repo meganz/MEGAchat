@@ -2,9 +2,12 @@
 #include "userAttrCache.h"
 #include "chatClient.h"
 #include "db.h"
-#include <codecvt>
+#ifndef _MSC_VER
+#include <codecvt> // deprecated
+#endif
 #include <locale>
 #include <mega/types.h>
+#include <mega/utils.h>
 
 using namespace promise;
 using namespace std;
@@ -22,10 +25,45 @@ Buffer* ecKeyBase64ToBin(const ::mega::MegaRequest& result)
     base64urldecode(text, len, buf->buf(), 32);
     return buf;
 }
+
+Buffer* getAlias(const ::mega::MegaRequest& result)
+{
+    // Create a TLV and serialize the aliases map
+    ::mega::MegaStringMap *stringMap = result.getMegaStringMap();
+    if (!stringMap)
+    {
+        return nullptr;
+    }
+
+    ::mega::TLVstore tlv;
+    std::unique_ptr<::mega::MegaStringList> keys(stringMap->getKeys());
+    const char *key = nullptr;
+    for (int i = 0; i < keys->size(); i++)
+    {
+        key = keys->get(i);
+        tlv.set(std::string(key), std::string(stringMap->get(key)));
+    }
+
+    // If attr alias is empty generate a valid empty buffer with bufsize 1
+    std::unique_ptr<string> aux(tlv.tlvRecordsToContainer());
+    Buffer *buf = aux->size()
+            ? new Buffer(aux->data(), aux->size())
+            : new Buffer(1);
+    return buf;
+}
+
 const char* nonWhitespaceStr(const char* str)
 {
+#ifndef _MSC_VER
+    // codecvt deprecated
     std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
     std::u16string u16 = convert.from_bytes(str);
+#else
+    std::string result16;
+    ::mega::MegaApi::utf8ToUtf16(str, &result16);
+    std::u16string u16((char16_t*)result16.data(), result16.size() / 2);
+#endif
+
     for (auto s: u16)
     {
         if (!iswblank(s))
@@ -50,131 +88,97 @@ Buffer* getDataNotImpl(const ::mega::MegaRequest& /*req*/)
      throw std::runtime_error("Not implemented");
 }
 
-UserAttrDesc gUserAttrDescs[21] =
-{ //attrib code, getData func, changeMask
-  //avatar
-    {
-      ::mega::MegaApi::USER_ATTR_AVATAR,
-      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getFile()); },
-      ::mega::MegaUser::CHANGE_TYPE_AVATAR
-    },
-  //first name
-    {
-      ::mega::MegaApi::USER_ATTR_FIRSTNAME,
-      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
-      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME
-    },
-  //last name
-    {
-      ::mega::MegaApi::USER_ATTR_LASTNAME,
-      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
-      ::mega::MegaUser::CHANGE_TYPE_LASTNAME
-    },
-  //authring
-    {
-      ::mega::MegaApi::USER_ATTR_AUTHRING,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_AUTHRING
-    },
-  //last interaction
-    {
-      ::mega::MegaApi::USER_ATTR_LAST_INTERACTION,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LSTINT
-    },
-  //ed25519 signing key
-    {
-      ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY,
-      [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
-      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255
-    },
-  //cu25519 encryption key
-    {
-      ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY,
-      [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
-      ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255
-    },
-  //keyring - not used by userAttrCache
-    {
-      ::mega::MegaApi::USER_ATTR_KEYRING,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_KEYRING
-    },
-
-  //RSA-pubk - not used by userAttrCache
-    {
-      ::mega::MegaApi::USER_ATTR_SIG_RSA_PUBLIC_KEY,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_SIG_PUBKEY_RSA
-    },
-  //CU255 - not used by userAttrCache
-    {
-      ::mega::MegaApi::USER_ATTR_SIG_CU255_PUBLIC_KEY,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_SIG_PUBKEY_CU255
-    },
-  //Country - not used by userAttrCache
-    {
-      10,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_COUNTRY
-    },
-  //BirthDay - not used by userAttrCache
-    {
-      11,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_BIRTHDAY
-    },
-  //BirthMonth - not used by userAttrCache
-    {
-      12,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_BIRTHDAY
-    },
-  //BirthYear - not used by userAttrCache
-    {
-      13,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_BIRTHDAY
-    },
-  //language - not used by userAttrCache
-    {
-      ::mega::MegaApi::USER_ATTR_LANGUAGE,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LANGUAGE
-    },
-  //PWD reminder - not used by userAttrCache
-    {
-      ::mega::MegaApi::USER_ATTR_PWD_REMINDER,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_PWD_REMINDER
-    },
-  //Disable versions - not used by userAttrCache
-    {
-      ::mega::MegaApi::USER_ATTR_DISABLE_VERSIONS,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_DISABLE_VERSIONS
-    },
-  //Contact link verification - not used by userAttrCache
-    {
-      ::mega::MegaApi::USER_ATTR_CONTACT_LINK_VERIFICATION,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_CONTACT_LINK_VERIFICATION
-    },
-  //richLink
-    {
-      ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS,
-      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromTLV(req.getMegaStringMap(), "num"); },
-      ::mega::MegaUser::CHANGE_TYPE_RICH_PREVIEWS
-    },
-  //email
-    {
-      USER_ATTR_EMAIL,
-      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_EMAIL
-    },
-  //FULLNAME - virtual attrib with no DB backing
-    {
-      USER_ATTR_FULLNAME,
-      &getDataNotImpl,
-      ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME
-    },
-
-};
-
 UserAttrCache::~UserAttrCache()
 {
     mClient.api.sdk.removeGlobalListener(this);
 }
 
+UserAttrDescMap gUserAttrDescsMap =
+{
+    // STANDARD ATTRIBUTES
+
+    //first name
+      {
+        ::mega::MegaApi::USER_ATTR_FIRSTNAME,
+        UserAttrDesc(
+            [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+            ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME)
+      },
+    //last name
+      {
+        ::mega::MegaApi::USER_ATTR_LASTNAME,
+        UserAttrDesc(
+            [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+            ::mega::MegaUser::CHANGE_TYPE_LASTNAME)
+      },
+    //ed25519 signing key
+      {
+        ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY,
+        UserAttrDesc(
+            [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+            ::mega::MegaUser::CHANGE_TYPE_PUBKEY_ED255)
+      },
+    //cu25519 encryption key
+      {
+        ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY,
+        UserAttrDesc(
+            [](const ::mega::MegaRequest& req)->Buffer* { return ecKeyBase64ToBin(req); },
+            ::mega::MegaUser::CHANGE_TYPE_PUBKEY_CU255)
+      },
+    //keyring - not used by userAttrCache
+      {
+        ::mega::MegaApi::USER_ATTR_KEYRING,
+        UserAttrDesc(
+            &getDataNotImpl,
+            ::mega::MegaUser::CHANGE_TYPE_KEYRING)
+      },
+    //richLink
+      {
+        ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS,
+        UserAttrDesc(
+            [](const ::mega::MegaRequest& req)->Buffer* { return bufFromTLV(req.getMegaStringMap(), "num"); },
+            ::mega::MegaUser::CHANGE_TYPE_RICH_PREVIEWS)
+      },
+    //Aliases
+      {
+        ::mega::MegaApi::USER_ATTR_ALIAS,
+        UserAttrDesc(
+            [](const ::mega::MegaRequest& req)->Buffer* { return getAlias(req); },
+            ::mega::MegaUser::CHANGE_TYPE_ALIAS)
+      },
+
+    // VIRTUAL ATTRIBUTES
+
+    //RSA Public key
+      {
+        USER_ATTR_RSA_PUBKEY,
+        UserAttrDesc(
+            &getDataNotImpl,
+            ::mega::MegaUser::CHANGE_TYPE_SIG_PUBKEY_RSA)
+      },
+    //email
+      {
+        USER_ATTR_EMAIL,
+        UserAttrDesc(
+            &getDataNotImpl,
+            ::mega::MegaUser::CHANGE_TYPE_EMAIL)
+      },
+    //FULLNAME - virtual attrib with no DB backing
+      {
+        USER_ATTR_FULLNAME,
+        UserAttrDesc(
+            &getDataNotImpl,
+            ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME)
+      },
+};
+
 void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 {
+    if (key.mPh.isValid())  // Don't insert elements in attribute cache at preview mode
+    {
+        return;
+    }
+
     mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,?)",
         key.user.val, key.attrType, data);
@@ -183,6 +187,11 @@ void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 
 void UserAttrCache::dbWriteNull(UserAttrPair key)
 {
+    if (key.mPh.isValid())  // Don't insert elements in attribute cache at preview mode
+    {
+        return;
+    }
+
     mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,NULL)",
         key.user, key.attrType);
@@ -210,15 +219,13 @@ const char* attrName(uint8_t type)
 {
     switch (type)
     {
-    case ::mega::MegaApi::USER_ATTR_AVATAR: return "AVATAR";
     case ::mega::MegaApi::USER_ATTR_FIRSTNAME: return "FIRSTNAME";
     case ::mega::MegaApi::USER_ATTR_LASTNAME: return "LASTNAME";
-    case ::mega::MegaApi::USER_ATTR_AUTHRING: return "AUTHRING";
-    case ::mega::MegaApi::USER_ATTR_LAST_INTERACTION: return "LAST_INTERACTION";
     case ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY: return "PUB_ED25519";
     case ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY: return "PUB_CU25519";
     case ::mega::MegaApi::USER_ATTR_KEYRING: return "KEYRING";
     case ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS: return "RICH_LINKS";
+    case ::mega::MegaApi::USER_ATTR_ALIAS: return "ALIAS";
     case USER_ATTR_EMAIL: return "EMAIL";
     case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
     case USER_ATTR_FULLNAME: return "FULLNAME";
@@ -231,13 +238,14 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 }
 void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
 {
-//  printf("user %s changed %u\n", Id(user.getHandle()).toString().c_str(), changed);
-    for (size_t i = 0; i < sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]); i++)
+    UserAttrDescMap::iterator it;
+    for (it = gUserAttrDescsMap.begin(); it != gUserAttrDescsMap.end(); it++)
     {
-        auto& desc = gUserAttrDescs[i];
+        auto& desc = it->second;
         if ((changed & desc.changeMask) == 0)
             continue; //the change is not of this attrib type
-        int type = desc.type;
+
+        int type = it->first;
         UserAttrPair key(userid, type);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
@@ -347,15 +355,16 @@ bool UserAttrCache::removeCb(Handle h)
 }
 
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
-            void* userp, UserAttrReqCbFunc cb, bool oneShot)
+            void* userp, UserAttrReqCbFunc cb, bool oneShot, uint64_t ph)
 {
-    UserAttrPair key(userHandle, type);
+    UserAttrPair key(userHandle, type, ph);
     auto it = find(key);
     if (it != end())
     {
-        auto& item = *it->second;
         if (cb)
-        { // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
+        {
+            auto& item = *it->second;
+            // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
             if (item.pending != kCacheFetchNewPending)
             {
                 // we have something in the cache, call the cb
@@ -387,7 +396,7 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
 
 void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE))
+    if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE) && !mClient.anonymousMode())
         return;
     switch (key.attrType)
     {
@@ -408,12 +417,18 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
 void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     auto wptr = weakHandle();
-    mClient.api.call(&::mega::MegaApi::getUserAttribute,
-        key.user.toString().c_str(), (int)key.attrType)
+
+    // We need to create an aux var to store ph in heap instead of stack in order to avoid stack-use-after-scope
+    std::string auxPh = key.mPh.toString(Id::CHATLINKHANDLE);
+    const char *ph = key.mPh.isValid() ? auxPh.c_str() : NULL;
+
+    mClient.api.call(&::mega::MegaApi::getChatUserAttribute,
+        key.user.toString().c_str(), (int)key.attrType, ph)
     .then([wptr, this, key, item](ReqResult result)
     {
         wptr.throwIfDeleted();
-        item->data.reset(gUserAttrDescs[key.attrType].getData(*result));
+        auto& desc = gUserAttrDescsMap.at(key.attrType);
+        item->data.reset(desc.getData(*result));
         item->resolve(key);
     })
     .fail([wptr, this, key, item](const ::promise::Error& err)
@@ -451,9 +466,10 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         std::string firstname;
         std::string lastname;
     };
+
     auto ctx = std::make_shared<Context>();
     auto wptr = weakHandle();
-    auto pms1 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_FIRSTNAME)
+    auto pms1 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_FIRSTNAME, key.mPh)
     .then([ctx](Buffer* data)
     {
         if (!data->empty())
@@ -464,7 +480,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         return _Void();
     });
 
-    auto pms2 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_LASTNAME)
+    auto pms2 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_LASTNAME, key.mPh)
     .then([ctx](Buffer* data)
     {
         if (!data->empty())
@@ -561,8 +577,8 @@ void UserAttrCache::onLogOut()
     mIsLoggedIn = false;
 }
 
-::promise::Promise<Buffer*>
-UserAttrCache::getAttr(uint64_t user, unsigned attrType)
+promise::Promise<Buffer*>
+UserAttrCache::getAttr(uint64_t user, unsigned attrType, uint64_t ph)
 {
     auto pms = new Promise<Buffer*>;
     auto ret = *pms;
@@ -574,7 +590,7 @@ UserAttrCache::getAttr(uint64_t user, unsigned attrType)
         else
             p->reject("User attribute fetch failed");
         delete p;
-    }, true);
+    }, true, ph);
     return ret;
 }
 

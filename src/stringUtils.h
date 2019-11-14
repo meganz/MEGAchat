@@ -151,6 +151,11 @@ static inline std::string xmlUnescape(const std::string& text)
     return replaceOccurrences(result, "&quot;", "\"");
 }
 
+static inline std::string jsonUnescape(const std::string& text)
+{
+    return replaceOccurrences(text, "\"", "\\\"");
+}
+
 static inline std::string beforeFirst(const std::string& str, const char* sep)
 {
     const char* pos = strstr(str.c_str(), sep);

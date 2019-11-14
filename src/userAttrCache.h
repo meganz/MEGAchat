@@ -48,32 +48,36 @@ class Client;
 struct UserAttrDesc
 {
     typedef Buffer*(*GetDataFunc)(const ::mega::MegaRequest&);
-    int type;
     GetDataFunc getData;
     int changeMask;
-    UserAttrDesc(int aType, GetDataFunc aGetData, int aChangeMask)
-        :type(aType), getData(aGetData), changeMask(aChangeMask){}
+    UserAttrDesc(GetDataFunc aGetData, int aChangeMask):
+        getData(aGetData), changeMask(aChangeMask){}
 };
 
-extern UserAttrDesc gUserAttrDescs[21];
+// Maps uhBin to UserAttrDesc struct
+typedef std::map <int, UserAttrDesc> UserAttrDescMap;
+extern UserAttrDescMap gUserAttrDescsMap;
 
 struct UserAttrPair
 {
     Id user;
     uint8_t attrType;
+    Id mPh; // only valid in anonymous preview mode to retrieve user-attributes without valid session
     bool operator<(const UserAttrPair& other) const
     {
-        if (user == other.user)
+        if (user == other.user && attrType == other.attrType)
+            return mPh < other.mPh;
+        else if (user == other.user)
             return attrType < other.attrType;
         else
             return user < other.user;
     }
-    UserAttrPair(uint64_t aUser, uint8_t aType): user(aUser), attrType(aType)
+    UserAttrPair(uint64_t aUser, uint8_t aType, uint64_t ph = Id::inval()): user(aUser), attrType(aType), mPh(ph)
     {
-        if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
-         && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME)
-         && (attrType != USER_ATTR_EMAIL))
+        if (gUserAttrDescsMap.find(attrType) == gUserAttrDescsMap.end())
+        {
             throw std::runtime_error("UserAttrPair: Invalid user attribute id specified");
+        }
     }
     std::string toString()
     {
@@ -170,11 +174,11 @@ public:
      * every time the attribute changes on the server and the new value is fetched.
      */
     Handle getAttr(uint64_t user, unsigned attrType, void* userp,
-                             UserAttrReqCbFunc cb, bool oneShot=false);
+                             UserAttrReqCbFunc cb, bool oneShot=false, uint64_t ph = Id::inval());
     /** @brief A promise-based version of \c getAttr. The request
      * is implicitly one-shot, as a promise can be resolved only once.
      */
-    promise::Promise<Buffer*> getAttr(uint64_t user, unsigned attrType);
+    promise::Promise<Buffer*> getAttr(uint64_t user, unsigned attrType, uint64_t ph = Id::inval());
     /** @brief Unregisters an attribute request/subsequent callbacks.
      * It can be a not-yet-fetched single shot request as well. Use this method
      * to unsubscribe from further calling the corresponding callback.

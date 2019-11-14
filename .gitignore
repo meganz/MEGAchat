@@ -6,4 +6,7 @@ build/
 deps/
 build/
 /third-party/mega
-
+/contrib/cmake/.idea
+/contrib/cmake/cmake-build-*
+build-MEGAchat-Desktop-*
+build-cmake-Desktop-*

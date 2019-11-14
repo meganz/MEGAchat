@@ -4,12 +4,9 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
-
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-
-TARGET = MEGAChatQt
-TEMPLATE = app
+# We assume libraw as a dependency for QtApp, because HAVE_LIBRAW is added to config.h
+# if libraw is available in the system, although is not specified in the configure.
+CONFIG += USE_LIBRAW
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which has been marked as deprecated (the exact warnings
@@ -22,52 +19,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-
-SOURCES +=
-
-HEADERS +=
-
-FORMS +=
-
-
-
-
-debug_and_release {
-    CONFIG -= debug_and_release
-    CONFIG += debug_and_release
-}
-CONFIG(debug, debug|release) {
-    CONFIG -= debug release
-    CONFIG += debug
-}
-CONFIG(release, debug|release) {
-    CONFIG -= debug release
-    CONFIG += release
-}
-
-QT       += core gui
-
+QT += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 QT += svg
 
-TARGET = megachat
-TEMPLATE = app
-
-DEFINES += LOG_TO_LOGGER
-
-CONFIG += USE_LIBUV
-CONFIG += USE_MEGAAPI
-CONFIG += USE_MEDIAINFO
-CONFIG += ENABLE_CHAT
-CONFIG += USE_WEBRTC
-DEFINES += ENABLE_CHAT
-
 include(../../../bindings/qt/megachat.pri)
 
-
+TARGET = megachat
 DEPENDPATH += examples/qtmegachatapi/
 INCLUDEPATH += ../../../examples/qtmegachatapi/
-
 
 SOURCES +=  ../../../examples/qtmegachatapi/MegaChatApplication.cpp \
             ../../../examples/qtmegachatapi/LoginDialog.cpp \
@@ -80,7 +40,9 @@ SOURCES +=  ../../../examples/qtmegachatapi/MegaChatApplication.cpp \
     ../../../examples/qtmegachatapi/megaLoggerApplication.cpp \
     ../../../examples/qtmegachatapi/chatMessage.cpp \
     ../../../examples/qtmegachatapi/chatGroupDialog.cpp \
-    ../../../examples/qtmegachatapi/listItemController.cpp
+    ../../../examples/qtmegachatapi/listItemController.cpp \
+    ../../../examples/qtmegachatapi/SettingWindow.cpp \
+    ../../../examples/qtmegachatapi/reaction.cpp
 
 HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
             ../../../examples/qtmegachatapi/MainWindow.h \
@@ -94,7 +56,9 @@ HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
     ../../../examples/qtmegachatapi/megaLoggerApplication.h \
     ../../../examples/qtmegachatapi/chatMessage.h \
     ../../../examples/qtmegachatapi/chatGroupDialog.h \
-    ../../../examples/qtmegachatapi/listItemController.h
+    ../../../examples/qtmegachatapi/listItemController.h \
+    ../../../examples/qtmegachatapi/SettingWindow.h \
+    ../../../examples/qtmegachatapi/reaction.h
 
 FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
             ../../../examples/qtmegachatapi/MainWindow.ui \
@@ -102,9 +66,9 @@ FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
     ../../../examples/qtmegachatapi/listItemWidget.ui \
     ../../../examples/qtmegachatapi/settingsDialog.ui \
     ../../../examples/qtmegachatapi/chatMessageWidget.ui \
-    ../../../examples/qtmegachatapi/chatGroupDialog.ui
-
-
+    ../../../examples/qtmegachatapi/chatGroupDialog.ui \
+    ../../../examples/qtmegachatapi/SettingWindow.ui \
+    ../../../examples/qtmegachatapi/reaction.ui
 
 CONFIG(USE_WEBRTC) {
     SOURCES +=  ../../../examples/qtmegachatapi/callGui.cpp \
@@ -120,21 +84,6 @@ CONFIG(USE_WEBRTC) {
         ../../src/videoRenderer_Qt.h
 
     FORMS += ../../../examples/qtmegachatapi/callGui.ui
-}
-
-win32 {
-    QMAKE_LFLAGS += /LARGEADDRESSAWARE
-    QMAKE_LFLAGS_WINDOWS += /SUBSYSTEM:WINDOWS,5.01
-    QMAKE_LFLAGS_CONSOLE += /SUBSYSTEM:CONSOLE,5.01
-    DEFINES += PSAPI_VERSION=1
-}
-
-macx {
-    QMAKE_CXXFLAGS += -DCRYPTOPP_DISABLE_ASM -D_DARWIN_C_SOURCE
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
-    QMAKE_CXXFLAGS += -fvisibility=hidden -fvisibility-inlines-hidden
-    QMAKE_LFLAGS += -F /System/Library/Frameworks/Security.framework/
-    DEFINES += WEBRTC_MAC
 }
 
 RESOURCES += \

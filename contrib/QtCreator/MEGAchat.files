@@ -117,12 +117,8 @@
 ../../src/url.cpp
 ../../src/net/libwebsocketsIO.cpp
 ../../src/net/libwebsocketsIO.h
-../../src/net/libwsIO.cpp
-../../src/net/libwsIO.h
 ../../src/net/websocketsIO.cpp
 ../../src/net/websocketsIO.h
-../../src/waiter/libeventWaiter.cpp
-../../src/waiter/libeventWaiter.h
 ../../src/waiter/libuvWaiter.cpp
 ../../src/waiter/libuvWaiter.h
 ../../src/rtcModule/webrtcPrivate.h

@@ -57,18 +57,6 @@ License: Public Domain
 
 http://www.sqlite.org/copyright.html
 
-#### libevent
-Copyright (c) 2000-2007 Niels Provos <provos@citi.umich.edu>
-Copyright (c) 2007-2012 Niels Provos and Nick Mathewson
-
-The libevent API provides a mechanism to execute a callback function when a specific event occurs on a file descriptor or after a timeout has been reached. Furthermore, libevent also support callbacks due to signals or regular timeouts.
-
-http://libevent.org/
-
-License: BSD license
-
-https://github.com/meganz/libevent
-
 #### libsodium
 Copyright (c) 2013-2017 Frank Denis
 
@@ -79,17 +67,6 @@ https://libsodium.org/
 License: ISC License
 
 https://github.com/jedisct1/libsodium
-
-#### libws
-Copyright (c) 2014 Joakim Soderberg
-
-Communicate across application servers, web services, API servers, SSO, SQL, Facebook API and run commands and PHP on remote servers.
-
-https://github.com/JoakimSoderberg/libws
-
-License: MIT License
-
-https://github.com/meganz/libws
 
 #### rapidjson
 Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.

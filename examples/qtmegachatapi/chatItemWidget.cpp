@@ -4,21 +4,22 @@
 #include <QMenu>
 #include <iostream>
 #include <QMessageBox>
+#include <QClipboard>
 
-ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatApi, const megachat::MegaChatListItem *item) :
-    QWidget(parent),
-    ui(new Ui::ChatItem)
+ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatListItem *item)
+    : QWidget(mainWindow),
+      ui(new Ui::ChatItem),
+      mMainWin(mainWindow),
+      mChatId(item->getChatId()),
+      mMegaChatApi(mainWindow->mMegaChatApi),
+      mController(mainWindow->getChatControllerById(mChatId)),
+      mLastOverlayCount(0)
 {
-    mMainWin = (MainWindow *) parent;
-    mLastMsgAuthor.clear();
-    mListWidgetItem = NULL;
-    mMegaApi = mMainWin->mMegaApi;
-    mLastOverlayCount = 0;
-    mChatId = item->getChatId();
-    mMegaChatApi = megaChatApi;
     ui->setupUi(this);
+
     int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
+    onPreviewersCountChanged(item->getNumPreviewers());
 
     QString text = NULL;
     if (item->isArchived())
@@ -58,7 +59,23 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatA
     }
     else
     {
-        ui->mAvatar->setText("G");
+        if(item->isPublic())
+        {
+            if (!item->isPreview())
+            {
+                ui->mAvatar->setText("P");
+                ui->mAvatar->setStyleSheet("color: #43B63D");
+            }
+            else
+            {
+                ui->mAvatar->setText("V");
+                ui->mAvatar->setStyleSheet("color: #FF0C14");
+            }
+        }
+        else
+        {
+             ui->mAvatar->setText("G");
+        }
     }
 
     int status = mMegaChatApi->getChatConnectionState(mChatId);
@@ -67,15 +84,16 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatA
 
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
 {
+    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     QString text = NULL;
     std::string senderHandle;
-    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     megachat::MegaChatHandle lastMessageId = item->getLastMessageId();
     int lastMessageType = item->getLastMessageType();
     std::string lastMessage;
     const char *lastMessageId_64 = "----------";
     const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(lastMessageId);
     const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
+    std::string chatId_Bin = std::to_string(mChatId);
 
     megachat::MegaChatHandle lastMessageSender = item->getLastMessageSender();
     if (lastMessageSender == megachat::MEGACHAT_INVALID_HANDLE)
@@ -102,7 +120,8 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         else
         {
             const char *msgAuthor = getLastMessageSenderName(lastMessageSender);
-            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender)))
+            const char *autorizationToken = chatRoom->getAuthorizationToken();
+            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender, autorizationToken)))
             {
                 mLastMsgAuthor.assign(msgAuthor);
             }
@@ -111,6 +130,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                 mLastMsgAuthor = "Loading firstname...";
             }
             delete [] msgAuthor;
+            delete [] autorizationToken;
         }
     }
     switch (lastMessageType)
@@ -178,6 +198,11 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                        .append(" attached a node: ").append(item->getLastMessage());
             break;
 
+        case megachat::MegaChatMessage::TYPE_VOICE_CLIP:
+            lastMessage.append("User ").append(senderHandle)
+                       .append(" sent a ").append(item->getLastMessage());
+            break;
+
         case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
             lastMessage.append("User ").append(senderHandle)
                        .append(" set chat title: ").append(item->getLastMessage());
@@ -190,17 +215,24 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         case megachat::MegaChatMessage::TYPE_CALL_ENDED:
         {
             QString qstring(item->getLastMessage());
-            QStringList stringList = qstring.split(0x01);
-            assert(stringList.size() >= 2);
-            lastMessage.append("Call started by: ")
-                       .append(senderHandle)
-                       .append(" Duration: ")
-                       .append(stringList.at(0).toStdString())
-                       .append("secs TermCode: ")
-                       .append(stringList.at(1).toStdString());
+            if (!qstring.isEmpty())
+            {
+                QStringList stringList = qstring.split(0x01);
+                assert(stringList.size() >= 2);
+                lastMessage.append("Call started by: ")
+                           .append(senderHandle)
+                           .append(" Duration: ")
+                           .append(stringList.at(0).toStdString())
+                           .append("secs TermCode: ")
+                           .append(stringList.at(1).toStdString());
+            }
             break;
         }
-
+        case megachat::MegaChatMessage::TYPE_CALL_STARTED:
+        {
+            lastMessage.append("User ").append(senderHandle)
+               .append(" has started a call");
+        }
         default:
             lastMessage = item->getLastMessage();
             break;
@@ -219,8 +251,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     {
         const char *peerEmail = chatRoom->getPeerEmail(0);
         const char *peerHandle_64 = mMainWin->mMegaApi->userHandleToBase64(item->getPeerHandle());
-        text.append(tr("1on1 Chat room:"))
+        text.append(tr("1on1 Chat room handle B64:"))
             .append(QString::fromStdString(chatId_64))
+            .append(tr("\n1on1 Chat room handle Bin:"))
+            .append(QString::fromStdString(chatId_Bin))
             .append(tr("\nEmail: "))
             .append(QString::fromStdString(peerEmail))
             .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle_64))
@@ -234,8 +268,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     else
     {
         int ownPrivilege = chatRoom->getOwnPrivilege();
-        text.append(tr("Group chat room: "))
+        text.append(tr("Group chat room handle B64: "))
             .append(QString::fromStdString(chatId_64)
+            .append(tr("\nGroup chat room handle Bin: "))
+            .append(QString::fromStdString(chatId_Bin))
             .append(tr("\nOwn privilege: "))
             .append(QString(chatRoom->privToString(ownPrivilege)))
             .append(tr("\nOther participants:")));
@@ -288,14 +324,18 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
     else
     {
         megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
-        const char *msg = chatRoom->getPeerFirstnameByHandle(msgUserId);
-        size_t len = msg ? strlen(msg) : 0;
-        if (len)
+        if (chatRoom)
         {
-            msgAuthor = new char[len];
-            strncpy(msgAuthor, msg, len);
+            const char *msg = chatRoom->getPeerFirstnameByHandle(msgUserId);
+            size_t len = msg ? strlen(msg) : 0;
+            if (len)
+            {
+                msgAuthor = new char[len + 1];
+                strncpy(msgAuthor, msg, len);
+                msgAuthor[len] = '\0';
+            }
+            delete chatRoom;
         }
-        delete chatRoom;
     }
     return msgAuthor;
 }
@@ -317,20 +357,17 @@ void ChatItemWidget::onUnreadCountChanged(int count)
     ui->mUnreadIndicator->adjustSize();
 }
 
+void ChatItemWidget::onPreviewersCountChanged(int count)
+{
+    ui->mPreviewersIndicator->setText(QString::number(count));
+    ui->mPreviewersIndicator->setVisible(count != 0);
+    ui->mPreviewersIndicator->adjustSize();
+}
+
 void ChatItemWidget::onTitleChanged(const std::string& title)
 {
     QString text = QString::fromStdString(title);
     ui->mName->setText(text);
-}
-
-void ChatItemWidget::showAsHidden()
-{
-    ui->mName->setStyleSheet("color: rgba(0,0,0,128)\n");
-}
-
-void ChatItemWidget::unshowAsHidden()
-{
-    ui->mName->setStyleSheet("color: rgba(255,255,255,255)\n");
 }
 
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent */*event*/)
@@ -369,95 +406,119 @@ megachat::MegaChatHandle ChatItemWidget::getChatId() const
     return mChatId;
 }
 
-void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
-{
-    mChatId = chatId;
-}
-
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
 
-    auto actLeave = menu.addAction(tr("Leave group chat"));
-    connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
+    QMenu *roomMenu = menu.addMenu("Room's management");
 
-    auto actTopic = menu.addAction(tr("Set chat topic"));
-    connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
+    auto actLeave = roomMenu->addAction(tr("Leave chat"));
+    connect(actLeave, SIGNAL(triggered()), mController, SLOT(leaveGroupChat()));
 
-    auto actTruncate = menu.addAction(tr("Truncate chat"));
-    connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
+    auto actTruncate = roomMenu->addAction(tr("Truncate chat"));
+    connect(actTruncate, SIGNAL(triggered()), mController, SLOT(truncateChat()));
 
-    auto actArchive = menu.addAction("Archive chat");
-    connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(archiveChat(bool)));
+    auto actTopic = roomMenu->addAction(tr("Set title"));
+    connect(actTopic, SIGNAL(triggered()), mController, SLOT(setTitle()));
+
+    auto actArchive = roomMenu->addAction("Archive chat");
+    connect(actArchive, SIGNAL(toggled(bool)), mController, SLOT(archiveChat(bool)));
     actArchive->setCheckable(true);
     actArchive->setChecked(chatRoom->isArchived());
 
+
     QMenu *clMenu = menu.addMenu("Chat links");
 
-    auto actQueryLink = clMenu->addAction(tr("Query chat link"));
-    connect(actQueryLink, SIGNAL(triggered()), this, SLOT(queryChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
+    auto actExportLink = clMenu->addAction(tr("Create chat link"));
+    connect(actExportLink, SIGNAL(triggered()), mController, SLOT(createChatLink()));
 
-    auto actExportLink = clMenu->addAction(tr("Export chat link"));
-    connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
+    auto actQueryLink = clMenu->addAction(tr("Query chat link"));
+    connect(actQueryLink, SIGNAL(triggered()), mController, SLOT(queryChatLink()));
 
     auto actRemoveLink = clMenu->addAction(tr("Remove chat link"));
-    connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
+    connect(actRemoveLink, SIGNAL(triggered()), mController, SLOT(removeChatLink()));
 
-    auto joinChatLink = clMenu->addAction("Join chat link");
-    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
-    // TODO: connect to slot in chat-links branch once merged
+    auto actAutojoinPublicChat = clMenu->addAction(tr("Join chat link"));
+    connect(actAutojoinPublicChat, SIGNAL(triggered()), mController, SLOT(autojoinChatLink()));
 
-    auto actClosePreview = clMenu->addAction(tr("Close preview"));
-    connect(actClosePreview, SIGNAL(triggered()), this, SLOT(closePreview()));
-    // TODO: connect to slot in chat-links branch once merged
+    clMenu->addSeparator();
+    auto actSetPrivate = clMenu->addAction(tr("Set private mode"));
+    connect(actSetPrivate, SIGNAL(triggered()), mController, SLOT(setPublicChatToPrivate()));
 
-    menu.addSeparator();
-    auto actSetPrivate = clMenu->addAction(tr("Set chat private"));
-    connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
+    auto actcloseChatPreview = clMenu->addAction(tr("Close preview"));
+    connect(actcloseChatPreview, SIGNAL(triggered()), mController, SLOT(closeChatPreview()));
 
+    // Notifications
+    QMenu *notificationsMenu = menu.addMenu("Notifications");
+
+    auto actChatCheckPushNotificationRestriction = notificationsMenu->addAction("Check PUSH notification setting");
+    connect(actChatCheckPushNotificationRestriction, SIGNAL(triggered()), mController, SLOT(onCheckPushNotificationRestrictionClicked()));
+
+    auto actPushReceived = notificationsMenu->addAction(tr("Simulate PUSH received (iOS)"));
+    connect(actPushReceived, SIGNAL(triggered()), mController, SLOT(onPushReceivedIos()));
+
+    auto actPushAndReceived = notificationsMenu->addAction(tr("Simulate PUSH received (Android)"));
+    connect(actPushAndReceived, SIGNAL(triggered()), mController, SLOT(onPushReceivedAndroid()));
+
+    auto notificationSettings = mMainWin->mApp->getNotificationSettings();
+    //Set DND for this chat
+    auto actDoNotDisturb = notificationsMenu->addAction("Mute notifications");
+    connect(actDoNotDisturb, SIGNAL(toggled(bool)), mController, SLOT(onMuteNotifications(bool)));
+    if (notificationSettings)
+    {
+        actDoNotDisturb->setCheckable(true);
+        actDoNotDisturb->setChecked(!notificationSettings->isChatEnabled(mChatId));
+    }
+    else
+    {
+        actDoNotDisturb->setEnabled(false);
+    }
+
+    //Set always notify for this chat
+    auto actAlwaysNotify = notificationsMenu->addAction("Notify always");
+    connect(actAlwaysNotify, SIGNAL(toggled(bool)), mController, SLOT(onSetAlwaysNotify(bool)));
+    if (notificationSettings)
+    {
+        actAlwaysNotify->setCheckable(true);
+        actAlwaysNotify->setChecked(notificationSettings->isChatAlwaysNotifyEnabled(mChatId));
+    }
+    else
+    {
+        actAlwaysNotify->setEnabled(false);
+    }
+
+    //Set period to not disturb
+    auto actSetDND = notificationsMenu->addAction("Set do-not-disturb");
+    connect(actSetDND, SIGNAL(triggered()), mController, SLOT(onSetDND()));
+    actSetDND->setEnabled(bool(notificationSettings));
+
+    clMenu->addSeparator();
+
+    auto actPrintChat = menu.addAction(tr("Print chat info"));
+    connect(actPrintChat, SIGNAL(triggered()), this, SLOT(onPrintChatInfo()));
+
+    auto actCopy = menu.addAction(tr("Copy chatid to clipboard"));
+    connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
 
     delete chatRoom;
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
 
-void ChatItemWidget::truncateChat()
+void ChatItemWidget::onPrintChatInfo()
 {
-    this->mMegaChatApi->clearChatHistory(mChatId);
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(this->toolTip());
+    msg.exec();
 }
 
-void ChatItemWidget::archiveChat(bool checked)
+void ChatItemWidget::onCopyHandle()
 {
-    MegaChatRoom *room = mMegaChatApi->getChatRoom(mChatId);
-    if (room->isArchived() != checked)
-    {
-        mMegaChatApi->archiveChat(mChatId, checked);
-    }
-    delete room;
+    const char *chatid_64 = ::mega::MegaApi::userHandleToBase64(mChatId);
+    QClipboard *clipboard = QApplication::clipboard();
+    clipboard->setText(chatid_64);
+    delete []chatid_64;
 }
 
-void ChatItemWidget::setTitle()
-{
-    std::string title;
-    QString qTitle = QInputDialog::getText(this, tr("Change chat topic"), tr("Leave blank for default title"));
-    if (!qTitle.isNull())
-    {
-        title = qTitle.toStdString();
-        if (title.empty())
-        {
-            QMessageBox::warning(this, tr("Set chat title"), tr("You can't set an empty title"));
-            return;
-        }
-        this->mMegaChatApi->setChatTitle(mChatId,title.c_str());
-    }
-}
-
-void ChatItemWidget::leaveGroupChat()
-{
-    this->mMegaChatApi->leaveChat(mChatId);
-}

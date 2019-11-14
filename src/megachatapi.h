@@ -60,6 +60,106 @@ class MegaChatListItem;
 class MegaChatNodeHistoryListener;
 
 /**
+ * @brief Provide information about a session
+ *
+ * A session is an object that represents webRTC comunication between two peers. A call contains none or
+ * several sessions and it can be obtained with MegaChatCall::getMegaChatSession. MegaChatCall has
+ * the ownership of the object.
+ *
+ * The states that a session has during its life time are:
+ * Outgoing call:
+ *  - SESSION_STATUS_INVALID
+ *  - SESSION_STATUS_INITIAL
+ *  - SESSION_STATUS_IN_PROGRESS
+ *  - SESSION_STATUS_DESTROYED
+ */
+class MegaChatSession
+{
+public:
+    enum
+    {
+        SESSION_STATUS_INVALID = 0xFF,
+        SESSION_STATUS_INITIAL = 0,         /// Session is being negotiated between peers
+        SESSION_STATUS_IN_PROGRESS,         /// Session is established and there is communication between peers
+        SESSION_STATUS_DESTROYED            /// Session is finished and resources can be released
+    };
+
+    virtual ~MegaChatSession();
+
+    /**
+     * @brief Creates a copy of this MegaChatSession object
+     *
+     * The resulting object is fully independent of the source MegaChatSession,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You are the owner of the returned object
+     *
+     * @return Copy of the MegaChatSession object
+     */
+    virtual MegaChatSession *copy();
+
+    /**
+     * @brief Returns the status of the session
+     *
+     * @return the session status
+     * Valid values are:
+     *  - SESSION_STATUS_INITIAL = 0
+     *  - SESSION_STATUS_IN_PROGRESS = 1
+     *  - SESSION_STATUS_DESTROYED = 2
+     */
+    virtual int getStatus() const;
+
+    /**
+     * @brief Returns the MegaChatHandle with the peer id.
+     *
+     * @return MegaChatHandle of the peer.
+     */
+    virtual MegaChatHandle getPeerid() const;
+
+    /**
+     * @brief Returns the MegaChatHandle with the id of the client.
+     *
+     * @return MegaChatHandle of the client.
+     */
+    virtual MegaChatHandle getClientid() const;
+
+    /**
+     * @brief Returns audio state for the session
+     *
+     * @return true if audio is enable, false if audio is disable
+     */
+    virtual bool hasAudio() const;
+
+    /**
+     * @brief Returns video state for the session
+     *
+     * @return true if video is enable, false if video is disable
+     */
+    virtual bool hasVideo() const;
+
+    /**
+     * @brief Returns network quality
+     *
+     * The valid network quality values are between 0 and 5
+     * 0 -> the worst quality
+     * 5 -> the best quality
+     *
+     * @note The app may want to show a "slow network" warning when the quality is <= 1.
+     *
+     * @return network quality
+     */
+    virtual int getNetworkQuality() const;
+
+    /**
+     * @brief Returns if audio is detected for this session
+     *
+     * @return true if audio is detected for this session, false in other case
+     */
+    virtual bool getAudioDetected() const;
+};
+
+/**
  * @brief Provide information about a call
  *
  * A call can be obtained with the callback MegaChatCallListener::onChatCallUpdate where MegaChatApi has
@@ -87,32 +187,31 @@ class MegaChatCall
 public:
     enum
     {
-        CALL_STATUS_INITIAL = 0,        /// Initial state
-        CALL_STATUS_HAS_LOCAL_STREAM,   /// Call has obtained a local video-audio stream
-        CALL_STATUS_REQUEST_SENT,       /// Call request has been sent to receiver
-        CALL_STATUS_RING_IN,            /// Call is at incoming state, it has not been answered or rejected yet
-        CALL_STATUS_JOINING,            /// Intermediate state, while connection is established
-        CALL_STATUS_IN_PROGRESS,        /// Call is established and there is a full communication
-        CALL_STATUS_TERMINATING,        ///
-        CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
+        CALL_STATUS_INITIAL = 0,                        /// Initial state
+        CALL_STATUS_HAS_LOCAL_STREAM,                   /// Call has obtained a local video-audio stream
+        CALL_STATUS_REQUEST_SENT,                       /// Call request has been sent to receiver
+        CALL_STATUS_RING_IN,                            /// Call is at incoming state, it has not been answered or rejected yet
+        CALL_STATUS_JOINING,                            /// Intermediate state, while connection is established
+        CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication
+        CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
+        CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
+        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
+        CALL_STATUS_RECONNECTING                       /// User is reconnecting to the call
     };
 
     enum
     {
-        SESSION_STATUS_INITIAL = 0,
-        SESSION_STATUS_IN_PROGRESS,        /// Session is established and there is communication between peers
-        SESSION_STATUS_DESTROYED,          /// Session is finished and resources can be released
-        SESSION_STATUS_NO_SESSION,         /// There are no session for that peer id
-    };
-
-    enum
-    {
-        CHANGE_TYPE_STATUS = 0x01,          /// Call status has changed
-        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,   /// Local audio/video flags has changed
-        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed
-        CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
-        CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
-        CHANGE_TYPE_SESSION_STATUS = 0x20,  /// Session status has changed
+        CHANGE_TYPE_NO_CHANGES = 0x00,              /// Call doesn't have any change
+        CHANGE_TYPE_STATUS = 0x01,                  /// Call status has changed
+        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,           /// Local audio/video flags has changed
+        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,          /// Remote audio/video flags has changed
+        CHANGE_TYPE_TEMPORARY_ERROR = 0x08,         /// New temporary error is notified
+        CHANGE_TYPE_RINGING_STATUS = 0x10,          /// Peer has change its ringing state
+        CHANGE_TYPE_SESSION_STATUS = 0x20,          /// Session status has changed
+        CHANGE_TYPE_CALL_COMPOSITION = 0x40,        /// Call composition has changed (User added or removed from call)
+        CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x80, /// Session network quality has changed
+        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x100,    /// Session audio level has changed
+        CHANGE_TYPE_SESSION_OPERATIVE = 0x200      /// Session is fully operative
     };
 
     enum
@@ -131,6 +230,12 @@ public:
         TERM_CODE_NOT_FINISHED      = 10,   /// The call is in progress, no termination code yet
         TERM_CODE_DESTROY_BY_COLLISION   = 19,   /// The call has finished by a call collision
         TERM_CODE_ERROR             = 21    /// Notify any error type
+    };
+
+    enum {
+        AUDIO = 0,
+        VIDEO = 1,
+        ANY_FLAG = 2
     };
 
     virtual ~MegaChatCall();
@@ -183,28 +288,34 @@ public:
      *
      * @return true if audio is enable, false if audio is disable
      */
-    virtual bool hasLocalAudio();
+    virtual bool hasLocalAudio() const;
 
     /**
-     * @brief Return audio state for remote
+     * @brief Return audio state for initial call
+     *
+     * The initial flags used to start the call. They are not valid if
+     * you missed the call in ringing state.
      *
      * @return true if audio is enable, false if audio is disable
      */
-    virtual bool hasRemoteAudio();
+    virtual bool hasAudioInitialCall() const;
 
     /**
      * @brief Return video state for local
      *
      * @return true if video is enable, false if video is disable
      */
-    virtual bool hasLocalVideo();
+    virtual bool hasLocalVideo() const;
 
     /**
-     * @brief Return video state for remote
+     * @brief Return video state for initial call
+     *
+     * The initial flags used to start the call. They are not valid if
+     * you missed the call in ringing state.
      *
      * @return true if video is enable, false if video is disable
      */
-    virtual bool hasRemoteVideo();
+    virtual bool hasVideoInitialCall() const;
 
     /**
      * @brief Returns a bit field with the changes of the call
@@ -223,7 +334,8 @@ public:
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
      * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
-     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
+     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
      *
      * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
      * Check MegaChatCall::getTemporaryError() value
@@ -232,7 +344,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
-     * @see MegaChatCall::getSessionStatus and MegaChatCall::getPeerSessionStatusChange values
+     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
      */
     virtual int getChanges() const;
 
@@ -255,7 +367,8 @@ public:
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
      * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
-     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
+     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
      *
      * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
      * Check MegaChatCall::getTemporaryError() value
@@ -264,7 +377,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
-     * @see MegaChatCall::getSessionStatus and MegaChatCall::getPeerSessionStatusChange values
+     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
      *
      * @return true if this call has an specific change
      */
@@ -340,19 +453,52 @@ public:
     virtual bool isRinging() const;
 
     /**
-     * @brief Returns the status of the session for a peer
+     * @brief Get a list with the ids of peers that have a session with me
      *
-     * Valid values:
-     *  - SESSION_STATUS_INITIAL
-     *  - SESSION_STATUS_IN_PROGRESS
-     *  - SESSION_STATUS_DESTROYED
-     *  - SESSION_STATUS_NO_SESSION
+     * Every session is identified by a pair of \c peerid and \c clientid. This method returns the
+     * list of peerids for each session. Note that, if there are multiple sessions with the same peer
+     * (who uses multiple clients), the same peerid will be included multiple times (once per session)
      *
-     * If \c peerId has not any session in the call SESSION_STATUS_NO_SESSION will be returned
+     * The pair peerid and clientid that identify a session are at same position in the list
      *
-     * @return Session status for \c peerId
+     * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of peers
      */
-    virtual int getSessionStatus(MegaChatHandle peerId) const;
+    virtual mega::MegaHandleList *getSessionsPeerid() const;
+
+    /**
+     * @brief Get a list with the ids of client that have a session with me
+     *
+     * Every session is identified by a pair of \c peerid and \c clientid. This method returns the
+     * list of clientids for each session.
+     *
+     * The pair peerid and clientid that identify a session are at same position in the list
+     *
+     * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of clients
+     */
+    virtual mega::MegaHandleList *getSessionsClientid() const;
+
+    /**
+     * @brief Returns the session for a peer
+     *
+     * If pair \c peerid and \c clientid has not any session in the call NULL will be returned
+     *
+     * The MegaChatCall retains the ownership of the returned MegaChatSession. It will be only
+     * valid until the MegaChatCall is deleted. If you want to save the MegaChatSession,
+     * use MegaChatSession::copy
+     *
+     * @param peerid MegaChatHandle that identifies the peer
+     * @param clientid MegaChatHandle that identifies the clientid
+     * @return Session for \c peerid and \c clientid
+     */
+    virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid);
 
     /**
      * @brief Returns peer id which session status has changed
@@ -365,6 +511,63 @@ public:
     virtual MegaChatHandle getPeerSessionStatusChange() const;
 
     /**
+     * @brief Returns client id of the peer which session status has changed
+     *
+     * This function only returns a valid value when session status change is notified
+     * via MegaChatCallListener::onChatCallUpdate
+     *
+     * @return Handle of the client which session has changed its status
+     */
+    virtual MegaChatHandle getClientidSessionStatusChange() const;
+
+    /**
+     * @brief Get a list with the ids of peers that are participating in the call
+     *
+     * In a group call, this function returns the list of active participants,
+     * regardless your own user participates or not. In consequence,
+     * the list can differ from the one returned by MegaChatCall::getSessionsPeerid
+     *
+     * To identify completely a call participant it's necessary the peerid plus the clientid
+     * (megaChatCall::getClientidParticipants)
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of peers
+     */
+    virtual mega::MegaHandleList *getPeeridParticipants() const;
+
+    /**
+     * @brief Get a list with the ids of clients that are participating in the call
+     *
+     * In a group call, this function returns the list of active participants,
+     * regardless your own user participates or not. In consequence,
+     * the list can differ from the one returned by MegaChatCall::getSessionsclientid
+     *
+     * To idendentify completely a call participant it's neccesary the clientid plus the peerid
+     * (megaChatCall::getPeeridParticipants)
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the clientids
+     */
+    virtual mega::MegaHandleList *getClientidParticipants() const;
+
+    /**
+     * @brief Get the number of peers participating in the call
+     *
+     * In a group call, this function returns the number of active participants,
+     * regardless your own user participates or not.
+     *
+     * 0 -> with audio (c\ AUDIO)
+     * 1 -> with video (c\ VIDEO)
+     * 2 -> with any combination of audio/video, both or none (c\ ANY_FLAG)
+     *
+     * @param audioVideo indicate if it returns the number of all participants or only those have audio or video active
+     * @return Number of active participants in the call
+     */
+    virtual int getNumParticipants(int audioVideo) const;
+
+    /**
      * @brief Returns if call has been ignored
      *
      * @return True if the call has been ignored, false otherwise.
@@ -373,15 +576,27 @@ public:
 
     /**
      * @brief Returns if call is incoming
-     * @return Ture if incoming call, false if outgoing
+     *
+     * @return True if incoming call, false if outgoing
      */
     virtual bool isIncoming() const;
 
     /**
      * @brief Returns if call is outgoing
+     *
      * @return Ture if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
+
+    /**
+     * @brief Returns the handle from user that has started the call
+     *
+     * This function only returns a valid value when call is or has gone through CALL_STATUS_RING_IN state.
+     * In any other case, it will be MEGACHAT_INVALID_HANDLE
+     *
+     * @return user handle of caller
+     */
+    virtual MegaChatHandle getCaller() const;
 };
 
 /**
@@ -619,6 +834,9 @@ public:
       * be only valid until the MegaChatRichPreview is deleted.
       *
       * @return Text from rich preview
+      *
+      * @deprecated use MegaChatContainsMeta::getTextMessage instead, it contains the same
+      * value. This function will eventually be removed in future versions of MEGAchat.
       */
     virtual const char *getText() const;
 
@@ -704,6 +922,43 @@ public:
 };
 
 /**
+ * @brief This class store geolocation data
+ *
+ * This class contains the data for geolocation.
+ */
+class MegaChatGeolocation
+{
+public:
+    virtual ~MegaChatGeolocation() {}
+    virtual MegaChatGeolocation *copy() const;
+
+    /**
+      * @brief Returns geolocation longitude
+      *
+      * @return Geolocation logitude value
+      */
+    virtual float getLongitude() const;
+
+    /**
+      * @brief Returns geolocation latitude
+      *
+      * @return Geolocation latitude value
+      */
+    virtual float getLatitude() const;
+
+    /**
+      * @brief Returns preview from shared geolocation
+      *
+      * The MegaChatGeolocation retains the ownership of the returned string. It will
+      * be only valid until the MegaChatGeolocation is deleted.
+      * It can be NULL
+      *
+      * @return Preview from geolocation as a byte array encoded in Base64URL, or NULL if not available.
+      */
+    virtual const char *getImage() const;
+};
+
+/**
  * @brief This class represents meta contained
  *
  * This class includes pointer to differents kind of meta contained, like MegaChatRichPreview.
@@ -717,6 +972,7 @@ public:
     {
       CONTAINS_META_INVALID         = -1,   /// Unknown type of meta contained
       CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
+      CONTAINS_META_GEOLOCATION     = 1,    /// Geolocation type for meta contained
     };
 
     virtual ~MegaChatContainsMeta() {}
@@ -732,9 +988,26 @@ public:
      *  - MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW   = 0
      * Meta contained is from rich preview type
      *
+     *  - MegaChatContainsMeta::CONTAINS_META_GEOLOCATION  = 1
+     * Meta contained is from geolocation type
+     *
      * @return Type from meta contained of the message
      */
     virtual int getType() const;
+
+    /**
+     * @brief Returns a generic message to be shown when app does not support the type of the contained meta
+     *
+     * This string is always available for all messages of MegaChatMessage::TYPE_CONTAINS_META.
+     * When the app does not support yet the sub-type of contains-meta, this string
+     * can be shown as alternative.
+     *
+     * The MegaChatContainsMeta retains the ownership of the returned string. It will
+     * be only valid until the MegaChatContainsMeta is deleted.
+     *
+     * @return String to be shown when app can't parse the meta contained
+     */
+    virtual const char *getTextMessage() const;
 
     /**
      * @brief Returns data about rich-links
@@ -749,6 +1022,20 @@ public:
      * @return MegaChatRichPreview with details about rich-link.
      */
     virtual const MegaChatRichPreview *getRichPreview() const;
+
+    /**
+     * @brief Returns data about geolocation
+     *
+     * @note This function only returns a valid object in case the function
+     * \c MegaChatContainsMeta::getType returns MegaChatContainsMeta::CONTAINS_META_GEOLOCATION.
+     * Otherwise, it returns NULL.
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatContainsMeta object is deleted.
+     *
+     * @return MegaChatGeolocation with details about geolocation.
+     */
+    virtual const MegaChatGeolocation *getGeolocation() const;
 };
 
 class MegaChatMessage
@@ -779,11 +1066,16 @@ public:
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
         TYPE_CALL_ENDED             = 6,    /// Management message indicating a call has finished
-        TYPE_HIGHEST_MANAGEMENT     = 6,
+        TYPE_CALL_STARTED           = 7,    /// Management message indicating a call has started
+        TYPE_PUBLIC_HANDLE_CREATE   = 8,    /// Management message indicating a public handle has been created
+        TYPE_PUBLIC_HANDLE_DELETE   = 9,    /// Management message indicating a public handle has been removed
+        TYPE_SET_PRIVATE_MODE       = 10,   /// Management message indicating the chat mode has been set to private
+        TYPE_HIGHEST_MANAGEMENT     = 10,
         TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
         TYPE_CONTAINS_META          = 104,   /// User message including additional metadata (ie. rich-preview for links)
+        TYPE_VOICE_CLIP             = 105,   /// User message including info about shared voice clip
     };
 
     enum
@@ -808,8 +1100,7 @@ public:
         END_CALL_REASON_REJECTED    = 2,    /// Call was rejected by callee
         END_CALL_REASON_NO_ANSWER   = 3,    /// Call wasn't answered
         END_CALL_REASON_FAILED      = 4,    /// Call finished by an error
-        END_CALL_REASON_CANCELLED   = 5     /// (deprecated) Call was canceled by caller.
-                                            /// Instead of this termCode apps receives END_CALL_REASON_NO_ANSWER
+        END_CALL_REASON_CANCELLED   = 5     /// Call was canceled by caller.
     };
 
     enum
@@ -908,6 +1199,7 @@ public:
      *  - TYPE_ATTACHMENT: User message including info about a shared node
      *  - TYPE_REVOKE_ATTACHMENT: User message including info about a node that has stopped being shared
      *  - TYPE_CONTACT: User message including info about a contact
+     *  - TYPE_VOICE_CLIP: User messages incluiding info about a node that represents a voice-clip
      *  - TYPE_UNKNOWN: Unknown message, should be ignored/hidden. The MegaChatMessage::getCode can take the following values:
      *      * INVALID_TYPE
      *      * INVALID_KEYID
@@ -916,6 +1208,13 @@ public:
      * @return Returns the Type of message.
      */
     virtual int getType() const;
+
+    /**
+     * @brief Returns if the message has any reaction.
+     *
+     * @return Returns true if the message has any reaction, otherwise returns false.
+     */
+    bool hasReactions() const;
 
     /**
      * @brief Returns the timestamp of the message.
@@ -929,10 +1228,8 @@ public:
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatMessage object is deleted.
      *
-     * @note If message is of type MegaChatMessage::TYPE_CONTAINS_META and the type of meta
-     * is MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW, for convenience this function
-     * will return the original content of the message, the same than
-     * MegaChatRichPreview::getText
+     * @note If message is of type MegaChatMessage::TYPE_CONTAINS_META, for convenience this function
+     * will return the same content than MegaChatContainsMeta::getTextMessage
      *
      * @return Content of the message. If message was deleted, it returns NULL.
      */
@@ -1232,6 +1529,8 @@ public:
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
+        TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
+        TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1352,6 +1651,16 @@ public:
      * @return Text relative to this request
      */
     virtual const char *getText() const;
+
+    /**
+     * @brief Returns a link relative to this request
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return Link relative to this request
+     */
+    virtual const char *getLink() const;
 
     /**
      * @brief Returns a message contained on request
@@ -1530,8 +1839,8 @@ public:
  * the status is other than online or the user has enabled the persistence of the status.
  * When the autoaway mechanish is enabled, it requires the app calls \c MegaChatApi::signalPresenceActivity
  * in order to prevent becoming MegaChatApi::STATUS_AWAY automatically after the timeout.
- * You can check if the autoaway mechanism is active by calling \c MegaChatApi::isSignalActivityRequired
- * or also by checking \c MegaChatPresenceConfig::isSignalActivityRequired.
+ * You can check if the autoaway mechanism is active by calling \c MegaChatApi::isSignalActivityRequired.
+ * While the is in background status, without user's activity, there is no need tosignal it.
  *
  * - Persist: if enabled, the online status will be preserved, even if user goes offline or closes the app
  *
@@ -1667,6 +1976,7 @@ public:
         ERROR_OK        =   0,
         ERROR_UNKNOWN   =  -1,		// internal error
         ERROR_ARGS      =  -2,		// bad arguments
+        ERROR_TOOMANY   =  -6,		// too many uses for this resource
         ERROR_NOENT     =  -9,		// resource does not exist
         ERROR_ACCESS    = -11,		// access denied
         ERROR_EXIST     = -12		// resource already exists
@@ -1728,6 +2038,10 @@ public:
  * Important considerations:
  *  - In order to logout from the account, the app should call MegaApi::logout before MegaChatApi::logout.
  *  - The instance of MegaChatApi must be deleted before the instance of MegaApi passed to the constructor.
+ *  - In case we have init session in anonymous mode the app should call MegaChatApi::logout manually.
+ *
+ * In order to initialize in anonymous mode, the app will skip the steps 1, 4 and 5, but needs to perform steps 2, 3 and
+ * 6 accordingly (but replacing the call to MegaChatApi::init by MegaChatApi::initAnonymous).
  *
  * Some functions in this class return a pointer and give you the ownership. In all of them, memory allocations
  * are made using new (for single objects) and new[] (for arrays) so you should use delete and delete[] to free them.
@@ -1770,6 +2084,7 @@ public:
         INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login+fetchnodes
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
         INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
+        INIT_ANONYMOUS              = 4,    /// Initialization successful for anonymous operation
         INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> it requires login+fetchnodes
     };
 
@@ -1880,6 +2195,37 @@ public:
     int init(const char *sid);
 
     /**
+     * @brief Reset the Client Id for chatd
+     *
+     * When the app is running and another instance is launched i.e (share-extension in iOS),
+     * chatd closes the connection if a new connection is established with the same Client Id.
+     *
+     * The purpose of this function is reset the Client Id in order to avoid that chatd closes
+     * the other connections.
+     *
+     * This function should be called after MegaChatApi::init.
+     */
+    void resetClientid();
+
+    /**
+     * @brief Initializes karere in anonymous mode for preview of chat-links
+     *
+     * The initialization state will be MegaChatApi::INIT_ANONYMOUS if successful. In
+     * case of initialization error, it will return MegaChatApi::INIT_ERROR.
+     *
+     * This function should be called to preview chat-links without a valid session (anonymous mode).
+     *
+     * @note The app will not call MegaApi::login nor MegaApi::fetchnodes, but still need to
+     * call MegaChatApi::connect.
+     *
+     * The anonymous mode is going to initialize the chat engine but is not going to login in MEGA,
+     * so the way to logout in anoymous mode is call MegaChatApi::logout manually.
+     *
+     * @return The initialization state
+     */
+    int initAnonymous();
+
+    /**
      * @brief Returns the current initialization state
      *
      * The possible values are:
@@ -1888,6 +2234,7 @@ public:
      *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
      *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
      *  - MegaChatApi::INIT_ONLINE_SESSION = 3
+     *  - MegaChatApi::INIT_ANONYMOUS = 4
      *  - MegaChatApi::INIT_NO_CACHE = 7
      *
      * If \c MegaChatApi::init() has not been called yet, this function returns INIT_NOT_DONE
@@ -1947,6 +2294,8 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISCONNECT
      *
+     * @obsolete This function must NOT be used in new developments and has no effect. It will eventually be removed.
+     *
      * @param listener MegaChatRequestListener to track this request
      */
     void disconnect(MegaChatRequestListener *listener = NULL);
@@ -2000,6 +2349,19 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void retryPendingConnections(bool disconnect = false, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Refresh URLs and establish fresh connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * A disconnect will be forced automatically, followed by a reconnection to the fresh URLs
+     * retrieved from API. This parameter is useful when the URL for the API is changed
+     * via MegaApi::changeApiUrl.
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void refreshUrl(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Logout of chat servers invalidating the session
@@ -2246,9 +2608,15 @@ public:
      * background. The app should define its status in order to receive notifications
      * from server when the app is in background.
      *
-     * This function doesn't have any effect until MEGAchat is fully initialized. It means that
+     * This function doesn't have any effect until MEGAchat is fully initialized (meaning that
      * MegaChatApi::getInitState returns the value MegaChatApi::INIT_OFFLINE_SESSION or
-     * MegaChatApi::INIT_ONLINE_SESSION.
+     * MegaChatApi::INIT_ONLINE_SESSION).
+     *
+     * If MEGAchat is currently not connected to chatd, the request will fail with a
+     * MegaChatError::ERROR_ACCESS. If that case, when transitioning from foreground to
+     * background, the app should wait for being reconnected (@see MegaChatListener::onChatConnectionStateUpdate)
+     * in order to ensure the server is aware of the new status of the app, specially in iOS where
+     * the OS may kill the connection.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_BACKGROUND_STATUS
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2278,15 +2646,18 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_GET_FIRSTNAME
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getText - Returns the firstname of the user
      *
      * @param userhandle Handle of the user whose name is requested.
+     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      * @param listener MegaChatRequestListener to track this request
      */
-    void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Returns the current lastname of the user
@@ -2297,15 +2668,18 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_GET_LASTNAME
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getText - Returns the lastname of the user
      *
      * @param userhandle Handle of the user whose name is requested.
+     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      * @param listener MegaChatRequestListener to track this request
      */
-    void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Returns the current email address of the contact
@@ -2367,6 +2741,18 @@ public:
      * @return Own user handle
      */
     MegaChatHandle getMyUserHandle();
+
+    /**
+     * @brief Returns the client id handle of the logged in user for a chatroom
+     *
+     * The clientid is not the same for all chatrooms. If \c chatid is invalid, this function
+     * returns 0
+     *
+     * In offline mode (MegaChatApi::INIT_OFFLINE_SESSION), this function returns 0
+     *
+     * @return Own client id handle
+     */
+    MegaChatHandle getMyClientidHandle(MegaChatHandle chatid);
 
     /**
      * @brief Returns the firstname of the logged in user.
@@ -2530,7 +2916,8 @@ public:
     /**
      * @brief Return the number of chatrooms with unread messages
      *
-     * Archived chatrooms with unread messages are not considered.
+     * Archived chatrooms or chatrooms in preview mode with unread messages
+     * are not considered.
      *
      * @return The number of chatrooms with unread messages
      */
@@ -2601,11 +2988,17 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
+     * - MegaChatRequest::getPrivilege - Returns zero (private mode)
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
+     * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
+     * - MegaChatError::ERROR_ACCESS - If no peers are provided for a 1on1 chatroom.
      *
      * @note If you are trying to create a chat with more than 1 other person, then it will be forced
      * to be a group chat.
@@ -2621,6 +3014,143 @@ public:
     void createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Creates a chat for one or more participants, allowing you to specify their
+     * permissions and if the chat should be a group chat or not (when it is just for 2 participants).
+     *
+     * There are two types of chat: permanent an group. A permanent chat is between two people, and
+     * participants can not leave it.
+     *
+     * The creator of the chat will have moderator level privilege and should not be included in the
+     * list of peers.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
+     * - MegaChatRequest::getPrivilege - Returns zero (private mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
+     * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
+     * - MegaChatError::ERROR_ACCESS - If no peers are provided for a 1on1 chatroom.
+     *
+     * @note If you are trying to create a chat with more than 1 other person, then it will be forced
+     * to be a group chat.
+     *
+     * @note If peers list contains only one person, group chat is not set and a permament chat already
+     * exists with that person, then this call will return the information for the existing chat, rather
+     * than a new chat.
+     *
+     * @param group Flag to indicate if the chat is a group chat or not
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createChat(bool group, MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Creates an public chatroom for multiple participants (groupchat)
+     *
+     * This function allows to create public chats, where the moderator can create chat links to share
+     * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+     * moderator can create/get a public handle for the chatroom and generate a URL by using
+     * \c MegaChatApi::createChatLink. The chat-link can be deleted at any time by any moderator
+     * by using \c MegaChatApi::removeChatLink.
+     *
+     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::setPublicChatToPrivate.
+     *
+     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatPreview.
+     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::autojoinPublicChat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns always true, since the new chat is a groupchat
+     * - MegaChatRequest::getPrivilege - Returns one (public mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - If no peer list is provided or non groupal and public is set.
+     * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
+     * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
+     * - MegaChatError::ERROR_ACCESS - If no peers are provided for a 1on1 chatroom.
+     *
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createPublicChat(MegaChatPeerList *peers, const char *title = NULL, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Check if there is an existing chat-link for an public chat
+     *
+     * This function allows moderators to check whether a public handle for public chats exist and,
+     * if any, it returns a chat-link that any user can use to preview or join the chatroom.
+     *
+     * @see \c MegaChatApi::createPublicChat for more details.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getNumRetry - Returns 0
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the chat-link for the chatroom, if it already exist
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - If the chatroom is not groupal or public.
+     * - MegaChatError::ERROR_NOENT  - If the chatroom does not exists or the chatid is invalid.
+     * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_ACCESS - If the chat does not have topic.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Create a chat-link for a public chat
+     *
+     * This function allows moderators to create a public handle for public chats and returns
+     * a chat-link that any user can use to preview or join the chatroom.
+     *
+     * @see \c MegaChatApi::createPublicChat for more details.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getNumRetry - Returns 1
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the chat-link for the chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - If the chatroom is not groupal or public.
+     * - MegaChatError::ERROR_NOENT  - If the chatroom does not exists or the chatid is invalid.
+     * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_ACCESS - If the chat does not have topic.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Adds a user to an existing chat. To do this you must have the
      * moderator privilege in the chat, and the chat must be a group chat.
      *
@@ -2631,7 +3161,8 @@ public:
      * - MegaChatRequest::getPrivilege - Returns the privilege level wanted for the user
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers
+     * or the target is not actually contact of the user.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot invite peers)
      *
@@ -2644,6 +3175,52 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allow a user to add himself to an existing public chat. To do this the public chat must be in preview mode,
+     * the result of a previous call to openChatPreview(), and the public handle contained in the chat-link must be still valid.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns invalid handle to identify that is an autojoin
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - If the chatroom is not groupal, public or is not in preview mode.
+     * - MegaChatError::ERROR_NOENT - If the chat room does not exists, the chatid is not valid or the
+     * public handle is not valid.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allow a user to rejoin to an existing public chat. To do this the public chat
+     * must have a valid public handle.
+     *
+     * This function must be called only after calling:
+     * - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_EXIST for a chatroom where
+     * your own privilege is MegaChatRoom::PRIV_RM (You are trying to preview a public chat which
+     * you were part of, so you have to rejoin it)
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the public handle of the chat to identify that
+     * is a rejoin
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If the chatroom is not groupal, the chatroom is not public
+     * or the chatroom is in preview mode.
+     * - MegaChatError::ERROR_NOENT - If the chatid is not valid, there isn't any chat with the specified
+     * chatid or the chat doesn't have a valid public handle.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param ph MegaChatHandle that corresponds with the public handle of chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void autorejoinPublicChat(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Remove another user from a chat. To remove a user you need to have the
@@ -2696,7 +3273,6 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to update the privilege level.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param uh MegaChatHandle that identifies the user
@@ -2711,9 +3287,12 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to truncate their chat, i.e. to clear
      * the entire chat history up to a certain message. All earlier messages are wiped,
-     * but this specific message will be overwritten by a management message. You can
-     * expect a call to \c MegaChatRoomListener::onMessageUpdate where the message
-     * will have no content and it will be of type \c MegaChatMessage::TYPE_TRUNCATE.
+     * but this specific message will be overwritten by a management message. In addition
+     * all reactions associated to the message are wiped and must be cleared by applications.
+     *
+     * You can expect a call to \c MegaChatRoomListener::onMessageUpdate where the message
+     * will have no content and it will be of type \c MegaChatMessage::TYPE_TRUNCATE. Any
+     * reactions associated to the original message will be cleared.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2732,12 +3311,13 @@ public:
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Allows a logged in operator/moderator to clear the entire history of a chat
+     * @brief Allows a logged in operator/moderator to clear the entire chat history
      *
      * If the history is not already empty, the latest message will be overwritten by
-     * a management message. You can expect a call to \c MegaChatRoomListener::onMessageUpdate
+     * You can expect a call to \c MegaChatRoomListener::onMessageUpdate
      * where the message will have no content and it will be of type
-     * \c MegaChatMessage::TYPE_TRUNCATE.
+     * \c MegaChatMessage::TYPE_TRUNCATE. Any reactions associated to the original
+     * message will be cleared.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_TRUNCATE_HISTORY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2780,6 +3360,126 @@ public:
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Allows any user to preview a public chat without being a participant
+     *
+     * This function loads the required data to preview a public chat referenced by a
+     * chat-link. It returns the actual \c chatid, the public handle, the number of peers
+     * and also the title.
+     *
+     * If this request success, the caller can proceed as usual with
+     * \c MegaChatApi::openChatRoom to preview the chatroom in read-only mode, followed by
+     * a MegaChatApi::closeChatRoom as usual.
+     *
+     * The previewer may choose to join the public chat permanently, becoming a participant
+     * with read-write privilege, by calling MegaChatApi::autojoinPublicChat.
+     *
+     * Instead, if the previewer is not interested in the chat anymore, it can remove it from
+     * the list of chats by calling MegaChatApi::closeChatPreview.
+     * @note If the previewer doesn't explicitely close the preview, it will be lost if the
+     * app is closed. A preview of a chat is not persisted in cache.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getLink - Returns the chat link.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
+     * - MegaChatError::ERROR_EXIST - If the chatroom already exists:
+     *      + If the chatroom is in preview mode the user is trying to preview a public chat twice
+     *      + If the chatroom is not in preview mode but is active, the user is trying to preview a
+     *      chat which he is part of.
+     *      + If the chatroom is not in preview mode but is inactive, the user is trying to preview a
+     *      chat which he was part of. In this case the user will have to call MegaChatApi::autorejoinPublicChat to join
+     *      to autojoin the chat again. Note that you won't be able to preview a public chat any more, once
+     *      you have been part of the chat.
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the public handle is not valid.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK or MegaError::ERROR_EXIST:
+     * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
+     * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
+     * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
+     * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
+     *
+     * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
+     * MegaChatApi::openChatRoom to receive notifications related to this chat
+     *
+     * @param link Null-terminated character string with the public chat link
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void openChatPreview(const char *link, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allows any user to obtain basic information abouts a public chat if
+     * a valid public handle exists.
+     *
+     * This function returns the actual \c chatid, the number of peers and also the title.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getLink - Returns the chat link.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
+     * - MegaChatError::ERROR_NOENT - If the chatroom not exists or the public handle is not valid.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
+     * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
+     * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
+     *
+     * @param link Null-terminated character string with the public chat link
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void checkChatLink(const char *link, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Set the chat mode to private
+     *
+     * This function set the chat mode to private and invalidates the public handle if exists
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_PRIVATE_MODE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - If the chatroom is not groupal or public.
+     * - MegaChatError::ERROR_NOENT  - If the chat room does not exists or the chatid is invalid.
+     * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Invalidates the current public handle
+     *
+     * This function invalidates the current public handle.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getNumRetry - Returns 0
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - If the chatroom is not groupal or public.
+     * - MegaChatError::ERROR_NOENT  - If the chatroom does not exists or the chatid is invalid.
+     * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_ACCESS - If the chat does not have topic.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Allows to un/archive chats
      *
      * This is a per-chat and per-user option, and it's intended to be used when the user does
@@ -2793,7 +3493,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ENOENT - If the chatroom doesn't exists.
-     * - MegaChatError::ERROR_ARGS - If chatid is invalid.he chat that was actually saved.
+     * - MegaChatError::ERROR_ACCESS - If caller is not operator.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param archive True to set the chat as archived, false to unarchive it.
@@ -2828,6 +3528,19 @@ public:
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener);
 
     /**
+     * @brief This method should be called when we want to close a public chat preview
+     *
+     * It automatically disconnect to this chat, remove all internal data related, and make
+     * a cache cleanup in order to clean all the related records.
+     *
+     * Additionally, MegaChatListener::onChatListItemUpdate will be called with an item
+     * returning true for the type of change CHANGE_TYPE_PREVIEW_CLOSED
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    void closeChatPreview(MegaChatHandle chatid);
+
+    /**
      * @brief Initiates fetching more history of the specified chatroom.
      *
      * The loaded messages will be notified one by one through the MegaChatRoomListener
@@ -2853,7 +3566,7 @@ public:
      *
      * @return Return the source of the messages that is going to be fetched. The possible values are:
      *   - MegaChatApi::SOURCE_ERROR = -1: history has to be fetched from server, but we are not logged in yet
-     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even int the server)
+     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even in the server)
      *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
      *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
      *
@@ -2873,9 +3586,8 @@ public:
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
      *
-     * This function allows to retrieve only those messages that are already loaded
-     * and notified by MegaChatRoomListener::onMessageLoaded and/or messages that are
-     * in sending-status (not yet confirmed). For any other message, this function
+     * This function allows to retrieve only those messages that are been loaded, received and/or
+     * sent (confirmed and not yet confirmed). For any other message, this function
      * will return NULL.
      *
      * You take the ownership of the returned value.
@@ -2885,6 +3597,19 @@ public:
      * @return The MegaChatMessage object, or NULL if not found.
      */
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+
+    /**
+     * @brief Returns the MegaChatMessage specified from the chat room stored in node history
+     *
+     * This function allows to retrieve only those messages that are in the node history
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     * @return The MegaChatMessage object, or NULL if not found.
+     */
+    MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
 
     /**
      * @brief Returns the MegaChatMessage specified from manual sending queue.
@@ -2907,7 +3632,7 @@ public:
      *
      * The MegaChatMessage object returned by this function includes a message transaction id,
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
-     * temporal id with MegaChatMessage::getTempId()
+     * temporal id with MegaChatMessage::getTempId
      *
      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
@@ -2936,7 +3661,7 @@ public:
      *
      * The MegaChatMessage object returned by this function includes a message transaction id,
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
-     * temporal id with MegaChatMessage::getTempId()
+     * temporal id with MegaChatMessage::getTempId
      *
      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
@@ -2959,7 +3684,7 @@ public:
      *
      * The MegaChatMessage object returned by this function includes a message transaction id,
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
-     * temporal id with MegaChatMessage::getTempId()
+     * temporal id with MegaChatMessage::getTempId
      *
      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
@@ -2990,6 +3715,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getNodeList - Returns the list of nodes
+     * - MegaChatRequest::getParamType - Returns 0 (to identify the attachment as regular attachment message)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -3010,6 +3736,66 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
      void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Share a geolocation in the specified chatroom
+     *
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param longitude from shared geolocation
+     * @param latitude from shared geolocation
+     * @param img Preview as a byte array encoded in Base64URL. It can be NULL
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+     */
+     MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
+
+     /**
+      * @brief Edit a geolocation message
+      *
+      * Message's edits are only allowed during a short timeframe, usually 1 hour.
+      * Message's deletions are equivalent to message's edits, but with empty content.
+      *
+      * There is only one pending edit for not-yet confirmed edits. Therefore, this function will
+      * discard previous edits that haven't been notified via MegaChatRoomListener::onMessageUpdate
+      * where the message has MegaChatMessage::hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT).
+      *
+      * If the edit is rejected because the original message is too old, this function return NULL.
+      *
+      * When an already delivered message (MegaChatMessage::STATUS_DELIVERED) is edited, the status
+      * of the message will change from STATUS_SENDING directly to STATUS_DELIVERED again, without
+      * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
+      * to know when an edit has been delivered to the target user, but only when the edit has been
+      * received by the server, so for convenience the status of the original message is kept.
+      * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
+      * reach the status delivered, since the target user will not send the required acknowledge to the
+      * server upon reception.
+      *
+      * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
+      * that it isn't typing
+      *
+      * You take the ownership of the returned value.
+      *
+      * @param chatid MegaChatHandle that identifies the chat room
+      * @param msgid MegaChatHandle that identifies the message
+      * @param longitude from shared geolocation
+      * @param latitude from shared geolocation
+      * @param img Preview as a byte array encoded in Base64URL. It can be NULL
+      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+      */
+      MegaChatMessage *editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img = NULL);
 
     /**
      * @brief Revoke the access to a node in the specified chatroom
@@ -3059,6 +3845,46 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getUserHandle - Returns the handle of the node
+     * - MegaChatRequest::getParamType - Returns 0 (to identify the attachment as regular attachment message)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom, the node or the target user don't exists
+     * - MegaChatError::ERROR_ACCESS - If the target user is the same as caller
+     * - MegaChatError::ERROR_ACCESS - If the target user is anonymous but the chat room is in private mode
+     * - MegaChatError::ERROR_ACCESS - If caller is not an operator or the target user is not a chat member
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param nodehandle Handle of the node that the user wants to attach
+     * @param listener MegaChatRequestListener to track this request
+     */
+     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Sends a node that contains a voice message to the specified chatroom
+     *
+     * The voice clip message includes information about the node, so the receiver can reproduce it online.
+     *
+     * In contrast to other functions to send messages, such as MegaChatApi::sendMessage or
+     * MegaChatApi::attachContacts, this function is asynchronous and does not return a MegaChatMessage
+     * directly. Instead, the MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the node
+     * - MegaChatRequest::getParamType - Returns 1 (to identify the attachment as a voice message)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -3075,8 +3901,8 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodehandle Handle of the node that the user wants to attach
      * @param listener MegaChatRequestListener to track this request
-     */
-     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+    */
+    void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Revoke the access to a node granted by an attachment message
@@ -3340,11 +4166,16 @@ public:
      * - MegaChatRequest::getChatHandle - Return the chatid to check for updates
      * - MegaChatRequest::getParamType - Return 1
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not does not exist.
+     * - MegaChatError::ERROR_ACCESS - If the chatroom is archived (no notification should be generated).
+     *
      * @param beep True if push should generate a beep, false if it shouldn't.
      * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for all chats
      * @param listener MegaChatRequestListener to track this request
      */
     void pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
 
 #ifndef KARERE_DISABLE_WEBRTC
     // Audio/Video device management
@@ -3401,7 +4232,23 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when the chatroom is
+     * in preview mode.
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it.
+     *
+     * @note In case of group calls, if there is already too many peers sending video and there are no
+     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -3417,7 +4264,20 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd.
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it.
+     *
+     * @note In case of group calls, if there is already too many peers sending video and there are no
+     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -3457,6 +4317,9 @@ public:
      * - MegaChatRequest::getFlag - Returns true
      * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
      *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call sending audio already (no more audio slots are available).
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
@@ -3484,6 +4347,9 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true
      * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call sending video already (no more video slots are available).
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -3551,7 +4417,8 @@ public:
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
 
     /**
-     * @brief Returns number of calls that there are at the system
+     * @brief Returns number of calls that are currently active
+     * @note You may not participate in all those calls.
      * @return number of calls in the system
      */
     int getNumCalls();
@@ -3559,11 +4426,15 @@ public:
     /**
      * @brief Get a list with the ids of chatrooms where there are active calls
      *
+     * The list of ids can be retrieved for calls in one specific state by setting
+     * the parameter \c callState. If state is -1, it returns all calls regardless their state.
+     *
      * You take the ownership of the returned value.
      *
+     * @param state of calls that you want receive, -1 to consider all states
      * @return A list of handles with the ids of chatrooms where there are active calls
      */
-    mega::MegaHandleList *getChatCalls();
+    mega::MegaHandleList *getChatCalls(int callState = -1);
 
     /**
      * @brief Get a list with the ids of active calls
@@ -3573,6 +4444,58 @@ public:
      * @return A list of ids of active calls
      */
     mega::MegaHandleList *getChatCallsIds();
+
+    /**
+     * @brief Returns true if there is a call at chatroom with id \c chatid
+     *
+     * @note It's not necessary that we participate in the call, but other participants do.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return True if there is a call in a chatroom. False in other case
+     */
+    bool hasCallInChatRoom(MegaChatHandle chatid);
+
+    /**
+     * @brief Enable/disable groupcalls
+     *
+     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
+     * in the history about group calls will be visible since the call takes place anyway.
+     *
+     * By default, groupcalls are disabled.
+     *
+     * This method should be called after MegaChatApi::init. A MegaChatApi::logout resets its value.
+     *
+     * @param enable True for enable group calls. False to disable them.
+     * @deprecated Groupcalls are always enabled, this function has no effect.
+     */
+    void enableGroupChatCalls(bool enable);
+
+    /**
+     * @brief Returns true if groupcalls are enabled
+     *
+     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
+     * in the history about group calls will be visible.
+     *
+     * By default, groupcalls are disabled. A MegaChatApi::logout resets its value.
+     *
+     * @return True if group calls are enabled. Otherwise, false.
+     * @deprecated Groupcalls are always enabled
+     */
+    bool areGroupChatCallEnabled();
+
+    /**
+     * @brief Returns the maximum call participants
+     *
+     * @return Maximum call participants
+     */
+    int getMaxCallParticipants();
+
+    /**
+     * @brief Returns the maximum video call participants
+     *
+     * @return Maximum video call participants
+     */
+    int getMaxVideoCallParticipants();
 
 #endif
 
@@ -3654,6 +4577,95 @@ public:
      */
     void removeChatNotificationListener(MegaChatNotificationListener* listener);
 
+    /**
+     * @brief Adds a reaction for a message in a chatroom
+     *
+     * The reactions updates will be notified one by one through the MegaChatRoomListener
+     * specified at MegaChatApi::openChatRoom (and through any other listener you may have
+     * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
+     * is MegaChatRoomListener::onReactionUpdate.
+     *
+     * You take the ownership of the returned value.
+     *
+     * Possible error codes associated to MegaChatError can be:
+     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
+     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     * - MegaChatError::API_EEXIST: if our own user has reacted previously with this reaction
+     * for this message
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
+     *
+     * @return returns MegaChatError with an error code associated.
+     */
+    MegaChatError *addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+
+    /**
+     * @brief Removes a reaction for a message in a chatroom
+     *
+     * The reactions updates will be notified one by one through the MegaChatRoomListener
+     * specified at MegaChatApi::openChatRoom (and through any other listener you may have
+     * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
+     * is MegaChatRoomListener::onReactionUpdate.
+     *
+     * You take the ownership of the returned value.
+     *
+     * Possible error codes associated to MegaChatError can be:
+     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists, or if your own user has
+     * not reacted to the message with the specified reaction.
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
+     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
+     *
+     * @return returns MegaChatError with an error code associated.
+     */
+    MegaChatError *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+
+    /**
+     * @brief Returns the number of users that reacted to a message with a specific reaction
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     *
+     * @return return the number of users that reacted to a message with a specific reaction,
+     * or -1 if the chatroom or message is not found.
+     */
+    int getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction) const;
+
+     /**
+      * @brief Gets a list of reactions associated to a message
+      *
+      * You take the ownership of the returned value.
+      *
+      * @param chatid MegaChatHandle that identifies the chatroom
+      * @param msgid MegaChatHandle that identifies the message
+      * @return return a list with the reactions associated to a message.
+      */
+    ::mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
+
+     /**
+      * @brief Gets a list of users that reacted to a message with a specific reaction
+      *
+      * You take the ownership of the returned value.
+      *
+      * @param chatid MegaChatHandle that identifies the chatroom
+      * @param msgid MegaChatHandle that identifies the message
+      * @param reaction UTF-8 NULL terminated string that represents the reaction
+      *
+      * @return return a list with the users that reacted to a message with a specific reaction.
+      */
+    ::mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Register a listener to receive all events about calls
@@ -3674,40 +4686,48 @@ public:
     void removeChatCallListener(MegaChatCallListener *listener);
 
     /**
-     * @brief Register a listener to receive video from local device
+     * @brief Register a listener to receive video from local device for an specific chat room
      *
      * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
      *
+     * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatVideoListener that will receive local video
      */
-    void addChatLocalVideoListener(MegaChatVideoListener *listener);
+    void addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
      * @brief Unregister a MegaChatVideoListener
      *
      * This listener won't receive more events.
      *
+     * @param chatid MegaChatHandle that identifies the chat room
      * @param listener Object that is unregistered
      */
-    void removeChatLocalVideoListener(MegaChatVideoListener *listener);
+    void removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
-     * @brief Register a listener to receive video from remote device
+     * @brief Register a listener to receive video from remote device for an specific chat room and peer
      *
      * You can use MegaChatApi::removeChatRemoteVideoListener to stop receiving events.
      *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param peerid MegaChatHandle that identifies the peer
+     * @param clientid MegaChatHandle that identifies the client
      * @param listener MegaChatVideoListener that will receive remote video
      */
-    void addChatRemoteVideoListener(MegaChatVideoListener *listener);
+    void addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatHandle clientid, MegaChatVideoListener *listener);
 
     /**
      * @brief Unregister a MegaChatVideoListener
      *
      * This listener won't receive more events.
      *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param peerid MegaChatHandle that identifies the peer
+     * @param clientid MegaChatHandle that identifies the client
      * @param listener Object that is unregistered
      */
-    void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
+    void removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatHandle clientid, MegaChatVideoListener *listener);
 #endif
 
     static void setCatchException(bool enable);
@@ -3826,16 +4846,19 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01, /// obsolete
-        CHANGE_TYPE_OWN_PRIV        = 0x02, /// Our privilege level has changed
-        CHANGE_TYPE_UNREAD_COUNT    = 0x04, /// Unread count updated
-        CHANGE_TYPE_PARTICIPANTS    = 0x08, /// A participant joined/left the chatroom or its privilege changed
-        CHANGE_TYPE_TITLE           = 0x10, /// Title updated
-        CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
-        CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
-        CHANGE_TYPE_LAST_TS         = 0x80, /// Timestamp of the last activity
-        CHANGE_TYPE_ARCHIVE         = 0x100,/// Archived or unarchived
-        CHANGE_TYPE_CALL            = 0x200 /// There's a new call or a call has finished
+        CHANGE_TYPE_STATUS              = 0x01,  /// obsolete
+        CHANGE_TYPE_OWN_PRIV            = 0x02,  /// Our privilege level has changed
+        CHANGE_TYPE_UNREAD_COUNT        = 0x04,  /// Unread count updated
+        CHANGE_TYPE_PARTICIPANTS        = 0x08,  /// A participant joined/left the chatroom or its privilege changed
+        CHANGE_TYPE_TITLE               = 0x10,  /// Title updated
+        CHANGE_TYPE_CLOSED              = 0x20,  /// The chatroom has been left by own user
+        CHANGE_TYPE_LAST_MSG            = 0x40,  /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
+        CHANGE_TYPE_LAST_TS             = 0x80,  /// Timestamp of the last activity
+        CHANGE_TYPE_ARCHIVE             = 0x100, /// Archived or unarchived
+        CHANGE_TYPE_CALL                = 0x200, /// There's a new call or a call has finished
+        CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
+        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800, /// The number of previewers has changed
+        CHANGE_TYPE_PREVIEW_CLOSED      = 0x1000 /// The chat preview has been closed
     };
 
     virtual ~MegaChatListItem() {}
@@ -3901,6 +4924,7 @@ public:
      *  - MegaChatMessage::TYPE_ATTACHMENT: filenames of the attached nodes (separated by ASCII character '0x01')
      *  - MegaChatMessage::TYPE_CONTACT: usernames of the attached contacts (separated by ASCII character '0x01')
      *  - MegaChatMessage::TYPE_CONTAINS_META: original content of the messsage
+     *  - MegaChatMessage::TYPE_VOICE_CLIP: filename of the attached node
      *  - MegaChatMessage::TYPE_CHAT_TITLE: new title
      *  - MegaChatMessage::TYPE_TRUNCATE: empty string
      *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: empty string
@@ -3943,6 +4967,8 @@ public:
      *  - MegaChatMessage::TYPE_NORMAL: for regular text messages
      *  - MegaChatMessage::TYPE_ATTACHMENT: for messages sharing a node
      *  - MegaChatMessage::TYPE_CONTACT: for messages sharing a contact
+     *  - MegaChatMessage::TYPE_CONTAINS_META: for messages with meta-data
+     *  - MegaChatMessage::TYPE_VOICE_CLIP: for voice-clips
      *  - 0xFF when it's still fetching from server (for the public API)
      *
      * @return The type of the last message
@@ -3975,6 +5001,18 @@ public:
      * @return True if this chat is a group chat. Only chats with more than 2 peers are groupal chats.
      */
     virtual bool isGroup() const;
+
+    /**
+     * @brief Returns whether this chat is a public chat or not
+     * @return True if this chat is a public chat.
+     */
+    virtual bool isPublic() const;
+
+    /**
+     * @brief Returns whether a public chat is in preview mode or not
+     * @return True if this public chat is in preview mode.
+     */
+    virtual bool isPreview() const;
 
     /**
      * @brief Returns whether the user is member of the chatroom (for groupchats),
@@ -4025,6 +5063,12 @@ public:
      * @return Handle of the target user
      */
     virtual MegaChatHandle getLastMessageHandle() const;
+
+    /**
+     * @brief Returns the number of previewers in this chat
+     * @return
+     */
+    virtual unsigned int getNumPreviewers() const;
 };
 
 class MegaChatRoom
@@ -4041,7 +5085,9 @@ public:
         CHANGE_TYPE_CLOSED              = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_OWN_PRIV            = 0x40, /// Our privilege level has changed
         CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
-        CHANGE_TYPE_ARCHIVE             = 0x100 /// Archived or unarchived
+        CHANGE_TYPE_ARCHIVE             = 0X100, /// Archived or unarchived
+        CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
+        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800  /// The number of previewers has changed
     };
 
     enum {
@@ -4069,6 +5115,12 @@ public:
      * @return
      */
     virtual int getOwnPrivilege() const;
+
+    /**
+     * @brief Returns the number of previewers in this chat
+     * @return
+     */
+    virtual unsigned int getNumPreviewers() const;
 
     /**
      * @brief Returns the privilege level of the user in this chat.
@@ -4215,7 +5267,34 @@ public:
     virtual bool isGroup() const;
 
     /**
-     * @brief Returns the title of the chat
+     * @brief Returns whether this chat is a public chat or not
+     * @return True if this chat is a public chat.
+     */
+    virtual bool isPublic() const;
+
+    /**
+     * @brief Returns whether this chat is in preview mode or not
+     * @return True if this chat is in preview mode.
+     */
+    virtual bool isPreview() const;
+
+    /**
+     * @brief Get the authorization token in preview mode
+     *
+     * This method returns an authorization token that can be used to authorize
+     * nodes received as attachments while in preview mode, so the node can be
+     * downloaded/imported into the account via MegaApi::authorizeChatNode.
+     *
+     * If the chat is not in preview mode, this function will return NULL.
+     *
+     * You take the ownership of the returned value. Use delete [] value
+     *
+     * @return Auth token or NULL if not in preview mode.
+     */
+    virtual const char *getAuthorizationToken() const;
+
+    /**
+     * @brief Returns the title of the chat, if any.
      *
      * In case the chatroom has not a customized title, it will be created using the
      * names of participants.
@@ -4298,6 +5377,10 @@ public:
      *  - Last message: the last relevant message in the chatroom
      *  - Last timestamp: the last date of any activity in the chatroom
      *  - Archived: when the chat becomes archived/unarchived
+     *  - Calls: when there is a new call or a call has finished
+     *  - Chat mode: when an user has set chat mode to private
+     *  - Previewers: when the number of previewers has changed
+     *  - Preview closed: when the chat preview has been closed
      *
      * The SDK retains the ownership of the MegaChatListItem in the second parameter.
      * The MegaChatListItem object will be valid until this function returns. If you
@@ -4402,7 +5485,9 @@ public:
      *
      * The changes can include: a user join/leaves the chatroom, a user changes its name,
      * the unread messages count has changed, the online state of the connection to the
-     * chat server has changed, the chat becomes archived/unarchived.
+     * chat server has changed, the chat becomes archived/unarchived, there is a new call
+     * or a call has finished, the chat has been changed into private mode, the number of
+     * previewers has changed, the user has started/stopped typing.
      *
      * @param api MegaChatApi connected to the account
      * @param chat MegaChatRoom that contains the updates relatives to the chat
@@ -4484,6 +5569,17 @@ public:
      * @param chat MegaChatRoom whose local history is about to be discarded
      */
     virtual void onHistoryReloaded(MegaChatApi* api, MegaChatRoom *chat);
+
+
+    /**
+     * @brief This function is called when a message has been reacted (or an existing reaction has been removed)
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
+     * @param count Number of users who have reacted to this message with the same reaction
+     */
+    virtual void onReactionUpdate(MegaChatApi* api, MegaChatHandle msgid, const char* reaction, int count);
 };
 
 /**

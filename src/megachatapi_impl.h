@@ -31,8 +31,9 @@
 #include <megaapi.h>
 #include <megaapi_impl.h>
 
+#include "rtcModule/webrtc.h"
+
 #ifndef KARERE_DISABLE_WEBRTC
-#include <rtcModule/webrtc.h>
 #include <IVideoRenderer.h>
 #endif
 
@@ -41,32 +42,31 @@
 #include <sdkApi.h>
 #include <karereCommon.h>
 #include <logger.h>
-
-#include "net/websocketsIO.h"
-
 #include <stdint.h>
-
-#ifdef USE_LIBWEBSOCKETS
-
 #include "net/libwebsocketsIO.h"
 #include "waiter/libuvWaiter.h"
+
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#endif
+
+#include <rapidjson/document.h>
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
+
 
 typedef LibwebsocketsIO MegaWebsocketsIO;
 typedef ::mega::LibuvWaiter MegaChatWaiter;
 
-#else
-
-#include "net/libwsIO.h"
-#include "waiter/libeventWaiter.h"
-
-typedef LibwsIO MegaWebsocketsIO;
-typedef ::mega::LibeventWaiter MegaChatWaiter;
-
-#endif
-
 namespace megachat
 {
     
+typedef std::set<MegaChatVideoListener *> MegaChatVideoListener_set;
+typedef std::map<chatd::EndpointId, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
+
 class MegaChatRequestPrivate : public MegaChatRequest
 {
 
@@ -88,6 +88,7 @@ public:
     virtual MegaChatHandle getUserHandle();
     virtual int getPrivilege();
     virtual const char *getText() const;
+    virtual const char *getLink() const;
     virtual MegaChatMessage *getMegaChatMessage();
     virtual mega::MegaNodeList *getMegaNodeList();
     virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
@@ -103,6 +104,7 @@ public:
     void setChatHandle(MegaChatHandle chatid);
     void setUserHandle(MegaChatHandle userhandle);
     void setPrivilege(int priv);
+    void setLink(const char *link);
     void setText(const char *text);
     void setMegaChatMessage(MegaChatMessage *message);
     void setMegaNodeList(mega::MegaNodeList *nodelist);
@@ -123,6 +125,7 @@ protected:
     MegaChatHandle userHandle;
     int privilege;
     const char* text;
+    const char* link;
     MegaChatMessage* mMessage;
     mega::MegaNodeList* mMegaNodeList;
     mega::MegaHandleList *mMegaHandleList;
@@ -143,7 +146,6 @@ public:
     virtual int64_t getAutoawayTimeout() const;
     virtual bool isPersist() const;
     virtual bool isPending() const;
-    virtual bool isSignalActivityRequired() const;
     virtual bool isLastGreenVisible() const;
 
 private:
@@ -160,11 +162,41 @@ private:
 
 class MegaChatVideoReceiver;
 
-class MegaChatCallPrivate :
-        public MegaChatCall
+class MegaChatSessionPrivate : public MegaChatSession
+{
+public:
+    MegaChatSessionPrivate(const rtcModule::ISession &session);
+    MegaChatSessionPrivate(const MegaChatSessionPrivate &session);
+    virtual ~MegaChatSessionPrivate();
+    virtual MegaChatSession *copy();
+    virtual int getStatus() const;
+    virtual MegaChatHandle getPeerid() const;
+    virtual MegaChatHandle getClientid() const;
+    virtual bool hasAudio() const;
+    virtual bool hasVideo() const;
+    virtual int getNetworkQuality() const;
+    virtual bool getAudioDetected() const;
+    static uint8_t convertSessionState(uint8_t state);
+
+    void setState(uint8_t state);
+    void setAvFlags(karere::AvFlags flags);
+    void setNetworkQuality(int quality);
+    void setAudioDetected(bool audioDetected);
+
+private:
+    uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
+    karere::Id peerid;
+    uint32_t clientid;
+    karere::AvFlags av;
+    int networkQuality = rtcModule::kNetworkQualityDefault;
+    bool audioDetected = false;
+};
+
+class MegaChatCallPrivate : public MegaChatCall
 {
 public:
     MegaChatCallPrivate(const rtcModule::ICall& call);
+    MegaChatCallPrivate(karere::Id chatid, karere::Id callid, uint32_t duration = 0);
     MegaChatCallPrivate(const MegaChatCallPrivate &call);
 
     virtual ~MegaChatCallPrivate();
@@ -175,10 +207,10 @@ public:
     virtual MegaChatHandle getChatid() const;
     virtual MegaChatHandle getId() const;
 
-    virtual bool hasLocalAudio();
-    virtual bool hasRemoteAudio();
-    virtual bool hasLocalVideo();
-    virtual bool hasRemoteVideo();
+    virtual bool hasLocalAudio() const;
+    virtual bool hasAudioInitialCall() const;
+    virtual bool hasLocalVideo() const;
+    virtual bool hasVideoInitialCall() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -190,37 +222,57 @@ public:
     virtual int getTermCode() const;
     virtual bool isLocalTermCode() const;
     virtual bool isRinging() const;
-    virtual int getSessionStatus(MegaChatHandle peerId) const;
+    virtual mega::MegaHandleList *getSessionsPeerid() const;
+    virtual mega::MegaHandleList *getSessionsClientid() const;
     virtual MegaChatHandle getPeerSessionStatusChange() const;
+    virtual MegaChatHandle getClientidSessionStatusChange() const;
+    virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid);
+    virtual int getNumParticipants(int audioVideo) const;
+    virtual mega::MegaHandleList *getPeeridParticipants() const;
+    virtual mega::MegaHandleList *getClientidParticipants() const;
     virtual bool isIgnored() const;
     virtual bool isIncoming() const;
     virtual bool isOutgoing() const;
+    virtual MegaChatHandle getCaller() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
-    void setRemoteAudioVideoFlags(karere::AvFlags remoteAVFlags);
+    void setInitialAudioVideoFlags(karere::AvFlags initialAVFlags);
     void setInitialTimeStamp(int64_t timeStamp);
     void setFinalTimeStamp(int64_t timeStamp);
     void removeChanges();
     void setError(const std::string &temporaryError);
     void setTermCode(rtcModule::TermCode termCode);
     void setIsRinging(bool ringing);
-    void setSessionStatus(uint8_t status, MegaChatHandle peer);
-    void removeSession(MegaChatHandle peer);
     void setIgnoredCall(bool ignored);
+    MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
+    void removeSession(karere::Id peerid, uint32_t clientid);
+    void sessionUpdated(karere::Id peerid, uint32_t clientid, int changeType);
+
+    int availableAudioSlots();
+    int availableVideoSlots();
+    bool addOrUpdateParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
+    bool removeParticipant(karere::Id userid, uint32_t clientid);
+    bool isParticipating(karere::Id userid);
+    void removeAllParticipants();
+    void setId(karere::Id callid);
+    void setCaller(karere::Id caller);
 
 protected:
     MegaChatHandle chatid;
     int status;
     MegaChatHandle callid;
     karere::AvFlags localAVFlags;
-    karere::AvFlags remoteAVFlags;
+    karere::AvFlags initialAVFlags;
     int changed;
     int64_t initialTs;
     int64_t finalTs;
     std::string temporaryError;
-    std::map<MegaChatHandle, int> sessionStatus;
-    MegaChatHandle peerId;
+    std::map<chatd::EndpointId, MegaChatSession *> sessions;
+    std::map<chatd::EndpointId, karere::AvFlags> participants;
+    MegaChatHandle peerId;  // to identify the updated session
+    uint32_t clientid;  // to identify the updated session
+    MegaChatHandle callerId;
 
     int termCode;
     bool ignored;
@@ -242,7 +294,8 @@ public:
 class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
-    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local);
+    // no peerid --> local video from own user
+    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid = MEGACHAT_INVALID_HANDLE, uint32_t clientid = 0);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);
@@ -260,7 +313,8 @@ protected:
     MegaChatApiImpl *chatApi;
     rtcModule::ICall *call;
     MegaChatHandle chatid;
-    bool local;
+    MegaChatHandle peerid;
+    uint32_t clientid;
 };
 
 #endif
@@ -285,6 +339,8 @@ private:
     MegaChatHandle lastMsgSender;
     int64_t lastTs;
     bool group;
+    bool mPublicChat;
+    bool mPreviewMode;
     bool active;
     bool archived;
     bool mIsCallInProgress;
@@ -292,6 +348,7 @@ private:
     MegaChatHandle mLastMsgId;
     int lastMsgPriv;
     MegaChatHandle lastMsgHandle;
+    unsigned int mNumPreviewers;
 
 public:
     virtual int getChanges() const;
@@ -307,16 +364,21 @@ public:
     virtual MegaChatHandle getLastMessageSender() const;
     virtual int64_t getLastTimestamp() const;
     virtual bool isGroup() const;
+    virtual bool isPublic() const;
+    virtual bool isPreview() const;
     virtual bool isActive() const;
     virtual bool isArchived() const;
     virtual bool isCallInProgress() const;
     virtual MegaChatHandle getPeerHandle() const;
     virtual int getLastMessagePriv() const;
     virtual MegaChatHandle getLastMessageHandle() const;
+    virtual unsigned int getNumPreviewers() const;
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
+    void setNumPreviewers(unsigned int numPrev);
+    void setPreviewClosed();
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
@@ -332,6 +394,7 @@ public:
      * by ASCII character '0x01'
      */
     void setLastMessage();
+    void setChatMode(bool mode);
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
@@ -349,9 +412,10 @@ public:
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastTsUpdated(uint32_t ts);
     virtual void onChatOnlineState(const chatd::ChatState state);
+    virtual void onChatModeChanged(bool mode);
     virtual void onChatArchived(bool archived);
-
-    virtual const karere::ChatRoom& getChatRoom() const;
+    virtual void onPreviewersCountUpdate(uint32_t numPrev);
+    virtual void onPreviewClosed();
 
 protected:
     MegaChatApiImpl &chatApi;
@@ -381,7 +445,7 @@ public:
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
 public:
-    MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaChatHandle chatid);
+    MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, mega::MegaApi *megaApi, MegaChatHandle chatid);
 
     void addChatRoomListener(MegaChatRoomListener *listener);
     void removeChatRoomListener(MegaChatRoomListener *listener);
@@ -392,7 +456,7 @@ public:
     void fireOnMessageReceived(MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
     void fireOnHistoryReloaded(MegaChatRoom *chat);
-
+    void fireOnReactionUpdate(MegaChatHandle msgid, const char *reaction, int count);
     // karere::IApp::IChatHandler implementation
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler* callHandler();
@@ -405,6 +469,7 @@ public:
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
+    virtual void onPreviewersCountUpdate(uint32_t numPrev);
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
@@ -425,6 +490,7 @@ public:
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
     virtual void onUnreadChanged();
+    void onPreviewersUpdate();
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
@@ -433,6 +499,8 @@ public:
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onHistoryReloaded();
+    virtual void onChatModeChanged(bool mode);
+    virtual void onReactionUpdate(karere::Id msgid, const char *reaction, int count);
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -445,6 +513,7 @@ protected:
 private:
     MegaChatApiImpl *chatApiImpl;
     MegaChatApi *chatApi;       // for notifications in callbacks
+    mega::MegaApi *megaApi;
     MegaChatHandle chatid;
 
     chatd::Chat *mChat;
@@ -494,7 +563,7 @@ public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
 
 private:
-    mega::MegaMutex mutex;
+    std::recursive_mutex mutex;
     MegaChatLogger *megaLogger;
 };
 
@@ -515,20 +584,36 @@ public:
     virtual void onRingOut(karere::Id peer);
     virtual void onCallStarting();
     virtual void onCallStarted();
-    rtcModule::ICall *getCall();
+    virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
+    virtual bool removeParticipant(karere::Id userid, uint32_t clientid);
+    virtual int callParticipants();
+    virtual bool isParticipating(karere::Id userid);
+    virtual void removeAllParticipants();
+    virtual karere::Id getCallId() const;
+    virtual void setCallId(karere::Id callid);
+    virtual void setInitialTimeStamp(int64_t timeStamp);
+    virtual int64_t getInitialTimeStamp();
+    virtual bool hasBeenNotifiedRinging() const;
+    virtual void onReconnectingState(bool start);
+    virtual void setReconnectionFailed() override;
+    virtual rtcModule::ICall *getCall();
+
     MegaChatCallPrivate *getMegaChatCall();
+    void setCallNotPresent(karere::Id chatid, karere::Id callid, uint32_t duration);
 private:
     MegaChatApiImpl *megaChatApi;
-    rtcModule::ICall *call;
-    MegaChatCallPrivate *chatCall;
+    rtcModule::ICall *call = NULL;
+    MegaChatCallPrivate *chatCall = NULL;
+    bool mHasBeenNotifiedRinging = false;
+    bool mReconnectionFailed = false;
 
-    rtcModule::IVideoRenderer *localVideoReceiver;
+    rtcModule::IVideoRenderer *localVideoReceiver = NULL;
 };
 
 class MegaChatSessionHandler : public rtcModule::ISessionHandler
 {
 public:
-    MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler* callHandler, rtcModule::ISession *session);
+    MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler* callHandler, MegaChatSessionPrivate *megaChatSession, rtcModule::ISession &session);
     virtual ~MegaChatSessionHandler();
     virtual void onSessStateChange(uint8_t newState);
     virtual void onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
@@ -536,19 +621,22 @@ public:
     virtual void onRemoteStreamRemoved();
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv);
     virtual void onVideoRecv();
+    virtual void onSessionNetworkQualityChange(int currentQuality);
+    virtual void onSessionAudioDetected(bool audioDetected);
 
 private:
     MegaChatApiImpl *megaChatApi;
     MegaChatCallHandler *callHandler;
     rtcModule::ISession *session;
     rtcModule::IVideoRenderer *remoteVideoRender;
+    MegaChatSessionPrivate *megaChatSession;
 
 };
 #endif
 
 class MegaChatErrorPrivate :
         public MegaChatError,
-        private promise::Error
+        private ::promise::Error
 {
 public:
 
@@ -618,6 +706,7 @@ public:
 
     virtual MegaChatHandle getChatId() const;
     virtual int getOwnPrivilege() const;
+    virtual unsigned int getNumPreviewers() const;
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
     virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
     virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
@@ -631,6 +720,9 @@ public:
     virtual const char *getPeerFullname(unsigned int i) const;
     virtual const char *getPeerEmail(unsigned int i) const;
     virtual bool isGroup() const;
+    virtual bool isPublic() const;
+    virtual bool isPreview() const;
+    virtual const char *getAuthorizationToken() const;
     virtual const char *getTitle() const;
     virtual bool hasCustomTitle() const;
     virtual bool isActive() const;
@@ -645,10 +737,12 @@ public:
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
+    void setNumPreviewers(unsigned int numPrev);
     void setMembersUpdated();
     void setUserTyping(MegaChatHandle uh);
     void setUserStopTyping(MegaChatHandle uh);
     void setClosed();
+    void setChatMode(bool mode);
     void setArchived(bool archived);
 
 private:
@@ -661,12 +755,15 @@ private:
     std::vector<std::string> peerLastnames;
     std::vector<std::string> peerEmails;
     bool group;
+    bool mPublicChat;
+    karere::Id mAuthToken;
     bool active;
     bool archived;
     bool mHasCustomTitle;
 
     std::string title;
     int unreadCount;
+    unsigned int mNumPreviewers;
     MegaChatHandle uh;
 
 public:
@@ -714,6 +811,7 @@ public:
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual int getType() const;
+    virtual bool hasReactions() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
     virtual bool isEdited() const;
@@ -764,6 +862,7 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
+    bool mHasReactions;
     std::vector<MegaChatAttachedUser> *megaChatUsers = NULL;
     mega::MegaNodeList *megaNodeList = NULL;
     mega::MegaHandleList *megaHandleList = NULL;
@@ -775,10 +874,9 @@ class ChatRequestQueue
 {
     protected:
         std::deque<MegaChatRequestPrivate *> requests;
-        mega::MegaMutex mutex;
+        std::mutex mutex;
 
     public:
-        ChatRequestQueue();
         void push(MegaChatRequestPrivate *request);
         void push_front(MegaChatRequestPrivate *request);
         MegaChatRequestPrivate * pop();
@@ -790,10 +888,9 @@ class EventQueue
 {
 protected:
     std::deque<void *> events;
-    mega::MegaMutex mutex;
+    std::mutex mutex;
 
 public:
-    EventQueue();
     void push(void* event);
     void push_front(void *event);
     void* pop();
@@ -810,8 +907,9 @@ public:
     MegaChatApiImpl(MegaChatApi *chatApi, mega::MegaApi *megaApi);
     virtual ~MegaChatApiImpl();
 
-    mega::MegaMutex sdkMutex;
-    mega::MegaMutex videoMutex;
+    using SdkMutexGuard = std::unique_lock<std::recursive_mutex>;   // (equivalent to typedef)
+    std::recursive_mutex sdkMutex;
+    std::recursive_mutex videoMutex;
     mega::Waiter *waiter;
 private:
     MegaChatApi *chatApi;
@@ -846,18 +944,15 @@ private:
 
 #ifndef KARERE_DISABLE_WEBRTC
     std::set<MegaChatCallListener *> callListeners;
-    std::set<MegaChatVideoListener *> localVideoListeners;
-    std::set<MegaChatVideoListener *> remoteVideoListeners;
-
-    std::map<MegaChatHandle, MegaChatCallHandler*> callHandlers;
+    std::map<MegaChatHandle, MegaChatPeerVideoListener_map> videoListeners;
 
     mega::MegaStringList *getChatInDevices(const std::vector<std::string> &devicesVector);
     void cleanCallHandlerMap();
 #endif
 
-    static int convertInitState(int state);
+    void cleanChatHandlers();
 
-    MegaChatMessage *prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid);
+    static int convertInitState(int state);
 
 public:
     static void megaApiPostMessage(void* msg, void* ctx);
@@ -872,6 +967,9 @@ public:
     static void setLogToConsole(bool enable);
 
     int init(const char *sid);
+    int initAnonymous();
+    void createKarereClient();
+    void resetClientid();
     int getInitState();
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
@@ -884,7 +982,7 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     MegaChatCallHandler *findChatCallHandler(MegaChatHandle chatid);
-    void removeChatCallHandler(MegaChatHandle chatid);
+    void removeCall(MegaChatHandle chatid);
 #endif
 
     static void setCatchException(bool enable);
@@ -906,13 +1004,14 @@ public:
     void removeChatListener(MegaChatListener *listener);
     void removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
     void removeChatNotificationListener(MegaChatNotificationListener *listener);
+    int getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
+    mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
-    void addChatLocalVideoListener(MegaChatVideoListener *listener);
-    void addChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void removeChatLocalVideoListener(MegaChatVideoListener *listener);
-    void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
+    void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatHandle clientid, MegaChatVideoListener *listener);
+    void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatHandle clientid, MegaChatVideoListener *listener);
 #endif
 
     // MegaChatRequestListener callbacks
@@ -926,8 +1025,7 @@ public:
     void fireOnChatCallUpdate(MegaChatCallPrivate *call);
 
     // MegaChatVideoListener callbacks
-    void fireOnChatRemoteVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
-    void fireOnChatLocalVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
+    void fireOnChatVideoData(MegaChatHandle chatid, MegaChatHandle peerid, uint32_t clientid, int width, int height, char*buffer);
 #endif
 
     // MegaChatListener callbacks (specific ones)
@@ -951,7 +1049,7 @@ public:
     int getChatConnectionState(MegaChatHandle chatid);
     bool areAllChatsLoggedIn();
     static int convertChatConnectionState(chatd::ChatState state);
-    void retryPendingConnections(bool disconnect = false, MegaChatRequestListener *listener = NULL);
+    void retryPendingConnections(bool disconnect = false, bool refreshURL = false, MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
 
@@ -971,12 +1069,13 @@ public:
     void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
     int getBackgroundStatus();
 
-    void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
-    void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
+    void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     char *getContactEmail(MegaChatHandle userhandle);
     MegaChatHandle getUserHandleByEmail(const char *email);
     MegaChatHandle getMyUserHandle();
+    MegaChatHandle getMyClientidHandle(MegaChatHandle chatid);
     char *getMyFirstname();
     char *getMyLastname();
     char *getMyFullname();
@@ -996,28 +1095,44 @@ public:
 
     // Chatrooms management
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
+    void createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener = NULL);
+    void createPublicChat(MegaChatPeerList *peerList, const char *title = NULL, MegaChatRequestListener *listener = NULL);
+    void chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener = NULL);
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
+    void autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void autorejoinPublicChat(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener = NULL);
     void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
     void updateChatPermissions(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
+    void openChatPreview(const char *link, MegaChatRequestListener *listener = NULL);
+    void checkChatLink(const char *link, MegaChatRequestListener *listener = NULL);
+    void setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
 
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
+    void closeChatPreview(MegaChatHandle chatid);
 
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
+    MegaChatErrorPrivate *addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    MegaChatErrorPrivate *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+    MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
-    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
-    MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* handles);
+    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msgLen, int type = MegaChatMessage::TYPE_NORMAL);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* contacts);
     MegaChatMessage *forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+    MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
+    MegaChatMessage *editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img = NULL);
+    void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
-    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
+    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msgLen);
     MegaChatMessage *removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
@@ -1049,8 +1164,11 @@ public:
     void setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
-    mega::MegaHandleList *getChatCalls();
+    mega::MegaHandleList *getChatCalls(int callState = -1);
     mega::MegaHandleList *getChatCallsIds();
+    bool hasCallInChatRoom(MegaChatHandle chatid);
+    int getMaxCallParticipants();
+    int getMaxVideoCallParticipants();
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
@@ -1061,13 +1179,13 @@ public:
     // karere::IApp implementation
     //virtual ILoginDialog* createLoginDialog();
     virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &chat);
-    virtual IApp::IContactListHandler *contactListHandler();
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
+    virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid, karere::Id callid,  uint32_t duration = 0);
 #endif
     virtual void onInitStateChange(int newState);
     virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
@@ -1140,6 +1258,24 @@ protected:
     std::string mDomainName;
 };
 
+class MegaChatGeolocationPrivate : public MegaChatGeolocation
+{
+public:
+    MegaChatGeolocationPrivate(float longitude, float latitude, const std::string &image);
+    MegaChatGeolocationPrivate(const MegaChatGeolocationPrivate *geolocation);
+    virtual ~MegaChatGeolocationPrivate() {}
+    virtual MegaChatGeolocation *copy() const;
+
+    virtual float getLongitude() const;
+    virtual float getLatitude() const;
+    virtual const char *getImage() const;
+
+protected:
+    float mLongitude;
+    float mLatitude;
+    std::string mImage;
+};
+
 class MegaChatContainsMetaPrivate : public MegaChatContainsMeta
 {
 public:
@@ -1149,46 +1285,37 @@ public:
     virtual MegaChatContainsMeta *copy() const;
 
     virtual int getType() const;
+    virtual const char *getTextMessage() const;
     virtual const MegaChatRichPreview *getRichPreview() const;
+    virtual const MegaChatGeolocation *getGeolocation() const;
 
     // This function take the property from memory that it receives as parameter
     void setRichPreview(MegaChatRichPreview *richPreview);
+    void setGeolocation(MegaChatGeolocation *geolocation);
+    void setTextMessage(const std::string &text);
 
 protected:
     int mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
+    std::string mText;
     MegaChatRichPreview *mRichPreview = NULL;
-};
-
-class DataTranslation
-{
-public:
-    /**
-     * @brief Transform binary string into a vector. For example: string.length() = 32 => vector.size() = 8
-     * The vector output is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
-     * @param data string in binary format
-     * @return vector
-     */
-    static std::vector<int32_t> b_to_vector(const std::string& data);
-
-    /**
-     * @brief Transform int32_t vector into a birnary string. For example: string.length() = 32 => vector.size() = 8
-     * The vector input is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
-     * @param vector vector of int32_t
-     * @return binary string
-     */
-    static std::string vector_to_b(std::vector<int32_t> vector);
-
+    MegaChatGeolocation *mGeolocation = NULL;
 };
 
 class JSonUtils
 {
 public:
-    // you take the ownership of the returned value. NULL if error
-    static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes);
+    static std::string generateAttachNodeJSon(mega::MegaNodeList* nodes, uint8_t type);
+    static std::string generateAttachContactJSon(mega::MegaHandleList *contacts, karere::ContactList *contactList);
+    static std::string generateGeolocationJSon(float longitude, float latitude, const char *img);
+
     // you take the ownership of returned value. NULL if error
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
+
     // you take the ownership of returned value. NULL if error
     static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
+
+    // you take the ownership of the returned value. NULL if error
+    static const MegaChatContainsMeta *parseContainsMeta(const char* json, uint8_t type, bool onlyTextMessage = false);
 
     /**
      * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
@@ -1199,11 +1326,12 @@ public:
      * by ASCII character '0x01'
      */
     static std::string getLastMessageContent(const std::string &content, uint8_t type);
-    static const MegaChatContainsMeta *parseContainsMeta(const char* json);
-    static MegaChatRichPreview *parseRichPreview(const char* json);
 
 private:
     static std::string getImageFormat(const char* imagen);
+    static void getRichLinckImageFromJson(const std::string& field, const rapidjson::Value& richPreviewValue, std::string& image, std::string& format);
+    static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document, std::string &textMessage);
+    static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
 };
 
 }

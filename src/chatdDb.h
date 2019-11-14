@@ -109,7 +109,9 @@ public:
 
     virtual int updateSendingItemsKeyid(chatd::KeyId localkeyid, chatd::KeyId keyid)
     {
-        mDb.query("update sending set keyid = ? where keyid = ? and chatid = ?", keyid, localkeyid, mChat.chatId());
+        mDb.query("update sending set keyid = ?, key_cmd = ? where keyid = ? and chatid = ?",
+                  keyid, StaticBuffer(nullptr, 0), localkeyid, mChat.chatId());
+
         return sqlite3_changes(mDb);
     }
 
@@ -153,8 +155,8 @@ public:
     {
         if (msg.type == chatd::Message::kMsgTruncate)
         {
-            mDb.query("update history set type = ?, data = ?, ts = ?, userid = ? where chatid = ? and msgid = ?",
-                msg.type, msg, msg.ts, msg.userid, mChat.chatId(), msgid);
+            mDb.query("update history set type = ?, data = ?, ts = ?, userid = ?, keyid = ? where chatid = ? and msgid = ?",
+                msg.type, msg, msg.ts, msg.userid, msg.keyid, mChat.chatId(), msgid);
         }
         else    // "updated" instead of "ts"
         {
@@ -218,8 +220,7 @@ public:
             // if message was already encrypted, restore the MsgCommand
             if (stmt.hasBlobCol(11))
             {
-                chatd::KeyId chatdKeyid = (keyid < 0xffff0001) ? keyid : CHATD_KEYID_UNCONFIRMED;
-                chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, chatdKeyid);
+                chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, keyid);
                 Buffer buf;
                 stmt.blobCol(11, buf);
                 msgCmd->setMsg(buf.buf(), buf.dataSize());
@@ -255,7 +256,7 @@ public:
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
 
-    virtual chatd::Idx getIdxOfMsgid(karere::Id msgid)
+    virtual chatd::Idx getIdxOfMsgidFromHistory(karere::Id msgid)
     {
         return getIdxOfMsgid(msgid, "history");
     }
@@ -266,7 +267,7 @@ public:
                 "and (userid != ?2)"
                 "and not (updated != 0 and length(data) = 0)"
                 "and (is_encrypted = ?3 or is_encrypted = ?4 or is_encrypted = ?5)"
-                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9)";
+                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9 or type = ?10)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
@@ -278,7 +279,8 @@ public:
              << chatd::Message::kMsgNormal                  // include only known type of messages
              << chatd::Message::kMsgAttachment
              << chatd::Message::kMsgContact
-             << chatd::Message::kMsgContainsMeta;
+             << chatd::Message::kMsgContainsMeta
+             << chatd::Message::kMsgVoiceClip;
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
@@ -304,7 +306,7 @@ public:
             auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().myHandle(),
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
-            items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), (chatd::ManualSendReason)stmt.intCol(7));
+            items.emplace_back(msg, stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(6)), static_cast<chatd::ManualSendReason>(stmt.intCol(7)));
         }
     }
     virtual bool deleteManualSendItem(uint64_t rowid)
@@ -331,10 +333,13 @@ public:
     }
     virtual void truncateHistory(const chatd::Message& msg)
     {
-        auto idx = getIdxOfMsgid(msg.id());
+        auto idx = getIdxOfMsgidFromHistory(msg.id());
         if (idx == CHATD_IDX_INVALID)
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
+
+        // Clean reactions for the truncate message
+        mDb.query("delete from chat_reactions where chatid = ? and msgid = ?", mChat.chatId(), msg.id());
 
 #ifndef NDEBUG
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
@@ -361,6 +366,7 @@ public:
         mDb.query("update chats set last_recv=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1);
     }
+
     virtual void setHaveAllHistory(bool haveAllHistory)
     {
         mDb.query(
@@ -375,10 +381,11 @@ public:
         stmt << mChat.chatId();
         return stmt.step();
     }
-    virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
+
+    virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs)
     {
         SqliteStmt stmt(mDb,
-            "select type, idx, data, msgid, userid from history where chatid=?1 and "
+            "select type, idx, data, msgid, userid, ts from history where chatid=?1 and "
             "(length(data) > 0 OR type = ?2) and type != ?3  and type != ?4 and (idx <= ?5)"
             "order by idx desc limit 1");
         stmt << mChat.chatId()
@@ -388,12 +395,51 @@ public:
              << from;
         if (!stmt.step())
         {
-            msg.clear();
+
+            CHATD_LOG_WARNING("chatid %s: getLastTextMessage cannot find any candidate for last-message", mChat.chatId().toString().c_str());
+
+            msg.clear();    // any existing last-msg is now obsolete
+
+            // reset the last-ts to the chat creation's ts
+            SqliteStmt stmt(mDb, "select ts_created from chats where chatid=?");
+            stmt << mChat.chatId();
+            stmt.stepMustHaveData();
+            lastTs = int(stmt.uint64Col(0));
             return;
         }
         Buffer buf(128);
         stmt.blobCol(2, buf);
         msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
+        lastTs = stmt.intCol(5);
+    }
+
+    //Insert a new chat var related to a chat. This function receives as parameters the var name and it's value
+    virtual void setChatVar(const char *name, bool value)
+    {
+        mDb.query(
+            "insert or replace into chat_vars(chatid, name, value) "
+            "values(?, ?, ?)", mChat.chatId(), name, value ? 1 : 0);
+        assertAffectedRowCount(1);
+    }
+
+    //Returns if chat var related to a chat exists
+    virtual bool chatVar(const char *name)
+    {
+        SqliteStmt stmt(mDb,
+            "select value from chat_vars where chatid=? and name=? and value='1'");
+        stmt << mChat.chatId()
+             << name;
+        return stmt.step();
+    }
+
+    //Remove a chat var related to a chat
+    virtual bool removeChatVar(const char *name)
+    {
+        SqliteStmt stmt(mDb,
+            "delete from chat_vars where chatid = ? and name = ?");
+        stmt << mChat.chatId()
+             << name;
+        return stmt.step();
     }
 
     virtual void clearHistory()
@@ -402,12 +448,17 @@ public:
         setHaveAllHistory(false);
     }
 
-    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx idx)
+    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx &idx)
     {
-        if (getIdxOfMsgid(msg.id(), "node_history") == CHATD_IDX_INVALID)
+        chatd::Idx idxOnDb = getIdxOfMsgid(msg.id(), "node_history");
+        if (idxOnDb == CHATD_IDX_INVALID)
         {
             addMessage(msg, idx, "node_history");
             assertAffectedRowCount(1, "addMsgToNodeHistory");
+        }
+        else
+        {
+            idx = idxOnDb;
         }
     }
 
@@ -445,6 +496,11 @@ public:
         loadMessages(count, idx, messages, "node_history");
     }
 
+    virtual chatd::Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid)
+    {
+        return getIdxOfMsgid(msgid, "node_history");
+    }
+
     void loadMessages(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages, const std::string &table)
     {
         std::string query = "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from " + table +
@@ -477,6 +533,48 @@ public:
             msg->backRefId = stmt.uint64Col(7);
             msg->setEncrypted((uint8_t)stmt.intCol(9));
             messages.push_back(msg);
+        }
+    }
+
+    std::string getReactionSn() override
+    {
+        SqliteStmt stmt(mDb, "select rsn from chats where chatid = ?");
+        stmt << mChat.chatId();
+        stmt.stepMustHaveData(__FUNCTION__);
+        return stmt.stringCol(0);
+    }
+
+    void setReactionSn(const std::string &rsn) override
+    {
+        mDb.query("update chats set rsn = ? where chatid = ?", rsn, mChat.chatId());
+        assertAffectedRowCount(1);
+    }
+
+    void cleanReactions(karere::Id msgId) override
+    {
+        mDb.query("delete from chat_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
+    }
+
+    void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    {
+        mDb.query("insert into chat_reactions(chatid, msgid, userid, reaction)"
+            "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
+    }
+
+    void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    {
+        mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
+            mChat.chatId(), msgId, userId, reaction);
+    }
+
+    void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) override
+    {
+        SqliteStmt stmt(mDb, "select reaction, userid from chat_reactions where chatid = ? and msgid = ?");
+        stmt << mChat.chatId();
+        stmt << msgId;
+        while (stmt.step())
+        {
+            reactions.insert(std::pair<std::string, karere::Id>(stmt.stringCol(0), stmt.uint64Col(1)));
         }
     }
 };

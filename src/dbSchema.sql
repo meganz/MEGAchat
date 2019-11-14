@@ -12,8 +12,8 @@ CREATE TABLE vars(name text not null primary key, value blob);
 CREATE TABLE chats(chatid int64 unique primary key, shard tinyint,
     own_priv tinyint, peer int64 default -1, peer_priv tinyint default 0,
     title text, ts_created int64 not null default 0,
-    last_seen int64 default 0, last_recv int64 default 0, archived tinyint,
-    url text);
+    last_seen int64 default 0, last_recv int64 default 0, archived tinyint default 0,
+    url text, mode tinyint default 0, unified_key blob, rsn blob);
 
 CREATE TABLE contacts(userid int64 PRIMARY KEY, email text, visibility int,
     since int64 not null default 0);
@@ -40,3 +40,6 @@ CREATE TABLE node_history(idx int not null, chatid int64 not null, msgid int64 n
     is_encrypted tinyint, data blob, backrefid int64 not null, UNIQUE(chatid,msgid), UNIQUE(chatid,idx));
 
 CREATE TABLE dns_cache(host text primary key, ipv4 text, ipv6 text);
+
+CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null, userid int64 not null, reaction text,
+    UNIQUE(chatid, msgid, userid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);

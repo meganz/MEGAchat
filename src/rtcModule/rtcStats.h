@@ -31,12 +31,15 @@ public:
     std::string mCtype;
     std::string mProto;
     std::string mRlySvr;
+    std::string mRRlySvr;
     std::string mVcodec;
-    bool isRelay() const { return !mRlySvr.empty(); }
+    bool mRly = false;
+    bool mRRly = false;
 
     virtual const std::string& ctype() const { return mCtype; }
     virtual const std::string& proto() const { return mProto; }
     virtual const std::string& rlySvr() const { return mRlySvr; }
+    virtual const std::string& rRlySvr() const { return mRRlySvr; }
     virtual const std::string& vcodec() const { return mVcodec; }
 };
 
@@ -44,7 +47,7 @@ class RtcStats: public IRefCountedMixin<IRtcStats>
 {
 public:
     std::string mTermRsn;
-    bool mIsCaller;
+    bool mIsJoiner;
     int mSper; //sample period
     int64_t mStartTs;
     int64_t mDur;
@@ -55,35 +58,15 @@ public:
     std::string mDeviceInfo;
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
+    ~RtcStats();
     //IRtcStats implementation
     virtual const std::string& termRsn() const { return mTermRsn; }
-    virtual bool isCaller() const { return mIsCaller; }
+    virtual bool isCaller() const { return !mIsJoiner; }
     virtual karere::Id callId() const { return mCallId; }
     virtual size_t sampleCnt() const { return mSamples.size(); }
     virtual const std::vector<Sample*>* samples() const { return &mSamples; }
     virtual const IConnInfo* connInfo() const { return &mConnInfo; }
     virtual void toJson(std::string& out) const;
-};
-
-class EmptyStats: public IRtcStats
-{
-public:
-    bool mIsCaller;
-    std::string mTermRsn;
-    karere::Id mCallId;
-    std::string mEmpty;
-    EmptyStats(const Session& sess, const std::string& aTermRsn);
-    virtual const std::string& ctype() const { return mEmpty; }
-    virtual const std::string& proto() const { return mEmpty; }
-    virtual const std::string& rlySvr() const { return mEmpty; }
-    virtual const std::string& termRsn() const { return mTermRsn; }
-    virtual const std::string& vcodec() const { return mEmpty; }
-    virtual bool isCaller() const { return mIsCaller; }
-    virtual karere::Id callId() const { return mCallId; }
-    virtual size_t sampleCnt() const { return 0; }
-    virtual const std::vector<Sample*>* samples() const { return nullptr; }
-    virtual const IConnInfo* connInfo() const { return nullptr; }
-    virtual void toJson(std::string&) const;
 };
 
 class Recorder: public rtc::RefCountedObject<webrtc::StatsObserver>
@@ -92,12 +75,11 @@ protected:
     struct BwCalculator
     {
         BwInfo* mBwInfo = nullptr;
-        int64_t mTotalBytes = 0;
         void reset(BwInfo* aBwInfo)
         {
             assert(aBwInfo);
             mBwInfo = aBwInfo;
-            mBwInfo->bs = 0;
+            mBwInfo->bt = 0;
         }
         void calculate(uint64_t periodMs, uint64_t newTotalBytes);
     };
@@ -106,9 +88,9 @@ protected:
     int mMaxSamplePeriod;
     webrtc::PeerConnectionInterface::StatsOutputLevel mStatsLevel =
             webrtc::PeerConnectionInterface::kStatsOutputLevelStandard;
+    static const int STATFLAG_SEND_CPU_LIMITED_RESOLUTION = 4;
+    static const int STATFLAG_SEND_BANDWIDTH_LIMITED_RESOLUTION = 8;
     std::unique_ptr<Sample> mCurrSample;
-    bool mHasConnInfo = false;
-    megaHandle mTimer = 0;
     BwCalculator mVideoRxBwCalc;
     BwCalculator mVideoTxBwCalc;
     BwCalculator mAudioRxBwCalc;
@@ -119,21 +101,17 @@ protected:
     void resetBwCalculators();
     int64_t getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
     std::string getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
+    bool checkShouldAddSample();
 public:
     Session& mSession;
     std::unique_ptr<RtcStats> mStats;
     Recorder(Session& sess, int scanPeriod, int maxSamplePeriod);
     ~Recorder();
-    bool isRelay() const
-    {
-        if (!mHasConnInfo)
-            throw std::runtime_error("No connection info yet");
-        return !mStats->mConnInfo.mRlySvr.empty();
-    }
     void start();
     std::string terminate(const StatSessInfo &info);
     virtual void OnComplete(const webrtc::StatsReports& data);
     void onStats(const webrtc::StatsReports &data);
+    webrtc::PeerConnectionInterface::StatsOutputLevel getStatsLevel() const;
     std::function<void(void*, int)> onSample;
 };
 }

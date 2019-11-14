@@ -3,9 +3,20 @@
 #include <string>
 #include <vector>
 #include <promise.h>
-#include <rapidjson/document.h>
 #include "retryHandler.h"
 #include "sdkApi.h"
+
+#ifdef WIN32
+#pragma warning(push)
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#endif
+
+#include <rapidjson/document.h>
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
+
 
 namespace karere
 {
@@ -158,23 +169,23 @@ public:
 
             if (result->getNumber() != 200)
             {
-                return promise::Error("Non-200 http response from GeLB server: "
+                return ::promise::Error("Non-200 http response from GeLB server: "
                                       +std::to_string(result->getNumber()), 0x3e9a9e1b, 1);
             }
             if (!result->getTotalBytes() || !result->getText())
             {
-                return promise::Error("Empty response from GeLB server", 0x3e9a9e1b, 1);
+                return ::promise::Error("Empty response from GeLB server", 0x3e9a9e1b, 1);
             }
 
             mBusy = false;
-            std::string json((const char*)result->getText(), result->getTotalBytes());
+            std::string json((const char*)result->getText(), (size_t)result->getTotalBytes());
             if (!parseServersJson(json))
             {
-                return promise::Error("Data from GeLB server incorrect: " + json, 0x3e9a9e1b, 1);
+                return ::promise::Error("Data from GeLB server incorrect: " + json, 0x3e9a9e1b, 1);
             }
             return promise::_Void();
         })
-        .fail([this](const promise::Error& err)
+        .fail([this](const ::promise::Error& err)
         {
             mBusy = false;
             return err;

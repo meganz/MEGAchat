@@ -50,13 +50,16 @@ private:
 class WebsocketsIO : public ::mega::EventTrigger
 {
 public:
-    WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx);
+    using Mutex = std::recursive_mutex;
+    using MutexGuard = std::lock_guard<Mutex>;
+
+    WebsocketsIO(Mutex &mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
 
     DNScache mDnsCache;
     
 protected:
-    ::mega::Mutex *mutex;
+    Mutex &mutex;
     MyMegaApi mApi;
     void *appCtx;
     
@@ -72,11 +75,16 @@ protected:
 
 // Abstract class that allows to manage a websocket connection.
 // It's needed to subclass this class in order to receive callbacks
+
 class WebsocketsClient
 {
 private:
     WebsocketsClientImpl *ctx;
+#if defined(_WIN32) && defined(_MSC_VER)
+    std::thread::id thread_id;
+#else
     pthread_t thread_id;
+#endif
 
 public:
     WebsocketsClient();
@@ -92,6 +100,7 @@ public:
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
+    virtual void wsSendMsgCb(const char *data, size_t len) = 0;
 };
 
 
@@ -99,15 +108,16 @@ class WebsocketsClientImpl
 {
 protected:
     WebsocketsClient *client;
-    ::mega::Mutex *mutex;
+    WebsocketsIO::Mutex &mutex;
     bool disconnecting;
     
 public:
-    WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClient *client);
+    WebsocketsClientImpl(WebsocketsIO::Mutex &mutex, WebsocketsClient *client);
     virtual ~WebsocketsClientImpl();
     void wsConnectCb();
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     void wsHandleMsgCb(char *data, size_t len);
+    void wsSendMsgCb(const char *data, size_t len);
     
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;

@@ -159,14 +159,13 @@ public:
         if (mVideoEnable)
         {
             void* userData = NULL;
-            rtc::scoped_refptr<webrtc::I420BufferInterface> buffer(
-                frame.video_frame_buffer()->ToI420());
+            auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
             if (frame.rotation() != webrtc::kVideoRotation_0)
             {
                 buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
             }
-            unsigned short width = buffer->width();
-            unsigned short height = buffer->height();
+            unsigned short width = (unsigned short)buffer->width();
+            unsigned short height = (unsigned short)buffer->height();
             void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
             if (!frameBuf) //image is frozen or app is minimized/covered
                 return;
@@ -176,6 +175,11 @@ public:
                                (uint8_t*)frameBuf, width * 4, width, height);
             mRenderer->frameComplete(userData);
         }
+    }
+
+    webrtc::AudioTrackInterface *getAudioTrack()
+    {
+        return mAudio.get();
     }
 };
 }

@@ -3,6 +3,7 @@
 #include "uiSettings.h"
 #include <QMessageBox>
 #include <QMenu>
+#include <QClipboard>
 
 ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megachat::MegaChatApi *megaChatApi, ::mega::MegaApi *megaApi, ::mega::MegaUser *contact) :
     QWidget(parent),
@@ -17,18 +18,17 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     ui->setupUi(this);
     setAvatarStyle();
     ui->mUnreadIndicator->hide();
+    ui->mPreviewersIndicator->hide();
     QString text = QString::fromUtf8(contactEmail);
-    ui->mName->setText(contactEmail);
-    ui->mAvatar->setText(QString(text[0].toUpper()));
+    ui->mName->setText(text);
 
-    const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle());
-    if (firstname)
-    {
-        updateTitle(firstname);
-    }
+    const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle(), NULL);
+    mName = firstname ? std::string(firstname) : std::string();
     delete [] firstname;
+    mAlias = mMainWin->mApp->getLocalUserAlias(mUserHandle);
+    updateTitle();
 
-    int status = this->mMegaChatApi->getUserOnlineStatus(mUserHandle);
+    int status = mMegaChatApi->getUserOnlineStatus(mUserHandle);
     updateOnlineIndicator(status);
 }
 
@@ -48,22 +48,45 @@ void ContactItemWidget::setAvatarStyle()
 void ContactItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
-    auto chatPeerInviteAction = menu.addAction(tr("Invite to 1on1 chat"));
+
+    QMenu *chatMenu = menu.addMenu("Chats");
+
+    auto chatPeerInviteAction = chatMenu->addAction(tr("Invite to 1on1 chat"));
     connect(chatPeerInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePeerChat()));
-    auto chatInviteAction = menu.addAction(tr("Invite to group chat"));
+
+    auto chatInviteAction = chatMenu->addAction(tr("Invite to group chat"));
     connect(chatInviteAction, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
+
+    auto publicChatInviteAction = chatMenu->addAction(tr("Invite to PUBLIC group chat"));
+    connect(publicChatInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePublicGroupChat()));
+
+    auto lastGreenAction = menu.addAction(tr("Last time user was online"));
+    connect(lastGreenAction, SIGNAL(triggered()), this, SLOT(onRequestLastGreen()));
+
+    QMenu *othersMenu = menu.addMenu("Others");
+
+    auto printAction = othersMenu->addAction(tr("Print contact info"));
+    connect(printAction, SIGNAL(triggered()), this, SLOT(onPrintContactInfo()));
+
     if (mUserVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
     {
-        auto removeAction = menu.addAction(tr("Remove contact"));
+        auto removeAction = othersMenu->addAction(tr("Remove contact"));
         connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
     }
     else if (mUserVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
     {
-        auto addAction = menu.addAction(tr("Invite ex-contact"));
+        auto addAction = othersMenu->addAction(tr("Invite ex-contact"));
         connect(addAction, SIGNAL(triggered()), this, SLOT(onExContactInvite()));
     }
-    auto lastGreenAction = menu.addAction(tr("Last time user was online"));
-    connect(lastGreenAction, SIGNAL(triggered()), this, SLOT(onRequestLastGreen()));
+
+    auto aliasAction = othersMenu->addAction(tr("Set nickname"));
+    connect(aliasAction, SIGNAL(triggered()), this, SLOT(onSetNickname()));
+
+    menu.addSeparator();
+
+    auto copyHandleAction = menu.addAction(tr("Copy to clipboard user id"));
+    connect(copyHandleAction, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
+
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
@@ -82,6 +105,7 @@ void ContactItemWidget::setWidgetItem(QListWidgetItem *item)
 void ContactItemWidget::updateToolTip(::mega::MegaUser *contact)
 {
    QString text = NULL;
+   std::string contactHandleBin = std::to_string(contact->getHandle());
    const char *email = contact->getEmail();
    const char *chatHandle_64 = "--------";
    const char *contactHandle_64 = mMegaApi->userHandleToBase64(contact->getHandle());
@@ -99,6 +123,7 @@ void ContactItemWidget::updateToolTip(::mega::MegaUser *contact)
 
    text.append(tr("Email: "))
         .append(QString::fromStdString(email))
+        .append(tr("\nUser handle bin: ")).append(contactHandleBin.c_str())
         .append(tr("\nUser handle: ")).append(contactHandle_64)
         .append(tr("\nChat handle: ")).append((chatHandle_64));
 
@@ -107,83 +132,71 @@ void ContactItemWidget::updateToolTip(::mega::MegaUser *contact)
    delete [] auxChatHandle_64;
 }
 
+void ContactItemWidget::onCreatePublicGroupChat()
+{
+    createChatRoom(mUserHandle, true, true);
+}
+
 void ContactItemWidget::onCreateGroupChat()
 {
-    createChatRoom(mUserHandle, true);
+    createChatRoom(mUserHandle, true, false);
 }
 
 void ContactItemWidget::onCreatePeerChat()
 {
-    createChatRoom(mUserHandle, false);
+    createChatRoom(mUserHandle, false, false);
 }
 
-void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup)
+void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup, bool isPublic)
 {
     QMessageBox msgBox;
     if (isGroup)
     {
-        msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new group chat.");
+        msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new group chat?");
     }
     else
     {
-        msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new 1on1 chat.");
+        msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new 1on1 chat?");
     }
     msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
     msgBox.setDefaultButton(QMessageBox::Cancel);
-    int ret = msgBox.exec();
 
-    if (ret == QMessageBox::Ok)
+    if (msgBox.exec() == QMessageBox::Cancel)
     {
-         megachat::MegaChatPeerList *peerList;
-         peerList = megachat::MegaChatPeerList::createInstance();
-         peerList->addPeer(mUserHandle, 2);
-         megachat::MegaChatListItemList *listItems = mMegaChatApi->getChatListItemsByPeers(peerList);
-
-         int i = 0;
-         bool exists = false;
-         while (listItems->size() > i)
-         {
-              if (listItems->get(i)->isGroup() == isGroup)
-              {
-                 exists = true;
-                 break;
-              }
-              i++;
-         }
-
-         if (exists)
-         {
-             auto item = listItems->get(i);
-             QMessageBox msgBoxAns;
-             msgBoxAns.setText("Another chatroom with "+ui->mName->text()+" already exists: \""+item->getTitle()+"\".\nDo you want to reuse that room?");
-             msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-             int retVal = msgBoxAns.exec();
-             if (retVal == QMessageBox::Yes)
-             {
-                 if (item->isArchived())
-                 {
-                     QMessageBox::warning(this, tr("Add chatRoom"), "Chatroom \""+QString(item->getTitle())+"\" is going to be unarchived.");
-                     mMegaChatApi->archiveChat(item->getChatId(), false);
-                 }
-                 else
-                 {
-                     QMessageBox::warning(this, tr("Add chatRoom"), "Reusing chatroom \""+QString(item->getTitle())+"\"");
-                 }
-             }
-             else
-             {
-                 mMegaChatApi->createChat(isGroup, peerList);
-             }
-             msgBoxAns.deleteLater();
-         }
-         else
-         {
-             mMegaChatApi->createChat(isGroup, peerList);
-         }
-         delete listItems;
-         delete peerList;
+        return;
     }
-    msgBox.deleteLater();
+
+    MegaChatPeerList *peerList = MegaChatPeerList::createInstance();
+    peerList->addPeer(uh, MegaChatRoom::PRIV_STANDARD);
+
+
+    if(isGroup)
+    {
+        char *title = mMainWin->askChatTitle();
+        if (isPublic)
+        {
+            mMegaChatApi->createPublicChat(peerList, title);
+        }
+        else
+        {
+            mMegaChatApi->createChat(true, peerList, title);
+        }
+        delete [] title;
+    }
+    else
+    {
+        mMegaChatApi->createChat(false, peerList);
+    }
+
+    delete peerList;
+}
+
+void ContactItemWidget::onPrintContactInfo()
+{
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(toolTip());
+    msg.exec();
 }
 
 void ContactItemWidget::onContactRemove()
@@ -233,18 +246,48 @@ void ContactItemWidget::onRequestLastGreen()
     mMegaChatApi->requestLastGreen(mUserHandle);
 }
 
-void ContactItemWidget::updateTitle(const char *firstname)
+void ContactItemWidget::onCopyHandle()
+{
+    const char *handel_64 = mMegaApi->userHandleToBase64(mUserHandle);
+    QClipboard *clipboard = QApplication::clipboard();
+    clipboard->setText(handel_64);
+    delete []handel_64;
+}
+
+void ContactItemWidget::onSetNickname()
+{
+    std::string nickname = mMainWin->mApp->getText("Set nickname: ", true);
+    mMegaApi->setUserAlias(mUserHandle, nickname.c_str());
+}
+
+void ContactItemWidget::updateName(const char *name)
+{
+    mName = name ? name : std::string();
+    updateTitle();
+}
+
+void ContactItemWidget::updateTitle()
 {
     QString text;
-    if (strcmp(firstname, "") == 0)
+    if (!mAlias.empty())
+    {
+        text = QString::fromUtf8(mAlias.c_str());
+        if (!mName.empty())
+        {
+            text.append(" (")
+            .append(QString::fromUtf8(mName.c_str()))
+            .append(")");
+        }
+    }
+    else if (!mName.empty())
+    {
+        text = QString::fromUtf8(mName.c_str());
+    }
+    else
     {
         const char *auxEmail = mMegaChatApi->getContactEmail(mUserHandle);
         text = QString::fromUtf8(auxEmail);
         delete [] auxEmail;
-    }
-    else
-    {
-        text = QString::fromUtf8(firstname);
     }
 
     switch (mUserVisibility)
@@ -272,6 +315,11 @@ ContactItemWidget::~ContactItemWidget()
 
 void ContactItemWidget::updateOnlineIndicator(int newState)
 {
+    if (newState == megachat::MegaChatApi::STATUS_INVALID)
+    {
+        newState = 0;
+    }
+
     if (newState >= 0 && newState < NINDCOLORS)
     {
         ui->mOnlineIndicator->setStyleSheet(

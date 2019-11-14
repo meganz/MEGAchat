@@ -12,9 +12,22 @@
 #include "chatd.h"
 #include "presenced.h"
 #include "IGui.h"
-#include "net/websocketsIO.h"
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
+#include "stringUtils.h"
+
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#endif
+
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
 
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
@@ -22,6 +35,8 @@ namespace strongvelope { class ProtocolHandler; }
 
 struct sqlite3;
 class Buffer;
+
+#define ID_CSTR(id) Id(id).toString().c_str()
 
 namespace karere
 {
@@ -41,6 +56,7 @@ class Contact;
 class ContactList;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
+typedef std::map<uint64_t, std::string> AliasesMap;
 class ChatRoomList;
 
 /** @brief An abstract class representing a chatd chatroom. It has two
@@ -63,12 +79,15 @@ protected:
     chatd::Priv mOwnPriv;
     chatd::Chat* mChat = nullptr;
     bool mIsInitializing = true;
-    uint32_t mCreationTs;
+    int64_t mCreationTs;
     bool mIsArchived;
-    std::string mTitleString;
+    std::string mTitleString;   // decrypted `ct` or title from member-names
+    bool mHasTitle;             // only true if chat has custom topic (`ct`)
     void notifyTitleChanged();
+    void notifyChatModeChanged();
     void switchListenerToApp();
-    void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
+    void createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic = false,
+            std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
@@ -76,20 +95,32 @@ protected:
     void onMessageTimestamp(uint32_t ts);
     ApiPromise requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
+    bool isChatdChatInitialized();
 
 public:
+    virtual bool previewMode() const { return false; }
+    virtual bool publicChat() const { return false; }
+    virtual uint64_t getPublicHandle() const { return Id::inval(); }
+    virtual unsigned int getNumPreviewers() const { return 0; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
-    virtual const char *titleString() const = 0;
+    virtual const std::string &titleString() const  { return mTitleString; }
+
+    /** @brief Returns whether the chatroom has a title set. If not, then
+      * its title string will be composed from the first names of the room members.
+      * This method will return false for PeerChatRoom, only GroupChatRoom are
+      * capable to have a custom title.
+      */
+    virtual bool hasTitle() const { return mHasTitle; }
 
     /** @brief Connects to the chatd chatroom */
-    virtual void connect() = 0;
+    virtual void connect(const char *url = NULL) = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
-             unsigned char shard, chatd::Priv ownPriv, uint32_t ts, bool isArchived,
+             unsigned char shard, chatd::Priv ownPriv, int64_t ts, bool isArchived,
              const std::string& aTitle=std::string());
 
     virtual ~ChatRoom(){}
@@ -109,7 +140,7 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
-    bool isCallInProgress() const;
+    bool isCallActive() const;
 
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
@@ -171,6 +202,11 @@ public:
      *  @param av Whether to initially send video and/or audio
      */
     virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
+
+    /** @brief Joins a webrtc call in the chatroom
+     *  @param av Whether to initially send video and/or audio
+     */
+    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler, Id callid);
 #endif
 
     //chatd::Listener implementation
@@ -185,6 +221,7 @@ public:
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onUnreadChanged();
+    virtual void onPreviewersUpdate();
 
     //IApp::IChatHandler implementation
     virtual void onArchivedChanged(bool archived);
@@ -214,15 +251,16 @@ protected:
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
-    virtual void connect();
+    virtual void connect(const char *url = NULL);
     UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
-            chatd::Priv peerPriv, uint32_t ts, bool aIsArchived,
+            chatd::Priv peerPriv, int64_t ts, bool aIsArchived,
             const std::string& url);
+
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
 
@@ -238,19 +276,11 @@ public:
      */
     Contact *contact() const { return mContact; }
 
-    /** @brief The screen name of the peer */
-    virtual const char *titleString() const;
-
-    /** @brief Returns a string <fistname length><fistname><lastname>. It has binary layout
-      * First byte indicate first name length
-      */
-    const std::string& completeTitleString() const;
-
-
     /** @brief The screen email address of the peer */
     virtual const std::string& email() const { return mEmail; }
 
     void initContact(const uint64_t& peer);
+    void updateChatRoomTitle();
 
 /** @cond PRIVATE */
     //chatd::Listener interface
@@ -277,9 +307,8 @@ public:
         UserAttrCache::Handle mEmailAttrCbHandle;
         std::string mName;
         std::string mEmail;
-        Presence mPresence;
-        void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
+
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
@@ -295,11 +324,7 @@ public:
         /** @brief The current privilege of the member within the groupchat */
         chatd::Priv priv() const { return mPriv; }
 
-        /** @brief The presence of the peer */
-        Presence presence() const { return mPresence; }
-
         promise::Promise<void> nameResolved() const;
-
         friend class GroupChatRoom;
     };
     /**
@@ -307,37 +332,52 @@ public:
     typedef std::map<uint64_t, Member*> MemberMap;
 
     /** @cond PRIVATE */
-    protected:
+protected:
     MemberMap mPeers;
-    bool mHasTitle;
-    std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
+    std::string mEncryptedTitle; //holds the last encrypted title (the "ct" from API)
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
-    bool syncMembers(const mega::MegaTextChat& chat);   
+
+    void setChatPrivateMode();
+    bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
     promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
-    void updatePeerPresence(uint64_t peer, Presence pres);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     IApp::IGroupChatListItem* addAppItem();
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
-    void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
+    void deleteSelf(); ///< Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
-    void initWithChatd();
+    void updateTitleInDb(const std::string &title, int isEncrypted);
+    void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
+    void notifyPreviewClosed();
     void setRemoved();
-    virtual void connect();
+    virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
+    void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
 
     friend class ChatRoomList;
     friend class Member;
     friend class Client;
+
+    //Create chat or receive an invitation
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
+
+    //Resume from cache
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-                  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                  bool aIsArchived, const std::string& title, const std::string& url);
+                unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
+                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const std::string& aUrl);
+
+    //Load chatLink
+    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
+                unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
+                bool aIsArchived, const std::string& title,
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, const std::string& aUrl);
+
     ~GroupChatRoom();
+
 public:
 //chatd::Listener
     virtual void onUserJoin(Id userid, chatd::Priv priv);
@@ -348,13 +388,6 @@ public:
     /** @brief Returns the map of the users in the chatroom, except our own user */
     const MemberMap& peers() const { return mPeers; }
 
-    /** @brief Returns whether the group chatroom has a title set. If not, then
-      * its title string will be composed from the first names of the room members
-      */
-    bool hasTitle() const { return mHasTitle; }
-
-    /** @brief The title of the chatroom */
-    virtual const char *titleString() const { return mTitleString.c_str(); }
 
     /** @brief Removes the specifid user from the chatroom. You must have
      * operator privileges to do that.
@@ -393,8 +426,23 @@ public:
      */
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 
+    /** TODO
+     *
+     */
+    promise::Promise<void> autojoinPublicChat(uint64_t ph);
+
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
+    virtual void enablePreview(uint64_t ph);
+    virtual bool publicChat() const;
+    virtual uint64_t getPublicHandle() const;
+    virtual unsigned int getNumPreviewers() const;
+
+    virtual bool previewMode() const;
+
+    promise::Promise<std::shared_ptr<std::string>> unifiedKey();
+
+    void handleTitleChange(const std::string &title, bool saveToDb = false);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -408,10 +456,11 @@ public:
     Client& mKarereClient;
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
     ChatRoom* addRoom(const mega::MegaTextChat &room);
-    void removeRoom(GroupChatRoom& room);
+    void removeRoomPreview(Id chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
+    void previewCleanup(karere::Id chatid);
     void onChatsUpdate(mega::MegaTextChatList& chats);
 /** @endcond PRIVATE */
 };
@@ -424,22 +473,19 @@ class Contact: public karere::DeleteTrackable
 /** @cond PRIVATE */
 protected:
     ContactList& mClist;
-    Presence mPresence;
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
     UserAttrCache::Handle mUsernameAttrCbId;
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
+    std::string mName;
     int mVisibility;
-    IApp::IContactListHandler* mAppClist; //cached, because we often need to check if it's null
-    IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     bool mIsInitializing = true;
     void updateTitle(const std::string& str);
     void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
-    void updatePresence(Presence pres);
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
@@ -453,11 +499,6 @@ public:
      * Otherwise returns NULL
      */
     PeerChatRoom* chatRoom() { return mChatRoom; }
-    /** @brief The \c IApp::IContactListItem that is associated with this
-     * contact. Can be NULL if there is no IContactListHandler or it returned
-     * NULL from \c addContactListItem()
-     */
-    IApp::IContactListItem* appItem() const { return mDisplay; }
 
     /** @brief Creates a 1on1 chatroom with this contact, if one does not exist,
      * otherwise returns the existing one.
@@ -486,16 +527,15 @@ public:
      */
     int visibility() const { return mVisibility; }
 
-    /** @brief The presence of the contact */
-    Presence presence() const { return mPresence; }
     bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
-    void updateAllOnlineDisplays(Presence pres)
-    {
-        if (mDisplay)
-            mDisplay->onPresenceChanged(pres);
-    }
+
+    /** @brief Set the full name of this contact */
+    void setContactName(std::string name);
+
+    /** @brief Returns the full name of this contact */
+    std::string getContactName();
 };
 
 /** @brief This is the karere contactlist class. It maps user ids
@@ -506,16 +546,10 @@ class ContactList: public std::map<uint64_t, Contact*>
     friend class Client;
 protected:
     void removeUser(iterator it);
-    void onPresenceChanged(Id userid, Presence pres);
-    void setAllOffline();
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
 
-    /** @brief Returns the contact object from the specified XMPP jid if one exists,
-     * otherwise returns NULL
-     */
-    Contact* contactFromJid(const std::string& jid) const;
     Contact* contactFromUserId(uint64_t userid) const;
     Contact* contactFromEmail(const std::string& email) const;
 
@@ -527,11 +561,201 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    IApp::IContactListItem& attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
-    void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
     bool isExContact(karere::Id userid);
     /** @endcond */
+};
+
+/** @brief Class to manage init stats of Karere.
+ * This class will measure the initialization times of every stage
+ * in order to improve the performance.
+ *
+ * The main stages included in this class are:
+ *      Init
+ *      Login
+ *      Fetch nodes
+ *      Post fetch nodes (From the end of fetch nodes until start of connect)
+ *      Connection
+ *
+ * The Connection stage is subdivided in the following stages with stats per shard:
+ *      GetChatUrl
+ *      QueryDns
+ *      Connect to chatd
+ *      All chats logged in
+ *
+ * To obtain a string with the stats in JSON you have to call statsToString. The structure of the JSON is:
+ * [
+ * {
+ *  "nn":14,		// Number of nodes
+ *  "ncn":2,		// Number of contacts
+ *  "nch":17,		// Number of chats
+ *  "sid":1,		// Init state {InitNewSession = 0, InitResumeSession = 1, InitInvalidCache = 2, InitAnonymous =3}
+ *  "telap":1240,	// Total elapsed time
+ *  "stgs":			// Array with main stages
+ *  [
+ *  	{
+ *  	"stg":0,		// Stage number
+ *  	"tag":"Init",	// Stage tag
+ *  	"elap":16		// Stage elapsed time
+ *  	},
+ *  	{
+ *  	...
+ *  	}
+ *  ]
+ *  "shstgs":		// Array with stages divided by shard
+ *  [
+ *  	{
+ *  	"stg":0,				// Stage number
+ *  	"tag":"Fetch chat url",	// Stage tag
+ *  	"sa":					// Sub array with stats
+ *  		[
+ *  			{
+ *  			"sh":0,             // Shard number
+ *  			"elap":222,         // Shard elapsed time
+ *  			"max":222,          // Shard max elapsed time
+ *  			"ret":0             // Number of retries
+ *  			}
+ *  			{
+ *  			...
+ *  			}
+ *  		]
+ *  	},
+ *  	{
+ *  	...
+ *  	}
+ *  ]
+ *  }
+ *  ]
+ *
+**/
+class InitStats
+{
+    public:
+
+        /** @brief MEGAchat init stats version */
+        const uint32_t INITSTATSVERSION = 2;
+
+        /** @brief Init states in init stats */
+        enum
+        {
+            kInitNewSession      = 0,
+            kInitResumeSession   = 1,
+            kInitInvalidCache    = 2,
+            kInitAnonymous       = 3
+        };
+
+        /** @brief Main stages */
+        enum
+        {
+            kStatsInit              = 0,
+            kStatsLogin             = 1,
+            kStatsFetchNodes        = 2,
+            kStatsPostFetchNodes    = 3,
+            kStatsConnection        = 4
+        };
+
+
+        /** @brief Stages per shard */
+        enum
+        {
+            kStatsFetchChatUrl      = 0,
+            kStatsQueryDns          = 1,
+            kStatsConnect           = 2,
+            kStatsLoginChatd        = 3
+        };
+
+        std::string onCompleted(long long numNodes, size_t numChats, size_t numContacts);
+        bool isCompleted() const;
+        void onCanceled();
+
+        /*  Stages Methods */
+
+        /** @brief Obtain initial ts for a stage */
+        void stageStart(uint8_t stage);
+
+        /** @brief Obtain end ts for a stage */
+        void stageEnd(uint8_t stage);
+
+        /** @brief Set the init state */
+        void setInitState(uint8_t state);
+
+
+        /*  Shard Stages Methods */
+
+        /** @brief Obtain initial ts for a shard */
+        void shardStart(uint8_t stage, uint8_t shard);
+
+        /** @brief Obtain end ts for a shard */
+        void shardEnd(uint8_t stage, uint8_t shard);
+
+        /** @brief Increments the number of retries for a shard */
+        void incrementRetries(uint8_t stage, uint8_t shard);
+
+        /** @brief This function handle the shard stats according to connections states transitions, getting
+         *  the start or end ts for a shard in a stage or increments the number of retries in case of error in the stage
+         *
+         *  @note In kStatsQueryDns the figures are recorded when DNS are resolved successfully and they are stored in DNS cache.
+        */
+        void handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard);
+
+private:
+
+    struct ShardStats
+    {
+        /** @brief Elapsed time */
+        mega::dstime elapsed = 0;
+
+        /** @brief Max elapsed time */
+        mega::dstime maxElapsed = 0;
+
+        /** @brief Starting time */
+        mega::dstime tsStart = 0;
+
+        /** @brief Number of retries */
+        unsigned int mRetries = 0;
+    };
+
+    typedef std::map<uint8_t, mega::dstime> StageMap;   // maps stage to elapsed time (first it stores tsStart)
+    typedef std::map<uint8_t, ShardStats> ShardMap;
+    typedef std::map<uint8_t, std::map<uint8_t, ShardStats>> StageShardMap;
+
+
+    /** @brief Maps stages to statistics */
+    StageMap mStageStats;
+
+    /** @brief Maps sharded stages to statistics */
+    StageShardMap mStageShardStats;
+
+    /** @brief Number of nodes in the account */
+    long long int mNumNodes = 0;
+
+    /** @brief Number of chats in the account */
+    long int mNumChats = 0;
+
+    /** @brief Number of contacts in the account */
+    long int mNumContacts = 0;
+
+    /** @brief Flag that indicates whether the stats have already been sent */
+    bool mCompleted = false;
+
+    /** @brief Indicates the init state with cache */
+    uint8_t mInitState = kInitNewSession;
+
+
+    /* Auxiliar methods */
+
+    /** @brief Returns the current time of the clock in milliseconds */
+    static mega::dstime currentTime();
+
+    /** @brief  Returns a string with the associated tag to the stage **/
+    std::string stageToString(uint8_t stage);
+
+    /** @brief  Returns a string with the associated tag to the stage **/
+    std::string shardStageToString(uint8_t stage);
+
+    /** @brief Returns a string that contains init stats in JSON format */
+    std::string toJson();
+
 };
 
 /** @brief The karere Client object. Create an instance to use Karere.
@@ -549,14 +773,17 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalHandler,
-              public ::mega::MegaGlobalListener,
+class Client: public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
               public karere::DeleteTrackable
 {
 public:
     enum ConnState { kDisconnected = 0, kConnecting, kConnected };
+
+public:
+    enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
+
     enum InitState: uint8_t
     {
         /** The client has just been created. \c init() has not been called yet */
@@ -576,6 +803,9 @@ public:
          * It has to be explicitly connected via \c connect()
          */
         kInitHasOnlineSession,
+
+        /** \c Karere has sucessfully initialized in anonymous mode */
+        kInitAnonymousMode,
 
         /** Client has disconnected and terminated */
         kInitTerminated,
@@ -627,7 +857,7 @@ public:
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
     enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
 
-    std::string mAppDir;        // must be before db member because it's used during the init of db member
+    std::string mAppDir;
     WebsocketsIO *websocketIO;  // network-layer interface
     void *appCtx;               // app's context
     MyMegaApi api;              // MegaApi's instance
@@ -662,16 +892,14 @@ public:
     // resolved only when up to date
     promise::Promise<void> mSyncPromise;
 
-    IApp::ILoginDialog::Handle mLoginDlg;
-
 protected:
-
-    Id mMyHandle = Id::null(); //mega::UNDEF
+    Id mMyHandle = Id::inval(); //mega::UNDEF
     std::string mMyName = std::string("\0", 1);
     std::string mMyEmail;
     uint64_t mMyIdentity = 0; // seed for CLIENTID
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     UserAttrCache::Handle mOwnNameAttrHandle;
+    UserAttrCache::Handle mAliasAttrHandle;
 
     std::string mSid;
     std::string mLastScsn;
@@ -685,11 +913,15 @@ protected:
     // resolved when connection to presenced is established
     promise::Promise<void> mConnectPromise;
 
-    Presence mOwnPresence = Presence::kInvalid;
     presenced::Client mPresencedClient;
     std::string mPresencedUrl;
 
     megaHandle mHeartbeatTimer = 0;
+    InitStats mInitStats;
+
+    // Maps uhBin to user alias encoded in B64
+    AliasesMap mAliasesMap;
+    bool mIsInBackground = false;
 
 public:
 
@@ -720,7 +952,6 @@ public:
     bool connected() const { return mConnState == kConnected; }
     bool contactsLoaded() const { return mContactsLoaded; }
 
-    Presence ownPresence() const { return mOwnPresence; }
     presenced::Client& presenced() { return mPresencedClient; }
 
     /**
@@ -729,6 +960,8 @@ public:
      */
     void initWithDbSession(const char* sid);
 
+    InitState initWithAnonymousSession();
+
     /**
      * @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
@@ -736,6 +969,39 @@ public:
     promise::Promise<void> initWithNewSession(const char* sid, const std::string& scsn,
         const std::shared_ptr<::mega::MegaUserList>& contactList,
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
+
+    /**
+     * @brief This function returns basic information about a public chat, to be able to open it in preview mode.
+     * The information returned by this function includes: the chatid, the connection url, the encrypted title,
+     * and the number of participants.
+     *
+     * @return The chatid, the connection url, the encrypted title, and the number of participants.
+     */
+    promise::Promise<ReqResult> openChatPreview(uint64_t publicHandle);
+
+    /**
+     * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
+     * to avoid that openChatPreview creates the chat room
+     */
+    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts);
+
+    /**
+     * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
+     * @return The decrypted title of the chat
+     */
+    promise::Promise<std::string> decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle);
+
+    /** @brief This function invalidates the current public handle and set the chat mode to private
+     */
+    promise::Promise<void> setPublicChatToPrivate(karere::Id chatid);
+
+    /** @brief This function creates a public handle if not exists
+     */
+    promise::Promise<uint64_t> getPublicHandle(karere::Id chatid, bool createifmissing);
+
+    /** @brief This function invalidates the current public handle
+     */
+    promise::Promise<uint64_t> deleteChatLink(karere::Id chatid);
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
@@ -763,6 +1029,7 @@ public:
     InitState init(const char* sid);
     InitState initState() const { return mInitState; }
     bool hasInitError() const { return mInitState >= kInitErrFirst; }
+    bool isTerminated() const { return mInitState == kInitTerminated; }
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
     const char* connStateStr() const { return connStateToStr(mConnState); }
@@ -771,24 +1038,18 @@ public:
     /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes
-     * @param pres The presence which should be set. This is a forced presence,
-     * i.e. it will be preserved even if the client disconnects. To disable
-     * setting such a forced presence and assume whatever presence was last used,
-     * and/or use only dynamic presence, set this param to \c Presence::kClear
      * @param isInBackground In case the app requests to connect from a service in
-     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY. Hence, it will
-     * avoid to tell chatd that the client is active.
+     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY to chatd. Hence, it will
+     * avoid to tell chatd that the client is active. Also, the presenced client will
+     * prevent to send USERACTIVE 1 in background, since the user is not active.
      */
-    promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
-
-    /** @brief Disconnects the client from chatd and presenced */
-    void disconnect();
+    promise::Promise<void> connect(bool isInBackground = false);
 
     /**
      * @brief Retry pending connections to chatd and presenced
      * @return A promise to track the result of the action.
      */
-    void retryPendingConnections(bool disconnect);
+    void retryPendingConnections(bool disconnect, bool refreshURL = false);
 
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
@@ -799,21 +1060,11 @@ public:
      */
     promise::Promise<void> loginSdkAndInit(const char* sid);
 
-    /** @brief Notifies the client that network connection is down */
-    void notifyNetworkOffline();
-
-    /** @brief Notifies the client that internet connection is again available */
-    void notifyNetworkOnline();
-    /** @brief Call this when the app goes into background, so that it notifies
-     * the servers to enable PUSH notifications
+    /** @brief Call this when the app changes the status: foreground <-> background,
+     * so that PUSH notifications are triggered correctly (enabled in background,
+     * disabled in foreground).
      */
-    void notifyUserIdle();
-    /** @brief Call this when the app goes into foreground, so that push notifications
-     * are disabled
-     */
-    void notifyUserActive();
-
-    void startKeepalivePings();
+    promise::Promise<void> notifyUserStatus(bool background);
 
     /** Terminates the karere client, logging it out, hanging up calls,
      * and cleaning up state
@@ -840,16 +1091,17 @@ public:
      * the participants.
      */
     promise::Promise<karere::Id>
-    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
-
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title = NULL);
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
-    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
-#ifndef KARERE_DISABLE_WEBRTC
-    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
-#endif
+    /** @brief There is a call active in the chatroom*/
+    bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
 
+    /** @brief There is a call in state in-progress in the chatroom and the client is participating*/
+    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
+
+    /** @brief Catch up with API for pending actionpackets*/
     promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 
@@ -857,7 +1109,19 @@ public:
     void dumpContactList(::mega::MegaUserList& clist);
     void saveDnsCacheToDb(const std::string& host, const std::string& ipv4, const std::string& ipv6);
 
+    bool anonymousMode() const;
     bool isChatRoomOpened(Id chatid);
+    void updateAndNotifyLastGreen(Id userid);
+    InitStats &initStats();
+    void sendStats();
+    void resetMyIdentity();
+    uint64_t initMyIdentity();
+
+    bool isInBackground() const;
+    void updateAliases(Buffer *data);
+
+    /** @brief Returns a string that contains the user alias in UTF-8 if exists, otherwise returns an empty string*/
+    std::string getUserAlias(uint64_t userId);
 
 protected:
     void heartbeat();
@@ -882,30 +1146,14 @@ protected:
     void loadContactListFromApi(::mega::MegaUserList& contactList);
     void loadDnsCacheFromDb();
 
-    strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
+    strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid, bool isPublic,
+            std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
 
     // connection-related methods
-    void connectToChatd(bool isInBackground);
+    void connectToChatd();
     promise::Promise<void> connectToPresenced(Presence pres);
-    promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
     promise::Promise<int> initializeContactList();
 
-    /** @brief A convenience method to log in the associated Mega SDK instance,
-     *  using IApp::ILoginDialog to ask the user/app for credentials. This
-     * method is to be used in a standalone chat app where the SDK instance is not
-     * logged by other code, like for example the qt test app. THe reason this
-     * method does not just accept a user and pass but rather calls back into
-     * ILoginDialog is to be able to update the login progress via ILoginDialog,
-     * and to save the app the management of the dialog, retries in case of
-     * bad credentials etc. This is just a convenience method.
-     */
-    promise::Promise<void> sdkLoginNewSession();
-
-    /** @brief A convenience method to log the sdk in using an existing session,
-     * identified by \c sid. This is to be used in a standalone chat app where
-     * there is no existing code that logs in the Mega SDK instance.
-     */
-    promise::Promise<void> sdkLoginExistingSession(const char* sid);
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
     void commit(const std::string& scsn);
 
@@ -913,7 +1161,7 @@ protected:
      * connect() waits for the mCanConnect promise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(Presence pres, bool isInBackground);
+    promise::Promise<void> doConnect();
     void setConnState(ConnState newState);
 
     // mega::MegaGlobalListener interface, called by worker thread
@@ -922,18 +1170,18 @@ protected:
     virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
 
     // MegaRequestListener interface
+    virtual void onRequestStart(::mega::MegaApi* apiObj, ::mega::MegaRequest *request);
     virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
 
     // presenced listener interface
     virtual void onConnStateChange(presenced::Client::ConnState state);
-    virtual void onPresenceChange(Id userid, Presence pres);
+    virtual void onPresenceChange(Id userid, Presence pres, bool inProgress = false);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid);
 
     //==
     friend class ChatRoom;
     friend class ChatRoomList;
 };
-
 }
 #endif // CHATCLIENT_H

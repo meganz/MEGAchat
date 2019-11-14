@@ -4,9 +4,14 @@
 
 #ifdef KRLOGGER_SHARED
     #ifdef _WIN32
-        #pragma warning(disable: 4251) //Logger class exports STL classes that don't have DLL interface
-        #define KRLOGGER_DLLEXPORT __declspec(dllexport)
-        #define KRLOGGER_DLLIMPORT __declspec(dllimport)
+        #ifndef MEGA_FULL_STATIC
+            #pragma warning(disable: 4251) //Logger class exports STL classes that don't have DLL interface
+            #define KRLOGGER_DLLEXPORT __declspec(dllexport)
+            #define KRLOGGER_DLLIMPORT __declspec(dllimport)
+        #else
+            #define KRLOGGER_DLLEXPORT 
+            #define KRLOGGER_DLLIMPORT 
+        #endif
     #else
         #define KRLOGGER_DLLEXPORT __attribute__ ((visibility("default")))
         #define KRLOGGER_DLLIMPORT
@@ -66,6 +71,9 @@ enum { krLogChannelCount = 32 };
 #include <memory>
 #include <mutex>
 #include <map>
+
+class MyMegaApi;
+#define CHATLOGS_PORT 0
 
 namespace karere
 {
@@ -147,6 +155,25 @@ public:
         virtual ~ILoggerBackend() {}
     };
 
+};
+
+/** @brief A logger backend that sends the webRtc error log output
+ * to a remote server.
+ */
+class WebRtcLogger: public karere::Logger::ILoggerBackend
+{
+private:
+    MyMegaApi& mApi;
+    std::string mAid;
+    std::string mDeviceInfo;
+public:
+    virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
+    void logError(const char* fmtString, ...);
+    WebRtcLogger(MyMegaApi& api, const std::string &aid, const std::string &deviceInfo)
+        : ILoggerBackend(krLogLevelError), mApi(api), mAid(aid), mDeviceInfo(deviceInfo)
+    {
+
+    }
 };
 
 extern KRLOGGER_DLLIMPEXP Logger gLogger;

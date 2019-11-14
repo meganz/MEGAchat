@@ -3,26 +3,26 @@
 #include <QWidget>
 #include "megachatapi.h"
 #include "MainWindow.h"
-class MainWindow;
 
 namespace Ui {
 class ChatItem;
 }
 
+class ChatListItemController;
+class MainWindow;
+
 class ChatItemWidget : public QWidget
 {
     Q_OBJECT
     public:
-        ChatItemWidget(QWidget *parent , megachat::MegaChatApi *megaChatApi, const megachat::MegaChatListItem *item);
+        ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatListItem *item);
         virtual ~ChatItemWidget();
-        void unshowAsHidden();
-        void showAsHidden();
         void contextMenuEvent(QContextMenuEvent *event);
-        void setChatHandle(const megachat::MegaChatHandle &mChatId);
         megachat::MegaChatHandle getChatId() const;
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);
         virtual void onUnreadCountChanged(int count);
+        virtual void onPreviewersCountChanged(int count);
         virtual void onTitleChanged(const std::string& title);
         virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
         virtual void onlineIndicatorUpdate(int newState);
@@ -31,19 +31,17 @@ class ChatItemWidget : public QWidget
 
     protected:
         Ui::ChatItem *ui;
-        int mLastOverlayCount;
+        MainWindow *mMainWin;
         megachat::MegaChatHandle mChatId;
         ::megachat::MegaChatApi *mMegaChatApi;
-        ::mega::MegaApi *mMegaApi;
-        QListWidgetItem *mListWidgetItem;
-        MainWindow *mMainWin;
+        ChatListItemController *mController;
         std::string mLastMsgAuthor;
+        int mLastOverlayCount;
+        QListWidgetItem *mListWidgetItem = NULL;
 
-    protected slots:
-        void leaveGroupChat();
-        void setTitle();
-        void truncateChat();
-        void archiveChat(bool checked);
+    public slots:
+        void onPrintChatInfo();
+        void onCopyHandle();
 
     friend class MainWindow;
     friend class ContactItemWidget;

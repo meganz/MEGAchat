@@ -236,6 +236,9 @@ using namespace megachat;
 + (NSString *)stringForType:(MEGAChatMessageType)type {
     NSString *result;
     switch (type) {
+        case MEGAChatMessageTypeUnknown:
+            result = @"Unknown";
+            break;
         case MEGAChatMessageTypeInvalid:
             result = @"Invalid";
             break;
@@ -254,6 +257,21 @@ using namespace megachat;
         case MEGAChatMessageTypeChatTitle:
             result = @"Chat title";
             break;
+        case MEGAChatMessageTypeCallEnded:
+            result = @"Call ended";
+            break;
+        case MEGAChatMessageTypeCallStarted:
+            result = @"Call started";
+            break;
+        case MEGAChatMessageTypePublicHandleCreate:
+            result = @"Public handle create";
+            break;
+        case MEGAChatMessageTypePublicHandleDelete:
+            result = @"Public handle delete";
+            break;
+        case MEGAChatMessageTypeSetPrivateMode:
+            result = @"Set private mode";
+            break;
         case MEGAChatMessageTypeAttachment:
             result = @"Attachment";
             break;
@@ -266,10 +284,9 @@ using namespace megachat;
         case MEGAChatMessageTypeContainsMeta:
             result = @"Contains meta";
             break;
-        case MEGAChatMessageTypeCallEnded:
-            result = @"Call ended";
+        case MEGAChatMessageTypeVoiceClip:
+            result = @"Voice clip";
             break;
-            
         default:
             result = @"Default";
             break;

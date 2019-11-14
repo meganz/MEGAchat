@@ -1,6 +1,5 @@
 #pragma once
 //#include <p2p/base/common.h>
-#include <rtc_base/scoped_ref_ptr.h>
 #include <api/peerconnectioninterface.h>
 #include <api/jsep.h>
 #include <media/base/device.h>
@@ -86,7 +85,7 @@ public:
     virtual void OnFailure(const std::string& error)
     {
         RTCM_DO_CALLBACK(
-           mPromise.reject(promise::Error(error, kCreateSdpFailed, ERRTYPE_RTC));
+           mPromise.reject(::promise::Error(error, kCreateSdpFailed, ERRTYPE_RTC));
            Release();
         , this, error);
     }
@@ -133,7 +132,7 @@ public:
     virtual void OnFailure(const std::string& error)
     {
         RTCM_DO_CALLBACK(
-             mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, ERRTYPE_RTC));
+             mPromise.reject(::promise::Error(error, kSetSdpDescriptionFailed, ERRTYPE_RTC));
              Release();
         , this, error);
     }

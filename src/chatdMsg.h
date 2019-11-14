@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
+#include <memory>
 #include "karereId.h"
 
 enum
@@ -64,6 +65,9 @@ enum Opcode
       *
       * S->C: A different connection has added a message to the chat.
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
+      *
+      * Note that timestamps up to one hour in the past are accepted (anything in the future or
+      * older will be set to current time)
       */
     OP_NEWMSG = 3,
 
@@ -200,6 +204,7 @@ enum Opcode
     /**
       * @brief
       * S->C: Signal the final <keyid> for a newly allocated key.
+      * After a HIST, a keyid=0 is received.
       * Receive: <chatid> <keyxid> <keyid>
       */
     OP_NEWKEYID = 18,
@@ -318,18 +323,39 @@ enum Opcode
     OP_ECHO = 32,
 
     /**
-      * @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid.8> <userid.8> <msgid.8> <payloadLen.1> <reaction>
       *
-      * User add a reaction to message
+      * C->S: user adds a reaction to message
+      * S->C: server response to the command
       */
     OP_ADDREACTION = 33,
 
     /**
-      ** @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid.8> <userid.8> <msgid.8> <payloadLen.1> <reaction>
       *
-      * User delete a reaction to message
+      * C->S: user delete a reaction to message
+      * S->C: server response to the command
       */
     OP_DELREACTION = 34,
+
+    /**
+      * @brief
+      * C->S: Subscribe to events for this chat in preview mode. Client has no existing message buffer.
+      * Send: <public_handle.6> <userid.8> <user_priv>.
+      *
+      * @note chatd indicates users in this chat and their privilege level as well as privilege via the
+      * standard OP_JOIN.
+      */
+    OP_HANDLEJOIN = 36,
+
+    /**
+      * @brief
+      * C->S: Subscribe to events for this chat in preview mode, indicating the existing message range
+      *    (msgid0 is the oldest, msgid1 the newest). Responds with all messages newer
+      *    than msgid1 (if any) as NEWMSG, followed by a HISTDONE.
+      * Send: <public_handle.6> <msgid0> <msgid1>
+      */
+    OP_HANDLEJOINRANGEHIST = 37,
 
     /**
       ** @brief <chatid>
@@ -370,7 +396,43 @@ enum Opcode
       */
     OP_NODEHIST = 45,
 
-    OP_LAST = OP_NODEHIST
+    /**
+      ** @brief <chatid> <count>
+      *
+      * S->C: inform about any change in the number of users in preview mode in a chat.
+      * It is sent after any change in the number of previewers or when the chat link
+      * has been invalidated.
+      *
+      * Receive <chatid> <count>
+      */
+    OP_NUMBYHANDLE = 46,
+
+    /**
+      ** @brief <public_handle.6> <userid> <user_priv>
+      *
+      * C->S: inform chatd that user has left the preview in order to update
+      * the number of previewers.
+      *
+      * Send: <public_handle.6> <userid.8> <user_priv.1>
+      */
+    OP_HANDLELEAVE = 47,
+
+    /**
+      ** @brief <chatid.8> <rsn.8>
+      *
+      * C->S: send to chatd the current reaction sequence number for a chatroom.
+      * This command must be send upon a reconnection, only if we have stored
+      * a valid rsn and only after send JOIN/JOINRANGEHIST
+      * or HANDLEJOIN/HANDLEJOINRANGEHIST.
+      *
+      * S->C: inform about any change in the reactions associated to a chatroom
+      * by receiving the current reaction sequence number.
+      *
+      */
+    OP_REACTIONSN = 48,
+
+    OP_LAST = OP_HANDLELEAVE,
+    OP_INVALIDCODE = 0xFF
 };
 
 // privilege levels
@@ -389,32 +451,45 @@ class Message: public Buffer
 public:
     enum Type: uint8_t
     {
-        kMsgInvalid           = 0x00,
-        kMsgNormal            = 0x01,
-        kMsgManagementLowest  = 0x02,
-        kMsgAlterParticipants = 0x02,
-        kMsgTruncate          = 0x03,
-        kMsgPrivChange        = 0x04,
-        kMsgChatTitle         = 0x05,
-        kMsgCallEnd           = 0x06,
-        kMsgManagementHighest = 0x06,
-        kMsgOffset            = 0x55,   // Offset between old message types and new message types
-        kMsgUserFirst         = 0x65,
-        kMsgAttachment        = 0x65,   // Old value  kMsgAttachment        = 0x10
-        kMsgRevokeAttachment  = 0x66,   // Old value  kMsgRevokeAttachment  = 0x11
-        kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x12
-        kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
+        kMsgInvalid             = 0x00,
+        kMsgNormal              = 0x01,
+        kMsgManagementLowest    = 0x02,
+        kMsgAlterParticipants   = 0x02,
+        kMsgTruncate            = 0x03,
+        kMsgPrivChange          = 0x04,
+        kMsgChatTitle           = 0x05,
+        kMsgCallEnd             = 0x06,
+        kMsgCallStarted         = 0x07,
+        kMsgPublicHandleCreate  = 0x08,
+        kMsgPublicHandleDelete  = 0x09,
+        kMsgSetPrivateMode      = 0x0A,
+        kMsgManagementHighest   = 0x0A,
+        kMsgOffset              = 0x55,   // Offset between old message types and new message types
+        kMsgUserFirst           = 0x65,
+        kMsgAttachment          = 0x65,   // kMsgNormal's subtype = 0x10
+        kMsgRevokeAttachment    = 0x66,   // kMsgNormal's subtype = 0x11
+        kMsgContact             = 0x67,   // kMsgNormal's subtype = 0x12
+        kMsgContainsMeta        = 0x68,   // kMsgNormal's subtype = 0x13
+        kMsgVoiceClip           = 0x69    // kMsgNormal's subtype = 0x14
     };
+
+    enum ContainsMetaSubType: uint8_t
+    {
+        kInvalid              = 0xff,
+        kRichLink             = 0x00,
+        kGeoLocation          = 0x01
+    };
+
     enum Status
     {
-        kSending, //< Message has not been sent or is not yet confirmed by the server
-        kSendingManual, //< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
-        kServerReceived, //< Message confirmed by server, but not yet delivered to recepient(s)
-        kServerRejected, //< Message is rejected by server for some reason (editing too old message for example)
-        kDelivered, //< Peer confirmed message receipt. Used only for 1on1 chats
+        kSending, ///< Message has not been sent or is not yet confirmed by the server
+        kSendingManual, ///< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
+        kServerReceived, ///< Message confirmed by server, but not yet delivered to recepient(s)
+        kServerRejected, ///< Message is rejected by server for some reason (editing too old message for example)
+        kDelivered, ///< Peer confirmed message receipt. Used only for 1on1 chats
         kLastOwnMessageStatus = kDelivered, //if a status is <= this, we created the msg, oherwise not
-        kNotSeen, //< User hasn't read this message yet
-        kSeen //< User has read this message
+        kNotSeen, ///< User hasn't read this message yet
+        kSeen ///< User has read this message
     };
     enum { kFlagForceNonText = 0x01 };
 
@@ -460,12 +535,44 @@ public:
         Priv privilege = PRIV_INVALID;
     };
 
+    /** @brief Contains a UTF-8 string that represents the reaction
+     * and a vector of userid's associated to that reaction. */
+    struct Reaction
+    {
+        std::string mReaction;
+        std::vector<karere::Id> mUsers;
+
+        Reaction(std::string reaction)
+        {
+            mReaction = reaction;
+        }
+
+         /** @brief Returns the userId index in case that exists. Otherwise returns -1 **/
+        int userIndex(karere::Id userId) const
+        {
+            int i = 0;
+            for (auto &it : mUsers)
+            {
+                if (it == userId)
+                {
+                    return i;
+                }
+                i++;
+            }
+            return -1;
+        }
+        bool hasReacted(karere::Id userId) const
+        {
+            return userIndex(userId) != -1;
+        }
+    };
+
     class CallEndedInfo
     {
         public:
         karere::Id callid;
         uint8_t termCode = 0;
-        uint32_t duration = 0;
+        uint32_t duration = 0;  // duration of call if established or period of time ringing (if never established: missed/cancelled)
         std::vector<karere::Id> participants;
 
         static CallEndedInfo *fromBuffer(const char *buffer, size_t len)
@@ -480,6 +587,7 @@ public:
 
             if (!buffer || len < (lenCallid + lenDuration + lenTermCode + lenNumParticipants))
             {
+                delete info;
                 return NULL;
             }
 
@@ -515,6 +623,10 @@ private:
     //avoid setting the id and flag pairs one by one by making them accessible only by setId(Id,bool)
     karere::Id mId;
     bool mIdIsXid = false;
+
+    /* Reactions must be ordered in the same order as they were added,
+    so we need a sequence container */
+    std::vector<Reaction> mReactions;
 
 protected:
     uint8_t mIsEncrypted = kNotEncrypted;
@@ -615,12 +727,12 @@ public:
     /** @brief Returns whether this message is a management message. */
     bool isManagementMessage() const
     {
-        return (keyid == 0) && !isSending();    // msgs in sending status use keyid=CHATD_KEYID_INVALID (0)
+        // if message comes from API and uses keyid=0, it's a management message
+        return isManagementMessageKnownType() || (userid == karere::Id::COMMANDER() && keyid == 0);
     }
-    bool isManagementMessageKnownType()
+    bool isManagementMessageKnownType() const
     {
-        return (isManagementMessage()
-                && type >= Message::kMsgManagementLowest
+        return (type >= Message::kMsgManagementLowest
                 && type <= Message::kMsgManagementHighest);
     }
     bool isOwnMessage(karere::Id myHandle) const { return (userid == myHandle); }
@@ -644,8 +756,17 @@ public:
                 && (type == kMsgNormal              // exclude any unknown type (not shown in the apps)
                     || type == kMsgAttachment
                     || type == kMsgContact
-                    || type == kMsgContainsMeta)
+                    || type == kMsgContainsMeta
+                    || type == kMsgVoiceClip)
                 );
+    }
+    ContainsMetaSubType containMetaSubtype() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 2) ? ((ContainsMetaSubType)*(buf()+2)) : ContainsMetaSubType::kInvalid;
+    }
+    std::string containsMetaJson() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
     }
 
     /** @brief Convert attachment etc. special messages to text */
@@ -660,6 +781,122 @@ public:
         //special messages have a 2-byte binary prefix
         assert(dataSize() > 2);
         return std::string(buf()+2, dataSize()-2);
+    }
+
+    /** @brief Returns a vector with all the reactions of the message **/
+    std::vector<std::string> getReactions() const
+    {
+        std::vector<std::string> reactions;
+        for (auto &it : mReactions)
+        {
+            reactions.push_back(it.mReaction);
+        }
+        return reactions;
+    }
+
+    /** @brief Returns true if the user has reacted to this message with the specified reaction **/
+    bool hasReacted(std::string reaction, karere::Id uh) const
+    {
+        for (auto &it : mReactions)
+        {
+            if (it.mReaction == reaction)
+            {
+                return it.hasReacted(uh);
+            }
+        }
+        return false;
+    }
+
+    /** @brief Returns a vector with the userid's associated to an specific reaction **/
+    const std::vector<karere::Id>* getReactionUsers(std::string reaction) const
+    {
+        for (auto &it : mReactions)
+        {
+            if (it.mReaction == reaction)
+            {
+                return &(it.mUsers);
+            }
+        }
+        return nullptr;
+    }
+
+    /** @brief Returns the number of users for an specific reaction **/
+    int getReactionCount(const std::string &reaction) const
+    {
+        for (auto const &it : mReactions)
+        {
+            if (it.mReaction == reaction)
+            {
+                return static_cast<int>(it.mUsers.size());
+            }
+        }
+        return 0;
+    }
+
+    /** @brief Returns the reaction index in case that exists. Otherwise returns -1 **/
+    int getReactionIndex(const std::string &reaction) const
+    {
+        int i = 0;
+        for (auto &it : mReactions)
+        {
+            if (it.mReaction == reaction)
+            {
+                return i;
+            }
+            i++;
+        }
+        return -1;
+    }
+
+    /** @brief Clean reactions */
+    void cleanReactions()
+    {
+        mReactions.clear();
+    }
+    bool hasReactions() const
+    {
+        return !mReactions.empty();
+    }
+
+    /** @brief Add a reaction for an specific userid **/
+    void addReaction(const std::string &reaction, karere::Id userId)
+    {
+        Reaction *r = NULL;
+        int reactIndex = getReactionIndex(reaction);
+        if (reactIndex >= 0)
+        {
+            r =  &mReactions.at(reactIndex);
+        }
+        else    // not found, add
+        {
+            mReactions.emplace_back(reaction);
+            r = &mReactions.back();
+        }
+
+        if (!r->hasReacted(userId))
+        {
+            r->mUsers.emplace_back(userId);
+        }
+    }
+
+    /** @brief Delete a reaction for an specific userid **/
+    void delReaction(const std::string &reaction, karere::Id userId)
+    {
+        int reactIndex = getReactionIndex(reaction);
+        if (reactIndex >= 0)
+        {
+            Reaction &r = mReactions.at(reactIndex);
+
+            int userIndex = r.userIndex(userId);
+            if (userIndex >= 0)
+            {
+                r.mUsers.erase(r.mUsers.begin() + userIndex);
+                if (r.mUsers.empty())
+                {
+                    mReactions.erase(mReactions.begin() + reactIndex);
+                }
+            }
+        }
     }
 
     /** @brief Throws an exception if this is not a management message. */
@@ -709,6 +946,11 @@ public:
     {
         append<uint32_t>(msg.dataSize());
         append(msg.buf(), msg.dataSize());
+        return std::move(*this);
+    }
+    Command&& operator+(const std::string& msg)
+    {
+        append(msg.data(), msg.size());
         return std::move(*this);
     }
     bool isMessage() const
@@ -764,6 +1006,35 @@ public:
         append<uint64_t>(userid.val).append<uint16_t>(keylen);
         append(keydata, keylen);
     }
+
+    std::shared_ptr<Buffer> getKeyByUserId (karere::Id userId)
+    {
+        karere::Id receiver;
+        const char *pos = buf() + 17;
+        const char *end = buf() + dataSize();
+
+        //Pick the version of the unified key encrypted for us
+        while (pos < end)
+        {
+            receiver = Buffer::alignSafeRead<uint64_t>(pos);
+            pos+=8;
+            uint16_t keylen = *(uint16_t*)(pos);
+            pos+=2;
+            if (receiver == userId)
+                break;
+            pos+=keylen;
+        }
+
+        if (pos >= end)
+            throw std::runtime_error("Error getting a version of the encryption key encrypted to us");
+        if (end-pos < 16)
+            throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
+
+        auto buf = std::make_shared<Buffer>(16);
+        buf->assign(pos, 16);
+        return buf;
+    }
+
     bool hasKeys() const { return dataSize() > 17; }
     uint32_t keybloblen() const { return read<uint32_t>(13); }
     StaticBuffer keyblob() const
@@ -795,7 +1066,7 @@ public:
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
-    MsgCommand(size_t reserve): Command(reserve) {} //for loading the buffer
+    MsgCommand(size_t reserve): Command(OP_INVALIDCODE, reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     karere::Id userId() const { return read<uint64_t>(9); }
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }

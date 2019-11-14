@@ -8,13 +8,13 @@ namespace chatd
 {
 enum
 {
-    SVCRYPTO_ERRTYPE = 0x3e9ac910,  //< all promise errors originating from strongvelope should have this type
-    SVCRYPTO_ENOKEY = 1,            //< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
-    SVCRYPTO_ENOMSG = 2,            //< Can't decrypt because message has been deleted during decryption process
-    SVCRYPTO_ENOTYPE = 3,           //< Type of message not recognized by the client
-    SVCRYPTO_EEXPIRED = 4,          //< Strongvelope instance was deleted
-    SVCRYPTO_ESIGNATURE = 5,        //< Verification of signature failed
-    SVCRYPTO_EMALFORMED = 6         //< Failed to parse message, invalid format or corrupted data
+    SVCRYPTO_ERRTYPE = 0x3e9ac910,  ///< all promise errors originating from strongvelope should have this type
+    SVCRYPTO_ENOKEY = 1,            ///< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
+    SVCRYPTO_ENOMSG = 2,            ///< Can't decrypt because message has been deleted during decryption process
+    SVCRYPTO_ENOTYPE = 3,           ///< Type of message not recognized by the client
+    SVCRYPTO_EEXPIRED = 4,          ///< Strongvelope instance was deleted
+    SVCRYPTO_ESIGNATURE = 5,        ///< Verification of signature failed
+    SVCRYPTO_EMALFORMED = 6         ///< Failed to parse message, invalid format or corrupted data
 };
 
 class Chat;
@@ -129,12 +129,48 @@ public:
     virtual void randomBytes(void* buf, size_t bufsize) const = 0;
 
     virtual promise::Promise<std::shared_ptr<Buffer>>
-    encryptChatTitle(const std::string& data, uint64_t extraUser=0) = 0;
+    encryptChatTitle(const std::string& data, uint64_t extraUser = 0, bool encryptAsPrivate = false) = 0;
+
+    virtual promise::Promise<chatd::KeyCommand*>
+    encryptUnifiedKeyForAllParticipants(uint64_t extraUser=0) = 0;
 
     virtual promise::Promise<std::string>
-    decryptChatTitle(const Buffer& data) = 0;
+    decryptChatTitleFromApi(const Buffer& data) = 0;
+
+    virtual promise::Promise<std::string>
+    encryptUnifiedKeyToUser(karere::Id user) = 0;
+
+    virtual promise::Promise<std::string>
+    decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver) = 0;
+
+    virtual promise::Promise<std::shared_ptr<std::string> > getUnifiedKey() = 0;
+
+    virtual bool previewMode() = 0;
+
+    /** Returns true if chat is in public/open mode */
+    virtual bool isPublicChat() const = 0;
+
+    virtual void setPrivateChatMode() = 0;
 
     virtual void onHistoryReload() = 0;
+
+    virtual uint64_t getPublicHandle() const = 0;
+
+    virtual void setPublicHandle(const uint64_t ph) = 0;
+
+    /**
+     * @brief Encrypts a reaction with xxtea.
+     * @param msg The message associated to the reaction.
+     * @param reaction An UTF-8 string.
+     */
+    virtual promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const Message &msg, const std::string &reaction) = 0;
+
+    /**
+     * @brief Decrypts a reaction with xxtea.
+     * @param msg The message associated to the reaction.
+     * @param reaction The encrypted reaction.
+     */
+    virtual promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const Message &msg,const std::string &reaction) = 0;
 
     /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed

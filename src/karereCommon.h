@@ -81,8 +81,6 @@ static inline string to_string(const T& t)
 
 /** @endcond PRIVATE */
 
-class MyMegaApi;
-
 namespace karere
 {
 class Client;
@@ -136,6 +134,14 @@ public:
         if (result.empty())
             result='-';
         return result;
+    }
+    void setAudio(bool enable)
+    {
+        mFlags = ((enable ? kAudio : 0) | (video() ? kVideo : 0));
+    }
+    void setVideo(bool enable)
+    {
+        mFlags = ((audio() ? kAudio : 0) | (enable ? kVideo : 0));
     }
 };
 
@@ -208,34 +214,10 @@ static inline int64_t timestampMs() { return services_get_time_ms(); }
     {                                                 \
         const char* what = e.what();                  \
         if (!what) what = "(no exception message)";   \
-        return promise::Error(what, type);            \
+        return ::promise::Error(what, type);            \
     }
 
-class Client;
 /** @endcond PRIVATE */
-
-/** @brief A logger backend that sends the log output of error messages
- * to a remote server. Can be used by the application to send errors to
- * a remote server.
- *
- *  Usage:
- * \c gLogger.addUserLogger("karere-remote", new RemoteLogger);
- *
- * @note This logger requires a karere::Client instance, since it uses
- * the SDK to send the logs to the remote server. Remember to call
- * \c gLogger.removeUserLogger("karere-remote") before than the Client
- * destruction.
- */
-class RemoteLogger: public karere::Logger::ILoggerBackend
-{
-private:
-    std::string mAid;
-    MyMegaApi& mApi;
-public:
-    virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
-    RemoteLogger(MyMegaApi& api): ILoggerBackend(krLogLevelError), mApi(api){}
-    void setAnonymousId(std::string &aid) { this->mAid = aid; }
-};
 
 }
 

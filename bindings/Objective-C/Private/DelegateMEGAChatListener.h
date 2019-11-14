@@ -17,7 +17,7 @@ public:
     void onChatPresenceLastGreen(megachat::MegaChatApi* api, megachat::MegaChatHandle userHandle, int lastGreen);
     
 private:
-    MEGAChatSdk *megaChatSDK;
+    __weak MEGAChatSdk *megaChatSDK;
     id<MEGAChatDelegate>listener;
     bool singleListener;
 };

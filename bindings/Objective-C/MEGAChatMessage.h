@@ -17,18 +17,24 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageStatus) {
 };
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
-    MEGAChatMessageTypeUnknown           = -1,
-    MEGAChatMessageTypeInvalid           = 0,
-    MEGAChatMessageTypeNormal            = 1,
-    MEGAChatMessageTypeAlterParticipants = 2,
-    MEGAChatMessageTypeTruncate          = 3,
-    MEGAChatMessageTypePrivilegeChange   = 4,
-    MEGAChatMessageTypeChatTitle         = 5,
-    MEGAChatMessageTypeCallEnded         = 6,
-    MEGAChatMessageTypeAttachment        = 101,
-    MEGAChatMessageTypeRevokeAttachment  = 102, /// Obsolete
-    MEGAChatMessageTypeContact           = 103,
-    MEGAChatMessageTypeContainsMeta      = 104
+    MEGAChatMessageTypeUnknown            = -1,
+    MEGAChatMessageTypeInvalid            = 0,
+    MEGAChatMessageTypeNormal             = 1,
+    MEGAChatMessageTypeAlterParticipants  = 2,
+    MEGAChatMessageTypeTruncate           = 3,
+    MEGAChatMessageTypePrivilegeChange    = 4,
+    MEGAChatMessageTypeChatTitle          = 5,
+    MEGAChatMessageTypeCallEnded          = 6,
+    MEGAChatMessageTypeCallStarted        = 7,
+    MEGAChatMessageTypePublicHandleCreate = 8,
+    MEGAChatMessageTypePublicHandleDelete = 9,
+    MEGAChatMessageTypeSetPrivateMode     = 10,
+    MEGAChatMessageTypeHighestManagement  = 10,
+    MEGAChatMessageTypeAttachment         = 101,
+    MEGAChatMessageTypeRevokeAttachment   = 102, /// Obsolete
+    MEGAChatMessageTypeContact            = 103,
+    MEGAChatMessageTypeContainsMeta       = 104,
+    MEGAChatMessageTypeVoiceClip          = 105
 };
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageChangeType) {

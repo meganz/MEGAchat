@@ -1,25 +1,29 @@
 #include "karereCommon.h"
 #include "stringUtils.h"
-#include "sdkApi.h"
 #include "base/timers.hpp"
 #include "megachatapi_impl.h"
-
-#ifdef USE_LIBWEBSOCKETS
 #include "waiter/libuvWaiter.h"
-#else
-#include "waiter/libeventWaiter.h"
-#endif
 
 #ifndef KARERE_DISABLE_WEBRTC
 namespace rtcModule {void globalCleanup(); }
 #endif
 
+#ifndef LOGGER_SPRINTF_BUF_SIZE
+    #define LOGGER_SPRINTF_BUF_SIZE 10240
+#endif
+
 namespace karere
 {
-const char* gDbSchemaVersionSuffix = "5";
-// 2 --> +3: invalidate cached chats to reload history (so call-history msgs are fetched)
-// 3 --> +4: invalidate both caches, SDK + MEGAchat, if there's at least one chat (so deleted chats are re-fetched from API)
-// 4 --> +5: modify attachment, revoke, contact and containsMeta and create a new table node_history
+const char* gDbSchemaVersionSuffix = "8";
+/*
+    2 --> +3: invalidate cached chats to reload history (so call-history msgs are fetched)
+    3 --> +4: invalidate both caches, SDK + MEGAchat, if there's at least one chat (so deleted chats are re-fetched from API)
+    4 --> +5: modify attachment, revoke, contact and containsMeta and create a new table node_history
+    5 --> +6: invalidate both caches, SDK + MEGAchat, (so deleted chats are re-fetched from API) if there's at least one chat,
+              otherwise modify cache structure to support public chats
+    6 --> +7: update keyid for truncate messages in db
+    7 --> +8: modify chats and create a new table chat_reactions
+*/
 
 bool gCatchException = true;
 
@@ -40,60 +44,8 @@ void globalCleanup()
     services_shutdown();
 }
 
-void RemoteLogger::log(krLogLevel /*level*/, const char* msg, size_t len, unsigned /*flags*/)
-{
-//WARNING:
-//This is a logger callback, and can be called by worker threads.
-//Also, we must not log from within this callback, because that will cause re-entrancy
-//in the logger.
-//Therefore, we must copy the message and return asap, without doing anything that may
-//log a message.
-
-    if (!msg)
-        return;
-    auto json = std::make_shared<std::string>("{\"msg\":\"");
-    const char* start = strchr(msg, ']');
-    if (!start)
-        start = msg;
-    else
-        start++; //skip the closing bracket
-    json->append(replaceOccurrences(std::string(start, len-(start-msg+1)), "\"", "\\\"")).append("\"}");
-    *json = replaceOccurrences(*json, "\n", "\\n");
-    *json = replaceOccurrences(*json, "\t", "\\t");
-    std::string *aid = &mAid;
-    mApi.call(&::mega::MegaApi::sendChatLogs, json->c_str(), aid->c_str())
-        .fail([](const promise::Error& err)
-        {
-            if (err.type() == ERRTYPE_MEGASDK)
-            {
-                KR_LOG_WARNING("Error %d logging error message to remote server:\n%s",
-                    err.code(), err.what());
-            }
-            return err;
-        });
-}
-
-#ifdef USE_LIBWEBSOCKETS
-
 void init_uv_timer(void *ctx, uv_timer_t *timer)
 {
     uv_timer_init(((::mega::LibuvWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop, timer);
 }
-
-#else
-
-eventloop *get_ev_loop(void *ctx)
-{
-    if (ctx)
-    {
-        return ((::mega::LibeventWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop;
-    }
-    else
-    {
-        return services_get_event_loop();
-    }
-}
-
-#endif
-
 }
