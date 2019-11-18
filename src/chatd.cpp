@@ -506,10 +506,6 @@ Connection::Connection(Client& chatdClient, int shardNo, const std::string& url)
     mSendPromise(promise::_Void())
 {
     setUrl(url);
-    if (mUrl.isValid())
-    {
-        setState(State::kStateFetchingUrl);
-    }
 }
 
 void Connection::wsConnectCb()
