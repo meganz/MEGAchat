@@ -1977,8 +1977,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     auto db = parent.mKarereClient.db;
     bool isPublicChat = aChat.isPublicChat();
     db.query("insert or replace into chats(chatid, shard, own_priv, peer, peer_priv,"
-             "ts_created, archived, url, mode) values(?,?,?,-1,0,?,?,?)",
-             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), mUrl, isPublicChat);
+             "ts_created, archived, mode) values(?,?,?,-1,0,?,?,?)",
+             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
 
     db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
@@ -2065,17 +2065,16 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
   mRoomGui(nullptr)
 {
     mUrl = aUrl;
-    //save to db
-    auto db = parent.mKarereClient.db;
-
     Buffer unifiedKeyBuf;
     unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
     unifiedKeyBuf.append(unifiedKey->data(), unifiedKey->size());
 
+    //save to db
+    auto db = parent.mKarereClient.db;
     db.query(
-        "insert or replace into chats(chatid, shard, peer, peer_priv, "
-        "own_priv, ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
-        mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
+        "insert or replace into chats(chatid, shard, own_priv, peer, peer_priv, "
+        " ts_created, url, mode, unified_key) values(?,?,?,-1,0,?,?,2,?)",
+        mChatid, mShardNo, mOwnPriv, mCreationTs, mUrl, unifiedKeyBuf);
 
     initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
