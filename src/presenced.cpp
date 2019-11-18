@@ -873,6 +873,13 @@ void Client::doConnect()
                 return;
             }
             PRESENCED_LOG_DEBUG("Connection to presenced failed using the IP: %s", mTargetIp.c_str());
+        }        
+        else
+        {
+            // do not close the socket, which forces a new retry attempt and turns the DNS response obsolete
+            // Instead, let the DNS request to complete, in order to refresh IPs
+            PRESENCED_LOG_DEBUG("Empty cached IP. Waiting for DNS resolution...");
+            return;
         }
 
         onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");

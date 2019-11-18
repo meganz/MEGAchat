@@ -984,6 +984,13 @@ void Connection::doConnect()
             }
             CHATDS_LOG_DEBUG("Connection to chatd failed using the IP: %s", mTargetIp.c_str());
         }
+        else
+        {
+            // do not close the socket, which forces a new retry attempt and turns the DNS response obsolete
+            // Instead, let the DNS request to complete, in order to refresh IPs
+            CHATDS_LOG_DEBUG("Empty cached IP. Waiting for DNS resolution...");
+            return;
+        }
 
         onSocketClose(0, 0, "Websocket error on wsConnect (chatd)");
     }
@@ -2074,7 +2081,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     chat.clearHistory();
                     // we were notifying NEWMSGs in result of JOINRANGEHIST, but after reload we start receiving OLDMSGs
                     chat.mServerOldHistCbEnabled = mChatdClient.mKarereClient->isChatRoomOpened(chatid);
-                    chat.getHistoryFromDbOrServer(chat.initialHistoryFetchCount);
+                    chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
                 }
                 else if (op == OP_NEWKEY)
                 {
