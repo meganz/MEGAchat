@@ -3467,13 +3467,27 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
                     chatroomExist = true;
                     targetChatid = chat->getChatId();
 
-                    // --> Ensure we are connected to chatd for the chatroom
-                    ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(targetChatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
-                                     "Not connected to chatd for account " + std::to_string(a1+1) + ": " + mAccounts[a1].getEmail());
+                    // Wait until connected to chatd for primary account
+                    bool *flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
+                    while (megaChatApi[a1]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+                    {
+                        postLog("Waiting for connection to chatd...");
+                        ::mega::unique_ptr <char[]> handleB64(megaApi[a1]->handleToBase64(chat->getChatId()));
+                        ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline1), "Not connected to chatd for account " + std::to_string(a1+1) + ": " + mAccounts[a1].getEmail() + " Chatid: "+ handleB64.get() + " status: " + std::to_string(megaChatApi[a1]->getChatConnectionState(targetChatid)));
+                        *flagChatdOnline1 = false;
+                    }
+
                     if (a2LoggedIn)
                     {
-                        ASSERT_CHAT_TEST((megaChatApi[a2]->getChatConnectionState(targetChatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
-                                     "Not connected to chatd for account " + std::to_string(a2+1) + ": " + mAccounts[a2].getEmail());
+                       // Wait until connected to chatd for secondary account
+                       bool *flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
+                       while (megaChatApi[a2]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+                       {
+                           postLog("Waiting for connection to chatd...");
+                           ::mega::unique_ptr <char[]> handleB64(megaApi[a2]->handleToBase64(chat->getChatId()));
+                           ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline2), "Not connected to chatd for account " + std::to_string(a2+1) + ": " + mAccounts[a2].getEmail() + " Chatid: "+ handleB64.get() + " status: " + std::to_string(megaChatApi[a2]->getChatConnectionState(targetChatid)));
+                           *flagChatdOnline2 = false;
+                       }
                     }
                     break;
                 }
