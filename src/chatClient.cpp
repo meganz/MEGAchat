@@ -3420,7 +3420,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                 if (parent.mKarereClient.connected())
                 {
                     KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
-                    if (mChat->onlineState() != ::chatd::ChatState::kChatStateJoining)
+                    if (mChat->onlineState() < ::chatd::ChatState::kChatStateJoining)
                     {
                         mChat->connect();
                     }
