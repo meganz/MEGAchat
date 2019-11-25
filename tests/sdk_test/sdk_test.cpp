@@ -1977,6 +1977,11 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int a1, unsigned int a2)
     } while (*flagHistoryLoaded);
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
+    delete [] sessionPrimary;
+    // We need to ensure we finish the test being logged in for the tear down
+    logout(a1);
+    sessionPrimary = login(a1);
+
     ASSERT_CHAT_TEST(msgSentFound, "Failed to load sent message");
     delete msgSent; msgSent = NULL;
     delete chatroomListener;
