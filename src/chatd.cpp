@@ -411,58 +411,13 @@ bool Client::areAllChatsLoggedIn(int shard)
 
 void Chat::connect(const char *url)
 {
-    // attempt a connection ONLY if this is a new shard.
-    if (mConnection.state() == Connection::kStateNew)
+    if ((mConnection.state() == Connection::kStateNew))
     {
-        mConnection.setState(Connection::kStateFetchingUrl);
-        auto wptr = getDelTracker();
-
-        ApiPromise pms;
-        if (!mChatdClient.mKarereClient->anonymousMode())
+        // attempt a connection ONLY if this is a new shard.
+        mConnection.connect(url)
+        .fail([this](const ::promise::Error& err)
         {
-            pms = mChatdClient.mKarereClient->api.call(&::mega::MegaApi::getUrlChat, mChatId);
-        }
-        else
-        {
-            // use URL from params --> retrieved before connect's call through mcphurl
-            pms = ApiPromise();
-            pms.resolve(nullptr);
-        }
-
-        pms.then([wptr, this, url](ReqResult result)
-        {
-            if (wptr.deleted())
-            {
-                CHATD_LOG_DEBUG("Chatd URL request completed, but chatd client was deleted");
-                return;
-            }
-
-            std::string connectUrl;
-            if (!mChatdClient.mKarereClient->anonymousMode())
-            {
-                const char* auxurl = result->getLink();
-                if (!auxurl || !auxurl[0])
-                {
-                    CHATID_LOG_ERROR("No chatd URL received from API");
-                    return;
-                }
-
-                connectUrl.assign(auxurl);
-            }
-            else
-            {
-                connectUrl.assign(url);
-            }
-
-            std::string sUrl = connectUrl;
-            mConnection.mUrl.parse(sUrl);
-            mConnection.mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
-
-            mConnection.reconnect()
-            .fail([this](const ::promise::Error& err)
-            {
-                CHATID_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
-            });
+            CHATID_LOG_ERROR("Chat::connect(): Error connecting to server: %s", err.what());
         });
     }
     else if (mConnection.isOnline())
@@ -1092,25 +1047,38 @@ int Connection::shardNo() const
     return mShardNo;
 }
 
-promise::Promise<void> Connection::connect()
+promise::Promise<void> Connection::connect(const char *url)
 {
-    return fetchUrl()
+    return fetchUrl(url)
     .then([this]
     {
+        CHATDS_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL");
         return reconnect();
     });
 }
 
-promise::Promise<void> Connection::fetchUrl()
+promise::Promise<void> Connection::fetchUrl(const char *url)
 {
     assert(!mChatIds.empty());
     if (state() >= Connection::kStateFetchingUrl)
         return Void{};
     setState(kStateFetchingUrl);
 
+    ApiPromise pms;
+    std::string urlString;
+    if (url)
+    {
+        urlString.append(url);
+        pms.resolve(ReqResult());
+    }
+    else
+    {
+       pms = mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin());
+    }
+
     auto wptr = getDelTracker();
-    return mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
-    .then([wptr, this](ReqResult result)
+    return pms
+    .then([wptr, urlString, this](ReqResult result)
     {
         if (wptr.deleted())
         {
@@ -1118,18 +1086,21 @@ promise::Promise<void> Connection::fetchUrl()
             return;
         }
 
-        const char* url = result->getLink();
-        if (!url || !url[0])
+        const char* urlstr = !urlString.empty()
+            ? urlString.c_str()
+            : result->getLink();
+
+        if (!urlstr || !urlstr[0])
         {
             CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, *mChatIds.begin());
             return;
         }
 
-        setUrl(url);
+        setUrl(urlstr);
 
         auto& db = mChatdClient.mKarereClient->db;
         for (const auto chatid : mChatIds)
-            db.query("update chats set url = ? where chatid = ?", url, chatid);
+            db.query("update chats set url = ? where chatid = ?", urlstr, chatid);
     });
 }
 

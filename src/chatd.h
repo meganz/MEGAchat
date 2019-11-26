@@ -508,8 +508,8 @@ public:
     int shardNo() const;
     promise::Promise<void> sendSync();
 
-    promise::Promise<void> connect();
-    promise::Promise<void> fetchUrl();
+    promise::Promise<void> connect(const char *url);
+    promise::Promise<void> fetchUrl(const char *url);
     void setUrl(const std::string& url);
     bool updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6);
 };
