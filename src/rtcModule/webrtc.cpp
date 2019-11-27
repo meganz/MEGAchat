@@ -126,10 +126,11 @@ void RtcModule::random(T& result) const
 
 void RtcModule::initInputDevices()
 {
-     std::set<std::pair<std::string, std::string>> videoDevices = loadDeviceList();
+    std::set<std::pair<std::string, std::string>> videoDevices = loadDeviceList();
     if (!videoDevices.empty())
     {
         mVideoDeviceSelected = videoDevices.begin()->second;
+        RTCM_LOG_DEBUG("Video device selected -> %s", videoDevices.begin()->second.c_str());
     }
 }
 

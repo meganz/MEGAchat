@@ -13,7 +13,6 @@
 #include <api/peer_connection_interface.h>
 #include "api/task_queue/default_task_queue_factory.h"
 #include <api/rtc_event_log/rtc_event_log_factory.h>
-//#include <base/android/jni_android.h>
 #include <jni.h>
 #include "sdk/android/native_api/audio_device_module/audio_device_android.h"
 #include <sdk/android/src/jni/jni_generator_helper.h>
@@ -21,6 +20,10 @@
 #include "sdk/android/src/jni/audio_device/audio_track_jni.h"
 #include "sdk/android/src/jni/audio_device/audio_device_module.h"
 #include "sdk/android/native_api/video/video_source.h"
+#include "webrtc/sdk/android/native_api/base/init.h"
+
+
+//#include "base/android/jni_android.h"
 //#include <webrtc/api/videosourceproxy.h>
 //#include <webrtc/sdk/android/src/jni/androidvideotracksource.h>
 
@@ -29,8 +32,8 @@ extern JNIEnv *jenv;
 extern jobject globalContext;
 extern jclass applicationClass;
 extern jmethodID startVideoCaptureMID;
-extern jmethodID startVideoCaptureWithParametersMID;
 extern jmethodID stopVideoCaptureMID;
+extern jmethodID deviceListMID;
 extern jobject surfaceTextureHelper;
 #endif
 
@@ -68,7 +71,6 @@ bool init(void *appCtx)
     gThread->SetName("Main Thread", gThread.get());
     threadMgr->SetCurrentThread(gThread.get());
 
-    rtc::InitializeSSL();
     if (gWebrtcContext == nullptr)
     {
         rtc::LogMessage::LogToDebug(rtc::LS_INFO);
@@ -255,6 +257,7 @@ CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &c
 #ifdef __APPLE__
     mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new OBJCCaptureModule(capabilities, deviceName));
 #elif __ANDROID__
+    JNIEnv* env;
     mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleAndroid(capabilities, deviceName));
 #else
     mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleLinux(capabilities));
@@ -265,34 +268,68 @@ CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &c
     CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
         : mCapabilities(capabilities)
     {
-        mEnv = webrtc::AttachCurrentThreadIfNeeded();
-        mVideoSource = webrtc::CreateJavaVideoSource(mEnv, gThread.get(), false, true);
+        JNIEnv* env;
+        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+        startVideoCaptureMID = env->GetStaticMethodID(applicationClass, "startVideoCapture", "(IIILorg/webrtc/SurfaceTextureHelper;Lorg/webrtc/CapturerObserver;Ljava/lang/String;)V");
+        if (!startVideoCaptureMID)
+        {
+            env->ExceptionClear();
+        }
+
+        stopVideoCaptureMID = env->GetStaticMethodID(applicationClass, "stopVideoCapture", "()V");
+        if (!stopVideoCaptureMID)
+        {
+            env->ExceptionClear();
+        }
+
+        mVideoSource = webrtc::CreateJavaVideoSource(env, gThread.get(), false, true);
     }
 
     CaptureModuleAndroid::~CaptureModuleAndroid()
     {
-        MEGAjvm->DetachCurrentThread();
     }
 
     std::set<std::pair<std::string, std::string>> CaptureModuleAndroid::getVideoDevices()
     {
         std::set<std::pair<std::string, std::string>> devices;
+        JNIEnv* env;
+        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+        if (deviceListMID)
+        {
+            jobject object = env->CallStaticObjectMethod(applicationClass, deviceListMID);
+            jobjectArray* array = reinterpret_cast<jobjectArray*>(&object);
+            jsize size = env->GetArrayLength(*array);
+            for (jsize i = 0; i < size; i++)
+            {
+                jstring device = (jstring)env->GetObjectArrayElement(*array, i);
+                const char *characters = env->GetStringUTFChars(device, NULL);
+                std::string deviceStr = std::string(characters);
+                env->ReleaseStringUTFChars(device, characters);
+                devices.insert(std::pair<std::string, std::string>(deviceStr, deviceStr));
+            }
+        }
+
         return devices;
     }
 
     void CaptureModuleAndroid::openDevice(const std::string &videoDevice)
     {
-        if (startVideoCaptureWithParametersMID)
+        JNIEnv* env;
+        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+        if (startVideoCaptureMID)
         {
-            mEnv->CallStaticVoidMethod(applicationClass, startVideoCaptureWithParametersMID, (jint)mCapabilities.width, (jint)mCapabilities.height, (jint)mCapabilities.maxFPS, surfaceTextureHelper, mVideoSource->GetJavaVideoCapturerObserver(mEnv).Release());
+            jstring javaDevice = env->NewStringUTF(videoDevice.c_str());
+            env->CallStaticVoidMethod(applicationClass, startVideoCaptureMID, (jint)mCapabilities.width, (jint)mCapabilities.height, (jint)mCapabilities.maxFPS, surfaceTextureHelper, mVideoSource->GetJavaVideoCapturerObserver(env).Release(), javaDevice);
         }
     }
 
     void CaptureModuleAndroid::releaseDevice()
     {
-        if (startVideoCaptureWithParametersMID)
+        JNIEnv* env;
+        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+        if (stopVideoCaptureMID)
         {
-            mEnv->CallStaticVoidMethod(applicationClass, stopVideoCaptureMID);
+            env->CallStaticVoidMethod(applicationClass, stopVideoCaptureMID);
         }
     }
 
