@@ -1763,6 +1763,8 @@ public:
         }
         g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: Email: " + std::string{request->getEmail()});
         m_emails.emplace(request->getEmail());
+        conlock(cout) << "ReviewPublicChat: Email: " + std::string{request->getEmail()}
+                      << " (" << m_emails.size() << " / " << m_userCount.load() << ")" << endl;
         if (m_emails.size() < static_cast<size_t>(m_userCount.load()))
         {
             // Wait until we've received emails for all users
@@ -1849,6 +1851,14 @@ void exec_reviewpublicchat(ac::ACState& s)
     {
         conlock(cout) << "Error: Not logged in" << endl;
         return;
+    }
+
+    std::unique_ptr<m::MegaUserList> contacts{g_megaApi->getContacts()};
+    conlock(cout) << "Current user contacts (" << contacts->size() << "):" << endl;
+    for (int i = 0; i < contacts->size(); ++i)
+    {
+        std::unique_ptr<char[]> handle{g_megaApi->userHandleToBase64(contacts->get(i)->getHandle())};
+        conlock(cout) << handle.get() << " " << contacts->get(i)->getEmail() << endl;
     }
 
     const auto chat_link = s.words[1].s;
