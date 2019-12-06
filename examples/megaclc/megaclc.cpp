@@ -791,7 +791,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         };
 
         cout << room_title
-             << " | " << "ATTACHEMENT"
+             << " | " << "ATTACHMENT"
              << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
              << " | " << ch_s(msg->getUserHandle())
              << " | " << fullname(msg->getUserHandle())
