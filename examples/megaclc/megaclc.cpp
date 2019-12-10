@@ -716,14 +716,30 @@ bool g_detailHigh = false;
 
 std::atomic<bool> g_reportMessagesDeveloper{false};
 
+// These two objects are helping to work around history loading problems for reviewing public chats
+std::atomic<bool> g_reviewingPublicChat{false};
+std::atomic<int> g_reviewPublicChatMsgCountRemaining{0};
+
 void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
 {
+    static bool lastMsgValid = true;
     auto cl = conlock(cout);
     if (!msg)
     {
         cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
+        if (g_reviewingPublicChat && lastMsgValid && g_reviewPublicChatMsgCountRemaining > 0)
+        {
+            g_chatApi->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining);
+        }
+        lastMsgValid = false;
         return;
     }
+
+    if (g_reviewingPublicChat)
+    {
+        --g_reviewPublicChatMsgCountRemaining;
+    }
+    lastMsgValid = true;
 
     const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
     const std::string room_title = room ? room->getTitle() : "<No Title>";
@@ -773,25 +789,13 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     }
     else if (msg->getType() == c::MegaChatMessage::TYPE_ALTER_PARTICIPANTS)
     {
-        auto joined_or_left = [msg](const c::MegaChatHandle handle)
-        {
-            for (unsigned i = 0; i < msg->getUsersCount(); ++i)
-            {
-                if (handle == msg->getUserHandle(i))
-                {
-                    return std::string{"left"};
-                }
-            }
-            return std::string{"joined"};
-        };
-
         cout << room_title
              << " | " << "PARTICIPANT"
              << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
              << " | " << ch_s(msg->getHandleOfAction())
              << " | " << fullname(msg->getHandleOfAction())
              << " | " << email(msg->getHandleOfAction())
-             << " | " << joined_or_left(msg->getHandleOfAction())
+             << " | " << "joined/left"
            ;
         cout << endl;
     }
@@ -817,7 +821,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         };
 
         cout << room_title
-             << " | " << "ATTACHEMENT"
+             << " | " << "ATTACHMENT"
              << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
              << " | " << ch_s(msg->getUserHandle())
              << " | " << fullname(msg->getUserHandle())
@@ -1750,9 +1754,7 @@ void exec_loadmessages(ac::ACState& s)
 class ReviewPublicChat_GetUserEmail_Listener : public m::MegaListener
 {
 public:
-    explicit ReviewPublicChat_GetUserEmail_Listener(int msg_count)
-    : m_msgCount{msg_count}
-    {}
+    ReviewPublicChat_GetUserEmail_Listener() = default;
 
     ReviewPublicChat_GetUserEmail_Listener(const ReviewPublicChat_GetUserEmail_Listener&) = delete;
     ReviewPublicChat_GetUserEmail_Listener& operator=(const ReviewPublicChat_GetUserEmail_Listener&) = delete;
@@ -1771,6 +1773,8 @@ public:
         }
         g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: Email: " + std::string{request->getEmail()});
         m_emails.emplace(request->getEmail());
+        conlock(cout) << "ReviewPublicChat: Email: " + std::string{request->getEmail()}
+                      << " (" << m_emails.size() << " / " << m_userCount.load() << ")" << endl;
         if (m_emails.size() < static_cast<size_t>(m_userCount.load()))
         {
             // Wait until we've received emails for all users
@@ -1780,12 +1784,11 @@ public:
         api->removeListener(this);
 
         const auto chatid = m_chatId.load();
-        const auto msg_count = m_msgCount;
 
         auto push_received_listener = new OneShotChatRequestListener;
 
         push_received_listener->onRequestFinishFunc =
-                [chatid, msg_count](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
+                [chatid](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
                 {
                     // Called on Mega Chat API thread
                     if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED || !check_err("TYPE_PUSH_RECEIVED", e))
@@ -1817,15 +1820,19 @@ public:
                     {
                         g_reportMessagesDeveloper = false;
 
-                        const auto source = api->loadMessages(chatid, msg_count);
-
-                        auto cl = conlock(cout);
-                        switch (source)
+                        constexpr int errorRetryCount = 10;
+                        for (int i = 0; i < errorRetryCount; ++i)
                         {
-                        case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; break;
-                        case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; break;
-                        case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
-                        case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
+                            const auto source = api->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining.load());
+
+                            auto cl = conlock(cout);
+                            switch (source)
+                            {
+                            case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; continue;
+                            case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; return;
+                            case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; return;
+                            case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; return;
+                            }
                         }
                     }
                 };
@@ -1846,7 +1853,6 @@ public:
 private:
 
     std::set<std::string> m_emails;
-    int m_msgCount;
     std::atomic<int> m_userCount{0};
     std::atomic<c::MegaChatHandle> m_chatId{0};
 };
@@ -1859,9 +1865,19 @@ void exec_reviewpublicchat(ac::ACState& s)
         return;
     }
 
+    g_reviewingPublicChat = true;
+
+    std::unique_ptr<m::MegaUserList> contacts{g_megaApi->getContacts()};
+    conlock(cout) << "Current user contacts (" << contacts->size() << "):" << endl;
+    for (int i = 0; i < contacts->size(); ++i)
+    {
+        std::unique_ptr<char[]> handle{g_megaApi->userHandleToBase64(contacts->get(i)->getHandle())};
+        conlock(cout) << handle.get() << " " << contacts->get(i)->getEmail() << endl;
+    }
+
     const auto chat_link = s.words[1].s;
-    const int msg_count = s.words.size() > 2 ? stoi(s.words[2].s) : 100;
-    static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener{msg_count};
+    g_reviewPublicChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : 1000;
+    static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener;
 
     auto connect_listener = new OneShotChatRequestListener;
     auto open_chat_preview_listener = new OneShotChatRequestListener;
@@ -3393,7 +3409,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
     p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10), opt(either(text("human"), text("developer")))));
-    p->Add(exec_reviewpublicchat,   sequence(text("reviewpublicchat"), param("chatlink"), opt(wholenumber(100))));
+    p->Add(exec_reviewpublicchat,   sequence(text("reviewpublicchat"), param("chatlink"), opt(wholenumber(1000))));
     p->Add(exec_isfullhistoryloaded, sequence(text("isfullhistoryloaded"), param("roomid")));
     p->Add(exec_getmessage,         sequence(text("getmessage"), param("roomid"), param("msgid")));
     p->Add(exec_getmanualsendingmessage, sequence(text("getmanualsendingmessage"), param("roomid"), param("tempmsgid")));
