@@ -25,7 +25,6 @@
 #include <atomic>
 #include <iomanip>
 #include <fstream>
-#include <future>
 #include <mutex>
 #include <thread>
 #include <regex>
