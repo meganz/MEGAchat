@@ -716,9 +716,10 @@ bool g_detailHigh = false;
 
 std::atomic<bool> g_reportMessagesDeveloper{false};
 
-// These two objects are helping to work around history loading problems for reviewing public chats
+// These objects are helping to work around history loading problems for reviewing public chats
 std::atomic<bool> g_reviewingPublicChat{false};
 std::atomic<int> g_reviewPublicChatMsgCountRemaining{0};
+std::map<m::handle, std::string> g_reviewPublicChatEmails;
 
 void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
 {
@@ -761,7 +762,23 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         {
             email_ptr = room->getPeerEmailByHandle(handle);
         }
-        return email_ptr ? std::string{email_ptr} : std::string{"<No Email>"};
+
+        if (email_ptr && *email_ptr != '\0')
+        {
+            return std::string{email_ptr};
+        }
+        else
+        {
+            auto emailIt = g_reviewPublicChatEmails.find(handle);
+            if (emailIt != g_reviewPublicChatEmails.end())
+            {
+                return emailIt->second;
+            }
+            else
+            {
+                return std::string{"<No Email>"};
+            }
+        }
     };
 
     auto time_to_string_utc = [](const int64_t time)
@@ -1772,10 +1789,10 @@ public:
             return;
         }
         g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: Email: " + std::string{request->getEmail()});
-        m_emails.emplace(request->getEmail());
+        g_reviewPublicChatEmails[request->getNodeHandle()] = request->getEmail();
         conlock(cout) << "ReviewPublicChat: Email: " + std::string{request->getEmail()}
-                      << " (" << m_emails.size() << " / " << m_userCount.load() << ")" << endl;
-        if (m_emails.size() < static_cast<size_t>(m_userCount.load()))
+                      << " (" << g_reviewPublicChatEmails.size() << " / " << m_userCount.load() << ")" << endl;
+        if (g_reviewPublicChatEmails.size() < static_cast<size_t>(m_userCount.load()))
         {
             // Wait until we've received emails for all users
             return;
@@ -1851,8 +1868,6 @@ public:
     }
 
 private:
-
-    std::set<std::string> m_emails;
     std::atomic<int> m_userCount{0};
     std::atomic<c::MegaChatHandle> m_chatId{0};
 };
@@ -1867,17 +1882,10 @@ void exec_reviewpublicchat(ac::ACState& s)
 
     g_reviewingPublicChat = true;
 
-    std::unique_ptr<m::MegaUserList> contacts{g_megaApi->getContacts()};
-    conlock(cout) << "Current user contacts (" << contacts->size() << "):" << endl;
-    for (int i = 0; i < contacts->size(); ++i)
-    {
-        std::unique_ptr<char[]> handle{g_megaApi->userHandleToBase64(contacts->get(i)->getHandle())};
-        conlock(cout) << handle.get() << " " << contacts->get(i)->getEmail() << endl;
-    }
-
     const auto chat_link = s.words[1].s;
     g_reviewPublicChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : 1000;
     static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener;
+    // Note: We need to be logged in to receive user emails
 
     auto connect_listener = new OneShotChatRequestListener;
     auto open_chat_preview_listener = new OneShotChatRequestListener;
