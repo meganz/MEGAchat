@@ -25,6 +25,7 @@
 #include <atomic>
 #include <iomanip>
 #include <fstream>
+#include <future>
 #include <mutex>
 #include <thread>
 #include <regex>
@@ -86,7 +87,58 @@ void WaitMillisec(unsigned n)
     usleep(n*1000);
 #endif
 }
-	
+
+class OneShotRequestListener : public m::MegaRequestListener
+{
+public:
+    std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
+
+    explicit OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f = {})
+        :onRequestFinishFunc(f)
+    {
+    }
+
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
+    {
+        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+};
+
+class OneShotChatRequestListener : public c::MegaChatRequestListener
+{
+public:
+    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request)> onRequestStartFunc;
+    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> onRequestFinishFunc;
+    std::function<void(c::MegaChatApi*api, c::MegaChatRequest *request)> onRequestUpdateFunc;
+    std::function<void(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error)> onRequestTemporaryErrorFunc;
+
+    explicit OneShotChatRequestListener(std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> f = {})
+        :onRequestFinishFunc(f)
+    {
+    }
+
+    void onRequestStart(c::MegaChatApi* api, c::MegaChatRequest *request) override
+    {
+        if (onRequestStartFunc) onRequestStartFunc(api, request);
+    }
+
+    void onRequestFinish(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e) override
+    {
+        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+
+    void onRequestUpdate(c::MegaChatApi*api, c::MegaChatRequest *request) override
+    {
+        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
+    }
+
+    void onRequestTemporaryError(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error) override
+    {
+        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
+    }
+};
 
 struct ConsoleLock
 {
@@ -716,9 +768,54 @@ bool g_detailHigh = false;
 
 std::atomic<bool> g_reportMessagesDeveloper{false};
 
-// These two objects are helping to work around history loading problems for reviewing public chats
+// These objects are helping to work around history loading problems for reviewing public chats
 std::atomic<bool> g_reviewingPublicChat{false};
 std::atomic<int> g_reviewPublicChatMsgCountRemaining{0};
+std::map<c::MegaChatHandle, std::string> g_reviewPublicChatEmails;
+std::map<c::MegaChatHandle, std::string> g_reviewPublicChatFirstnames;
+std::map<c::MegaChatHandle, std::string> g_reviewPublicChatLastnames;
+
+void reviewPublicChatFetchFirstName(const c::MegaChatRoom& room, const c::MegaChatHandle userHandle)
+{
+    conlock(cout) << "Fetching first name for: " << userHandle << endl;
+    g_chatApi->getUserFirstname(userHandle, room.getAuthorizationToken(), new OneShotChatRequestListener{
+                                [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+                                {
+                                    if (e->getErrorCode() == c::MegaChatError::ERROR_OK)
+                                    {
+                                        g_reviewPublicChatFirstnames[request->getUserHandle()] = request->getText();
+                                    }
+                                }
+                            });
+}
+
+void reviewPublicChatFetchLastName(const c::MegaChatRoom& room, const c::MegaChatHandle userHandle)
+{
+    conlock(cout) << "Fetching last name for: " << userHandle << endl;
+    g_chatApi->getUserLastname(userHandle, room.getAuthorizationToken(), new OneShotChatRequestListener{
+                                [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+                                {
+                                    if (e->getErrorCode() == c::MegaChatError::ERROR_OK)
+                                    {
+                                        g_reviewPublicChatLastnames[request->getUserHandle()] = request->getText();
+                                    }
+                                }
+                            });
+}
+
+void reviewPublicChatFetchEmail(const c::MegaChatHandle userHandle)
+{
+    conlock(cout) << "Fetching email for: " << userHandle << endl;
+    g_chatApi->getUserEmail(userHandle, new OneShotChatRequestListener{
+                                [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+                                {
+                                    if (e->getErrorCode() == c::MegaChatError::ERROR_OK)
+                                    {
+                                        g_reviewPublicChatEmails[request->getUserHandle()] = request->getText();
+                                    }
+                                }
+                            });
+}
 
 void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
 {
@@ -744,14 +841,62 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
     const std::string room_title = room ? room->getTitle() : "<No Title>";
 
-    auto fullname = [chatid,room](const c::MegaChatHandle handle)
+    auto firstname = [chatid,room](const c::MegaChatHandle handle)
     {
-        const char* fullname_ptr = nullptr;
+        const char* firstname_ptr = nullptr;
         if (room)
         {
-            fullname_ptr = room->getPeerFullnameByHandle(handle);
+            firstname_ptr = room->getPeerFirstnameByHandle(handle);
         }
-        return fullname_ptr ? std::string{fullname_ptr} : std::string{"<No Fullname>"};
+        if (firstname_ptr && *firstname_ptr != '\0')
+        {
+            return std::string{firstname_ptr};
+        }
+        else if (g_reviewingPublicChat)
+        {
+            auto it = g_reviewPublicChatFirstnames.find(handle);
+            if (it != g_reviewPublicChatFirstnames.end())
+            {
+                return it->second;
+            }
+            else
+            {
+                if (room)
+                {
+                    reviewPublicChatFetchFirstName(*room, handle);
+                }
+                return std::string{"<No Firstname>"};
+            }
+        }
+    };
+
+    auto lastname = [chatid,room](const c::MegaChatHandle handle)
+    {
+        const char* lastname_ptr = nullptr;
+        if (room)
+        {
+            lastname_ptr = room->getPeerLastnameByHandle(handle);
+        }
+        if (lastname_ptr && *lastname_ptr != '\0')
+        {
+            return std::string{lastname_ptr};
+        }
+        else if (g_reviewingPublicChat)
+        {
+            auto it = g_reviewPublicChatLastnames.find(handle);
+            if (it != g_reviewPublicChatLastnames.end())
+            {
+                return it->second;
+            }
+            else
+            {
+                if (room)
+                {
+                    reviewPublicChatFetchLastName(*room, handle);
+                }
+                return std::string{"<No Lastname>"};
+            }
+        }
     };
 
     auto email = [chatid,room](const c::MegaChatHandle handle)
@@ -761,7 +906,24 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         {
             email_ptr = room->getPeerEmailByHandle(handle);
         }
-        return email_ptr ? std::string{email_ptr} : std::string{"<No Email>"};
+
+        if (email_ptr && *email_ptr != '\0')
+        {
+            return std::string{email_ptr};
+        }
+        else if (g_reviewingPublicChat)
+        {
+            auto it = g_reviewPublicChatEmails.find(handle);
+            if (it != g_reviewPublicChatEmails.end())
+            {
+                return it->second;
+            }
+            else
+            {
+                reviewPublicChatFetchEmail(handle);
+                return std::string{"<No Email>"};
+            }
+        }
     };
 
     auto time_to_string_utc = [](const int64_t time)
@@ -779,7 +941,8 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
              << " | " << "TEXT"
              << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
              << " | " << ch_s(msg->getUserHandle())
-             << " | " << fullname(msg->getUserHandle())
+             << " | " << firstname(msg->getUserHandle())
+             << " | " << lastname(msg->getUserHandle())
              << " | " << email(msg->getUserHandle())
              << " | " << (msg->isEdited() ? "edited" : "not edited")
              << " | " << (msg->isDeleted() ? "deleted" : "not deleted")
@@ -793,7 +956,8 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
              << " | " << "PARTICIPANT"
              << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
              << " | " << ch_s(msg->getHandleOfAction())
-             << " | " << fullname(msg->getHandleOfAction())
+             << " | " << firstname(msg->getUserHandle())
+             << " | " << lastname(msg->getUserHandle())
              << " | " << email(msg->getHandleOfAction())
              << " | " << "joined/left"
            ;
@@ -824,7 +988,8 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
              << " | " << "ATTACHMENT"
              << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
              << " | " << ch_s(msg->getUserHandle())
-             << " | " << fullname(msg->getUserHandle())
+             << " | " << firstname(msg->getUserHandle())
+             << " | " << lastname(msg->getUserHandle())
              << " | " << email(msg->getUserHandle())
              << " | " << nodeinfo(msg->getMegaNodeList())
            ;
@@ -953,17 +1118,17 @@ struct CLCRoomListener : public c::MegaChatRoomListener
         reportMessage(room, msg, "loaded");
     }
 
-    virtual void onMessageReceived(c::MegaChatApi*, c::MegaChatMessage *msg)
+    void onMessageReceived(c::MegaChatApi*, c::MegaChatMessage *msg) override
     {
         reportMessage(room, msg, "received");
     }
 
-    virtual void onMessageUpdate(c::MegaChatApi*, c::MegaChatMessage *msg)
+    void onMessageUpdate(c::MegaChatApi*, c::MegaChatMessage *msg) override
     {
         reportMessage(room, msg, "updated");
     }
 
-    virtual void onHistoryReloaded(c::MegaChatApi*, c::MegaChatRoom *chat)
+    void onHistoryReloaded(c::MegaChatApi*, c::MegaChatRoom *chat) override
     {
         conlock(cout) << "Room " << room << " notification that room " << chat->getChatId() << " is reloading" << endl;
     }
@@ -1410,58 +1575,6 @@ string chatlistDetails(const c::MegaChatListItem& cli)
     return s.str();
 };
 
-class OneShotRequestListener : public m::MegaRequestListener
-{
-public:
-    std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
-
-    explicit OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f = {})
-        :onRequestFinishFunc(f)
-    {
-    }
-
-    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
-    {
-        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
-        delete this;  // one-shot is done so auto-delete
-    }
-};
-
-class OneShotChatRequestListener : public c::MegaChatRequestListener
-{
-public:
-    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request)> onRequestStartFunc;
-    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> onRequestFinishFunc;
-    std::function<void(c::MegaChatApi*api, c::MegaChatRequest *request)> onRequestUpdateFunc;
-    std::function<void(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error)> onRequestTemporaryErrorFunc;
-
-    explicit OneShotChatRequestListener(std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> f = {})
-        :onRequestFinishFunc(f)
-    {
-    }
-
-    void onRequestStart(c::MegaChatApi* api, c::MegaChatRequest *request) override
-    {
-        if (onRequestStartFunc) onRequestStartFunc(api, request);
-    }
-
-    void onRequestFinish(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e) override
-    {
-        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
-        delete this;  // one-shot is done so auto-delete
-    }
-
-    void onRequestUpdate(c::MegaChatApi*api, c::MegaChatRequest *request) override
-    {
-        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
-    }
-
-    void onRequestTemporaryError(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error) override
-    {
-        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
-    }
-};
-
 void exec_getchatlistitems(ac::ACState&)
 {
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getChatListItems());
@@ -1772,10 +1885,10 @@ public:
             return;
         }
         g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: Email: " + std::string{request->getEmail()});
-        m_emails.emplace(request->getEmail());
+        g_reviewPublicChatEmails[request->getNodeHandle()] = request->getEmail();
         conlock(cout) << "ReviewPublicChat: Email: " + std::string{request->getEmail()}
-                      << " (" << m_emails.size() << " / " << m_userCount.load() << ")" << endl;
-        if (m_emails.size() < static_cast<size_t>(m_userCount.load()))
+                      << " (" << g_reviewPublicChatEmails.size() << " / " << m_userCount.load() << ")" << endl;
+        if (g_reviewPublicChatEmails.size() < static_cast<size_t>(m_userCount.load()))
         {
             // Wait until we've received emails for all users
             return;
@@ -1851,8 +1964,6 @@ public:
     }
 
 private:
-
-    std::set<std::string> m_emails;
     std::atomic<int> m_userCount{0};
     std::atomic<c::MegaChatHandle> m_chatId{0};
 };
@@ -1867,17 +1978,10 @@ void exec_reviewpublicchat(ac::ACState& s)
 
     g_reviewingPublicChat = true;
 
-    std::unique_ptr<m::MegaUserList> contacts{g_megaApi->getContacts()};
-    conlock(cout) << "Current user contacts (" << contacts->size() << "):" << endl;
-    for (int i = 0; i < contacts->size(); ++i)
-    {
-        std::unique_ptr<char[]> handle{g_megaApi->userHandleToBase64(contacts->get(i)->getHandle())};
-        conlock(cout) << handle.get() << " " << contacts->get(i)->getEmail() << endl;
-    }
-
     const auto chat_link = s.words[1].s;
     g_reviewPublicChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : 1000;
     static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener;
+    // Note: We need to be logged in to receive user emails
 
     auto connect_listener = new OneShotChatRequestListener;
     auto open_chat_preview_listener = new OneShotChatRequestListener;
