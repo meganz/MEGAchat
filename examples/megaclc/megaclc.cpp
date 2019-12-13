@@ -858,15 +858,12 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
             {
                 return it->second;
             }
-            else
+            else if (room)
             {
-                if (room)
-                {
-                    reviewPublicChatFetchFirstName(*room, handle);
-                }
-                return std::string{"<No Firstname>"};
+                reviewPublicChatFetchFirstName(*room, handle);
             }
         }
+        return std::string{"<No Firstname>"};
     };
 
     auto lastname = [chatid,room](const c::MegaChatHandle handle)
@@ -887,15 +884,12 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
             {
                 return it->second;
             }
-            else
+            else if (room)
             {
-                if (room)
-                {
-                    reviewPublicChatFetchLastName(*room, handle);
-                }
-                return std::string{"<No Lastname>"};
+                reviewPublicChatFetchLastName(*room, handle);
             }
         }
+        return std::string{"<No Lastname>"};
     };
 
     auto email = [chatid,room](const c::MegaChatHandle handle)
@@ -920,9 +914,9 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
             else
             {
                 reviewPublicChatFetchEmail(handle);
-                return std::string{"<No Email>"};
             }
         }
+        return std::string{"<No Email>"};
     };
 
     auto time_to_string_utc = [](const int64_t time)
