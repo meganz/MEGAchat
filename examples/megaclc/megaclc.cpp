@@ -774,9 +774,40 @@ std::map<c::MegaChatHandle, std::string> g_reviewPublicChatEmails;
 std::map<c::MegaChatHandle, std::string> g_reviewPublicChatFirstnames;
 std::map<c::MegaChatHandle, std::string> g_reviewPublicChatLastnames;
 
+void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
+{
+    constexpr int errorRetryCount = 10;
+    int source = c::MegaChatApi::SOURCE_NONE;
+    for (int i = 0; i < errorRetryCount; ++i)
+    {
+        source = g_chatApi->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining.load());
+
+        auto cl = conlock(cout);
+        switch (source)
+        {
+            case c::MegaChatApi::SOURCE_ERROR:
+            {
+                cout << "Load failed as we are offline." << endl;
+                continue;
+            }
+            case c::MegaChatApi::SOURCE_NONE:
+            {
+                g_reviewPublicChatMsgCountRemaining = 0;
+                cout << "No more messages." << endl;
+                return;
+            }
+            default: return;
+        }
+    }
+    if (source == c::MegaChatApi::SOURCE_ERROR)
+    {
+        g_reviewPublicChatMsgCountRemaining = 0;
+    }
+}
+
 void reviewPublicChatFetchFirstName(const c::MegaChatRoom& room, const c::MegaChatHandle userHandle)
 {
-    conlock(cout) << "Fetching first name for: " << userHandle << endl;
+    conlock(cout) << "Fetching first name for: " << ch_s(userHandle) << endl;
     g_chatApi->getUserFirstname(userHandle, room.getAuthorizationToken(), new OneShotChatRequestListener{
                                 [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
                                 {
@@ -790,7 +821,7 @@ void reviewPublicChatFetchFirstName(const c::MegaChatRoom& room, const c::MegaCh
 
 void reviewPublicChatFetchLastName(const c::MegaChatRoom& room, const c::MegaChatHandle userHandle)
 {
-    conlock(cout) << "Fetching last name for: " << userHandle << endl;
+    conlock(cout) << "Fetching last name for: " << ch_s(userHandle) << endl;
     g_chatApi->getUserLastname(userHandle, room.getAuthorizationToken(), new OneShotChatRequestListener{
                                 [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
                                 {
@@ -804,7 +835,7 @@ void reviewPublicChatFetchLastName(const c::MegaChatRoom& room, const c::MegaCha
 
 void reviewPublicChatFetchEmail(const c::MegaChatHandle userHandle)
 {
-    conlock(cout) << "Fetching email for: " << userHandle << endl;
+    conlock(cout) << "Fetching email for: " << ch_s(userHandle) << endl;
     g_chatApi->getUserEmail(userHandle, new OneShotChatRequestListener{
                                 [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
                                 {
@@ -818,16 +849,18 @@ void reviewPublicChatFetchEmail(const c::MegaChatHandle userHandle)
 
 void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
 {
-    static bool lastMsgValid = true;
     auto cl = conlock(cout);
     if (!msg)
     {
-        cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
-        if (g_reviewingPublicChat && lastMsgValid && g_reviewPublicChatMsgCountRemaining > 0)
+        if (g_chatApi->isFullHistoryLoaded(chatid))
         {
-            g_chatApi->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining);
+            return;
         }
-        lastMsgValid = false;
+        cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
+        if (g_reviewingPublicChat && g_reviewPublicChatMsgCountRemaining > 0)
+        {
+            reviewPublicChatLoadMessages(chatid);
+        }
         return;
     }
 
@@ -835,7 +868,6 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     {
         --g_reviewPublicChatMsgCountRemaining;
     }
-    lastMsgValid = true;
 
     const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
     const std::string room_title = room ? room->getTitle() : "<No Title>";
@@ -1925,21 +1957,7 @@ public:
                     if (rec.open)
                     {
                         g_reportMessagesDeveloper = false;
-
-                        constexpr int errorRetryCount = 10;
-                        for (int i = 0; i < errorRetryCount; ++i)
-                        {
-                            const auto source = api->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining.load());
-
-                            auto cl = conlock(cout);
-                            switch (source)
-                            {
-                            case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; continue;
-                            case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; return;
-                            case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; return;
-                            case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; return;
-                            }
-                        }
+                        reviewPublicChatLoadMessages(chatid);
                     }
                 };
 
