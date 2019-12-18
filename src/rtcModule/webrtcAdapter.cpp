@@ -26,6 +26,7 @@ namespace artc
 
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = nullptr;
+std::unique_ptr<rtc::Thread> gThread = nullptr;
 
 static bool gIsInitialized = false;
 AsyncWaiter* gAsyncWaiter = nullptr;
@@ -48,17 +49,17 @@ bool init(void *appCtx)
 // Put our custom Thread object in the main thread, so our main thread can process
 // webrtc messages, in a non-blocking way, integrated with the application's message loop
     gAsyncWaiter = new AsyncWaiter(appCtx);
-    auto thread = new rtc::Thread(gAsyncWaiter);
-    gAsyncWaiter->setThread(thread);
-    thread->SetName("Main Thread", thread);
-    threadMgr->SetCurrentThread(thread);
+    gThread = std::unique_ptr<rtc::Thread>(new rtc::Thread(gAsyncWaiter));
+    gAsyncWaiter->setThread(gThread.get());
+    gThread->SetName("Main Thread", gThread.get());
+    threadMgr->SetCurrentThread(gThread.get());
 
     rtc::InitializeSSL();
     if (gWebrtcContext == nullptr)
     {
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
-                    nullptr /* network_thread */, thread /* worker_thread */,
-                    thread /* signaling_thread */, nullptr /* default_adm */,
+                    nullptr /* network_thread */, gThread.get() /* worker_thread */,
+                    gThread.get() /* signaling_thread */, nullptr /* default_adm */,
                     webrtc::CreateBuiltinAudioEncoderFactory(),
                     webrtc::CreateBuiltinAudioDecoderFactory(),
                     webrtc::CreateBuiltinVideoEncoderFactory(),

@@ -25,6 +25,7 @@ namespace artc
 
 extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
 extern AsyncWaiter* gAsyncWaiter;
+extern std::unique_ptr<rtc::Thread> gThread;
 
 struct Identity
 {
