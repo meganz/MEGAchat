@@ -3711,13 +3711,6 @@ void MegaChatApiImpl::pushReceived(bool beep, MegaChatHandle chatid, int type, M
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
-{
-    MegaStringList *devices = new MegaStringListPrivate();
-
-    return devices;
-}
-
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
     std::set<std::string> devicesVector;
@@ -3735,23 +3728,6 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
     MegaStringList *devices = getChatInDevices(devicesVector);
 
     return devices;
-}
-
-bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
-{
-    bool returnedValue = false;
-    sdkMutex.lock();
-    if (mClient && mClient->rtc)
-    {
-        returnedValue = mClient->rtc->selectAudioInDevice(device);
-    }
-    else
-    {
-        API_LOG_ERROR("Failed to set audio-in devices");
-    }
-    sdkMutex.unlock();
-
-    return returnedValue;
 }
 
 void MegaChatApiImpl::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)

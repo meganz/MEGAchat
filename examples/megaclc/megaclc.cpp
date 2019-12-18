@@ -2101,29 +2101,12 @@ void exec_quit(ac::ACState&)
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-void exec_getchataudioindevices(ac::ACState&)
-{
-    unique_ptr<m::MegaStringList> audioDevices(g_chatApi->getChatAudioInDevices());
-    for (int i = 0; i < audioDevices->size(); ++i)
-    {
-        cout << audioDevices->get(i) << endl;
-    }
-}
-
 void exec_getchatvideoindevices(ac::ACState&)
 {
     unique_ptr<m::MegaStringList> videoDevices(g_chatApi->getChatVideoInDevices());
     for (int i = 0; i < videoDevices->size(); ++i)
     {
         cout << videoDevices->get(i) << endl;
-    }
-}
-
-void exec_setchataudioindevice(ac::ACState& s)
-{
-    if (!g_chatApi->setChatAudioInDevice(s.words[1].s.c_str()))
-    {
-        cout << "setChatAudioInDevice failed" << endl;
     }
 }
 
@@ -3358,9 +3341,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_closechatpreview,   sequence(text("closechatpreview"), param("chatid")));
      
 #ifndef KARERE_DISABLE_WEBRTC
-    p->Add(exec_getchataudioindevices, sequence(text("getchataudioindevices")));
     p->Add(exec_getchatvideoindevices, sequence(text("getchatvideoindevices")));
-    p->Add(exec_setchataudioindevice, sequence(text("setchataudioindevice"), param("device")));
     p->Add(exec_setchatvideoindevice, sequence(text("setchatvideoindevice"), param("device")));
     p->Add(exec_startchatcall, sequence(text("startchatcall"), param("roomid"), opt(either(text("true"), text("false")))));
     p->Add(exec_answerchatcall, sequence(text("answerchatcall"), param("roomid"), opt(either(text("true"), text("false")))));

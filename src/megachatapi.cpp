@@ -784,19 +784,9 @@ void MegaChatApi::pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequest
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-MegaStringList *MegaChatApi::getChatAudioInDevices()
-{
-    return pImpl->getChatAudioInDevices();
-}
-
 MegaStringList *MegaChatApi::getChatVideoInDevices()
 {
     return pImpl->getChatVideoInDevices();
-}
-
-bool MegaChatApi::setChatAudioInDevice(const char *device)
-{
-    return pImpl->setChatAudioInDevice(device);
 }
 
 void MegaChatApi::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)

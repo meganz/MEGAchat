@@ -4178,16 +4178,7 @@ public:
 
 
 #ifndef KARERE_DISABLE_WEBRTC
-    // Audio/Video device management
-    /**
-     * @brief Returns a list with the names of available audio devices
-     *
-     * If no device is found, it returns an empty list.
-     * You take the ownership of the returned value
-     *
-     * @return Names of the available audio devices
-     */
-    mega::MegaStringList *getChatAudioInDevices();
+    // Video device management
 
     /**
      * @brief Returns a list with the names of available video devices available
@@ -4198,19 +4189,6 @@ public:
      * @return Names of the available video devices
      */
     mega::MegaStringList *getChatVideoInDevices();
-
-    /**
-     * @brief Select the audio device to be used in calls
-     *
-     * Audio device identifiers are obtained with function MegaChatApi::getChatAudioInDevices
-     *
-     * @note Audio device must be configured before starting a call. It cannot be changed
-     * once the call has started.
-     *
-     * @param device Identifier of device to be selected
-     * @return True if device has been selected. False in other case
-     */
-    bool setChatAudioInDevice(const char *device);
 
     /**
      * @brief Select the video device to be used in calls
@@ -4385,8 +4363,7 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
      *
-     * After call this function, available devices can be obtained calling MegaChatApi::getChatAudioInDevices
-     * or MegaChatApi::getChatVideoInDevices.
+     * After call this function, available devices can be obtained calling MegaChatApi::getChatVideoInDevices.
      *
      * Call this function to update the list of available devices, ie. after plug-in a webcam to your PC.
      *

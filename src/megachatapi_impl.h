@@ -1147,9 +1147,7 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
 
     // Audio/Video devices
-    mega::MegaStringList *getChatAudioInDevices();
     mega::MegaStringList *getChatVideoInDevices();
-    bool setChatAudioInDevice(const char *device);
     void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
     char *getVideoDeviceSelected();
 
