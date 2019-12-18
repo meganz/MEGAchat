@@ -4829,13 +4829,13 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
-        case TYPE_LOAD_PREVIEW: return "TYPE_LOAD_PREVIEW";
-        case TYPE_CHAT_LINK_HANDLE: return "TYPE_CHAT_LINK_HANDLE";
-        case TYPE_SET_PRIVATE_MODE: return "TYPE_SET_PRIVATE_MODE";
-        case TYPE_AUTOJOIN_PUBLIC_CHAT: return "TYPE_AUTOJOIN_PUBLIC_CHAT";
+        case TYPE_LOAD_PREVIEW: return "LOAD_PREVIEW";
+        case TYPE_CHAT_LINK_HANDLE: return "CHAT_LINK_HANDLE";
+        case TYPE_SET_PRIVATE_MODE: return "SET_PRIVATE_MODE";
+        case TYPE_AUTOJOIN_PUBLIC_CHAT: return "AUTOJOIN_PUBLIC_CHAT";
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
-        case TYPE_LAST_GREEN: return "TYPE_LAST_GREEN";
-        case TYPE_CHANGE_VIDEO_STREAM: return "TYPE_CHANGE_VIDEO_STREAM";
+        case TYPE_LAST_GREEN: return "LAST_GREEN";
+        case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
     }
     return "UNKNOWN";
 }
