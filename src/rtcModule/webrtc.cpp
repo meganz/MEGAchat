@@ -181,7 +181,7 @@ bool RtcModule::selectVideoInDevice(const string &devname)
             {
                 if (callIt.second->state() == Call::kStateInProgress && callIt.second->sentAv().video())
                 {
-                    callIt.second->changeVideoStreaming();
+                    callIt.second->changeVideoInDevice();
                 }
             }
 
@@ -2114,20 +2114,23 @@ void Call::enableVideo(bool enable)
         return;
     }
 
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
     if (enable)
     {
+        rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
         if (!mVideoDevice)
         {
             webrtc::VideoCaptureCapability capabilities;
-            capabilities.width = 640;
-            capabilities.height = 480;
-            capabilities.maxFPS = 30;
             if (mChat.isGroup())
             {
                 capabilities.width = 320;
                 capabilities.height = 240;
                 capabilities.maxFPS = 25;
+            }
+            else
+            {
+                capabilities.width = 640;
+                capabilities.height = 480;
+                capabilities.maxFPS = 30;
             }
 
             mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities, mManager.mVideoDeviceSelected));
@@ -2139,6 +2142,7 @@ void Call::enableVideo(bool enable)
         else
         {
             videoTrack = mLocalStream->video();
+            assert(videoTrack);
         }
 
         mVideoDevice->openDevice(mManager.mVideoDeviceSelected);
@@ -2492,7 +2496,7 @@ bool Call::isCaller(Id userid, uint32_t clientid)
     return (userid == mCallerUser && clientid == mCallerClient);
 }
 
-void Call::changeVideoStreaming()
+void Call::changeVideoInDevice()
 {
     enableVideo(false);
     mVideoDevice.reset();
@@ -3137,7 +3141,7 @@ void Session::msgSdpAnswer(RtMessage& packet)
     setRemoteAnswerSdp(packet)
     .then([wptr, this]
     {
-        if (!wptr.deleted())
+        if (wptr.deleted())
             return;
 
         mTsSdpHandshakeCompleted = time(nullptr);
@@ -3402,6 +3406,9 @@ void Session::msgSdpOfferRenegotiate(RtMessage &packet)
     processSdpOfferSendAnswer()
     .then([this, wptr]()
     {
+        if (wptr.deleted())
+            return;
+
         renegotiationComplete();
     });
 }
@@ -3424,6 +3431,9 @@ void Session::msgSdpAnswerRenegotiate(RtMessage &packet)
     setRemoteAnswerSdp(packet)
     .then([this, wptr]()
     {
+        if (wptr.deleted())
+            return;
+
         renegotiationComplete();
     });
 }
@@ -3859,6 +3869,9 @@ promise::Promise<void> Session::setRemoteAnswerSdp(RtMessage &packet)
     return mRtcConn.setRemoteDescription(sdp)
     .fail([wptr, this](const ::promise::Error& err)
     {
+        if (wptr.deleted())
+            return;
+
         std::string msg = "Error setting SDP answer: " + err.msg();
         terminateAndDestroy(TermCode::kErrSdp, msg);
     });

@@ -946,7 +946,7 @@ private:
     std::set<MegaChatCallListener *> callListeners;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> videoListeners;
 
-    mega::MegaStringList *getChatInDevices(const std::set<std::string> &devicesVector);
+    mega::MegaStringList *getChatInDevices(const std::set<std::string> &devices);
     void cleanCallHandlerMap();
 #endif
 

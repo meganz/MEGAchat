@@ -276,7 +276,7 @@ public:
     uint32_t clientidFromSession(karere::Id userid);
     void updateAvFlags(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool isCaller(karere::Id userid, uint32_t clientid);
-    void changeVideoStreaming();
+    void changeVideoInDevice();
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler

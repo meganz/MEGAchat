@@ -103,7 +103,7 @@ enum TermCode: uint8_t
     kCallerGone = 8,
     kBusy = 9,                  // < Peer is in another call
     kStreamChange = 10,         // < Session was force closed by a client because it wants to change the media stream
-    kNotFinished = 11,          // < It is no finished value, it is TermCode value while call is in progress
+    kNotFinished = 125,         // < It is no finished value, it is TermCode value while call is in progress
     kDestroyByCallCollision = 19,// < The call has finished by a call collision
     kNormalHangupLast = 20,     // < Last enum specifying a normal call termination
     kErrorFirst = 21,           // < First enum specifying call termination due to error
@@ -130,8 +130,8 @@ enum TermCode: uint8_t
     kErrIceTimeout = 40,        // < Sesion setup timed out, because ICE stuck at the 'checking' stage
     kErrStreamRenegotation = 41,// < SDP error during stream renegotiation
     kErrStreamRenegotationTimeout = 42, // < Timed out waiting for completion of offer-answer exchange
-    kErrorLast = 40,            // < Last enum indicating call termination due to error
-    kLast = 40,                 // < Last call terminate enum value
+    kErrorLast = 42,            // < Last enum indicating call termination due to error
+    kLast = 42,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f

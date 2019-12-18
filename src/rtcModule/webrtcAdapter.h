@@ -281,8 +281,6 @@ public:
 
     ~LocalStreamHandle()
     { //make sure the stream is released before the tracks
-        mAudio = nullptr;
-        mVideo = nullptr;
     }
 
     void addAudioTrack(const rtc::scoped_refptr<webrtc::AudioTrackInterface>& audio)
