@@ -1750,6 +1750,8 @@ public class MegaChatApiJava {
             DelegateMegaChatRoomListener item = itr.next();
             if(item.getUserListener() == listener){
                 listenerToDelete = item;
+                boolean success = listenerToDelete.invalidateUserListener();
+                assert success; // failed if listener was already invalidated
                 itr.remove();
                 break;
             }
