@@ -10,8 +10,6 @@
 #include "streamPlayer.h"
 #include "rtcStats.h"
 
-#include <modules/video_capture/video_capture_factory.h>
-
 #define SUB_LOG_DEBUG(fmtString,...) RTCM_LOG_DEBUG("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_INFO(fmtString,...) RTCM_LOG_INFO("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_WARNING(fmtString,...) RTCM_LOG_WARNING("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
@@ -126,10 +124,11 @@ void RtcModule::random(T& result) const
 
 void RtcModule::initInputDevices()
 {
-     std::set<std::pair<std::string, std::string>> videoDevices = loadDeviceList();
+    std::set<std::pair<std::string, std::string>> videoDevices = loadDeviceList();
     if (!videoDevices.empty())
     {
         mVideoDeviceSelected = videoDevices.begin()->second;
+        RTCM_LOG_DEBUG("Video device selected -> %s", videoDevices.begin()->second.c_str());
     }
 }
 

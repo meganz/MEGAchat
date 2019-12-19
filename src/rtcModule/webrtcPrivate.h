@@ -2,13 +2,17 @@
 #define RTCMODULE_H
 #include <webrtc.h>
 #include <karereId.h>
-#include "IRtcStats.h"
+#include <IRtcStats.h>
 #include <serverListProvider.h>
 #include <chatd.h>
 #include <base/trackDelete.h>
 #include <streamPlayer.h>
 
 #include <modules/video_capture/device_info_impl.h>
+
+#ifdef __ANDROID__
+#include <sdk/android/native_api/jni/scoped_java_ref.h>
+#endif
 
 namespace rtcModule
 {

@@ -19,6 +19,21 @@ typedef struct objc_object AVCaptureDevice;
 typedef struct objc_object RTCCameraVideoCapturer;
 #endif
 
+#ifdef __ANDROID__
+#include <sdk/android/src/jni/android_video_track_source.h>
+#include <sdk/android/native_api/video/video_source.h>
+#include <modules/utility/include/jvm_android.h>
+#include <sdk/android/src/jni/jvm.h>
+#include <jni.h>
+#endif
+
+
+namespace std
+{
+    template< bool B, class T = void >
+    using enable_if_t = typename enable_if<B,T>::type;
+}
+
 namespace artc
 {
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
@@ -73,7 +88,7 @@ enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
     code
 #endif
 
-class SdpCreateCallbacks: public webrtc::CreateSessionDescriptionObserver
+class SdpCreateCallbacks : public webrtc::CreateSessionDescriptionObserver
 {
 public:
   // The implementation of the CreateSessionDescriptionObserver takes
@@ -92,6 +107,7 @@ public:
            Release();
         , this, error);
     }
+
 protected:
     PromiseType mPromise;
 };
@@ -120,7 +136,7 @@ struct IceCandText
     }
 };
 
-class SdpSetCallbacks: public webrtc::SetSessionDescriptionObserver
+class SdpSetCallbacks : public webrtc::SetSessionDescriptionObserver
 {
 public:
     typedef promise::Promise<void> PromiseType;
@@ -139,6 +155,7 @@ public:
              Release();
         , this, error);
     }
+
 protected:
     PromiseType mPromise;
 };
@@ -395,7 +412,7 @@ public:
     virtual bool GetStats(Stats* stats) override;
     virtual SourceState state() const override;
     virtual bool remote() const override;
-    virtual void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants);
+    virtual void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
     virtual void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
     virtual void AddRef() const override;
     virtual rtc::RefCountReleaseStatus Release() const override;
@@ -408,6 +425,37 @@ private:
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mVideoSource;
     bool mRunning = false;
     mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
+};
+#endif
+
+#ifdef __ANDROID__
+class CaptureModuleAndroid : public VideoManager, public webrtc::VideoTrackSourceInterface
+{
+public:
+    CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
+    ~CaptureModuleAndroid();
+    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    virtual void openDevice(const std::string &videoDevice) override;
+    virtual void releaseDevice() override;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+    virtual bool is_screencast() const override;
+    virtual absl::optional<bool> needs_denoising() const override;
+    virtual SourceState state() const override;
+    virtual bool GetStats(Stats* stats) override;
+    virtual void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
+    virtual void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
+    virtual bool remote() const override;
+    virtual void AddRef() const override;
+    virtual rtc::RefCountReleaseStatus Release() const override;
+    virtual void RegisterObserver(webrtc::ObserverInterface* observer) override;
+    virtual void UnregisterObserver(webrtc::ObserverInterface* observer) override;
+
+private:
+    bool mRunning = false;
+    mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
+    rtc::scoped_refptr<webrtc::JavaVideoTrackSourceInterface> mVideoSource;
+    webrtc::VideoCaptureCapability mCapabilities;
+    JNIEnv* mEnv;
 };
 #endif
 

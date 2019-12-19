@@ -9,15 +9,22 @@
 #include "webrtcAsyncWaiter.h"
 
 #ifdef __ANDROID__
-#include <jni.h>
-#include <webrtc/api/videosourceproxy.h>
-#include <webrtc/sdk/android/src/jni/androidvideotracksource.h>
+#include <api/task_queue/default_task_queue_factory.h>
+#include <api/rtc_event_log/rtc_event_log_factory.h>
+#include <sdk/android/native_api/audio_device_module/audio_device_android.h">
+#include <sdk/android/src/jni/jni_generator_helper.h>
+#include <sdk/android/src/jni/audio_device/audio_record_jni.h>
+#include <sdk/android/src/jni/audio_device/audio_track_jni.h>
+#include <sdk/android/src/jni/audio_device/audio_device_module.h"
+#include <webrtc/sdk/android/native_api/base/init.h>
 
 extern JavaVM *MEGAjvm;
+extern JNIEnv *jenv;
+extern jobject globalContext;
 extern jclass applicationClass;
 extern jmethodID startVideoCaptureMID;
-extern jmethodID startVideoCaptureWithParametersMID;
 extern jmethodID stopVideoCaptureMID;
+extern jmethodID deviceListMID;
 extern jobject surfaceTextureHelper;
 #endif
 
@@ -54,12 +61,11 @@ bool init(void *appCtx)
     gThread->SetName("Main Thread", gThread.get());
     threadMgr->SetCurrentThread(gThread.get());
 
-    rtc::InitializeSSL();
     if (gWebrtcContext == nullptr)
     {
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
                     nullptr /* network_thread */, gThread.get() /* worker_thread */,
-                    gThread.get() /* signaling_thread */, nullptr /* default_adm */,
+                    gThread.get(), nullptr /* default_adm */,
                     webrtc::CreateBuiltinAudioEncoderFactory(),
                     webrtc::CreateBuiltinAudioDecoderFactory(),
                     webrtc::CreateBuiltinVideoEncoderFactory(),
@@ -208,6 +214,8 @@ std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevic
 
 #ifdef __APPLE__
     return OBJCCaptureModule::getVideoDevices();
+#elif __ANDROID__
+    return CaptureModuleAndroid::getVideoDevices();
 #else
     return CaptureModuleLinux::getVideoDevices();
 #endif
@@ -237,9 +245,144 @@ CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &c
 
 #ifdef __APPLE__
     mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new OBJCCaptureModule(capabilities, deviceName));
+#elif __ANDROID__
+    JNIEnv* env;
+    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleAndroid(capabilities, deviceName));
 #else
     mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleLinux(capabilities));
 #endif
 }
+
+#ifdef __ANDROID__
+    CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
+        : mCapabilities(capabilities)
+    {
+        JNIEnv* env;
+        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+        startVideoCaptureMID = env->GetStaticMethodID(applicationClass, "startVideoCapture", "(IIILorg/webrtc/SurfaceTextureHelper;Lorg/webrtc/CapturerObserver;Ljava/lang/String;)V");
+        if (!startVideoCaptureMID)
+        {
+            env->ExceptionClear();
+        }
+
+        stopVideoCaptureMID = env->GetStaticMethodID(applicationClass, "stopVideoCapture", "()V");
+        if (!stopVideoCaptureMID)
+        {
+            env->ExceptionClear();
+        }
+
+        mVideoSource = webrtc::CreateJavaVideoSource(env, gThread.get(), false, true);
+    }
+
+    CaptureModuleAndroid::~CaptureModuleAndroid()
+    {
+    }
+
+    std::set<std::pair<std::string, std::string>> CaptureModuleAndroid::getVideoDevices()
+    {
+        std::set<std::pair<std::string, std::string>> devices;
+        JNIEnv* env;
+        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+        if (deviceListMID)
+        {
+            jobject object = env->CallStaticObjectMethod(applicationClass, deviceListMID);
+            jobjectArray* array = reinterpret_cast<jobjectArray*>(&object);
+            jsize size = env->GetArrayLength(*array);
+            for (jsize i = 0; i < size; i++)
+            {
+                jstring device = (jstring)env->GetObjectArrayElement(*array, i);
+                const char *characters = env->GetStringUTFChars(device, NULL);
+                std::string deviceStr = std::string(characters);
+                env->ReleaseStringUTFChars(device, characters);
+                devices.insert(std::pair<std::string, std::string>(deviceStr, deviceStr));
+            }
+        }
+
+        return devices;
+    }
+
+    void CaptureModuleAndroid::openDevice(const std::string &videoDevice)
+    {
+        JNIEnv* env;
+        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+        if (startVideoCaptureMID)
+        {
+            jstring javaDevice = env->NewStringUTF(videoDevice.c_str());
+            env->CallStaticVoidMethod(applicationClass, startVideoCaptureMID, (jint)mCapabilities.width, (jint)mCapabilities.height, (jint)mCapabilities.maxFPS, surfaceTextureHelper, mVideoSource->GetJavaVideoCapturerObserver(env).Release(), javaDevice);
+        }
+    }
+
+    void CaptureModuleAndroid::releaseDevice()
+    {
+        JNIEnv* env;
+        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+        if (stopVideoCaptureMID)
+        {
+            env->CallStaticVoidMethod(applicationClass, stopVideoCaptureMID);
+        }
+    }
+
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CaptureModuleAndroid::getVideoTrackSource()
+    {
+        return this;
+    }
+
+    bool CaptureModuleAndroid::is_screencast() const
+    {
+        return mVideoSource->is_screencast();
+    }
+
+    absl::optional<bool> CaptureModuleAndroid::needs_denoising() const
+    {
+        return mVideoSource->needs_denoising();
+    }
+
+    bool CaptureModuleAndroid::GetStats(Stats* stats)
+    {
+        return mVideoSource->GetStats(stats);
+    }
+
+    webrtc::MediaSourceInterface::SourceState CaptureModuleAndroid::state() const
+    {
+        return mVideoSource->state();
+    }
+
+    bool CaptureModuleAndroid::remote() const
+    {
+        return mVideoSource->remote();
+    }
+
+    void CaptureModuleAndroid::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
+    {
+        mVideoSource->AddOrUpdateSink(sink, wants);
+    }
+
+    void CaptureModuleAndroid::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
+    {
+        mVideoSource->RemoveSink(sink);
+    }
+
+    void CaptureModuleAndroid::AddRef() const
+    {
+        mRefCount.IncRef();
+    }
+
+    rtc::RefCountReleaseStatus CaptureModuleAndroid::Release() const
+    {
+        const auto status = mRefCount.DecRef();
+        if (status == rtc::RefCountReleaseStatus::kDroppedLastRef) {
+            delete this;
+        }
+        return status;
+    }
+
+    void CaptureModuleAndroid::RegisterObserver(webrtc::ObserverInterface* observer)
+    {
+    }
+
+    void CaptureModuleAndroid::UnregisterObserver(webrtc::ObserverInterface* observer)
+    {
+    }
+#endif
 
 }
