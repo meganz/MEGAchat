@@ -9,18 +9,8 @@
 #include "webrtcAsyncWaiter.h"
 
 #ifdef __ANDROID__
-#include <api/task_queue/default_task_queue_factory.h>
-#include <api/rtc_event_log/rtc_event_log_factory.h>
-#include <sdk/android/native_api/audio_device_module/audio_device_android.h">
-#include <sdk/android/src/jni/jni_generator_helper.h>
-#include <sdk/android/src/jni/audio_device/audio_record_jni.h>
-#include <sdk/android/src/jni/audio_device/audio_track_jni.h>
-#include <sdk/android/src/jni/audio_device/audio_device_module.h"
-#include <webrtc/sdk/android/native_api/base/init.h>
-
 extern JavaVM *MEGAjvm;
 extern JNIEnv *jenv;
-extern jobject globalContext;
 extern jclass applicationClass;
 extern jmethodID startVideoCaptureMID;
 extern jmethodID stopVideoCaptureMID;

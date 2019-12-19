@@ -20,11 +20,7 @@ typedef struct objc_object RTCCameraVideoCapturer;
 #endif
 
 #ifdef __ANDROID__
-#include <sdk/android/src/jni/android_video_track_source.h>
 #include <sdk/android/native_api/video/video_source.h>
-#include <modules/utility/include/jvm_android.h>
-#include <sdk/android/src/jni/jvm.h>
-#include <jni.h>
 #endif
 
 
