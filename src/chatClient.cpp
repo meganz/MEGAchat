@@ -1257,7 +1257,17 @@ promise::Promise<void> Client::doConnect()
     rtc->init();
 #endif
 
-    auto pms = mPresencedClient.connect()
+    std::string aux;
+    SqliteStmt stmt(db, "select value from vars where name = 'presenced_url'");
+    if (stmt.step())
+    {
+        Buffer buf;
+        stmt.blobCol(0, buf);
+        aux.append(buf.buf(), buf.bufSize());
+    }
+    const char *url = !aux.empty() ? aux.c_str() : nullptr;
+
+    auto pms = mPresencedClient.connect(url)
     .then([this, wptr]()
     {
         if (wptr.deleted())

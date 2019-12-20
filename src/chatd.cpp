@@ -992,8 +992,15 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
                 return;
             }
 
-            mUrl.parse(result->getLink());
-            mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
+            const char *urlstr = result->getLink();
+            setUrl(urlstr);
+
+            auto& db = mChatdClient.mKarereClient->db;
+            for (const karere::Id& chatid : mChatIds)
+            {
+                db.query("update chats set url = ? where chatid = ?", urlstr, chatid);
+            }
+
             retryPendingConnection(true);
         });
     }
@@ -1066,10 +1073,15 @@ promise::Promise<void> Connection::fetchUrl(const char *url)
 
     ApiPromise pms;
     std::string urlString;
+    // If an url is provided by param update in cache and in RAM
     if (url)
     {
         urlString.append(url);
         pms.resolve(ReqResult());
+    }
+    else if (mUrl.isValid())
+    {
+        return promise::_Void();
     }
     else
     {
