@@ -1115,7 +1115,6 @@ void Call::getLocalStream(AvFlags av)
 {
     mLocalStream = std::make_shared<artc::LocalStreamHandle>();
 
-    setState(Call::kStateHasLocalStream);
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
     mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
@@ -1125,6 +1124,7 @@ void Call::getLocalStream(AvFlags av)
     }
 
     mLocalPlayer->enableVideo(av.video());
+    setState(Call::kStateHasLocalStream);
 
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
             artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
