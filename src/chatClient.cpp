@@ -1276,6 +1276,11 @@ promise::Promise<void> Client::doConnect()
     return pms;
 }
 
+void Client::savePresencedUrlTodb(const char *url)
+{
+    db.query("insert or replace into vars(name,value) values('presenced_url', ?)", url);
+}
+
 void Client::setConnState(ConnState newState)
 {
     mConnState = newState;

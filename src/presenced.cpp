@@ -39,7 +39,7 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-Promise<void> Client::connect()
+Promise<void> Client::connect(const char *url)
 {
     if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
     {
@@ -49,11 +49,22 @@ Promise<void> Client::connect()
 
     assert(!mUrl.isValid());
 
-    setConnState(kFetchingUrl);
+    ApiPromise pms;
+    std::string urlString;
+    if (url)
+    {
+        urlString.append(url);
+        pms.resolve(ReqResult());
+    }
+    else
+    {
+       pms =  mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL);
+    }
 
+    setConnState(kFetchingUrl);
     auto wptr = getDelTracker();
-    return mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
-    .then([this, wptr](ReqResult result) -> Promise<void>
+    return pms
+    .then([this, wptr, urlString](ReqResult result) -> Promise<void>
     {
         if (wptr.deleted())
         {
@@ -61,7 +72,12 @@ Promise<void> Client::connect()
             return ::promise::_Void();
         }
 
-        mUrl.parse(result->getLink());
+        const char *urlstr = !urlString.empty()
+            ? urlString.c_str()
+            : result->getLink();
+
+        mUrl.parse(urlstr);
+        mKarereClient->mChatdClient->mKarereClient->savePresencedUrlTodb(urlstr);
         return reconnect();
     });
 }
@@ -928,6 +944,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
             }
 
             mUrl.parse(result->getLink());
+            mKarereClient->mChatdClient->mKarereClient->savePresencedUrlTodb(result->getLink());
             retryPendingConnection(true);
         });
     }
