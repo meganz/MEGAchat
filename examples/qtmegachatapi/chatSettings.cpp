@@ -17,7 +17,7 @@ ChatSettingsDialog::ChatSettingsDialog(QMainWindow *parent)
         ui->videoInCombo->addItem(videoInDevices->get(i), videoInDevices->get(i));
     }
 
-    int index = ui->videoInCombo->findData(videoDeviceSelected);
+    int index = ui->videoInCombo->findData(videoDeviceSelected.get());
     ui->videoInCombo->setCurrentIndex(index);
 #endif
 }
@@ -38,7 +38,7 @@ void ChatSettingsDialog::on_buttonBox_clicked(QAbstractButton *button)
 void ChatSettingsDialog::setDevices(const std::string &videoDevice)
 {
     std::unique_ptr<char[]> videoDeviceSelected(mMainWin->mMegaChatApi->getVideoDeviceSelected());
-    if (videoDevice != videoDeviceSelected)
+    if (videoDevice != videoDeviceSelected.get())
     {
         mMainWin->mMegaChatApi->setChatVideoInDevice(videoDevice.c_str());
     }

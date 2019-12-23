@@ -54,6 +54,11 @@ public:
         {
         }
 
+        SentSessionInfo()
+            : mPeerSupportRenegotiation(false)
+        {
+        }
+
         karere::Id mSessionId;
         SdpKey mOwnHashKey;
         bool mPeerSupportRenegotiation;
