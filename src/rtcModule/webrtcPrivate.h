@@ -44,10 +44,6 @@ public:
     class SentSessionInfo
     {
     public:
-        SentSessionInfo()
-        {
-        }
-
         SentSessionInfo(karere::Id sessionId, SdpKey ownHashKey, bool peerSupportsRenego)
             : mSessionId(sessionId), mOwnHashKey(ownHashKey), mPeerSupportRenegotiation(peerSupportsRenego)
         {
@@ -120,7 +116,7 @@ protected:
 
 public:
     RtcModule& mManager;
-    Session(Call& call, RtMessage& packet, SentSessionInfo sessionParameters);
+    Session(Call& call, RtMessage& packet, const SentSessionInfo *sessionParameters = nullptr);
     ~Session();
     void pollStats();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }

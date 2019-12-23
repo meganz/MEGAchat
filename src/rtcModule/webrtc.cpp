@@ -1221,7 +1221,7 @@ void Call::msgSdpOffer(RtMessage& packet)
         return;
     }
 
-    std::shared_ptr<Session> sess = std::make_shared<Session>(*this, packet, sentSessionsIt->second);
+    std::shared_ptr<Session> sess = std::make_shared<Session>(*this, packet, &sentSessionsIt->second);
     mSessions[sentSessionsIt->second.mSessionId] = sess;
     notifyCallStarting(*sess);
     sess->createRtcConn();
@@ -1346,8 +1346,7 @@ void Call::msgSession(RtMessage& packet)
         }
     }
 
-    Session::SentSessionInfo sessionParameters;
-    auto sess = std::make_shared<Session>(*this, packet, sessionParameters);
+    auto sess = std::make_shared<Session>(*this, packet);
     mSessions[sess->sessionId()] = sess;
     notifyCallStarting(*sess);
     sess->mPeerSupportRenegotiation = packet.payload.buf()[kRenegotationPositionSession] & kSupportsStreamReneg;
@@ -2629,12 +2628,13 @@ It is send when the client mutes/unmutes camera or mic. Currently this CALLDATA 
 message, but in the future we may want to only rely on the CALLDATA packet.
 
 */
-Session::Session(Call& call, RtMessage& packet, SentSessionInfo sessionParameters)
+Session::Session(Call& call, RtMessage& packet, const SentSessionInfo *sessionParameters)
 :ISession(call, packet.userid, packet.clientid), mManager(call.mManager)
 {
     // Packet can be RTCMD_SESSION or RTCMD_SDP_OFFER
     mHandler = call.callHandler()->onNewSession(*this);
     mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, *mHandler));
+    assert(!sessionParameters || packet.type == RTCMD_SDP_OFFER);
     if (packet.type == RTCMD_SDP_OFFER) // peer's offer
     {
         // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
@@ -2642,7 +2642,7 @@ Session::Session(Call& call, RtMessage& packet, SentSessionInfo sessionParameter
         mSid = packet.payload.read<uint64_t>(0);
         setState(kStateWaitLocalSdpAnswer);
         mPeerAnonId = packet.payload.read<uint64_t>(8);
-        mOwnHashKey = sessionParameters.mOwnHashKey;
+        mOwnHashKey = sessionParameters->mOwnHashKey;
         // The peer is likely to send ICE candidates immediately after the offer,
         // but we can't process them until setRemoteDescription is ready, so
         // we have to store them in a queue
@@ -2654,7 +2654,7 @@ Session::Session(Call& call, RtMessage& packet, SentSessionInfo sessionParameter
         uint16_t sdpLen = packet.payload.read<uint16_t>(81);
         assert((int) packet.payload.dataSize() >= 83 + sdpLen);
         packet.payload.read(83, sdpLen, mPeerSdpOffer);
-        mPeerSupportRenegotiation = sessionParameters.mPeerSupportRenegotiation;
+        mPeerSupportRenegotiation = sessionParameters->mPeerSupportRenegotiation;
     }
     else if (packet.type == RTCMD_SESSION)
     {
