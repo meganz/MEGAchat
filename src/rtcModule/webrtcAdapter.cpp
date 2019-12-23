@@ -236,14 +236,14 @@ CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &c
     mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new OBJCCaptureModule(capabilities, deviceName));
 #elif __ANDROID__
     JNIEnv* env;
-    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleAndroid(capabilities, deviceName));
+    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleAndroid(capabilities, deviceName, thread));
 #else
     mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleLinux(capabilities));
 #endif
 }
 
 #ifdef __ANDROID__
-    CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
+    CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
         : mCapabilities(capabilities)
     {
         JNIEnv* env;

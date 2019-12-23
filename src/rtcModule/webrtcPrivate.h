@@ -58,6 +58,11 @@ public:
         {
         }
 
+        SessionInfo()
+            : mPeerSupportRenegotiation(false)
+        {
+        }
+
         // random id of the session, sent in the SESSION packet
         karere::Id mSessionId;
 
