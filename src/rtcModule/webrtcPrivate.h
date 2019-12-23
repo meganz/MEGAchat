@@ -41,21 +41,30 @@ private:
 class Session: public ISession
 {
 public:
-    class SentSessionInfo
+    class SessionInfo
     {
     public:
-        SentSessionInfo(karere::Id sessionId, SdpKey ownHashKey, bool peerSupportsRenego)
-            : mSessionId(sessionId), mOwnHashKey(ownHashKey), mPeerSupportRenegotiation(peerSupportsRenego)
+        SessionInfo(karere::Id sessionId, SdpKey ownHashKey, bool peerSupportsRenego)
+            : mSessionId(sessionId),
+              mOwnHashKey(ownHashKey),
+              mPeerSupportRenegotiation(peerSupportsRenego)
         {
         }
 
-        SentSessionInfo(const SentSessionInfo &sessInfo)
-            : mSessionId(sessInfo.mSessionId), mOwnHashKey(sessInfo.mOwnHashKey), mPeerSupportRenegotiation(sessInfo.mPeerSupportRenegotiation)
+        SessionInfo(const SessionInfo &sessInfo)
+            : mSessionId(sessInfo.mSessionId),
+              mOwnHashKey(sessInfo.mOwnHashKey),
+              mPeerSupportRenegotiation(sessInfo.mPeerSupportRenegotiation)
         {
         }
 
+        // random id of the session, sent in the SESSION packet
         karere::Id mSessionId;
+
+        // random hash of the session, sent in the SESSION packet
         SdpKey mOwnHashKey;
+
+        // True if the client of this session supports stream renegotiation, received in the JOIN
         bool mPeerSupportRenegotiation;
     };
 
@@ -116,7 +125,7 @@ protected:
 
 public:
     RtcModule& mManager;
-    Session(Call& call, RtMessage& packet, const SentSessionInfo *sessionParameters = nullptr);
+    Session(Call& call, RtMessage& packet, const SessionInfo *sessionParameters = nullptr);
     ~Session();
     void pollStats();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
@@ -184,7 +193,7 @@ protected:
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::map<chatd::EndpointId, int> mIceFails;
-    std::map<chatd::EndpointId, Session::SentSessionInfo> mSentSessions;
+    std::map<chatd::EndpointId, Session::SessionInfo> mSessionsInfo;
     std::string mName;
     megaHandle mCallOutTimer = 0;
     bool mCallStartingSignalled = false;

@@ -1019,7 +1019,7 @@ Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGr
         assert(!callerClient);
     }
 
-    mSentSessions.clear();
+    mSessionsInfo.clear();
 
     auto wptr = weakHandle();
     mStatsTimer = setInterval([this, wptr]()
@@ -1214,19 +1214,19 @@ void Call::msgSdpOffer(RtMessage& packet)
     }
 
     EndpointId endPoint(packet.userid, packet.clientid);
-    auto sentSessionsIt = mSentSessions.find(endPoint);
-    if (sentSessionsIt == mSentSessions.end())
+    auto sessionsInfoIt = mSessionsInfo.find(endPoint);
+    if (sessionsInfoIt == mSessionsInfo.end())
     {
         SUB_LOG_ERROR("Received SDP_OFFER without having previously sent SESSION, ignoring");
         return;
     }
 
-    std::shared_ptr<Session> sess = std::make_shared<Session>(*this, packet, &sentSessionsIt->second);
-    mSessions[sentSessionsIt->second.mSessionId] = sess;
+    std::shared_ptr<Session> sess = std::make_shared<Session>(*this, packet, &sessionsInfoIt->second);
+    mSessions[sessionsInfoIt->second.mSessionId] = sess;
     notifyCallStarting(*sess);
     sess->createRtcConn();
     sess->processSdpOfferSendAnswer();
-    mSentSessions.erase(endPoint);
+    mSessionsInfo.erase(endPoint);
 }
 
 void Call::handleReject(RtMessage& packet)
@@ -1332,7 +1332,7 @@ void Call::msgSession(RtMessage& packet)
     }
 
     EndpointId peerEndPointId(packet.userid, packet.clientid);
-    if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
+    if (mSessionsInfo.find(peerEndPointId) != mSessionsInfo.end())
     {
         SUB_LOG_WARNING("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
         EndpointId ourEndPointId(mManager.mKarereClient.myHandle(), mChat.connection().clientId());
@@ -1457,7 +1457,7 @@ void Call::msgJoin(RtMessage& packet)
 
         bool supportRenegotiation = ((packet.payload.buf()[kRenegotationPositionJoin] & kSupportsStreamReneg) != 0);
 
-        mSentSessions[endPointId] = Session::SentSessionInfo(newSid, ownHashKey, supportRenegotiation);
+        mSessionsInfo[endPointId] = Session::SessionInfo(newSid, ownHashKey, supportRenegotiation);
         cancelSessionRetryTimer(endPointId.userid, endPointId.clientid);
     }
     else
@@ -1830,7 +1830,7 @@ bool Call::cmd(uint8_t type, Id userid, uint32_t clientid, Args... args)
 bool Call::join(Id userid)
 {
     assert(mState == Call::kStateHasLocalStream);
-    mSentSessions.clear();
+    mSessionsInfo.clear();
     // JOIN:
     // chatid.8 userid.8 clientid.4 dataLen.2 type.1 callid.8 anonId.8
     // if userid is not specified, join all clients in the chat, otherwise
@@ -1867,7 +1867,7 @@ bool Call::rejoin(karere::Id userid, uint32_t clientid)
 {
     assert(mState == Call::kStateInProgress);
     EndpointId endPoint(userid, clientid);
-    mSentSessions.erase(endPoint);
+    mSessionsInfo.erase(endPoint);
     // JOIN:
     // chatid.8 userid.8 clientid.4 dataLen.2 type.1 callid.8 anonId.8
     // if userid is not specified, join all clients in the chat, otherwise
@@ -2204,7 +2204,7 @@ bool Call::hasSessionWithUser(Id userId)
         }
     }
 
-    for (auto itSentSession = mSentSessions.begin(); itSentSession != mSentSessions.end(); itSentSession++)
+    for (auto itSentSession = mSessionsInfo.begin(); itSentSession != mSessionsInfo.end(); itSentSession++)
     {
         if (itSentSession->first.userid == userId)
         {
@@ -2628,7 +2628,7 @@ It is send when the client mutes/unmutes camera or mic. Currently this CALLDATA 
 message, but in the future we may want to only rely on the CALLDATA packet.
 
 */
-Session::Session(Call& call, RtMessage& packet, const SentSessionInfo *sessionParameters)
+Session::Session(Call& call, RtMessage& packet, const SessionInfo *sessionParameters)
 :ISession(call, packet.userid, packet.clientid), mManager(call.mManager)
 {
     // Packet can be RTCMD_SESSION or RTCMD_SDP_OFFER
