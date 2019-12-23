@@ -2112,7 +2112,7 @@ void exec_getchatvideoindevices(ac::ACState&)
 
 void exec_setchatvideoindevice(ac::ACState& s)
 {
-     c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
     g_chatApi->setChatVideoInDevice(s.words[1].s.c_str(), listener);
 }
 

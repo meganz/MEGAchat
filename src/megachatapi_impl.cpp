@@ -1701,9 +1701,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!mClient->rtc->selectVideoInDevice(request->getText()))
+            char *deviceName = request->getText();
+            if (!deviceName || !mClient->rtc->selectVideoInDevice(deviceName))
             {
-                API_LOG_ERROR("Change video streaming source - devide doesn't exist");
+                API_LOG_ERROR("Change video streaming source - device doesn't exist");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }

@@ -10,8 +10,8 @@ ChatSettingsDialog::ChatSettingsDialog(QMainWindow *parent)
     ui->setupUi(this);
 
 #ifndef KARERE_DISABLE_WEBRTC
-    ::mega::MegaStringList *videoInDevices = mMainWin->mMegaChatApi->getChatVideoInDevices();
-    char *videoDeviceSelected = mMainWin->mMegaChatApi->getVideoDeviceSelected();
+    std::unique_ptr<::mega::MegaStringList> videoInDevices(mMainWin->mMegaChatApi->getChatVideoInDevices());
+    std::unique_ptr<char[]> videoDeviceSelected(mMainWin->mMegaChatApi->getVideoDeviceSelected());
     for (int i = 0; i < videoInDevices->size(); i++)
     {
         ui->videoInCombo->addItem(videoInDevices->get(i), videoInDevices->get(i));
@@ -19,9 +19,6 @@ ChatSettingsDialog::ChatSettingsDialog(QMainWindow *parent)
 
     int index = ui->videoInCombo->findData(videoDeviceSelected);
     ui->videoInCombo->setCurrentIndex(index);
-
-    delete videoInDevices;
-    delete []videoDeviceSelected;
 #endif
 }
 
@@ -33,22 +30,17 @@ ChatSettingsDialog::~ChatSettingsDialog()
 void ChatSettingsDialog::on_buttonBox_clicked(QAbstractButton *button)
 {
 #ifndef KARERE_DISABLE_WEBRTC
-    std::string video = ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data();
-    setDevices(video);
-
+    setDevices(ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data());
 #endif
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-void ChatSettingsDialog::setDevices(const std::string &video)
+void ChatSettingsDialog::setDevices(const std::string &videoDevice)
 {
-    std::string device =  ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data();
-    char *videoDeviceSelected = mMainWin->mMegaChatApi->getVideoDeviceSelected();
-    if (device != videoDeviceSelected)
+    std::unique_ptr<char[]> videoDeviceSelected(mMainWin->mMegaChatApi->getVideoDeviceSelected());
+    if (videoDevice != videoDeviceSelected)
     {
-        mMainWin->mMegaChatApi->setChatVideoInDevice(video.c_str());
+        mMainWin->mMegaChatApi->setChatVideoInDevice(videoDevice.c_str());
     }
-
-    delete []videoDeviceSelected;
 }
 #endif
