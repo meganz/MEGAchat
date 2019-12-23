@@ -36,7 +36,6 @@ namespace artc
 
 extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
 extern AsyncWaiter* gAsyncWaiter;
-extern std::unique_ptr<rtc::Thread> gThread;
 
 struct Identity
 {
@@ -380,7 +379,7 @@ protected:
 class CapturerTrackSource : public VideoManager
 {
 public:
-    static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
+    static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
     ~CapturerTrackSource() override;
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     virtual void openDevice(const std::string &videoDevice) override;
@@ -389,7 +388,7 @@ public:
 
 protected:
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mCaptureModule;
-    explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
+    explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
 
 
 };

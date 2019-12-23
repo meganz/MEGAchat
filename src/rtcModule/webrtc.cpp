@@ -2131,7 +2131,7 @@ void Call::enableVideo(bool enable)
                 capabilities.maxFPS = 30;
             }
 
-            mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities, mManager.mVideoDeviceSelected));
+            mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities, mManager.mVideoDeviceSelected, artc::gAsyncWaiter->guiThread()));
             assert(mVideoDevice);
 
             videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());

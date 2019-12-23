@@ -23,7 +23,6 @@ namespace artc
 
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = nullptr;
-std::unique_ptr<rtc::Thread> gThread = nullptr;
 
 static bool gIsInitialized = false;
 AsyncWaiter* gAsyncWaiter = nullptr;
@@ -46,16 +45,16 @@ bool init(void *appCtx)
 // Put our custom Thread object in the main thread, so our main thread can process
 // webrtc messages, in a non-blocking way, integrated with the application's message loop
     gAsyncWaiter = new AsyncWaiter(appCtx);
-    gThread = std::unique_ptr<rtc::Thread>(new rtc::Thread(gAsyncWaiter));
-    gAsyncWaiter->setThread(gThread.get());
-    gThread->SetName("Main Thread", gThread.get());
-    threadMgr->SetCurrentThread(gThread.get());
+    auto thread = new rtc::Thread(gAsyncWaiter);
+    gAsyncWaiter->setThread(thread);
+    thread->SetName("Main Thread", thread);
+    threadMgr->SetCurrentThread(thread);
 
     if (gWebrtcContext == nullptr)
     {
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
-                    nullptr /* network_thread */, gThread.get() /* worker_thread */,
-                    gThread.get(), nullptr /* default_adm */,
+                    nullptr /* network_thread */, thread /* worker_thread */,
+                    thread, nullptr /* default_adm */,
                     webrtc::CreateBuiltinAudioEncoderFactory(),
                     webrtc::CreateBuiltinAudioDecoderFactory(),
                     webrtc::CreateBuiltinVideoEncoderFactory(),
@@ -189,9 +188,9 @@ rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CaptureModuleLinux::getVid
     return this;
 }
 
-CapturerTrackSource* CapturerTrackSource::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
+CapturerTrackSource* CapturerTrackSource::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
 {
-    return new rtc::RefCountedObject<CapturerTrackSource>(capabilities, deviceName);
+    return new rtc::RefCountedObject<CapturerTrackSource>(capabilities, deviceName, thread);
 }
 
 CapturerTrackSource::~CapturerTrackSource()
@@ -230,7 +229,7 @@ rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>CapturerTrackSource::getVid
     return mCaptureModule;
 }
 
-CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
+CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
 {
 
 #ifdef __APPLE__
@@ -261,7 +260,7 @@ CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &c
             env->ExceptionClear();
         }
 
-        mVideoSource = webrtc::CreateJavaVideoSource(env, gThread.get(), false, true);
+        mVideoSource = webrtc::CreateJavaVideoSource(env, thread, false, true);
     }
 
     CaptureModuleAndroid::~CaptureModuleAndroid()
