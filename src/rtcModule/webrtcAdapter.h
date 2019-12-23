@@ -427,7 +427,7 @@ private:
 class CaptureModuleAndroid : public VideoManager, public webrtc::VideoTrackSourceInterface
 {
 public:
-    CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
+    CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
     ~CaptureModuleAndroid();
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     virtual void openDevice(const std::string &videoDevice) override;
