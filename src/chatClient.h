@@ -631,9 +631,12 @@ public:
 class InitStats
 {
     public:
-
-        /** @brief MEGAchat init stats version */
-        const uint32_t INITSTATSVERSION = 2;
+        /** @brief MEGAchat init stats version :
+         * - Version 1: Initial version
+         * - Version 2: Fix errors and discard atypical values
+         * - Version 3: Implement DNS, Chatd and Presenced Ip/Url cache
+         */
+        const uint32_t INITSTATSVERSION = 3;
 
         /** @brief Init states in init stats */
         enum
