@@ -1444,8 +1444,8 @@ void Call::msgJoin(RtMessage& packet)
         SdpKey ownHashKey;
         mManager.random(ownHashKey);
         mManager.crypto().encryptKeyTo(packet.userid, ownHashKey, encKey);
-        uint8_t flags = kSupportsStreamReneg;
-        // SESSION callid.8 sid.8 anonId.8 encHashKey.32
+        uint8_t flags = kSupportsStreamReneg;   // no need to send the A/V flags again, already sent in CALLDATA
+        // SESSION callid.8 sid.8 anonId.8 encHashKey.32 mId.8 flags.1
         mManager.cmdEndpoint(RTCMD_SESSION, packet,
             packet.callid,
             newSid,
@@ -1454,7 +1454,13 @@ void Call::msgJoin(RtMessage& packet)
             mId,
             flags);
 
-        bool supportRenegotiation = ((packet.payload.buf()[kRenegotationPositionJoin] & kSupportsStreamReneg) != 0);
+        // read received flags in JOIN:
+        bool supportRenegotiation = ((packet.payload.buf()[kOffsetFlagsJoin] & kSupportsStreamReneg) != 0);
+
+        // A/V flags are also included, but not used, since flags in CALLDATA prevails here and later on
+        // the SDP_OFFER & SDP_ANSWER will include update value of A/V flags anyway
+//        bool audio = ((packet.payload.buf()[kRenegotationPositionJoin] & AvFlags::kAudio) != 0);
+//        bool video = ((packet.payload.buf()[kRenegotationPositionJoin] & AvFlags::kVideo) != 0);
 
         mSessionsInfo[endPointId] = Session::SessionInfo(newSid, ownHashKey, supportRenegotiation);
         cancelSessionRetryTimer(endPointId.userid, endPointId.clientid);
@@ -2653,7 +2659,7 @@ Session::Session(Call& call, RtMessage& packet, const SessionInfo *sessionParame
         uint16_t sdpLen = packet.payload.read<uint16_t>(81);
         assert((int) packet.payload.dataSize() >= 83 + sdpLen);
         packet.payload.read(83, sdpLen, mPeerSdpOffer);
-        mPeerSupportRenegotiation = sessionParameters->mPeerSupportRenegotiation;
+        mPeerSupportRenegotiation = sessionParameters->mPeerSupportRenegotiation;   // as received in JOIN
     }
     else if (packet.type == RTCMD_SESSION)
     {
@@ -2667,7 +2673,7 @@ Session::Session(Call& call, RtMessage& packet, const SessionInfo *sessionParame
         SdpKey encKey;
         packet.payload.read(24, encKey);
         call.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerHashKey);
-        mPeerSupportRenegotiation = ((packet.payload.buf()[Call::kRenegotationPositionSession] & Call::kSupportsStreamReneg) != 0);
+        mPeerSupportRenegotiation = ((packet.payload.buf()[Call::kOffsetFlagsSession] & Call::kSupportsStreamReneg) != 0);
     }
     else
     {

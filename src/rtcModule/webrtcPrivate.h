@@ -179,13 +179,17 @@ class Call: public ICall
 
     enum
     {
+        // offset in flag's byte for JOIN and SESSION packets (the bit represents support for stream renegotiation)
         kSupportsStreamReneg = 0x04
     };
 
     enum
     {
-        kRenegotationPositionJoin = 16,
-        kRenegotationPositionSession = 64
+        //offset in JOIN packet for byte representing flags (A/V + renegotiation)
+        kOffsetFlagsJoin = 16,
+
+        // offset in SESSION packet for byte representing flags (renegotiation)
+        kOffsetFlagsSession = 64
     };
 
 protected:
