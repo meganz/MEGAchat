@@ -1349,7 +1349,6 @@ void Call::msgSession(RtMessage& packet)
     auto sess = std::make_shared<Session>(*this, packet);
     mSessions[sess->sessionId()] = sess;
     notifyCallStarting(*sess);
-    sess->mPeerSupportRenegotiation = packet.payload.buf()[kRenegotationPositionSession] & kSupportsStreamReneg;
     sess->createRtcConnSendOffer();
 
     cancelSessionRetryTimer(sess->mPeer, sess->mPeerClient);
