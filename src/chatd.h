@@ -510,7 +510,7 @@ public:
 
     promise::Promise<void> connect(const char *url);
     promise::Promise<void> fetchUrl(const char *url);
-    void setUrl(const std::string& url);
+    void updateChatdUrlCache(const std::string& url, bool updateDb = true);
     bool updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6);
 };
 

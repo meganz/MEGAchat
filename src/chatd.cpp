@@ -460,7 +460,7 @@ Connection::Connection(Client& chatdClient, int shardNo, const std::string& url)
     mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache),
     mSendPromise(promise::_Void())
 {
-    setUrl(url);
+    updateChatdUrlCache(url, false);
 }
 
 void Connection::wsConnectCb()
@@ -992,15 +992,13 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
                 return;
             }
 
-            const char *urlstr = result->getLink();
-            setUrl(urlstr);
-
-            auto& db = mChatdClient.mKarereClient->db;
-            for (const karere::Id& chatid : mChatIds)
+            if (!result->getLink())
             {
-                db.query("update chats set url = ? where chatid = ?", urlstr, chatid);
+                CHATD_LOG_ERROR("[shard %d]: No chatd URL received from API", mShardNo);
+                return;
             }
 
+            updateChatdUrlCache(result->getLink());
             retryPendingConnection(true);
         });
     }
@@ -1059,8 +1057,11 @@ promise::Promise<void> Connection::connect(const char *url)
     return fetchUrl(url)
     .then([this]
     {
-        CHATDS_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL");
-        return reconnect();
+        return reconnect()
+        .fail([this](const ::promise::Error& err)
+        {
+            CHATDS_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
+        });
     });
 }
 
@@ -1068,15 +1069,17 @@ promise::Promise<void> Connection::fetchUrl(const char *url)
 {
     assert(!mChatIds.empty());
     if (state() >= Connection::kStateFetchingUrl)
+    {
         return Void{};
+    }
     setState(kStateFetchingUrl);
 
     ApiPromise pms;
-    std::string urlString;
+    std::string cachedUrl;
     // If an url is provided by param update in cache and in RAM
     if (url)
     {
-        urlString.append(url);
+        cachedUrl.assign(url);
         pms.resolve(ReqResult());
     }
     else if (mUrl.isValid())
@@ -1090,7 +1093,7 @@ promise::Promise<void> Connection::fetchUrl(const char *url)
 
     auto wptr = getDelTracker();
     return pms
-    .then([wptr, urlString, this](ReqResult result)
+    .then([wptr, cachedUrl, this](ReqResult result)
     {
         if (wptr.deleted())
         {
@@ -1098,25 +1101,21 @@ promise::Promise<void> Connection::fetchUrl(const char *url)
             return;
         }
 
-        const char* urlstr = !urlString.empty()
-            ? urlString.c_str()
-            : result->getLink();
-
-        if (!urlstr || !urlstr[0])
+        if (cachedUrl.empty() && !result->getLink())
         {
             CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, *mChatIds.begin());
             return;
         }
 
-        setUrl(urlstr);
+        std::string aux = (cachedUrl.empty())
+            ? result->getLink()
+            : cachedUrl.c_str();
 
-        auto& db = mChatdClient.mKarereClient->db;
-        for (const auto chatid : mChatIds)
-            db.query("update chats set url = ? where chatid = ?", urlstr, chatid);
+        updateChatdUrlCache(aux);
     });
 }
 
-void Connection::setUrl(const std::string& url)
+void Connection::updateChatdUrlCache(const std::string& url, bool updateDb)
 {
     if (mUrl.isValid())
     {
@@ -1127,6 +1126,15 @@ void Connection::setUrl(const std::string& url)
     {
         mUrl.parse(url);
         mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
+
+        if (updateDb)
+        {
+            auto& db = mChatdClient.mKarereClient->db;
+            for (const karere::Id &chatid : mChatIds)
+            {
+                db.query("update chats set url = ? where chatid = ?", url, chatid);
+            }
+        }
     }
 }
 
