@@ -39,32 +39,25 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-Promise<void> Client::connect(const char *url)
+Promise<void> Client::fetchUrl(std::string cachedUrl)
 {
-    if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
-    {
-        PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
-        return ::promise::Void();
-    }
-
     assert(!mUrl.isValid());
-
+    setConnState(kFetchingUrl);
     ApiPromise pms;
-    std::string urlString;
-    if (url)
+    if (cachedUrl.empty())
     {
-        urlString.append(url);
-        pms.resolve(ReqResult());
+        // We will request presenced URL to API
+        pms = mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL);
     }
     else
     {
-       pms =  mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL);
+        // We will try to connect to presenced with URL from cache
+        pms.resolve(ReqResult());
     }
 
-    setConnState(kFetchingUrl);
     auto wptr = getDelTracker();
     return pms
-    .then([this, wptr, urlString](ReqResult result) -> Promise<void>
+    .then([this, wptr, cachedUrl](ReqResult result) -> Promise<void>
     {
         if (wptr.deleted())
         {
@@ -72,14 +65,43 @@ Promise<void> Client::connect(const char *url)
             return ::promise::_Void();
         }
 
-        const char *urlstr = !urlString.empty()
-            ? urlString.c_str()
-            : result->getLink();
+        if (cachedUrl.empty() && !result->getLink())
+        {
+            PRESENCED_LOG_DEBUG("Invalid Presenced URL received from API");
+            return ::promise::_Void();
+        }
 
-        mUrl.parse(urlstr);
-        mKarereClient->mChatdClient->mKarereClient->savePresencedUrlTodb(urlstr);
-        return reconnect();
+        std::string auxUrl = (cachedUrl.empty())
+            ? result->getLink()
+            : cachedUrl.c_str();
+
+        // Update presenced url in ram and db
+        updatePresencedUrlCache(auxUrl.c_str());
+        return promise::_Void();
     });
+}
+
+Promise<void> Client::connect(std::string cachedUrl)
+{
+    assert (mConnState == kConnNew);
+    return fetchUrl(cachedUrl)
+    .then([this]
+    {
+        return reconnect()
+        .fail([](const ::promise::Error& err)
+        {
+            PRESENCED_LOG_DEBUG("Presenced::connect(): Error connecting to server after getting URL: %s", err.what());
+        });
+    });
+}
+
+void Client::updatePresencedUrlCache(const char *url)
+{
+    if (url)
+    {
+        mUrl.parse(url);
+        mKarereClient->mChatdClient->mKarereClient->savePresencedUrlToDb(url);
+    }
 }
 
 void Client::pushPeers()
@@ -454,10 +476,7 @@ Client::reconnect()
                 if (!cachedIPs) // connect required DNS lookup
                 {
                     PRESENCED_LOG_DEBUG("Hostname resolved by first time. Connecting...");
-
-                    mDNScache.set(mUrl.host,
-                                  ipsv4.size() ? ipsv4.at(0) : "",
-                                  ipsv6.size() ? ipsv6.at(0) : "");
+                    updateDnsCache(ipsv4, ipsv6);
                     doConnect();
                     return;
                 }
@@ -468,13 +487,8 @@ Client::reconnect()
                 }
                 else
                 {
-                    // update DNS cache
-                    bool ret = mDNScache.set(mUrl.host,
-                                             ipsv4.size() ? ipsv4.at(0) : "",
-                                             ipsv6.size() ? ipsv6.at(0) : "");
-                    assert(!ret);
-
                     PRESENCED_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    updateDnsCache(ipsv4, ipsv6);
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (presenced)");
                 }
             });
@@ -517,6 +531,16 @@ Client::reconnect()
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
     
+bool Client::updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6)
+{
+    const auto *newRecord = mDNScache.set(mUrl.host, ipsv4, ipsv6);
+    if (newRecord)
+    {
+        mKarereClient->saveDnsCacheToDb(mUrl.host, newRecord->ipv4, newRecord->ipv6);
+    }
+    return newRecord != nullptr;
+}
+
 bool Client::sendKeepalive(time_t now)
 {
     mTsLastPingSent = now ? now : time(NULL);
@@ -931,20 +955,16 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 
         // clear existing URL
         mUrl = Url();
-        setConnState(kFetchingUrl);
-
         auto wptr = getDelTracker();
-        mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
-        .then([this, wptr](ReqResult result)
+        fetchUrl(std::string())
+        .then([this, wptr]
         {
             if (wptr.deleted())
-            {
-                PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
-                return;
-            }
+                       {
+                           PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+                           return;
+                       }
 
-            mUrl.parse(result->getLink());
-            mKarereClient->mChatdClient->mKarereClient->savePresencedUrlTodb(result->getLink());
             retryPendingConnection(true);
         });
     }

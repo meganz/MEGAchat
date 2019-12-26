@@ -429,6 +429,7 @@ protected:
     void login();
     bool sendUserActive(bool active, bool force=false);
     bool sendKeepalive(time_t now=0);
+    bool updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6);
 
     // config management
     bool sendPrefs();
@@ -438,6 +439,7 @@ protected:
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
     void pushPeers();
+    void updatePresencedUrlCache(const char *url);
     bool isExContact(uint64_t userid);
     bool isContact(uint64_t userid);
 
@@ -465,7 +467,8 @@ public:
 
     // connection's management
     bool isOnline() const { return (mConnState >= kConnected); }
-    promise::Promise<void> connect(const char *url = nullptr);
+    promise::Promise<void> fetchUrl(std::string cachedUrl);
+    promise::Promise<void> connect(std::string url);
     void disconnect();
     void doConnect();
     void retryPendingConnection(bool disconnect, bool refreshURL = false);

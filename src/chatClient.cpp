@@ -650,9 +650,10 @@ void Client::loadContactListFromApi()
 void Client::loadDnsCacheFromDb()
 {
     SqliteStmt stmt(db, "select * from dns_cache");
-
     while (stmt.step())
+    {
         websocketIO->mDnsCache.set(stmt.stringCol(0), stmt.stringCol(1), stmt.stringCol(2));
+    }
 }
 
 void Client::saveDnsCacheToDb(const std::string& host, const std::string& ipv4, const std::string& ipv6)
@@ -1257,16 +1258,7 @@ promise::Promise<void> Client::doConnect()
     rtc->init();
 #endif
 
-    std::string aux;
-    SqliteStmt stmt(db, "select value from vars where name = 'presenced_url'");
-    if (stmt.step())
-    {
-        Buffer buf;
-        stmt.blobCol(0, buf);
-        aux.append(buf.buf(), buf.bufSize());
-    }
-    const char *url = !aux.empty() ? aux.c_str() : nullptr;
-
+    const std::string &url = loadPresencedUrlFromDb();
     auto pms = mPresencedClient.connect(url)
     .then([this, wptr]()
     {
@@ -1286,9 +1278,25 @@ promise::Promise<void> Client::doConnect()
     return pms;
 }
 
-void Client::savePresencedUrlTodb(const char *url)
+std::string Client::loadPresencedUrlFromDb()
 {
-    db.query("insert or replace into vars(name,value) values('presenced_url', ?)", url);
+    std::string aux;
+    SqliteStmt stmt(db, "select value from vars where name = 'presenced_url'");
+    if (stmt.step())
+    {
+        Buffer buf;
+        stmt.blobCol(0, buf);
+        aux.append(buf.buf(), buf.bufSize());
+    }
+    return aux;
+}
+
+void Client::savePresencedUrlToDb(const char *url)
+{
+    if (url)
+    {
+        db.query("insert or replace into vars(name,value) values('presenced_url', ?)", url);
+    }
 }
 
 void Client::setConnState(ConnState newState)
