@@ -32,7 +32,8 @@ int main(int argc, char **argv)
     // Tests that requires a groupchat (start with public chat, converted into private)
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
     EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
-    EXECUTE_TEST(t.TEST_Reactions(0, 1), "TEST Chat Reactions");
+    // TODO: uncomment this test once the reaction's support is deployed into shards 0 and 1 (currently, it only works in shard 2)
+    // EXECUTE_TEST(t.TEST_Reactions(0, 1), "TEST Chat Reactions");
     EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
 
@@ -1975,6 +1976,11 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int a1, unsigned int a2)
         *msgSentLoaded = false;
     } while (*flagHistoryLoaded);
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+
+    delete [] sessionPrimary;
+    // We need to ensure we finish the test being logged in for the tear down
+    logout(a1);
+    sessionPrimary = login(a1);
 
     ASSERT_CHAT_TEST(msgSentFound, "Failed to load sent message");
     delete msgSent; msgSent = NULL;
