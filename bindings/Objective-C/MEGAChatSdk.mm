@@ -881,16 +881,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-- (MEGAStringList *)chatAudioInDevices {
-    return self.megaChatApi ? [[MEGAStringList alloc] initWithMegaStringList:self.megaChatApi->getChatAudioInDevices() cMemoryOwn:YES] : nil;
-}
-
 - (MEGAStringList *)chatVideoInDevices {
     return self.megaChatApi ? [[MEGAStringList alloc] initWithMegaStringList:self.megaChatApi->getChatVideoInDevices() cMemoryOwn:YES] : nil;
-}
-
-- (BOOL)setChatAudioInDevices:(NSString *)devices {
-    return self.megaChatApi->setChatAudioInDevice(devices ? [devices UTF8String] : NULL);
 }
 
 - (void)setChatVideoInDevices:(NSString *)devices {
