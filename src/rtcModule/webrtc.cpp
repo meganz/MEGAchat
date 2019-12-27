@@ -2088,17 +2088,24 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
     auto itRetryTimerHandle = mManager.mRetryCallTimers.find(chatid);
     if (itRetryTimerHandle != mManager.mRetryCallTimers.end())
     {
-        cancelTimeout(itRetryTimerHandle->second, mManager.mKarereClient.appCtx);
+        // There is a retry and it isn't neccesary launch another one
+        return;
     }
 
     auto wptr = weakHandle();
-    mManager.mRetryCallTimers[chatid] = setTimeout([this, wptr, chatid, reason]()
+    auto wptrManager = mManager.weakHandle();
+    mManager.mRetryCallTimers[chatid] = setTimeout([this, wptr, wptrManager, chatid, reason]()
     {
-        if (wptr.deleted() || mManager.mRetryCall.find(chatid) == mManager.mRetryCall.end())
+        if (wptrManager.deleted())
+        {
             return;
+        }
 
         mManager.mRetryCall.erase(chatid);
         mManager.mRetryCallTimers.erase(chatid);
+
+        if (wptr.deleted() || mManager.mRetryCall.find(chatid) == mManager.mRetryCall.end())
+            return;
 
         SUB_LOG_DEBUG("Everybody left, terminating call- After reconnection");
         mHandler->setReconnectionFailed();
