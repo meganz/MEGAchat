@@ -327,7 +327,7 @@ protected:
                       std::string& selected);
 
     void updateConstraints(Resolution resolution);
-    void removeCallRetry(karere::Id chatid);
+    void removeCallRetry(karere::Id chatid, bool failed = false);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
     friend class Call;
     friend class Session;
