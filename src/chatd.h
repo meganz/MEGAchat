@@ -509,8 +509,9 @@ public:
     promise::Promise<void> sendSync();
 
     promise::Promise<void> connect(const char *url);
-    promise::Promise<void> fetchUrl(const char *url);
-    void updateChatdUrlCache(const std::string& url, bool updateDb = true);
+    promise::Promise<void> fetchUrl();
+    void clearUrl();
+    void updateChatdUrlCache(const char *url, bool updateDb = true);
     bool updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6);
 };
 

@@ -460,7 +460,7 @@ Connection::Connection(Client& chatdClient, int shardNo, const std::string& url)
     mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache),
     mSendPromise(promise::_Void())
 {
-    updateChatdUrlCache(url, false);
+    updateChatdUrlCache(url.c_str(), false);
 }
 
 void Connection::wsConnectCb()
@@ -800,7 +800,8 @@ Promise<void> Connection::reconnect()
 
                     if (statusDNS < 0)
                     {
-                        CHATDS_LOG_ERROR("Async DNS error in chatd. Error code: %d", statusDNS);
+                        string errStr = "Async DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS) + " .Reason: " + uv_strerror(statusDNS);
+                        CHATDS_LOG_ERROR("%s", errStr.c_str());
                     }
                     else
                     {
@@ -808,9 +809,29 @@ Promise<void> Connection::reconnect()
                     }
 
                     mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
-
                     assert(!isOnline());
-                    onSocketClose(0, 0, "Async DNS error (chatd)");
+
+                    if (statusDNS == UV_EAI_NONAME)
+                    {
+                        auto wptr = getDelTracker();
+                        // clear existing URL
+                        clearUrl();
+                        fetchUrl()
+                        .then([this, wptr]
+                        {
+                             assert(mUrl.isValid());
+                             if (wptr.deleted())
+                             {
+                                 PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+                                 return;
+                             }
+                             retryPendingConnection(true);
+                        });
+                    }
+                    else
+                    {
+                        onSocketClose(0, 0, "Async DNS error (chatd)");
+                    }
                     return;
                 }
 
@@ -844,9 +865,8 @@ Promise<void> Connection::reconnect()
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo)+". Error code: "+std::to_string(statusDNS);
+                string errStr = "Inmediate DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS) + " .Reason: " + uv_strerror(statusDNS);
                 CHATDS_LOG_ERROR("%s", errStr.c_str());
-
                 mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
 
                 assert(!mConnectPromise.done());
@@ -976,29 +996,18 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
         mConnectTimer = 0;
 
-        // clear existing URL
-        mUrl = Url();
-        setState(kStateFetchingUrl);
-
-        assert(mChatIds.size());
-
         auto wptr = getDelTracker();
-        mChatdClient.mKarereClient->api.call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
-        .then([this, wptr](ReqResult result)
+        // clear existing URL
+        clearUrl();
+        fetchUrl()
+        .then([this, wptr]
         {
             if (wptr.deleted())
             {
-                CHATD_LOG_DEBUG("Chatd URL request completed, but Connection was deleted");
+                PRESENCED_LOG_DEBUG("Chatd URL request completed, but Connection was deleted");
                 return;
             }
 
-            if (!result->getLink())
-            {
-                CHATD_LOG_ERROR("[shard %d]: No chatd URL received from API", mShardNo);
-                return;
-            }
-
-            updateChatdUrlCache(result->getLink());
             retryPendingConnection(true);
         });
     }
@@ -1053,10 +1062,12 @@ int Connection::shardNo() const
 }
 
 promise::Promise<void> Connection::connect(const char *url)
-{
-    return fetchUrl(url)
+{ 
+    updateChatdUrlCache(url, true);
+    return fetchUrl()
     .then([this]
     {
+        assert(mUrl.isValid());
         return reconnect()
         .fail([this](const ::promise::Error& err)
         {
@@ -1065,35 +1076,25 @@ promise::Promise<void> Connection::connect(const char *url)
     });
 }
 
-promise::Promise<void> Connection::fetchUrl(const char *url)
+void Connection::clearUrl()
+{
+    mUrl = Url();
+}
+
+promise::Promise<void> Connection::fetchUrl()
 {
     assert(!mChatIds.empty());
-    if (state() >= Connection::kStateFetchingUrl)
+    if (mChatdClient.mKarereClient->anonymousMode()
+            || mUrl.isValid()
+            || state() >= Connection::kStateDisconnected)
     {
-        return Void{};
+       return promise::_Void();
     }
+
     setState(kStateFetchingUrl);
-
-    ApiPromise pms;
-    std::string cachedUrl;
-    // If an url is provided by param update in cache and in RAM
-    if (url)
-    {
-        cachedUrl.assign(url);
-        pms.resolve(ReqResult());
-    }
-    else if (mUrl.isValid())
-    {
-        return promise::_Void();
-    }
-    else
-    {
-       pms = mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin());
-    }
-
     auto wptr = getDelTracker();
-    return pms
-    .then([wptr, cachedUrl, this](ReqResult result)
+    return mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
+    .then([wptr, this](ReqResult result)
     {
         if (wptr.deleted())
         {
@@ -1101,39 +1102,32 @@ promise::Promise<void> Connection::fetchUrl(const char *url)
             return;
         }
 
-        if (cachedUrl.empty() && !result->getLink())
+        if (!result->getLink())
         {
             CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, *mChatIds.begin());
             return;
         }
 
-        std::string aux = (cachedUrl.empty())
-            ? result->getLink()
-            : cachedUrl.c_str();
-
-        updateChatdUrlCache(aux);
+        updateChatdUrlCache(result->getLink());
     });
 }
 
-void Connection::updateChatdUrlCache(const std::string& url, bool updateDb)
+void Connection::updateChatdUrlCache(const char *url, bool updateDb)
 {
-    if (mUrl.isValid())
+    if (!url || !url[0])
     {
-        CHATDS_LOG_WARNING("Url for connection has already assigned");
         return;
     }
-    if (!url.empty())
-    {
-        mUrl.parse(url);
-        mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
 
-        if (updateDb)
+    mUrl.parse(url);
+    mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
+
+    if (updateDb)
+    {
+        auto& db = mChatdClient.mKarereClient->db;
+        for (const karere::Id &chatid : mChatIds)
         {
-            auto& db = mChatdClient.mKarereClient->db;
-            for (const karere::Id &chatid : mChatIds)
-            {
-                db.query("update chats set url = ? where chatid = ?", url, chatid);
-            }
+            db.query("update chats set url = ? where chatid = ?", url, chatid);
         }
     }
 }
