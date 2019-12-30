@@ -387,7 +387,7 @@ public:
 private:
     bool mRunning = false;
     AVCaptureDevice *mCaptureDevice = nullptr;
-    RTCCameraVideoCapturer *mCameraViceoCapturer = nullptr;
+    RTCCameraVideoCapturer *mCameraVideoCapturer = nullptr;
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mVideoSource;
     mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
 };

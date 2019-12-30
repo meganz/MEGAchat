@@ -10,7 +10,7 @@ namespace artc
     
     OBJCCaptureModule::OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
     {
-        if (mCameraViceoCapturer)
+        if (mCameraVideoCapturer)
         {
             return;
         }
@@ -27,7 +27,7 @@ namespace artc
         }
         
         assert(mCaptureDevice != nil);
-        mCameraViceoCapturer = [[RTCCameraVideoCapturer alloc] init];
+        mCameraVideoCapturer = [[RTCCameraVideoCapturer alloc] init];
         
         AVCaptureDeviceFormat *selectedFormat = nil;
         int currentDiff = INT_MAX;
@@ -43,7 +43,7 @@ namespace artc
                 selectedFormat = format;
                 currentDiff = diff;
             }
-            else if (diff == currentDiff && pixelFormat == [mCameraViceoCapturer preferredOutputPixelFormat])
+            else if (diff == currentDiff && pixelFormat == [mCameraVideoCapturer preferredOutputPixelFormat])
             {
                 selectedFormat = format;
             }
@@ -54,9 +54,9 @@ namespace artc
             selectedFormat = mCaptureDevice.activeFormat;
         }
         
-        [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:selectedFormat fps:capabilities.maxFPS];
+        [mCameraVideoCapturer startCaptureWithDevice:mCaptureDevice format:selectedFormat fps:capabilities.maxFPS];
         mRunning = true;
-        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraViceoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
+        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraVideoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
     }
 
     std::set<std::pair<std::string, std::string>> OBJCCaptureModule::getVideoDevices()
@@ -81,13 +81,13 @@ namespace artc
             return;
         }
         
-        [mCameraViceoCapturer startCaptureWithDevice:mCaptureDevice format:mCaptureDevice.activeFormat fps:30];
+        [mCameraVideoCapturer startCaptureWithDevice:mCaptureDevice format:mCaptureDevice.activeFormat fps:30];
         mRunning = true;
     }
     
     void OBJCCaptureModule::releaseDevice()
     {
-        [mCameraViceoCapturer stopCapture];
+        [mCameraVideoCapturer stopCapture];
         mRunning = false;
     }
 
