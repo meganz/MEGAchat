@@ -3021,17 +3021,12 @@ void Session::onRenegotiationNeeded()
 {
     if (mState != kStateInProgress)
     {
-        if (mState < kStateInProgress)
-        {
-            mRenegotiationAfterInitialConnect = true;
-        }
-
         return;
     }
 
     if (mRenegotiationInProgress)
     {
-        SUB_LOG_WARNING("Ignoring multiple calls of onNegotiationNeeded");
+        SUB_LOG_WARNING("Ignoring multiple calls of onRenegotiationNeeded");
         return;
     }
 

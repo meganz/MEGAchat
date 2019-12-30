@@ -99,7 +99,6 @@ protected:
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     TermCode mTermCode = TermCode::kInvalid;
     bool mPeerSupportRenegotiation = false;
-    bool mRenegotiationAfterInitialConnect = false;
     bool mRenegotiationInProgress = false;
     megaHandle mStreamRenegotiationTimer = 0;
     time_t mTsSdpHandshakeCompleted = 0;
