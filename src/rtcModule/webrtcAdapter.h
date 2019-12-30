@@ -342,7 +342,8 @@ class CapturerTrackSource : public VideoManager
 {
 public:
     static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
-    ~CapturerTrackSource() override;
+    virtual ~CapturerTrackSource();
+
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     virtual void openDevice(const std::string &videoDevice) override;
     virtual void releaseDevice() override;
@@ -351,8 +352,6 @@ public:
 protected:
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mCaptureModule;
     explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
-
-
 };
 
 #ifdef __APPLE__

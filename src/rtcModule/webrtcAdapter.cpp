@@ -90,7 +90,9 @@ unsigned long generateId()
 }
 
 CaptureModuleLinux::CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote)
-    : mState(webrtc::MediaSourceInterface::kInitializing), mRemote(remote), mCapabilities(capabilities)
+    : mState(webrtc::MediaSourceInterface::kInitializing),
+      mRemote(remote),
+      mCapabilities(capabilities)
 {
     mWorkerThreadChecker.Detach();
 }
