@@ -107,6 +107,26 @@ void CaptureModuleLinux::SetState(webrtc::MediaSourceInterface::SourceState new_
     }
 }
 
+webrtc::MediaSourceInterface::SourceState CaptureModuleLinux::state() const
+{
+    return mState;
+}
+
+bool CaptureModuleLinux::is_screencast() const
+{
+    return false;
+}
+
+absl::optional<bool> CaptureModuleLinux::needs_denoising() const
+{
+    return absl::nullopt;
+}
+
+bool CaptureModuleLinux::GetStats(webrtc::VideoTrackSourceInterface::Stats *stats)
+{
+    return false;
+}
+
 void CaptureModuleLinux::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
 {
     RTC_DCHECK(mWorkerThreadChecker.IsCurrent());
@@ -129,13 +149,31 @@ void CaptureModuleLinux::OnFrame(const webrtc::VideoFrame& frame)
     mBroadcaster.OnFrame(frame);
 }
 
+void CaptureModuleLinux::AddRef() const
+{
+    mRefCount.IncRef();
+}
+
+rtc::RefCountReleaseStatus CaptureModuleLinux::Release() const
+{
+    const auto status = mRefCount.DecRef();
+    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
+    {
+        delete this;
+    }
+
+    return status;
+}
+
 std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevices()
 {
     std::set<std::pair<std::string, std::string>> videoDevices;
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
-    if (!info) {
+    if (!info)
+    {
         return videoDevices;
     }
+
     uint32_t numDevices = info->NumberOfDevices();
     for (uint32_t i = 0; i < numDevices; i++)
     {
@@ -240,6 +278,64 @@ CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &c
 #else
     mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleLinux(capabilities));
 #endif
+}
+
+karere::AvFlags LocalStreamHandle::av()
+{
+    return karere::AvFlags(mAudio.get(), mVideo.get());
+}
+
+karere::AvFlags LocalStreamHandle::effectiveAv()
+{
+    return karere::AvFlags(mAudio && mAudio->enabled(), mVideo && mVideo->enabled());
+}
+
+void LocalStreamHandle::setAv(karere::AvFlags av)
+{
+    bool audio = av.audio();
+    if (mAudio && mAudio->enabled() != audio)
+    {
+        mAudio->set_enabled(audio);
+    }
+
+    bool video = av.video();
+    if (mVideo && mVideo->enabled() != video)
+    {
+        mVideo->set_enabled(video);
+    }
+}
+
+LocalStreamHandle::LocalStreamHandle(const char *name)
+{
+}
+
+LocalStreamHandle::~LocalStreamHandle()
+{ //make sure the stream is released before the tracks
+}
+
+void LocalStreamHandle::addAudioTrack(const rtc::scoped_refptr<webrtc::AudioTrackInterface> &audio)
+{
+    mAudio = audio;
+}
+
+void LocalStreamHandle::addVideoTrack(const rtc::scoped_refptr<webrtc::VideoTrackInterface> &video)
+{
+    if (mVideo)
+    {
+        mVideo.release();
+    }
+
+    mVideo = video;
+}
+
+webrtc::AudioTrackInterface *LocalStreamHandle::audio()
+{
+    return mAudio ? mAudio.get() : (webrtc::AudioTrackInterface*)nullptr;
+}
+
+webrtc::VideoTrackInterface *LocalStreamHandle::video()
+{
+    return mVideo ? mVideo.get() : (webrtc::VideoTrackInterface*)nullptr;
 }
 
 #ifdef __ANDROID__

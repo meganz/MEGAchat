@@ -270,49 +270,23 @@ public:
 
 class LocalStreamHandle
 {
+public:
+    LocalStreamHandle(const char* name="localStream");
+    ~LocalStreamHandle();
+
+    karere::AvFlags av();
+    karere::AvFlags effectiveAv();
+    void setAv(karere::AvFlags av);
+
+    void addAudioTrack(const rtc::scoped_refptr<webrtc::AudioTrackInterface>& audio);
+    void addVideoTrack(const rtc::scoped_refptr<webrtc::VideoTrackInterface>& video);
+
+    webrtc::AudioTrackInterface* audio();
+    webrtc::VideoTrackInterface* video();
+
 protected:
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
-public:
-    karere::AvFlags av() { return karere::AvFlags(mAudio.get(), mVideo.get()); }
-    karere::AvFlags effectiveAv()
-    { return karere::AvFlags(mAudio && mAudio->enabled(), mVideo && mVideo->enabled()); }
-
-    void setAv(karere::AvFlags av)
-    {
-        bool audio = av.audio();
-        bool video = av.video();
-        if (mAudio && mAudio->enabled() != audio)
-            mAudio->set_enabled(audio);
-        if (mVideo && mVideo->enabled() != video)
-            mVideo->set_enabled(video);
-    }
-
-    LocalStreamHandle(const char* name="localStream")
-    {
-    }
-
-    ~LocalStreamHandle()
-    { //make sure the stream is released before the tracks
-    }
-
-    void addAudioTrack(const rtc::scoped_refptr<webrtc::AudioTrackInterface>& audio)
-    {
-        mAudio = audio;
-    }
-
-    void addVideoTrack(const rtc::scoped_refptr<webrtc::VideoTrackInterface>& video)
-    {
-        if (mVideo)
-        {
-            mVideo.release();
-        }
-
-        mVideo = video;
-    }
-
-    webrtc::AudioTrackInterface* audio() { return mAudio ? mAudio.get() : (webrtc::AudioTrackInterface*)nullptr; }
-    webrtc::VideoTrackInterface* video() { return mVideo ? mVideo.get() : (webrtc::VideoTrackInterface*)nullptr; }
 };
 
 
@@ -330,36 +304,23 @@ class CaptureModuleLinux : public webrtc::Notifier<webrtc::VideoTrackSourceInter
 public:
     explicit CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote = false);
     ~CaptureModuleLinux() override;
+
     void SetState(webrtc::MediaSourceInterface::SourceState new_state);
+    webrtc::MediaSourceInterface::SourceState state() const override;
 
-    webrtc::MediaSourceInterface::SourceState state() const override { return mState; }
+    bool is_screencast() const override;
+    absl::optional<bool> needs_denoising() const override;
 
-    bool is_screencast() const override { return false; }
-    absl::optional<bool> needs_denoising() const override {
-        return absl::nullopt;
-    }
+    bool GetStats(webrtc::VideoTrackSourceInterface::Stats* stats) override;
 
-    bool GetStats(webrtc::VideoTrackSourceInterface::Stats* stats) override { return false; }
-
-    void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-                         const rtc::VideoSinkWants& wants) override;
+    void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-    virtual bool remote() const override;
-    virtual void OnFrame(const webrtc::VideoFrame& frame) override;
-    virtual void AddRef() const override
-    {
-        mRefCount.IncRef();
-    }
 
-    virtual rtc::RefCountReleaseStatus Release() const override
-    {
-        const auto status = mRefCount.DecRef();
-        if (status == rtc::RefCountReleaseStatus::kDroppedLastRef) {
-          delete this;
-        }
+    bool remote() const override;
+    void OnFrame(const webrtc::VideoFrame& frame) override;
+    void AddRef() const override;
 
-        return status;
-    }
+    virtual rtc::RefCountReleaseStatus Release() const override;
 
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     virtual void openDevice(const std::string &videoDevice) override;
