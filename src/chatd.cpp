@@ -813,20 +813,7 @@ Promise<void> Connection::reconnect()
 
                     if (statusDNS == UV_EAI_NONAME || statusDNS == UV_EAI_FAIL)
                     {
-                        auto wptr = getDelTracker();
-                        // clear existing URL
-                        clearUrl();
-                        fetchUrl()
-                        .then([this, wptr]
-                        {
-                             assert(mUrl.isValid());
-                             if (wptr.deleted())
-                             {
-                                 PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
-                                 return;
-                             }
-                             retryPendingConnection(true);
-                        });
+                         retryPendingConnection(true, true);
                     }
                     else
                     {
@@ -1004,7 +991,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         {
             if (wptr.deleted())
             {
-                PRESENCED_LOG_DEBUG("Chatd URL request completed, but Connection was deleted");
+                CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
                 return;
             }
 
@@ -1085,8 +1072,7 @@ promise::Promise<void> Connection::fetchUrl()
 {
     assert(!mChatIds.empty());
     if (mChatdClient.mKarereClient->anonymousMode()
-            || mUrl.isValid()
-            || state() >= Connection::kStateDisconnected)
+            || mUrl.isValid())
     {
        return promise::_Void();
     }

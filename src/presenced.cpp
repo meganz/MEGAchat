@@ -42,8 +42,7 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
 Promise<void> Client::fetchUrl()
 {
     if (mKarereClient->anonymousMode()
-            || mUrl.isValid()
-            || mConnState >= kFetchingUrl)
+            || mUrl.isValid())
     {
        return promise::_Void();
     }
@@ -471,26 +470,15 @@ Client::reconnect()
                         PRESENCED_LOG_ERROR("Async DNS error in presenced. Empty set of IPs");
                     }
 
+                    assert(!isOnline());
                     if (statusDNS == UV_EAI_NONAME || statusDNS == UV_EAI_FAIL)
                     {
-                        auto wptr = getDelTracker();
-                        // clear existing URL
-                        clearUrl();
-                        fetchUrl()
-                        .then([this, wptr]
-                        {
-                            if (wptr.deleted())
-                            {
-                                PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
-                                return;
-                            }
-                            retryPendingConnection(true);
-                        });
-                        return;
+                        retryPendingConnection(true, true);
                     }
-
-                    assert(!isOnline());
-                    onSocketClose(0, 0, "Async DNS error (presenced)");
+                    else
+                    {
+                        onSocketClose(0, 0, "Async DNS error (presenced)");
+                    }
                     return;
                 }
 
