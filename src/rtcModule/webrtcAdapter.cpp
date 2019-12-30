@@ -320,11 +320,6 @@ void LocalStreamHandle::addAudioTrack(const rtc::scoped_refptr<webrtc::AudioTrac
 
 void LocalStreamHandle::addVideoTrack(const rtc::scoped_refptr<webrtc::VideoTrackInterface> &video)
 {
-    if (mVideo)
-    {
-        mVideo.release();
-    }
-
     mVideo = video;
 }
 
