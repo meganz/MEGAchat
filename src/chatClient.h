@@ -256,11 +256,14 @@ protected:
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
+
+    //Resume from cache
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
             chatd::Priv peerPriv, int64_t ts, bool aIsArchived,
             const std::string& url);
 
+    //Create chat or receive an invitation
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
 

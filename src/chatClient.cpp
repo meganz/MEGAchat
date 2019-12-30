@@ -1979,6 +1979,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
   mRoomGui(nullptr)
 {
+    // Get url from cache
+    mUrl = parent.mKarereClient.mChatdClient->getUrlByShard(mShardNo);
+
     // Initialize list of peers and fetch their names
     auto peers = aChat.getPeerList();
     std::vector<promise::Promise<void>> promises;
@@ -2145,6 +2148,7 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
     return list ? list->addPeerChatItem(*this) : nullptr;
 }
 
+//Resume from cache
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer,
     chatd::Priv peerPriv, int64_t ts, bool aIsArchived, const std::string& url)
@@ -2160,11 +2164,13 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     mIsInitializing = false;
 }
 
+//Create chat or receive an invitation
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     :ChatRoom(parent, chat.getHandle(), false, chat.getShard(),
      (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime(), chat.isArchived()),
       mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)), mRoomGui(nullptr)
 {
+    // Get url from cache
     mUrl = parent.mKarereClient.mChatdClient->getUrlByShard(mShardNo);
     parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived, url) values (?,?,?,?,?,?,?,?)",
         mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived(), mUrl);
