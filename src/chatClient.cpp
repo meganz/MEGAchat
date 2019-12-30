@@ -1259,7 +1259,7 @@ promise::Promise<void> Client::doConnect()
 #endif
 
     const std::string &url = loadPresencedUrlFromDb();
-    auto pms = mPresencedClient.connect(url)
+    auto pms = mPresencedClient.connect(url.c_str())
     .then([this, wptr]()
     {
         if (wptr.deleted())

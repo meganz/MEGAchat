@@ -212,12 +212,6 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
         conn = it->second.get();
     }
 
-    if (!url.empty())
-    {
-        conn->mUrl.parse(url);
-        conn->mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
-    }
-
     // map chatid to this shard
     mConnectionForChatId[chatid] = conn;
 
@@ -460,7 +454,7 @@ Connection::Connection(Client& chatdClient, int shardNo, const std::string& url)
     mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache),
     mSendPromise(promise::_Void())
 {
-    updateChatdUrlCache(url.c_str(), false);
+    updateChatdUrlCache(url.c_str());
 }
 
 void Connection::wsConnectCb()
@@ -1050,7 +1044,7 @@ int Connection::shardNo() const
 
 promise::Promise<void> Connection::connect(const char *url)
 { 
-    updateChatdUrlCache(url, true);
+    updateChatdUrlCache(url);
     return fetchUrl()
     .then([this]
     {
@@ -1098,23 +1092,19 @@ promise::Promise<void> Connection::fetchUrl()
     });
 }
 
-void Connection::updateChatdUrlCache(const char *url, bool updateDb)
+void Connection::updateChatdUrlCache(const char *url)
 {
-    if (!url || !url[0])
+    if (!url || !url[0] || mUrl.originUrl == url)
     {
         return;
     }
 
     mUrl.parse(url);
     mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
-
-    if (updateDb)
+    auto& db = mChatdClient.mKarereClient->db;
+    for (const karere::Id &chatid : mChatIds)
     {
-        auto& db = mChatdClient.mKarereClient->db;
-        for (const karere::Id &chatid : mChatIds)
-        {
-            db.query("update chats set url = ? where chatid = ?", url, chatid);
-        }
+        db.query("update chats set url = ? where chatid = ?", url, chatid);
     }
 }
 
@@ -1122,7 +1112,9 @@ bool Connection::updateDnsCache(const std::vector<std::string>& ipsv4, const std
 {
     const auto* newRecord = mDNScache.set(mUrl.host, ipsv4, ipsv6);
     if (newRecord)
+    {
         mChatdClient.mKarereClient->saveDnsCacheToDb(mUrl.host, newRecord->ipv4, newRecord->ipv6);
+    }
     return newRecord != nullptr;
 }
 

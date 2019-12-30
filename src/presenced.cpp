@@ -65,16 +65,15 @@ Promise<void> Client::fetchUrl()
         }
 
         // Update presenced url in ram and db
-        std::string aux(result->getLink());
-        updatePresencedUrlCache(aux);
+        updatePresencedUrlCache(result->getLink());
         return promise::_Void();
     });
 }
 
-Promise<void> Client::connect(std::string cachedUrl)
+Promise<void> Client::connect(const char *cachedUrl)
 {
     assert (mConnState == kConnNew);
-    updatePresencedUrlCache(cachedUrl, false);
+    updatePresencedUrlCache(cachedUrl);
     return fetchUrl()
     .then([this]
     {
@@ -91,18 +90,15 @@ void Client::clearUrl()
     mUrl = Url();
 }
 
-void Client::updatePresencedUrlCache(std::string &url, bool updateDb)
+void Client::updatePresencedUrlCache(const char *url)
 {
-    if (url.empty())
+    if (!url || !url[0] || mUrl.originUrl == url)
     {
        return;
     }
 
     mUrl.parse(url);
-    if (updateDb)
-    {
-        mKarereClient->mChatdClient->mKarereClient->savePresencedUrlToDb(url.c_str());
-    }
+    mKarereClient->mChatdClient->mKarereClient->savePresencedUrlToDb(url);
 }
 
 void Client::pushPeers()
