@@ -811,7 +811,7 @@ Promise<void> Connection::reconnect()
                     mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
                     assert(!isOnline());
 
-                    if (statusDNS == UV_EAI_NONAME)
+                    if (statusDNS == UV_EAI_NONAME || statusDNS == UV_EAI_FAIL)
                     {
                         auto wptr = getDelTracker();
                         // clear existing URL

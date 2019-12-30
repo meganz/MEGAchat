@@ -471,7 +471,7 @@ Client::reconnect()
                         PRESENCED_LOG_ERROR("Async DNS error in presenced. Empty set of IPs");
                     }
 
-                    if (statusDNS == UV_EAI_NONAME)
+                    if (statusDNS == UV_EAI_NONAME || statusDNS == UV_EAI_FAIL)
                     {
                         auto wptr = getDelTracker();
                         // clear existing URL
