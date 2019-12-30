@@ -211,7 +211,6 @@ protected:
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     std::shared_ptr<artc::CapturerTrackSource> mVideoDevice;
-    std::shared_ptr<webrtc::AudioSourceInterface> mAudioSource;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
