@@ -39,25 +39,19 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-Promise<void> Client::fetchUrl(std::string cachedUrl)
+Promise<void> Client::fetchUrl()
 {
-    assert(!mUrl.isValid());
-    setConnState(kFetchingUrl);
-    ApiPromise pms;
-    if (cachedUrl.empty())
+    if (mKarereClient->anonymousMode()
+            || mUrl.isValid()
+            || mConnState >= kFetchingUrl)
     {
-        // We will request presenced URL to API
-        pms = mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL);
-    }
-    else
-    {
-        // We will try to connect to presenced with URL from cache
-        pms.resolve(ReqResult());
+       return promise::_Void();
     }
 
+    setConnState(kFetchingUrl);
     auto wptr = getDelTracker();
-    return pms
-    .then([this, wptr, cachedUrl](ReqResult result) -> Promise<void>
+    return mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
+    .then([this, wptr](ReqResult result) -> Promise<void>
     {
         if (wptr.deleted())
         {
@@ -65,18 +59,15 @@ Promise<void> Client::fetchUrl(std::string cachedUrl)
             return ::promise::_Void();
         }
 
-        if (cachedUrl.empty() && !result->getLink())
+        if (!result->getLink())
         {
             PRESENCED_LOG_DEBUG("Invalid Presenced URL received from API");
             return ::promise::_Void();
         }
 
-        std::string auxUrl = (cachedUrl.empty())
-            ? result->getLink()
-            : cachedUrl.c_str();
-
         // Update presenced url in ram and db
-        updatePresencedUrlCache(auxUrl.c_str());
+        std::string aux(result->getLink());
+        updatePresencedUrlCache(aux);
         return promise::_Void();
     });
 }
@@ -84,7 +75,8 @@ Promise<void> Client::fetchUrl(std::string cachedUrl)
 Promise<void> Client::connect(std::string cachedUrl)
 {
     assert (mConnState == kConnNew);
-    return fetchUrl(cachedUrl)
+    updatePresencedUrlCache(cachedUrl, false);
+    return fetchUrl()
     .then([this]
     {
         return reconnect()
@@ -95,12 +87,22 @@ Promise<void> Client::connect(std::string cachedUrl)
     });
 }
 
-void Client::updatePresencedUrlCache(const char *url)
+void Client::clearUrl()
 {
-    if (url)
+    mUrl = Url();
+}
+
+void Client::updatePresencedUrlCache(std::string &url, bool updateDb)
+{
+    if (url.empty())
     {
-        mUrl.parse(url);
-        mKarereClient->mChatdClient->mKarereClient->savePresencedUrlToDb(url);
+       return;
+    }
+
+    mUrl.parse(url);
+    if (updateDb)
+    {
+        mKarereClient->mChatdClient->mKarereClient->savePresencedUrlToDb(url.c_str());
     }
 }
 
@@ -461,11 +463,30 @@ Client::reconnect()
 
                     if (statusDNS < 0)
                     {
-                        PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", statusDNS);
+                        string errStr = "Async DNS error in presenced. Error code: " + std::to_string(statusDNS) + " .Reason: " + uv_strerror(statusDNS);
+                        PRESENCED_LOG_ERROR("%s", errStr.c_str());
                     }
                     else
                     {
                         PRESENCED_LOG_ERROR("Async DNS error in presenced. Empty set of IPs");
+                    }
+
+                    if (statusDNS == UV_EAI_NONAME)
+                    {
+                        auto wptr = getDelTracker();
+                        // clear existing URL
+                        clearUrl();
+                        fetchUrl()
+                        .then([this, wptr]
+                        {
+                            if (wptr.deleted())
+                            {
+                                PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+                                return;
+                            }
+                            retryPendingConnection(true);
+                        });
+                        return;
                     }
 
                     assert(!isOnline());
@@ -496,7 +517,7 @@ Client::reconnect()
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                string errStr = "Immediate DNS error in presenced. Error code: "+std::to_string(statusDNS);
+                string errStr = "Immediate DNS error in presenced. Error code: " + std::to_string(statusDNS) + " .Reason: " + uv_strerror(statusDNS);
                 PRESENCED_LOG_ERROR("%s", errStr.c_str());
 
                 assert(mConnState == kResolving);
@@ -953,17 +974,17 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
             mConnectTimer = 0;
         }
 
-        // clear existing URL
-        mUrl = Url();
         auto wptr = getDelTracker();
-        fetchUrl(std::string())
+        // clear existing URL
+        clearUrl();
+        fetchUrl()
         .then([this, wptr]
         {
             if (wptr.deleted())
-                       {
-                           PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
-                           return;
-                       }
+            {
+                PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+                return;
+            }
 
             retryPendingConnection(true);
         });

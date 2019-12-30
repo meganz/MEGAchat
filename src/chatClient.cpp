@@ -1286,7 +1286,7 @@ std::string Client::loadPresencedUrlFromDb()
     {
         Buffer buf;
         stmt.blobCol(0, buf);
-        aux.append(buf.buf(), buf.bufSize());
+        aux.assign(buf.buf(), buf.bufSize());
     }
     return aux;
 }

@@ -439,7 +439,8 @@ protected:
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
     void pushPeers();
-    void updatePresencedUrlCache(const char *url);
+    void updatePresencedUrlCache(std::string &url, bool updateDb = false);
+    void clearUrl();
     bool isExContact(uint64_t userid);
     bool isContact(uint64_t userid);
 
@@ -467,7 +468,7 @@ public:
 
     // connection's management
     bool isOnline() const { return (mConnState >= kConnected); }
-    promise::Promise<void> fetchUrl(std::string cachedUrl);
+    promise::Promise<void> fetchUrl();
     promise::Promise<void> connect(std::string url);
     void disconnect();
     void doConnect();
