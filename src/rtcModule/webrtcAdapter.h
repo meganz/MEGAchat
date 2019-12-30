@@ -303,29 +303,30 @@ class CaptureModuleLinux : public webrtc::Notifier<webrtc::VideoTrackSourceInter
 {
 public:
     explicit CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote = false);
-    ~CaptureModuleLinux() override;
+    virtual ~CaptureModuleLinux();
 
-    void SetState(webrtc::MediaSourceInterface::SourceState new_state);
-    webrtc::MediaSourceInterface::SourceState state() const override;
+    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    void openDevice(const std::string &videoDevice) override;
+    void releaseDevice() override;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
 
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
 
     bool GetStats(webrtc::VideoTrackSourceInterface::Stats* stats) override;
 
+    webrtc::MediaSourceInterface::SourceState state() const override;
+    bool remote() const override;
+
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
 
-    bool remote() const override;
-    void OnFrame(const webrtc::VideoFrame& frame) override;
     void AddRef() const override;
+    rtc::RefCountReleaseStatus Release() const override;
 
-    virtual rtc::RefCountReleaseStatus Release() const override;
+    void OnFrame(const webrtc::VideoFrame& frame) override;
 
-    static std::set<std::pair<std::string, std::string>> getVideoDevices();
-    virtual void openDevice(const std::string &videoDevice) override;
-    virtual void releaseDevice() override;
-    virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+    void SetState(webrtc::MediaSourceInterface::SourceState new_state);
 
 protected:
     rtc::ThreadChecker mWorkerThreadChecker;
@@ -358,28 +359,36 @@ protected:
 class OBJCCaptureModule : public VideoManager, public webrtc::VideoTrackSourceInterface
 {
 public:
-    OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
+    explicit OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
+    virtual ~OBJCCaptureModule() {}
+
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
-    virtual void openDevice(const std::string &videoDevice) override;
-    virtual void releaseDevice() override;
+    void openDevice(const std::string &videoDevice) override;
+    void releaseDevice() override;
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
-    virtual bool is_screencast() const override;
-    virtual absl::optional<bool> needs_denoising() const override;
-    virtual bool GetStats(Stats* stats) override;
-    virtual SourceState state() const override;
-    virtual bool remote() const override;
-    virtual void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
-    virtual void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-    virtual void AddRef() const override;
-    virtual rtc::RefCountReleaseStatus Release() const override;
-    virtual void RegisterObserver(webrtc::ObserverInterface* observer) override;
-    virtual void UnregisterObserver(webrtc::ObserverInterface* observer) override;
+
+    bool is_screencast() const override;
+    absl::optional<bool> needs_denoising() const override;
+
+    bool GetStats(Stats* stats) override;
+
+    SourceState state() const override;
+    bool remote() const override;
+
+    void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
+    void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
+
+    void AddRef() const override;
+    rtc::RefCountReleaseStatus Release() const override;
+
+    void RegisterObserver(webrtc::ObserverInterface* observer) override;
+    void UnregisterObserver(webrtc::ObserverInterface* observer) override;
     
 private:
+    bool mRunning = false;
     AVCaptureDevice *mCaptureDevice = nullptr;
     RTCCameraVideoCapturer *mCameraViceoCapturer = nullptr;
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mVideoSource;
-    bool mRunning = false;
     mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
 };
 #endif
@@ -388,23 +397,30 @@ private:
 class CaptureModuleAndroid : public VideoManager, public webrtc::VideoTrackSourceInterface
 {
 public:
-    CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
-    ~CaptureModuleAndroid();
+    explicit CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
+    virtual ~CaptureModuleAndroid();
+
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
-    virtual void openDevice(const std::string &videoDevice) override;
-    virtual void releaseDevice() override;
+    void openDevice(const std::string &videoDevice) override;
+    void releaseDevice() override;
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
-    virtual bool is_screencast() const override;
-    virtual absl::optional<bool> needs_denoising() const override;
-    virtual SourceState state() const override;
-    virtual bool GetStats(Stats* stats) override;
-    virtual void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
-    virtual void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-    virtual bool remote() const override;
-    virtual void AddRef() const override;
-    virtual rtc::RefCountReleaseStatus Release() const override;
-    virtual void RegisterObserver(webrtc::ObserverInterface* observer) override;
-    virtual void UnregisterObserver(webrtc::ObserverInterface* observer) override;
+
+    bool is_screencast() const override;
+    absl::optional<bool> needs_denoising() const override;
+
+    bool GetStats(Stats* stats) override;
+
+    SourceState state() const override;
+    bool remote() const override;
+
+    void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
+    void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
+
+    void AddRef() const override;
+    rtc::RefCountReleaseStatus Release() const override;
+
+    void RegisterObserver(webrtc::ObserverInterface* observer) override;
+    void UnregisterObserver(webrtc::ObserverInterface* observer) override;
 
 private:
     bool mRunning = false;

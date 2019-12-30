@@ -101,7 +101,8 @@ CaptureModuleLinux::~CaptureModuleLinux()
 
 void CaptureModuleLinux::SetState(webrtc::MediaSourceInterface::SourceState new_state)
 {
-    if (mState != new_state) {
+    if (mState != new_state)
+    {
         mState = new_state;
         FireOnChanged();
     }
