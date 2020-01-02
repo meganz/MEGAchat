@@ -79,6 +79,7 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
 
+    //preload ice servers to make calls faster
     initInputDevices();
 
     mWebRtcLogger.reset(new WebRtcLogger(mKarereClient.api, mOwnAnonId.toString(), getDeviceInfo()));
@@ -420,13 +421,12 @@ void RtcModule::getAudioInDevices(std::vector<std::string>& /*devices*/) const
 
 }
 
-void RtcModule::getVideoInDevices(std::set<std::string>& devices) const
+void RtcModule::getVideoInDevices(std::set<std::string>& deviceNameIds) const
 {
-    std::set<std::pair<std::string, std::string>> devicesNameId;
-    devicesNameId = loadDeviceList();
-    for (const std::pair<std::string, std::string> &dev : devicesNameId)
+    std::set<std::pair<std::string, std::string>> devices = loadDeviceList();
+    for (const std::pair<std::string, std::string> &device : devices)
     {
-        devices.insert(dev.first);
+        deviceNameIds.insert(device.first);
     }
 }
 
@@ -1221,7 +1221,7 @@ void Call::msgSdpOffer(RtMessage& packet)
         return;
     }
 
-    std::shared_ptr<Session> sess = std::make_shared<Session>(*this, packet, &sessionsInfoIt->second);
+    std::shared_ptr<Session> sess(*this, packet, &sessionsInfoIt->second);
     mSessions[sessionsInfoIt->second.mSessionId] = sess;
     notifyCallStarting(*sess);
     sess->createRtcConn();
@@ -1346,7 +1346,7 @@ void Call::msgSession(RtMessage& packet)
         }
     }
 
-    auto sess = std::make_shared<Session>(*this, packet);
+    std::shared_ptr<Session> sess(*this, packet);
     mSessions[sess->sessionId()] = sess;
     notifyCallStarting(*sess);
     sess->createRtcConnSendOffer();
@@ -3030,7 +3030,6 @@ void Session::onRenegotiationNeeded()
         return;
     }
 
-    mRenegotiationInProgress = true;
     setStreamRenegotiationTimeout();
     SUB_LOG_DEBUG("Renegotiation while in progress, sending sdp offer");
     sendOffer();
@@ -3068,21 +3067,18 @@ promise::Promise<void> Session::createRtcConnSendOffer()
 Promise<void> Session::sendOffer()
 {
     auto wptr = weakHandle();
-    bool firstOffer = mState < kStateInProgress;
+    bool isRenegotiation = mState == kStateInProgress;
     webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
     return mRtcConn.createOffer(options)
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
         if (wptr.deleted())
             return ::promise::_Void();
-    /*  if (self.state !== SessState.kWaitSdpAnswer) {
-            return;
-        }
-    */
+
         KR_THROW_IF_FALSE(sdp->ToString(&mOwnSdpOffer));
         return mRtcConn.setLocalDescription(sdp);
     })
-    .then([wptr, firstOffer, this]()
+    .then([wptr, isRenegotiation, this]()
     {
         if (wptr.deleted())
             return;
@@ -3097,20 +3093,20 @@ Promise<void> Session::sendOffer()
         mCall.mManager.crypto().mac(mOwnSdpOffer, mPeerHashKey, hash);
 
         SdpKey encKey;
-        uint8_t command = 0;
-        if (firstOffer)
+        uint8_t opcode = 0;
+        if (isRenegotiation)
         {
-            command = RTCMD_SDP_OFFER;
-            mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
+            opcode = RTCMD_SDP_OFFER_RENEGOTIATE;
+            memset(encKey.data, 0, sizeof(encKey.data));
         }
         else
         {
-            command = RTCMD_SDP_OFFER_RENEGOTIATE;
-            memset(encKey.data, 0, sizeof(encKey.data));
+            opcode = RTCMD_SDP_OFFER;
+            mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
         }
 
         // SDP_OFFER/RTCMD_SDP_OFFER_RENEGOTIATE sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
-        cmd(command,
+        cmd(opcode,
             mCall.mManager.mOwnAnonId,
             encKey,
             hash,
@@ -3395,11 +3391,12 @@ void Session::msgSdpOfferRenegotiate(RtMessage &packet)
         return;
     }
 
+    // SDP_OFFER_RENEGOTIATE sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
     uint16_t sdpLen = packet.payload.read<uint16_t>(81);
     assert(packet.payload.size() >= 83 + sdpLen);
     packet.payload.read(83, sdpLen, mPeerSdpOffer);
     packet.payload.read(48, mPeerHash);
-    mRenegotiationInProgress = true;
+
     setStreamRenegotiationTimeout();
     auto wptr = weakHandle();
     processSdpOfferSendAnswer()
@@ -3815,6 +3812,7 @@ void Session::setStreamRenegotiationTimeout()
     assert(!mStreamRenegotiationTimer);
     auto wptr = weakHandle();
 
+    mRenegotiationInProgress = true;
     mStreamRenegotiationTimer = setTimeout([wptr, this]()
     {
         if (wptr.deleted())
@@ -3832,7 +3830,6 @@ void Session::setStreamRenegotiationTimeout()
         mStreamRenegotiationTimer = 0;
         terminateAndDestroy(TermCode::kErrStreamRenegotationTimeout);
     }, RtcModule::kStreamRenegotiationTimeout, mManager.mKarereClient.appCtx);
-
 }
 
 void Session::renegotiationComplete()

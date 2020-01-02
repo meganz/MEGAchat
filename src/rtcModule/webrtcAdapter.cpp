@@ -337,135 +337,136 @@ webrtc::VideoTrackInterface *LocalStreamHandle::video()
 }
 
 #ifdef __ANDROID__
-    CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
-        : mCapabilities(capabilities)
+CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
+    : mCapabilities(capabilities)
+{
+    JNIEnv* env;
+    MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    startVideoCaptureMID = env->GetStaticMethodID(applicationClass, "startVideoCapture", "(IIILorg/webrtc/SurfaceTextureHelper;Lorg/webrtc/CapturerObserver;Ljava/lang/String;)V");
+    if (!startVideoCaptureMID)
     {
-        JNIEnv* env;
-        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
-        startVideoCaptureMID = env->GetStaticMethodID(applicationClass, "startVideoCapture", "(IIILorg/webrtc/SurfaceTextureHelper;Lorg/webrtc/CapturerObserver;Ljava/lang/String;)V");
-        if (!startVideoCaptureMID)
+        env->ExceptionClear();
+    }
+
+    stopVideoCaptureMID = env->GetStaticMethodID(applicationClass, "stopVideoCapture", "()V");
+    if (!stopVideoCaptureMID)
+    {
+        env->ExceptionClear();
+    }
+
+    mVideoSource = webrtc::CreateJavaVideoSource(env, thread, false, true);
+}
+
+CaptureModuleAndroid::~CaptureModuleAndroid()
+{
+}
+
+std::set<std::pair<std::string, std::string>> CaptureModuleAndroid::getVideoDevices()
+{
+    std::set<std::pair<std::string, std::string>> devices;
+    JNIEnv* env;
+    MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (deviceListMID)
+    {
+        jobject object = env->CallStaticObjectMethod(applicationClass, deviceListMID);
+        jobjectArray* array = reinterpret_cast<jobjectArray*>(&object);
+        jsize size = env->GetArrayLength(*array);
+        for (jsize i = 0; i < size; i++)
         {
-            env->ExceptionClear();
-        }
-
-        stopVideoCaptureMID = env->GetStaticMethodID(applicationClass, "stopVideoCapture", "()V");
-        if (!stopVideoCaptureMID)
-        {
-            env->ExceptionClear();
-        }
-
-        mVideoSource = webrtc::CreateJavaVideoSource(env, thread, false, true);
-    }
-
-    CaptureModuleAndroid::~CaptureModuleAndroid()
-    {
-    }
-
-    std::set<std::pair<std::string, std::string>> CaptureModuleAndroid::getVideoDevices()
-    {
-        std::set<std::pair<std::string, std::string>> devices;
-        JNIEnv* env;
-        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
-        if (deviceListMID)
-        {
-            jobject object = env->CallStaticObjectMethod(applicationClass, deviceListMID);
-            jobjectArray* array = reinterpret_cast<jobjectArray*>(&object);
-            jsize size = env->GetArrayLength(*array);
-            for (jsize i = 0; i < size; i++)
-            {
-                jstring device = (jstring)env->GetObjectArrayElement(*array, i);
-                const char *characters = env->GetStringUTFChars(device, NULL);
-                std::string deviceStr = std::string(characters);
-                env->ReleaseStringUTFChars(device, characters);
-                devices.insert(std::pair<std::string, std::string>(deviceStr, deviceStr));
-            }
-        }
-
-        return devices;
-    }
-
-    void CaptureModuleAndroid::openDevice(const std::string &videoDevice)
-    {
-        JNIEnv* env;
-        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
-        if (startVideoCaptureMID)
-        {
-            jstring javaDevice = env->NewStringUTF(videoDevice.c_str());
-            env->CallStaticVoidMethod(applicationClass, startVideoCaptureMID, (jint)mCapabilities.width, (jint)mCapabilities.height, (jint)mCapabilities.maxFPS, surfaceTextureHelper, mVideoSource->GetJavaVideoCapturerObserver(env).Release(), javaDevice);
+            jstring device = (jstring)env->GetObjectArrayElement(*array, i);
+            const char *characters = env->GetStringUTFChars(device, NULL);
+            std::string deviceStr = std::string(characters);
+            env->ReleaseStringUTFChars(device, characters);
+            devices.insert(std::pair<std::string, std::string>(deviceStr, deviceStr));
         }
     }
 
-    void CaptureModuleAndroid::releaseDevice()
-    {
-        JNIEnv* env;
-        MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
-        if (stopVideoCaptureMID)
-        {
-            env->CallStaticVoidMethod(applicationClass, stopVideoCaptureMID);
-        }
-    }
+    return devices;
+}
 
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CaptureModuleAndroid::getVideoTrackSource()
+void CaptureModuleAndroid::openDevice(const std::string &videoDevice)
+{
+    JNIEnv* env;
+    MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (startVideoCaptureMID)
     {
-        return this;
+        jstring javaDevice = env->NewStringUTF(videoDevice.c_str());
+        env->CallStaticVoidMethod(applicationClass, startVideoCaptureMID, (jint)mCapabilities.width, (jint)mCapabilities.height, (jint)mCapabilities.maxFPS, surfaceTextureHelper, mVideoSource->GetJavaVideoCapturerObserver(env).Release(), javaDevice);
     }
+}
 
-    bool CaptureModuleAndroid::is_screencast() const
+void CaptureModuleAndroid::releaseDevice()
+{
+    JNIEnv* env;
+    MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (stopVideoCaptureMID)
     {
-        return mVideoSource->is_screencast();
+        env->CallStaticVoidMethod(applicationClass, stopVideoCaptureMID);
     }
+}
 
-    absl::optional<bool> CaptureModuleAndroid::needs_denoising() const
-    {
-        return mVideoSource->needs_denoising();
-    }
+rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CaptureModuleAndroid::getVideoTrackSource()
+{
+    return this;
+}
 
-    bool CaptureModuleAndroid::GetStats(Stats* stats)
-    {
-        return mVideoSource->GetStats(stats);
-    }
+bool CaptureModuleAndroid::is_screencast() const
+{
+    return mVideoSource->is_screencast();
+}
 
-    webrtc::MediaSourceInterface::SourceState CaptureModuleAndroid::state() const
-    {
-        return mVideoSource->state();
-    }
+absl::optional<bool> CaptureModuleAndroid::needs_denoising() const
+{
+    return mVideoSource->needs_denoising();
+}
 
-    bool CaptureModuleAndroid::remote() const
-    {
-        return mVideoSource->remote();
-    }
+bool CaptureModuleAndroid::GetStats(Stats* stats)
+{
+    return mVideoSource->GetStats(stats);
+}
 
-    void CaptureModuleAndroid::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
-    {
-        mVideoSource->AddOrUpdateSink(sink, wants);
-    }
+webrtc::MediaSourceInterface::SourceState CaptureModuleAndroid::state() const
+{
+    return mVideoSource->state();
+}
 
-    void CaptureModuleAndroid::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
-    {
-        mVideoSource->RemoveSink(sink);
-    }
+bool CaptureModuleAndroid::remote() const
+{
+    return mVideoSource->remote();
+}
 
-    void CaptureModuleAndroid::AddRef() const
-    {
-        mRefCount.IncRef();
-    }
+void CaptureModuleAndroid::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
+{
+    mVideoSource->AddOrUpdateSink(sink, wants);
+}
 
-    rtc::RefCountReleaseStatus CaptureModuleAndroid::Release() const
-    {
-        const auto status = mRefCount.DecRef();
-        if (status == rtc::RefCountReleaseStatus::kDroppedLastRef) {
-            delete this;
-        }
-        return status;
-    }
+void CaptureModuleAndroid::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
+{
+    mVideoSource->RemoveSink(sink);
+}
 
-    void CaptureModuleAndroid::RegisterObserver(webrtc::ObserverInterface* observer)
-    {
-    }
+void CaptureModuleAndroid::AddRef() const
+{
+    mRefCount.IncRef();
+}
 
-    void CaptureModuleAndroid::UnregisterObserver(webrtc::ObserverInterface* observer)
+rtc::RefCountReleaseStatus CaptureModuleAndroid::Release() const
+{
+    const auto status = mRefCount.DecRef();
+    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
     {
+        delete this;
     }
+    return status;
+}
+
+void CaptureModuleAndroid::RegisterObserver(webrtc::ObserverInterface* observer)
+{
+}
+
+void CaptureModuleAndroid::UnregisterObserver(webrtc::ObserverInterface* observer)
+{
+}
 #endif
 
 }
