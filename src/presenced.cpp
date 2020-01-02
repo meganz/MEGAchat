@@ -467,7 +467,7 @@ Client::reconnect()
                     }
 
                     assert(!isOnline());
-                    if (statusDNS == UV_EAI_NONAME || statusDNS == UV_EAI_FAIL)
+                    if (statusDNS == UV_EAI_NONAME)
                     {
                         retryPendingConnection(true, true);
                     }
