@@ -308,6 +308,17 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+
+            else if (cachedVersionSuffix == "8" && (strcmp(gDbSchemaVersionSuffix, "9") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Add dns_cache table
+                db.simpleQuery("CREATE TABLE dns_cache(host text, shard tinyint, ipv4 text, ipv6 text, PRIMARY KEY(host, shard))");
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -2479,7 +2490,7 @@ void ChatRoomList::loadFromDb()
         previewCleanup(chatid);
     }
 
-    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, url, mode, unified_key from chats");
+    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -2488,11 +2499,21 @@ void ChatRoomList::loadFromDb()
             KR_LOG_WARNING("ChatRoomList: Attempted to load from db cache a chatid that is already in memory");
             continue;
         }
+
+        // Get chatd url from db
+        std::string url;
+        SqliteStmt stmt2(db, "select host from dns_cache where shard = ?");
+        stmt2 << stmt2.intCol(2);
+        if (stmt2.step())
+        {
+            url.assign(stmt.stringCol(0));
+        }
+
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
         {
-            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1), stmt.intCol(7), stmt.stringCol(8));
+            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1), stmt.intCol(7), url);
         }
         else
         {
@@ -2500,7 +2521,7 @@ void ChatRoomList::loadFromDb()
             int isUnifiedKeyEncrypted = strongvelope::kDecrypted;
 
             Buffer unifiedKeyBuf;
-            stmt.blobCol(10, unifiedKeyBuf);
+            stmt.blobCol(9, unifiedKeyBuf);
             if (!unifiedKeyBuf.empty())
             {
                 const char *pos = unifiedKeyBuf.buf();
@@ -2525,8 +2546,7 @@ void ChatRoomList::loadFromDb()
                 size_t len = titleBuf.size() - 1;
                 auxTitle.assign(posTitle, len);
             }
-
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(9), unifiedKey, isUnifiedKeyEncrypted, stmt.stringCol(8));
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted, url);
         }
         emplace(chatid, room);
     }

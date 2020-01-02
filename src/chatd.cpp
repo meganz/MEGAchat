@@ -1102,10 +1102,8 @@ void Connection::updateChatdUrlCache(const char *url)
     mUrl.parse(url);
     mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
     auto& db = mChatdClient.mKarereClient->db;
-    for (const karere::Id &chatid : mChatIds)
-    {
-        db.query("update chats set url = ? where chatid = ?", url, chatid);
-    }
+    // Update shard url and clear ipv4 and ipv6
+    db.query("insert or replace into dns_cache(host, shard, ipv4, ipv6) values(?,?,?,?)", url, mShardNo, "", "");
 }
 
 bool Connection::updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6)
