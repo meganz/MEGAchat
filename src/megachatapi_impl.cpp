@@ -1807,18 +1807,24 @@ int MegaChatApiImpl::initAnonymous()
     return MegaChatApiImpl::convertInitState(state);
 }
 
-int MegaChatApiImpl::init(const char *sid)
+int MegaChatApiImpl::init(const char *sid, bool waitForFetchnodesToConnect)
 {
     sdkMutex.lock();
     createKarereClient();
 
-    int state = mClient->init(sid);
+    int state = mClient->init(sid, waitForFetchnodesToConnect);
     if (state != karere::Client::kInitErrNoCache &&
             state != karere::Client::kInitWaitingNewSession &&
             state != karere::Client::kInitHasOfflineSession)
     {
         // there's been an error during initialization
         localLogout();
+    }
+
+    if (!waitForFetchnodesToConnect && state != karere::Client::kInitHasOfflineSession)
+    {
+        localLogout();
+        state = karere::Client::kInitErrGeneric;
     }
 
     sdkMutex.unlock();

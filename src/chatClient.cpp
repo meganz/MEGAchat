@@ -852,7 +852,7 @@ void Client::setInitState(InitState newState)
     app.onInitStateChange(mInitState);
 }
 
-Client::InitState Client::init(const char* sid)
+Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 {
     if (mInitState > kInitCreated)
     {
@@ -879,6 +879,11 @@ Client::InitState Client::init(const char* sid)
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
     api.sdk.addRequestListener(this);
+    if (!waitForFetchnodesToConnect)
+    {
+        mSessionReadyPromise.resolve();
+        mInitStats.onCanceled();    // do not collect stats for this initialization mode
+    }
     return mInitState;
 }
 
