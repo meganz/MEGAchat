@@ -1821,12 +1821,6 @@ int MegaChatApiImpl::init(const char *sid, bool waitForFetchnodesToConnect)
         localLogout();
     }
 
-    if (!waitForFetchnodesToConnect && state != karere::Client::kInitHasOfflineSession)
-    {
-        localLogout();
-        state = karere::Client::kInitErrGeneric;
-    }
-
     sdkMutex.unlock();
     return MegaChatApiImpl::convertInitState(state);
 }
