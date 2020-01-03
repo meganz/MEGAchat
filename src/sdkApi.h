@@ -86,6 +86,9 @@ public:
     promise::Promise<void> mPromise;
     virtual void onRequestFinish(::mega::MegaApi* /*api*/, ::mega::MegaRequest * /*request*/, ::mega::MegaError* e)
     {
+        if (wptr.deleted())
+            return;
+
         int errCode = e->getErrorCode();
         karere::marshallCall([this, errCode]()
         {
