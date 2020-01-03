@@ -869,6 +869,7 @@ public:
     MyMegaApi api;              // MegaApi's instance
     IApp& app;                  // app's interface
     SqliteDb db;                // db-layer interface
+    DNScache mDnsCache;         // dns cache
 
     std::unique_ptr<chatd::Client> mChatdClient;
 

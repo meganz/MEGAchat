@@ -8,6 +8,8 @@
 #include <mega/thread.h>
 #include "base/logger.h"
 #include "sdkApi.h"
+#include "../buffer.h"
+#include "../db.h"
 
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
@@ -30,7 +32,9 @@ public:
         time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
     };
 
-    DNScache() {}
+    // reference to db-layer interface
+    SqliteDb &mDb;
+    DNScache(SqliteDb &db);
     // returns false if ipv4 and ipv6 for the given url already match the ones in cache, true if not (so they are updated)
     bool set(const std::string &url, const std::string &ipv4, const std::string &ipv6);
     const DNSrecord* set(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
@@ -42,7 +46,6 @@ public:
     bool isMatch(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
     bool isMatch(const std::string &url, const std::string &ipv4, const std::string &ipv6);
 private:
-
     std::map<std::string, DNSrecord> mRecords;
 };
 
@@ -55,8 +58,6 @@ public:
 
     WebsocketsIO(Mutex &mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
-
-    DNScache mDnsCache;
     
 protected:
     Mutex &mutex;

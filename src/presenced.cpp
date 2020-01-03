@@ -34,7 +34,7 @@ namespace presenced
 
 Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
 : mApi(api), mKarereClient(client), mListener(&listener), mCapabilities(caps),
-  mDNScache(mKarereClient->websocketIO->mDnsCache)
+  mDNScache(mKarereClient->mDnsCache)
 {
     mApi->sdk.addGlobalListener(this);
 }

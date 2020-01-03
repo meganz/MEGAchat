@@ -78,6 +78,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
           appCtx(ctx),
           api(sdk, ctx),
           app(aApp),
+          mDnsCache(db),
           contactList(new ContactList(*this)),
           chats(new ChatRoomList(*this)),
           mPresencedClient(&api, this, *this, caps)
@@ -663,7 +664,7 @@ void Client::loadDnsCacheFromDb()
     SqliteStmt stmt(db, "select * from dns_cache");
     while (stmt.step())
     {
-        websocketIO->mDnsCache.set(stmt.stringCol(0), stmt.stringCol(1), stmt.stringCol(2));
+        mDnsCache.set(stmt.stringCol(0), stmt.stringCol(1), stmt.stringCol(2));
     }
 }
 
@@ -2183,8 +2184,8 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 {
     // Get url from cache
     mUrl = parent.mKarereClient.mChatdClient->getUrlByShard(mShardNo);
-    parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived, url) values (?,?,?,?,?,?,?,?)",
-        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived(), mUrl);
+    parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived) values (?,?,?,?,?,?,?)",
+        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived());
 //just in case
     parent.mKarereClient.db.query("delete from chat_peers where chatid = ?", mChatid);
 

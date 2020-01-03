@@ -451,7 +451,7 @@ void Chat::login()
 
 Connection::Connection(Client& chatdClient, int shardNo, const std::string& url)
     : mChatdClient(chatdClient), mShardNo(shardNo),
-    mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache),
+    mDNScache(mChatdClient.mKarereClient->mDnsCache),
     mSendPromise(promise::_Void())
 {
     updateChatdUrlCache(url.c_str());

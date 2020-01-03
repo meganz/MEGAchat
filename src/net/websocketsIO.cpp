@@ -199,6 +199,12 @@ const DNScache::DNSrecord* DNScache::set(const std::string &url, const std::vect
     return nullptr;
 }
 
+DNScache::DNScache(SqliteDb &db)
+    : mDb(db)
+{
+
+}
+
 bool DNScache::set(const std::string &url, const std::string &ipv4, const std::string &ipv6)
 {
     if (!isMatch(url, ipv4, ipv6))
