@@ -315,7 +315,7 @@ bool Client::openDb(const std::string& sid)
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
 
                 // Add dns_cache table
-                db.simpleQuery("CREATE TABLE dns_cache(host text, shard tinyint, ipv4 text, ipv6 text, url text, PRIMARY KEY(host, shard))");
+                db.simpleQuery("CREATE TABLE dns_cache(host text, shard tinyint, ipv4 text, ipv6 text, PRIMARY KEY(host, shard))");
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
