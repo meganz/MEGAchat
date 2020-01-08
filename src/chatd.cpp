@@ -983,7 +983,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 
         auto wptr = getDelTracker();
         // clear existing URL
-        clearUrl();
+        mUrl = Url();
         fetchUrl()
         .then([this, wptr]
         {
@@ -1056,18 +1056,12 @@ promise::Promise<void> Connection::connect(const char *url)
     return fetchUrl()
     .then([this]
     {
-        assert(mUrl.isValid());
         return reconnect()
         .fail([this](const ::promise::Error& err)
         {
             CHATDS_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
         });
     });
-}
-
-void Connection::clearUrl()
-{
-    mUrl = Url();
 }
 
 promise::Promise<void> Connection::fetchUrl()
@@ -1096,26 +1090,22 @@ promise::Promise<void> Connection::fetchUrl()
             return;
         }
 
-        updateChatdUrlCache(result->getLink());
+        const char *url = result->getLink();
+        if (!url || !url[0] || mUrl.originUrl == url)
+        {
+            return;
+        }
+
+        // Remove DnsCache record
+        mChatdClient.mKarereClient->mDnsCache.removeRecord(mUrl.host, mShardNo);
+
+        // Update karere::Url
+        mUrl.parse(url);
+        mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
+
+        // Add record to db to store new URL
+        mChatdClient.mKarereClient->mDnsCache.addRecordToDb(mUrl.originUrl, mShardNo);
     });
-}
-
-void Connection::updateChatdUrlCache(const char *url)
-{
-    if (!url || !url[0] || mUrl.originUrl == url)
-    {
-        return;
-    }
-
-    // Remove DnsCache record
-    mChatdClient.mKarereClient->mDnsCache.removeRecord(mUrl.host, mShardNo);
-
-    // Update karere::Url
-    mUrl.parse(url);
-    mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
-
-    // Add record to db to store URL
-    mChatdClient.mKarereClient->mDnsCache.addRecordToDb(mUrl.originUrl, mShardNo);
 }
 
 bool Connection::updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6)

@@ -441,8 +441,6 @@ protected:
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
     void pushPeers();
-    void updatePresencedUrlCache(const char *url);
-    void clearUrl();
     bool isExContact(uint64_t userid);
     bool isContact(uint64_t userid);
 

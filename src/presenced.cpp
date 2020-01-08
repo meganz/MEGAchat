@@ -59,12 +59,25 @@ Promise<void> Client::fetchUrl()
 
         if (!result->getLink())
         {
-            PRESENCED_LOG_DEBUG("Invalid Presenced URL received from API");
+            PRESENCED_LOG_DEBUG("No Presenced URL received from API");
             return ::promise::_Void();
         }
 
         // Update presenced url in ram and db
-        updatePresencedUrlCache(result->getLink());
+        const char *url = result->getLink();
+        if (!url || !url[0] || mUrl.originUrl == url)
+        {
+           return promise::_Void();
+        }
+
+        // Remove DnsCache record
+        mKarereClient->mDnsCache.removeRecord(mUrl.host, kPresencedShard);
+
+        // Update karere::Url
+        mUrl.parse(url);
+
+        // Add record to db to store new URL
+        mKarereClient->mDnsCache.addRecordToDb(mUrl.originUrl, kPresencedShard);
         return promise::_Void();
     });
 }
@@ -85,28 +98,6 @@ Promise<void> Client::connect(const char *cachedUrl)
             PRESENCED_LOG_DEBUG("Presenced::connect(): Error connecting to server after getting URL: %s", err.what());
         });
     });
-}
-
-void Client::clearUrl()
-{
-    mUrl = Url();
-}
-
-void Client::updatePresencedUrlCache(const char *url)
-{
-    if (!url || !url[0] || mUrl.originUrl == url)
-    {
-       return;
-    }
-
-    // Remove DnsCache record
-    mKarereClient->mDnsCache.removeRecord(mUrl.host, kPresencedShard);
-
-    // Update karere::Url
-    mUrl.parse(url);
-
-    // Add record to db to store URL
-    mKarereClient->mDnsCache.addRecordToDb(mUrl.originUrl, kPresencedShard);
 }
 
 void Client::pushPeers()
@@ -964,7 +955,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 
         auto wptr = getDelTracker();
         // clear existing URL
-        clearUrl();
+        mUrl = Url();
         fetchUrl()
         .then([this, wptr]
         {
