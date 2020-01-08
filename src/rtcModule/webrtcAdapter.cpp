@@ -174,6 +174,7 @@ std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevic
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
     if (!info)
     {
+        RTCM_LOG_WARNING("Unable to get device info");
         return videoDevices;
     }
 
@@ -195,6 +196,7 @@ void CaptureModuleLinux::openDevice(const std::string &videoDevice)
     mCameraCapturer = webrtc::VideoCaptureFactory::Create(videoDevice.c_str());
     if (!mCameraCapturer)
     {
+        RTCM_LOG_WARNING("Unable to open Device (CaptureModuleLinux)");
         return;
     }
 
@@ -208,6 +210,7 @@ void CaptureModuleLinux::openDevice(const std::string &videoDevice)
 
     if (mCameraCapturer->StartCapture(mCapabilities) != 0)
     {
+        RTCM_LOG_WARNING("Unable to start capture");
         return;
     }
 
@@ -253,6 +256,12 @@ std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevic
 
 void CapturerTrackSource::openDevice(const std::string &videoDevice)
 {
+    if (videoDevice.empty())
+    {
+        RTCM_LOG_WARNING("Unable to open device, no device selected");
+        return;
+    }
+
     VideoManager *videoManager = dynamic_cast<VideoManager *>(mCaptureModule.get());
     assert(videoManager);
     videoManager->openDevice(videoDevice);
@@ -345,12 +354,14 @@ CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability 
     startVideoCaptureMID = env->GetStaticMethodID(applicationClass, "startVideoCapture", "(IIILorg/webrtc/SurfaceTextureHelper;Lorg/webrtc/CapturerObserver;Ljava/lang/String;)V");
     if (!startVideoCaptureMID)
     {
+        RTCM_LOG_WARNING("Unable to get static method startVideoCapture");
         env->ExceptionClear();
     }
 
     stopVideoCaptureMID = env->GetStaticMethodID(applicationClass, "stopVideoCapture", "()V");
     if (!stopVideoCaptureMID)
     {
+        RTCM_LOG_WARNING("Unable to get static method stopVideoCapture");
         env->ExceptionClear();
     }
 
