@@ -212,6 +212,12 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
         conn = it->second.get();
     }
 
+    if (!url.empty())
+    {
+        conn->mUrl.parse(url);
+        conn->mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
+    }
+
     // map chatid to this shard
     mConnectionForChatId[chatid] = conn;
 
@@ -451,10 +457,8 @@ void Chat::login()
 
 Connection::Connection(Client& chatdClient, int shardNo, const std::string& url)
     : mChatdClient(chatdClient), mShardNo(shardNo),
-    mDNScache(mChatdClient.mKarereClient->mDnsCache),
     mSendPromise(promise::_Void())
 {
-    updateChatdUrlCache(url.c_str());
 }
 
 void Connection::wsConnectCb()
@@ -660,7 +664,7 @@ void Connection::setState(State state)
     {
         CHATDS_LOG_DEBUG("Chatd connected to %s", mTargetIp.c_str());
 
-        mDNScache.connectDone(mUrl.host, mTargetIp);
+        mChatdClient.mKarereClient->mDnsCache.connectDone(mUrl.host, mTargetIp);
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
@@ -733,7 +737,7 @@ Promise<void> Connection::reconnect()
             mConnectPromise = Promise<void>();
 
             string ipv4, ipv6;
-            bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+            bool cachedIPs = mChatdClient.mKarereClient->mDnsCache.getIp(mUrl.host, ipv4, ipv6);
 
             setState(kStateResolving);
             CHATDS_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
@@ -827,7 +831,7 @@ Promise<void> Connection::reconnect()
                     return;
                 }
 
-                if (mDNScache.isMatch(mUrl.host, ipsv4, ipsv6))
+                if (mChatdClient.mKarereClient->mDnsCache.isMatch(mUrl.host, ipsv4, ipsv6))
                 {
                     CHATDS_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
@@ -901,7 +905,7 @@ void Connection::disconnect()
 void Connection::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+    bool cachedIPs = mChatdClient.mKarereClient->mDnsCache.getIp(mUrl.host, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
@@ -1043,8 +1047,12 @@ int Connection::shardNo() const
 }
 
 promise::Promise<void> Connection::connect(const char *url)
-{ 
-    updateChatdUrlCache(url);
+{
+    if (url && url[0])
+    {
+        mUrl.parse(url);
+        mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
+    }
     return fetchUrl()
     .then([this]
     {
@@ -1099,20 +1107,20 @@ void Connection::updateChatdUrlCache(const char *url)
         return;
     }
 
+    // Remove DnsCache record
+    mChatdClient.mKarereClient->mDnsCache.removeRecord(mUrl.host, mShardNo);
+
+    // Update karere::Url
     mUrl.parse(url);
     mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
-    auto& db = mChatdClient.mKarereClient->db;
-    // Update shard url and clear ipv4 and ipv6
-    db.query("insert or replace into dns_cache(host, shard, ipv4, ipv6) values(?,?,?,?)", url, mShardNo, "", "");
+
+    // Add record to db to store URL
+    mChatdClient.mKarereClient->mDnsCache.addRecordToDb(mUrl.originUrl, mShardNo);
 }
 
 bool Connection::updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6)
 {
-    const auto* newRecord = mDNScache.set(mUrl.host, ipsv4, ipsv6);
-    if (newRecord)
-    {
-        mChatdClient.mKarereClient->saveDnsCacheToDb(mUrl.host, newRecord->ipv4, newRecord->ipv6);
-    }
+    const auto* newRecord = mChatdClient.mKarereClient->mDnsCache.setIp(mUrl.host, mShardNo, ipsv4, ipsv6);
     return newRecord != nullptr;
 }
 

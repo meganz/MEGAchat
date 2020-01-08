@@ -315,7 +315,7 @@ bool Client::openDb(const std::string& sid)
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
 
                 // Add dns_cache table
-                db.simpleQuery("CREATE TABLE dns_cache(host text, shard tinyint, ipv4 text, ipv6 text, PRIMARY KEY(host, shard))");
+                db.simpleQuery("CREATE TABLE dns_cache(url text, shard tinyint, ipv4 text, ipv6 text, PRIMARY KEY(url, shard))");
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -661,16 +661,14 @@ void Client::loadContactListFromApi()
 
 void Client::loadDnsCacheFromDb()
 {
-    SqliteStmt stmt(db, "select * from dns_cache");
+    SqliteStmt stmt(db, "select url, ipv4, ipv6 from dns_cache");
     while (stmt.step())
     {
-        mDnsCache.set(stmt.stringCol(0), stmt.stringCol(1), stmt.stringCol(2));
+        // Parse URL(host) to store records in DNScache in ram
+        karere::Url auxUrl;
+        auxUrl.parse(stmt.stringCol(0));
+        mDnsCache.setIp(auxUrl.host, stmt.stringCol(1), stmt.stringCol(2));
     }
-}
-
-void Client::saveDnsCacheToDb(const std::string& host, const std::string& ipv4, const std::string& ipv6)
-{
-    db.query("insert or replace into dns_cache(host, ipv4, ipv6) values(?,?,?)", host, ipv4, ipv6);
 }
 
 void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
@@ -1270,7 +1268,14 @@ promise::Promise<void> Client::doConnect()
     rtc->init();
 #endif
 
-    const std::string &url = loadPresencedUrlFromDb();
+    std::string url;
+    SqliteStmt stmt2(db, "select url from dns_cache where shard = ?");
+    stmt2 << presenced::Client::kPresencedShard;
+    if (stmt2.step())
+    {
+        url.assign(stmt2.stringCol(0));
+    }
+
     auto pms = mPresencedClient.connect(url.c_str())
     .then([this, wptr]()
     {
@@ -1288,27 +1293,6 @@ promise::Promise<void> Client::doConnect()
     });
 
     return pms;
-}
-
-std::string Client::loadPresencedUrlFromDb()
-{
-    std::string aux;
-    SqliteStmt stmt(db, "select value from vars where name = 'presenced_url'");
-    if (stmt.step())
-    {
-        Buffer buf;
-        stmt.blobCol(0, buf);
-        aux.assign(buf.buf(), buf.bufSize());
-    }
-    return aux;
-}
-
-void Client::savePresencedUrlToDb(const char *url)
-{
-    if (url)
-    {
-        db.query("insert or replace into vars(name,value) values('presenced_url', ?)", url);
-    }
 }
 
 void Client::setConnState(ConnState newState)
@@ -2111,8 +2095,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     auto db = parent.mKarereClient.db;
     db.query(
         "insert or replace into chats(chatid, shard, own_priv, peer, peer_priv, "
-        " ts_created, url, mode, unified_key) values(?,?,?,-1,0,?,?,2,?)",
-        mChatid, mShardNo, mOwnPriv, mCreationTs, mUrl, unifiedKeyBuf);
+        " ts_created, mode, unified_key) values(?,?,?,-1,0,?,2,?)",
+        mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
 
     initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
@@ -2502,12 +2486,13 @@ void ChatRoomList::loadFromDb()
         }
 
         // Get chatd url from db
+        int shard = stmt.intCol(2);
         std::string url;
-        SqliteStmt stmt2(db, "select host from dns_cache where shard = ?");
-        stmt2 << stmt2.intCol(2);
+        SqliteStmt stmt2(db, "select url from dns_cache where shard = ?");
+        stmt2 << shard;
         if (stmt2.step())
         {
-            url.assign(stmt.stringCol(0));
+            url.assign(stmt2.stringCol(0));
         }
 
         auto peer = stmt.uint64Col(4);

@@ -1114,8 +1114,6 @@ public:
 
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
-    void saveDnsCacheToDb(const std::string& host, const std::string& ipv4, const std::string& ipv6);
-
     bool anonymousMode() const;
     bool isChatRoomOpened(Id chatid);
     void updateAndNotifyLastGreen(Id userid);
@@ -1129,9 +1127,6 @@ public:
 
     /** @brief Returns a string that contains the user alias in UTF-8 if exists, otherwise returns an empty string*/
     std::string getUserAlias(uint64_t userId);
-
-    void savePresencedUrlToDb(const char *url);
-    std::string loadPresencedUrlFromDb();
 
 protected:
     void heartbeat();

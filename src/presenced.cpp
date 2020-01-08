@@ -33,8 +33,7 @@ namespace presenced
 {
 
 Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
-: mApi(api), mKarereClient(client), mListener(&listener), mCapabilities(caps),
-  mDNScache(mKarereClient->mDnsCache)
+: mApi(api), mKarereClient(client), mListener(&listener), mCapabilities(caps)
 {
     mApi->sdk.addGlobalListener(this);
 }
@@ -73,7 +72,10 @@ Promise<void> Client::fetchUrl()
 Promise<void> Client::connect(const char *cachedUrl)
 {
     assert (mConnState == kConnNew);
-    updatePresencedUrlCache(cachedUrl);
+    if (cachedUrl && cachedUrl[0])
+    {
+        mUrl.parse(cachedUrl);
+    }
     return fetchUrl()
     .then([this]
     {
@@ -97,8 +99,14 @@ void Client::updatePresencedUrlCache(const char *url)
        return;
     }
 
+    // Remove DnsCache record
+    mKarereClient->mDnsCache.removeRecord(mUrl.host, kPresencedShard);
+
+    // Update karere::Url
     mUrl.parse(url);
-    mKarereClient->mChatdClient->mKarereClient->savePresencedUrlToDb(url);
+
+    // Add record to db to store URL
+    mKarereClient->mDnsCache.addRecordToDb(mUrl.originUrl, kPresencedShard);
 }
 
 void Client::pushPeers()
@@ -407,7 +415,7 @@ Client::reconnect()
             mConnectPromise = Promise<void>();
 
             string ipv4, ipv6;
-            bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+            bool cachedIPs = mKarereClient->mDnsCache.getIp(mUrl.host, ipv4, ipv6);
 
             setConnState(kResolving);
             PRESENCED_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
@@ -486,7 +494,7 @@ Client::reconnect()
                     return;
                 }
 
-                if (mDNScache.isMatch(mUrl.host, ipsv4, ipsv6))
+                if (mKarereClient->mDnsCache.isMatch(mUrl.host, ipsv4, ipsv6))
                 {
                     PRESENCED_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
@@ -538,11 +546,7 @@ Client::reconnect()
     
 bool Client::updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6)
 {
-    const auto *newRecord = mDNScache.set(mUrl.host, ipsv4, ipsv6);
-    if (newRecord)
-    {
-        mKarereClient->saveDnsCacheToDb(mUrl.host, newRecord->ipv4, newRecord->ipv6);
-    }
+    const auto *newRecord = mKarereClient->mDnsCache.setIp(mUrl.host, kPresencedShard, ipsv4, ipsv6);
     return newRecord != nullptr;
 }
 
@@ -878,7 +882,7 @@ void Client::disconnect()
 void Client::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+    bool cachedIPs = mKarereClient->mDnsCache.getIp(mUrl.host, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
@@ -1428,7 +1432,7 @@ void Client::setConnState(ConnState newState)
     {
         PRESENCED_LOG_DEBUG("Presenced connected to %s", mTargetIp.c_str());
 
-        mDNScache.connectDone(mUrl.host, mTargetIp);
+        mKarereClient->mDnsCache.connectDone(mUrl.host, mTargetIp);
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();

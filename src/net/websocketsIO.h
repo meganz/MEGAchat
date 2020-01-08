@@ -35,16 +35,17 @@ public:
     // reference to db-layer interface
     SqliteDb &mDb;
     DNScache(SqliteDb &db);
+    void addRecordToDb(const std::string &url, int shard);
+    void removeRecord(const std::string &host, int shard);
     // returns false if ipv4 and ipv6 for the given url already match the ones in cache, true if not (so they are updated)
-    bool set(const std::string &url, const std::string &ipv4, const std::string &ipv6);
-    const DNSrecord* set(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
-    void clear(const std::string &url);
-    // returns true if hit in cache, false if there's no record for the given url
-    bool get(const std::string &url, std::string &ipv4, std::string &ipv6);
-    void connectDone(const std::string &url, const std::string &ip);
-    time_t age(const std::string &url);
-    bool isMatch(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
-    bool isMatch(const std::string &url, const std::string &ipv4, const std::string &ipv6);
+    bool setIp(const std::string &url, const std::string &ipv4, const std::string &ipv6);
+    const DNSrecord* setIp(const std::string &url, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    // returns true if hit in cache, false if there's no record for the given url host
+    bool getIp(const std::string &host, std::string &ipv4, std::string &ipv6);
+    void connectDone(const std::string &host, const std::string &ip);
+    time_t age(const std::string &host);
+    bool isMatch(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool isMatch(const std::string &host, const std::string &ipv4, const std::string &ipv6);
 private:
     std::map<std::string, DNSrecord> mRecords;
 };

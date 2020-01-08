@@ -440,9 +440,6 @@ protected:
     /** URL retrieved from API to establish the connection */
     karere::Url mUrl;
 
-    /** DNS cache to store resolved IPs */
-    DNScache &mDNScache;
-
     /** Target IP address being used for the reconnection in-flight */
     std::string mTargetIp;
 
