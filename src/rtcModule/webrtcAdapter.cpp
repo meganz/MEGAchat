@@ -1,12 +1,13 @@
+#include "rtcmPrivate.h"
 #include "webrtcAdapter.h"
-#include <rtc_base/ssl_adapter.h>
-#include <modules/video_capture/video_capture_factory.h>
+#include "webrtcAsyncWaiter.h"
 #include <api/create_peerconnection_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/video_codecs/builtin_video_encoder_factory.h>
 #include <api/video_codecs/builtin_video_decoder_factory.h>
-#include "webrtcAsyncWaiter.h"
+#include <modules/video_capture/video_capture_factory.h>
+#include <rtc_base/ssl_adapter.h>
 
 #ifdef __ANDROID__
 extern JavaVM *MEGAjvm;
@@ -183,8 +184,7 @@ std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevic
     {
         char deviceName[256];
         char uniqueName[256];
-        std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> deviceInfo(webrtc::VideoCaptureFactory::CreateDeviceInfo());
-        deviceInfo->GetDeviceName(i, deviceName, sizeof(deviceName), uniqueName, sizeof(uniqueName));
+        info->GetDeviceName(i, deviceName, sizeof(deviceName), uniqueName, sizeof(uniqueName));
         videoDevices.insert(std::pair<std::string, std::string>(deviceName, uniqueName));
     }
 

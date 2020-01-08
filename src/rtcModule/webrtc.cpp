@@ -1221,7 +1221,7 @@ void Call::msgSdpOffer(RtMessage& packet)
         return;
     }
 
-    std::shared_ptr<Session> sess(*this, packet, &sessionsInfoIt->second);
+    std::shared_ptr<Session> sess(new Session(*this, packet, &sessionsInfoIt->second));
     mSessions[sessionsInfoIt->second.mSessionId] = sess;
     notifyCallStarting(*sess);
     sess->createRtcConn();
@@ -1346,7 +1346,7 @@ void Call::msgSession(RtMessage& packet)
         }
     }
 
-    std::shared_ptr<Session> sess(*this, packet);
+    std::shared_ptr<Session> sess(new Session(*this, packet));
     mSessions[sess->sessionId()] = sess;
     notifyCallStarting(*sess);
     sess->createRtcConnSendOffer();
