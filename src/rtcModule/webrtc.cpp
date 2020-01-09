@@ -3006,6 +3006,13 @@ void Session::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transc
         return;
     }
 
+    if (!mRemotePlayer)
+    {
+        IVideoRenderer* renderer = NULL;
+        FIRE_EVENT(SESSION, onRemoteStreamAdded, renderer);
+        mRemotePlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
+    }
+
     if (transceiver->media_type() == cricket::MEDIA_TYPE_VIDEO)
     {
         mRemotePlayer->attachVideo(transceiver->receiver()->streams()[0]->GetVideoTracks()[0]);
