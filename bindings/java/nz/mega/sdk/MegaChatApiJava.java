@@ -6,6 +6,9 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import mega.privacy.android.app.MegaApplication;
+import mega.privacy.android.app.utils.VideoCaptureUtils;
+
 public class MegaChatApiJava {
     MegaChatApi megaChatApi;
     static DelegateMegaChatLogger logger;
@@ -2427,7 +2430,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
-     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -2438,6 +2441,12 @@ public class MegaChatApiJava {
      */
     public void startChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
     {
+        // Always try to start the call using the front camera
+        String frontCamera = VideoCaptureUtils.getFrontCamera();
+        if (frontCamera != null) {
+            megaChatApi.setChatVideoInDevice(frontCamera, null);
+        }
+
         megaChatApi.startChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
     }
 
@@ -2449,7 +2458,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
-     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -2460,6 +2469,12 @@ public class MegaChatApiJava {
      */
     public void answerChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
     {
+        // Always try to start the call using the front camera
+        String frontCamera = VideoCaptureUtils.getFrontCamera();
+        if (frontCamera != null) {
+            megaChatApi.setChatVideoInDevice(frontCamera, null);
+        }
+
         megaChatApi.answerChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
     }
 
