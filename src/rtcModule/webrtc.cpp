@@ -1124,7 +1124,6 @@ void Call::getLocalStream(AvFlags av)
     }
 
     mLocalPlayer->enableVideo(av.video());
-    setState(Call::kStateHasLocalStream);
 
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
             artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
@@ -1135,6 +1134,8 @@ void Call::getLocalStream(AvFlags av)
     }
 
     mLocalStream->addAudioTrack(audioTrack);
+
+    setState(Call::kStateHasLocalStream);
 }
 
 void Call::msgCallReqDecline(RtMessage& packet)
