@@ -3963,7 +3963,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             auto& item = *it;
             if (((item.opcode() != OP_MSGUPD) && (item.opcode() != OP_MSGUPDX))
-                || (item.msg->id() != cipherMsg->id()))
+                    || (item.msg->id() != cipherMsg->id())
+                    || (cipherMsg->type != Message::kMsgTruncate        // a truncate prevents any further edit
+                        && (item.msg->updated > cipherMsg->updated)))   // the newer edition prevails
             {
                 it++;
                 continue;
