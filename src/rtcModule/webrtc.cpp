@@ -2832,6 +2832,9 @@ promise::Promise<void> Session:: processSdpOfferSendAnswer()
             return ::promise::Error("Session killed");
 
         webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
+        //Probably only required for sdpOffer but follow same approach that webClient
+        options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
+        options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
         return mRtcConn.createAnswer(options);
     })
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
@@ -3077,6 +3080,8 @@ Promise<void> Session::sendOffer()
     auto wptr = weakHandle();
     bool isRenegotiation = mState == kStateInProgress;
     webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
+    options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
+    options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     return mRtcConn.createOffer(options)
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
