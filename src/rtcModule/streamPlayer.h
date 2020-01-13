@@ -1,6 +1,6 @@
 #ifndef STREAMPLAYER_H
 #define STREAMPLAYER_H
-#include <api/mediastreaminterface.h>
+#include <api/media_stream_interface.h>
 #include <api/video/i420_buffer.h>
 #include <libyuv/convert.h>
 #include <IVideoRenderer.h>
@@ -23,20 +23,16 @@ protected:
     std::function<void()> mOnMediaStart;
     std::mutex mMutex; //guards onMediaStart and mRenderer (stuff that is accessed by public API and by webrtc threads)
     bool mVideoEnable = true;
+
 public:
     IVideoRenderer* videoRenderer() const {return mRenderer;}
     StreamPlayer(IVideoRenderer* renderer, void *ctx, webrtc::AudioTrackInterface* audio=nullptr,
-    webrtc::VideoTrackInterface* video=nullptr)
+    webrtc::VideoTrackInterface *video=nullptr)
      :mAudio(audio), mVideo(video), mRenderer(renderer)
     {
         appCtx = ctx;
     }
-    StreamPlayer(IVideoRenderer *renderer, tspMediaStream stream, void *ctx)
-     :mRenderer(renderer)
-    {
-        appCtx = ctx;
-        attachToStream(stream);
-    }
+
     ~StreamPlayer()
     {
         preDestroy();
@@ -53,7 +49,7 @@ public:
         detachAudio();
         detachVideo();
     }
-    void attachAudio(webrtc::AudioTrackInterface* audio)
+    void attachAudio(rtc::scoped_refptr<webrtc::AudioTrackInterface> audio)
     {
         assert(audio);
         detachAudio();
@@ -66,10 +62,10 @@ public:
         if (!mAudio.get())
             return;
         //TODO: stop audio playback
-        mAudio = NULL;
+        mAudio = nullptr;
     }
 
-    void attachVideo(webrtc::VideoTrackInterface* video)
+    void attachVideo(rtc::scoped_refptr<webrtc::VideoTrackInterface> video)
     {
         assert(video);
         detachVideo();
@@ -78,8 +74,9 @@ public:
         {
             mRenderer->onVideoAttach();
         }
+
         rtc::VideoSinkWants opts;
-        mVideo->AddOrUpdateSink(this, opts);
+        mVideo->GetSource()->AddOrUpdateSink(this, opts);
     }
     bool isVideoAttached() const { return mVideo.get() != nullptr; }
     bool isAudioAttached() const { return mAudio.get() != nullptr; }
@@ -87,14 +84,16 @@ public:
     {
         if (!mVideo.get())
             return;
-        mVideo->RemoveSink(this);
-        mVideo = NULL;
+        mVideo->GetSource()->RemoveSink(this);
+
+        mVideo = nullptr;
         if (mRenderer)
         {
             mRenderer->onVideoDetach();
             mRenderer->clearViewport();
         }
     }
+
     void attachToStream(artc::tspMediaStream& stream)
     {
         detachAudio();
@@ -103,6 +102,7 @@ public:
         {
             attachAudio(ats[0]);
         }
+
         detachVideo();
         auto vts = stream->GetVideoTracks();
         if (!vts.empty())
@@ -152,9 +152,9 @@ public:
                 }, appCtx);
             }
         }
+
         if (!mRenderer)
             return; //no renderer
-
 
         if (mVideoEnable)
         {
