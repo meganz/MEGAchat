@@ -142,6 +142,14 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 
     PRESENCED_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
+    if (mConnState == kFetchingUrl)
+    {
+        PRESENCED_LOG_DEBUG("Socket close while fetching URL. Ignoring...");
+        // it should happen only when the cached URL becomes invalid (wsResolveDNS() returns UV_EAI_NONAME
+        // and it will reconnect automatically once the URL is fetched again
+        return;
+    }
+
     auto oldState = mConnState;
     setConnState(kDisconnected);
 
