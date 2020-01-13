@@ -86,6 +86,7 @@ protected:
     SdpKey mPeerHashKey;
     artc::myPeerConnection<Session> mRtcConn;
     rtc::scoped_refptr<webrtc::RtpSenderInterface> mVideoSender;
+    rtc::scoped_refptr<webrtc::RtpSenderInterface> mAudioSender;
     std::string mName;
     ISessionHandler* mHandler = NULL;
     std::unique_ptr<stats::Recorder> mStatRecorder;

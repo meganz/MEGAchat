@@ -102,6 +102,7 @@ public:
         {
             attachAudio(ats[0]);
         }
+
         detachVideo();
         auto vts = stream->GetVideoTracks();
         if (!vts.empty())

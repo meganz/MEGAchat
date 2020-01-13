@@ -2796,7 +2796,7 @@ void Session::createRtcConn()
                 SUB_LOG_WARNING("Error: %s", error.MoveError().message());
             }
 
-            rtc::scoped_refptr<webrtc::RtpSenderInterface>audioSender = error.MoveValue();
+            mAudioSender = error.MoveValue();
         }
     }
 
@@ -2818,7 +2818,7 @@ promise::Promise<void> Session:: processSdpOfferSendAnswer()
     if (!sdp)
     {
         terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP offer: line="+error.line+"\nError: "+error.description);
-        return ::promise::_Void();;
+        return ::promise::_Void();
     }
     auto wptr = weakHandle();
     return mRtcConn.setRemoteDescription(sdp)
@@ -3307,6 +3307,7 @@ void Session::destroy(TermCode code, const std::string& msg)
     submitStats(code, msg);
 
     mRtcConn->RemoveTrackNew(mVideoSender);
+    mRtcConn->RemoveTrackNew(mAudioSender);
 
     removeRtcConnection();
 
@@ -3822,7 +3823,12 @@ void Session::removeRtcConnection()
 
 void Session::setStreamRenegotiationTimeout()
 {
-    assert(!mStreamRenegotiationTimer);
+    if (mStreamRenegotiationTimer)
+    {
+        SUB_LOG_WARNING("New renegotation started, while another in-progress");
+        cancelTimeout(mStreamRenegotiationTimer, mManager.mKarereClient.appCtx);
+    }
+
     auto wptr = weakHandle();
 
     mRenegotiationInProgress = true;
