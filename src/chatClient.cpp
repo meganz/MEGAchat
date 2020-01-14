@@ -316,6 +316,7 @@ bool Client::openDb(const std::string& sid)
 
                 // Add dns_cache table
                 db.simpleQuery("CREATE TABLE dns_cache(url text, shard tinyint, ipv4 text, ipv6 text, PRIMARY KEY(url, shard))");
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
