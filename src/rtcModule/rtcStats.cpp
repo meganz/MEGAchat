@@ -68,11 +68,23 @@ int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const w
     const webrtc::StatsReport::Value *value = item->FindValue(name);
     if (value)
     {
-        if (value->type() == webrtc::StatsReport::Value::kInt)
+        webrtc::StatsReport::Value::Type type = value->type();
+
+#ifdef __ANDROID__
+// Avoid a crash with type mixture in Android
+        if (name == webrtc::StatsReport::StatsValueName::kStatsValueNameRtt
+            || name == webrtc::StatsReport::StatsValueName::kStatsValueNameBytesReceived
+            || name == webrtc::StatsReport::StatsValueName::kStatsValueNameBytesSent)
+        {
+            type = webrtc::StatsReport::Value::kInt64;
+        }
+#endif
+
+        if (type == webrtc::StatsReport::Value::kInt)
         {
             numericalValue = value->int_val();
         }
-        else if (value->type() == webrtc::StatsReport::Value::kInt64)
+        else if (type == webrtc::StatsReport::Value::kInt64)
         {
             numericalValue = value->int64_val();
         }
@@ -80,7 +92,7 @@ int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const w
         {
             //This fail is almost always produced due to incompatibilities between webRtc
             // in release mode and karere in debug mode. We only report once to avoid unnecessary log output
-            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), value->type());
+            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), type);
             failTypeLog = false;
         }
     }

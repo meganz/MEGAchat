@@ -946,7 +946,7 @@ private:
     std::set<MegaChatCallListener *> callListeners;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> videoListeners;
 
-    mega::MegaStringList *getChatInDevices(const std::vector<std::string> &devicesVector);
+    mega::MegaStringList *getChatInDevices(const std::set<std::string> &devices);
     void cleanCallHandlerMap();
 #endif
 
@@ -1147,10 +1147,9 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
 
     // Audio/Video devices
-    mega::MegaStringList *getChatAudioInDevices();
     mega::MegaStringList *getChatVideoInDevices();
-    bool setChatAudioInDevice(const char *device);
-    bool setChatVideoInDevice(const char *device);
+    void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
+    char *getVideoDeviceSelected();
 
     // Calls
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
