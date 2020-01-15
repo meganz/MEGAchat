@@ -22,10 +22,20 @@
 // This program is intended for exploring the chat API, performing testing and so on.
 // It's not well tested and should be considered alpha at best. 
 
+#if defined(WIN32)
+#include <windows.h>
+#include <winhttp.h>
+#elif defined(__linux__)
+#include <unistd.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 #include <atomic>
 #include <iomanip>
 #include <fstream>
 #include <mutex>
+#include <sstream>
 #include <thread>
 #include <regex>
 
@@ -42,10 +52,6 @@
 #include <megachatapi.h>
 #include <karereId.h>
 #include <mega/autocomplete.h>
-
-#ifdef WIN32
-#include <winhttp.h>
-#endif
 
 using namespace std;
 namespace m = ::mega;
@@ -76,6 +82,41 @@ using m::logDebug;
     namespace fs = std::experimental::filesystem;
 #endif
 #endif
+
+fs::path getExePath()
+{
+#if defined(WIN32)
+    array<wchar_t, MAX_PATH + 1> path{};
+    if (!GetModuleFileNameW(NULL, path.data(), MAX_PATH))
+    {
+        cout << "Error: Unable to retrieve exe path" << endl;
+        exit(1);
+    }
+    return path.data();
+#elif defined(__linux__)
+    const auto link = "/proc/" + to_string(getpid()) + "/exe";
+    array<char, 513> path{};
+    const auto count = readlink(link.c_str(), path.data(), 512);
+    if (count == -1)
+    {
+        cout << "Error: Unable to retrieve exe path" << endl;
+        exit(1);
+    }
+    path[count] = '\0';
+    return path.data();
+#elif defined(__APPLE__)
+    array<char, 513> path{};
+    uint32_t size = 512;
+    if (_NSGetExecutablePath(path.data(), &size))
+    {
+        cout << "Error: Unable to retrieve exe path" << endl;
+        exit(1);
+    }
+    return path.data();
+#else
+#error Cannot find the executable path on this platform
+#endif
+}
 
 void WaitMillisec(unsigned n)
 {
@@ -1031,7 +1072,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     conlock(cout) << outMsg;
     if (g_reviewingPublicChat)
     {
-        conlock(*g_reviewPublicChatOutFile) << outMsg;
+        conlock(*g_reviewPublicChatOutFile) << outMsg << flush;
     }
 }
 
@@ -1929,7 +1970,7 @@ public:
            << " (" << g_reviewPublicChatEmails.size() << " / " << m_userCount.load() << ")" << endl;
         const auto msg = os.str();
         conlock(cout) << msg;
-        conlock(*g_reviewPublicChatOutFile) << msg;
+        conlock(*g_reviewPublicChatOutFile) << msg << flush;
         if (g_reviewPublicChatEmails.size() < static_cast<size_t>(m_userCount.load()))
         {
             // Wait until we've received emails for all users
@@ -2022,7 +2063,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
     const auto linkHandle = chat_link.substr(lastSlashIdx + 1, lastHashIdx - lastSlashIdx - 1);
 
-    const auto outputFilename = "reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC.txt";
+    const auto outputFilename = getExePath().parent_path() / ("reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC.txt");
     g_reviewPublicChatOutFile.reset(new std::ofstream{outputFilename});
     if (!g_reviewPublicChatOutFile->is_open())
     {
@@ -2064,13 +2105,13 @@ void exec_reviewpublicchat(ac::ACState& s)
                 os1 << "openChatPreview: chatlink loaded. Chatid: " << k::Id(chatid).toString() << endl;
                 const auto msg1 = os1.str();
                 conlock(cout) << msg1;
-                conlock(*g_reviewPublicChatOutFile) << msg1;
+                conlock(*g_reviewPublicChatOutFile) << msg1 << flush;
 
                 std::ostringstream os2;
                 os2 << "openChatPreview: User count: " << user_count << endl;
                 const auto msg2 = os2.str();
                 conlock(cout) << msg2;
-                conlock(*g_reviewPublicChatOutFile) << msg2;
+                conlock(*g_reviewPublicChatOutFile) << msg2 << flush;
 
                 get_user_email_listener.setUserCount(user_count);
                 get_user_email_listener.setChatId(chatid);
