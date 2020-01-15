@@ -1029,7 +1029,10 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
 
     const auto outMsg = os.str();
     conlock(cout) << outMsg;
-    conlock(*g_reviewPublicChatOutFile) << outMsg;
+    if (g_reviewingPublicChat)
+    {
+        conlock(*g_reviewPublicChatOutFile) << outMsg;
+    }
 }
 
 void reportMessage(c::MegaChatHandle room, c::MegaChatMessage *msg, const char* loadorreceive)
