@@ -282,7 +282,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAStringList *)chatAudioInDevices;
 - (MEGAStringList *)chatVideoInDevices;
 - (BOOL)setChatAudioInDevices:(NSString *)devices;
-- (BOOL)setChatVideoInDevices:(NSString *)devices;
+- (void)setChatVideoInDevices:(NSString *)devices;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
