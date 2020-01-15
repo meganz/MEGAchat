@@ -13,6 +13,15 @@ public class MegaChatApiJava {
     MegaChatApi megaChatApi;
     static DelegateMegaChatLogger logger;
 
+    /**
+     * MEGACHAT_INVALID_HANDLE Invalid value for a handle
+     *
+     * This value is used to represent an invalid handle. Several MEGA objects can have
+     * a handle but it will never be MEGACHAT_INVALID_HANDLE.
+     */
+    public final static long MEGACHAT_INVALID_HANDLE = ~(long)0;
+    public final static int MEGACHAT_INVALID_INDEX = 0x7fffffff;
+
     // Error information but application will continue run.
     public final static int LOG_LEVEL_ERROR = MegaChatApi.LOG_LEVEL_ERROR;
     // Information representing errors in applicationThe autoaway settings are preserved even when the auto-away mechanism  but application will keep running
