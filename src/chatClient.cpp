@@ -420,9 +420,14 @@ promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
 
 void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts)
 {
-    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, url);
+    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey);
     chats->emplace(chatId, room);
-    room->connect(url.c_str());
+    if (!mDnsCache.isRecord(shard))
+    {
+        mDnsCache.addRecord(shard, chatd::Client::chatdVersion, url, "", "");
+    }
+
+    room->connect();
 }
 
 promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle)
@@ -662,13 +667,25 @@ void Client::loadContactListFromApi()
 
 void Client::loadDnsCacheFromDb()
 {
-    SqliteStmt stmt(db, "select url, ipv4, ipv6 from dns_cache");
+    SqliteStmt stmt(db, "select shard, url, ipv4, ipv6 from dns_cache");
     while (stmt.step())
     {
-        // Parse URL(host) to store records in DNScache in ram
-        karere::Url auxUrl;
-        auxUrl.parse(stmt.stringCol(0));
-        mDnsCache.setIp(auxUrl.host, stmt.stringCol(1), stmt.stringCol(2));
+        int shard = stmt.intCol(0);
+        std::string auxurl = stmt.stringCol(1);
+        if (auxurl.empty())
+        {
+            // If url is empty, remove record from db
+            mDnsCache.removeRecordFromDb(shard);
+        }
+        else
+        {
+            int protVer = (shard == presenced::Client::kPresencedShard)
+                    ? presenced::Client::kPresencedShard
+                    : chatd::Client::chatdVersion;
+
+            // Add record to cache
+            mDnsCache.addRecordToCache(shard, protVer, auxurl, stmt.stringCol(2), stmt.stringCol(3));
+        }
     }
 }
 
@@ -1269,15 +1286,7 @@ promise::Promise<void> Client::doConnect()
     rtc->init();
 #endif
 
-    std::string url;
-    SqliteStmt stmt2(db, "select url from dns_cache where shard = ?");
-    stmt2 << presenced::Client::kPresencedShard;
-    if (stmt2.step())
-    {
-        url.assign(stmt2.stringCol(0));
-    }
-
-    auto pms = mPresencedClient.connect(url.c_str())
+    auto pms = mPresencedClient.connect()
     .then([this, wptr]()
     {
         if (wptr.deleted())
@@ -1840,7 +1849,7 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers, bool isPubl
         std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const karere::Id ph)
 {
     mChat = &parent.mKarereClient.mChatdClient->createChat(
-        mChatid, mShardNo, mUrl, this, initialUsers,
+        mChatid, mShardNo, this, initialUsers,
         parent.mKarereClient.newStrongvelope(mChatid, isPublic, unifiedKey, isUnifiedKeyEncrypted, ph), mCreationTs, mIsGroup);
 }
 
@@ -1867,7 +1876,7 @@ void PeerChatRoom::initWithChatd()
     createChatdChat(SetOfIds({Id(mPeer), parent.mKarereClient.myHandle()}));
 }
 
-void PeerChatRoom::connect(const char */*url*/)
+void PeerChatRoom::connect()
 {
     mChat->connect();
 }
@@ -1976,9 +1985,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
   mRoomGui(nullptr)
 {
-    // Get url from cache
-    mUrl = parent.mKarereClient.mChatdClient->getUrlByShard(mShardNo);
-
     // Initialize list of peers and fetch their names
     auto peers = aChat.getPeerList();
     std::vector<promise::Promise<void>> promises;
@@ -2054,12 +2060,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 //Resume from cache
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
-    const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const std::string& url)
+    const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted)
     :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived),
     mRoomGui(nullptr)
 {
     // Initialize list of peers
-    mUrl = url;
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
     std::vector<promise::Promise<void> > promises;
@@ -2082,11 +2087,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, const std::string& aUrl)
+    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
   mRoomGui(nullptr)
 {
-    mUrl = aUrl;
     Buffer unifiedKeyBuf;
     unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
     unifiedKeyBuf.append(unifiedKey->data(), unifiedKey->size());
@@ -2125,12 +2129,12 @@ void GroupChatRoom::initWithChatd(bool isPublic, std::shared_ptr<std::string> un
     createChatdChat(users, isPublic, unifiedKey, isUnifiedKeyEncrypted, ph);
 }
 
-void GroupChatRoom::connect(const char *url)
+void GroupChatRoom::connect()
 {
     if (chat().onlineState() != chatd::kChatStateOffline)
         return;
 
-    mChat->connect(url);
+    mChat->connect();
 }
 
 promise::Promise<void> GroupChatRoom::memberNamesResolved() const
@@ -2147,13 +2151,12 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
 //Resume from cache
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer,
-    chatd::Priv peerPriv, int64_t ts, bool aIsArchived, const std::string& url)
+    chatd::Priv peerPriv, int64_t ts, bool aIsArchived)
     :ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts, aIsArchived),
     mPeer(peer),
     mPeerPriv(peerPriv),
     mRoomGui(nullptr)
 {
-    mUrl = url;
     initContact(peer);
     initWithChatd();
     mRoomGui = addAppItem();
@@ -2166,8 +2169,6 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
      (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime(), chat.isArchived()),
       mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)), mRoomGui(nullptr)
 {
-    // Get url from cache
-    mUrl = parent.mKarereClient.mChatdClient->getUrlByShard(mShardNo);
     parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived) values (?,?,?,?,?,?,?)",
         mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived());
 //just in case
@@ -2485,21 +2486,11 @@ void ChatRoomList::loadFromDb()
             continue;
         }
 
-        // Get chatd url from db
-        int shard = stmt.intCol(2);
-        std::string url;
-        SqliteStmt stmt2(db, "select url from dns_cache where shard = ?");
-        stmt2 << shard;
-        if (stmt2.step())
-        {
-            url.assign(stmt2.stringCol(0));
-        }
-
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
         {
-            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1), stmt.intCol(7), url);
+            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1), stmt.intCol(7));
         }
         else
         {
@@ -2532,11 +2523,12 @@ void ChatRoomList::loadFromDb()
                 size_t len = titleBuf.size() - 1;
                 auxTitle.assign(posTitle, len);
             }
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted, url);
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted);
         }
         emplace(chatid, room);
     }
 }
+
 void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, SetOfIds& chatids)
 {
     auto size = rooms.size();

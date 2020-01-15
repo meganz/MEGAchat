@@ -73,7 +73,6 @@ public:
 protected:
     IApp::IChatHandler* mAppChatHandler = nullptr;
     uint64_t mChatid;
-    std::string mUrl;
     unsigned char mShardNo;
     bool mIsGroup;
     chatd::Priv mOwnPriv;
@@ -117,7 +116,7 @@ public:
     virtual bool hasTitle() const { return mHasTitle; }
 
     /** @brief Connects to the chatd chatroom */
-    virtual void connect(const char *url = NULL) = 0;
+    virtual void connect() = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
              unsigned char shard, chatd::Priv ownPriv, int64_t ts, bool isArchived,
@@ -141,9 +140,6 @@ public:
     bool isArchived() const { return mIsArchived; }
 
     bool isCallActive() const;
-
-    /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
-    const std::string& url() const { return mUrl; }
 
     /** @brief The chatd shart number for that chatroom */
     unsigned char shardNo() const { return mShardNo; }
@@ -251,7 +247,7 @@ protected:
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
-    virtual void connect(const char *url = NULL);
+    virtual void connect();
     UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
@@ -260,8 +256,7 @@ protected:
     //Resume from cache
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
-            chatd::Priv peerPriv, int64_t ts, bool aIsArchived,
-            const std::string& url);
+            chatd::Priv peerPriv, int64_t ts, bool aIsArchived);
 
     //Create chat or receive an invitation
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
@@ -357,7 +352,7 @@ protected:
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void notifyPreviewClosed();
     void setRemoved();
-    virtual void connect(const char *url = NULL);
+    virtual void connect();
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
 
@@ -371,13 +366,13 @@ protected:
     //Resume from cache
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
-                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const std::string& aUrl);
+                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
 
     //Load chatLink
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title,
-                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, const std::string& aUrl);
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey);
 
     ~GroupChatRoom();
 
