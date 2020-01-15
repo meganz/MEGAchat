@@ -2423,6 +2423,33 @@ public class MegaChatApiJava {
         megaChatApi.pushReceived(beep, chatid, createDelegateRequestListener(listener));
     }
 
+    /**
+     * @brief Select the video device to be used in calls
+     *
+     * Video device identifiers are obtained with function MegaChatApi::getChatVideoInDevices
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getText - Returns the device
+     *
+     * @param device Identifier of device to be selected
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void setChatVideoInDevice(String device, MegaChatRequestListenerInterface listener) {
+        megaChatApi.setChatVideoInDevice(device, null);
+    }
+
+    /**
+     * @brief Returns the video selected device name
+     *
+     * You take the ownership of the returned value
+     *
+     * @return Device selected name
+     */
+    public String getVideoDeviceSelected() {
+        return megaChatApi.getVideoDeviceSelected();
+    }
+
     // Call management
     /**
      * Start a call in a chat room
