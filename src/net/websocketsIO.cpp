@@ -190,62 +190,121 @@ DNScache::DNScache(SqliteDb &db)
 
 }
 
-void DNScache::addRecordToDb(const std::string &url, int shard)
+void DNScache::addRecord(int shard, int protVer, const std::string url, const std::string &ipv4, const std::string &ipv6)
 {
-    mDb.query("insert or replace into dns_cache(url, shard, ipv4, ipv6) values(?,?,?,?)", url, shard, "", "");
+    addRecordToCache(shard, protVer, url, ipv4, ipv6);
+    addRecordToDb(shard, url, ipv4, ipv6);
 }
 
-void DNScache::removeRecord(const std::string &host, int shard)
+void DNScache::addRecordToCache(int shard, int protVer, const std::string url, const std::string &ipv4, const std::string &ipv6)
 {
-    mRecords.erase(host);
-    mDb.query("delete from dns_cache where url like '%' || ? || '%' and shard=?", host, shard);
-}
-
-const DNScache::DNSrecord* DNScache::setIp(const std::string &host, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
-{
-    if (!isMatch(host, ipsv4, ipsv6))
+    if (isRecord(shard))
     {
-        DNSrecord record;
-        record.ipv4 = ipsv4.empty() ? "" : ipsv4.front();
-        record.ipv6 = ipsv6.empty() ? "" : ipsv6.front();
-        record.resolveTs = time(NULL);
-        mDb.query("update dns_cache set ipv4=?, ipv6=? where url like '%' || ? || '%' and shard=?", record.ipv4, record.ipv6, host, shard);
-        return &(mRecords[host] = record);
+        return;
     }
-    return nullptr;
+
+    // Parse Url to construct a karere::Url
+    ::karere::Url auxurl;
+    auxurl.parse(url);
+    if (shard >= 0)
+    {
+        auxurl.path.append("/").append(std::to_string(protVer));
+    }
+
+    DNSrecord record;
+    record.mUrl = auxurl;
+    record.ipv4 = ipv4.empty() ? "" : ipv4;
+    record.ipv6 = ipv6.empty() ? "" : ipv6;
+    record.resolveTs = time(NULL);
+    mRecords[shard] = record;
 }
 
-bool DNScache::setIp(const std::string &host, const std::string &ipv4, const std::string &ipv6)
+void DNScache::addRecordToDb(int shard, const std::string url, const std::string &ipv4, const std::string &ipv6)
 {
-    if (!isMatch(host, ipv4, ipv6))
+    mDb.query("insert or replace into dns_cache(shard, url, ipv4, ipv6) values(?,?,?,?)", shard, url, ipv4, ipv6);
+}
+
+void DNScache::removeRecord(int shard)
+{
+    removeRecordFromCache(shard);
+    removeRecordFromDb(shard);
+}
+
+void DNScache::removeRecordFromCache(int shard)
+{
+    if (!isRecord(shard))
     {
-        DNSrecord record;
-        record.ipv4 = ipv4;
-        record.ipv6 = ipv6;
-        record.resolveTs = time(NULL);
-        mRecords[host] = record;
+        return;
+    }
+    mRecords.erase(shard);
+}
+
+void DNScache::removeRecordFromDb(int shard)
+{
+    mDb.query("delete from dns_cache where shard=?", shard);
+}
+
+bool DNScache::isRecord(int shard)
+{
+    auto it = mRecords.find(shard);
+    return (it != mRecords.end());
+}
+
+bool DNScache::isValidUrl(int shard)
+{
+    auto it = mRecords.find(shard);
+    if (it != mRecords.end())
+    {
+        return it->second.mUrl.isValid();
+    }
+
+    return false;
+}
+
+const karere::Url DNScache::getUrl(int shard)
+{
+    auto it = mRecords.find(shard);
+    if (it != mRecords.end())
+    {
+        return it->second.mUrl;
+    }
+
+    return karere::Url();
+}
+
+bool DNScache::setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+{
+    if (!isMatch(shard, ipsv4, ipsv6))
+    {
+        auto it = mRecords.find(shard);
+        assert (it != mRecords.end());
+        it->second.ipv4 = ipsv4.empty() ? "" : ipsv4.front();
+        it->second.ipv6 = ipsv6.empty() ? "" : ipsv6.front();
+        it->second.resolveTs = time(NULL);
+        mDb.query("update dns_cache set ipv4=?, ipv6=? where shard=?", it->second.ipv4, it->second.ipv6, shard);
         return true;
     }
     return false;
 }
 
 
-bool DNScache::getIp(const std::string &host, std::string &ipv4, std::string &ipv6)
+bool DNScache::getIp(int shard, std::string &ipv4, std::string &ipv6)
 {
-    auto it = mRecords.find(host);
+    auto it = mRecords.find(shard);
     if (it == mRecords.end())
     {
         return false;
     }
 
+    assert(it->second.mUrl.isValid());
     ipv4 = it->second.ipv4;
     ipv6 = it->second.ipv6;
     return true;
 }
 
-void DNScache::connectDone(const std::string &host, const std::string &ip)
+void DNScache::connectDone(int shard, const std::string &ip)
 {
-    auto it = mRecords.find(host);
+    auto it = mRecords.find(shard);
     if (it != mRecords.end())
     {
         if (ip == it->second.ipv4)
@@ -259,9 +318,9 @@ void DNScache::connectDone(const std::string &host, const std::string &ip)
     }
 }
 
-time_t DNScache::age(const std::string &host)
+time_t DNScache::age(int shard)
 {
-    auto it = mRecords.find(host);
+    auto it = mRecords.find(shard);
     if (it != mRecords.end())
     {
         return it->second.resolveTs;
@@ -270,10 +329,10 @@ time_t DNScache::age(const std::string &host)
     return 0;
 }
 
-bool DNScache::isMatch(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+bool DNScache::isMatch(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
 {
     bool match = false;
-    auto it = mRecords.find(host);
+    auto it = mRecords.find(shard);
     if (it != mRecords.end())
     {
         std::string ipv4 = it->second.ipv4;
@@ -283,18 +342,6 @@ bool DNScache::isMatch(const std::string &host, const std::vector<std::string> &
                    || (std::find(ipsv4.begin(), ipsv4.end(), ipv4) != ipsv4.end())) // IPv4 is contained in `ipsv4`
                   && ((ipv6.empty() && ipsv6.empty())
                       || std::find(ipsv6.begin(), ipsv6.end(), ipv6) != ipsv6.end()));
-    }
-
-    return match;
-}
-
-bool DNScache::isMatch(const std::string &host, const std::string &ipv4, const std::string &ipv6)
-{
-    bool match = false;
-    auto it = mRecords.find(host);
-    if (it != mRecords.end())
-    {
-        match = (it->second.ipv4 == ipv4) && (it->second.ipv6 == ipv6);
     }
 
     return match;

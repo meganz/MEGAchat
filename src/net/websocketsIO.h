@@ -8,8 +8,9 @@
 #include <mega/thread.h>
 #include "base/logger.h"
 #include "sdkApi.h"
-#include "../buffer.h"
-#include "../db.h"
+#include "buffer.h"
+#include "db.h"
+#include "url.h"
 
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
@@ -22,9 +23,9 @@ class WebsocketsClientImpl;
 class DNScache
 {
 public:
-
     struct DNSrecord
     {
+        karere::Url mUrl;
         std::string ipv4;
         std::string ipv6;
         time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
@@ -35,19 +36,23 @@ public:
     // reference to db-layer interface
     SqliteDb &mDb;
     DNScache(SqliteDb &db);
-    void addRecordToDb(const std::string &url, int shard);
-    void removeRecord(const std::string &host, int shard);
-    // returns false if ipv4 and ipv6 for the given url already match the ones in cache, true if not (so they are updated)
-    bool setIp(const std::string &url, const std::string &ipv4, const std::string &ipv6);
-    const DNSrecord* setIp(const std::string &url, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
-    // returns true if hit in cache, false if there's no record for the given url host
-    bool getIp(const std::string &host, std::string &ipv4, std::string &ipv6);
-    void connectDone(const std::string &host, const std::string &ip);
-    time_t age(const std::string &host);
-    bool isMatch(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
-    bool isMatch(const std::string &host, const std::string &ipv4, const std::string &ipv6);
+    void addRecord(int shard, int protVer, const std::string url, const std::string &ipv4, const std::string &ipv6);
+    void addRecordToCache(int shard, int protVer, const std::string url, const std::string &ipv4, const std::string &ipv6);
+    void addRecordToDb(int shard, const std::string url, const std::string &ipv4, const std::string &ipv6);
+    void removeRecord(int shard);
+    void removeRecordFromCache(int shard);
+    void removeRecordFromDb(int shard);
+    bool isRecord(int shard);
+    bool isValidUrl(int shard);
+    bool setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool getIp(int shard, std::string &ipv4, std::string &ipv6);
+    void connectDone(int shard, const std::string &ip);
+    bool isMatch(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    time_t age(int shard);
+    const karere::Url getUrl(int shard);
 private:
-    std::map<std::string, DNSrecord> mRecords;
+    // Maps shard to DNSrecord
+    std::map<int, DNSrecord> mRecords;
 };
 
 // Generic websockets network layer
