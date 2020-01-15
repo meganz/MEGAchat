@@ -41,7 +41,7 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
 Promise<void> Client::fetchUrl()
 {
     if (mKarereClient->anonymousMode()
-            || mUrl.isValid())
+        || mKarereClient->mDnsCache.isValidUrl(kPresencedShard))
     {
        return promise::_Void();
     }
@@ -65,30 +65,21 @@ Promise<void> Client::fetchUrl()
 
         // Update presenced url in ram and db
         const char *url = result->getLink();
-        if (!url || !url[0] || mUrl.originUrl == url)
+        if (!url || !url[0] ||
+            mKarereClient->mDnsCache.getUrl(kPresencedShard).originUrl == url)
         {
            return promise::_Void();
         }
 
-        // Remove DnsCache record
-        mKarereClient->mDnsCache.removeRecord(mUrl.host, kPresencedShard);
-
-        // Update karere::Url
-        mUrl.parse(url);
-
-        // Add record to db to store new URL
-        mKarereClient->mDnsCache.addRecordToDb(mUrl.originUrl, kPresencedShard);
+        // Add new record to DNS cache
+        mKarereClient->mDnsCache.addRecord(kPresencedShard, kPresencedShard, url, "", "");
         return promise::_Void();
     });
 }
 
-Promise<void> Client::connect(const char *cachedUrl)
+Promise<void> Client::connect()
 {
     assert (mConnState == kConnNew);
-    if (cachedUrl && cachedUrl[0])
-    {
-        mUrl.parse(cachedUrl);
-    }
     return fetchUrl()
     .then([this]
     {
@@ -392,7 +383,7 @@ Client::reconnect()
         if (mConnState >= kResolving) //would be good to just log and return, but we have to return a promise
             return ::promise::Error(std::string("Already connecting/connected"));
 
-        if (!mUrl.isValid())
+        if (!mKarereClient->mDnsCache.isValidUrl(kPresencedShard))
             return ::promise::Error("Current URL is not valid");
 
         setConnState(kResolving);
@@ -413,15 +404,17 @@ Client::reconnect()
             setConnState(kDisconnected);
             mConnectPromise = Promise<void>();
 
+            std::string host = mKarereClient->mDnsCache.getUrl(kPresencedShard).host;
+
             string ipv4, ipv6;
-            bool cachedIPs = mKarereClient->mDnsCache.getIp(mUrl.host, ipv4, ipv6);
+            bool cachedIPs = mKarereClient->mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
 
             setConnState(kResolving);
-            PRESENCED_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
+            PRESENCED_LOG_DEBUG("Resolving hostname %s...", host.c_str());
 
             auto retryCtrl = mRetryCtrl.get();
-            int statusDNS = wsResolveDNS(mKarereClient->websocketIO, mUrl.host.c_str(),
-                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+            int statusDNS = wsResolveDNS(mKarereClient->websocketIO, host.c_str(),
+                         [wptr, host, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -488,19 +481,19 @@ Client::reconnect()
                 if (!cachedIPs) // connect required DNS lookup
                 {
                     PRESENCED_LOG_DEBUG("Hostname resolved by first time. Connecting...");
-                    updateDnsCache(ipsv4, ipsv6);
+                    mKarereClient->mDnsCache.setIp(kPresencedShard, ipsv4, ipsv6);
                     doConnect();
                     return;
                 }
 
-                if (mKarereClient->mDnsCache.isMatch(mUrl.host, ipsv4, ipsv6))
+                if (mKarereClient->mDnsCache.isMatch(kPresencedShard, ipsv4, ipsv6))
                 {
                     PRESENCED_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
                 else
                 {
                     PRESENCED_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
-                    updateDnsCache(ipsv4, ipsv6);
+                    mKarereClient->mDnsCache.setIp(kPresencedShard, ipsv4, ipsv6);
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (presenced)");
                 }
             });
@@ -543,12 +536,6 @@ Client::reconnect()
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
     
-bool Client::updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6)
-{
-    const auto *newRecord = mKarereClient->mDnsCache.setIp(mUrl.host, kPresencedShard, ipsv4, ipsv6);
-    return newRecord != nullptr;
-}
-
 bool Client::sendKeepalive(time_t now)
 {
     mTsLastPingSent = now ? now : time(NULL);
@@ -881,18 +868,21 @@ void Client::disconnect()
 void Client::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = mKarereClient->mDnsCache.getIp(mUrl.host, ipv4, ipv6);
+    bool cachedIPs = mKarereClient->mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
+
+    karere::Url url = mKarereClient->mDnsCache.getUrl(kPresencedShard);
+    assert (url.isValid());
 
     setConnState(kConnecting);
     PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", mTargetIp.c_str());
 
     bool rt = wsConnect(mKarereClient->websocketIO, mTargetIp.c_str(),
-          mUrl.host.c_str(),
-          mUrl.port,
-          mUrl.path.c_str(),
-          mUrl.isSecure);
+          url.host.c_str(),
+          url.port,
+          url.path.c_str(),
+          url.isSecure);
 
     if (!rt)    // immediate failure --> try the other IP family (if available)
     {
@@ -913,10 +903,10 @@ void Client::doConnect()
         {
             PRESENCED_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
             if (wsConnect(mKarereClient->websocketIO, mTargetIp.c_str(),
-                          mUrl.host.c_str(),
-                          mUrl.port,
-                          mUrl.path.c_str(),
-                          mUrl.isSecure))
+                          url.host.c_str(),
+                          url.port,
+                          url.path.c_str(),
+                          url.isSecure))
             {
                 return;
             }
@@ -942,7 +932,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
         return;
     }
 
-    if (refreshURL || !mUrl.isValid())
+    if (refreshURL || !mKarereClient->mDnsCache.isValidUrl(kPresencedShard))
     {
         if (mConnState == kFetchingUrl)
         {
@@ -961,9 +951,10 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
             mConnectTimer = 0;
         }
 
+        // Remove DnsCache record
+        mKarereClient->mDnsCache.removeRecord(kPresencedShard);
+
         auto wptr = getDelTracker();
-        // clear existing URL
-        mUrl = Url();
         fetchUrl()
         .then([this, wptr]
         {
@@ -1431,7 +1422,7 @@ void Client::setConnState(ConnState newState)
     {
         PRESENCED_LOG_DEBUG("Presenced connected to %s", mTargetIp.c_str());
 
-        mKarereClient->mDnsCache.connectDone(mUrl.host, mTargetIp);
+        mKarereClient->mDnsCache.connectDone(kPresencedShard, mTargetIp);
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
