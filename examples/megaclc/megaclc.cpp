@@ -794,6 +794,7 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
             {
                 g_reviewPublicChatMsgCountRemaining = 0;
                 cout << "No more messages." << endl;
+                g_reviewingPublicChat = false;
                 return;
             }
             default: return;
@@ -854,6 +855,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     {
         if (g_chatApi->isFullHistoryLoaded(chatid))
         {
+            g_reviewingPublicChat = false;
             return;
         }
         cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
@@ -1988,6 +1990,10 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
 
     g_reviewingPublicChat = true;
+    g_reviewPublicChatEmails.clear();
+    g_reviewPublicChatFirstnames.clear();
+    g_reviewPublicChatLastnames.clear();
+    g_reviewPublicChatMsgCountRemaining = 0;
 
     const auto chat_link = s.words[1].s;
     g_reviewPublicChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : 1000;
