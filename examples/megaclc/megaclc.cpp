@@ -2008,7 +2008,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     g_reviewPublicChatMsgCountRemaining = 0;
 
     const auto chat_link = s.words[1].s;
-    g_reviewPublicChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : 1000;
+    g_reviewPublicChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : 5000;
 
     const auto lastSlashIdx = chat_link.find_last_of("/");
     const auto lastHashIdx = chat_link.find_last_of("#");
