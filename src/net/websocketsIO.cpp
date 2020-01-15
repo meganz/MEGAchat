@@ -190,13 +190,13 @@ DNScache::DNScache(SqliteDb &db)
 
 }
 
-void DNScache::addRecord(int shard, int protVer, const std::string url, const std::string &ipv4, const std::string &ipv6)
+void DNScache::addRecord(int shard, int protVer, const std::string &url, const std::string &ipv4, const std::string &ipv6)
 {
     addRecordToCache(shard, protVer, url, ipv4, ipv6);
     addRecordToDb(shard, url, ipv4, ipv6);
 }
 
-void DNScache::addRecordToCache(int shard, int protVer, const std::string url, const std::string &ipv4, const std::string &ipv6)
+void DNScache::addRecordToCache(int shard, int protVer, const std::string &url, const std::string &ipv4, const std::string &ipv6)
 {
     if (isRecord(shard))
     {
@@ -219,7 +219,7 @@ void DNScache::addRecordToCache(int shard, int protVer, const std::string url, c
     mRecords[shard] = record;
 }
 
-void DNScache::addRecordToDb(int shard, const std::string url, const std::string &ipv4, const std::string &ipv6)
+void DNScache::addRecordToDb(int shard, const std::string &url, const std::string &ipv4, const std::string &ipv6)
 {
     mDb.query("insert or replace into dns_cache(shard, url, ipv4, ipv6) values(?,?,?,?)", shard, url, ipv4, ipv6);
 }

@@ -36,9 +36,9 @@ public:
     // reference to db-layer interface
     SqliteDb &mDb;
     DNScache(SqliteDb &db);
-    void addRecord(int shard, int protVer, const std::string url, const std::string &ipv4, const std::string &ipv6);
-    void addRecordToCache(int shard, int protVer, const std::string url, const std::string &ipv4, const std::string &ipv6);
-    void addRecordToDb(int shard, const std::string url, const std::string &ipv4, const std::string &ipv6);
+    void addRecord(int shard, int protVer, const std::string &url, const std::string &ipv4, const std::string &ipv6);
+    void addRecordToCache(int shard, int protVer, const std::string &url, const std::string &ipv4, const std::string &ipv6);
+    void addRecordToDb(int shard, const std::string &url, const std::string &ipv4, const std::string &ipv6);
     void removeRecord(int shard);
     void removeRecordFromCache(int shard);
     void removeRecordFromDb(int shard);
