@@ -1999,8 +1999,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
     bool isPublicChat = aChat.isPublicChat();
-    db.query("insert or replace into chats(chatid, shard, own_priv, peer, peer_priv,"
-             "ts_created, archived, mode) values(?,?,?,-1,0,?,?,?)",
+    db.query("insert or replace into chats(chatid, shard, peer, peer_priv, own_priv,"
+             "ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
              mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
 
     db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
@@ -2052,13 +2052,12 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 }
 
 //Resume from cache
-GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,   
+GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
     const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const std::string& url)
     :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived),
     mRoomGui(nullptr)
 {
-
     // Initialize list of peers
     mUrl = url;
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
@@ -2095,8 +2094,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     //save to db
     auto db = parent.mKarereClient.db;
     db.query(
-        "insert or replace into chats(chatid, shard, own_priv, peer, peer_priv, "
-        " ts_created, mode, unified_key) values(?,?,?,-1,0,?,2,?)",
+        "insert or replace into chats(chatid, shard, peer, peer_priv, own_priv,"
+        " ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
         mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
 
     initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
