@@ -78,7 +78,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
           appCtx(ctx),
           api(sdk, ctx),
           app(aApp),
-          mDnsCache(db),
+          mDnsCache(db, chatd::Client::chatdVersion),
           contactList(new ContactList(*this)),
           chats(new ChatRoomList(*this)),
           mPresencedClient(&api, this, *this, caps)
@@ -421,10 +421,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
 {
     GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey);
     chats->emplace(chatId, room);
-    if (!mDnsCache.isRecord(shard))
-    {
-        mDnsCache.addRecord(shard, chatd::Client::chatdVersion, url, "", "");
-    }
+    mDnsCache.addRecord(shard, url);
 
     room->connect();
 }
@@ -836,7 +833,7 @@ void Client::initWithDbSession(const char* sid)
         });
 
         loadOwnKeysFromDb();
-        mDnsCache.loadFromDb(chatd::Client::chatdVersion);
+        mDnsCache.loadFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
         mChatdClient.reset(new chatd::Client(this));

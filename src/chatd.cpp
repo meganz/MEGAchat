@@ -1098,7 +1098,7 @@ promise::Promise<void> Connection::fetchUrl()
         }
 
         // Add record to db to store new URL
-        mDnsCache.addRecord(mShardNo, chatd::Client::chatdVersion, url, "", "");
+        mDnsCache.addRecord(mShardNo, url);
     });
 }
 

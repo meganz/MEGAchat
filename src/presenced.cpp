@@ -74,7 +74,7 @@ Promise<void> Client::fetchUrl()
         }
 
         // Add new record to DNS cache
-        mDnsCache.addRecord(kPresencedShard, kPresencedShard, url, "", "");
+        mDnsCache.addRecord(kPresencedShard, url);
         return promise::_Void();
     });
 }

@@ -334,7 +334,8 @@ public:
     enum: uint16_t { kProtoVersion = 0x0001 };
 
     /* We need to save presenced url in cache in order to improve app performance,
-     * so we need to assign a value to shard field to identify it uniquely.
+     * so we need to assign a value to shard field to identify it uniquely, since
+     * the DNS cache also stores the URLs for chatd shards 0, 1 and 2.
      */
     enum: int8_t { kPresencedShard = -1 };
 

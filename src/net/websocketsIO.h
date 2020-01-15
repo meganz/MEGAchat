@@ -23,6 +23,27 @@ class WebsocketsClientImpl;
 class DNScache
 {
 public:
+    // reference to db-layer interface
+    SqliteDb &mDb;
+
+    DNScache(SqliteDb &db, int chatdVersion);
+    void loadFromDb();
+    void addRecord(int shard, const std::string &url, bool saveToDb = true);
+    void removeRecord(int shard);
+    bool hasRecord(int shard);
+    bool isValidUrl(int shard);
+    // the record for the given shard must exist
+    bool setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    // the record for the given shard must exist (to load from DB)
+    bool setIp(int shard, std::string ipv4, std::string ipv6);
+    bool getIp(int shard, std::string &ipv4, std::string &ipv6);
+    void connectDone(int shard, const std::string &ip);
+    bool isMatch(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool isMatch(int shard, const std::string &ipv4, const std::string &ipv6);
+    time_t age(int shard);
+    const karere::Url &getUrl(int shard);
+
+private:
     struct DNSrecord
     {
         karere::Url mUrl;
@@ -33,28 +54,9 @@ public:
         time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
     };
 
-    // reference to db-layer interface
-    SqliteDb &mDb;
-    DNScache(SqliteDb &db);
-    void addRecord(int shard, int protVer, const std::string &url, const std::string &ipv4, const std::string &ipv6);
-    void addRecordToCache(int shard, int protVer, const std::string &url, const std::string &ipv4, const std::string &ipv6);
-    void addRecordToDb(int shard, const std::string &url, const std::string &ipv4, const std::string &ipv6);
-    void removeRecord(int shard);
-    void removeRecordFromCache(int shard);
-    void removeRecordFromDb(int shard);
-    bool isRecord(int shard);
-    bool isValidUrl(int shard);
-    bool setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
-    bool getIp(int shard, std::string &ipv4, std::string &ipv6);
-    void connectDone(int shard, const std::string &ip);
-    bool isMatch(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
-    time_t age(int shard);
-    const karere::Url &getUrl(int shard);
-    void loadFromDb(int chatdProtocolVersion);
-
-private:
     // Maps shard to DNSrecord
     std::map<int, DNSrecord> mRecords;
+    int mChatdVersion;
 };
 
 // Generic websockets network layer
