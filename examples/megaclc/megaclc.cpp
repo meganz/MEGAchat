@@ -2015,7 +2015,13 @@ void exec_reviewpublicchat(ac::ACState& s)
 
     const auto lastSlashIdx = chat_link.find_last_of("/");
     const auto lastHashIdx = chat_link.find_last_of("#");
+    if (lastSlashIdx == std::string::npos || lastHashIdx == std::string::npos || lastSlashIdx >= lastHashIdx)
+    {
+        conlock(cout) << "Error: Invalid link format: " << chat_link << endl;
+        return;
+    }
     const auto linkHandle = chat_link.substr(lastSlashIdx + 1, lastHashIdx - lastSlashIdx - 1);
+
     const auto outputFilename = "reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC.txt";
     g_reviewPublicChatOutFile.reset(new std::ofstream{outputFilename});
     if (!g_reviewPublicChatOutFile->is_open())
