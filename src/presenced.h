@@ -341,6 +341,7 @@ public:
 protected:
     MyMegaApi *mApi;
     karere::Client *mKarereClient;
+    DNScache &mDnsCache;
     Listener* mListener;
     uint8_t mCapabilities;
 

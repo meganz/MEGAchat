@@ -444,8 +444,10 @@ void Chat::login()
 }
 
 Connection::Connection(Client& chatdClient, int shardNo)
-    : mChatdClient(chatdClient), mShardNo(shardNo),
-    mSendPromise(promise::_Void())
+    : mChatdClient(chatdClient),
+      mShardNo(shardNo),
+      mSendPromise(promise::_Void()),
+      mDnsCache(chatdClient.mKarereClient->mDnsCache)
 {
 }
 
@@ -519,7 +521,7 @@ promise::Promise<void> Connection::sendKeepalive()
 
 void Connection::sendEcho()
 {
-    if (!mChatdClient.mKarereClient->mDnsCache.isValidUrl(mShardNo)) // the connection is not ready yet (i.e. initialization in offline-mode)
+    if (!mDnsCache.isValidUrl(mShardNo)) // the connection is not ready yet (i.e. initialization in offline-mode)
     {
         CHATDS_LOG_DEBUG("sendEcho(): connection not initialized yet");
         return;
@@ -661,7 +663,7 @@ void Connection::setState(State state)
     {
         CHATDS_LOG_DEBUG("Chatd connected to %s", mTargetIp.c_str());
 
-        mChatdClient.mKarereClient->mDnsCache.connectDone(mShardNo, mTargetIp);
+        mDnsCache.connectDone(mShardNo, mTargetIp);
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
@@ -712,7 +714,7 @@ Promise<void> Connection::reconnect()
         if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
 
-        if (!mChatdClient.mKarereClient->mDnsCache.isValidUrl(mShardNo))
+        if (!mDnsCache.isValidUrl(mShardNo))
             throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
 
         setState(kStateResolving);
@@ -733,10 +735,10 @@ Promise<void> Connection::reconnect()
             setState(kStateDisconnected);
             mConnectPromise = Promise<void>();
 
-            const std::string &host = mChatdClient.mKarereClient->mDnsCache.getUrl(mShardNo).host;
+            const std::string &host = mDnsCache.getUrl(mShardNo).host;
 
             string ipv4, ipv6;
-            bool cachedIPs = mChatdClient.mKarereClient->mDnsCache.getIp(mShardNo, ipv4, ipv6);
+            bool cachedIPs = mDnsCache.getIp(mShardNo, ipv4, ipv6);
 
             setState(kStateResolving);
             CHATDS_LOG_DEBUG("Resolving hostname %s...", host.c_str());
@@ -797,8 +799,7 @@ Promise<void> Connection::reconnect()
 
                     if (statusDNS < 0)
                     {
-                        string errStr = "Async DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS) + " .Reason: " + uv_strerror(statusDNS);
-                        CHATDS_LOG_ERROR("%s", errStr.c_str());
+                        CHATDS_LOG_ERROR("Async DNS error in chatd for shard %d. Error code: %d", mShardNo, statusDNS);
                     }
                     else
                     {
@@ -825,12 +826,12 @@ Promise<void> Connection::reconnect()
 
                     //GET end ts for QueryDns
                     mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
-                    mChatdClient.mKarereClient->mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
+                    mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
                     doConnect();
                     return;
                 }
 
-                if (mChatdClient.mKarereClient->mDnsCache.isMatch(mShardNo, ipsv4, ipsv6))
+                if (mDnsCache.isMatch(mShardNo, ipsv4, ipsv6))
                 {
                     CHATDS_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
@@ -840,7 +841,7 @@ Promise<void> Connection::reconnect()
                     mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
 
                     // update DNS cache
-                    mChatdClient.mKarereClient->mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
+                    mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
                     CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
                 }
@@ -904,11 +905,11 @@ void Connection::disconnect()
 void Connection::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = mChatdClient.mKarereClient->mDnsCache.getIp(mShardNo, ipv4, ipv6);
+    bool cachedIPs = mDnsCache.getIp(mShardNo, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
-    const karere::Url &url = mChatdClient.mKarereClient->mDnsCache.getUrl(mShardNo);
+    const karere::Url &url = mDnsCache.getUrl(mShardNo);
     assert (url.isValid());
 
     setState(kStateConnecting);
@@ -968,7 +969,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         return;
     }
 
-    if (refreshURL || !mChatdClient.mKarereClient->mDnsCache.isValidUrl(mShardNo))
+    if (refreshURL || !mDnsCache.isValidUrl(mShardNo))
     {
         if (mState == kStateFetchingUrl)
         {
@@ -986,7 +987,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         auto wptr = getDelTracker();
 
         // Remove DnsCache record
-        mChatdClient.mKarereClient->mDnsCache.removeRecord(mShardNo);
+        mDnsCache.removeRecord(mShardNo);
 
         fetchUrl()
         .then([this, wptr]
@@ -1067,7 +1068,7 @@ promise::Promise<void> Connection::fetchUrl()
 {
     assert(!mChatIds.empty());
     if (mChatdClient.mKarereClient->anonymousMode()
-        ||mChatdClient.mKarereClient->mDnsCache.isValidUrl(mShardNo))
+        || mDnsCache.isValidUrl(mShardNo))
     {
        return promise::_Void();
     }
@@ -1096,7 +1097,7 @@ promise::Promise<void> Connection::fetchUrl()
         }
 
         // Add record to db to store new URL
-        mChatdClient.mKarereClient->mDnsCache.addRecord(mShardNo, chatd::Client::chatdVersion, url, "", "");
+        mDnsCache.addRecord(mShardNo, chatd::Client::chatdVersion, url, "", "");
     });
 }
 

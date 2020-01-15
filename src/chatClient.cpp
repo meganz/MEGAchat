@@ -309,7 +309,6 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
-
             else if (cachedVersionSuffix == "8" && (strcmp(gDbSchemaVersionSuffix, "9") == 0))
             {
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");

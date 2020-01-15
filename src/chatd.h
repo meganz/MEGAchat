@@ -421,6 +421,7 @@ protected:
     Connection(Client& chatdClient, int shardNo);
 
     Client& mChatdClient;
+    DNScache &mDnsCache;
 
     /** Shard number for which the Connection is configured */
     int mShardNo;
