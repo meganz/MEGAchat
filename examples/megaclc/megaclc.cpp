@@ -770,13 +770,47 @@ std::atomic<bool> g_reportMessagesDeveloper{false};
 // These objects are helping to work around history loading problems for reviewing public chats
 std::atomic<bool> g_reviewingPublicChat{false};
 std::atomic<int> g_reviewPublicChatMsgCountRemaining{0};
+std::unique_ptr<std::ofstream> g_reviewPublicChatOutFile;
 std::map<c::MegaChatHandle, std::string> g_reviewPublicChatEmails;
 std::map<c::MegaChatHandle, std::string> g_reviewPublicChatFirstnames;
 std::map<c::MegaChatHandle, std::string> g_reviewPublicChatLastnames;
 
+void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
+{
+    constexpr int errorRetryCount = 10;
+    int source = c::MegaChatApi::SOURCE_NONE;
+    for (int i = 0; i < errorRetryCount; ++i)
+    {
+        source = g_chatApi->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining.load());
+
+        auto cl = conlock(cout);
+        switch (source)
+        {
+            case c::MegaChatApi::SOURCE_ERROR:
+            {
+                cout << "Load failed as we are offline." << endl;
+                continue;
+            }
+            case c::MegaChatApi::SOURCE_NONE:
+            {
+                g_reviewPublicChatMsgCountRemaining = 0;
+                cout << "No more messages." << endl;
+                g_reviewingPublicChat = false;
+                g_reviewPublicChatOutFile.reset();
+                return;
+            }
+            default: return;
+        }
+    }
+    if (source == c::MegaChatApi::SOURCE_ERROR)
+    {
+        g_reviewPublicChatMsgCountRemaining = 0;
+    }
+}
+
 void reviewPublicChatFetchFirstName(const c::MegaChatRoom& room, const c::MegaChatHandle userHandle)
 {
-    conlock(cout) << "Fetching first name for: " << userHandle << endl;
+    conlock(cout) << "Fetching first name for: " << ch_s(userHandle) << endl;
     g_chatApi->getUserFirstname(userHandle, room.getAuthorizationToken(), new OneShotChatRequestListener{
                                 [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
                                 {
@@ -790,7 +824,7 @@ void reviewPublicChatFetchFirstName(const c::MegaChatRoom& room, const c::MegaCh
 
 void reviewPublicChatFetchLastName(const c::MegaChatRoom& room, const c::MegaChatHandle userHandle)
 {
-    conlock(cout) << "Fetching last name for: " << userHandle << endl;
+    conlock(cout) << "Fetching last name for: " << ch_s(userHandle) << endl;
     g_chatApi->getUserLastname(userHandle, room.getAuthorizationToken(), new OneShotChatRequestListener{
                                 [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
                                 {
@@ -804,7 +838,7 @@ void reviewPublicChatFetchLastName(const c::MegaChatRoom& room, const c::MegaCha
 
 void reviewPublicChatFetchEmail(const c::MegaChatHandle userHandle)
 {
-    conlock(cout) << "Fetching email for: " << userHandle << endl;
+    conlock(cout) << "Fetching email for: " << ch_s(userHandle) << endl;
     g_chatApi->getUserEmail(userHandle, new OneShotChatRequestListener{
                                 [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
                                 {
@@ -816,18 +850,30 @@ void reviewPublicChatFetchEmail(const c::MegaChatHandle userHandle)
                             });
 }
 
+std::string timeToStringUTC(const int64_t time)
+{
+    struct tm dt;
+    m::m_gmtime(time, &dt);
+    char buffer[40];
+    std::strftime(buffer, 40, "%FT%H-%M-%S", &dt);
+    return std::string{buffer};
+}
+
 void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
 {
-    static bool lastMsgValid = true;
-    auto cl = conlock(cout);
     if (!msg)
     {
-        cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
-        if (g_reviewingPublicChat && lastMsgValid && g_reviewPublicChatMsgCountRemaining > 0)
+        if (g_chatApi->isFullHistoryLoaded(chatid))
         {
-            g_chatApi->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining);
+            g_reviewingPublicChat = false;
+            g_reviewPublicChatOutFile.reset();
+            return;
         }
-        lastMsgValid = false;
+        cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
+        if (g_reviewingPublicChat && g_reviewPublicChatMsgCountRemaining > 0)
+        {
+            reviewPublicChatLoadMessages(chatid);
+        }
         return;
     }
 
@@ -835,7 +881,6 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     {
         --g_reviewPublicChatMsgCountRemaining;
     }
-    lastMsgValid = true;
 
     const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
     const std::string room_title = room ? room->getTitle() : "<No Title>";
@@ -919,20 +964,13 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         return std::string{"<No Email>"};
     };
 
-    auto time_to_string_utc = [](const int64_t time)
-    {
-        struct tm dt;
-        m::m_gmtime(time, &dt);
-        char buffer[40];
-        std::strftime(buffer, 40, "%FT%T", &dt);
-        return std::string{buffer};
-    };
+    std::ostringstream os;
 
     if (msg->getType() == c::MegaChatMessage::TYPE_NORMAL)
     {
-        cout << room_title
+        os   << room_title
              << " | " << "TEXT"
-             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << timeToStringUTC(msg->getTimestamp()) << " UTC"
              << " | " << ch_s(msg->getUserHandle())
              << " | " << firstname(msg->getUserHandle())
              << " | " << lastname(msg->getUserHandle())
@@ -941,20 +979,20 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
              << " | " << (msg->isDeleted() ? "deleted" : "not deleted")
              << " | " << (msg->getContent() ? msg->getContent() : "<No Content>")
                 ;
-        cout << endl;
+        os << endl;
     }
     else if (msg->getType() == c::MegaChatMessage::TYPE_ALTER_PARTICIPANTS)
     {
-        cout << room_title
+        os   << room_title
              << " | " << "PARTICIPANT"
-             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << timeToStringUTC(msg->getTimestamp()) << " UTC"
              << " | " << ch_s(msg->getHandleOfAction())
              << " | " << firstname(msg->getUserHandle())
              << " | " << lastname(msg->getUserHandle())
              << " | " << email(msg->getHandleOfAction())
              << " | " << "joined/left"
            ;
-        cout << endl;
+        os << endl;
     }
     else if (msg->getType() == c::MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
@@ -977,16 +1015,23 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
             return ss.str();
         };
 
-        cout << room_title
+        os   << room_title
              << " | " << "ATTACHMENT"
-             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << timeToStringUTC(msg->getTimestamp()) << " UTC"
              << " | " << ch_s(msg->getUserHandle())
              << " | " << firstname(msg->getUserHandle())
              << " | " << lastname(msg->getUserHandle())
              << " | " << email(msg->getUserHandle())
              << " | " << nodeinfo(msg->getMegaNodeList())
            ;
-        cout << endl;
+        os << endl;
+    }
+
+    const auto outMsg = os.str();
+    conlock(cout) << outMsg;
+    if (g_reviewingPublicChat)
+    {
+        conlock(*g_reviewPublicChatOutFile) << outMsg;
     }
 }
 
@@ -1879,8 +1924,12 @@ public:
         }
         g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: Email: " + std::string{request->getEmail()});
         g_reviewPublicChatEmails[request->getNodeHandle()] = request->getEmail();
-        conlock(cout) << "ReviewPublicChat: Email: " + std::string{request->getEmail()}
-                      << " (" << g_reviewPublicChatEmails.size() << " / " << m_userCount.load() << ")" << endl;
+        std::ostringstream os;
+        os << "ReviewPublicChat: Email: " + std::string{request->getEmail()}
+           << " (" << g_reviewPublicChatEmails.size() << " / " << m_userCount.load() << ")" << endl;
+        const auto msg = os.str();
+        conlock(cout) << msg;
+        conlock(*g_reviewPublicChatOutFile) << msg;
         if (g_reviewPublicChatEmails.size() < static_cast<size_t>(m_userCount.load()))
         {
             // Wait until we've received emails for all users
@@ -1925,21 +1974,7 @@ public:
                     if (rec.open)
                     {
                         g_reportMessagesDeveloper = false;
-
-                        constexpr int errorRetryCount = 10;
-                        for (int i = 0; i < errorRetryCount; ++i)
-                        {
-                            const auto source = api->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining.load());
-
-                            auto cl = conlock(cout);
-                            switch (source)
-                            {
-                            case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; continue;
-                            case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; return;
-                            case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; return;
-                            case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; return;
-                            }
-                        }
+                        reviewPublicChatLoadMessages(chatid);
                     }
                 };
 
@@ -1970,9 +2005,32 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
 
     g_reviewingPublicChat = true;
+    g_reviewPublicChatEmails.clear();
+    g_reviewPublicChatFirstnames.clear();
+    g_reviewPublicChatLastnames.clear();
+    g_reviewPublicChatMsgCountRemaining = 0;
 
     const auto chat_link = s.words[1].s;
-    g_reviewPublicChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : 1000;
+    g_reviewPublicChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : 5000;
+
+    const auto lastSlashIdx = chat_link.find_last_of("/");
+    const auto lastHashIdx = chat_link.find_last_of("#");
+    if (lastSlashIdx == std::string::npos || lastHashIdx == std::string::npos || lastSlashIdx >= lastHashIdx)
+    {
+        conlock(cout) << "Error: Invalid link format: " << chat_link << endl;
+        return;
+    }
+    const auto linkHandle = chat_link.substr(lastSlashIdx + 1, lastHashIdx - lastSlashIdx - 1);
+
+    const auto outputFilename = "reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC.txt";
+    g_reviewPublicChatOutFile.reset(new std::ofstream{outputFilename});
+    if (!g_reviewPublicChatOutFile->is_open())
+    {
+        conlock(cout) << "Error: Unable to open output file: " << outputFilename << endl;
+        return;
+    }
+    *g_reviewPublicChatOutFile << chat_link << endl;
+
     static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener;
     // Note: We need to be logged in to receive user emails
 
@@ -2000,9 +2058,20 @@ void exec_reviewpublicchat(ac::ACState& s)
                     return;
                 }
                 const auto chatid = request->getChatHandle();
-                conlock(cout) << "openChatPreview: chatlink loaded. Chatid: " << k::Id(chatid).toString() << endl;
                 const int user_count = static_cast<int>(request->getNumber());
-                conlock(cout) << "openChatPreview: User count: " << user_count << endl;
+
+                std::ostringstream os1;
+                os1 << "openChatPreview: chatlink loaded. Chatid: " << k::Id(chatid).toString() << endl;
+                const auto msg1 = os1.str();
+                conlock(cout) << msg1;
+                conlock(*g_reviewPublicChatOutFile) << msg1;
+
+                std::ostringstream os2;
+                os2 << "openChatPreview: User count: " << user_count << endl;
+                const auto msg2 = os2.str();
+                conlock(cout) << msg2;
+                conlock(*g_reviewPublicChatOutFile) << msg2;
+
                 get_user_email_listener.setUserCount(user_count);
                 get_user_email_listener.setChatId(chatid);
                 g_megaApi->addListener(&get_user_email_listener);
