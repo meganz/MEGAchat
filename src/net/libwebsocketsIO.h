@@ -25,6 +25,7 @@ protected:
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client);
+    int wsGetNoNameErrorCode() override;
 };
 
 class LibwebsocketsClient : public WebsocketsClientImpl

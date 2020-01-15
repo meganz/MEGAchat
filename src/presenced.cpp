@@ -468,7 +468,7 @@ Client::reconnect()
                     }
 
                     assert(!isOnline());
-                    if (statusDNS == UV_EAI_NONAME)
+                    if (statusDNS == wsGetNoNameErrorCode(mKarereClient->websocketIO))
                     {
                         retryPendingConnection(true, true);
                     }
@@ -502,7 +502,7 @@ Client::reconnect()
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                string errStr = "Immediate DNS error in presenced. Error code: " + std::to_string(statusDNS) + " .Reason: " + uv_strerror(statusDNS);
+                string errStr = "Immediate DNS error in presenced. Error code: " + std::to_string(statusDNS);
                 PRESENCED_LOG_ERROR("%s", errStr.c_str());
 
                 assert(mConnState == kResolving);

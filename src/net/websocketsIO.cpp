@@ -104,6 +104,11 @@ bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, cons
     return ctx != NULL;
 }
 
+int WebsocketsClient::wsGetNoNameErrorCode(WebsocketsIO *websocketIO)
+{
+    return websocketIO->wsGetNoNameErrorCode();
+}
+
 bool WebsocketsClient::wsSendMessage(char *msg, size_t len)
 {
     assert (ctx);

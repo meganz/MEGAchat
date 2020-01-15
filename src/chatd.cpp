@@ -809,7 +809,7 @@ Promise<void> Connection::reconnect()
                     mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
                     assert(!isOnline());
 
-                    if (statusDNS == UV_EAI_NONAME)
+                    if (statusDNS == wsGetNoNameErrorCode(mChatdClient.mKarereClient->websocketIO))
                     {
                          retryPendingConnection(true, true);
                     }
@@ -850,8 +850,9 @@ Promise<void> Connection::reconnect()
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                string errStr = "Inmediate DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS) + " .Reason: " + uv_strerror(statusDNS);
+                string errStr = "Inmediate DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS);
                 CHATDS_LOG_ERROR("%s", errStr.c_str());
+
                 mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
 
                 assert(!mConnectPromise.done());

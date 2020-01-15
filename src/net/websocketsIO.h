@@ -76,6 +76,7 @@ protected:
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client) = 0;
+    virtual int wsGetNoNameErrorCode() = 0;   // depends on the implementation
     friend WebsocketsClient;
 };
 
@@ -99,6 +100,7 @@ public:
     bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, std::vector<std::string>&, std::vector<std::string>&)> f);
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl);
+    int wsGetNoNameErrorCode(WebsocketsIO *websocketIO);
     bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error
     void wsDisconnect(bool immediate);
     bool wsIsConnected();
