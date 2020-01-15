@@ -1144,7 +1144,6 @@ protected:
     void loadOwnKeysFromDb();
     void loadContactListFromApi();
     void loadContactListFromApi(::mega::MegaUserList& contactList);
-    void loadDnsCacheFromDb();
 
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid, bool isPublic,
             std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);

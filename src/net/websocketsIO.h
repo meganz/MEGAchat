@@ -50,6 +50,8 @@ public:
     bool isMatch(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
     time_t age(int shard);
     const karere::Url &getUrl(int shard);
+    void loadFromDb(int chatdProtocolVersion);
+
 private:
     // Maps shard to DNSrecord
     std::map<int, DNSrecord> mRecords;

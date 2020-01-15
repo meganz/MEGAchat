@@ -273,6 +273,27 @@ const karere::Url &DNScache::getUrl(int shard)
     return it->second.mUrl;
 }
 
+void DNScache::loadFromDb(int chatdProtocolVersion)
+{
+    SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6 from dns_cache");
+    while (stmt.step())
+    {
+        int shard = stmt.intCol(0);
+        std::string url = stmt.stringCol(1);
+        if (url.size())
+        {
+            // if the record is for chatd, need to add the protocol version to the URL
+            int protVer = (shard >= 0) ? chatdProtocolVersion : -1;
+            addRecordToCache(shard, protVer, url, stmt.stringCol(2), stmt.stringCol(3));
+        }
+        else
+        {
+            assert(false);  // there shouldn't be emtpy urls in cache
+            removeRecordFromDb(shard);
+        }
+    }
+}
+
 bool DNScache::setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
 {
     if (!isMatch(shard, ipsv4, ipsv6))

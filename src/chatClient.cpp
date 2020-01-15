@@ -664,30 +664,6 @@ void Client::loadContactListFromApi()
     loadContactListFromApi(*contacts);
 }
 
-void Client::loadDnsCacheFromDb()
-{
-    SqliteStmt stmt(db, "select shard, url, ipv4, ipv6 from dns_cache");
-    while (stmt.step())
-    {
-        int shard = stmt.intCol(0);
-        std::string auxurl = stmt.stringCol(1);
-        if (auxurl.empty())
-        {
-            // If url is empty, remove record from db
-            mDnsCache.removeRecordFromDb(shard);
-        }
-        else
-        {
-            int protVer = (shard == presenced::Client::kPresencedShard)
-                    ? presenced::Client::kPresencedShard
-                    : chatd::Client::chatdVersion;
-
-            // Add record to cache
-            mDnsCache.addRecordToCache(shard, protVer, auxurl, stmt.stringCol(2), stmt.stringCol(3));
-        }
-    }
-}
-
 void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
 {
 #ifndef NDEBUG
@@ -860,7 +836,7 @@ void Client::initWithDbSession(const char* sid)
         });
 
         loadOwnKeysFromDb();
-        loadDnsCacheFromDb();
+        mDnsCache.loadFromDb(chatd::Client::chatdVersion);
         contactList->loadFromDb();
         mContactsLoaded = true;
         mChatdClient.reset(new chatd::Client(this));
