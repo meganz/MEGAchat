@@ -261,15 +261,11 @@ bool DNScache::isValidUrl(int shard)
     return false;
 }
 
-const karere::Url DNScache::getUrl(int shard)
+const karere::Url &DNScache::getUrl(int shard)
 {
     auto it = mRecords.find(shard);
-    if (it != mRecords.end())
-    {
-        return it->second.mUrl;
-    }
-
-    return karere::Url();
+    assert(it != mRecords.end());
+    return it->second.mUrl;
 }
 
 bool DNScache::setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)

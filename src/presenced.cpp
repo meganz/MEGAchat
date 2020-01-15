@@ -65,8 +65,7 @@ Promise<void> Client::fetchUrl()
 
         // Update presenced url in ram and db
         const char *url = result->getLink();
-        if (!url || !url[0] ||
-            mKarereClient->mDnsCache.getUrl(kPresencedShard).originUrl == url)
+        if (!url || !url[0])
         {
            return promise::_Void();
         }
@@ -404,7 +403,7 @@ Client::reconnect()
             setConnState(kDisconnected);
             mConnectPromise = Promise<void>();
 
-            std::string host = mKarereClient->mDnsCache.getUrl(kPresencedShard).host;
+            const std::string &host = mKarereClient->mDnsCache.getUrl(kPresencedShard).host;
 
             string ipv4, ipv6;
             bool cachedIPs = mKarereClient->mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
@@ -414,7 +413,7 @@ Client::reconnect()
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mKarereClient->websocketIO, host.c_str(),
-                         [wptr, host, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -872,7 +871,7 @@ void Client::doConnect()
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
-    karere::Url url = mKarereClient->mDnsCache.getUrl(kPresencedShard);
+    const karere::Url &url = mKarereClient->mDnsCache.getUrl(kPresencedShard);
     assert (url.isValid());
 
     setConnState(kConnecting);

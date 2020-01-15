@@ -733,7 +733,7 @@ Promise<void> Connection::reconnect()
             setState(kStateDisconnected);
             mConnectPromise = Promise<void>();
 
-            std::string host = mChatdClient.mKarereClient->mDnsCache.getUrl(mShardNo).host;
+            const std::string &host = mChatdClient.mKarereClient->mDnsCache.getUrl(mShardNo).host;
 
             string ipv4, ipv6;
             bool cachedIPs = mChatdClient.mKarereClient->mDnsCache.getIp(mShardNo, ipv4, ipv6);
@@ -753,7 +753,7 @@ Promise<void> Connection::reconnect()
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, host.c_str(),
-                         [wptr, host, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -908,7 +908,7 @@ void Connection::doConnect()
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
-    karere::Url url = mChatdClient.mKarereClient->mDnsCache.getUrl(mShardNo);
+    const karere::Url &url = mChatdClient.mKarereClient->mDnsCache.getUrl(mShardNo);
     assert (url.isValid());
 
     setState(kStateConnecting);
@@ -1090,8 +1090,7 @@ promise::Promise<void> Connection::fetchUrl()
         }
 
         const char *url = result->getLink();
-        if (!url || !url[0]
-            || mChatdClient.mKarereClient->mDnsCache.getUrl(mShardNo).originUrl == url)
+        if (!url || !url[0])
         {
             return;
         }

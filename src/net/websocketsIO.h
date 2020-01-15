@@ -49,7 +49,7 @@ public:
     void connectDone(int shard, const std::string &ip);
     bool isMatch(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
     time_t age(int shard);
-    const karere::Url getUrl(int shard);
+    const karere::Url &getUrl(int shard);
 private:
     // Maps shard to DNSrecord
     std::map<int, DNSrecord> mRecords;
