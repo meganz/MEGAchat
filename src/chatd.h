@@ -418,7 +418,7 @@ public:
     };
 
 protected:
-    Connection(Client& chatdClient, int shardNo, const std::string& url);
+    Connection(Client& chatdClient, int shardNo);
 
     Client& mChatdClient;
 
@@ -436,9 +436,6 @@ protected:
 
     /** When enabled, hearbeat() method is called periodically */
     bool mHeartbeatEnabled = false;
-
-    /** URL retrieved from API to establish the connection */
-    karere::Url mUrl;
 
     /** Target IP address being used for the reconnection in-flight */
     std::string mTargetIp;
@@ -505,9 +502,8 @@ public:
     int shardNo() const;
     promise::Promise<void> sendSync();
 
-    promise::Promise<void> connect(const char *url);
+    promise::Promise<void> connect();
     promise::Promise<void> fetchUrl();
-    bool updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6);
 };
 
 enum ServerHistFetchState
@@ -958,7 +954,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect(const char *url = NULL);
+    void connect();
 
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
@@ -1433,7 +1429,7 @@ public:
     /** @brief Joins the specifed chatroom on the specified shard, using the specified url, and
      * associates the specified Listener and ICrypto instances with the newly created Chat object.
      */
-    Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
+    Chat& createChat(karere::Id chatid, int shardNo,
     Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
 
     /** @brief Leaves the specified chatroom */
@@ -1453,8 +1449,6 @@ public:
 
     // True if clients send confirmation to chatd when they receive a new message
     bool isMessageReceivedConfirmationActive() const;
-
-    std::string getUrlByShard(int shardNo) const;
 
     // The timestamps of the most recent message from userid
     mega::m_time_t getLastMsgTs(karere::Id userid) const;
