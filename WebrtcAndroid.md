@@ -9,12 +9,14 @@ We recommend you that use this pre-compiled version, but if you want to do it yo
 `cd src`
 `git checkout 9863f3d246e2da7a2e1f42bbc5757f6af5ec5682`    (branch-heads/m76)
 `gclient sync`
+
 Before compile, you need to modify the file `buildtools/third_party/libc++/trunk/include/__config`
-`
+
+```
 # define _LIBCPP_ABI_NAMESPACE 
 - _LIBCPP_CONCAT(__,_LIBCPP_ABI_VERSION)
 + _LIBCPP_CONCAT(__ndk,_LIBCPP_ABI_VERSION)
-`
+```
 Now, you are ready to start compilation process. (we recomend compile every architecture in different console to restart LD_LIBRARY_PATH variable)
 ### Arm 32 ###
 `gn gen <WebRTC_output_arm32> --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false'`
@@ -38,25 +40,27 @@ The resulting libraries `libwebrtc.a` for each platform should be located in eac
 * `arm 64 => libwebrtc_arm.a`
 * `x86    => libwebrtc_x86.a`
 * `x64    => libwebrtc_x86_64.a`
+
 Furthermore, you have to copy from `src` next directories: 
-  `cp -R third_party/abseil-cpp <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/third_party/
-  cp -R third_party/boringssl <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/third_party/
-  cp -R third_party/libyuv <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/third_party/
-  cp -R api <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R base <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R common_audio <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R data <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R media <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R rtc_base <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R stats <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R video <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R audio <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R call <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R crypto <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R modules <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R pc <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R sdk <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp -R system_wrappers <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/
-  cp common_types.h <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`
+
+  `cp -R third_party/abseil-cpp <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/third_party/`   
+  `cp -R third_party/boringssl <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/third_party/`  
+  `cp -R third_party/libyuv <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/third_party/`  
+  `cp -R api <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R base <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R common_audio <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R data <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R media <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R rtc_base <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R stats <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R video <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R audio <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R call <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R crypto <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R modules <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R pc <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R sdk <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`   
+  `cp -R system_wrappers <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp common_types.h <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
  
  If you have some doubt about Android project, you can review https://github.com/meganz/android2
