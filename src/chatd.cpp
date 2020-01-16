@@ -189,7 +189,7 @@ Client::Client(karere::Client *aKarereClient) :
 }
 
 Chat& Client::createChat(Id chatid, int shardNo,
-                         Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup)
+    Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup)
 {
     auto chatit = mChatForChatId.find(chatid);
     if (chatit != mChatForChatId.end())

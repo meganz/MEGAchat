@@ -200,19 +200,16 @@ void DNScache::addRecord(int shard, const std::string &url, bool saveToDb)
 {    
     if (hasRecord(shard))
     {
+        assert(false);
         return;
     }
 
-    // Parse Url to construct a karere::Url
-    ::karere::Url auxurl;
-    auxurl.parse(url);
+    DNSrecord record;
+    record.mUrl.parse(url);
     if (shard >= 0) // only chatd needs to append the protocol version
     {
-        auxurl.path.append("/").append(std::to_string(mChatdVersion));
+        record.mUrl.path.append("/").append(std::to_string(mChatdVersion));
     }
-
-    DNSrecord record;
-    record.mUrl = auxurl;
     mRecords[shard] = record;
 
     if (saveToDb)

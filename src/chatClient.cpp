@@ -421,7 +421,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
 {
     GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey);
     chats->emplace(chatId, room);
-    mDnsCache.addRecord(shard, url);
+    mDnsCache.addRecord(shard, url);    // the URL has been already pre-fetched
 
     room->connect();
 }
@@ -1977,10 +1977,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
     bool isPublicChat = aChat.isPublicChat();
-    db.query("insert or replace into chats(chatid, shard, peer, peer_priv, own_priv,"
-             "ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
+    db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
+             "own_priv, ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
              mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
-
     db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
@@ -2070,14 +2069,15 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     //save to db
     auto db = parent.mKarereClient.db;
     db.query(
-        "insert or replace into chats(chatid, shard, peer, peer_priv, own_priv,"
-        " ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
+        "insert or replace into chats(chatid, shard, peer, peer_priv, "
+        "own_priv, ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
         mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
 
     initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
 
     initChatTitle(title, strongvelope::kDecrypted, true);
+
     mRoomGui = addAppItem();
     mIsInitializing = false;
 }
@@ -2457,7 +2457,6 @@ void ChatRoomList::loadFromDb()
             KR_LOG_WARNING("ChatRoomList: Attempted to load from db cache a chatid that is already in memory");
             continue;
         }
-
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
@@ -2495,6 +2494,7 @@ void ChatRoomList::loadFromDb()
                 size_t len = titleBuf.size() - 1;
                 auxTitle.assign(posTitle, len);
             }
+
             room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted);
         }
         emplace(chatid, room);
