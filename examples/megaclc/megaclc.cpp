@@ -83,17 +83,32 @@ using m::logDebug;
 #endif
 #endif
 
-fs::path getExePath()
+#ifdef __APPLE__
+// No std::fileystem before OSX10.15
+string getExeDirectory()
 {
-#if defined(WIN32)
+    array<char, 513> path{};
+    uint32_t size = 512;
+    if (_NSGetExecutablePath(path.data(), &size))
+    {
+        cout << "Error: Unable to retrieve exe path" << endl;
+        exit(1);
+    }
+    const std::string spath{path.data()};
+    return spath.substr(0, spath.find_last_of('/'));
+}
+#else
+fs::path getExeDirectory()
+{
+#ifdef WIN32
     array<wchar_t, MAX_PATH + 1> path{};
     if (!GetModuleFileNameW(NULL, path.data(), MAX_PATH))
     {
         cout << "Error: Unable to retrieve exe path" << endl;
         exit(1);
     }
-    return path.data();
-#elif defined(__linux__)
+    return fs::path{path.data()}.parent_path();
+#else // linux
     const auto link = "/proc/" + to_string(getpid()) + "/exe";
     array<char, 513> path{};
     const auto count = readlink(link.c_str(), path.data(), 512);
@@ -103,20 +118,10 @@ fs::path getExePath()
         exit(1);
     }
     path[count] = '\0';
-    return path.data();
-#elif defined(__APPLE__)
-    array<char, 513> path{};
-    uint32_t size = 512;
-    if (_NSGetExecutablePath(path.data(), &size))
-    {
-        cout << "Error: Unable to retrieve exe path" << endl;
-        exit(1);
-    }
-    return path.data();
-#else
-#error Cannot find the executable path on this platform
+    return fs::path{path.data()}.parent_path();
 #endif
 }
+#endif
 
 void WaitMillisec(unsigned n)
 {
@@ -2063,7 +2068,12 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
     const auto linkHandle = chat_link.substr(lastSlashIdx + 1, lastHashIdx - lastSlashIdx - 1);
 
-    const auto outputFilename = getExePath().parent_path() / ("reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC.txt");
+    const auto filename = "reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC.txt";
+#ifdef __APPLE__
+    const auto outputFilename = getExeDirectory() + "/" + filename;
+#else
+    const auto outputFilename = getExeDirectory() / filename;
+#endif
     g_reviewPublicChatOutFile.reset(new std::ofstream{outputFilename});
     if (!g_reviewPublicChatOutFile->is_open())
     {
