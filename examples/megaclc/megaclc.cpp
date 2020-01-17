@@ -123,6 +123,42 @@ fs::path getExeDirectory()
 }
 #endif
 
+// Chat links look like this:
+// https://mega.nz/chat/E1foobar#EFa7vexblahJwjNglfooxg
+//                      ^handle  ^key
+string extractChatLink(const char* message)
+{
+    constexpr size_t handleSize = 8;
+    constexpr size_t keySize = 22;
+    static const string base = "chat/";
+    const auto chatPtr = strstr(message, base.c_str());
+    if (!chatPtr)
+    {
+        return {};
+    }
+    const auto hashPtr = strstr(chatPtr, "#");
+    if (!hashPtr)
+    {
+        return {};
+    }
+    if (hashPtr - chatPtr - base.size() != handleSize)
+    {
+        return {};
+    }
+    auto keyPtr = hashPtr + 1;
+    size_t count = 0;
+    while (count < keySize && *keyPtr != '\0')
+    {
+        ++count;
+        ++keyPtr;
+    }
+    if (count < keySize)
+    {
+        return {};
+    }
+    return "https://mega.nz/" + string(chatPtr, chatPtr + base.size() + handleSize + 1 + keySize);
+}
+
 void WaitMillisec(unsigned n)
 {
 #ifdef WIN32
@@ -817,9 +853,17 @@ std::atomic<bool> g_reportMessagesDeveloper{false};
 std::atomic<bool> g_reviewingPublicChat{false};
 std::atomic<int> g_reviewPublicChatMsgCountRemaining{0};
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFile;
+std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLinks;
 std::map<c::MegaChatHandle, std::string> g_reviewPublicChatEmails;
 std::map<c::MegaChatHandle, std::string> g_reviewPublicChatFirstnames;
 std::map<c::MegaChatHandle, std::string> g_reviewPublicChatLastnames;
+
+void reviewPublicChatFinalize()
+{
+    g_reviewingPublicChat = false;
+    g_reviewPublicChatOutFile.reset();
+    g_reviewPublicChatOutFileLinks.reset();
+}
 
 void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
 {
@@ -841,8 +885,7 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
             {
                 g_reviewPublicChatMsgCountRemaining = 0;
                 cout << "No more messages." << endl;
-                g_reviewingPublicChat = false;
-                g_reviewPublicChatOutFile.reset();
+                reviewPublicChatFinalize();
                 return;
             }
             default: return;
@@ -911,8 +954,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     {
         if (g_chatApi->isFullHistoryLoaded(chatid))
         {
-            g_reviewingPublicChat = false;
-            g_reviewPublicChatOutFile.reset();
+            reviewPublicChatFinalize();
             return;
         }
         cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
@@ -1012,6 +1054,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
 
     std::ostringstream os;
 
+    std::string outMsg;
     if (msg->getType() == c::MegaChatMessage::TYPE_NORMAL)
     {
         os   << room_title
@@ -1026,6 +1069,15 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
              << " | " << (msg->getContent() ? msg->getContent() : "<No Content>")
                 ;
         os << endl;
+        outMsg = os.str();
+        if (g_reviewingPublicChat && msg->getContent())
+        {
+            const auto subChatLink = extractChatLink(msg->getContent());
+            if (!subChatLink.empty())
+            {
+                conlock(*g_reviewPublicChatOutFileLinks) << outMsg << flush;
+            }
+        }
     }
     else if (msg->getType() == c::MegaChatMessage::TYPE_ALTER_PARTICIPANTS)
     {
@@ -1039,6 +1091,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
              << " | " << "joined/left"
            ;
         os << endl;
+        outMsg = os.str();
     }
     else if (msg->getType() == c::MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
@@ -1071,9 +1124,9 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
              << " | " << nodeinfo(msg->getMegaNodeList())
            ;
         os << endl;
+        outMsg = os.str();
     }
 
-    const auto outMsg = os.str();
     conlock(cout) << outMsg;
     if (g_reviewingPublicChat)
     {
@@ -2042,6 +2095,22 @@ private:
     std::atomic<c::MegaChatHandle> m_chatId{0};
 };
 
+bool reviewPublicChatInitFile(std::unique_ptr<std::ofstream>& file, const std::string& filename)
+{
+#ifdef __APPLE__
+    const auto outputFilename = getExeDirectory() + "/" + filename;
+#else
+    const auto outputFilename = getExeDirectory() / filename;
+#endif
+    file.reset(new std::ofstream{outputFilename});
+    if (!file->is_open())
+    {
+        conlock(cout) << "Error: Unable to open output file: " << outputFilename << endl;
+        return false;
+    }
+    return true;
+}
+
 void exec_reviewpublicchat(ac::ACState& s)
 {
     if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
@@ -2068,19 +2137,17 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
     const auto linkHandle = chat_link.substr(lastSlashIdx + 1, lastHashIdx - lastSlashIdx - 1);
 
-    const auto filename = "reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC.txt";
-#ifdef __APPLE__
-    const auto outputFilename = getExeDirectory() + "/" + filename;
-#else
-    const auto outputFilename = getExeDirectory() / filename;
-#endif
-    g_reviewPublicChatOutFile.reset(new std::ofstream{outputFilename});
-    if (!g_reviewPublicChatOutFile->is_open())
+    const auto baseFilename = "reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC";
+    if (!reviewPublicChatInitFile(g_reviewPublicChatOutFile, baseFilename + ".txt"))
     {
-        conlock(cout) << "Error: Unable to open output file: " << outputFilename << endl;
+        return;
+    }
+    if (!reviewPublicChatInitFile(g_reviewPublicChatOutFileLinks, baseFilename + "_links.txt"))
+    {
         return;
     }
     *g_reviewPublicChatOutFile << chat_link << endl;
+    *g_reviewPublicChatOutFileLinks << chat_link << endl;
 
     static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener;
     // Note: We need to be logged in to receive user emails
@@ -3607,7 +3674,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
     p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10), opt(either(text("human"), text("developer")))));
-    p->Add(exec_reviewpublicchat,   sequence(text("reviewpublicchat"), param("chatlink"), opt(wholenumber(1000))));
+    p->Add(exec_reviewpublicchat,   sequence(text("rpc"), param("chatlink"), opt(wholenumber(5000))));
     p->Add(exec_isfullhistoryloaded, sequence(text("isfullhistoryloaded"), param("roomid")));
     p->Add(exec_getmessage,         sequence(text("getmessage"), param("roomid"), param("msgid")));
     p->Add(exec_getmanualsendingmessage, sequence(text("getmanualsendingmessage"), param("roomid"), param("tempmsgid")));
