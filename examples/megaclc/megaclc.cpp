@@ -2151,12 +2151,12 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
     const auto linkHandle = chat_link.substr(lastSlashIdx + 1, lastHashIdx - lastSlashIdx - 1);
 
-    const auto baseFilename = "reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC";
+    const auto baseFilename = "PublicChat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC";
     if (!initFile(g_reviewPublicChatOutFile, baseFilename + ".txt"))
     {
         return;
     }
-    if (!initFile(g_reviewPublicChatOutFileLinks, baseFilename + "_links.txt"))
+    if (!initFile(g_reviewPublicChatOutFileLinks, baseFilename + "_Links.txt"))
     {
         return;
     }
