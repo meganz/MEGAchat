@@ -2095,6 +2095,17 @@ private:
     std::atomic<c::MegaChatHandle> m_chatId{0};
 };
 
+void closeAllRooms()
+{
+    for (const auto& pair : g_roomListeners)
+    {
+        const auto chatId = pair.first;
+        g_chatApi->closeChatRoom(chatId, pair.second.listener.get());
+        g_chatApi->closeChatPreview(chatId);
+    }
+    g_roomListeners.clear();
+}
+
 bool reviewPublicChatInitFile(std::unique_ptr<std::ofstream>& file, const std::string& filename)
 {
 #ifdef __APPLE__
@@ -2118,6 +2129,8 @@ void exec_reviewpublicchat(ac::ACState& s)
         conlock(cout) << "Error: Not logged in" << endl;
         return;
     }
+
+    closeAllRooms();
 
     g_reviewingPublicChat = true;
     g_reviewPublicChatEmails.clear();
