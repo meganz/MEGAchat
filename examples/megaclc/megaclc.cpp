@@ -2039,45 +2039,29 @@ public:
 
         const auto chatid = m_chatId.load();
 
-        auto push_received_listener = new OneShotChatRequestListener;
+        // Access to g_roomListeners is safe because no other thread accesses this map
+        // while the Mega Chat API thread is using it here.
+        auto& rec = g_roomListeners[chatid];
+        if (!rec.open)
+        {
+            if (!g_chatApi->openChatRoom(chatid, rec.listener.get()))
+            {
+                g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                                    "Failed to open chat room");
+                g_roomListeners.erase(chatid);
+            }
+            else
+            {
+                rec.listener->room = chatid;
+                rec.open = true;
+            }
+        }
 
-        push_received_listener->onRequestFinishFunc =
-                [chatid](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
-                {
-                    // Called on Mega Chat API thread
-                    if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED || !check_err("TYPE_PUSH_RECEIVED", e))
-                    {
-                        return;
-                    }
-                    g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
-                                        "ReviewPublicChat: TYPE_PUSH_RECEIVED finished");
-
-                    // Access to g_roomListeners is safe because no other thread accesses this map
-                    // while the Mega Chat API thread is using it here.
-                    auto& rec = g_roomListeners[chatid];
-                    if (!rec.open)
-                    {
-                        if (!api->openChatRoom(chatid, rec.listener.get()))
-                        {
-                            g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                                                "Failed to open chat room");
-                            g_roomListeners.erase(chatid);
-                        }
-                        else
-                        {
-                            rec.listener->room = chatid;
-                            rec.open = true;
-                        }
-                    }
-
-                    if (rec.open)
-                    {
-                        g_reportMessagesDeveloper = false;
-                        reviewPublicChatLoadMessages(chatid);
-                    }
-                };
-
-        g_chatApi->pushReceived(false, push_received_listener);
+        if (rec.open)
+        {
+            g_reportMessagesDeveloper = false;
+            reviewPublicChatLoadMessages(chatid);
+        }
     }
 
     void setUserCount(int count)
@@ -2131,7 +2115,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
 
     closeAllRooms();
-    g_chatApi->clearUserCache();
+    //g_chatApi->clearUserCache();
 
     g_reviewingPublicChat = true;
     g_reviewPublicChatEmails.clear();
@@ -2207,6 +2191,32 @@ void exec_reviewpublicchat(ac::ACState& s)
                 get_user_email_listener.setUserCount(user_count);
                 get_user_email_listener.setChatId(chatid);
                 g_megaApi->addListener(&get_user_email_listener);
+
+                auto push_received_listener = new OneShotChatRequestListener;
+
+                push_received_listener->onRequestFinishFunc =
+                        [chatid](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
+                        {
+                            // Called on Mega Chat API thread
+                            if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED || !check_err("TYPE_PUSH_RECEIVED", e))
+                            {
+                                return;
+                            }
+                            g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
+                                                "ReviewPublicChat: TYPE_PUSH_RECEIVED finished");
+
+                            c::MegaChatRoom *chatRoom = g_chatApi->getChatRoom(chatid);
+                            for (unsigned int i = 0; i < chatRoom->getPeerCount(); i++)
+                            {
+                                g_megaApi->getUserEmail(chatRoom->getPeerHandle(i));
+                            }
+
+                            delete chatRoom;
+
+                        };
+
+                g_chatApi->pushReceived(false, push_received_listener);
+
             };
 
     g_chatApi->connect(connect_listener);
