@@ -2106,7 +2106,7 @@ void closeAllRooms()
     g_roomListeners.clear();
 }
 
-bool reviewPublicChatInitFile(std::unique_ptr<std::ofstream>& file, const std::string& filename)
+bool initFile(std::unique_ptr<std::ofstream>& file, const std::string& filename)
 {
 #ifdef __APPLE__
     const auto outputFilename = getExeDirectory() + "/" + filename;
@@ -2131,6 +2131,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
 
     closeAllRooms();
+    g_chatApi->clearUserCache();
 
     g_reviewingPublicChat = true;
     g_reviewPublicChatEmails.clear();
@@ -2151,11 +2152,11 @@ void exec_reviewpublicchat(ac::ACState& s)
     const auto linkHandle = chat_link.substr(lastSlashIdx + 1, lastHashIdx - lastSlashIdx - 1);
 
     const auto baseFilename = "reviewpublicchat_" + linkHandle + "_" + timeToStringUTC(time(nullptr)) + "UTC";
-    if (!reviewPublicChatInitFile(g_reviewPublicChatOutFile, baseFilename + ".txt"))
+    if (!initFile(g_reviewPublicChatOutFile, baseFilename + ".txt"))
     {
         return;
     }
-    if (!reviewPublicChatInitFile(g_reviewPublicChatOutFileLinks, baseFilename + "_links.txt"))
+    if (!initFile(g_reviewPublicChatOutFileLinks, baseFilename + "_links.txt"))
     {
         return;
     }

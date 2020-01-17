@@ -2366,6 +2366,14 @@ void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
+void MegaChatApiImpl::clearUserCache()
+{
+    sdkMutex.lock();
+    mClient->userAttrCache().clear();
+    mClient->userAttrCache().invalidate();
+    sdkMutex.unlock();
+}
+
 int MegaChatApiImpl::getConnectionState()
 {
     int ret = 0;

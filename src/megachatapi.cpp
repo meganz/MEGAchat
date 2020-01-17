@@ -307,6 +307,11 @@ void MegaChatApi::disconnect(MegaChatRequestListener *listener)
     pImpl->disconnect(listener);
 }
 
+void MegaChatApi::clearUserCache()
+{
+    pImpl->clearUserCache();
+}
+
 int MegaChatApi::getConnectionState()
 {
     return pImpl->getConnectionState();
