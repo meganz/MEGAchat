@@ -48,7 +48,7 @@ In case the `fetch` command above failed, you may need to get the Chromium build
  - `export PATH="$PATH:/<chromium_build_dir>"`
  
 ### Android Webrtc ###
-For more information about webRTC compilation for Android, you can visit this link https://github.com/meganz/MEGAchat/blob/develop/WebrtcAndroid.md
+For more information about WebRTC compilation for Android, you can visit this link [WebRTC for Android](https://github.com/meganz/MEGAchat/blob/develop/WebrtcAndroid.md).
 
 ## Get MEGAchat code ##
 

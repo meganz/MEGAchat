@@ -1,8 +1,8 @@
 # WebRTC for Android #
-We provide the library and headers pre-compiled for arm32, arm64, x86 and x64. You can download them from here https://mega.nz/#!wixgSaZZ!6zRMV_d8ogouBaEidHzGws1KvLrBwBiKEm0VIVgXEPk.
-We recommend you that use this pre-compiled version, but if you want to do it yourself, you can follow this steps:
-* Install the Chromium depot tools (http://dev.chromium.org/developers/how-tos/install-depot-tools)
-* Download webRTC and compile for all architectures
+We provide pre-built binaries and headers for arm32, arm64, x86 and x64. You can download them from [here](https://mega.nz/#!wixgSaZZ!6zRMV_d8ogouBaEidHzGws1KvLrBwBiKEm0VIVgXEPk).
+We strongly recommend to user the pre-built library, rather than build it by yourself. In case you want to build your own version, please, follow these steps:
+* Install the [Chromium depot tools](http://dev.chromium.org/developers/how-tos/install-depot-tools)
+* Download WebRTC and compile for all architectures
 `mkdir webrtcAndroid`  
 `cd webrtcAndroid`  
 `fetch --nohooks webrtcAndroid`  
@@ -19,7 +19,7 @@ Before compile, you need to modify the file `buildtools/third_party/libc++/trunk
 + _LIBCPP_CONCAT(__ndk,_LIBCPP_ABI_VERSION)
 #endif
 ```
-Now, you are ready to start compilation process (we recomend compile every architecture in different console to restart LD_LIBRARY_PATH variable)
+Now, you are ready to start building the library. We recommend to compile every architecture in different console in order to reset the environment variable `LD_LIBRARY_PATH`.
 ### Arm 32 ###
 `gn gen <WebRTC_output_arm32> --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false'`
 `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<WebRTC_output_arm32>/clang_x64`
@@ -37,13 +37,13 @@ Now, you are ready to start compilation process (we recomend compile every archi
 `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<WebRTC_output_x64>/clang_x64`
 `ninja -C <WebRTC_output_x64>`
 
-The resulting libraries `libwebrtc.a` for each platform should be located in each `<WebRTC_output_XXX>/obj`. The libraries should be copy to <Android_Path>/android2/app/src/main/jni/megachat/webrtc/ with a specific name for every architecture
+The resulting libraries `libwebrtc.a` for each platform should be located in each `<WebRTC_output_XXX>/obj`. The libraries should be copied into `<Android_Path>/android2/app/src/main/jni/megachat/webrtc/` with a specific name for every architecture.
 * `arm 32 => libwebrtc_arm.a`
 * `arm 64 => libwebrtc_arm.a`
 * `x86    => libwebrtc_x86.a`
 * `x64    => libwebrtc_x86_64.a`
 
-Furthermore, you have to copy from `<webRTCAndroid>/src` next directories: 
+Furthermore, you need to copy the following folders from `<webRTCAndroid>/src` as below: 
 
   `cp -R third_party/abseil-cpp <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/third_party/`   
   `cp -R third_party/boringssl <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/third_party/`  
@@ -65,4 +65,4 @@ Furthermore, you have to copy from `<webRTCAndroid>/src` next directories:
   `cp -R system_wrappers <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp common_types.h <Android_Path>/android2/app/src/main/jni/megachat/webrtc/include/webrtc/`  
  
- If you have some doubt about Android project, you can review https://github.com/meganz/android2
+Should you have any question about the Android project, you can check https://github.com/meganz/android2.
