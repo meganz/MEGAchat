@@ -2115,7 +2115,6 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
 
     closeAllRooms();
-    //g_chatApi->clearUserCache();
 
     g_reviewingPublicChat = true;
     g_reviewPublicChatEmails.clear();
@@ -2195,7 +2194,7 @@ void exec_reviewpublicchat(ac::ACState& s)
                 auto push_received_listener = new OneShotChatRequestListener;
 
                 push_received_listener->onRequestFinishFunc =
-                        [chatid](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
+                        [chatid](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
                         {
                             // Called on Mega Chat API thread
                             if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED || !check_err("TYPE_PUSH_RECEIVED", e))
@@ -2205,18 +2204,14 @@ void exec_reviewpublicchat(ac::ACState& s)
                             g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
                                                 "ReviewPublicChat: TYPE_PUSH_RECEIVED finished");
 
-                            c::MegaChatRoom *chatRoom = g_chatApi->getChatRoom(chatid);
+                            std::unique_ptr<c::MegaChatRoom> chatRoom{g_chatApi->getChatRoom(chatid)};
                             for (unsigned int i = 0; i < chatRoom->getPeerCount(); i++)
                             {
                                 g_megaApi->getUserEmail(chatRoom->getPeerHandle(i));
                             }
-
-                            delete chatRoom;
-
                         };
 
                 g_chatApi->pushReceived(false, push_received_listener);
-
             };
 
     g_chatApi->connect(connect_listener);

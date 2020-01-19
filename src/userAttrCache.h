@@ -146,12 +146,11 @@ protected:
     /** @brief Invalidates the whole cache, and re-fetches all registered queries.
      * Used when we discover that karere state is out of sync with SDK state
      */
+    void invalidate();
     void onLogOut();
     friend struct UserAttrCacheItem;
     friend class Client;
 public:
-    void invalidate();
-
     /** @brief The cache request handle, that identifies a specific cache request
      * and update monitoring callback. This handle can be used to cancel the
      * attribute request and/or subsequent updates. This is essentially a weak pointer

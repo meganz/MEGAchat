@@ -2301,11 +2301,6 @@ public:
     void disconnect(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Clears the cache of user information
-     */
-    void clearUserCache();
-
-    /**
      * @brief Returns the current state of the client
      *
      * It can be one of the following values:
