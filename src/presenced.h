@@ -333,9 +333,16 @@ public:
     };
     enum: uint16_t { kProtoVersion = 0x0001 };
 
+    /* We need to save presenced url in cache in order to improve app performance,
+     * so we need to assign a value to shard field to identify it uniquely, since
+     * the DNS cache also stores the URLs for chatd shards 0, 1 and 2.
+     */
+    enum: int8_t { kPresencedShard = -1 };
+
 protected:
     MyMegaApi *mApi;
     karere::Client *mKarereClient;
+    DNScache &mDnsCache;
     Listener* mListener;
     uint8_t mCapabilities;
 
@@ -344,12 +351,6 @@ protected:
 
     /** When enabled, hearbeat() method is called periodically */
     bool mHeartbeatEnabled = false;
-
-    /** URL retrieved from API to establish the connection */
-    karere::Url mUrl;
-
-    /** DNS cache to store resolved IPs */
-    DNScache &mDNScache;
 
     /** Target IP address being used for the reconnection in-flight */
     std::string mTargetIp;
@@ -465,6 +466,7 @@ public:
 
     // connection's management
     bool isOnline() const { return (mConnState >= kConnected); }
+    promise::Promise<void> fetchUrl();
     promise::Promise<void> connect();
     void disconnect();
     void doConnect();

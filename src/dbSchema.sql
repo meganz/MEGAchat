@@ -39,5 +39,7 @@ CREATE TABLE node_history(idx int not null, chatid int64 not null, msgid int64 n
     userid int64, keyid int not null, type tinyint, updated smallint, ts int,
     is_encrypted tinyint, data blob, backrefid int64 not null, UNIQUE(chatid,msgid), UNIQUE(chatid,idx));
 
+CREATE TABLE dns_cache(shard tinyint primary key, url text, ipv4 text, ipv6 text);
+
 CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null, userid int64 not null, reaction text,
     UNIQUE(chatid, msgid, userid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);

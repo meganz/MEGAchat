@@ -138,6 +138,11 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
     return libwebsocketsClient;
 }
 
+int LibwebsocketsIO::wsGetNoNameErrorCode()
+{
+    return UV__EAI_NONAME;
+}
+
 LibwebsocketsClient::LibwebsocketsClient(WebsocketsIO::Mutex &mutex, WebsocketsClient *client) : WebsocketsClientImpl(mutex, client)
 {
     wsi = NULL;
@@ -452,4 +457,3 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
     
     return 0;
 }
-
