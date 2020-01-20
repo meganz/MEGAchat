@@ -309,7 +309,9 @@ bool DNScache::getIp(int shard, std::string &ipv4, std::string &ipv6)
     assert(it->second.mUrl.isValid());
     ipv4 = it->second.ipv4;
     ipv6 = it->second.ipv6;
-    return true;
+
+    // If both Ip's are empty there's no cached ip's
+    return ipv4.size() || ipv6.size();
 }
 
 void DNScache::connectDone(int shard, const std::string &ip)
