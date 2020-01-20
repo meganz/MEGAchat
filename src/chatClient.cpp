@@ -421,7 +421,11 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
 {
     GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey);
     chats->emplace(chatId, room);
-    mDnsCache.addRecord(shard, url);    // the URL has been already pre-fetched
+    if (!mDnsCache.hasRecord(shard))
+    {
+        // If DNS cache doesn't contains a record for this shard, addRecord otherwise skip.
+        mDnsCache.addRecord(shard, url);    // the URL has been already pre-fetched
+    }
 
     room->connect();
 }
