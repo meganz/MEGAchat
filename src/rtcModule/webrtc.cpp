@@ -2752,7 +2752,7 @@ void Session::handleMessage(RtMessage& packet)
             msgSdpAnswerRenegotiate(packet);
             return;
         case RTCMD_END_ICE_CANDIDATES:
-            msgSdpAnswerRenegotiate(packet);
+            msgEndIceCandidates(packet);
             return;
         default:
             SUB_LOG_WARNING("Don't know how to handle", packet.typeStr());
