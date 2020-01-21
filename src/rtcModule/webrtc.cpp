@@ -2757,6 +2757,8 @@ void Session::handleMessage(RtMessage& packet)
         case RTCMD_SDP_ANSWER_RENEGOTIATE:
             msgSdpAnswerRenegotiate(packet);
             return;
+        case RTCMD_END_ICE_CANDIDATES:
+            return;
         default:
             SUB_LOG_WARNING("Don't know how to handle", packet.typeStr());
             return;
@@ -3589,6 +3591,7 @@ const char* rtcmdTypeToStr(uint8_t type)
         RET_ENUM_NAME(RTCMD_MUTE);
         RET_ENUM_NAME(RTCMD_SDP_OFFER_RENEGOTIATE);
         RET_ENUM_NAME(RTCMD_SDP_ANSWER_RENEGOTIATE);
+        RET_ENUM_NAME(RTCMD_END_ICE_CANDIDATES);
         default: return "(invalid RTCMD)";
     }
 }
