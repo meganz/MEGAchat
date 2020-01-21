@@ -152,7 +152,7 @@ bool RtcModule::selectAudioInDevice(const string &devname)
 
 std::set<std::pair<std::string, std::string>> RtcModule::loadDeviceList() const
 {
-    return artc::CapturerTrackSource::getVideoDevices();
+    return artc::VideoManager::getVideoDevices();
 }
 
 string RtcModule::getVideoDeviceSelected()
@@ -2137,7 +2137,7 @@ void Call::enableVideo(bool enable)
                 capabilities.maxFPS = 30;
             }
 
-            mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities, mManager.mVideoDeviceSelected, artc::gAsyncWaiter->guiThread()));
+            mVideoDevice = std::shared_ptr<artc::VideoManager>(artc::VideoManager::Create(capabilities, mManager.mVideoDeviceSelected, artc::gAsyncWaiter->guiThread()));
             assert(mVideoDevice);
 
             videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
@@ -2147,6 +2147,12 @@ void Call::enableVideo(bool enable)
         {
             videoTrack = mLocalStream->video();
             assert(videoTrack);
+        }
+
+        if (mManager.mVideoDeviceSelected.empty())
+        {
+            SUB_LOG_ERROR("Unable to open device, no device selected");
+            return;
         }
 
         mVideoDevice->openDevice(mManager.mVideoDeviceSelected);
