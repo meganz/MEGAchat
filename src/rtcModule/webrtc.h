@@ -85,7 +85,8 @@ enum: uint8_t
     // it will not be detected as an error by the receiver
     RTCMD_MUTE = 12, // Change audio-video call  <av>
     RTCMD_SDP_OFFER_RENEGOTIATE = 13, // SDP offer, generated after changing the local stream. Used to renegotiate the stream
-    RTCMD_SDP_ANSWER_RENEGOTIATE = 14 // SDP answer, resulting from SDP_OFFER_RENEGOTIATE
+    RTCMD_SDP_ANSWER_RENEGOTIATE = 14, // SDP answer, resulting from SDP_OFFER_RENEGOTIATE
+    RTCMD_END_ICE_CANDIDATES = 15, // Marks the end of the sequence of sent ICE_CANDIDATE-s. Required for Edge support
 };
 enum TermCode: uint8_t
 {

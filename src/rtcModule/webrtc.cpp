@@ -2751,6 +2751,9 @@ void Session::handleMessage(RtMessage& packet)
         case RTCMD_SDP_ANSWER_RENEGOTIATE:
             msgSdpAnswerRenegotiate(packet);
             return;
+        case RTCMD_END_ICE_CANDIDATES:
+            msgSdpAnswerRenegotiate(packet);
+            return;
         default:
             SUB_LOG_WARNING("Don't know how to handle", packet.typeStr());
             return;
@@ -2934,8 +2937,15 @@ void Session::onRemoveStream(artc::tspMediaStream stream)
 void Session::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
 {
     // mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
-    if (!cand)
+    if (!cand || cand->candidate.length() == 0)
+    {
+        // Edge needs a null candidate to signal end of received candidates, but current clients
+        // don't tolerate ICE_CANDATE packeds without payload, so we introduce a new packet type
+        // that will be simply ignored by older clients
+        SUB_LOG_INFO("Send RTCMD_END_ICE_CANDIDATES");
+        mManager.sendCommand(mCall.mChat, OP_RTMSG_ENDPOINT, RTCMD_END_ICE_CANDIDATES, mCall.mChat.chatId(), mPeer, mPeerClient, mCall.id());
         return;
+    }
 
     RtMessageComposer msg(OP_RTMSG_ENDPOINT, RTCMD_ICE_CANDIDATE,
         mCall.mChat.chatId(), mPeer, mPeerClient, 10+cand->candidate.size());
@@ -3448,6 +3458,15 @@ void Session::msgSdpAnswerRenegotiate(RtMessage &packet)
     });
 }
 
+void Session::msgEndIceCandidates(RtMessage &packet)
+{
+    SUB_LOG_INFO("RTCMD_END_ICE_CANDIDATES received");
+    if (!mRtcConn->AddIceCandidate(nullptr))
+    {
+        terminateAndDestroy(TermCode::kErrProtocol);
+    }
+}
+
 Session::~Session()
 {
     removeRtcConnection();
@@ -3583,6 +3602,7 @@ const char* rtcmdTypeToStr(uint8_t type)
         RET_ENUM_NAME(RTCMD_MUTE);
         RET_ENUM_NAME(RTCMD_SDP_OFFER_RENEGOTIATE);
         RET_ENUM_NAME(RTCMD_SDP_ANSWER_RENEGOTIATE);
+        RET_ENUM_NAME(RTCMD_END_ICE_CANDIDATES);
         default: return "(invalid RTCMD)";
     }
 }
