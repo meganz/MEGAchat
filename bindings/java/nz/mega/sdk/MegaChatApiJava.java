@@ -6,9 +6,21 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import mega.privacy.android.app.MegaApplication;
+import mega.privacy.android.app.utils.VideoCaptureUtils;
+
 public class MegaChatApiJava {
     MegaChatApi megaChatApi;
     static DelegateMegaChatLogger logger;
+
+    /**
+     * MEGACHAT_INVALID_HANDLE Invalid value for a handle
+     *
+     * This value is used to represent an invalid handle. Several MEGA objects can have
+     * a handle but it will never be MEGACHAT_INVALID_HANDLE.
+     */
+    public final static long MEGACHAT_INVALID_HANDLE = ~(long)0;
+    public final static int MEGACHAT_INVALID_INDEX = 0x7fffffff;
 
     // Error information but application will continue run.
     public final static int LOG_LEVEL_ERROR = MegaChatApi.LOG_LEVEL_ERROR;
@@ -2429,7 +2441,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
-     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -2440,6 +2452,12 @@ public class MegaChatApiJava {
      */
     public void startChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
     {
+        // Always try to start the call using the front camera
+        String frontCamera = VideoCaptureUtils.getFrontCamera();
+        if (frontCamera != null) {
+            megaChatApi.setChatVideoInDevice(frontCamera, null);
+        }
+
         megaChatApi.startChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
     }
 
@@ -2451,7 +2469,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
-     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -2462,6 +2480,12 @@ public class MegaChatApiJava {
      */
     public void answerChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
     {
+        // Always try to start the call using the front camera
+        String frontCamera = VideoCaptureUtils.getFrontCamera();
+        if (frontCamera != null) {
+            megaChatApi.setChatVideoInDevice(frontCamera, null);
+        }
+
         megaChatApi.answerChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
     }
 

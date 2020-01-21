@@ -188,7 +188,7 @@ Client::Client(karere::Client *aKarereClient) :
     }
 }
 
-Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
+Chat& Client::createChat(Id chatid, int shardNo,
     Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup)
 {
     auto chatit = mChatForChatId.find(chatid);
@@ -212,11 +212,6 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
         conn = it->second.get();
     }
 
-    if (!url.empty())
-    {
-        conn->mUrl.parse(url);
-        conn->mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
-    }
     // map chatid to this shard
     mConnectionForChatId[chatid] = conn;
 
@@ -402,60 +397,15 @@ bool Client::areAllChatsLoggedIn(int shard)
     return allConnected;
 }
 
-void Chat::connect(const char *url)
+void Chat::connect()
 {
-    // attempt a connection ONLY if this is a new shard.
-    if (mConnection.state() == Connection::kStateNew)
+    if ((mConnection.state() == Connection::kStateNew))
     {
-        mConnection.setState(Connection::kStateFetchingUrl);
-        auto wptr = getDelTracker();
-
-        ApiPromise pms;
-        if (!mChatdClient.mKarereClient->anonymousMode())
+        // attempt a connection ONLY if this is a new shard.
+        mConnection.connect()
+        .fail([this](const ::promise::Error& err)
         {
-            pms = mChatdClient.mKarereClient->api.call(&::mega::MegaApi::getUrlChat, mChatId);
-        }
-        else
-        {
-            // use URL from params --> retrieved before connect's call through mcphurl
-            pms = ApiPromise();
-            pms.resolve(nullptr);
-        }
-
-        pms.then([wptr, this, url](ReqResult result)
-        {
-            if (wptr.deleted())
-            {
-                CHATD_LOG_DEBUG("Chatd URL request completed, but chatd client was deleted");
-                return;
-            }
-
-            std::string connectUrl;
-            if (!mChatdClient.mKarereClient->anonymousMode())
-            {
-                const char* auxurl = result->getLink();
-                if (!auxurl || !auxurl[0])
-                {
-                    CHATID_LOG_ERROR("No chatd URL received from API");
-                    return;
-                }
-
-                connectUrl.assign(auxurl);
-            }
-            else
-            {
-                connectUrl.assign(url);
-            }
-
-            std::string sUrl = connectUrl;
-            mConnection.mUrl.parse(sUrl);
-            mConnection.mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
-
-            mConnection.reconnect()
-            .fail([this](const ::promise::Error& err)
-            {
-                CHATID_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
-            });
+            CHATID_LOG_ERROR("Chat::connect(): Error connecting to server: %s", err.what());
         });
     }
     else if (mConnection.isOnline())
@@ -494,10 +444,12 @@ void Chat::login()
 }
 
 Connection::Connection(Client& chatdClient, int shardNo)
-: mChatdClient(chatdClient), mShardNo(shardNo),
-  mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache),
-  mSendPromise(promise::_Void())
-{}
+    : mChatdClient(chatdClient),
+      mShardNo(shardNo),
+      mSendPromise(promise::_Void()),
+      mDnsCache(chatdClient.mKarereClient->mDnsCache)
+{
+}
 
 void Connection::wsConnectCb()
 {
@@ -522,6 +474,15 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     }
 
     CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
+
+    if (mState == kStateFetchingUrl)
+    {
+        CHATDS_LOG_DEBUG("Socket close while fetching URL. Ignoring...");
+        // it should happen only when the cached URL becomes invalid (wsResolveDNS() returns UV_EAI_NONAME
+        // and it will reconnect automatically once the URL is fetched again
+        return;
+    }
+
     auto oldState = mState;
     setState(kStateDisconnected);
 
@@ -560,7 +521,7 @@ promise::Promise<void> Connection::sendKeepalive()
 
 void Connection::sendEcho()
 {
-    if (!mUrl.isValid())    // the connection is not ready yet (i.e. initialization in offline-mode)
+    if (!mDnsCache.isValidUrl(mShardNo)) // the connection is not ready yet (i.e. initialization in offline-mode)
     {
         CHATDS_LOG_DEBUG("sendEcho(): connection not initialized yet");
         return;
@@ -702,7 +663,7 @@ void Connection::setState(State state)
     {
         CHATDS_LOG_DEBUG("Chatd connected to %s", mTargetIp.c_str());
 
-        mDNScache.connectDone(mUrl.host, mTargetIp);
+        mDnsCache.connectDone(mShardNo, mTargetIp);
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
@@ -753,7 +714,7 @@ Promise<void> Connection::reconnect()
         if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
 
-        if (!mUrl.isValid())
+        if (!mDnsCache.isValidUrl(mShardNo))
             throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
 
         setState(kStateResolving);
@@ -774,11 +735,13 @@ Promise<void> Connection::reconnect()
             setState(kStateDisconnected);
             mConnectPromise = Promise<void>();
 
+            const std::string &host = mDnsCache.getUrl(mShardNo).host;
+
             string ipv4, ipv6;
-            bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+            bool cachedIPs = mDnsCache.getIp(mShardNo, ipv4, ipv6);
 
             setState(kStateResolving);
-            CHATDS_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
+            CHATDS_LOG_DEBUG("Resolving hostname %s...", host.c_str());
 
             for (auto& chatid: mChatIds)
             {
@@ -791,7 +754,7 @@ Promise<void> Connection::reconnect()
             mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns, shardNo());
 
             auto retryCtrl = mRetryCtrl.get();
-            int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, mUrl.host.c_str(),
+            int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, host.c_str(),
                          [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
@@ -836,7 +799,7 @@ Promise<void> Connection::reconnect()
 
                     if (statusDNS < 0)
                     {
-                        CHATDS_LOG_ERROR("Async DNS error in chatd. Error code: %d", statusDNS);
+                        CHATDS_LOG_ERROR("Async DNS error in chatd for shard %d. Error code: %d", mShardNo, statusDNS);
                     }
                     else
                     {
@@ -844,9 +807,16 @@ Promise<void> Connection::reconnect()
                     }
 
                     mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
-
                     assert(!isOnline());
-                    onSocketClose(0, 0, "Async DNS error (chatd)");
+
+                    if (statusDNS == wsGetNoNameErrorCode(mChatdClient.mKarereClient->websocketIO))
+                    {
+                         retryPendingConnection(true, true);
+                    }
+                    else
+                    {
+                        onSocketClose(0, 0, "Async DNS error (chatd)");
+                    }
                     return;
                 }
 
@@ -856,15 +826,12 @@ Promise<void> Connection::reconnect()
 
                     //GET end ts for QueryDns
                     mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
-
-                    mDNScache.set(mUrl.host,
-                                  ipsv4.size() ? ipsv4.at(0) : "",
-                                  ipsv6.size() ? ipsv6.at(0) : "");
+                    mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
                     doConnect();
                     return;
                 }
 
-                if (mDNScache.isMatch(mUrl.host, ipsv4, ipsv6))
+                if (mDnsCache.isMatch(mShardNo, ipsv4, ipsv6))
                 {
                     CHATDS_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
@@ -874,11 +841,7 @@ Promise<void> Connection::reconnect()
                     mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
 
                     // update DNS cache
-                    bool ret = mDNScache.set(mUrl.host,
-                                  ipsv4.size() ? ipsv4.at(0) : "",
-                                  ipsv6.size() ? ipsv6.at(0) : "");
-                    assert(ret);
-
+                    mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
                     CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
                 }
@@ -887,7 +850,7 @@ Promise<void> Connection::reconnect()
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo)+". Error code: "+std::to_string(statusDNS);
+                string errStr = "Inmediate DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS);
                 CHATDS_LOG_ERROR("%s", errStr.c_str());
 
                 mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
@@ -943,18 +906,21 @@ void Connection::disconnect()
 void Connection::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+    bool cachedIPs = mDnsCache.getIp(mShardNo, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
+
+    const karere::Url &url = mDnsCache.getUrl(mShardNo);
+    assert (url.isValid());
 
     setState(kStateConnecting);
     CHATDS_LOG_DEBUG("Connecting to chatd using the IP: %s", mTargetIp.c_str());
 
     bool rt = wsConnect(mChatdClient.mKarereClient->websocketIO, mTargetIp.c_str(),
-              mUrl.host.c_str(),
-              mUrl.port,
-              mUrl.path.c_str(),
-              mUrl.isSecure);
+              url.host.c_str(),
+              url.port,
+              url.path.c_str(),
+              url.isSecure);
 
     if (!rt)    // immediate failure --> try the other IP family (if available)
     {
@@ -975,10 +941,10 @@ void Connection::doConnect()
         {
             CHATDS_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
             if (wsConnect(mChatdClient.mKarereClient->websocketIO, mTargetIp.c_str(),
-                                      mUrl.host.c_str(),
-                                      mUrl.port,
-                                      mUrl.path.c_str(),
-                                      mUrl.isSecure))
+                                      url.host.c_str(),
+                                      url.port,
+                                      url.path.c_str(),
+                                      url.isSecure))
             {
                 return;
             }
@@ -1004,7 +970,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         return;
     }
 
-    if (refreshURL || !mUrl.isValid())
+    if (refreshURL || !mDnsCache.isValidUrl(mShardNo))
     {
         if (mState == kStateFetchingUrl)
         {
@@ -1019,24 +985,20 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
         mConnectTimer = 0;
 
-        // clear existing URL
-        mUrl = Url();
-        setState(kStateFetchingUrl);
-
-        assert(mChatIds.size());
-
         auto wptr = getDelTracker();
-        mChatdClient.mKarereClient->api.call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
-        .then([this, wptr](ReqResult result)
+
+        // Remove DnsCache record
+        mDnsCache.removeRecord(mShardNo);
+
+        fetchUrl()
+        .then([this, wptr]
         {
             if (wptr.deleted())
             {
-                CHATD_LOG_DEBUG("Chatd URL request completed, but Connection was deleted");
+                CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
                 return;
             }
 
-            mUrl.parse(result->getLink());
-            mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
             retryPendingConnection(true);
         });
     }
@@ -1088,6 +1050,56 @@ void Connection::heartbeat()
 int Connection::shardNo() const
 {
     return mShardNo;
+}
+
+promise::Promise<void> Connection::connect()
+{
+    return fetchUrl()
+    .then([this]
+    {
+        return reconnect()
+        .fail([this](const ::promise::Error& err)
+        {
+            CHATDS_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
+        });
+    });
+}
+
+promise::Promise<void> Connection::fetchUrl()
+{
+    assert(!mChatIds.empty());
+    if (mChatdClient.mKarereClient->anonymousMode()
+        || mDnsCache.isValidUrl(mShardNo))
+    {
+       return promise::_Void();
+    }
+
+    setState(kStateFetchingUrl);
+    auto wptr = getDelTracker();
+    return mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
+    .then([wptr, this](ReqResult result)
+    {
+        if (wptr.deleted())
+        {
+            CHATD_LOG_DEBUG("Chatd URL request completed, but chatd connection was deleted");
+            return;
+        }
+
+        if (!result->getLink())
+        {
+            CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, *mChatIds.begin());
+            return;
+        }
+
+        const char *url = result->getLink();
+        if (!url || !url[0])
+        {
+            return;
+        }
+
+        // Add record to db to store new URL
+        mDnsCache.addRecord(mShardNo, url);
+    });
 }
 
 void Client::disconnect()
@@ -3963,7 +3975,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             auto& item = *it;
             if (((item.opcode() != OP_MSGUPD) && (item.opcode() != OP_MSGUPDX))
-                || (item.msg->id() != cipherMsg->id()))
+                    || (item.msg->id() != cipherMsg->id())
+                    || (cipherMsg->type != Message::kMsgTruncate        // a truncate prevents any further edit
+                        && (item.msg->updated > cipherMsg->updated)))   // the newer edition prevails
             {
                 it++;
                 continue;

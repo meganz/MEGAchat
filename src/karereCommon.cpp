@@ -14,7 +14,7 @@ namespace rtcModule {void globalCleanup(); }
 
 namespace karere
 {
-const char* gDbSchemaVersionSuffix = "8";
+const char* gDbSchemaVersionSuffix = "9";
 /*
     2 --> +3: invalidate cached chats to reload history (so call-history msgs are fetched)
     3 --> +4: invalidate both caches, SDK + MEGAchat, if there's at least one chat (so deleted chats are re-fetched from API)
@@ -23,6 +23,7 @@ const char* gDbSchemaVersionSuffix = "8";
               otherwise modify cache structure to support public chats
     6 --> +7: update keyid for truncate messages in db
     7 --> +8: modify chats and create a new table chat_reactions
+    8 --> +9: create table DNS cache
 */
 
 bool gCatchException = true;

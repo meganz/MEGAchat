@@ -1,21 +1,34 @@
 #pragma once
-//#include <p2p/base/common.h>
-#include <api/peerconnectioninterface.h>
-#include <api/jsep.h>
-#include <media/base/device.h>
-#include <media/base/videosourceinterface.h>
-#include <pc/peerconnectionfactory.h>
-#include <api/mediastream.h>
-#include <api/mediastreaminterface.h>
-#include <pc/audiotrack.h>
-#include <pc/videotrack.h>
-#include <api/test/fakeconstraints.h>
-#include <api/jsepsessiondescription.h>
+#include <api/peer_connection_interface.h>
+#include <pc/audio_track.h>
+#include <api/jsep_session_description.h>
+#include <media/base/video_broadcaster.h>
+#include <modules/video_capture/video_capture.h>
 #include "base/gcmpp.h"
 #include "karereCommon.h" //only for std::string on android
 #include "base/promise.h"
 #include "webrtcAsyncWaiter.h"
 #include "rtcmPrivate.h"
+#include <rtc_base/ref_counter.h>
+
+#ifdef __OBJC__
+@class AVCaptureDevice;
+@class RTCCameraVideoCapturer;
+#else
+typedef struct objc_object AVCaptureDevice;
+typedef struct objc_object RTCCameraVideoCapturer;
+#endif
+
+#ifdef __ANDROID__
+#include <sdk/android/native_api/video/video_source.h>
+#endif
+
+
+namespace std
+{
+    template< bool B, class T = void >
+    using enable_if_t = typename enable_if<B,T>::type;
+}
 
 namespace artc
 {
@@ -70,7 +83,7 @@ enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
     code
 #endif
 
-class SdpCreateCallbacks: public webrtc::CreateSessionDescriptionObserver
+class SdpCreateCallbacks : public webrtc::CreateSessionDescriptionObserver
 {
 public:
   // The implementation of the CreateSessionDescriptionObserver takes
@@ -89,6 +102,7 @@ public:
            Release();
         , this, error);
     }
+
 protected:
     PromiseType mPromise;
 };
@@ -117,7 +131,7 @@ struct IceCandText
     }
 };
 
-class SdpSetCallbacks: public webrtc::SetSessionDescriptionObserver
+class SdpSetCallbacks : public webrtc::SetSessionDescriptionObserver
 {
 public:
     typedef promise::Promise<void> PromiseType;
@@ -136,6 +150,7 @@ public:
              Release();
         , this, error);
     }
+
 protected:
     PromiseType mPromise;
 };
@@ -145,55 +160,59 @@ class myPeerConnection: public
         rtc::scoped_refptr<webrtc::PeerConnectionInterface>
 {
 protected:
+    //PeerConnectionObserver implementation
+    struct Observer: public webrtc::PeerConnectionObserver
+    {
+        Observer(C& handler):mHandler(handler){}
+        virtual void OnError()
+        {
+            RTCM_DO_CALLBACK(mHandler.onError(), this);
+        }
+        virtual void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
+        {
+            tspMediaStream spStream(stream);
+            RTCM_DO_CALLBACK(mHandler.onAddStream(spStream), this, spStream);
+        }
+        virtual void OnRemoveStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
+        {
+            tspMediaStream spStream(stream);
+            RTCM_DO_CALLBACK(mHandler.onRemoveStream(spStream), this, spStream);
+        }
+        virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
+        {
+            std::shared_ptr<IceCandText> spCand(new IceCandText(candidate));
+            RTCM_DO_CALLBACK(mHandler.onIceCandidate(spCand), this, spCand);
+        }
+        virtual void OnIceComplete()
+        {
+            RTCM_DO_CALLBACK(mHandler.onIceComplete(), this);
+        }
+        virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
+        {
+            RTCM_DO_CALLBACK(mHandler.onSignalingChange(newState), this, newState);
+        }
+        virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
+        {
+            RTCM_DO_CALLBACK(mHandler.onIceConnectionChange(newState), this, newState);
+        }
+        virtual void OnRenegotiationNeeded()
+        {
+            RTCM_DO_CALLBACK(mHandler.onRenegotiationNeeded(), this);
+        }
+        virtual void OnDataChannel(scoped_refptr<webrtc::DataChannelInterface> data_channel)
+        {
+            rtc::scoped_refptr<webrtc::DataChannelInterface> chan(data_channel);
+            RTCM_DO_CALLBACK(mHandler.onDataChannel(chan), this, chan);
+        }
+        virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
+        {
+            //TODO: Forward on GUI thread
+        }
 
-//PeerConnectionObserver implementation
-  struct Observer: public webrtc::PeerConnectionObserver
-  {
-      Observer(C& handler):mHandler(handler){}
-      virtual void OnError()
-      {
-          RTCM_DO_CALLBACK(mHandler.onError(), this);
-      }
-      virtual void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
-      {
-          tspMediaStream spStream(stream);
-          RTCM_DO_CALLBACK(mHandler.onAddStream(spStream), this, spStream);
-      }
-      virtual void OnRemoveStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
-      {
-          tspMediaStream spStream(stream);
-          RTCM_DO_CALLBACK(mHandler.onRemoveStream(spStream), this, spStream);
-      }
-      virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
-      {
-        std::shared_ptr<IceCandText> spCand(new IceCandText(candidate));
-        RTCM_DO_CALLBACK(mHandler.onIceCandidate(spCand), this, spCand);
-      }
-      virtual void OnIceComplete()
-      {
-          RTCM_DO_CALLBACK(mHandler.onIceComplete(), this);
-      }
-      virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
-      {
-          RTCM_DO_CALLBACK(mHandler.onSignalingChange(newState), this, newState);
-      }
-      virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
-      {
-          RTCM_DO_CALLBACK(mHandler.onIceConnectionChange(newState), this, newState);
-      }
-      virtual void OnRenegotiationNeeded()
-      {
-          RTCM_DO_CALLBACK(mHandler.onRenegotiationNeeded(), this);
-      }
-      virtual void OnDataChannel(scoped_refptr<webrtc::DataChannelInterface> data_channel)
-      {
-          rtc::scoped_refptr<webrtc::DataChannelInterface> chan(data_channel);
-          RTCM_DO_CALLBACK(mHandler.onDataChannel(chan), this, chan);
-      }
-      virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
-      {
-          //TODO: Forward on GUI thread
-      }
+        virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+        {
+            RTCM_DO_CALLBACK(mHandler.onTrack(transceiver));
+        }
 
     protected:
         /** own callback interface, always called by the GUI thread */
@@ -203,32 +222,31 @@ protected:
     std::shared_ptr<Observer> mObserver;
 public:
     myPeerConnection():Base(){}
-    myPeerConnection(const webrtc::PeerConnectionInterface::IceServers& servers,
-     C& handler, webrtc::MediaConstraintsInterface* options)
+    myPeerConnection(const webrtc::PeerConnectionInterface::IceServers& servers, C& handler)
         :mObserver(new Observer(handler))
     {
         webrtc::PeerConnectionInterface::RTCConfiguration config;
         config.servers = servers;
-        Base::operator=(gWebrtcContext->CreatePeerConnection(
-            config, options, NULL, NULL /*DTLS stuff*/, mObserver.get()));
+        config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
+        Base::operator=(gWebrtcContext->CreatePeerConnection(config, NULL, NULL /*DTLS stuff*/, mObserver.get()));
         if (!get())
             throw std::runtime_error("Failed to create a PeerConnection object");
     }
     using Base::operator=;
-  SdpCreateCallbacks::PromiseType createOffer(const webrtc::MediaConstraintsInterface* constraints)
+  SdpCreateCallbacks::PromiseType createOffer(const webrtc::PeerConnectionInterface::RTCOfferAnswerOptions &options)
   {
       SdpCreateCallbacks::PromiseType promise;
       auto observer = new rtc::RefCountedObject<SdpCreateCallbacks>(promise);
       observer->AddRef();
-      get()->CreateOffer(observer, constraints);
+      get()->CreateOffer(observer, options);
       return promise;
   }
-  SdpCreateCallbacks::PromiseType createAnswer(const webrtc::MediaConstraintsInterface* constraints)
+  SdpCreateCallbacks::PromiseType createAnswer(const webrtc::PeerConnectionInterface::RTCOfferAnswerOptions &options)
   {
       SdpCreateCallbacks::PromiseType promise;
       auto observer = new rtc::RefCountedObject<SdpCreateCallbacks>(promise);
       observer->AddRef();
-      get()->CreateAnswer(observer, constraints);
+      get()->CreateAnswer(observer, options);
       return promise;
   }
   /** Takes ownership of \c desc */
@@ -250,190 +268,166 @@ public:
   }
 };
 
-rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
-        webrtc::MediaStreamInterface* other, const std::string& label);
-
-typedef std::vector<cricket::Device> DeviceList;
-
-struct MediaGetOptions
-{
-    const cricket::Device& device;
-    webrtc::FakeConstraints& constraints;
-    MediaGetOptions(const cricket::Device& aDevice, webrtc::FakeConstraints& constr)
-    :device(aDevice), constraints(constr){}
-};
-
-class DeviceManager;
-
-template<class T>
-class TrackHandle
-{
-    T mDevice; //shared_ptr
-    typename T::Shared::Track* mTrack;
-public:
-    TrackHandle(const T& device, typename T::Shared::Track* track);
-    ~TrackHandle();
-    typename T::Shared::Track* track() const { return mTrack; }
-    operator typename T::Shared::Track*() { return mTrack; }
-    operator const typename T::Shared::Track*() const { return mTrack; }
-};
-template <class T, class S>
-class InputDevice;
-template <class T, class S>
-class InputDeviceShared
-{
-private:
-    rtc::scoped_refptr<S> mSource;
-    cricket::VideoCapturer *mCapturer;
-    std::shared_ptr<MediaGetOptions> mOptions;
-    int mRefCount = 0;
-    void createSource();
-    void freeSource();
-    friend class InputDevice<T,S>;
-    friend class TrackHandle<InputDevice<T,S>>;
-protected:
-    typedef InputDeviceShared<T,S> This;
-    typedef T Track;
-    DeviceManager& mManager;
-    void refSource() { mRefCount++; }
-    void unrefSource()
-    {
-        if (--mRefCount <= 0)
-        {
-            assert(mRefCount == 0);
-            freeSource();
-        }
-    }
-    Track* createTrack();
-    friend class TrackHandle<This>;
-public:
-    InputDeviceShared(DeviceManager& manager, const std::shared_ptr<MediaGetOptions>& options)
-    : mCapturer(NULL), mOptions(options), mManager(manager) { assert(mOptions); }
-    ~InputDeviceShared()
-    {
-        if (mRefCount)
-        {
-            fprintf(stderr, "ERROR: artc::InputDevice: Media track is still being used");
-            freeSource();
-        }
-    }
-};
-
-template <class T, class S>
-class InputDevice: public std::shared_ptr<InputDeviceShared<T,S>>
-{
-protected:
-    typedef InputDeviceShared<T,S> Shared;
-    typedef std::shared_ptr<Shared> Base;
-    typedef TrackHandle<InputDevice<T,S>> Handle;
-    friend Handle;
-public:
-    const MediaGetOptions& mediaOptions() const { return *Base::get()->mOptions; }
-    InputDevice(): Base(nullptr){}
-    InputDevice(DeviceManager& manager, const std::shared_ptr<MediaGetOptions>& options)
-        : Base(std::make_shared<InputDeviceShared<T,S>>(manager, options)){}
-
-    std::shared_ptr<Handle> getTrack()
-    {
-        auto shared = Base::get();
-        if (!shared->mSource)
-        {
-            shared->createSource();
-            if (!shared->mSource)
-            {
-                RTCM_LOG_WARNING("getTrack: Cannot create video source");
-                return nullptr;
-            }
-        }
-        return std::make_shared<Handle>(*this, shared->createTrack());
-    }
-};
-typedef InputDevice<webrtc::AudioTrackInterface, webrtc::AudioSourceInterface> InputAudioDevice;
-typedef InputDevice<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface> InputVideoDevice;
-
-template<class T>
-inline TrackHandle<T>::TrackHandle(const T& device, typename T::Shared::Track* track)
-:mDevice(device), mTrack(track)
-{
-    assert(track);
-    mDevice->refSource();
-}
-template<class T>
-inline TrackHandle<T>::~TrackHandle()
-{
-    mTrack->Release();
-    mDevice->unrefSource();
-}
-
-typedef TrackHandle<InputAudioDevice> LocalAudioTrackHandle;
-typedef TrackHandle<InputVideoDevice> LocalVideoTrackHandle;
-
 class LocalStreamHandle
 {
-protected:
-    std::shared_ptr<LocalAudioTrackHandle> mAudio;
-    std::shared_ptr<LocalVideoTrackHandle> mVideo;
-    tspMediaStream mStream;
 public:
-    karere::AvFlags av() { return karere::AvFlags(mAudio.get(), mVideo.get()); }
-    karere::AvFlags effectiveAv()
-    { return karere::AvFlags(mAudio && mAudio->track()->enabled(), mVideo && mVideo->track()->enabled()); }
-    void setAv(karere::AvFlags av)
-    {
-        bool audio = av.audio();
-        bool video = av.video();
-        if (mAudio && mAudio->track()->enabled() != audio)
-            mAudio->track()->set_enabled(audio);
-        if (mVideo && mVideo->track()->enabled() != video)
-            mVideo->track()->set_enabled(video);
-    }
-    LocalStreamHandle(const std::shared_ptr<LocalAudioTrackHandle>& aAudio,
-        const std::shared_ptr<LocalVideoTrackHandle>& aVideo, const char* name="localStream")
-    :mAudio(aAudio), mVideo(aVideo), mStream(gWebrtcContext->CreateLocalMediaStream(name))
-    {
-        if (!mStream.get())
-            throw std::runtime_error("MyStream: Error creating stream object");
-        bool ok = true;
-        if (aAudio)
-            ok &= mStream->AddTrack(*aAudio);
-        if (aVideo)
-            ok &= mStream->AddTrack(*aVideo);
-        if (!ok)
-            throw std::runtime_error("Error adding track to media stream");
-    }
-    ~LocalStreamHandle()
-    { //make sure the stream is released before the tracks
-        mStream = nullptr;
-    }
-    webrtc::AudioTrackInterface* audio() { return mAudio?*mAudio:(webrtc::AudioTrackInterface*)nullptr; }
-    webrtc::VideoTrackInterface* video() { return mVideo?*mVideo:(webrtc::VideoTrackInterface*)nullptr; }
-    tspMediaStream& stream() { return mStream; }
-    operator webrtc::MediaStreamInterface*() { return mStream; }
-    operator const webrtc::MediaStreamInterface*() const { return mStream; }
+    LocalStreamHandle(const char* name="localStream");
+    ~LocalStreamHandle();
+
+    karere::AvFlags av();
+    karere::AvFlags effectiveAv();
+    void setAv(karere::AvFlags av);
+
+    void addAudioTrack(const rtc::scoped_refptr<webrtc::AudioTrackInterface>& audio);
+    void addVideoTrack(const rtc::scoped_refptr<webrtc::VideoTrackInterface>& video);
+
+    webrtc::AudioTrackInterface* audio();
+    webrtc::VideoTrackInterface* video();
+
+protected:
+    rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
 };
 
-class DeviceManager
+
+class VideoManager
 {
 public:
-    struct InputDevices
-    {
-        DeviceList audio;
-        DeviceList video;
-    };
-protected:
-    InputDevices mInputDevices;
-public:
-    DeviceManager()
-    {
-        enumInputDevices();
-    }
-    const InputDevices& inputDevices() const {return mInputDevices;}
-    void enumInputDevices();
-    InputAudioDevice getUserAudio(const std::shared_ptr<MediaGetOptions>& options)
-        { return InputAudioDevice(*this, options); }
-
-    InputVideoDevice getUserVideo(const std::shared_ptr<MediaGetOptions>& options)
-        { return InputVideoDevice(*this, options); }
+    virtual ~VideoManager(){}
+    virtual void openDevice(const std::string &videoDevice) = 0;
+    virtual void releaseDevice() = 0;
+    virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() = 0;
 };
+
+class CaptureModuleLinux : public webrtc::Notifier<webrtc::VideoTrackSourceInterface>, public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager
+{
+public:
+    explicit CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote = false);
+    virtual ~CaptureModuleLinux();
+
+    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    void openDevice(const std::string &videoDevice) override;
+    void releaseDevice() override;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+
+    bool is_screencast() const override;
+    absl::optional<bool> needs_denoising() const override;
+
+    bool GetStats(webrtc::VideoTrackSourceInterface::Stats* stats) override;
+
+    webrtc::MediaSourceInterface::SourceState state() const override;
+    bool remote() const override;
+
+    void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
+    void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
+
+    void AddRef() const override;
+    rtc::RefCountReleaseStatus Release() const override;
+
+    void OnFrame(const webrtc::VideoFrame& frame) override;
+
+    void SetState(webrtc::MediaSourceInterface::SourceState new_state);
+
+protected:
+    rtc::ThreadChecker mWorkerThreadChecker;
+    rtc::VideoBroadcaster mBroadcaster;
+    webrtc::MediaSourceInterface::SourceState mState;
+    bool mRemote;
+    rtc::scoped_refptr<webrtc::VideoCaptureModule> mCameraCapturer;
+    webrtc::VideoCaptureCapability mCapabilities;
+    mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
+};
+
+class CapturerTrackSource : public VideoManager
+{
+public:
+    static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
+    virtual ~CapturerTrackSource();
+
+    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    virtual void openDevice(const std::string &videoDevice) override;
+    virtual void releaseDevice() override;
+    virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+
+protected:
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mCaptureModule;
+    explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
+};
+
+#ifdef __APPLE__
+class OBJCCaptureModule : public VideoManager, public webrtc::VideoTrackSourceInterface
+{
+public:
+    explicit OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
+    virtual ~OBJCCaptureModule() {}
+
+    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    void openDevice(const std::string &videoDevice) override;
+    void releaseDevice() override;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+
+    bool is_screencast() const override;
+    absl::optional<bool> needs_denoising() const override;
+
+    bool GetStats(Stats* stats) override;
+
+    SourceState state() const override;
+    bool remote() const override;
+
+    void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
+    void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
+
+    void AddRef() const override;
+    rtc::RefCountReleaseStatus Release() const override;
+
+    void RegisterObserver(webrtc::ObserverInterface* observer) override;
+    void UnregisterObserver(webrtc::ObserverInterface* observer) override;
+    
+private:
+    bool mRunning = false;
+    AVCaptureDevice *mCaptureDevice = nullptr;
+    RTCCameraVideoCapturer *mCameraVideoCapturer = nullptr;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> mVideoSource;
+    mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
+};
+#endif
+
+#ifdef __ANDROID__
+class CaptureModuleAndroid : public VideoManager, public webrtc::VideoTrackSourceInterface
+{
+public:
+    explicit CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
+    virtual ~CaptureModuleAndroid();
+
+    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    void openDevice(const std::string &videoDevice) override;
+    void releaseDevice() override;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+
+    bool is_screencast() const override;
+    absl::optional<bool> needs_denoising() const override;
+
+    bool GetStats(Stats* stats) override;
+
+    SourceState state() const override;
+    bool remote() const override;
+
+    void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
+    void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
+
+    void AddRef() const override;
+    rtc::RefCountReleaseStatus Release() const override;
+
+    void RegisterObserver(webrtc::ObserverInterface* observer) override;
+    void UnregisterObserver(webrtc::ObserverInterface* observer) override;
+
+private:
+    bool mRunning = false;
+    mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
+    rtc::scoped_refptr<webrtc::JavaVideoTrackSourceInterface> mVideoSource;
+    webrtc::VideoCaptureCapability mCapabilities;
+    JNIEnv* mEnv;
+};
+#endif
 
 }

@@ -1691,6 +1691,28 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+
+        case MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM:
+        {
+            if (!mClient->rtc)
+            {
+                API_LOG_ERROR("Change video streaming source - WebRTC is not initialized");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            const char *deviceName = request->getText();
+            if (!deviceName || !mClient->rtc->selectVideoInDevice(deviceName))
+            {
+                API_LOG_ERROR("Change video streaming source - device doesn't exist");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
 #endif
         case MegaChatRequest::TYPE_ARCHIVE_CHATROOM:
         {
@@ -3690,29 +3712,9 @@ void MegaChatApiImpl::pushReceived(bool beep, MegaChatHandle chatid, int type, M
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
-{
-    std::vector<std::string> devicesVector;
-    sdkMutex.lock();
-    if (mClient && mClient->rtc)
-    {
-        mClient->rtc->getAudioInDevices(devicesVector);
-    }
-    else
-    {
-        API_LOG_ERROR("Failed to get audio-in devices");
-    }
-    sdkMutex.unlock();
-
-    MegaStringList *devices = getChatInDevices(devicesVector);
-
-    return devices;
-
-}
-
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
-    std::vector<std::string> devicesVector;
+    std::set<std::string> devicesVector;
     sdkMutex.lock();
     if (mClient && mClient->rtc)
     {
@@ -3729,38 +3731,29 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
     return devices;
 }
 
-bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
+void MegaChatApiImpl::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
 {
-    bool returnedValue = false;
-    sdkMutex.lock();
-    if (mClient && mClient->rtc)
-    {
-        returnedValue = mClient->rtc->selectAudioInDevice(device);
-    }
-    else
-    {
-        API_LOG_ERROR("Failed to set audio-in devices");
-    }
-    sdkMutex.unlock();
-
-    return returnedValue;
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM, listener);
+    request->setText(device);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
-bool MegaChatApiImpl::setChatVideoInDevice(const char *device)
+char *MegaChatApiImpl::getVideoDeviceSelected()
 {
-    bool returnedValue = false;
+    char *deviceName = nullptr;
     sdkMutex.lock();
     if (mClient && mClient->rtc)
     {
-        returnedValue = mClient->rtc->selectVideoInDevice(device);
+        deviceName = MegaApi::strdup(mClient->rtc->getVideoDeviceSelected().c_str());
     }
     else
     {
-        API_LOG_ERROR("Failed to set video-in devices");
+        API_LOG_ERROR("Failed to get selected video-in device");
     }
     sdkMutex.unlock();
 
-    return returnedValue;
+    return deviceName;
 }
 
 void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
@@ -4383,15 +4376,15 @@ rtcModule::ICallHandler *MegaChatApiImpl::onGroupCallActive(Id chatid, Id callid
     return chatCallHandler;
 }
 
-MegaStringList *MegaChatApiImpl::getChatInDevices(const std::vector<string> &devicesVector)
+MegaStringList *MegaChatApiImpl::getChatInDevices(const std::set<string> &devices)
 {
-    vector<char *> devicesArray;
-    for (auto &device : devicesVector)
+    std::vector<char*> buffer;
+    for (const std::string &device : devices)
     {
-        devicesArray.push_back(::mega::MegaApi::strdup(device.c_str()));
+        buffer.push_back(MegaApi::strdup(device.c_str()));
     }
 
-    return new MegaStringListPrivate(devicesArray.data(), static_cast<int>(devicesArray.size()));
+    return new MegaStringListPrivate(buffer.data(), static_cast<int>(buffer.size()));
 }
 
 void MegaChatApiImpl::cleanCallHandlerMap()
@@ -4829,12 +4822,13 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
-        case TYPE_LOAD_PREVIEW: return "TYPE_LOAD_PREVIEW";
-        case TYPE_CHAT_LINK_HANDLE: return "TYPE_CHAT_LINK_HANDLE";
-        case TYPE_SET_PRIVATE_MODE: return "TYPE_SET_PRIVATE_MODE";
-        case TYPE_AUTOJOIN_PUBLIC_CHAT: return "TYPE_AUTOJOIN_PUBLIC_CHAT";
+        case TYPE_LOAD_PREVIEW: return "LOAD_PREVIEW";
+        case TYPE_CHAT_LINK_HANDLE: return "CHAT_LINK_HANDLE";
+        case TYPE_SET_PRIVATE_MODE: return "SET_PRIVATE_MODE";
+        case TYPE_AUTOJOIN_PUBLIC_CHAT: return "AUTOJOIN_PUBLIC_CHAT";
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
-        case TYPE_LAST_GREEN: return "TYPE_LAST_GREEN";
+        case TYPE_LAST_GREEN: return "LAST_GREEN";
+        case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
     }
     return "UNKNOWN";
 }
@@ -7806,6 +7800,7 @@ MegaChatCallHandler::~MegaChatCallHandler()
     }
 
     delete chatCall;
+    delete localVideoReceiver;
 }
 
 void MegaChatCallHandler::setCall(rtcModule::ICall *call)

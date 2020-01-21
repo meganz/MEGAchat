@@ -83,6 +83,8 @@ typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
 
 @property (nonatomic, readonly) MEGAHandleList *participants;
 
+@property (nonatomic, readonly) NSUUID *uuid;
+
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
 
 - (NSInteger)numParticipantsWithCallConfiguration:(MEGAChatCallConfiguration)callConfiguration;

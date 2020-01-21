@@ -187,7 +187,10 @@ void CallGui::onMuteCam(bool checked)
             mChatWindow->mMegaChatApi->enableVideo(mChatWindow->mChatRoom->getChatId());
             ui->videoRenderer->disableStaticImage();
         }
+
+        mVideo = !checked;
    }
+
 }
 
 void CallGui::onDestroy(rtcModule::TermCode code, bool byPeer, const std::string& text)
