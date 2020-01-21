@@ -2943,7 +2943,10 @@ void Session::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
         // don't tolerate ICE_CANDATE packeds without payload, so we introduce a new packet type
         // that will be simply ignored by older clients
         SUB_LOG_INFO("Send RTCMD_END_ICE_CANDIDATES");
-        mManager.sendCommand(mCall.mChat, OP_RTMSG_ENDPOINT, RTCMD_END_ICE_CANDIDATES, mCall.mChat.chatId(), mPeer, mPeerClient, mCall.id());
+        RtMessageComposer msg(OP_RTMSG_ENDPOINT, RTCMD_END_ICE_CANDIDATES,
+            mCall.mChat.chatId(), mPeer, mPeerClient, sizeof(karere::Id));
+        msg.payloadAppend(mSid);
+        mCall.mChat.sendCommand(std::move(msg));
         return;
     }
 
