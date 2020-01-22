@@ -542,8 +542,6 @@ public:
 class ContactList: public std::map<uint64_t, Contact*>
 {
     friend class Client;
-protected:
-    void removeUser(iterator it);
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
@@ -555,12 +553,8 @@ public:
     ContactList(Client& aClient);
     ~ContactList();
     void loadFromDb();
-    bool addUserFromApi(mega::MegaUser& user);
-    void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
-    promise::Promise<void> removeContactFromServer(uint64_t userid);
-    void syncWithApi(mega::MegaUserList& users);
+    void syncWithApi(mega::MegaUser& user); //called for actionpackets
     const std::string* getUserEmail(uint64_t userid) const;
-    bool isExContact(karere::Id userid);
     /** @endcond */
 };
 
@@ -907,7 +901,6 @@ protected:
     std::string mLastScsn;
     InitState mInitState = kInitCreated;
     ConnState mConnState = kDisconnected;
-    bool mContactsLoaded = false;
 
     // resolved when fetchnodes is completed
     promise::Promise<void> mSessionReadyPromise;
@@ -952,7 +945,6 @@ public:
 
     ConnState connState() const { return mConnState; }
     bool connected() const { return mConnState == kConnected; }
-    bool contactsLoaded() const { return mContactsLoaded; }
 
     presenced::Client& presenced() { return mPresencedClient; }
 
@@ -1142,8 +1134,6 @@ protected:
     uint64_t getMyIdentityFromDb();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
-    void loadContactListFromApi();
-    void loadContactListFromApi(::mega::MegaUserList& contactList);
 
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid, bool isPublic,
             std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
@@ -1153,7 +1143,7 @@ protected:
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<int> initializeContactList();
 
-    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
+    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats);
     void commit(const std::string& scsn);
 
     /** @brief Does the actual connect, once the SDK is online.
