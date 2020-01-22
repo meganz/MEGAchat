@@ -1982,7 +1982,7 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
         mManager.mRetryCall.erase(chatid);
         mManager.mRetryCallTimers.erase(chatid);
 
-        if (wptr.deleted() || mManager.mRetryCall.find(chatid) == mManager.mRetryCall.end())
+        if (wptr.deleted())
             return;
 
         SUB_LOG_DEBUG("Everybody left, terminating call- After reconnection");
