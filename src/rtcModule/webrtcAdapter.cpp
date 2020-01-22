@@ -154,15 +154,6 @@ void CaptureModuleLinux::OnFrame(const webrtc::VideoFrame& frame)
     mBroadcaster.OnFrame(frame);
 }
 
-void CaptureModuleLinux::AddRef() const
-{
-}
-
-rtc::RefCountReleaseStatus CaptureModuleLinux::Release() const
-{
-    return rtc::RefCountReleaseStatus::kOtherRefsRemained;
-}
-
 std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevices()
 {
     std::set<std::pair<std::string, std::string>> videoDevices;
@@ -301,6 +292,15 @@ std::set<std::pair<std::string, std::string> > VideoManager::getVideoDevices()
     #endif
 }
 
+void VideoManager::AddRef() const
+{
+}
+
+rtc::RefCountReleaseStatus VideoManager::Release() const
+{
+    return rtc::RefCountReleaseStatus::kOtherRefsRemained;
+}
+
 #ifdef __ANDROID__
 CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
     : mCapabilities(capabilities)
@@ -410,15 +410,6 @@ void CaptureModuleAndroid::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::Video
 void CaptureModuleAndroid::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
 {
     mVideoSource->RemoveSink(sink);
-}
-
-void CaptureModuleAndroid::AddRef() const
-{
-}
-
-rtc::RefCountReleaseStatus CaptureModuleAndroid::Release() const
-{
-    return rtc::RefCountReleaseStatus::kOtherRefsRemained;
 }
 
 void CaptureModuleAndroid::RegisterObserver(webrtc::ObserverInterface* observer)

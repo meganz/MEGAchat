@@ -299,6 +299,9 @@ public:
     virtual void releaseDevice() = 0;
     virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() = 0;
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
+
+    void AddRef() const override;
+    rtc::RefCountReleaseStatus Release() const override;
 };
 
 class CaptureModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager
@@ -322,9 +325,6 @@ public:
 
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-
-    void AddRef() const override;
-    rtc::RefCountReleaseStatus Release() const override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
@@ -363,9 +363,6 @@ public:
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
 
-    void AddRef() const override;
-    rtc::RefCountReleaseStatus Release() const override;
-
     void RegisterObserver(webrtc::ObserverInterface* observer) override;
     void UnregisterObserver(webrtc::ObserverInterface* observer) override;
     
@@ -399,9 +396,6 @@ public:
 
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-
-    void AddRef() const override;
-    rtc::RefCountReleaseStatus Release() const override;
 
     void RegisterObserver(webrtc::ObserverInterface* observer) override;
     void UnregisterObserver(webrtc::ObserverInterface* observer) override;
