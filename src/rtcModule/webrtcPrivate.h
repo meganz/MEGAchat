@@ -211,7 +211,7 @@ protected:
     promise::Promise<void> mDestroyPromise;
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
-    std::shared_ptr<artc::VideoManager> mVideoDevice;
+    rtc::scoped_refptr<artc::VideoManager> mVideoDevice;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;

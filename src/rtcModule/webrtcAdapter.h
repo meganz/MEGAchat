@@ -302,6 +302,9 @@ public:
 
     void AddRef() const override;
     rtc::RefCountReleaseStatus Release() const override;
+
+private:
+    mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
 };
 
 class CaptureModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager

@@ -2137,7 +2137,7 @@ void Call::enableVideo(bool enable)
                 capabilities.maxFPS = 30;
             }
 
-            mVideoDevice = std::shared_ptr<artc::VideoManager>(artc::VideoManager::Create(capabilities, mManager.mVideoDeviceSelected, artc::gAsyncWaiter->guiThread()));
+            mVideoDevice = artc::VideoManager::Create(capabilities, mManager.mVideoDeviceSelected, artc::gAsyncWaiter->guiThread());
             assert(mVideoDevice);
 
             videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
@@ -2509,7 +2509,7 @@ bool Call::isCaller(Id userid, uint32_t clientid)
 void Call::changeVideoInDevice()
 {
     enableVideo(false);
-    mVideoDevice.reset();
+    mVideoDevice = nullptr;
     enableVideo(true);
 }
 

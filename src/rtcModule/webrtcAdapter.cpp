@@ -294,11 +294,18 @@ std::set<std::pair<std::string, std::string> > VideoManager::getVideoDevices()
 
 void VideoManager::AddRef() const
 {
+    mRefCount.IncRef();
 }
 
 rtc::RefCountReleaseStatus VideoManager::Release() const
 {
-    return rtc::RefCountReleaseStatus::kOtherRefsRemained;
+    const auto status = mRefCount.DecRef();
+    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
+    {
+        delete this;
+    }
+
+    return status;
 }
 
 #ifdef __ANDROID__
