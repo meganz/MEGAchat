@@ -137,6 +137,7 @@ namespace artc
 
     rtc::RefCountReleaseStatus OBJCCaptureModule::Release() const
     {
+        return rtc::RefCountReleaseStatus::kOtherRefsRemained;
     }
 
     void OBJCCaptureModule::RegisterObserver(webrtc::ObserverInterface* observer)

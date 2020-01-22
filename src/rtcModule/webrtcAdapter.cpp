@@ -160,6 +160,7 @@ void CaptureModuleLinux::AddRef() const
 
 rtc::RefCountReleaseStatus CaptureModuleLinux::Release() const
 {
+    return rtc::RefCountReleaseStatus::kOtherRefsRemained;
 }
 
 std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevices()
@@ -417,6 +418,7 @@ void CaptureModuleAndroid::AddRef() const
 
 rtc::RefCountReleaseStatus CaptureModuleAndroid::Release() const
 {
+    return rtc::RefCountReleaseStatus::kOtherRefsRemained;
 }
 
 void CaptureModuleAndroid::RegisterObserver(webrtc::ObserverInterface* observer)
