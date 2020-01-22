@@ -133,7 +133,7 @@ void RtcModule::initInputDevices()
     }
 }
 
-void RtcModule::removeCallRetry(karere::Id chatid, bool failed)
+void RtcModule::removeCallRetry(karere::Id chatid, bool retry)
 {
     auto retryCalltimerIt = mRetryCallTimers.find(chatid);
     if (retryCalltimerIt != mRetryCallTimers.end())
@@ -141,7 +141,7 @@ void RtcModule::removeCallRetry(karere::Id chatid, bool failed)
         cancelTimeout(retryCalltimerIt->second, mKarereClient.appCtx);
         mRetryCallTimers.erase(retryCalltimerIt);
 
-        if (failed)
+        if (!retry)
         {
             auto callHandlerIt = mCallHandlers.find(chatid);
             assert(callHandlerIt != mCallHandlers.end());
@@ -844,7 +844,7 @@ std::vector<Id> RtcModule::chatsWithCall() const
 
 void RtcModule::abortCallRetry(Id chatid)
 {
-    removeCallRetry(chatid, true);
+    removeCallRetry(chatid, false);
     removeCallWithoutParticipants(chatid);
     auto itHandler = mCallHandlers.find(chatid);
     if (itHandler != mCallHandlers.end())
@@ -887,7 +887,7 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
             callHandlerIt->second->removeAllParticipants();
         }
 
-        removeCallRetry(chatid, true);
+        removeCallRetry(chatid, false);
         removeCallWithoutParticipants(chatid);
     }
 
@@ -2255,7 +2255,7 @@ bool Call::answer(AvFlags av)
 
 void Call::hangup(TermCode reason)
 {
-    mManager.removeCallRetry(mChat.chatId(), true);
+    mManager.removeCallRetry(mChat.chatId(), false);
 
     switch (mState)
     {
