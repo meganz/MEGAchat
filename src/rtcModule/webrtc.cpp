@@ -133,13 +133,20 @@ void RtcModule::initInputDevices()
     }
 }
 
-void RtcModule::removeCallRetry(karere::Id chatid)
+void RtcModule::removeCallRetry(karere::Id chatid, bool retry)
 {
     auto retryCalltimerIt = mRetryCallTimers.find(chatid);
     if (retryCalltimerIt != mRetryCallTimers.end())
     {
         cancelTimeout(retryCalltimerIt->second, mKarereClient.appCtx);
         mRetryCallTimers.erase(retryCalltimerIt);
+
+        if (!retry)
+        {
+            auto callHandlerIt = mCallHandlers.find(chatid);
+            assert(callHandlerIt != mCallHandlers.end());
+            callHandlerIt->second->setReconnectionFailed();
+        }
     }
 
     mRetryCall.erase(chatid);
@@ -837,7 +844,7 @@ std::vector<Id> RtcModule::chatsWithCall() const
 
 void RtcModule::abortCallRetry(Id chatid)
 {
-    removeCallRetry(chatid);
+    removeCallRetry(chatid, false);
     removeCallWithoutParticipants(chatid);
     auto itHandler = mCallHandlers.find(chatid);
     if (itHandler != mCallHandlers.end())
@@ -880,7 +887,7 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
             callHandlerIt->second->removeAllParticipants();
         }
 
-        removeCallRetry(chatid);
+        removeCallRetry(chatid, false);
         removeCallWithoutParticipants(chatid);
     }
 
@@ -1959,17 +1966,24 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
     auto itRetryTimerHandle = mManager.mRetryCallTimers.find(chatid);
     if (itRetryTimerHandle != mManager.mRetryCallTimers.end())
     {
-        cancelTimeout(itRetryTimerHandle->second, mManager.mKarereClient.appCtx);
+        // There is a retry and it isn't neccesary launch another one
+        return;
     }
 
     auto wptr = weakHandle();
-    mManager.mRetryCallTimers[chatid] = setTimeout([this, wptr, chatid, reason]()
+    auto wptrManager = mManager.weakHandle();
+    mManager.mRetryCallTimers[chatid] = setTimeout([this, wptr, wptrManager, chatid, reason]()
     {
-        if (wptr.deleted() || mManager.mRetryCall.find(chatid) == mManager.mRetryCall.end())
+        if (wptrManager.deleted())
+        {
             return;
+        }
 
         mManager.mRetryCall.erase(chatid);
         mManager.mRetryCallTimers.erase(chatid);
+
+        if (wptr.deleted())
+            return;
 
         SUB_LOG_DEBUG("Everybody left, terminating call- After reconnection");
         mHandler->setReconnectionFailed();
@@ -2247,7 +2261,7 @@ bool Call::answer(AvFlags av)
 
 void Call::hangup(TermCode reason)
 {
-    mManager.removeCallRetry(mChat.chatId());
+    mManager.removeCallRetry(mChat.chatId(), false);
 
     switch (mState)
     {

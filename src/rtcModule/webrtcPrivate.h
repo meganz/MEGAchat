@@ -385,7 +385,7 @@ protected:
     //=== Implementation methods
     void initInputDevices();
 
-    void removeCallRetry(karere::Id chatid);
+    void removeCallRetry(karere::Id chatid, bool retry = true);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
     friend class Call;
     friend class Session;
