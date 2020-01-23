@@ -3615,6 +3615,7 @@ void ContactList::syncWithApi(mega::MegaUser& user)
                 delete contact;
                 erase(it);
                 client.db.query("delete from contacts where userid=?", handle);
+                return;
             }
             else
             {
