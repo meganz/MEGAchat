@@ -1052,17 +1052,17 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
 
 void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhandle, int status, bool inProgress)
 {
-    if (status == megachat::MegaChatApi::STATUS_INVALID)
-    {
-        // If we don't receive our presence we'll skip all chats reorders
-        // when we are connected to all chats this flag will be set true
-        // and chatlist will be reordered
-        mAllowOrder = false;
-        status = 0;
-    }
-
     if (mMegaChatApi->getMyUserHandle() == userhandle)
     {
+        if (status == megachat::MegaChatApi::STATUS_INVALID)
+        {
+            // If we don't receive our presence we'll skip all chats reorders
+            // when we are connected to all chats this flag will be set true
+            // and chatlist will be reordered
+            mAllowOrder = false;
+            status = 0;
+        }
+
         ui->bOnlineStatus->setText(inProgress
             ? kOnlineSymbol_InProgress
             : kOnlineSymbol_Set);

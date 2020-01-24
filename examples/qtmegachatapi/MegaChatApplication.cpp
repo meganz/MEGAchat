@@ -268,7 +268,7 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
             }
             else
             {
-                if (user->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME)&& !user->isOwnChange())
+                if (user->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
                 {
                     getFirstname(user->getHandle(), NULL, true);
                 }
