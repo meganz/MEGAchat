@@ -186,7 +186,7 @@ bool RtcModule::selectVideoInDevice(const string &devname)
             mVideoDeviceSelected = device.second;
             for (auto callIt : mCalls)
             {
-                if (callIt.second->state() == Call::kStateInProgress && callIt.second->sentAv().video())
+                if (callIt.second->state() >= Call::kStateHasLocalStream && callIt.second->sentAv().video())
                 {
                     callIt.second->changeVideoInDevice();
                 }
