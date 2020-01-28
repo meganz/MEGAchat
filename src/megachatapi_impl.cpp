@@ -1486,6 +1486,13 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else
             {
+                if (!chatroom->chat().isLoggedIn())
+                {
+                    API_LOG_ERROR("Start call - Refusing start/join a call, not logged-in yet: %d", chatroom->chat().connection().shardNo());
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+
                 handler = new MegaChatCallHandler(this);
                 mClient->rtc->addCallHandler(chatid, handler);
                 karere::AvFlags avFlags(true, enableVideo);
