@@ -78,12 +78,32 @@ bool MegaChatSession::hasVideo() const
     return false;
 }
 
+int MegaChatSession::getTermCode() const
+{
+    return 0;
+}
+
+bool MegaChatSession::isLocalTermCode() const
+{
+    return false;
+}
+
 int MegaChatSession::getNetworkQuality() const
 {
     return 0;
 }
 
 bool MegaChatSession::getAudioDetected() const
+{
+    return false;
+}
+
+int MegaChatSession::getChanges() const
+{
+    return CHANGE_TYPE_NO_CHANGES;
+}
+
+bool MegaChatSession::hasChanged(int changeType) const
 {
     return false;
 }
@@ -192,14 +212,19 @@ MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle /*peerid*/, Meg
     return NULL;
 }
 
-MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
+MegaChatHandle MegaChatCall::getPeeridCallCompositionChange() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
 
-MegaChatHandle MegaChatCall::getClientidSessionStatusChange() const
+MegaChatHandle MegaChatCall::getClientidCallCompositionChange() const
 {
     return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatCall::getClientIsAddedOrRemoved() const
+{
+    return false;
 }
 
 MegaHandleList *MegaChatCall::getPeeridParticipants() const
@@ -1366,6 +1391,11 @@ void MegaChatVideoListener::onChatVideoData(MegaChatApi * /*api*/, MegaChatHandl
 
 
 void MegaChatCallListener::onChatCallUpdate(MegaChatApi * /*api*/, MegaChatCall * /*call*/)
+{
+
+}
+
+void MegaChatCallListener::onChatSessionUpdate(MegaChatApi * /*api*/, MegaChatHandle /*chatid*/, MegaChatHandle /*callid*/, MegaChatSession * /*session*/)
 {
 
 }

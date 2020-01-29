@@ -745,11 +745,10 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
 
     callHandler->addParticipant(userid, clientid, av);
 
-
-    auto itCall = mCalls.find(chatid);
-    if (itCall != mCalls.end())
+    Call *call  = static_cast<Call *>(callHandler->getCall());
+    if (call)
     {
-        itCall->second->updateAvFlags(userid, clientid, av);
+        call->updateAvFlags(userid, clientid, av);
     }
 }
 
