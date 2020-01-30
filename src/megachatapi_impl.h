@@ -583,40 +583,40 @@ class MegaChatCallHandler : public rtcModule::ICallHandler
 {
 public:
     MegaChatCallHandler(MegaChatApiImpl *megaChatApi);
-    virtual ~MegaChatCallHandler();
-    virtual void setCall(rtcModule::ICall* call);
-    virtual void onStateChange(uint8_t newState);
-    virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
-    virtual rtcModule::ISessionHandler *onNewSession(rtcModule::ISession& sess);
-    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& rendererOut);
-    virtual void onLocalMediaError(const std::string errors);
-    virtual void onRingOut(karere::Id peer);
-    virtual void onCallStarting();
-    virtual void onCallStarted();
-    virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
-    virtual bool removeParticipant(karere::Id userid, uint32_t clientid);
-    virtual int callParticipants();
-    virtual bool isParticipating(karere::Id userid);
-    virtual void removeAllParticipants();
-    virtual karere::Id getCallId() const;
-    virtual void setCallId(karere::Id callid);
-    virtual void setInitialTimeStamp(int64_t timeStamp);
-    virtual int64_t getInitialTimeStamp();
-    virtual bool hasBeenNotifiedRinging() const;
-    virtual void onReconnectingState(bool start);
+    virtual ~MegaChatCallHandler() override;
+    virtual void setCall(rtcModule::ICall* call) override;
+    virtual void onStateChange(uint8_t newState) override;
+    virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg) override;
+    virtual rtcModule::ISessionHandler *onNewSession(rtcModule::ISession& sess) override;
+    virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& rendererOut) override;
+    virtual void onLocalMediaError(const std::string errors) override;
+    virtual void onRingOut(karere::Id peer) override;
+    virtual void onCallStarting() override;
+    virtual void onCallStarted() override;
+    virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags) override;
+    virtual bool removeParticipant(karere::Id userid, uint32_t clientid) override;
+    virtual int callParticipants() override;
+    virtual bool isParticipating(karere::Id userid) override;
+    virtual void removeAllParticipants() override;
+    virtual karere::Id getCallId() const override;
+    virtual void setCallId(karere::Id callid) override;
+    virtual void setInitialTimeStamp(int64_t timeStamp) override;
+    virtual int64_t getInitialTimeStamp() override;
+    virtual bool hasBeenNotifiedRinging() const override;
+    virtual void onReconnectingState(bool start) override;
     virtual void setReconnectionFailed() override;
-    virtual rtcModule::ICall *getCall();
+    virtual rtcModule::ICall *getCall() override;
 
     MegaChatCallPrivate *getMegaChatCall();
     void setCallNotPresent(karere::Id chatid, karere::Id callid, uint32_t duration);
 private:
     MegaChatApiImpl *megaChatApi;
-    rtcModule::ICall *call = NULL;
-    MegaChatCallPrivate *chatCall = NULL;
+    rtcModule::ICall *call = nullptr;
+    MegaChatCallPrivate *chatCall = nullptr;
     bool mHasBeenNotifiedRinging = false;
     bool mReconnectionFailed = false;
 
-    rtcModule::IVideoRenderer *localVideoReceiver = NULL;
+    rtcModule::IVideoRenderer *localVideoReceiver = nullptr;
 };
 
 class MegaChatSessionHandler : public rtcModule::ISessionHandler
