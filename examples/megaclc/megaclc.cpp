@@ -1137,42 +1137,19 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         return meta->getTextMessage();
     };
 
-    auto callinfo = [](const int msgType, const int duration, const int termCode) -> std::string
+    auto callinfo = [](const int msgType, const int duration, const int termCode)
     {
         if (msgType != c::MegaChatMessage::TYPE_CALL_ENDED)
         {
-            return "<Not an ending call>";
+            return std::string{"<Not an ending call>"};
         }
         return "Call ended: " + callTermCodeToString(termCode) + " - " + std::to_string(duration);
-    };
-
-    auto changeinfo = [](const int changes) -> std::string
-    {
-        if (changes <= 0)
-        {
-            return "<No Changes>";
-        }
-        std::string info = "Changes: ";
-        if (changes & c::MegaChatMessage::CHANGE_TYPE_STATUS)
-        {
-            info += "CHANGE_TYPE_STATUS";
-        }
-        if (changes & c::MegaChatMessage::CHANGE_TYPE_CONTENT)
-        {
-            info += ", CHANGE_TYPE_CONTENT";
-        }
-        if (changes & c::MegaChatMessage::CHANGE_TYPE_ACCESS)
-        {
-            info += ", CHANGE_TYPE_ACCESS";
-        }
-        return info;
     };
 
     std::ostringstream os;
     os << room_title
        << " | " << timeToStringUTC(msg->getTimestamp()) << " UTC"
        << " | " << msgTypeToString(msg->getType())
-       << " | " << msgStatusToString(msg->getStatus())
        << " | " << ch_s(msg->getMsgId())
        << " | " << ch_s(msg->getHandleOfAction())
        << " | " << ch_s(msg->getUserHandle())
@@ -1182,7 +1159,6 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
        << " | " << nodeinfo(msg->getMegaNodeList())
        << " | " << metainfo(msg->getContainsMeta())
        << " | " << callinfo(msg->getType(), msg->getDuration(), msg->getTermCode())
-       << " | " << changeinfo(msg->getChanges())
        << " | " << firstname(msg->getUserHandle())
        << " | " << lastname(msg->getUserHandle())
        << " | " << email(msg->getUserHandle())
