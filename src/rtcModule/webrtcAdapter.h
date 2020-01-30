@@ -146,9 +146,9 @@ public:
     virtual void OnFailure(const std::string& error)
     {
         RTCM_DO_CALLBACK(
-             mPromise.reject(::promise::Error(error, kSetSdpDescriptionFailed, ERRTYPE_RTC));
+             mPromise.reject(::promise::Error("Unkown error", kSetSdpDescriptionFailed, ERRTYPE_RTC));
              Release();
-        , this, error);
+        , this, "Unkown error");
     }
 
 protected:
