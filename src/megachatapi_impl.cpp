@@ -4434,7 +4434,11 @@ MegaChatCallHandler *MegaChatApiImpl::findChatCallHandler(MegaChatHandle chatid)
 void MegaChatApiImpl::removeCall(MegaChatHandle chatid)
 {
     sdkMutex.lock();
-    mClient->rtc->removeCall(chatid);
+    if (mClient->rtc)
+    {
+        mClient->rtc->removeCall(chatid);
+    }
+
     sdkMutex.unlock();
 }
 
@@ -5748,15 +5752,6 @@ bool MegaChatCallPrivate::isParticipating(Id userid)
     }
 
     return false;
-}
-
-void MegaChatCallPrivate::removeAllParticipants()
-{
-    participants.clear();
-    this->changed |= MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION;
-    this->peerId = MEGACHAT_INVALID_HANDLE;
-    this->clientid = clientid;
-    this->addedOrRemoved = false;
 }
 
 void MegaChatCallPrivate::setId(Id callid)
@@ -8117,8 +8112,16 @@ bool MegaChatCallHandler::isParticipating(Id userid)
 
 void MegaChatCallHandler::removeAllParticipants()
 {
-    chatCall->removeAllParticipants();
-    megaChatApi->fireOnChatCallUpdate(chatCall);
+    MegaHandleList* clientids = chatCall->getClientidParticipants();
+    MegaHandleList* peerids = chatCall->getPeeridParticipants();
+    for (unsigned int i = 0; i < peerids->size(); i++)
+    {
+        chatCall->removeParticipant(peerids->get(i), clientids->get(i));
+        megaChatApi->fireOnChatCallUpdate(chatCall);
+    }
+
+    delete clientids;
+    delete peerids;
 }
 
 karere::Id MegaChatCallHandler::getCallId() const

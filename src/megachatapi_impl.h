@@ -263,7 +263,6 @@ public:
     bool addOrUpdateParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool removeParticipant(karere::Id userid, uint32_t clientid);
     bool isParticipating(karere::Id userid);
-    void removeAllParticipants();
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
 

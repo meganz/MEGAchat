@@ -686,7 +686,7 @@ public:
     /**
      * @brief Returns if call is outgoing
      *
-     * @return Ture if outgoing call, false if incoming
+     * @return True if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
 
