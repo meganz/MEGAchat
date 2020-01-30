@@ -222,10 +222,10 @@ public:
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
      *  - CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04
-     * Check if the network quality of the session changed
+     * Check if the network quality of the session changed. Check MegaChatSession::getNetworkQuality
      *
      *  - CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08
-     * Check if the level audio of the session changed
+     * Check if the level audio of the session changed. Check MegaChatSession::getAudioDetected
      *
      *  - CHANGE_TYPE_SESSION_OPERATIVE = 0x10
      * Notify session is fully operative
@@ -251,10 +251,10 @@ public:
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
      *  - CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04
-     * Check if the network quality of the session changed
+     * Check if the network quality of the session changed. Check MegaChatSession::getNetworkQuality
      *
      *  - CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08
-     * Check if the level audio of the session changed
+     * Check if the level audio of the session changed. Check MegaChatSession::getAudioDetected
      *
      *  - CHANGE_TYPE_SESSION_OPERATIVE = 0x10
      * Notify session is fully operative
@@ -598,7 +598,7 @@ public:
      * This function only returns a valid value when MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION is notified
      * via MegaChatCallListener::onChatCallUpdate
      *
-     * @return Handle of the peer which session has been added/removed to call
+     * @return Handle of the peer which has been added/removed to call
      */
     virtual MegaChatHandle getPeeridCallCompositionChange() const;
 
