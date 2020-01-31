@@ -310,7 +310,7 @@ public:
         CHANGE_TYPE_STATUS = 0x01,                  /// Call status has changed
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,           /// Local audio/video flags has changed
         CHANGE_TYPE_TEMPORARY_ERROR = 0x04,         /// New temporary error is notified
-        CHANGE_TYPE_RINGING_STATUS = 0x08,          /// Peer has change its ringing state
+        CHANGE_TYPE_RINGING_STATUS = 0x08,          /// Peer has changed its ringing state
         CHANGE_TYPE_CALL_COMPOSITION = 0x10,        /// Call composition has changed (User added or removed from call)
     };
 
