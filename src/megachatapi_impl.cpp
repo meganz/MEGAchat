@@ -5261,6 +5261,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration
     clientid = 0;
     callerId = MEGACHAT_INVALID_HANDLE;
     mIsCaller = false;
+    callCompositionChange = NO_COMPOSITION_CHANGE;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
@@ -5280,7 +5281,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->ringing = call.ringing;
     this->ignored = call.ignored;
     this->peerId = call.peerId;
-    this->addedOrRemoved = call.addedOrRemoved;
+    this->callCompositionChange = call.callCompositionChange;
     this->clientid = call.clientid;
     this->callerId = call.callerId;
 
@@ -5436,9 +5437,9 @@ MegaChatHandle MegaChatCallPrivate::getClientidCallCompositionChange() const
     return clientid;
 }
 
-bool MegaChatCallPrivate::getClientIsAddedOrRemoved() const
+int MegaChatCallPrivate::getCallCompositionChange() const
 {
-    return addedOrRemoved;
+    return callCompositionChange;
 }
 
 MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid)
@@ -5566,6 +5567,7 @@ void MegaChatCallPrivate::removeChanges()
 {
     changed = MegaChatCall::CHANGE_TYPE_NO_CHANGES;
     temporaryError.clear();
+    callCompositionChange = NO_COMPOSITION_CHANGE;
 }
 
 void MegaChatCallPrivate::setError(const string &temporaryError)
@@ -5710,7 +5712,7 @@ bool MegaChatCallPrivate::addOrUpdateParticipant(Id userid, uint32_t clientid, A
         this->changed |= MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION;
         this->peerId = userid;
         this->clientid = clientid;
-        this->addedOrRemoved = true;
+        this->callCompositionChange = MegaChatCall::PEER_ADDED;
         notify = true;
         participants[endPointId] = flags;
     }
@@ -5734,7 +5736,7 @@ bool MegaChatCallPrivate::removeParticipant(Id userid, uint32_t clientid)
         this->changed |= MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION;
         this->peerId = userid;
         this->clientid = clientid;
-        this->addedOrRemoved = false;
+        this->callCompositionChange = MegaChatCall::PEER_REMOVED;
         notify = true;
     }
 

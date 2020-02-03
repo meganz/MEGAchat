@@ -338,6 +338,12 @@ public:
         ANY_FLAG = 2
     };
 
+    enum {
+        PEER_REMOVED = -1,
+        NO_COMPOSITION_CHANGE = 0,
+        PEER_ADDED = 1,
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -613,14 +619,23 @@ public:
     virtual MegaChatHandle getClientidCallCompositionChange() const;
 
     /**
-     * @brief Returns true if the user with peerid/clientid has been added to the call
+     * @brief Returns if peer has been added or removed from the call
      *
      * This function only returns a valid value when MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION is notified
      * via MegaChatCallListener::onChatCallUpdate
      *
-     * @return true/false if user with peerid-clientid has been added/removed from call
+     * Valid values:
+     *   PEER_REMOVED = -1,
+     *   NO_COMPOSITION_CHANGE = 0,
+     *   PEER_ADDED = 1,
+     *
+     * @note During reconnection this callback has to be ignored to avoid notify that all users
+     * in the call have left the call and have joined again. When status change to In-progres again,
+     * the GUI can be adapted to all participants in the call
+     *
+     * @return if peer with peerid-clientid has been added/removed from call
      */
-    virtual bool getClientIsAddedOrRemoved() const;
+    virtual int  getCallCompositionChange() const;
 
     /**
      * @brief Get a list with the ids of peers that are participating in the call

@@ -244,11 +244,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION) &&
             call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
     {
-        if (call->getClientIsAddedOrRemoved())
+        if (call->getCallCompositionChange() == MegaChatCall::PEER_ADDED)
         {
             window->createCallGui(false, call->getPeeridCallCompositionChange(), call->getClientidCallCompositionChange());
         }
-        else
+        else if (call->getCallCompositionChange() == MegaChatCall::PEER_REMOVED)
         {
             window->destroyCallGui(call->getPeeridCallCompositionChange(), call->getClientidCallCompositionChange());
         }

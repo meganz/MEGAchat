@@ -222,9 +222,9 @@ MegaChatHandle MegaChatCall::getClientidCallCompositionChange() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-bool MegaChatCall::getClientIsAddedOrRemoved() const
+int MegaChatCall::getCallCompositionChange() const
 {
-    return false;
+    return NO_COMPOSITION_CHANGE;
 }
 
 MegaHandleList *MegaChatCall::getPeeridParticipants() const

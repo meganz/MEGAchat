@@ -235,7 +235,7 @@ public:
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
     virtual MegaChatHandle getClientidCallCompositionChange() const override;
-    virtual bool getClientIsAddedOrRemoved() const override;
+    virtual int getCallCompositionChange() const override;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid) override;
     virtual int getNumParticipants(int audioVideo) const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
@@ -280,7 +280,7 @@ protected:
     std::map<chatd::EndpointId, karere::AvFlags> participants;
     MegaChatHandle peerId;  // to identify participant added or removed
     uint32_t clientid;  // to identify the participant added or removed
-    bool addedOrRemoved = false;
+    int callCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle callerId;
 
     int termCode;
