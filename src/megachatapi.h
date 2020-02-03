@@ -154,22 +154,17 @@ public:
      *
      * Possible values are:
      *
-     *   MegaChatCall::TERM_CODE_USER_HANGUP       = 0,    /// Normal user hangup
-     *   MegaChatCall::TERM_CODE_CALL_REQ_CANCEL   = 1,    /// Call request was canceled before call was answered
-     *   MegaChatCall::TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected in
-                                            /// the current device
-     *   MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE = 3,    /// Call was answered on another device of ours
-     *   MegaChatCall::TEMR_CODE_REJECT_ELSE_WHERE = 4,    /// Call was rejected on another device of ours
-     *   MegaChatCall::TERM_CODE_ANSWER_TIMEOUT    = 5,    /// Call was not answered in a timely manner
-     *   MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT  = 6,    /// We have sent a call request but no RINGING received within this timeout - no other
-                                            /// users are online
-     *   MegaChatCall::TERM_CODE_APP_TERMINATING   = 7,    /// The application is terminating
-     *   MegaChatCall::TERM_CODE_BUSY              = 9,    /// Peer is in another call
-     *   MegaChatCall::TERM_CODE_NOT_FINISHED      = 10,   /// The call is in progress, no termination code yet
-     *   MegaChatCall::TERM_CODE_DESTROY_BY_COLLISION   = 19,   /// The call has finished by a call collision
-     *   MegaChatCall::TERM_CODE_ERROR             = 21    /// Notify any error type
+     *   - MegaChatCall::TERM_CODE_USER_HANGUP       = 0
+     *  Normal user hangup. User has left the call
+     *
+     *   - MegaChatCall::TERM_CODE_NOT_FINISHED      = 10
+     *  The session is in progress, no termination code yet
+     *
+     *   -MegaChatCall::TERM_CODE_ERROR             = 21
+     *  Notify any error type. A reconnection is launched
      *
      * @note If the session is not finished yet, it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
+     * The rest of values are invalid as term code  for a session
      *
      * To check if the call was terminated locally or remotely, see MegaChatSession::isLocalTermCode().
      *
