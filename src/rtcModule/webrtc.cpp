@@ -1565,6 +1565,11 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
+    if (mVideoDevice)
+    {
+        mVideoDevice->releaseDevice();
+    }
+
     mLocalPlayer.reset();
     mLocalStream.reset();
 
@@ -2332,6 +2337,11 @@ Call::~Call()
         {
             cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
             mDestroySessionTimer = 0;
+        }
+
+        if (mVideoDevice)
+        {
+            mVideoDevice->releaseDevice();
         }
 
         clearCallOutTimer();
