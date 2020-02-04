@@ -3661,6 +3661,13 @@ void ContactList::syncWithApi(mega::MegaUser& user)
                 userid, email, newVisibility, ts);
         Contact *contact = new Contact(*this, userid, email, newVisibility, ts, nullptr);
         emplace(userid, contact);
+
+        // If the user was part of a group before being added as a contact, we need to update user attributes,
+        // currently firstname and lastname only (driven by SDK)
+        if (user.getChanges())
+        {
+            client.userAttrCache().onUserAttrChange(user);
+        }
         KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
     }
 }
