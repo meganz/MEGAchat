@@ -709,7 +709,9 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         if (wptr.deleted())
             return;
 
-        onUsersUpdate(&api.sdk, contactList.get());
+        // Add users from API
+        std::shared_ptr<mega::MegaUserList> users(contactList.get()->copy());
+        updateUsers(users);
         mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
@@ -1605,19 +1607,25 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
             return;
         }
 
-        assert(mUserAttrCache);
-        auto count = users->size();
-        for (int i = 0; i < count; i++)
-        {
-            auto& user = *users->get(i);            
-            contactList->syncWithApi(user);
-
-            if (user.getChanges() && user.isOwnChange() == 0)
-            {
-                mUserAttrCache->onUserAttrChange(user);
-            }
-        };
+        updateUsers(users);
     }, appCtx);
+}
+
+
+void Client::updateUsers(std::shared_ptr<mega::MegaUserList> users)
+{
+    assert(mUserAttrCache);
+    auto count = users->size();
+    for (int i = 0; i < count; i++)
+    {
+        auto& user = *users->get(i);
+        contactList->syncWithApi(user);
+
+        if (user.getChanges() && user.isOwnChange() == 0)
+        {
+            mUserAttrCache->onUserAttrChange(user);
+        }
+    };
 }
 
 promise::Promise<karere::Id>
