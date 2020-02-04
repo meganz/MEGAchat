@@ -1110,7 +1110,8 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
 
     // sync contactlist first
     contactList->clear();   // remove obsolete users, just in case, and add them fresh from SDK
-    onUsersUpdate(&api.sdk, &aContactList);
+    std::shared_ptr<mega::MegaUserList> users(aContactList.copy());
+    updateUsers(users);
 
     // sync the chatroom list
     chats->onChatsUpdate(chatList);
