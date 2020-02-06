@@ -423,7 +423,7 @@ function buildInstall_sqlite
     if [[ $shared == "1" ]]; then
         cl sqlite3.c $runtimeFlag "-DSQLITE_API=__declspec(dllexport)" /O2 /Ob2 /D NDEBUG -link -dll -out:sqlite3.dll
         cp -v ./sqlite3.dll "$buildroot/usr/lib"
-    else
+    elsehttps://mega.nz/#!7dFGRQbb!p3DYjjGHxiDb4mfgw3hMj1enBNCTdmrP5HgNKV1W498
         cl sqlite3.c -c $runtimeFlag /O2 /Ob2 /D NDEBUG
         lib sqlite3.obj -OUT:sqlite3.lib
     fi
