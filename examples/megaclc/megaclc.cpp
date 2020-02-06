@@ -3151,6 +3151,45 @@ void exec_cp(ac::ACState& s)
     }
 }
 
+void exec_mv(ac::ACState& s)
+{
+    string newname;
+    bool rename = s.extractflagparam("-rename", newname);
+
+    std::unique_ptr<m::MegaNode> srcnode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
+    std::unique_ptr<m::MegaNode> dstnode(g_megaApi->getNodeByPath(s.words[2].s.c_str()));
+                                                                                                                                                     
+    if (!srcnode)
+    {
+        conlock(cout) << "source not found" << endl;
+    }
+    else if (!dstnode)
+    {
+        conlock(cout) << "destination not found" << endl;
+    }
+    else if (dstnode->getType() <= m::MegaNode::TYPE_FILE)
+    {
+        conlock(cout) << "destination is not a folder" << endl;
+    }
+    else
+    {
+        if (rename)
+        {
+            g_megaApi->moveNode(srcnode.get(), dstnode.get(), newname.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+            {
+                check_err("moveNode", e, ReportResult);
+            }));
+        }
+        else
+        {
+            g_megaApi->moveNode(srcnode.get(), dstnode.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+            {
+                check_err("moveNode", e, ReportResult);
+            }));
+        }
+    }
+}
+
 void PrintAchievements(m::MegaAchievementsDetails & ad)
 {
     auto cl = conlock(cout);
@@ -3441,6 +3480,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getcloudstorageused, sequence(text("getcloudstorageused")));
 
     p->Add(exec_cp, sequence(text("cp"), param("remotesrc"), param("remotedst")));
+    p->Add(exec_mv, sequence(text("mv"), param("remotesrc"), param("remotedst"), opt(sequence(flag("-rename"), param("newname")))));
 
     p->Add(exec_setCameraUploadsFolder, sequence(text("setcamerauploadsfolder"), param("remotedst")));
     p->Add(exec_getCameraUploadsFolder, sequence(text("getcamerauploadsfolder")));
