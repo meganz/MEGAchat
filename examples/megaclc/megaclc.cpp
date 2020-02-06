@@ -1284,6 +1284,10 @@ struct CLCRoomListener : public c::MegaChatRoomListener
     void onChatRoomUpdate(c::MegaChatApi*, c::MegaChatRoom *chat) override
     {
         g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, "Room " + ch_s(chat->getChatId()) + " updated");
+        if (g_reviewingPublicChat && chat->isArchived())
+        {
+            *g_reviewPublicChatOutFile << "Chat room is archived." << endl;
+        }
     }
 
     void onMessageLoaded(c::MegaChatApi*, c::MegaChatMessage *msg) override
@@ -2048,15 +2052,21 @@ public:
     void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
     {
         // Called on Mega API thread
-        if (request->getType() != m::MegaRequest::TYPE_GET_USER_EMAIL || !check_err("TYPE_GET_USER_EMAIL", e))
+        if (request->getType() != m::MegaRequest::TYPE_GET_USER_EMAIL)
         {
             return;
         }
-        g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: TYPE_GET_USER_EMAIL finished");
+        if (!check_err("getUserEmail", e))
+        {
+            *g_reviewPublicChatOutFile << "getUserEmail failed. Error: " << std::string{e->getErrorString()} << endl;
+            return;
+        }
         if (!request->getEmail())
         {
+            *g_reviewPublicChatOutFile << "getUserEmail failed. Error: Email empty" << endl;
             return;
         }
+        g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: getUserEmail finished");
         g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, "ReviewPublicChat: Email: " + std::string{request->getEmail()});
         g_reviewPublicChatEmails[request->getNodeHandle()] = request->getEmail();
         std::ostringstream os;
@@ -2085,6 +2095,7 @@ public:
                 g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
                                     "Failed to open chat room");
                 g_roomListeners.erase(chatid);
+                *g_reviewPublicChatOutFile << "Error: Failed to open chat room." << endl;
             }
             else
             {
@@ -2192,8 +2203,13 @@ void exec_reviewpublicchat(ac::ACState& s)
             [chat_link, open_chat_preview_listener](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
             {
                 // Called on Mega Chat API thread
-                if (request->getType() != c::MegaChatRequest::TYPE_CONNECT || !check_err("connect", e))
+                if (request->getType() != c::MegaChatRequest::TYPE_CONNECT)
                 {
+                    return;
+                }
+                if (!check_err("connect", e))
+                {
+                    *g_reviewPublicChatOutFile << "connect failed. Error: " << e->getErrorString() << endl;
                     return;
                 }
                 conlock(cout) << "Connection state " << api->getConnectionState() << endl;
@@ -2204,8 +2220,13 @@ void exec_reviewpublicchat(ac::ACState& s)
             [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
             {
                 // Called on Mega Chat API thread
-                if (request->getType() != c::MegaChatRequest::TYPE_LOAD_PREVIEW || !check_err("openChatPreview", e))
+                if (request->getType() != c::MegaChatRequest::TYPE_LOAD_PREVIEW)
                 {
+                    return;
+                }
+                if (!check_err("openChatPreview", e))
+                {
+                    *g_reviewPublicChatOutFile << "openChatPreview failed. Error: " << e->getErrorString() << endl;
                     return;
                 }
                 const auto chatid = request->getChatHandle();
@@ -2233,12 +2254,17 @@ void exec_reviewpublicchat(ac::ACState& s)
                         [chatid](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
                         {
                             // Called on Mega Chat API thread
-                            if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED || !check_err("TYPE_PUSH_RECEIVED", e))
+                            if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED)
                             {
                                 return;
                             }
+                            if (!check_err("pushReceived", e))
+                            {
+                                *g_reviewPublicChatOutFile << "pushReceived failed. Error: " << e->getErrorString() << endl;
+                                return;
+                            }
                             g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
-                                                "ReviewPublicChat: TYPE_PUSH_RECEIVED finished");
+                                                "ReviewPublicChat: pushReceived finished");
 
                             std::unique_ptr<c::MegaChatRoom> chatRoom{g_chatApi->getChatRoom(chatid)};
                             for (unsigned int i = 0; i < chatRoom->getPeerCount(); i++)
