@@ -661,6 +661,10 @@ void RtcModule::handleInCall(karere::Id chatid, karere::Id userid, uint32_t clie
     {
         updatePeerAvState(chatid, Id::inval(), userid, clientid, AvFlags(false, false));
     }
+    else
+    {
+        callHandlerIt->second->addParticipant(userid, clientid, AvFlags(false, false));
+    }
 }
 
 void RtcModule::handleCallTime(karere::Id chatid, uint32_t duration)
