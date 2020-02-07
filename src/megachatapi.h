@@ -164,7 +164,7 @@ public:
      *  Notify any error type. A reconnection is launched
      *
      * @note If the session is not finished yet, it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
-     * The rest of values are invalid as term code  for a session
+     * The rest of values are invalid as term code for a session
      *
      * To check if the call was terminated locally or remotely, see MegaChatSession::isLocalTermCode().
      *
