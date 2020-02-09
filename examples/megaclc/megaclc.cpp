@@ -83,6 +83,21 @@ using m::logDebug;
 #endif
 #endif
 
+bool g_detailHigh = false;
+
+std::atomic<bool> g_reportMessagesDeveloper{false};
+
+// These objects are helping to work around history loading problems for reviewing public chats
+std::atomic<bool> g_reviewingPublicChat{false};
+std::atomic<int> g_reviewPublicChatMsgCountRemaining{0};
+std::unique_ptr<std::ofstream> g_reviewPublicChatOutFile;
+std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLinks;
+std::mutex g_reviewPublicChatOutFileLogsMutex;
+std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLogs;
+std::map<c::MegaChatHandle, std::string> g_reviewPublicChatEmails;
+std::map<c::MegaChatHandle, std::string> g_reviewPublicChatFirstnames;
+std::map<c::MegaChatHandle, std::string> g_reviewPublicChatLastnames;
+
 #ifdef __APPLE__
 // No std::fileystem before OSX10.15
 string getExeDirectory()
@@ -286,9 +301,17 @@ private:
         OutputDebugStringA(message);
         OutputDebugStringA("\r\n");
 #endif
+        std::ostringstream os;
+        os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << endl;
+        const auto msg = os.str();
         if (loglevel <= m::logError)
         {
-            conlock(cout) << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << endl;
+            conlock(cout) << msg << flush;
+        }
+        if (g_reviewPublicChatOutFileLogs)
+        {
+            std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
+            *g_reviewPublicChatOutFileLogs << msg << flush;
         }
     }
 };
@@ -315,14 +338,21 @@ private:
                 OutputDebugStringA("\r\n");
         }
 #endif
+        std::ostringstream os;
+        os << "CHAT " << message;
+        if (*message && message[strlen(message) - 1] != '\n')
+        {
+            os << endl;
+        }
+        const auto msg = os.str();
         if (loglevel <= c::MegaChatApi::LOG_LEVEL_ERROR)
         {
-            auto cl = conlock(cout);
-            cout << "CHAT " << message;
-            if (*message && message[strlen(message) - 1] != '\n')
-            {
-                cout << endl;
-            }
+            conlock(cout) << msg << flush;
+        }
+        if (g_reviewPublicChatOutFileLogs)
+        {
+            std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
+            *g_reviewPublicChatOutFileLogs << msg << flush;
         }
     }
 };
@@ -845,26 +875,6 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
 
 bool oneOpenRoom(c::MegaChatHandle room);
 
-bool g_detailHigh = false;
-
-std::atomic<bool> g_reportMessagesDeveloper{false};
-
-// These objects are helping to work around history loading problems for reviewing public chats
-std::atomic<bool> g_reviewingPublicChat{false};
-std::atomic<int> g_reviewPublicChatMsgCountRemaining{0};
-std::unique_ptr<std::ofstream> g_reviewPublicChatOutFile;
-std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLinks;
-std::map<c::MegaChatHandle, std::string> g_reviewPublicChatEmails;
-std::map<c::MegaChatHandle, std::string> g_reviewPublicChatFirstnames;
-std::map<c::MegaChatHandle, std::string> g_reviewPublicChatLastnames;
-
-void reviewPublicChatFinalize()
-{
-    g_reviewingPublicChat = false;
-    g_reviewPublicChatOutFile.reset();
-    g_reviewPublicChatOutFileLinks.reset();
-}
-
 void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
 {
     constexpr int errorRetryCount = 10;
@@ -885,7 +895,6 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
             {
                 g_reviewPublicChatMsgCountRemaining = 0;
                 cout << "No more messages." << endl;
-                reviewPublicChatFinalize();
                 return;
             }
             default: return;
@@ -1011,7 +1020,6 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     {
         if (g_chatApi->isFullHistoryLoaded(chatid))
         {
-            reviewPublicChatFinalize();
             return;
         }
         cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
@@ -1166,7 +1174,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
        << endl;
     const auto outMsg = os.str();
 
-    if (g_reviewingPublicChat && msg->getContent())
+    if (g_reviewPublicChatOutFileLinks && msg->getContent())
     {
         const auto subChatLink = extractChatLink(msg->getContent());
         if (!subChatLink.empty())
@@ -1176,7 +1184,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     }
 
     conlock(cout) << outMsg;
-    if (g_reviewingPublicChat)
+    if (g_reviewPublicChatOutFile)
     {
         conlock(*g_reviewPublicChatOutFile) << outMsg << flush;
     }
@@ -1284,10 +1292,6 @@ struct CLCRoomListener : public c::MegaChatRoomListener
     void onChatRoomUpdate(c::MegaChatApi*, c::MegaChatRoom *chat) override
     {
         g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, "Room " + ch_s(chat->getChatId()) + " updated");
-        if (g_reviewingPublicChat && chat->isArchived())
-        {
-            *g_reviewPublicChatOutFile << "Chat room is archived." << endl;
-        }
     }
 
     void onMessageLoaded(c::MegaChatApi*, c::MegaChatMessage *msg) override
@@ -2190,8 +2194,13 @@ void exec_reviewpublicchat(ac::ACState& s)
     {
         return;
     }
+    if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
+    {
+        return;
+    }
     *g_reviewPublicChatOutFile << chat_link << endl;
     *g_reviewPublicChatOutFileLinks << chat_link << endl;
+    *g_reviewPublicChatOutFileLogs << chat_link << endl;
 
     static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener;
     // Note: We need to be logged in to receive user emails
