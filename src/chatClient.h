@@ -1114,6 +1114,8 @@ public:
 
     /** @brief Returns a string that contains the user alias in UTF-8 if exists, otherwise returns an empty string*/
     std::string getUserAlias(uint64_t userId);
+    void setMyEmail(const char *email);
+    const std::string& getMyEmail() const;
 
 protected:
     void heartbeat();

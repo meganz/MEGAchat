@@ -3645,6 +3645,14 @@ void ContactList::syncWithApi(mega::MegaUser& user)
         {
             contact->mEmail = user.getEmail();
             client.db.query("update contacts set email = ? where userid = ?", contact->email(), handle);
+            client.userAttrCache().onUserAttrChange(user);
+
+            // If updated user it's own user, we need to update own email in client and cache
+            if (client.myHandle() == user.getHandle())
+            {
+                client.setMyEmail(user.getEmail());
+                client.db.query("insert or replace into vars(name,value) values('my_email', ?)", user.getEmail());
+            }
         }
 
         if (contact->since() != user.getTimestamp())
@@ -3974,6 +3982,19 @@ std::string Client::getUserAlias(uint64_t userId)
         ::mega::Base64::atob(aliasB64, aliasBin);
     }
     return aliasBin;
+}
+
+void Client::setMyEmail(const char *email)
+{
+    if (email && email[0])
+    {
+        mMyEmail.assign(email);
+    }
+}
+
+const std::string& Client::getMyEmail() const
+{
+    return mMyEmail;
 }
 
 std::string encodeFirstName(const std::string& first)
