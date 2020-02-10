@@ -1155,7 +1155,7 @@ protected:
     promise::Promise<void> doConnect();
     void setConnState(ConnState newState);
 
-    void updateUsers(std::shared_ptr<mega::MegaUserList> users);
+    void updateUsers(::mega::MegaUserList &users);
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);

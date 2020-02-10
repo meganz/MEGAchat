@@ -710,8 +710,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
             return;
 
         // Add users from API
-        std::shared_ptr<mega::MegaUserList> users(contactList.get()->copy());
-        updateUsers(users);
+        updateUsers(*contactList);
         mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
@@ -1110,8 +1109,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
 
     // sync contactlist first
     contactList->clear();   // remove obsolete users, just in case, and add them fresh from SDK
-    std::shared_ptr<mega::MegaUserList> users(aContactList.copy());
-    updateUsers(users);
+    updateUsers(aContactList);
 
     // sync the chatroom list
     chats->onChatsUpdate(chatList);
@@ -1608,23 +1606,23 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
             return;
         }
 
-        updateUsers(users);
+        updateUsers(*users);
     }, appCtx);
 }
 
 
-void Client::updateUsers(std::shared_ptr<mega::MegaUserList> users)
+void Client::updateUsers(::mega::MegaUserList &users)
 {
     assert(mUserAttrCache);
-    auto count = users->size();
+    auto count = users.size();
     for (int i = 0; i < count; i++)
     {
-        auto& user = *users->get(i);
-        contactList->syncWithApi(user);
+        ::mega::MegaUser *user = users.get(i);
+        contactList->syncWithApi(*user);
 
-        if (user.getChanges() && user.isOwnChange() == 0)
+        if (user->getChanges() && !user->isOwnChange())
         {
-            mUserAttrCache->onUserAttrChange(user);
+            mUserAttrCache->onUserAttrChange(*user);
         }
     };
 }
@@ -3671,13 +3669,13 @@ void ContactList::syncWithApi(mega::MegaUser& user)
         Contact *contact = new Contact(*this, userid, email, newVisibility, ts, nullptr);
         emplace(userid, contact);
 
-        // If the user was part of a group before being added as a contact, we need to update user attributes,
-        // currently firstname and lastname only (driven by SDK)
-        if (user.getChanges())
-        {
-            client.userAttrCache().onUserAttrChange(user);
-        }
         KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
+
+        // If the user was part of a group before being added as a contact, we need to update user attributes,
+        // currently firstname and lastname only (driven by SDK), in order to ensure that are re-fetched for users
+        // with group chats previous to establish contact relationship
+        int changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME;
+        client.userAttrCache().onUserAttrChange(userid, changed);
     }
 }
 
