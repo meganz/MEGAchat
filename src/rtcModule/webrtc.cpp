@@ -186,7 +186,7 @@ bool RtcModule::selectVideoInDevice(const string &devname)
             mVideoDeviceSelected = device.second;
             for (auto callIt : mCalls)
             {
-                if (callIt.second->state() == Call::kStateInProgress && callIt.second->sentAv().video())
+                if (callIt.second->state() >= Call::kStateHasLocalStream && callIt.second->sentAv().video())
                 {
                     callIt.second->changeVideoInDevice();
                 }
@@ -1568,6 +1568,11 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
+    if (mVideoDevice)
+    {
+        mVideoDevice->releaseDevice();
+    }
+
     mLocalPlayer.reset();
     mLocalStream.reset();
 
@@ -2335,6 +2340,11 @@ Call::~Call()
         {
             cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
             mDestroySessionTimer = 0;
+        }
+
+        if (mVideoDevice)
+        {
+            mVideoDevice->releaseDevice();
         }
 
         clearCallOutTimer();

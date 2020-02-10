@@ -143,12 +143,13 @@ public:
     {
         RTCM_DO_CALLBACK(mPromise.resolve(); Release(), this);
     }
-    virtual void OnFailure(const std::string& error)
+
+    virtual void OnFailure(webrtc::RTCError error)
     {
         RTCM_DO_CALLBACK(
-             mPromise.reject(::promise::Error(error, kSetSdpDescriptionFailed, ERRTYPE_RTC));
-             Release();
-        , this, error);
+            mPromise.reject(::promise::Error(error.message(), kSetSdpDescriptionFailed, ERRTYPE_RTC));
+            Release();
+        , this, error.message());
     }
 
 protected:
