@@ -1619,11 +1619,6 @@ void Client::updateUsers(::mega::MegaUserList &users)
     {
         ::mega::MegaUser *user = users.get(i);
         contactList->syncWithApi(*user);
-
-        if (user->getChanges() && !user->isOwnChange())
-        {
-            mUserAttrCache->onUserAttrChange(*user);
-        }
     };
 }
 
@@ -3608,6 +3603,7 @@ void ContactList::syncWithApi(mega::MegaUser& user)
 {
     auto newVisibility = user.getVisibility();
 
+    int changed = 0;
     ContactList::iterator it = find(user.getHandle());
     if (it != end())    // existing contact or ex-contact
     {
@@ -3634,23 +3630,33 @@ void ContactList::syncWithApi(mega::MegaUser& user)
                 {
                     // API doesn't notify about changes for ex-contacts, so need to update user attributes
                     assert(user.getChanges());  // currently, firstname and lastname only (driven by SDK)
-                    client.userAttrCache().onUserAttrChange(user);
+                    changed = user.getChanges();
                 }
             }
         }
 
         if (contact->email() != user.getEmail())
         {
-            contact->mEmail = user.getEmail();
-            client.db.query("update contacts set email = ? where userid = ?", contact->email(), handle);
-            client.userAttrCache().onUserAttrChange(user);
+            std::string newEmail;
+            const char *userEmail = user.getEmail();
+            if (userEmail && userEmail[0])
+            {
+                newEmail.assign(userEmail);
+            }
 
-            // If updated user it's own user, we need to update own email in client and cache
+            // Update contact email in memory and cache
+            contact->mEmail = newEmail;
+            client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
+
+            // If user it's our own user, we need to update our own email in client and cache
             if (client.myHandle() == user.getHandle())
             {
-                client.setMyEmail(user.getEmail());
-                client.db.query("insert or replace into vars(name,value) values('my_email', ?)", user.getEmail());
+                client.setMyEmail(newEmail);
+                client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
             }
+
+            // We need to update user email user attribute
+            changed = user.getChanges();
         }
 
         if (contact->since() != user.getTimestamp())
@@ -3672,10 +3678,23 @@ void ContactList::syncWithApi(mega::MegaUser& user)
         KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
 
         // If the user was part of a group before being added as a contact, we need to update user attributes,
-        // currently firstname and lastname only (driven by SDK), in order to ensure that are re-fetched for users
+        // currently firstname and lastname only, in order to ensure that are re-fetched for users
         // with group chats previous to establish contact relationship
-        int changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME;
-        client.userAttrCache().onUserAttrChange(userid, changed);
+        changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME;
+    }
+
+    if (user.getChanges() && !user.isOwnChange())
+    {
+        // update user attributes if changes are external
+        client.userAttrCache().onUserAttrChange(user);
+    }
+    else if (changed)
+    {
+        // update user attributes if:
+        //  - visibility has changed from VISIBILITY_HIDDEN to VISIBILITY_VISIBLE (ex-contact to contact)
+        //  - visibility has changed from VISIBILITY_UNKNOWN to VISIBILITY_VISIBLE (non-contact to contact)
+        //  - user email has changed
+        client.userAttrCache().onUserAttrChange(user.getHandle(), changed);
     }
 }
 
@@ -3982,12 +4001,9 @@ std::string Client::getUserAlias(uint64_t userId)
     return aliasBin;
 }
 
-void Client::setMyEmail(const char *email)
+void Client::setMyEmail(const std::string &email)
 {
-    if (email && email[0])
-    {
-        mMyEmail.assign(email);
-    }
+    mMyEmail = email;
 }
 
 const std::string& Client::getMyEmail() const
