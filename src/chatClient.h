@@ -474,6 +474,7 @@ protected:
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
     UserAttrCache::Handle mUsernameAttrCbId;
+    UserAttrCache::Handle mEmailAttrCbId;
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;

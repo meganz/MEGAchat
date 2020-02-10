@@ -2153,6 +2153,7 @@ PeerChatRoom::~PeerChatRoom()
     if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
+        client.userAttrCache().removeCb(mEmailAttrCbId);
 
         if (mRoomGui)
         {
@@ -3763,6 +3764,24 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         }
     });
 
+    mEmailAttrCbId = mClist.client.userAttrCache().getAttr(userid, USER_ATTR_EMAIL, this,
+    [](Buffer* data, void* userp)
+    {
+        auto self = static_cast<Contact*>(userp);
+        if (data && !data->empty() && *data->buf() != 0 && data->size() != 1)
+        {
+            self->mEmail.assign(data->buf(), data->dataSize());
+
+            // If contact has alias or contactName don't update title
+            std::string alias = self->mClist.client.getUserAlias(self->userId());
+            std::string contactName = self->getContactName();
+            if (alias.empty() && contactName.empty())
+            {
+                self->updateTitle(self->mEmail);
+            }
+        }
+    });
+
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
         updateTitle(encodeFirstName(email));
@@ -3796,6 +3815,7 @@ Contact::~Contact()
     if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
+        client.userAttrCache().removeCb(mEmailAttrCbId);
     }
 }
 
