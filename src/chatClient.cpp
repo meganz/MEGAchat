@@ -710,8 +710,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
             return;
 
         // Add users from API
-        std::shared_ptr<mega::MegaUserList> users(contactList.get()->copy());
-        updateUsers(users);
+        updateUsers(*contactList);
         mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
@@ -1110,8 +1109,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
 
     // sync contactlist first
     contactList->clear();   // remove obsolete users, just in case, and add them fresh from SDK
-    std::shared_ptr<mega::MegaUserList> users(aContactList.copy());
-    updateUsers(users);
+    updateUsers(aContactList);
 
     // sync the chatroom list
     chats->onChatsUpdate(chatList);
@@ -1608,23 +1606,23 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
             return;
         }
 
-        updateUsers(users);
+        updateUsers(*users);
     }, appCtx);
 }
 
 
-void Client::updateUsers(std::shared_ptr<mega::MegaUserList> users)
+void Client::updateUsers(::mega::MegaUserList &users)
 {
     assert(mUserAttrCache);
-    auto count = users->size();
+    auto count = users.size();
     for (int i = 0; i < count; i++)
     {
-        auto& user = *users->get(i);
-        contactList->syncWithApi(user);
+        ::mega::MegaUser *user = users.get(i);
+        contactList->syncWithApi(*user);
 
-        if (user.getChanges() && user.isOwnChange() == 0)
+        if (user->getChanges() && user->isOwnChange() == 0)
         {
-            mUserAttrCache->onUserAttrChange(user);
+            mUserAttrCache->onUserAttrChange(*user);
         }
     };
 }
