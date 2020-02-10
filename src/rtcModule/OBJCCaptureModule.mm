@@ -131,14 +131,6 @@ namespace artc
         mVideoSource->RemoveSink(sink);
     }
 
-    void OBJCCaptureModule::AddRef() const
-    {
-    }
-
-    rtc::RefCountReleaseStatus OBJCCaptureModule::Release() const
-    {
-    }
-
     void OBJCCaptureModule::RegisterObserver(webrtc::ObserverInterface* observer)
     {
         mVideoSource->RegisterObserver(observer);

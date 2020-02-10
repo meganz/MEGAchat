@@ -948,6 +948,63 @@ std::string timeToStringUTC(const int64_t time)
     return std::string{buffer};
 }
 
+std::string msgTypeToString(const int msgType)
+{
+    switch (msgType)
+    {
+        case c::MegaChatMessage::TYPE_UNKNOWN: return "TYPE_UNKNOWN";
+        case c::MegaChatMessage::TYPE_INVALID: return "TYPE_INVALID";
+        case c::MegaChatMessage::TYPE_NORMAL: return "TYPE_NORMAL";
+        case c::MegaChatMessage::TYPE_ALTER_PARTICIPANTS: return "TYPE_ALTER_PARTICIPANTS";
+        case c::MegaChatMessage::TYPE_TRUNCATE: return "TYPE_TRUNCATE";
+        case c::MegaChatMessage::TYPE_PRIV_CHANGE: return "TYPE_PRIV_CHANGE";
+        case c::MegaChatMessage::TYPE_CHAT_TITLE: return "TYPE_CHAT_TITLE";
+        case c::MegaChatMessage::TYPE_CALL_ENDED: return "TYPE_CALL_ENDED";
+        case c::MegaChatMessage::TYPE_CALL_STARTED: return "TYPE_CALL_STARTED";
+        case c::MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE: return "TYPE_PUBLIC_HANDLE_CREATE";
+        case c::MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE: return "TYPE_PUBLIC_HANDLE_DELETE";
+        case c::MegaChatMessage::TYPE_SET_PRIVATE_MODE: return "TYPE_SET_PRIVATE_MODE";
+        case c::MegaChatMessage::TYPE_NODE_ATTACHMENT: return "TYPE_NODE_ATTACHMENT";
+        case c::MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT: return "TYPE_REVOKE_NODE_ATTACHMENT";
+        case c::MegaChatMessage::TYPE_CONTACT_ATTACHMENT: return "TYPE_CONTACT_ATTACHMENT";
+        case c::MegaChatMessage::TYPE_CONTAINS_META: return "TYPE_CONTAINS_META";
+        case c::MegaChatMessage::TYPE_VOICE_CLIP: return "TYPE_VOICE_CLIP";
+        default: assert(false); return "Invalid Msg Type (" + std::to_string(msgType) + ")";
+    }
+    return {};
+}
+
+std::string msgStatusToString(const int msgStatus)
+{
+    switch (msgStatus)
+    {
+        case c::MegaChatMessage::STATUS_UNKNOWN: return "STATUS_UNKNOWN";
+        case c::MegaChatMessage::STATUS_SENDING: return "STATUS_SENDING";
+        case c::MegaChatMessage::STATUS_SENDING_MANUAL: return "STATUS_SENDING_MANUAL";
+        case c::MegaChatMessage::STATUS_SERVER_RECEIVED: return "STATUS_SERVER_RECEIVED";
+        case c::MegaChatMessage::STATUS_SERVER_REJECTED: return "STATUS_SERVER_REJECTED";
+        case c::MegaChatMessage::STATUS_DELIVERED: return "STATUS_DELIVERED";
+        case c::MegaChatMessage::STATUS_NOT_SEEN: return "STATUS_NOT_SEEN";
+        case c::MegaChatMessage::STATUS_SEEN: return "STATUS_SEEN";
+        default: assert(false); return "Invalid Msg Status (" + std::to_string(msgStatus) + ")";
+    }
+    return {};
+}
+
+std::string callTermCodeToString(const int termCode)
+{
+    switch (termCode)
+    {
+        case c::MegaChatMessage::END_CALL_REASON_ENDED: return "END_CALL_REASON_ENDED";
+        case c::MegaChatMessage::END_CALL_REASON_REJECTED: return "END_CALL_REASON_REJECTED";
+        case c::MegaChatMessage::END_CALL_REASON_NO_ANSWER: return "END_CALL_REASON_NO_ANSWER";
+        case c::MegaChatMessage::END_CALL_REASON_FAILED: return "END_CALL_REASON_FAILED";
+        case c::MegaChatMessage::END_CALL_REASON_CANCELLED: return "END_CALL_REASON_CANCELLED";
+        default: assert(false); return "Invalid Call Term Code (" + std::to_string(termCode) + ")";
+    }
+    return {};
+}
+
 void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
 {
     if (!msg)
@@ -1052,79 +1109,70 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         return std::string{"<No Email>"};
     };
 
-    std::ostringstream os;
-
-    std::string outMsg;
-    if (msg->getType() == c::MegaChatMessage::TYPE_NORMAL)
+    auto nodeinfo = [](m::MegaNodeList* list)
     {
-        os   << room_title
-             << " | " << "TEXT"
-             << " | " << timeToStringUTC(msg->getTimestamp()) << " UTC"
-             << " | " << ch_s(msg->getUserHandle())
-             << " | " << firstname(msg->getUserHandle())
-             << " | " << lastname(msg->getUserHandle())
-             << " | " << email(msg->getUserHandle())
-             << " | " << (msg->isEdited() ? "edited" : "not edited")
-             << " | " << (msg->isDeleted() ? "deleted" : "not deleted")
-             << " | " << (msg->getContent() ? msg->getContent() : "<No Content>")
-                ;
-        os << endl;
-        outMsg = os.str();
-        if (g_reviewingPublicChat && msg->getContent())
+        if (!list || list->size() == 0)
         {
-            const auto subChatLink = extractChatLink(msg->getContent());
-            if (!subChatLink.empty())
+            return std::string{"<No Attachement>"};
+        }
+        std::stringstream ss;
+        for (int i = 0; i < list->size(); ++i)
+        {
+            const auto node = list->get(i);
+            ss << node->getName() << "(" << node->getSize() << ")";
+            if (i + 1 < list->size())
             {
-                conlock(*g_reviewPublicChatOutFileLinks) << outMsg << flush;
+                ss << ", ";
             }
         }
-    }
-    else if (msg->getType() == c::MegaChatMessage::TYPE_ALTER_PARTICIPANTS)
-    {
-        os   << room_title
-             << " | " << "PARTICIPANT"
-             << " | " << timeToStringUTC(msg->getTimestamp()) << " UTC"
-             << " | " << ch_s(msg->getHandleOfAction())
-             << " | " << firstname(msg->getUserHandle())
-             << " | " << lastname(msg->getUserHandle())
-             << " | " << email(msg->getHandleOfAction())
-             << " | " << "joined/left"
-           ;
-        os << endl;
-        outMsg = os.str();
-    }
-    else if (msg->getType() == c::MegaChatMessage::TYPE_NODE_ATTACHMENT)
-    {
-        auto nodeinfo = [](m::MegaNodeList* list)
-        {
-            if (!list || list->size() == 0)
-            {
-                return std::string{"<No Attachement>"};
-            }
-            std::stringstream ss;
-            for (int i = 0; i < list->size(); ++i)
-            {
-                const auto node = list->get(i);
-                ss << node->getName() << "(" << node->getSize() << ")";
-                if (i + 1 < list->size())
-                {
-                    ss << ", ";
-                }
-            }
-            return ss.str();
-        };
+        return ss.str();
+    };
 
-        os   << room_title
-             << " | " << "ATTACHMENT"
-             << " | " << timeToStringUTC(msg->getTimestamp()) << " UTC"
-             << " | " << ch_s(msg->getUserHandle())
-             << " | " << firstname(msg->getUserHandle())
-             << " | " << lastname(msg->getUserHandle())
-             << " | " << email(msg->getUserHandle())
-             << " | " << nodeinfo(msg->getMegaNodeList())
-           ;
-        os << endl;
-        outMsg = os.str();
+    auto metainfo = [](const c::MegaChatContainsMeta* meta)
+    {
+        if (!meta || !meta->getTextMessage())
+        {
+            return "<No Meta>";
+        }
+        return meta->getTextMessage();
+    };
+
+    auto callinfo = [](const int msgType, const int duration, const int termCode)
+    {
+        if (msgType != c::MegaChatMessage::TYPE_CALL_ENDED)
+        {
+            return std::string{"<Not an ending call>"};
+        }
+        return "Call ended: " + callTermCodeToString(termCode) + " - " + std::to_string(duration);
+    };
+
+    std::ostringstream os;
+    os << room_title
+       << " | " << timeToStringUTC(msg->getTimestamp()) << " UTC"
+       << " | " << msgTypeToString(msg->getType())
+       << " | " << ch_s(msg->getMsgId())
+       << " | " << ch_s(msg->getHandleOfAction())
+       << " | " << ch_s(msg->getUserHandle())
+       << " | " << (msg->hasReactions() ? "reacted to" : "not reacted to")
+       << " | " << (msg->isEdited() ? "edited" : "not edited")
+       << " | " << (msg->isDeleted() ? "deleted" : "not deleted")
+       << " | " << nodeinfo(msg->getMegaNodeList())
+       << " | " << metainfo(msg->getContainsMeta())
+       << " | " << callinfo(msg->getType(), msg->getDuration(), msg->getTermCode())
+       << " | " << firstname(msg->getUserHandle())
+       << " | " << lastname(msg->getUserHandle())
+       << " | " << email(msg->getUserHandle())
+       << " | " << (msg->getContent() ? msg->getContent() : "<No Content>")
+       << endl;
+    const auto outMsg = os.str();
+
+    if (g_reviewingPublicChat && msg->getContent())
+    {
+        const auto subChatLink = extractChatLink(msg->getContent());
+        if (!subChatLink.empty())
+        {
+            conlock(*g_reviewPublicChatOutFileLinks) << outMsg << flush;
+        }
     }
 
     conlock(cout) << outMsg;
@@ -1163,19 +1211,7 @@ void reportMessage(c::MegaChatHandle room, c::MegaChatMessage *msg, const char* 
 
     cout << "Room " << ch_s(room) << " " << loadorreceive << " message " << msg->getMsgIndex() << " from " << ch_s(msg->getUserHandle()) << " type: ";
 
-    switch (msg->getType())
-    {
-    case c::MegaChatMessage::TYPE_INVALID: cout << "TYPE_INVALID"; break;
-    case c::MegaChatMessage::TYPE_NORMAL: cout << "TYPE_NORMAL"; break;
-    case c::MegaChatMessage::TYPE_ALTER_PARTICIPANTS: cout << "TYPE_ALTER_PARTICIPANTS"; break;
-    case c::MegaChatMessage::TYPE_TRUNCATE: cout << "TYPE_TRUNCATE"; break;
-    case c::MegaChatMessage::TYPE_PRIV_CHANGE: cout << "TYPE_PRIV_CHANGE"; break;
-    case c::MegaChatMessage::TYPE_CHAT_TITLE: cout << "TYPE_CHAT_TITLE"; break;
-    case c::MegaChatMessage::TYPE_NODE_ATTACHMENT: cout << "TYPE_NODE_ATTACHMENT"; break;
-    case c::MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT: cout << "TYPE_REVOKE_NODE_ATTACHMENT"; break;
-    case c::MegaChatMessage::TYPE_CONTACT_ATTACHMENT: cout << "TYPE_CONTACT_ATTACHMENT"; break;
-    default: cout << msg->getType();
-    }
+    cout << msgTypeToString(msg->getType());
 
     if (msg->getMsgId() != c::MEGACHAT_INVALID_HANDLE)
     {
@@ -3459,6 +3495,45 @@ void exec_cp(ac::ACState& s)
     }
 }
 
+void exec_mv(ac::ACState& s)
+{
+    string newname;
+    bool rename = s.extractflagparam("-rename", newname);
+
+    std::unique_ptr<m::MegaNode> srcnode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
+    std::unique_ptr<m::MegaNode> dstnode(g_megaApi->getNodeByPath(s.words[2].s.c_str()));
+                                                                                                                                                     
+    if (!srcnode)
+    {
+        conlock(cout) << "source not found" << endl;
+    }
+    else if (!dstnode)
+    {
+        conlock(cout) << "destination not found" << endl;
+    }
+    else if (dstnode->getType() <= m::MegaNode::TYPE_FILE)
+    {
+        conlock(cout) << "destination is not a folder" << endl;
+    }
+    else
+    {
+        if (rename)
+        {
+            g_megaApi->moveNode(srcnode.get(), dstnode.get(), newname.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+            {
+                check_err("moveNode", e, ReportResult);
+            }));
+        }
+        else
+        {
+            g_megaApi->moveNode(srcnode.get(), dstnode.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+            {
+                check_err("moveNode", e, ReportResult);
+            }));
+        }
+    }
+}
+
 void PrintAchievements(m::MegaAchievementsDetails & ad)
 {
     auto cl = conlock(cout);
@@ -3792,6 +3867,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getcloudstorageused, sequence(text("getcloudstorageused")));
 
     p->Add(exec_cp, sequence(text("cp"), param("remotesrc"), param("remotedst")));
+    p->Add(exec_mv, sequence(text("mv"), param("remotesrc"), param("remotedst"), opt(sequence(flag("-rename"), param("newname")))));
 
     p->Add(exec_setCameraUploadsFolder, sequence(text("setcamerauploadsfolder"), param("remotedst")));
     p->Add(exec_getCameraUploadsFolder, sequence(text("getcamerauploadsfolder")));

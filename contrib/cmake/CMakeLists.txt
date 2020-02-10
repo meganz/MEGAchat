@@ -44,12 +44,7 @@ endif()
 
 
 if (WIN32)
-    ImportVcpkgLibrary(websockets         "${Mega3rdPartyDir}/libwebsockets/build32debug/include" "${Mega3rdPartyDir}/libwebsockets/build32debug/lib/Debug/websockets_static.lib" "${Mega3rdPartyDir}/build32release/lib/websockets.lib")
-    if (USE_PREBUILT_3RDPARTY)
-        ImportVcpkgLibrary(uv             "${Mega3rdPartyDir}/include/libuv" "${Mega3rdPartyDir}/libs/x32d/libuv.lib" "${Mega3rdPartyDir}/libs/x32/libuv.lib")
-    else()
-        ImportVcpkgLibrary(uv             "${vcpkg_dir}/include" "${vcpkg_dir}/debug/lib/libuv.lib" "${vcpkg_dir}/lib/libuv.lib")
-    endif()
+    ImportStdVcpkgLibrary(websockets websockets websockets websockets websockets)
 
     if (USE_WEBRTC)
         # additional directories used in this project, after the main one incluced by the MEGA SDK
