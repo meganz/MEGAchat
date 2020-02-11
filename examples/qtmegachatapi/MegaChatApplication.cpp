@@ -263,14 +263,30 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
                 {
                     mMegaApi->getUserAttribute(::mega::MegaApi::USER_ATTR_ALIAS);
                 }
-
-                break;
             }
             else
             {
                 if (user->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
                 {
                     getFirstname(user->getHandle(), NULL, true);
+                }
+            }
+
+            if (user->hasChanged(MegaUser::CHANGE_TYPE_EMAIL))
+            {
+                if (user->getHandle() == mMegaChatApi->getMyUserHandle())
+                {
+                     mMainWin->setWindowTitle(QString(user->getEmail()));
+                     mMainWin->updateToolTipMyInfo();
+                }
+                else
+                {
+                    if (!getFirstname(user->getHandle(), nullptr) && !getLocalUserAlias(user->getHandle()).empty())
+                    {
+                       // Update contact title and messages
+                       mMainWin->updateContactFirstname(user->getHandle(), user->getEmail());
+                       mMainWin->updateMessageFirstname(user->getHandle(), user->getEmail());
+                    }
                 }
             }
         }

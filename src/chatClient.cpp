@@ -2153,7 +2153,6 @@ PeerChatRoom::~PeerChatRoom()
     if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
-        client.userAttrCache().removeCb(mEmailAttrCbId);
 
         if (mRoomGui)
         {
@@ -3656,7 +3655,7 @@ void ContactList::syncWithApi(mega::MegaUser& user)
                 client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
             }
 
-            // We need to update user email user attribute
+            // We need to update user email
             changed = user.getChanges();
         }
 
@@ -3771,6 +3770,12 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         if (data && !data->empty() && *data->buf() != 0 && data->size() != 1)
         {
             self->mEmail.assign(data->buf(), data->dataSize());
+
+            // Update peer chatRoom email if exists
+            if (self->mChatRoom)
+            {
+                self->mChatRoom->mEmail.assign(self->mEmail);
+            }
 
             // If contact has alias or contactName don't update title
             std::string alias = self->mClist.client.getUserAlias(self->userId());
