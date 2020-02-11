@@ -263,8 +263,6 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
                 {
                     mMegaApi->getUserAttribute(::mega::MegaApi::USER_ATTR_ALIAS);
                 }
-
-                break;
             }
             else
             {
@@ -272,6 +270,11 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
                 {
                     getFirstname(user->getHandle(), NULL, true);
                 }
+            }
+
+            if (user->hasChanged(MegaUser::CHANGE_TYPE_EMAIL))
+            {
+                mMegaChatApi->getUserEmail(user->getHandle());
             }
         }
     }
@@ -674,7 +677,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 mFirstnamesMap[userHandle] = firstname;
                 mFirstnameFetching[userHandle] = false;
-                mMainWin->updateContactFirstname(userHandle,firstname);
+                mMainWin->updateContactTitle(userHandle,firstname);
                 mMainWin->updateMessageFirstname(userHandle,firstname);
              }
              else if (errorCode == MegaChatError::ERROR_NOENT)
@@ -689,8 +692,34 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             if (error == MegaChatError::ERROR_OK)
             {
                const char *email = request->getText();
-               mMainWin->updateContactFirstname(userHandle,email);
-               mMainWin->updateMessageFirstname(userHandle,email);
+               if (userHandle == mMegaChatApi->getMyUserHandle())
+               {
+                    mMainWin->setWindowTitle(QString(email));
+                    mMainWin->updateToolTipMyInfo();
+               }
+               else
+               {
+                  if (!getFirstname(userHandle, nullptr) && !getLocalUserAlias(userHandle).empty())
+                  {
+                     // Update contact title and messages
+                     mMainWin->updateContactTitle(userHandle, email);
+                     mMainWin->updateMessageFirstname(userHandle, email);
+                  }
+                  else
+                  {
+                      std::map<megachat::MegaChatHandle, ChatListItemController *>::iterator it;
+                      for (it = mMainWin->mChatControllers.begin(); it != mMainWin->mChatControllers.end(); it++)
+                      {
+                          ChatListItemController *itemController = it->second;
+                          const MegaChatListItem *item = itemController->getItem();
+                          ChatItemWidget *widget = itemController->getWidget();
+                          if (item && widget)
+                          {
+                              widget->updateToolTip(item);
+                          }
+                      }
+                  }
+               }
             }
             else
             {

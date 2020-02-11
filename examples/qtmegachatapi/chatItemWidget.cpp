@@ -498,6 +498,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actPrintChat = menu.addAction(tr("Print chat info"));
     connect(actPrintChat, SIGNAL(triggered()), this, SLOT(onPrintChatInfo()));
 
+    auto actTooltip = menu.addAction(tr("Update tooltip"));
+    connect(actTooltip, SIGNAL(triggered()), this, SLOT(onUpdateTooltip()));
+
     auto actCopy = menu.addAction(tr("Copy chatid to clipboard"));
     connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
 
@@ -512,6 +515,14 @@ void ChatItemWidget::onPrintChatInfo()
     msg.setIcon(QMessageBox::Information);
     msg.setText(this->toolTip());
     msg.exec();
+}
+
+void ChatItemWidget::onUpdateTooltip()
+{
+    if (mController)
+    {
+        updateToolTip(mController->getItem());
+    }
 }
 
 void ChatItemWidget::onCopyHandle()

@@ -24,7 +24,7 @@ class ChatItemWidget : public QWidget
         virtual void onUnreadCountChanged(int count);
         virtual void onPreviewersCountChanged(int count);
         virtual void onTitleChanged(const std::string& title);
-        virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
+        virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author = nullptr);
         virtual void onlineIndicatorUpdate(int newState);
         virtual void mouseDoubleClickEvent(QMouseEvent *event);
         const char *getLastMessageSenderName(megachat::MegaChatHandle msgUserId);   // returns ownership, free with delete []
@@ -42,6 +42,7 @@ class ChatItemWidget : public QWidget
     public slots:
         void onPrintChatInfo();
         void onCopyHandle();
+        void onUpdateTooltip();
 
     friend class MainWindow;
     friend class ContactItemWidget;
