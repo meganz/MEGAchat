@@ -3678,9 +3678,9 @@ void ContactList::syncWithApi(mega::MegaUser& user)
         KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
 
         // If the user was part of a group before being added as a contact, we need to update user attributes,
-        // currently firstname and lastname only, in order to ensure that are re-fetched for users
+        // currently firstname, lastname and email, in order to ensure that are re-fetched for users
         // with group chats previous to establish contact relationship
-        changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME;
+        changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME | ::mega::MegaUser::CHANGE_TYPE_EMAIL;
     }
 
     if (user.getChanges() && !user.isOwnChange())
