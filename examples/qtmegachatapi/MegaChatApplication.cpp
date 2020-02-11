@@ -281,7 +281,7 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
                 }
                 else
                 {
-                    if (!getFirstname(user->getHandle(), nullptr) && !getLocalUserAlias(user->getHandle()).empty())
+                    if (!getLocalUserAlias(user->getHandle()).empty() && !getFirstname(user->getHandle(), nullptr))
                     {
                        // Update contact title and messages
                        mMainWin->updateContactFirstname(user->getHandle(), user->getEmail());
