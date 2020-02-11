@@ -215,7 +215,6 @@ public:
     virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
     virtual ISessionHandler* onNewSession(ISession& /*sess*/) { return nullptr; }
     virtual void onLocalStreamObtained(IVideoRenderer*& /*rendererOut*/) {}
-    virtual void onLocalMediaError(const std::string /*errors*/) {}
     virtual void onRingOut(karere::Id /*peer*/) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}

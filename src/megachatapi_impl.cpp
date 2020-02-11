@@ -5224,7 +5224,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     initialAVFlags = karere::AvFlags(false, false);
     initialTs = 0;
     finalTs = 0;
-    temporaryError = std::string("");
     termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
     localTermCode = false;
     ringing = false;
@@ -5251,7 +5250,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration
     }
 
     finalTs = 0;
-    temporaryError = std::string("");
     termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
     localTermCode = false;
     ringing = false;
@@ -5275,7 +5273,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->changed = call.changed;
     this->initialTs = call.initialTs;
     this->finalTs = call.finalTs;
-    this->temporaryError = call.temporaryError;
     this->termCode = call.termCode;
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
@@ -5381,11 +5378,6 @@ int64_t MegaChatCallPrivate::getInitialTimeStamp() const
 int64_t MegaChatCallPrivate::getFinalTimeStamp() const
 {
     return finalTs;
-}
-
-const char *MegaChatCallPrivate::getTemporaryError() const
-{
-    return temporaryError.c_str();
 }
 
 int MegaChatCallPrivate::getTermCode() const
@@ -5566,14 +5558,7 @@ void MegaChatCallPrivate::setFinalTimeStamp(int64_t timeStamp)
 void MegaChatCallPrivate::removeChanges()
 {
     changed = MegaChatCall::CHANGE_TYPE_NO_CHANGES;
-    temporaryError.clear();
     callCompositionChange = NO_COMPOSITION_CHANGE;
-}
-
-void MegaChatCallPrivate::setError(const string &temporaryError)
-{
-    this->temporaryError = temporaryError;
-    changed |= MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR;
 }
 
 void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
@@ -8010,23 +7995,6 @@ void MegaChatCallHandler::onLocalStreamObtained(rtcModule::IVideoRenderer *&rend
     else
     {
         API_LOG_ERROR("MegaChatCallHandler::onLocalStreamObtained - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-    }
-}
-
-void MegaChatCallHandler::onLocalMediaError(const string errors)
-{
-    assert(chatCall != NULL);
-    if (chatCall != NULL)
-    {
-        chatCall->setError(errors);
-        API_LOG_INFO("Local media error at call. ChatId: %s, callid: %s, error: %s",
-                     ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()));
-
-        megaChatApi->fireOnChatCallUpdate(chatCall);
-    }
-    else
-    {
-        API_LOG_ERROR("MegaChatCallHandler::onLocalMediaError - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
     }
 }
 
