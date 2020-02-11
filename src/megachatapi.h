@@ -575,7 +575,7 @@ public:
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid);
 
     /**
-     * @brief Returns handle of the peer which has been added/removed to call
+     * @brief Returns the handle of the peer that has been added/removed to call
      *
      * This function only returns a valid value when MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION is notified
      * via MegaChatCallListener::onChatCallUpdate
