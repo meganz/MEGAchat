@@ -41,6 +41,7 @@ class ChatItemWidget : public QWidget
 
     public slots:
         void onPrintChatInfo();
+        void onUpdateTooltip();
         void onCopyHandle();
 
     friend class MainWindow;
