@@ -8293,7 +8293,7 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
     megaChatApi->fireOnChatSessionUpdate(chatCall->getChatid(), chatCall->getId(), megaChatSession);
 }
 
-void MegaChatSessionHandler::onVideoRecv()
+void MegaChatSessionHandler::onDataRecv()
 {
     MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
     megaChatSession->setSessionFullyOperative();

@@ -115,7 +115,7 @@ protected:
     void msgMute(RtMessage& packet);
     void msgSdpOfferRenegotiate(RtMessage& packet);
     void msgSdpAnswerRenegotiate(RtMessage& packet);
-    void onVideoRecv();
+    void onDataRecv();
     void submitStats(TermCode termCode, const std::string& errInfo);
     bool verifySdpFingerprints(const std::string& sdp);
     template<class... Args>

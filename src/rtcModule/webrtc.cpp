@@ -1126,7 +1126,7 @@ void Call::getLocalStream(AvFlags av)
     mLocalStream = std::make_shared<artc::LocalStreamHandle>();
 
     IVideoRenderer* renderer = NULL;
-    FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
+    FIRE_EVENT(CALL, onLocalStreamObtained, renderer);
     mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
     if (av.video())
     {
@@ -2926,7 +2926,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
     mRemotePlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
     mRemotePlayer->setOnMediaStart([this]()
     {
-        FIRE_EVENT(SESS, onVideoRecv);
+        FIRE_EVENT(SESSION, onDataRecv);
     });
     mRemotePlayer->attachToStream(stream);
     mRemotePlayer->enableVideo(mPeerAv.video());
@@ -3080,7 +3080,7 @@ void Session::updateAvFlags(AvFlags flags)
         mRemotePlayer->enableVideo(mPeerAv.video());
     }
 
-    FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
+    FIRE_EVENT(SESSION, onPeerMute, mPeerAv, oldAv);
 }
 
 //end of event handlers
@@ -3337,9 +3337,9 @@ void Session::destroy(TermCode code, const std::string& msg)
     removeRtcConnection();
 
     mRemotePlayer.reset();
-    FIRE_EVENT(SESS, onRemoteStreamRemoved);
+    FIRE_EVENT(SESSION, onRemoteStreamRemoved);
     setState(kStateDestroyed);
-    FIRE_EVENT(SESS, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
+    FIRE_EVENT(SESSION, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
         !!(code & TermCode::kPeer), msg);
     mCall.removeSession(*this, code);
 }
@@ -3496,7 +3496,7 @@ void Session::manageNetworkQuality(stats::Sample *sample)
     mNetworkQuality = sample->lq;
     if (previousNetworkquality != mNetworkQuality)
     {
-        FIRE_EVENT(SESS, onSessionNetworkQualityChange, mNetworkQuality);
+        FIRE_EVENT(SESSION, onSessionNetworkQualityChange, mNetworkQuality);
     }
 }
 
