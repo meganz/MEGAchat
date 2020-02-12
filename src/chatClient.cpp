@@ -2153,7 +2153,6 @@ PeerChatRoom::~PeerChatRoom()
     if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
-        client.userAttrCache().removeCb(mEmailAttrCbId);
 
         if (mRoomGui)
         {
@@ -3656,7 +3655,7 @@ void ContactList::syncWithApi(mega::MegaUser& user)
                 client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
             }
 
-            // We need to update user email user attribute
+            // We need to update user email in attr cache
             changed = user.getChanges();
         }
 
@@ -3679,9 +3678,9 @@ void ContactList::syncWithApi(mega::MegaUser& user)
         KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
 
         // If the user was part of a group before being added as a contact, we need to update user attributes,
-        // currently firstname and lastname only, in order to ensure that are re-fetched for users
+        // currently firstname, lastname and email, in order to ensure that are re-fetched for users
         // with group chats previous to establish contact relationship
-        changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME;
+        changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME | ::mega::MegaUser::CHANGE_TYPE_EMAIL;
     }
 
     if (user.getChanges() && !user.isOwnChange())
@@ -3771,6 +3770,11 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         if (data && !data->empty() && *data->buf() != 0 && data->size() != 1)
         {
             self->mEmail.assign(data->buf(), data->dataSize());
+            if (self->mChatRoom)
+            {
+                // if peerChatRoom exists, update email
+                self->mChatRoom->mEmail.assign(self->mEmail);
+            }
 
             // If contact has alias or contactName don't update title
             std::string alias = self->mClist.client.getUserAlias(self->userId());

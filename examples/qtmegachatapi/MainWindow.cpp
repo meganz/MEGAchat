@@ -364,7 +364,12 @@ void MainWindow::addOrUpdateContactControllersItems(MegaUserList *contactList)
             {
                 MegaUser *auxContact = contact->copy();
                 itemController->addOrUpdateItem(auxContact);
-                itemController->getWidget()->updateToolTip(auxContact);
+
+                ContactItemWidget *widget = itemController->getWidget();
+                if (widget)
+                {
+                    widget->updateToolTip(auxContact);
+                }
             }
         }
     }
