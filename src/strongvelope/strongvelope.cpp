@@ -543,7 +543,7 @@ void ProtocolHandler::setPublicHandle(const uint64_t ph)
     mPh = Id(ph);
 }
 
-karere::UserAttrCache& ProtocolHandler::getAttrCache()
+karere::UserAttrCache& ProtocolHandler::userAttrCache()
 {
     return mUserAttrCache;
 }
@@ -1836,7 +1836,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
     });
 
     // Get signing key
-    promise::Promise<void> edPms = mProtoHandler.getAttrCache().getAttr(sender,
+    promise::Promise<void> edPms = mProtoHandler.userAttrCache().getAttr(sender,
         ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mProtoHandler.getPublicHandle())
     .then([ctx](Buffer *key)
     {
