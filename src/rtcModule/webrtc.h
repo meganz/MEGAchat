@@ -162,7 +162,14 @@ public:
     virtual void onRemoteStreamAdded(IVideoRenderer*& rendererOut) = 0;
     virtual void onRemoteStreamRemoved() = 0;
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv) = 0;
-    virtual void onVideoRecv() {}
+
+    /**
+     * @brief Notifies when the Stream has been added to the session
+     *
+     * This callback is received when the stream is added, so audio/video
+     * data is being received.
+     */
+    virtual void onDataRecv() {}
 
     /**
      * @brief Notifies about changes in network quality
@@ -208,7 +215,6 @@ public:
     virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
     virtual ISessionHandler* onNewSession(ISession& /*sess*/) { return nullptr; }
     virtual void onLocalStreamObtained(IVideoRenderer*& /*rendererOut*/) {}
-    virtual void onLocalMediaError(const std::string /*errors*/) {}
     virtual void onRingOut(karere::Id /*peer*/) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}

@@ -227,7 +227,6 @@ public:
     virtual int64_t getDuration() const override;
     virtual int64_t getInitialTimeStamp() const override;
     virtual int64_t getFinalTimeStamp() const override;
-    virtual const char *getTemporaryError() const override;
     virtual int getTermCode() const override;
     virtual bool isLocalTermCode() const override;
     virtual bool isRinging() const override;
@@ -251,7 +250,6 @@ public:
     void setInitialTimeStamp(int64_t timeStamp);
     void setFinalTimeStamp(int64_t timeStamp);
     void removeChanges();
-    void setError(const std::string &temporaryError);
     void setTermCode(rtcModule::TermCode termCode);
     void setIsRinging(bool ringing);
     void setIgnoredCall(bool ignored);
@@ -275,7 +273,6 @@ protected:
     int changed = MegaChatCall::CHANGE_TYPE_NO_CHANGES;
     int64_t initialTs;
     int64_t finalTs;
-    std::string temporaryError;
     std::map<chatd::EndpointId, MegaChatSession *> sessions;
     std::map<chatd::EndpointId, karere::AvFlags> participants;
     MegaChatHandle peerId;  // to identify participant added or removed
@@ -589,7 +586,6 @@ public:
     virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg) override;
     virtual rtcModule::ISessionHandler *onNewSession(rtcModule::ISession& sess) override;
     virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& rendererOut) override;
-    virtual void onLocalMediaError(const std::string errors) override;
     virtual void onRingOut(karere::Id peer) override;
     virtual void onCallStarting() override;
     virtual void onCallStarted() override;
@@ -629,7 +625,7 @@ public:
     virtual void onRemoteStreamAdded(rtcModule::IVideoRenderer*& rendererOut);
     virtual void onRemoteStreamRemoved();
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv);
-    virtual void onVideoRecv();
+    virtual void onDataRecv();
     virtual void onSessionNetworkQualityChange(int currentQuality);
     virtual void onSessionAudioDetected(bool audioDetected);
 

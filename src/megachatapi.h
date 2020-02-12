@@ -90,8 +90,8 @@ public:
         CHANGE_TYPE_STATUS = 0x01,                  /// Session status has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x02,          /// Remote audio/video flags has changed
         CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04, /// Session network quality has changed
-        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08,    /// Session audio level has changed
-        CHANGE_TYPE_SESSION_OPERATIVE = 0x10,      /// Session is fully operative
+        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08,     /// Session audio level has changed
+        CHANGE_TYPE_SESSION_OPERATIVE = 0x10,       /// Session is fully operative (A/V stream is received)
     };
 
 
@@ -304,9 +304,8 @@ public:
         CHANGE_TYPE_NO_CHANGES = 0x00,              /// Call doesn't have any change
         CHANGE_TYPE_STATUS = 0x01,                  /// Call status has changed
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,           /// Local audio/video flags has changed
-        CHANGE_TYPE_TEMPORARY_ERROR = 0x04,         /// New temporary error is notified
-        CHANGE_TYPE_RINGING_STATUS = 0x08,          /// Peer has changed its ringing state
-        CHANGE_TYPE_CALL_COMPOSITION = 0x10,        /// Call composition has changed (User added or removed from call)
+        CHANGE_TYPE_RINGING_STATUS = 0x04,          /// Peer has changed its ringing state
+        CHANGE_TYPE_CALL_COMPOSITION = 0x08,        /// Call composition has changed (User added or removed from call)
     };
 
     enum
@@ -434,13 +433,10 @@ public:
      * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
-     * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x04
-     * Check MegaChatCall::getTemporaryError() value
-     *
-     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x08
+     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x04
      * Check MegaChatCall::isRinging() value
      *
-     * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x10
+     * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
      * @see MegaChatCall::getPeeridCallCompositionChange and MegaChatCall::getClientidCallCompositionChange values
      */
     virtual int getChanges() const;
@@ -463,13 +459,10 @@ public:
      * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
-     * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x04
-     * Check MegaChatCall::getTemporaryError() value
-     *
-     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x08
+     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x04
      * Check MegaChatCall::isRinging() value
      *
-     * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x10
+     * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
      * @see MegaChatCall::getPeeridCallCompositionChange and MegaChatCall::getClientidCallCompositionChange values
      *
      * @return true if this call has an specific change
@@ -501,18 +494,6 @@ public:
      * @return Final timestamp or 0 if call is in progress
      */
     virtual int64_t getFinalTimeStamp() const;
-
-    /**
-     * @brief Returns the content of the temporary error
-     *
-     * This temporary error is cleared after notification through MegaChatCallListener::onChatCallUpdate
-     *
-     * The SDK retains the ownership of the returned value. It will be valid until
-     * the MegaChatCall object is deleted.
-     *
-     * @return Content of the error. If there isn't a error, it returns a empty string.
-     */
-    virtual const char *getTemporaryError() const;
 
     /**
      * @brief Returns the termination code for this call
@@ -594,7 +575,7 @@ public:
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid);
 
     /**
-     * @brief Returns handle of the peer which has been added/removed to call
+     * @brief Returns the handle of the peer that has been added/removed to call
      *
      * This function only returns a valid value when MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION is notified
      * via MegaChatCallListener::onChatCallUpdate
