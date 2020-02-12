@@ -1108,8 +1108,8 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
     mUserAttrCache->invalidate();
 
     // sync contactlist first
-    updateUsers(aContactList);
     mContactList->clear();   // remove obsolete users, just in case, and add them fresh from SDK
+    mContactList->syncWithApi(aContactList);
 
     // sync the chatroom list
     chats->onChatsUpdate(chatList);
@@ -1606,20 +1606,8 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
             return;
         }
 
-        updateUsers(*users);
+        mContactList->syncWithApi(*users);
     }, appCtx);
-}
-
-
-void Client::updateUsers(::mega::MegaUserList &users)
-{
-    assert(mUserAttrCache);
-    auto count = users.size();
-    for (int i = 0; i < count; i++)
-    {
-        ::mega::MegaUser *user = users.get(i);
-        contactList->syncWithApi(*user);
-    };
 }
 
 promise::Promise<karere::Id>
@@ -3599,102 +3587,102 @@ std::string Contact::getContactName()
     return mName;
 }
 
-void ContactList::syncWithApi(mega::MegaUser& user)
+void ContactList::syncWithApi(mega::MegaUserList &users)
 {
-    auto newVisibility = user.getVisibility();
-
-    int changed = 0;
-    ContactList::iterator it = find(user.getHandle());
-    if (it != end())    // existing contact or ex-contact
+    int count = users.size();
+    for (int i = 0; i < count; i++)
     {
-        auto handle = it->first;
-        Contact *contact = it->second;
-        auto oldVisibility = contact->visibility();
+        ::mega::MegaUser &user = *users.get(i);
+        auto newVisibility = user.getVisibility();
 
-        if (oldVisibility != newVisibility)
+        int changed = user.getChanges();
+        bool updateCache = !user.isOwnChange();
+
+        ContactList::iterator it = find(user.getHandle());
+        if (it != end())    // existing contact or ex-contact
         {
-            if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
-            {
-                delete contact;
-                erase(it);
-                client.db.query("delete from contacts where userid=?", handle);
-                return;
-            }
-            else
-            {
-                client.db.query("update contacts set visibility = ? where userid = ?", newVisibility, handle);
-                contact->onVisibilityChanged(newVisibility);
+            auto handle = it->first;
+            Contact *contact = it->second;
+            auto oldVisibility = contact->visibility();
 
-                if (oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN
-                        && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+            if (oldVisibility != newVisibility)
+            {
+                if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
                 {
-                    // API doesn't notify about changes for ex-contacts, so need to update user attributes
-                    assert(user.getChanges());  // currently, firstname and lastname only (driven by SDK)
-                    changed = user.getChanges();
+                    delete contact;
+                    erase(it);
+                    client.db.query("delete from contacts where userid=?", handle);
+                    return;
+                }
+                else
+                {
+                    client.db.query("update contacts set visibility = ? where userid = ?", newVisibility, handle);
+                    contact->onVisibilityChanged(newVisibility);
+
+                    if (oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN
+                            && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+                    {
+                        // API doesn't notify about changes for ex-contacts, so need to update user attributes
+                        assert(user.getChanges());  // currently, firstname and lastname only (driven by SDK)
+                        updateCache = true;
+                    }
                 }
             }
-        }
 
-        if (contact->email() != user.getEmail())
-        {
-            std::string newEmail;
-            const char *userEmail = user.getEmail();
-            if (userEmail && userEmail[0])
+            if (contact->email() != user.getEmail())
             {
-                newEmail.assign(userEmail);
+                std::string newEmail;
+                const char *userEmail = user.getEmail();
+                if (userEmail && userEmail[0])
+                {
+                    newEmail.assign(userEmail);
+                }
+
+                // Update contact email in memory and cache
+                contact->mEmail = newEmail;
+                client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
+
+                // If user it's our own user, we need to update our own email in client and cache
+                if (client.myHandle() == user.getHandle())
+                {
+                    client.setMyEmail(newEmail);
+                    client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
+                }
+
+                // We need to update user email in attr cache
+                updateCache = true;
             }
 
-            // Update contact email in memory and cache
-            contact->mEmail = newEmail;
-            client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
-
-            // If user it's our own user, we need to update our own email in client and cache
-            if (client.myHandle() == user.getHandle())
+            if (contact->since() != user.getTimestamp())
             {
-                client.setMyEmail(newEmail);
-                client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
+                contact->mSince = user.getTimestamp();
+                client.db.query("update contacts set since = ? where userid = ?", contact->since(), handle);
             }
-
-            // We need to update user email in attr cache
-            changed = user.getChanges();
         }
-
-        if (contact->since() != user.getTimestamp())
+        else    // contact was not created yet
         {
-            contact->mSince = user.getTimestamp();
-            client.db.query("update contacts set since = ? where userid = ?", contact->since(), handle);
+            std::string email(user.getEmail());
+            auto userid = user.getHandle();
+            auto ts = user.getTimestamp();
+            client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
+                            userid, email, newVisibility, ts);
+            Contact *contact = new Contact(*this, userid, email, newVisibility, ts, nullptr);
+            emplace(userid, contact);
+
+            KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
+
+            // If the user was part of a group before being added as a contact, we need to update user attributes,
+            // currently firstname, lastname and email, in order to ensure that are re-fetched for users
+            // with group chats previous to establish contact relationship
+            assert(!changed);   // new users have no changes
+            changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME | ::mega::MegaUser::CHANGE_TYPE_EMAIL;
+            updateCache = true;
         }
-    }
-    else    // contact was not created yet
-    {
-        std::string email(user.getEmail());
-        auto userid = user.getHandle();
-        auto ts = user.getTimestamp();
-        client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
-                userid, email, newVisibility, ts);
-        Contact *contact = new Contact(*this, userid, email, newVisibility, ts, nullptr);
-        emplace(userid, contact);
 
-        KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
-
-        // If the user was part of a group before being added as a contact, we need to update user attributes,
-        // currently firstname, lastname and email, in order to ensure that are re-fetched for users
-        // with group chats previous to establish contact relationship
-        changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME | ::mega::MegaUser::CHANGE_TYPE_EMAIL;
-    }
-
-    if (user.getChanges() && !user.isOwnChange())
-    {
-        // update user attributes if changes are external
-        client.userAttrCache().onUserAttrChange(user);
-    }
-    else if (changed)
-    {
-        // update user attributes if:
-        //  - visibility has changed from VISIBILITY_HIDDEN to VISIBILITY_VISIBLE (ex-contact to contact)
-        //  - visibility has changed from VISIBILITY_UNKNOWN to VISIBILITY_VISIBLE (non-contact to contact)
-        //  - user email has changed
-        client.userAttrCache().onUserAttrChange(user.getHandle(), changed);
+        if (changed && updateCache)
+        {
+            client.userAttrCache().onUserAttrChange(user.getHandle(), changed);
+        }
     }
 }
 
