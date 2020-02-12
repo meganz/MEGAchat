@@ -983,7 +983,7 @@ public:
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
      * @return The decrypted title of the chat
      */
-    promise::Promise<std::string> decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle);
+    promise::Promise<std::string> decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, Id ph = Id::inval());
 
     /** @brief This function invalidates the current public handle and set the chat mode to private
      */

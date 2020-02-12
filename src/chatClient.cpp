@@ -430,7 +430,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
     room->connect();
 }
 
-promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle)
+promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, karere::Id ph)
 {
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
     Buffer buf(encTitle.size());
@@ -441,7 +441,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
         buf.setDataSize(decLen);
 
         //Create temporary strongvelope instance to decrypt chat title
-        strongvelope::ProtocolHandler *auxCrypto = newStrongvelope(chatId, true, unifiedKey, false, Id::inval());
+        strongvelope::ProtocolHandler *auxCrypto = newStrongvelope(chatId, true, unifiedKey, false, ph);
 
         auto wptr = getDelTracker();
         promise::Promise<std::string> pms = auxCrypto->decryptChatTitleFromApi(buf);

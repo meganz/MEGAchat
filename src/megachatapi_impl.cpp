@@ -850,7 +850,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             mClient->openChatPreview(ph)
-            .then([request, this, unifiedKey](ReqResult result)
+            .then([request, this, unifiedKey, ph](ReqResult result)
             {
                 assert(result);
 
@@ -859,7 +859,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 uint64_t chatId = result->getParentHandle();
 
-                mClient->decryptChatTitle(chatId, unifiedKey, encTitle)
+                mClient->decryptChatTitle(chatId, unifiedKey, encTitle, ph)
                 .then([request, this, unifiedKey, result, chatId](std::string decryptedTitle)
                 {
                    bool createChat = request->getFlag();
