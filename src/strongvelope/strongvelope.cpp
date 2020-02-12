@@ -43,11 +43,16 @@ using namespace promise;
 using namespace CryptoPP;
 using namespace chatd;
 
+struct Context
+{
+    std::shared_ptr<SendKey> sendKey;
+    EcKey edKey;
+};
+
 const std::string SVCRYPTO_PAIRWISE_KEY = "strongvelope pairwise key\x01";
 const std::string SVCRYPTO_SIG = "strongvelopesig";
 void deriveNonceSecret(const StaticBuffer& masterNonce, const StaticBuffer &result,
                        Id recipient=Id::null());
-
 
 const char* tlvTypeToString(uint8_t type)
 {
