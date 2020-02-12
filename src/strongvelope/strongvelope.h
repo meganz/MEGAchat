@@ -162,6 +162,11 @@ typedef Key<32> EcKey;
 typedef Key<768> RsaKey;
 typedef Key<16> UnifiedKey;
 typedef Key<64> Signature;
+typedef struct _Context
+{
+    std::shared_ptr<SendKey> sendKey;
+    EcKey edKey;
+} Context;
 
 class ProtocolHandler;
 /** Class to parse an encrypted message and store its attributes and content */
@@ -454,6 +459,7 @@ public:
     void onHistoryReload() override;
     uint64_t getPublicHandle() const override;
     void setPublicHandle(const uint64_t ph) override;
+    karere::UserAttrCache& getAttrCache() override;
 
     promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const chatd::Message &msg, const std::string &reaction) override;
     promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const chatd::Message &msg, const std::string &reaction) override;

@@ -538,6 +538,11 @@ void ProtocolHandler::setPublicHandle(const uint64_t ph)
     mPh = Id(ph);
 }
 
+karere::UserAttrCache& ProtocolHandler::getAttrCache()
+{
+    return mUserAttrCache;
+}
+
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,karere::UserAttrCache& userAttrCache,
@@ -1307,12 +1312,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             keyid = message->keyid;
         }
 
-        // Get sender key
-        struct Context
-        {
-            std::shared_ptr<SendKey> sendKey;
-            EcKey edKey;
-        };
         auto ctx = std::make_shared<Context>();
 
         promise::Promise<std::shared_ptr<SendKey>> symPms;
@@ -1788,10 +1787,11 @@ ProtocolHandler::decryptChatTitleFromApi(const Buffer& data)
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {
-    promise::Promise<std::shared_ptr<SendKey>> pms;
+    auto ctx = std::make_shared<Context>();
+    promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (openmode)  // chat-title was created in open-mode --> decrypt using unfied-key
     {
-        pms = mProtoHandler.unifiedKey();
+        symPms = mProtoHandler.unifiedKey();
     }
     else    // chat-title was created in closed-mode --> look for the key encrypted to us
     {
@@ -1823,14 +1823,26 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
         auto buf = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
         buf->assign(pos, SVCRYPTO_KEY_SIZE);
 
-        pms = mProtoHandler.decryptKey(buf, sender, receiver);
+        symPms = mProtoHandler.decryptKey(buf, sender, receiver);
     }
+    symPms.then([ctx](const std::shared_ptr<SendKey>& key)
+    {
+        ctx->sendKey = key;
+    });
+
+    // Get signing key
+    promise::Promise<void> edPms = mProtoHandler.getAttrCache().getAttr(sender,
+        ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mProtoHandler.getPublicHandle())
+    .then([ctx](Buffer *key)
+    {
+        ctx->edKey.assign(key->buf(), key->dataSize());
+    });
 
     auto wptr = weakHandle();
     unsigned int cacheVersion = mProtoHandler.getCacheVersion();
 
-    return pms
-    .then([this, wptr, msg, cacheVersion, msgCanBeDeleted](const std::shared_ptr<SendKey>& key)
+    return promise::when(symPms, edPms)
+    .then([this, wptr, ctx, msg, cacheVersion, msgCanBeDeleted]()->promise::Promise<chatd::Message*>
     {
         wptr.throwIfDeleted();
 
@@ -1839,7 +1851,13 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
             throw ::promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
         }
 
-        symmetricDecrypt(*key, *msg);
+        if (!verifySignature(ctx->edKey, *ctx->sendKey))
+        {
+            return ::promise::Error("Signature invalid for message "+
+                                  msg->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
+        }
+
+        symmetricDecrypt(*ctx->sendKey, *msg);
         msg->setEncrypted(Message::kNotEncrypted);
         Id chatid = mProtoHandler.chatid;
 
