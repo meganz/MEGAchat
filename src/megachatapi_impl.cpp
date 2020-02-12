@@ -1595,7 +1595,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     API_LOG_DEBUG("There isn't an internal call, abort call retry");
                     mClient->rtc->abortCallRetry(chatid);
-
                     break;
                 }
 
