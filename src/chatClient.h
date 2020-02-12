@@ -474,6 +474,7 @@ protected:
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
     UserAttrCache::Handle mUsernameAttrCbId;
+    UserAttrCache::Handle mEmailAttrCbId;
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
@@ -553,7 +554,7 @@ public:
     ContactList(Client& aClient);
     ~ContactList();
     void loadFromDb();
-    void syncWithApi(mega::MegaUser& user); //called for actionpackets
+    void syncWithApi(mega::MegaUserList& users);
     const std::string* getUserEmail(uint64_t userid) const;
     /** @endcond */
 };
@@ -874,7 +875,7 @@ public:
     unsigned short mMyPubRsaLen = 0;
 
     /** @brief The contact list of the client */
-    std::unique_ptr<ContactList> contactList;
+    std::unique_ptr<ContactList> mContactList;
 
     /** @brief The list of chats that we are member of */
     std::unique_ptr<ChatRoomList> chats;
@@ -1114,6 +1115,8 @@ public:
 
     /** @brief Returns a string that contains the user alias in UTF-8 if exists, otherwise returns an empty string*/
     std::string getUserAlias(uint64_t userId);
+    void setMyEmail(const std::string &email);
+    const std::string& getMyEmail() const;
 
 protected:
     void heartbeat();
@@ -1152,8 +1155,6 @@ protected:
      */
     promise::Promise<void> doConnect();
     void setConnState(ConnState newState);
-
-    void updateUsers(::mega::MegaUserList &users);
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);

@@ -467,8 +467,8 @@ void MegaChatApiImpl::sendPendingRequests()
                     errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
-                ContactList::iterator it = mClient->contactList->find(peersList->getPeerHandle(0));
-                if (it == mClient->contactList->end())
+                ContactList::iterator it = mClient->mContactList->find(peersList->getPeerHandle(0));
+                if (it == mClient->mContactList->end())
                 {
                     // contact not found
                     errorCode = MegaChatError::ERROR_ACCESS;
@@ -1948,8 +1948,8 @@ karere::ChatRoom *MegaChatApiImpl::findChatRoomByUser(MegaChatHandle userhandle)
 
     if (mClient && !terminating)
     {
-        ContactList::iterator it = mClient->contactList->find(userhandle);
-        if (it != mClient->contactList->end())
+        ContactList::iterator it = mClient->mContactList->find(userhandle);
+        if (it != mClient->mContactList->end())
         {
             chatroom = it->second->chatRoom();
         }
@@ -2600,7 +2600,7 @@ char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)
 
     sdkMutex.lock();
 
-    const std::string *email = mClient ? mClient->contactList->getUserEmail(userhandle) : NULL;
+    const std::string *email = mClient ? mClient->mContactList->getUserEmail(userhandle) : NULL;
     if (email)
     {
         ret = MegaApi::strdup(email->c_str());
@@ -2619,7 +2619,7 @@ MegaChatHandle MegaChatApiImpl::getUserHandleByEmail(const char *email)
     {
         sdkMutex.lock();
 
-        Contact *contact = mClient ? mClient->contactList->contactFromEmail(email) : NULL;
+        Contact *contact = mClient ? mClient->mContactList->contactFromEmail(email) : NULL;
         if (contact)
         {
             uh = contact->userId();
@@ -3374,7 +3374,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHand
 
     sdkMutex.lock();
 
-    string buf = JSonUtils::generateAttachContactJSon(contacts, mClient->contactList.get());
+    string buf = JSonUtils::generateAttachContactJSon(contacts, mClient->mContactList.get());
     MegaChatMessage *megaMsg = sendMessage(chatid, buf.c_str(), buf.size(), Message::kMsgContact);
 
     sdkMutex.unlock();
