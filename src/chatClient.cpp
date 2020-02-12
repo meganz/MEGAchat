@@ -79,7 +79,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
           api(sdk, ctx),
           app(aApp),
           mDnsCache(db, chatd::Client::chatdVersion),
-          contactList(new ContactList(*this)),
+          mContactList(new ContactList(*this)),
           chats(new ChatRoomList(*this)),
           mPresencedClient(&api, this, *this, caps)
 {
@@ -710,7 +710,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
             return;
 
         // Add users from API
-        updateUsers(*contactList);
+        mContactList->syncWithApi(*contactList);
         mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
@@ -825,7 +825,7 @@ void Client::initWithDbSession(const char* sid)
 
         loadOwnKeysFromDb();
         mDnsCache.loadFromDb();
-        contactList->loadFromDb();
+        mContactList->loadFromDb();
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
 
@@ -1108,8 +1108,8 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
     mUserAttrCache->invalidate();
 
     // sync contactlist first
-    contactList->clear();   // remove obsolete users, just in case, and add them fresh from SDK
     updateUsers(aContactList);
+    mContactList->clear();   // remove obsolete users, just in case, and add them fresh from SDK
 
     // sync the chatroom list
     chats->onChatsUpdate(chatList);
@@ -1288,7 +1288,7 @@ void Client::sendStats()
         return;
     }
 
-    std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), contactList->size());
+    std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), mContactList->size());
     KR_LOG_DEBUG("Init stats: %s", stats.c_str());
     api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str());
 }
@@ -2168,7 +2168,7 @@ PeerChatRoom::~PeerChatRoom()
 
 void PeerChatRoom::initContact(const uint64_t& peer)
 {
-    mContact = parent.mKarereClient.contactList->contactFromUserId(peer);
+    mContact = parent.mKarereClient.mContactList->contactFromUserId(peer);
     mEmail = mContact ? mContact->email() : "Inactive account";
     if (mContact)
     {

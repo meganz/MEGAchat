@@ -875,7 +875,7 @@ public:
     unsigned short mMyPubRsaLen = 0;
 
     /** @brief The contact list of the client */
-    std::unique_ptr<ContactList> contactList;
+    std::unique_ptr<ContactList> mContactList;
 
     /** @brief The list of chats that we are member of */
     std::unique_ptr<ChatRoomList> chats;
