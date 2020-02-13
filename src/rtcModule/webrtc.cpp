@@ -2147,7 +2147,10 @@ void Call::enableAudio(bool enable)
     mLocalStream->audio()->set_enabled(enable);
     for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
     {
-        session.second->mAudioSender->track()->set_enabled(enable);
+        if (session.second->mAudioSender)
+        {
+            session.second->mAudioSender->track()->set_enabled(enable);
+        }
     }
 }
 
@@ -2233,7 +2236,7 @@ void Call::enableVideo(bool enable)
 
                 if (session.second->mRemotePlayer)
                 {
-                    session.second->mRemotePlayer->enableVideo(session.second->mPeerAv.video());
+                    session.second->mRemotePlayer->enableVideo(session.second->mPeerAv.video() && !session.second->mPeerAv.onHold());
                 }
 
                 if (session.second->mPeerAv.onHold())
@@ -2919,9 +2922,9 @@ void Session::createRtcConn()
 
         if (mCall.sentAv().video())
         {
-            rtc::scoped_refptr<webrtc::VideoTrackInterface> interface =
+            rtc::scoped_refptr<webrtc::VideoTrackInterface> videoInterface =
                     artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()),  mCall.mLocalStream->video()->GetSource());
-            webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
+            webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(videoInterface, vector);
 
             if (!error.ok())
             {
