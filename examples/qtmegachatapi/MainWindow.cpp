@@ -390,7 +390,14 @@ void MainWindow::addOrUpdateContactControllersItems(MegaUserList *contactList)
             }
             else
             {
-                itemController->addOrUpdateItem(contact->copy());
+                MegaUser *auxContact = contact->copy();
+                itemController->addOrUpdateItem(auxContact);
+
+                ContactItemWidget *widget = itemController->getWidget();
+                if (widget)
+                {
+                    widget->updateToolTip(auxContact);
+                }
             }
         }
     }
@@ -824,7 +831,7 @@ ChatItemWidget *MainWindow::addQtChatWidget(const MegaChatListItem *chatListItem
     }
 
     ChatItemWidget *widget = new ChatItemWidget(this, chatListItem);
-    widget->updateToolTip(chatListItem, NULL);
+    widget->updateToolTip(chatListItem);
     QListWidgetItem *item = new QListWidgetItem();
     widget->setWidgetItem(item);
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
@@ -880,7 +887,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         //Last Message update
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_MSG))
         {
-            widget->updateToolTip(item, NULL);
+            widget->updateToolTip(item);
         }
 
         //Unread count update
@@ -898,13 +905,13 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         //Own priv update
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_OWN_PRIV))
         {
-            widget->updateToolTip(item, NULL);
+            widget->updateToolTip(item);
         }
 
         //Participants update
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS))
         {
-            widget->updateToolTip(item, NULL);
+            widget->updateToolTip(item);
         }
 
         if (item->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS))
@@ -1080,17 +1087,17 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
 
 void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhandle, int status, bool inProgress)
 {
-    if (status == megachat::MegaChatApi::STATUS_INVALID)
-    {
-        // If we don't receive our presence we'll skip all chats reorders
-        // when we are connected to all chats this flag will be set true
-        // and chatlist will be reordered
-        mAllowOrder = false;
-        status = 0;
-    }
-
     if (mMegaChatApi->getMyUserHandle() == userhandle)
     {
+        if (status == megachat::MegaChatApi::STATUS_INVALID)
+        {
+            // If we don't receive our presence we'll skip all chats reorders
+            // when we are connected to all chats this flag will be set true
+            // and chatlist will be reordered
+            mAllowOrder = false;
+            status = 0;
+        }
+
         ui->bOnlineStatus->setText(inProgress
             ? kOnlineSymbol_InProgress
             : kOnlineSymbol_Set);
@@ -1170,6 +1177,10 @@ void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char
         if (item && widget && item->getLastMessageSender() == contactHandle)
         {
             widget->updateToolTip(item, firstname);
+        }
+        else
+        {
+            widget->updateToolTip(item);
         }
 
         ChatWindow *chatWindow = itemController->getChatWindow();
@@ -1266,7 +1277,7 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
 }
 
 
-void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char *firstname)
+void MainWindow::updateContactTitle(MegaChatHandle contactHandle, const char *title)
 {
     std::map<mega::MegaHandle, ContactListItemController *>::iterator itContacts;
     itContacts = mContactControllers.find(contactHandle);
@@ -1274,7 +1285,7 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
     if (itContacts != mContactControllers.end())
     {
         ContactListItemController *itemController = itContacts->second;
-        itemController->getWidget()->updateName(firstname);
+        itemController->getWidget()->updateName(title);
     }
 }
 

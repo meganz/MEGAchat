@@ -7,7 +7,8 @@
 
 ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megachat::MegaChatApi *megaChatApi, ::mega::MegaApi *megaApi, ::mega::MegaUser *contact) :
     QWidget(parent),
-    ui(new Ui::ChatItem)
+    ui(new Ui::ChatItem),
+    mController(mainWin->getContactControllerById(contact->getHandle()))
 {
     mMainWin = mainWin;
     mMegaApi = megaApi;
@@ -67,6 +68,9 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     auto printAction = othersMenu->addAction(tr("Print contact info"));
     connect(printAction, SIGNAL(triggered()), this, SLOT(onPrintContactInfo()));
+
+    auto tooltipAction = othersMenu->addAction(tr("Update tooltip"));
+    connect(tooltipAction, SIGNAL(triggered()), this, SLOT(onUpdateTooltip()));
 
     if (mUserVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
     {
@@ -239,6 +243,14 @@ void ContactItemWidget::onExContactInvite()
     }
 
     delete [] email;
+}
+
+void ContactItemWidget::onUpdateTooltip()
+{
+    if (mController)
+    {
+        updateToolTip(mController->getItem());
+    }
 }
 
 void ContactItemWidget::onRequestLastGreen()

@@ -158,6 +158,8 @@ public:
 
     virtual void setPublicHandle(const uint64_t ph) = 0;
 
+    virtual karere::UserAttrCache& userAttrCache() = 0;
+
     /**
      * @brief Encrypts a reaction with xxtea.
      * @param msg The message associated to the reaction.

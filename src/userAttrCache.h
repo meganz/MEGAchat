@@ -150,6 +150,7 @@ protected:
     void onLogOut();
     friend struct UserAttrCacheItem;
     friend class Client;
+    friend class ContactList;
 public:
     /** @brief The cache request handle, that identifies a specific cache request
      * and update monitoring callback. This handle can be used to cancel the

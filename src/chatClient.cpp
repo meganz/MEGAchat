@@ -79,7 +79,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
           api(sdk, ctx),
           app(aApp),
           mDnsCache(db, chatd::Client::chatdVersion),
-          contactList(new ContactList(*this)),
+          mContactList(new ContactList(*this)),
           chats(new ChatRoomList(*this)),
           mPresencedClient(&api, this, *this, caps)
 {
@@ -430,7 +430,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
     room->connect();
 }
 
-promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle)
+promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, karere::Id ph)
 {
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
     Buffer buf(encTitle.size());
@@ -441,7 +441,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
         buf.setDataSize(decLen);
 
         //Create temporary strongvelope instance to decrypt chat title
-        strongvelope::ProtocolHandler *auxCrypto = newStrongvelope(chatId, true, unifiedKey, false, Id::inval());
+        strongvelope::ProtocolHandler *auxCrypto = newStrongvelope(chatId, true, unifiedKey, false, ph);
 
         auto wptr = getDelTracker();
         promise::Promise<std::string> pms = auxCrypto->decryptChatTitleFromApi(buf);
@@ -659,21 +659,6 @@ promise::Promise<void> Client::pushReceived(Id chatid)
     });
 }
 
-void Client::loadContactListFromApi()
-{
-    std::unique_ptr<::mega::MegaUserList> contacts(api.sdk.getContacts());
-    loadContactListFromApi(*contacts);
-}
-
-void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
-{
-#ifndef NDEBUG
-    dumpContactList(contacts);
-#endif
-    contactList->syncWithApi(contacts);
-    mContactsLoaded = true;
-}
-
 Client::InitState Client::initWithAnonymousSession()
 {
     if (mInitState > kInitCreated)
@@ -723,7 +708,9 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     {
         if (wptr.deleted())
             return;
-        loadContactListFromApi(*contactList);
+
+        // Add users from API
+        mContactList->syncWithApi(*contactList);
         mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
@@ -838,8 +825,7 @@ void Client::initWithDbSession(const char* sid)
 
         loadOwnKeysFromDb();
         mDnsCache.loadFromDb();
-        contactList->loadFromDb();
-        mContactsLoaded = true;
+        mContactList->loadFromDb();
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
 
@@ -988,6 +974,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
+#ifndef NDEBUG
+        dumpContactList(*contactList);
+#endif
+
         auto wptr = weakHandle();
         marshallCall([wptr, this, state, scsn, contactList, chatList]()
         {
@@ -1101,7 +1091,7 @@ void Client::createDb()
 }
 
 bool Client::checkSyncWithSdkDb(const std::string& scsn,
-    ::mega::MegaUserList& contactList, ::mega::MegaTextChatList& chatList)
+    ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chatList)
 {
     SqliteStmt stmt(db, "select value from vars where name='scsn'");
     stmt.stepMustHaveData("get karere scsn");
@@ -1116,10 +1106,14 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
 
     // invalidate user attrib cache
     mUserAttrCache->invalidate();
+
     // sync contactlist first
-    loadContactListFromApi(contactList);
+    mContactList->clear();   // remove obsolete users, just in case, and add them fresh from SDK
+    mContactList->syncWithApi(aContactList);
+
     // sync the chatroom list
     chats->onChatsUpdate(chatList);
+
     // commit the snapshot
     commit(scsn);
     return false;
@@ -1294,7 +1288,7 @@ void Client::sendStats()
         return;
     }
 
-    std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), contactList->size());
+    std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), mContactList->size());
     KR_LOG_DEBUG("Init stats: %s", stats.c_str());
     api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str());
 }
@@ -1612,23 +1606,7 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
             return;
         }
 
-        assert(mUserAttrCache);
-        auto count = users->size();
-        for (int i = 0; i < count; i++)
-        {
-            auto& user = *users->get(i);
-            if (user.getChanges())
-            {
-                if (user.isOwnChange() == 0)
-                {
-                    mUserAttrCache->onUserAttrChange(user);
-                }
-            }
-            else
-            {
-                contactList->onUserAddRemove(user);
-            }
-        };
+        mContactList->syncWithApi(*users);
     }, appCtx);
 }
 
@@ -2178,7 +2156,7 @@ PeerChatRoom::~PeerChatRoom()
 
 void PeerChatRoom::initContact(const uint64_t& peer)
 {
-    mContact = parent.mKarereClient.contactList->contactFromUserId(peer);
+    mContact = parent.mKarereClient.mContactList->contactFromUserId(peer);
     mEmail = mContact ? mContact->email() : "Inactive account";
     if (mContact)
     {
@@ -2624,8 +2602,6 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
         delete [] scsn;
         return;
     }
-
-    assert(mContactsLoaded);
 
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
 #ifndef NDEBUG
@@ -3587,39 +3563,6 @@ void ContactList::loadFromDb()
     }
 }
 
-bool ContactList::addUserFromApi(mega::MegaUser& user)
-{
-    auto userid = user.getHandle();
-    auto it = this->find(userid);
-    if (it != this->end())
-    {
-        Contact *contact = it->second;
-        assert(contact);
-        int newVisibility = user.getVisibility();
-        if (contact->visibility() == newVisibility)
-        {
-            return false;
-        }
-
-        client.db.query("update contacts set visibility = ? where userid = ?",
-            newVisibility, userid);
-        contact->onVisibilityChanged(newVisibility);
-        return true;
-    }
-
-    // contact was not created yet
-    auto cmail = user.getEmail();
-    std::string email(cmail ? cmail : "");
-    int visibility = user.getVisibility();
-    auto ts = user.getTimestamp();
-    client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
-            userid, email, visibility, ts);
-    Contact *contact = new Contact(*this, userid, email, visibility, ts, nullptr);
-    this->emplace(userid, contact);
-    KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
-    return true;
-}
-
 void Contact::onVisibilityChanged(int newVisibility)
 {
     assert(newVisibility != mVisibility);
@@ -3644,73 +3587,103 @@ std::string Contact::getContactName()
     return mName;
 }
 
-void ContactList::syncWithApi(mega::MegaUserList& users)
+void ContactList::syncWithApi(mega::MegaUserList &users)
 {
-    std::set<uint64_t> apiUsers;
-    auto size = users.size();
-    for (int i = 0; i < size; i++)
+    int count = users.size();
+    for (int i = 0; i < count; i++)
     {
-        auto& user = *users.get(i);
-        if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_UNKNOWN)   // user cancelled the account in MEGA
+        ::mega::MegaUser &user = *users.get(i);
+        auto newVisibility = user.getVisibility();
+
+        int changed = user.getChanges();
+        bool updateCache = !user.isOwnChange();
+
+        ContactList::iterator it = find(user.getHandle());
+        if (it != end())    // existing contact or ex-contact
         {
-            continue;
-        }
-        apiUsers.insert(user.getHandle());
-        addUserFromApi(user);
-    }
+            auto handle = it->first;
+            Contact *contact = it->second;
+            auto oldVisibility = contact->visibility();
 
-    // finally, remove known users that are not anymore in the list of users reported by the SDK
-    for (auto it = begin(); it != end();)
-    {
-        auto handle = it->first;
-        if (apiUsers.find(handle) != apiUsers.end())
+            if (oldVisibility != newVisibility)
+            {
+                if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+                {
+                    delete contact;
+                    erase(it);
+                    client.db.query("delete from contacts where userid=?", handle);
+                    return;
+                }
+                else
+                {
+                    client.db.query("update contacts set visibility = ? where userid = ?", newVisibility, handle);
+                    contact->onVisibilityChanged(newVisibility);
+
+                    if (oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN
+                            && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+                    {
+                        // API doesn't notify about changes for ex-contacts, so need to update user attributes
+                        assert(user.getChanges());  // currently, firstname and lastname only (driven by SDK)
+                        updateCache = true;
+                    }
+                }
+            }
+
+            if (contact->email() != user.getEmail())
+            {
+                std::string newEmail;
+                const char *userEmail = user.getEmail();
+                if (userEmail && userEmail[0])
+                {
+                    newEmail.assign(userEmail);
+                }
+
+                // Update contact email in memory and cache
+                contact->mEmail = newEmail;
+                client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
+
+                // If user it's our own user, we need to update our own email in client and cache
+                if (client.myHandle() == user.getHandle())
+                {
+                    client.setMyEmail(newEmail);
+                    client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
+                }
+
+                // We need to update user email in attr cache
+                updateCache = true;
+            }
+
+            if (contact->since() != user.getTimestamp())
+            {
+                contact->mSince = user.getTimestamp();
+                client.db.query("update contacts set since = ? where userid = ?", contact->since(), handle);
+            }
+        }
+        else    // contact was not created yet
         {
-            it++;
-            continue;
+            std::string email(user.getEmail());
+            auto userid = user.getHandle();
+            auto ts = user.getTimestamp();
+            client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
+                            userid, email, newVisibility, ts);
+            Contact *contact = new Contact(*this, userid, email, newVisibility, ts, nullptr);
+            emplace(userid, contact);
+
+            KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
+
+            // If the user was part of a group before being added as a contact, we need to update user attributes,
+            // currently firstname, lastname and email, in order to ensure that are re-fetched for users
+            // with group chats previous to establish contact relationship
+            assert(!changed || userid == client.myHandle());   // new users have no changes (expect own user, who updates some attrs upon login)
+            changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME | ::mega::MegaUser::CHANGE_TYPE_EMAIL;
+            updateCache = true;
         }
 
-        auto erased = it;
-        it++;
-        removeUser(erased);
-    }
-}
-
-void ContactList::onUserAddRemove(mega::MegaUser& user)
-{
-    if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
-    {
-        auto it = this->find(user.getHandle());
-        if (it != this->end())
+        if (changed && updateCache)
         {
-            removeUser(it);
+            client.userAttrCache().onUserAttrChange(user.getHandle(), changed);
         }
     }
-    else
-    {
-        addUserFromApi(user);
-    }
-}
-
-void ContactList::removeUser(iterator it)
-{
-    auto handle = it->first;
-    delete it->second;
-    erase(it);
-    client.db.query("delete from contacts where userid=?", handle);
-}
-
-promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
-{
-    auto it = find(userid);
-    if (it == end())
-        return ::promise::Error("User "+karere::Id(userid).toString()+" not in contactlist");
-
-    auto& api = client.api;
-    std::unique_ptr<mega::MegaUser> user(api.sdk.getContact(it->second->email().c_str()));
-    if (!user)
-        return ::promise::Error("Could not get user object from email");
-    //we don't remove it, we just set visibility to HIDDEN
-    return api.callIgnoreResult(&::mega::MegaApi::removeContact, user.get());
 }
 
 ContactList::~ContactList()
@@ -3725,17 +3698,6 @@ const std::string* ContactList::getUserEmail(uint64_t userid) const
     if (it == end())
         return nullptr;
     return &(it->second->email());
-}
-
-bool ContactList::isExContact(Id userid)
-{
-    auto it = find(userid);
-    if (it == end() || (it != end() && it->second->visibility() != mega::MegaUser::VISIBILITY_HIDDEN))
-    {
-        return false;
-    }
-
-    return true;
 }
 
 Contact* ContactList::contactFromEmail(const std::string &email) const
@@ -3789,6 +3751,29 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         }
     });
 
+    mEmailAttrCbId = mClist.client.userAttrCache().getAttr(userid, USER_ATTR_EMAIL, this,
+    [](Buffer* data, void* userp)
+    {
+        auto self = static_cast<Contact*>(userp);
+        if (data && !data->empty() && *data->buf() != 0 && data->size() != 1)
+        {
+            self->mEmail.assign(data->buf(), data->dataSize());
+            if (self->mChatRoom)
+            {
+                // if peerChatRoom exists, update email
+                self->mChatRoom->mEmail.assign(self->mEmail);
+            }
+
+            // If contact has alias or contactName don't update title
+            std::string alias = self->mClist.client.getUserAlias(self->userId());
+            std::string contactName = self->getContactName();
+            if (alias.empty() && contactName.empty())
+            {
+                self->updateTitle(self->mEmail);
+            }
+        }
+    });
+
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
         updateTitle(encodeFirstName(email));
@@ -3822,6 +3807,7 @@ Contact::~Contact()
     if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
+        client.userAttrCache().removeCb(mEmailAttrCbId);
     }
 }
 
@@ -4025,6 +4011,16 @@ std::string Client::getUserAlias(uint64_t userId)
         ::mega::Base64::atob(aliasB64, aliasBin);
     }
     return aliasBin;
+}
+
+void Client::setMyEmail(const std::string &email)
+{
+    mMyEmail = email;
+}
+
+const std::string& Client::getMyEmail() const
+{
+    return mMyEmail;
 }
 
 std::string encodeFirstName(const std::string& first)
