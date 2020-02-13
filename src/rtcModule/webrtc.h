@@ -170,6 +170,7 @@ public:
      * data is being received.
      */
     virtual void onDataRecv() {}
+    virtual void onOnHold(bool onHold) = 0;
 
     /**
      * @brief Notifies about changes in network quality
@@ -234,6 +235,7 @@ public:
 
     virtual void onReconnectingState(bool start) = 0;
     virtual void setReconnectionFailed() = 0;
+    virtual void onOnHold(bool onHold) = 0;
 };
 class IGlobalHandler
 {
@@ -342,6 +344,7 @@ public:
     virtual karere::AvFlags muteUnmute(karere::AvFlags av) = 0;
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const = 0;
     virtual std::map<karere::Id, uint8_t> sessionState() const = 0;
+    virtual void setOnHold(bool setOnHold) = 0;
 };
 struct SdpKey
 {

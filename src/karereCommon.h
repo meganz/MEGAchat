@@ -111,7 +111,7 @@ struct AvFlags
 protected:
     uint8_t mFlags;
 public:
-    enum: uint8_t { kAudio = 1, kVideo = 2 };
+    enum: uint8_t { kAudio = 1, kVideo = 2, kScreen = 8, kOnHold = 16, kMask = 27};
     AvFlags(uint8_t flags): mFlags(flags){}
     AvFlags(bool audio, bool video)
     : mFlags((audio ? kAudio : 0) | (video ? kVideo : 0)){}
@@ -120,6 +120,7 @@ public:
     void set(uint8_t val) { mFlags = val; }
     bool audio() const { return mFlags & kAudio; }
     bool video() const { return mFlags & kVideo; }
+    bool onHold() const { return mFlags & kOnHold; }
     bool operator==(AvFlags other) { return (mFlags == other.mFlags); }
     bool operator!=(AvFlags other) { return (mFlags != other.mFlags); }
     bool any() const { return mFlags != 0; }
@@ -131,17 +132,25 @@ public:
             result+='a';
         if (mFlags & kVideo)
             result+='v';
+        if (mFlags & kScreen)
+            result+='s';
+        if (mFlags & kOnHold)
+            result+='h';
         if (result.empty())
             result='-';
         return result;
     }
     void setAudio(bool enable)
     {
-        mFlags = ((enable ? kAudio : 0) | (video() ? kVideo : 0));
+        mFlags = ((enable ? kAudio : 0) | (video() ? kVideo : 0) | (onHold() ? kOnHold : 0));
     }
     void setVideo(bool enable)
     {
-        mFlags = ((audio() ? kAudio : 0) | (enable ? kVideo : 0));
+        mFlags = ((audio() ? kAudio : 0) | (enable ? kVideo : 0) | (onHold() ? kOnHold : 0));
+    }
+    void setOnHold(bool enable)
+    {
+        mFlags = ((audio() ? kAudio : 0) | (video() ? kVideo : 0) | (enable ? kOnHold : 0));
     }
 };
 

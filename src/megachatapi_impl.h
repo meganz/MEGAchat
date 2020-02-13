@@ -178,6 +178,7 @@ public:
     virtual bool isLocalTermCode() const override;
     virtual int getNetworkQuality() const override;
     virtual bool getAudioDetected() const override;
+    virtual bool isOnHold() const override;
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
     static uint8_t convertSessionState(uint8_t state);
@@ -187,6 +188,7 @@ public:
     void setNetworkQuality(int quality);
     void setAudioDetected(bool audioDetected);
     void setSessionFullyOperative();
+    void setOnHold(bool onHold);
     void removeChanges();
 
 private:
@@ -243,6 +245,7 @@ public:
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
     virtual MegaChatHandle getCaller() const override;
+    virtual bool isOnHold() const override;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -263,10 +266,11 @@ public:
     bool isParticipating(karere::Id userid);
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
+    void setOnHold(bool onHold);
 
 protected:
     MegaChatHandle chatid;
-    int status;
+    int status = MegaChatCall::CALL_STATUS_INITIAL;
     MegaChatHandle callid;
     karere::AvFlags localAVFlags;
     karere::AvFlags initialAVFlags;
@@ -602,6 +606,7 @@ public:
     virtual void onReconnectingState(bool start) override;
     virtual void setReconnectionFailed() override;
     virtual rtcModule::ICall *getCall() override;
+    virtual void onOnHold(bool onHold) override;
 
     MegaChatCallPrivate *getMegaChatCall();
     void setCallNotPresent(karere::Id chatid, karere::Id callid, uint32_t duration);
@@ -628,6 +633,7 @@ public:
     virtual void onDataRecv();
     virtual void onSessionNetworkQualityChange(int currentQuality);
     virtual void onSessionAudioDetected(bool audioDetected);
+    virtual void onOnHold(bool onHold);
 
 private:
     MegaChatApiImpl *megaChatApi;
@@ -1164,6 +1170,7 @@ public:
     void hangAllChatCalls(MegaChatRequestListener *listener);
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
+    void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     void setIgnoredCall(MegaChatHandle chatId);

@@ -1677,6 +1677,50 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+        case MegaChatRequest::TYPE_SET_CALL_ON_HOLD:
+        {
+                MegaChatHandle chatid = request->getChatHandle();
+                bool onHold = request->getFlag();
+
+                MegaChatCallHandler *handler = findChatCallHandler(chatid);
+                if (!handler)
+                {
+                    API_LOG_ERROR("Set call on hold - Failed to get the call handler associated to chat room");
+                    errorCode = MegaChatError::ERROR_NOENT;
+                    break;
+                }
+
+                MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
+                rtcModule::ICall *call = handler->getCall();
+
+                if (!chatCall || !call)
+                {
+                    API_LOG_ERROR("Set call on hold - There is not any Call associated to MegaChatCallHandler");
+                    errorCode = MegaChatError::ERROR_NOENT;
+                    assert(false);
+                    break;
+                }
+
+                if (call->state() != rtcModule::ICall::kStateInProgress)
+                {
+                    API_LOG_ERROR("The call can't be set onHold until call is in-progres");
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+
+                if (onHold == call->sentAv().onHold())
+                {
+                    API_LOG_ERROR("Set call on hold - Call is on hold and try to set on hold or conversely");
+                    errorCode = MegaChatError::ERROR_ARGS;
+                    break;
+                }
+
+                call->setOnHold(onHold);
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+                break;
+        }
         case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
         {
             if (!mClient->rtc)
@@ -3825,6 +3869,15 @@ void MegaChatApiImpl::setVideoEnable(MegaChatHandle chatid, bool enable, MegaCha
     waiter->notify();
 }
 
+void MegaChatApiImpl::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CALL_ON_HOLD, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(setOnHold);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES, listener);
@@ -4848,6 +4901,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "LAST_GREEN";
         case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
+        case TYPE_SET_CALL_ON_HOLD: return "SET_CALL_ON_HOLD";
     }
     return "UNKNOWN";
 }
@@ -5071,7 +5125,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     : state(session.getStatus())
     , peerid(session.getPeerid())
     , clientid(session.getClientid())
-    , av(session.hasAudio(), session.hasVideo())
+    , av(session.av.value())
     , termCode(session.getTermCode())
     , localTermCode(session.isLocalTermCode())
     , networkQuality(session.getNetworkQuality())
@@ -5132,6 +5186,11 @@ int MegaChatSessionPrivate::getNetworkQuality() const
 bool MegaChatSessionPrivate::getAudioDetected() const
 {
     return audioDetected;
+}
+
+bool MegaChatSessionPrivate::isOnHold() const
+{
+    return av.onHold();
 }
 
 int MegaChatSessionPrivate::getChanges() const
@@ -5206,6 +5265,12 @@ void MegaChatSessionPrivate::setAudioDetected(bool audioDetected)
 void MegaChatSessionPrivate::setSessionFullyOperative()
 {
     changed |= MegaChatSession::CHANGE_TYPE_SESSION_OPERATIVE;
+}
+
+void MegaChatSessionPrivate::setOnHold(bool onHold)
+{
+    av.setOnHold(onHold);
+    changed |= CHANGE_TYPE_SESSION_ON_HOLD;
 }
 
 void MegaChatSessionPrivate::removeChanges()
@@ -5517,6 +5582,11 @@ MegaChatHandle MegaChatCallPrivate::getCaller() const
     return callerId;
 }
 
+bool MegaChatCallPrivate::isOnHold() const
+{
+    return localAVFlags.onHold();
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     this->status = status;
@@ -5749,6 +5819,12 @@ void MegaChatCallPrivate::setId(Id callid)
 void MegaChatCallPrivate::setCaller(Id caller)
 {
     this->callerId = caller;
+}
+
+void MegaChatCallPrivate::setOnHold(bool onHold)
+{
+    this->localAVFlags.setOnHold(onHold);
+    this->changed |= MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid, uint32_t clientid)
@@ -8157,6 +8233,12 @@ rtcModule::ICall *MegaChatCallHandler::getCall()
     return call;
 }
 
+void MegaChatCallHandler::onOnHold(bool onHold)
+{
+    chatCall->setOnHold(onHold);
+    megaChatApi->fireOnChatCallUpdate(chatCall);
+}
+
 MegaChatCallPrivate *MegaChatCallHandler::getMegaChatCall()
 {
     return chatCall;
@@ -8293,6 +8375,18 @@ void MegaChatSessionHandler::onSessionAudioDetected(bool audioDetected)
                  Id(chatCall->getChatid()).toString().c_str(),
                  session->peer().toString().c_str(),
                  audioDetected ? "Active" : "Inactive");
+
+    megaChatApi->fireOnChatSessionUpdate(chatCall->getChatid(), chatCall->getId(), megaChatSession);
+}
+
+void MegaChatSessionHandler::onOnHold(bool onHold)
+{
+    MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
+    megaChatSession->setOnHold(onHold);
+    API_LOG_INFO("Change on hold session. ChatId: %s, peer: %s, value: %s",
+                 Id(chatCall->getChatid()).toString().c_str(),
+                 session->peer().toString().c_str(),
+                 onHold ? "Active" : "Inactive");
 
     megaChatApi->fireOnChatSessionUpdate(chatCall->getChatid(), chatCall->getId(), megaChatSession);
 }

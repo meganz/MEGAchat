@@ -222,7 +222,7 @@ karere::AvFlags LocalStreamHandle::av()
     return karere::AvFlags(mAudio.get(), mVideo.get());
 }
 
-karere::AvFlags LocalStreamHandle::effectiveAv()
+karere::AvFlags LocalStreamHandle::effectiveAv() const
 {
     return karere::AvFlags(mAudio && mAudio->enabled(), mVideo && mVideo->enabled());
 }

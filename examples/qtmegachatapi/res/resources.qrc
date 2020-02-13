@@ -26,5 +26,9 @@
         <file>link-hover.svg</file>
         <file>logout.svg</file>
         <file>icq-incoming-msg.mp3</file>
+        <file>callOnHold.png</file>
+        <file>callOnHold2.png</file>
+        <file>callOnHoldActive.png</file>
+        <file>callOnHoldActive2.png</file>
     </qresource>
 </RCC>

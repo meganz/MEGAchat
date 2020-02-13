@@ -276,7 +276,7 @@ public:
     ~LocalStreamHandle();
 
     karere::AvFlags av();
-    karere::AvFlags effectiveAv();
+    karere::AvFlags effectiveAv() const;
     void setAv(karere::AvFlags av);
 
     void addAudioTrack(const rtc::scoped_refptr<webrtc::AudioTrackInterface>& audio);

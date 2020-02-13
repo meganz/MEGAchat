@@ -1133,12 +1133,12 @@ void Call::getLocalStream(AvFlags av)
         enableVideo(true);
     }
 
-    mLocalPlayer->enableVideo(av.video());
+    mLocalPlayer->enableVideo(av.video() || !av.onHold());
 
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
             artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
 
-    if (!av.audio())
+    if (!av.audio() || av.onHold())
     {
         audioTrack->set_enabled(false);
     }
@@ -1146,6 +1146,11 @@ void Call::getLocalStream(AvFlags av)
     mLocalStream->addAudioTrack(audioTrack);
 
     setState(Call::kStateHasLocalStream);
+
+    if (av.onHold())
+    {
+        FIRE_EVENT(CALL, onOnHold, av.onHold());
+    }
 }
 
 void Call::msgCallReqDecline(RtMessage& packet)
@@ -1822,6 +1827,7 @@ void Call::removeSession(Session& sess, TermCode reason)
 }
 bool Call::startOrJoin(AvFlags av)
 {
+    mLocalFlags = av;
     manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
 
     if (!mLocalPlayer)
@@ -1913,11 +1919,19 @@ void Call::sendInCallCommand()
 
 bool Call::sendCallData(CallDataState state)
 {
+    if (state == CallDataState::kCallDataInvalid)
+    {
+        state = CallDataState::kCallDataMute;
+    }
+
+
     uint16_t payLoadLen = sizeof(mId) + sizeof(uint8_t) + sizeof(uint8_t);
     if (state == CallDataState::kCallDataEnd)
     {
          payLoadLen += sizeof(uint8_t);
     }
+
+    mLastCallData = state;
 
     Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
     command.write<uint64_t>(9, 0);
@@ -2131,6 +2145,10 @@ void Call::enableAudio(bool enable)
     }
 
     mLocalStream->audio()->set_enabled(enable);
+    for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
+    {
+        session.second->mAudioSender->track()->set_enabled(enable);
+    }
 }
 
 void Call::enableVideo(bool enable)
@@ -2177,20 +2195,29 @@ void Call::enableVideo(bool enable)
             return;
         }
 
+        if (mLocalFlags.onHold())
+        {
+            return;
+        }
+
         mVideoDevice->openDevice(mManager.mVideoDeviceSelected);
         mLocalPlayer->attachVideo(videoTrack);
-        std::vector<std::string> vector;
-        vector.push_back("stream_id");
+        mLocalStream->video()->set_enabled(true);
         for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
         {
             if (session.second->mPeerSupportRenegotiation)
             {
                 if (session.second->mVideoSender)
                 {
-                    session.second->mVideoSender->SetTrack(videoTrack);
+                    rtc::scoped_refptr<webrtc::VideoTrackInterface> interface =
+                            artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()),  videoTrack->GetSource());
+
+                    session.second->mVideoSender->SetTrack(interface);
                 }
                 else
                 {
+                    std::vector<std::string> vector;
+                    vector.push_back(session.second->mName);
                     webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = session.second->mRtcConn->AddTrack(videoTrack.get(), vector);
                     if (!error.ok())
                     {
@@ -2200,6 +2227,16 @@ void Call::enableVideo(bool enable)
                     }
 
                     session.second->mVideoSender = error.MoveValue();
+                }
+
+                if (session.second->mRemotePlayer)
+                {
+                    session.second->mRemotePlayer->enableVideo(session.second->mPeerAv.video());
+                }
+
+                if (session.second->mPeerAv.onHold())
+                {
+                    session.second->mVideoSender->track()->set_enabled(false);
                 }
             }
             else
@@ -2211,6 +2248,11 @@ void Call::enableVideo(bool enable)
     else
     {
         mLocalPlayer->detachVideo();
+        if (mLocalStream->video())
+        {
+            mLocalStream->video()->set_enabled(false);
+        }
+
         for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
         {
             if (session.second->mPeerSupportRenegotiation)
@@ -2224,7 +2266,10 @@ void Call::enableVideo(bool enable)
             }
         }
 
-        mVideoDevice->releaseDevice();
+        if (mVideoDevice)
+        {
+            mVideoDevice->releaseDevice();
+        }
     }
 }
 
@@ -2247,6 +2292,17 @@ bool Call::hasSessionWithUser(Id userId)
     }
 
     return false;
+}
+void Call::sendAVFlags()
+{
+    sendCallData();
+    AvFlags av = mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);
+    av.setOnHold(mLocalFlags.onHold());
+    for (auto& item: mSessions)
+    {
+        item.second->sendAv(av);
+    }
+
 }
 
 bool Call::answer(AvFlags av)
@@ -2438,17 +2494,20 @@ void Call::notifySessionConnected(Session& /*sess*/)
 
 AvFlags Call::muteUnmute(AvFlags av)
 {
-    if (!mLocalStream)
-        return AvFlags(0);
+    mLocalFlags = av;
+    if (!mLocalStream || av.onHold())
+    {
+        return mLocalFlags;
+    }
 
     AvFlags oldAv = mLocalStream->effectiveAv();
 
-    if (oldAv.video() != av.video())
+    if (oldAv.video() != av.video() && !av.onHold())
     {
         enableVideo(av.video());
     }
 
-    if (oldAv.audio() != av.audio())
+    if (oldAv.audio() != av.audio()  && !av.onHold())
     {
         enableAudio(av.audio());
     }
@@ -2463,10 +2522,9 @@ AvFlags Call::muteUnmute(AvFlags av)
     mLocalPlayer->enableVideo(av.video());
     manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
 
-    sendCallData(CallDataState::kCallDataMute);
-    for (auto& item: mSessions)
+    if (!mLocalFlags.onHold())
     {
-        item.second->sendAv(av);
+        sendAVFlags();
     }
 
     return av;
@@ -2494,6 +2552,30 @@ std::map<Id, uint8_t> Call::sessionState() const
     }
 
     return sessionState;
+}
+
+void Call::setOnHold(bool onHold)
+{
+    assert(onHold != mLocalFlags.onHold());
+    mLocalFlags.setOnHold(onHold);
+
+    if (!mLocalStream)
+    {
+        return;
+    }
+
+    if (mLocalFlags.audio())
+    {
+        enableAudio(!onHold);
+    }
+
+    if (mLocalFlags.video())
+    {
+        enableVideo(!onHold);
+    }
+
+    sendAVFlags();
+    FIRE_EVENT(CALL, onOnHold, onHold);
 }
 
 void Call::sendBusy(bool isCallToSameUser)
@@ -2537,11 +2619,19 @@ void Call::changeVideoInDevice()
 {
     enableVideo(false);
     mVideoDevice = nullptr;
-    enableVideo(true);
+    if (!mLocalFlags.onHold())
+    {
+        enableVideo(true);
+    }
 }
 
 AvFlags Call::sentAv() const
 {
+    if (mLocalFlags.onHold())
+    {
+        return mLocalFlags;
+    }
+
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);
 }
 /** Protocol flow:
@@ -2694,6 +2784,12 @@ Session::Session(Call& call, RtMessage& packet, const SessionInfo *sessionParame
         assert((int) packet.payload.dataSize() >= 83 + sdpLen);
         packet.payload.read(83, sdpLen, mPeerSdpOffer);
         mPeerSupportRenegotiation = sessionParameters->mPeerSupportRenegotiation;   // as received in JOIN
+
+        FIRE_EVENT(SESSION, onPeerMute, mPeerAv, AvFlags(0));
+        if (mPeerAv.onHold())
+        {
+            FIRE_EVENT(SESSION, onOnHold, true);
+        }
     }
     else if (packet.type == RTCMD_SESSION)
     {
@@ -2806,12 +2902,14 @@ void Session::createRtcConn()
     if (mCall.mLocalStream)
     {
         std::vector<std::string> vector;
-        vector.push_back("stream_id");
+        vector.push_back(mName);
 
         if (mCall.sentAv().video())
         {
-            webrtc::VideoTrackInterface *interface = mCall.mLocalStream->video();
+            rtc::scoped_refptr<webrtc::VideoTrackInterface> interface =
+                    artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()),  mCall.mLocalStream->video()->GetSource());
             webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
+
             if (!error.ok())
             {
                 SUB_LOG_WARNING("Error: %s", error.MoveError().message());
@@ -2822,16 +2920,31 @@ void Session::createRtcConn()
             mVideoSender = error.MoveValue();
         }
 
-        if (mCall.sentAv().audio())
+        webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
+        webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
+        if (!error.ok())
         {
-            webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
-            webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
-            if (!error.ok())
+            SUB_LOG_WARNING("Error: %s", error.MoveError().message());
+        }
+
+        mAudioSender = error.MoveValue();
+
+        if (!mCall.sentAv().audio())
+        {
+            mAudioSender->track()->set_enabled(false);
+        }
+
+        if (mCall.mLocalFlags.onHold() || mPeerAv.onHold())
+        {
+            if (mVideoSender && mVideoSender->track())
             {
-                SUB_LOG_WARNING("Error: %s", error.MoveError().message());
+                mVideoSender->track()->set_enabled(false);
             }
 
-            mAudioSender = error.MoveValue();
+            if (mAudioSender && mAudioSender->track())
+            {
+                mAudioSender->track()->set_enabled(false);
+            }
         }
     }
 
@@ -2939,7 +3052,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
         FIRE_EVENT(SESSION, onDataRecv);
     });
     mRemotePlayer->attachToStream(stream);
-    mRemotePlayer->enableVideo(mPeerAv.video());
+    mRemotePlayer->enableVideo(mPeerAv.video() && !mPeerAv.onHold());
 
     if (mRemotePlayer->isAudioAttached())
     {
@@ -3085,9 +3198,14 @@ void Session::updateAvFlags(AvFlags flags)
 {
     auto oldAv = mPeerAv;
     mPeerAv = flags;
-    if (mRemotePlayer)
+    if (mRemotePlayer && !mCall.mLocalFlags.onHold())
     {
         mRemotePlayer->enableVideo(mPeerAv.video());
+    }
+
+    if (oldAv.onHold() != mPeerAv.onHold())
+    {
+        setOnHold(mPeerAv.onHold());
     }
 
     FIRE_EVENT(SESSION, onPeerMute, mPeerAv, oldAv);
@@ -3916,6 +4034,13 @@ promise::Promise<void> Session::setRemoteAnswerSdp(RtMessage &packet)
         terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);
         return promise::_Void();
     }
+
+    FIRE_EVENT(SESSION, onPeerMute, mPeerAv, AvFlags(0));
+    if (mPeerAv.onHold())
+    {
+        setOnHold(mPeerAv.onHold());
+    }
+
     auto wptr = weakHandle();
     return mRtcConn.setRemoteDescription(sdp)
     .fail([wptr, this](const ::promise::Error& err)
@@ -3926,6 +4051,52 @@ promise::Promise<void> Session::setRemoteAnswerSdp(RtMessage &packet)
         std::string msg = "Error setting SDP answer: " + err.msg();
         terminateAndDestroy(TermCode::kErrSdp, msg);
     });
+}
+
+void Session::setOnHold(bool onHold)
+{
+    FIRE_EVENT(SESSION, onOnHold, onHold);
+
+    if (onHold)
+    {
+        if (mCall.mLocalFlags.video())
+        {
+            if (mVideoSender->track())
+            {
+                mVideoSender->track()->set_enabled(false);
+            }
+        }
+
+        if (mPeerAv.video() && mRemotePlayer)
+        {
+            mRemotePlayer->enableVideo(false);
+        }
+
+        if (mCall.mLocalFlags.audio() && mAudioSender && mAudioSender->track())
+        {
+            mAudioSender->track()->set_enabled(false);
+        }
+    }
+    else if (!mCall.mLocalFlags.onHold())
+    {
+        if (mPeerAv.video())
+        {
+            if (mRemotePlayer)
+            {
+                mRemotePlayer->enableVideo(true);
+            }
+        }
+
+        if (mCall.mLocalFlags.video() && mVideoSender && mVideoSender->track())
+        {
+            mVideoSender->track()->set_enabled(true);
+        }
+
+        if (mCall.mLocalFlags.audio() && mAudioSender && mAudioSender->track())
+        {
+            mAudioSender->track()->set_enabled(true);
+        }
+    }
 }
 
 AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)

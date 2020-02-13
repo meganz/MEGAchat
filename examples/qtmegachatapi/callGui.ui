@@ -460,6 +460,65 @@ border-image: url(':/fullscreen-hover.svg');
                </property>
               </spacer>
              </item>
+             <item>
+              <widget class="QToolButton" name="mCallOnHoldBtn">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>32</width>
+                 <height>20</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>36</width>
+                 <height>20</height>
+                </size>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">QToolButton
+{
+border-image: url(':/callOnHold.png');
+}
+QToolButton:hover
+{
+border-image: url(':/callOnHold2.png');
+}
+QToolButton:checked
+{
+border-image: url(':/callOnHoldActive.png');
+}
+QToolButton:checked:hover
+{
+border-image: url(':/callOnHoldActive2.png');
+}</string>
+               </property>
+               <property name="text">
+                <string/>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_7">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
             </layout>
            </item>
           </layout>

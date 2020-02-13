@@ -92,6 +92,7 @@ public:
         CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04, /// Session network quality has changed
         CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08,     /// Session audio level has changed
         CHANGE_TYPE_SESSION_OPERATIVE = 0x10,       /// Session is fully operative (A/V stream is received)
+        CHANGE_TYPE_SESSION_ON_HOLD = 0x20,      /// Session is on hold
     };
 
 
@@ -201,6 +202,13 @@ public:
     virtual bool getAudioDetected() const;
 
     /**
+     * @brief Returns if session is on hold
+     *
+     * @return true if session is on hold
+     */
+    virtual bool isOnHold() const;
+
+    /**
      * @brief Returns a bit field with the changes of the session
      *
      * This value is only useful for session notified by MegaChatCallListener::onChatSessionUpdate
@@ -306,6 +314,7 @@ public:
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,           /// Local audio/video flags has changed
         CHANGE_TYPE_RINGING_STATUS = 0x04,          /// Peer has changed its ringing state
         CHANGE_TYPE_CALL_COMPOSITION = 0x08,        /// Call composition has changed (User added or removed from call)
+        CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
     };
 
     enum
@@ -690,6 +699,13 @@ public:
      * @return user handle of caller
      */
     virtual MegaChatHandle getCaller() const;
+
+    /**
+     * @brief Returns if call is on hold
+     *
+     * @return true if call is on hold
+     */
+    virtual bool isOnHold() const;
 };
 
 /**
@@ -1642,8 +1658,8 @@ public:
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
-        TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
-        TOTAL_OF_REQUEST_TYPES
+        TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM, TYPE_SET_CALL_ON_HOLD,
+        TOTAL_OF_REQUEST_TYPES,
     };
 
     enum {
@@ -4469,6 +4485,19 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Set/unset a call on hold
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CALL_ON_HOLD
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true (set on hold) false (unset on hold)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Search all audio and video devices available at that moment.
