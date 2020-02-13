@@ -2218,7 +2218,9 @@ void Call::enableVideo(bool enable)
                 {
                     std::vector<std::string> vector;
                     vector.push_back(session.second->mName);
-                    webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = session.second->mRtcConn->AddTrack(videoTrack.get(), vector);
+                    rtc::scoped_refptr<webrtc::VideoTrackInterface> interface =
+                            artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()),  videoTrack->GetSource());
+                    webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = session.second->mRtcConn->AddTrack(interface, vector);
                     if (!error.ok())
                     {
                         SUB_LOG_WARNING("Error: %s", error.MoveError().message());
@@ -2931,8 +2933,8 @@ void Session::createRtcConn()
             mVideoSender = error.MoveValue();
         }
 
-        webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
-        webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
+        rtc::scoped_refptr<webrtc::AudioTrackInterface> audioInterface = mCall.mLocalStream->audio();
+        webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(audioInterface, vector);
         if (!error.ok())
         {
             SUB_LOG_WARNING("Error: %s", error.MoveError().message());
