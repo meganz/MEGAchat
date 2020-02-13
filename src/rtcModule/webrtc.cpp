@@ -1899,7 +1899,8 @@ bool Call::rejoin(karere::Id userid, uint32_t clientid)
     // chatid.8 userid.8 clientid.4 dataLen.2 type.1 callid.8 anonId.8
     // if userid is not specified, join all clients in the chat, otherwise
     // join a specific user (used when a session gets broken)
-    bool sent = cmd(RTCMD_JOIN, userid, clientid, mId, mManager.mOwnAnonId);
+    uint8_t flags = sentAv() | kSupportsStreamReneg;
+    bool sent = cmd(RTCMD_JOIN, userid, clientid, mId, mManager.mOwnAnonId, flags);
     if (!sent)
     {
         asyncDestroy(TermCode::kErrNetSignalling, true);
@@ -2122,7 +2123,6 @@ void Call::monitorCallSetupTimeout()
     {
         if (wptr.deleted())
             return;
-
         mCallSetupTimer = 0;
 
         if (mState != kStateInProgress)
@@ -3015,7 +3015,7 @@ promise::Promise<void> Session:: processSdpOfferSendAnswer()
         mCall.mManager.crypto().mac(mOwnSdpAnswer, mPeerHashKey, ownFprHash);
         cmd(opcode,
             ownFprHash,
-            mCall.mLocalStream->effectiveAv().value(),
+            mCall.sentAv().value(),
             static_cast<uint16_t>(mOwnSdpAnswer.size()),
             mOwnSdpAnswer);
     })
@@ -3276,7 +3276,7 @@ Promise<void> Session::sendOffer()
             mCall.mManager.mOwnAnonId,
             encKey,
             hash,
-            mCall.mLocalStream->effectiveAv().value(),
+            mCall.sentAv().value(),
             static_cast<uint16_t>(mOwnSdpOffer.size()),
             mOwnSdpOffer
         );
@@ -3754,6 +3754,7 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kAppTerminating);
         RET_ENUM_NAME(kCallerGone);
         RET_ENUM_NAME(kBusy);
+        RET_ENUM_NAME(kStreamChange);
         RET_ENUM_NAME(kNotFinished);
         RET_ENUM_NAME(kDestroyByCallCollision);
         RET_ENUM_NAME(kNormalHangupLast);
