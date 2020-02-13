@@ -2573,6 +2573,17 @@ void Call::setOnHold(bool onHold)
     {
         enableVideo(!onHold);
     }
+    else
+    {
+        for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
+        {
+            if (session.second->mRemotePlayer)
+            {
+                session.second->mRemotePlayer->enableVideo(session.second->mPeerAv.video() && !session.second->mPeerAv.onHold());
+            }
+        }
+    }
+
 
     sendAVFlags();
     FIRE_EVENT(CALL, onOnHold, onHold);
