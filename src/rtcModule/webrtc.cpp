@@ -2998,14 +2998,6 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
 
     if (state == webrtc::PeerConnectionInterface::kIceConnectionClosed)
     {
-        terminateAndDestroy(TermCode::kErrIceDisconn);
-    }
-    else if (state == webrtc::PeerConnectionInterface::kIceConnectionFailed)
-    {
-        terminateAndDestroy(TermCode::kErrIceFail);
-    }
-    else if (state == webrtc::PeerConnectionInterface::kIceConnectionDisconnected)
-    {
         if (mRenegotiationInProgress)
         {
             SUB_LOG_DEBUG("Skip Ice connection closed, renegotiation in progress");
@@ -3013,6 +3005,10 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
         }
 
         terminateAndDestroy(TermCode::kErrIceDisconn);
+    }
+    else if (state == webrtc::PeerConnectionInterface::kIceConnectionFailed)
+    {
+        terminateAndDestroy(TermCode::kErrIceFail);
     }
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
     {
