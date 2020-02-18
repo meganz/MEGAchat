@@ -530,7 +530,7 @@ Client::reconnect()
                 login();
             });
 
-        }, wptr, mKarereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+        }, wptr, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
 
         return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
@@ -645,7 +645,7 @@ void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *rooms
             }
         }
 
-    }, mKarereClient->appCtx);
+    });
 }
 
 void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpdated)
@@ -728,7 +728,7 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
             }
         }
 
-    }, mKarereClient->appCtx);
+    });
 }
 
 void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
@@ -809,7 +809,7 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
             // finally send to presenced the initial set of peers
             pushPeers();
 
-        }, mKarereClient->appCtx);
+        });
     }
 }
 
@@ -948,7 +948,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
         abortRetryController();
         if (mConnectTimer)
         {
-            cancelTimeout(mConnectTimer, mKarereClient->appCtx);
+            cancelTimeout(mConnectTimer);
             mConnectTimer = 0;
         }
 
@@ -1389,7 +1389,7 @@ void Client::setConnState(ConnState newState)
         // if connect-timer is running, it must be reset (kResolving --> kDisconnected)
         if (mConnectTimer)
         {
-            cancelTimeout(mConnectTimer, mKarereClient->appCtx);
+            cancelTimeout(mConnectTimer);
             mConnectTimer = 0;
         }
 
@@ -1409,7 +1409,7 @@ void Client::setConnState(ConnState newState)
 
                 retryPendingConnection(true);
 
-            }, kConnectTimeout * 1000, mKarereClient->appCtx);
+            }, kConnectTimeout * 1000);
         }
 
         // if disconnected, we don't really know the presence status anymore
@@ -1430,7 +1430,7 @@ void Client::setConnState(ConnState newState)
 
         if (mConnectTimer)
         {
-            cancelTimeout(mConnectTimer, mKarereClient->appCtx);
+            cancelTimeout(mConnectTimer);
             mConnectTimer = 0;
         }
     }

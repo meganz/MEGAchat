@@ -550,10 +550,10 @@ karere::UserAttrCache& ProtocolHandler::userAttrCache()
 
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
-    const StaticBuffer& privRsa,karere::UserAttrCache& userAttrCache,
+    const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
     SqliteDb &db, Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
-    int isUnifiedKeyEncrypted, karere::Id ph, void *ctx)
-: chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
+    int isUnifiedKeyEncrypted, karere::Id ph)
+: chatd::ICrypto(), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
   myPrivEd25519(privEd25519), myPrivRsaKey(privRsa), mUserAttrCache(userAttrCache),
   mDb(db), chatid(aChatId), mPh(ph)
 {

@@ -75,7 +75,7 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 {
     if (!artc::isInitialized())
     {
-        artc::init(client.appCtx);
+        artc::init();
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
 
@@ -138,7 +138,7 @@ void RtcModule::removeCallRetry(karere::Id chatid, bool retry)
     auto retryCalltimerIt = mRetryCallTimers.find(chatid);
     if (retryCalltimerIt != mRetryCallTimers.end())
     {
-        cancelTimeout(retryCalltimerIt->second, mKarereClient.appCtx);
+        cancelTimeout(retryCalltimerIt->second);
         mRetryCallTimers.erase(retryCalltimerIt);
 
         if (!retry)
@@ -533,7 +533,7 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
             RTCM_LOG_DEBUG("Stop reconnection call in pasive mode and launch in active");
             auto itRetryTimerHandle = mRetryCallTimers.find(chatid);
             assert(itRetryTimerHandle != mRetryCallTimers.end());
-            cancelTimeout(itRetryTimerHandle->second, mKarereClient.appCtx);
+            cancelTimeout(itRetryTimerHandle->second);
             mRetryCallTimers.erase(itRetryTimerHandle);
 
         }
@@ -567,7 +567,7 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
             itHandler->second->setReconnectionFailed();
             removeCallWithoutParticipants(chatid);
 
-        }, kRetryCallTimeout, mKarereClient.appCtx);
+        }, kRetryCallTimeout);
     }
 }
 
@@ -999,7 +999,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
             if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
                 return;
             static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
-        }, kCallAnswerTimeout+4000, mKarereClient.appCtx); // local timeout a bit longer that the caller
+        }, kCallAnswerTimeout+4000); // local timeout a bit longer that the caller
     }
     else
     {
@@ -1041,7 +1041,7 @@ Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGr
                 it->second->pollStats();
             }
         }
-    }, kStatsPeriod * 1000, mManager.mKarereClient.appCtx);
+    }, kStatsPeriod * 1000);
 }
 
 void Call::handleMessage(RtMessage& packet)
@@ -1124,7 +1124,7 @@ void Call::getLocalStream(AvFlags av)
 
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
-    mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
+    mLocalPlayer.reset(new artc::StreamPlayer(renderer));
     if (av.video())
     {
         enableVideo(true);
@@ -1304,7 +1304,7 @@ void Call::clearCallOutTimer()
     if (!mCallOutTimer) {
         return;
     }
-    cancelTimeout(mCallOutTimer, mManager.mKarereClient.appCtx);
+    cancelTimeout(mCallOutTimer);
     mCallOutTimer = 0;
     mIsRingingOut = false;
 }
@@ -1440,7 +1440,7 @@ void Call::msgJoin(RtMessage& packet)
         auto it = mManager.mRetryCallTimers.find(chat().chatId());
         if (it != mManager.mRetryCallTimers.end())
         {
-            cancelTimeout(it->second, mManager.mKarereClient.appCtx);
+            cancelTimeout(it->second);
             mManager.mRetryCallTimers.erase(it);
             mManager.mRetryCall.erase(chat().chatId());
             mHandler->onReconnectingState(false);
@@ -1523,7 +1523,7 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
             return;
         if (++ctx->count > 7 || mChat.connection().state() != Connection::State::kStateConnected)
         {
-            cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
+            cancelInterval(mDestroySessionTimer);
             mDestroySessionTimer = 0;
             SUB_LOG_WARNING("Timed out waiting for all sessions to terminate, force closing them");
             for (auto itSessions = mSessions.begin(); itSessions != mSessions.end();)
@@ -1538,10 +1538,10 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
         }
         if (!mSessions.empty())
             return;
-        cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
+        cancelInterval(mDestroySessionTimer);
         mDestroySessionTimer = 0;
         ctx->pms.resolve();
-    }, 200, mManager.mKarereClient.appCtx);
+    }, 200);
     return ctx->pms;
 }
 
@@ -1644,7 +1644,7 @@ bool Call::cmdBroadcast(uint8_t type, Args... args)
         if (wptr.deleted())
             return;
         destroy(TermCode::kErrNetSignalling, false);
-    }, mManager.mKarereClient.appCtx);
+    });
     return false;
 }
 
@@ -1690,7 +1690,7 @@ bool Call::broadcastCallReq()
             // after some time (we use the same kAnswerTimeout duration in order to share the timer)
             sendCallData(CallDataState::kCallDataNotRinging);
         }
-    }, RtcModule::kCallAnswerTimeout, mManager.mKarereClient.appCtx);
+    }, RtcModule::kCallAnswerTimeout);
     return true;
 }
 
@@ -1706,7 +1706,7 @@ void Call::startIncallPingTimer()
             return;
 
         sendInCallCommand();
-    }, RtcModule::kIncallPingInterval, mManager.mKarereClient.appCtx);
+    }, RtcModule::kIncallPingInterval);
 }
 
 void Call::asyncDestroy(TermCode code, bool weTerminate)
@@ -1717,14 +1717,14 @@ void Call::asyncDestroy(TermCode code, bool weTerminate)
         if (wptr.deleted())
             return;
         destroy(code, weTerminate);
-    }, mManager.mKarereClient.appCtx);
+    });
 }
 
 void Call::stopIncallPingTimer(bool endCall)
 {
     if (mInCallPingTimer)
     {
-        cancelInterval(mInCallPingTimer, mManager.mKarereClient.appCtx);
+        cancelInterval(mInCallPingTimer);
         mInCallPingTimer = 0;
     }
 
@@ -1789,7 +1789,7 @@ void Call::removeSession(Session& sess, TermCode reason)
 
             rejoin(sessionPeer, sessionPeerClient);
 
-        }, mManager.mKarereClient.appCtx);
+        });
     }
     else
     {
@@ -1815,7 +1815,7 @@ void Call::removeSession(Session& sess, TermCode reason)
             SUB_LOG_DEBUG("Timed out waiting for peer to rejoin, terminating call");
             hangup(kErrSessRetryTimeout);
         }
-    }, RtcModule::kSessSetupTimeout, mManager.mKarereClient.appCtx);
+    }, RtcModule::kSessSetupTimeout);
 }
 bool Call::startOrJoin(AvFlags av)
 {
@@ -1877,7 +1877,7 @@ bool Call::join(Id userid)
         {
             destroy(TermCode::kErrSessSetupTimeout, true);
         }
-    }, RtcModule::kSessSetupTimeout, mManager.mKarereClient.appCtx);
+    }, RtcModule::kSessSetupTimeout);
     return true;
 }
 
@@ -1943,7 +1943,7 @@ bool Call::sendCallData(CallDataState state)
             if (wptr.deleted())
                 return;
             destroy(TermCode::kErrNetSignalling, true);
-        }, mManager.mKarereClient.appCtx);
+        });
 
         return false;
     }
@@ -1994,7 +1994,7 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
         mHandler->setReconnectionFailed();
         destroy(reason, false, "Everybody left - After reconnection");
 
-    }, RtcModule::kRetryCallTimeout, mManager.mKarereClient.appCtx);
+    }, RtcModule::kRetryCallTimeout);
 }
 
 bool Call::hasNoSessionsOrPendingRetries() const
@@ -2084,7 +2084,7 @@ bool Call::cancelSessionRetryTimer(karere::Id userid, uint32_t clientid)
     if (itSessionRetry != mSessRetries.end())
     {
         megaHandle timerHandle = itSessionRetry->second;
-        cancelTimeout(timerHandle, mManager.mKarereClient.appCtx);
+        cancelTimeout(timerHandle);
         mSessRetries.erase(itSessionRetry);
         return true;
     }
@@ -2096,7 +2096,7 @@ void Call::monitorCallSetupTimeout()
 {
     if (mCallSetupTimer)
     {
-        cancelInterval(mCallSetupTimer, mManager.mKarereClient.appCtx);
+        cancelInterval(mCallSetupTimer);
         mCallSetupTimer = 0;
     }
 
@@ -2117,7 +2117,7 @@ void Call::monitorCallSetupTimeout()
         RTCM_LOG_ERROR("Timeout expired to setup a call");
         hangup(TermCode::kErrCallSetupTimeout);
 
-    }, RtcModule::kCallSetupTimeout, mManager.mKarereClient.appCtx);
+    }, RtcModule::kCallSetupTimeout);
 }
 
 void Call::enableAudio(bool enable)
@@ -2335,7 +2335,7 @@ Call::~Call()
         stopIncallPingTimer();
         if (mDestroySessionTimer)
         {
-            cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
+            cancelInterval(mDestroySessionTimer);
             mDestroySessionTimer = 0;
         }
 
@@ -2355,7 +2355,7 @@ Call::~Call()
 
     if (mStatsTimer)
     {
-        cancelInterval(mStatsTimer, mManager.mKarereClient.appCtx);
+        cancelInterval(mStatsTimer);
     }
 
     SUB_LOG_DEBUG("Destroyed");
@@ -2425,7 +2425,7 @@ void Call::notifySessionConnected(Session& /*sess*/)
 
     if (mCallSetupTimer)
     {
-        cancelInterval(mCallSetupTimer, mManager.mKarereClient.appCtx);
+        cancelInterval(mCallSetupTimer);
         mCallSetupTimer = 0;
     }
 
@@ -2734,7 +2734,7 @@ Session::Session(Call& call, RtMessage& packet, const SessionInfo *sessionParame
 
         terminateAndDestroy(terminationCode);
 
-    }, RtcModule::kSessSetupTimeout, call.mManager.mKarereClient.appCtx);
+    }, RtcModule::kSessSetupTimeout);
 }
 
 void Session::setState(uint8_t newState)
@@ -2749,7 +2749,7 @@ void Session::setState(uint8_t newState)
 
     if (mSetupTimer && mState >= kStateInProgress)
     {
-        cancelTimeout(mSetupTimer, mCall.mManager.mKarereClient.appCtx);
+        cancelTimeout(mSetupTimer);
         mSetupTimer = 0;
     }
 
@@ -2930,7 +2930,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onRemoteStreamAdded, renderer);
     assert(renderer);
-    mRemotePlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
+    mRemotePlayer.reset(new artc::StreamPlayer(renderer));
     mRemotePlayer->setOnMediaStart([this]()
     {
         FIRE_EVENT(SESS, onVideoRecv);
@@ -3046,7 +3046,7 @@ void Session::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transc
     {
         IVideoRenderer* renderer = NULL;
         FIRE_EVENT(SESSION, onRemoteStreamAdded, renderer);
-        mRemotePlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
+        mRemotePlayer.reset(new artc::StreamPlayer(renderer));
     }
 
     if (transceiver->media_type() == cricket::MEDIA_TYPE_VIDEO)
@@ -3251,7 +3251,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
             auto pms = mTerminatePromise;
             pms.resolve();
         }
-    }, RtcModule::kSessFinishTimeout, mManager.mKarereClient.appCtx);
+    }, RtcModule::kSessFinishTimeout);
 
     auto pms = mTerminatePromise;
     return pms
@@ -3859,7 +3859,7 @@ void Session::setStreamRenegotiationTimeout()
     if (mStreamRenegotiationTimer)
     {
         SUB_LOG_WARNING("New renegotation started, while another in-progress");
-        cancelTimeout(mStreamRenegotiationTimer, mManager.mKarereClient.appCtx);
+        cancelTimeout(mStreamRenegotiationTimer);
     }
 
     auto wptr = weakHandle();
@@ -3881,13 +3881,13 @@ void Session::setStreamRenegotiationTimeout()
 
         mStreamRenegotiationTimer = 0;
         terminateAndDestroy(TermCode::kErrStreamRenegotationTimeout);
-    }, RtcModule::kStreamRenegotiationTimeout, mManager.mKarereClient.appCtx);
+    }, RtcModule::kStreamRenegotiationTimeout);
 }
 
 void Session::renegotiationComplete()
 {
     assert(mStreamRenegotiationTimer);
-    cancelTimeout(mStreamRenegotiationTimer, mManager.mKarereClient.appCtx);
+    cancelTimeout(mStreamRenegotiationTimer);
     mStreamRenegotiationTimer = 0;
     mRenegotiationInProgress = false;
 }

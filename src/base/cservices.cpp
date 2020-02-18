@@ -19,32 +19,11 @@ namespace karere
 
 extern "C"
 {
-MEGAIO_EXPORT eventloop* services_eventloop = NULL;
 MEGA_GCM_DLLEXPORT GcmPostFunc megaPostMessageToGui = NULL;
+MEGA_GCM_DLLEXPORT void *appCtx = NULL;
 
 static void keepalive_timer_cb(uv_timer_t* handle) {}
-    
-MEGAIO_EXPORT eventloop* services_get_event_loop()
-{
-    return services_eventloop;
-}
 
-MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
-{
-    megaPostMessageToGui = postFunc;   
-    services_eventloop = new uv_loop_t();
-    uv_loop_init(services_eventloop);    
-    uv_timer_t* timerhandle = new uv_timer_t();
-    uv_timer_init(services_eventloop, timerhandle);
-    uv_timer_start(timerhandle, keepalive_timer_cb, 1234567890ULL, 1);   
-    return 0;
-}
-
-MEGAIO_EXPORT int services_shutdown()
-{
-    uv_stop(services_eventloop);       
-    return 0;
-}
 
 //Handle store
 struct HandleItem

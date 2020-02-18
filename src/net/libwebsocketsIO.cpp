@@ -17,7 +17,7 @@ static struct lws_protocols protocols[] =
     { NULL, NULL, 0, 0 } /* terminator */
 };
 
-LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
+LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api) : WebsocketsIO(mutex, api)
 {
     struct lws_context_creation_info info;
     memset( &info, 0, sizeof(info) );

@@ -66,13 +66,12 @@ public:
     using Mutex = std::recursive_mutex;
     using MutexGuard = std::lock_guard<Mutex>;
 
-    WebsocketsIO(Mutex &mutex, ::mega::MegaApi *megaApi, void *ctx);
+    WebsocketsIO(Mutex &mutex, ::mega::MegaApi *megaApi);
     virtual ~WebsocketsIO();
     
 protected:
     Mutex &mutex;
     MyMegaApi mApi;
-    void *appCtx;
     
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient

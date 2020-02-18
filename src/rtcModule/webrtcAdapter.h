@@ -50,7 +50,7 @@ struct Identity
 };
 
 /** Globally initializes the library */
-bool init(void *appCtx);
+bool init();
 /** De-initializes and cleans up the library and webrtc stack */
 void cleanup();
 bool isInitialized();

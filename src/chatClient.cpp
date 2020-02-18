@@ -54,7 +54,7 @@ namespace karere
 {
 
 template <class T, class F>
-void callAfterInit(T* self, F&& func, void* ctx);
+void callAfterInit(T* self, F&& func);
 
 std::string encodeFirstName(const std::string& first);
 
@@ -72,11 +72,10 @@ bool Client::isInBackground() const
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
+Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps)
     : mAppDir(appDir),
           websocketIO(websocketsIO),
-          appCtx(ctx),
-          api(sdk, ctx),
+          api(sdk),
           app(aApp),
           mDnsCache(db, chatd::Client::chatdVersion),
           mContactList(new ContactList(*this)),
@@ -545,7 +544,7 @@ void Client::onSyncReceived(Id chatid)
     mSyncCount--;
     if (mSyncCount == 0 && mSyncTimer)
     {
-        cancelTimeout(mSyncTimer, appCtx);
+        cancelTimeout(mSyncTimer);
         mSyncTimer = 0;
 
         mSyncPromise.resolve();
@@ -634,7 +633,7 @@ promise::Promise<void> Client::pushReceived(Id chatid)
 
             mChatdClient->retryPendingConnections(true);
 
-        }, chatd::kSyncTimeout, appCtx);
+        }, chatd::kSyncTimeout);
 
         if (chatid.isValid())
         {
@@ -782,7 +781,7 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
                 commit(scsn);
             }
 
-        }, appCtx);
+        });
         break;
     }
 
@@ -951,7 +950,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 {
                     setInitState(kInitErrSidInvalid);
                 }
-            }, appCtx);
+            });
             return;
         }
         break;
@@ -1026,7 +1025,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 assert(state == kInitHasOnlineSession);
                 api.sdk.resumeActionPackets();
             }
-        }, appCtx);
+        });
         break;
     }
 
@@ -1058,7 +1057,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 return;
 
             mUserAttrCache->onUserAttrChange(mMyHandle, changeType);
-        }, appCtx);
+        });
         break;
     }
 
@@ -1228,7 +1227,7 @@ promise::Promise<void> Client::doConnect()
         }
 
         heartbeat();
-    }, kHeartbeatTimeout, appCtx);
+    }, kHeartbeatTimeout);
 
 
     if (anonymousMode())
@@ -1545,7 +1544,7 @@ void Client::terminate(bool deleteDb)
         // stop heartbeats
         if (mHeartbeatTimer)
         {
-            karere::cancelInterval(mHeartbeatTimer, appCtx);
+            karere::cancelInterval(mHeartbeatTimer);
             mHeartbeatTimer = 0;
         }
 
@@ -1606,8 +1605,8 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
             return;
         }
 
-        mContactList->syncWithApi(*users);
-    }, appCtx);
+        updateUsers(*users);
+    });
 }
 
 promise::Promise<karere::Id>
@@ -1639,7 +1638,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         crypto = std::make_shared<strongvelope::ProtocolHandler>(mMyHandle,
                 StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
                 StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), publicchat,
-                unifiedKey, false, Id::inval(), appCtx);
+                unifiedKey, false, Id::inval());
         crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
     }
 
@@ -1772,7 +1771,7 @@ void ChatRoom::onLastMessageTsUpdated(uint32_t ts)
         auto display = roomGui();
         if (display)
             display->onLastTsUpdated(ts);
-    }, parent.mKarereClient.appCtx);
+    });
 }
 
 ApiPromise ChatRoom::requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
@@ -1796,7 +1795,7 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid, bool i
     return new strongvelope::ProtocolHandler(mMyHandle,
          StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
          StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid,
-         isPublic, unifiedKey, isUnifiedKeyEncrypted, ph, appCtx);
+         isPublic, unifiedKey, isUnifiedKeyEncrypted, ph);
 }
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic,
@@ -1808,7 +1807,7 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers, bool isPubl
 }
 
 template <class T, typename F>
-void callAfterInit(T* self, F&& func, void *ctx)
+void callAfterInit(T* self, F&& func)
 {
     if (self->isInitializing())
     {
@@ -1817,7 +1816,7 @@ void callAfterInit(T* self, F&& func, void *ctx)
         {
             if (!wptr.deleted())
                 func();
-        }, ctx);
+        });
     }
     else
     {
@@ -2411,7 +2410,7 @@ void GroupChatRoom::deleteSelf()
             return;
         }
         delete this;
-    }, parent.mKarereClient.appCtx);
+    });
 }
 
 ChatRoomList::ChatRoomList(Client& aClient)
@@ -2576,7 +2575,7 @@ void ChatRoomList::removeRoomPreview(Id chatid)
         groupchat->notifyPreviewClosed();
         erase(it);
         delete groupchat;
-    },mKarereClient.appCtx);
+    });
 }
 
 void GroupChatRoom::notifyPreviewClosed()
@@ -2616,7 +2615,7 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
         }
 
         chats->onChatsUpdate(*copy);
-    }, appCtx);
+    });
 }
 
 void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
@@ -3042,7 +3041,7 @@ void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
             auto display = roomGui();
             if (display)
                 display->onLastMessageUpdated(msg);
-        }, parent.mKarereClient.appCtx);
+        });
     }
     else
     {
@@ -3177,7 +3176,7 @@ void ChatRoom::notifyTitleChanged()
 
         if (mAppChatHandler)
             mAppChatHandler->onTitleChanged(mTitleString);
-    }, parent.mKarereClient.appCtx);
+    });
 }
 
 void ChatRoom::notifyChatModeChanged()
@@ -3190,7 +3189,7 @@ void ChatRoom::notifyChatModeChanged()
 
         if (mAppChatHandler)
             mAppChatHandler->onChatModeChanged(this->publicChat());
-    }, parent.mKarereClient.appCtx);
+    });
 }
 
 void GroupChatRoom::enablePreview(uint64_t ph)
@@ -3798,7 +3797,7 @@ void Contact::notifyTitleChanged()
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
             mChatRoom->updateTitle(mTitleString.substr(1));
-    }, mClist.client.appCtx);
+    });
 }
 
 Contact::~Contact()

@@ -27,14 +27,13 @@ class AsyncWaiter: public rtc::SocketServer,
                    public karere::DeleteTrackable
 {
 protected:
-    void *appCtx;
     std::mutex mMutex;
     std::condition_variable mCondVar;
     volatile bool mSignalled = false;
     rtc::Thread* mThread = nullptr;
     rtc::MessageQueue* mMessageQueue = nullptr;
 public:
-    AsyncWaiter(void *ctx) : appCtx(ctx) { }
+    AsyncWaiter() { }
     rtc::Thread* guiThread() const { return mThread; }
     void setThread(rtc::Thread* thread) { mThread = thread; }
 //rtc::SocketFactory interface
@@ -109,7 +108,7 @@ virtual void WakeUp()
             {
                 ASYNCWAITER_LOG_DEBUG("  WakeUp: GUI thread: No messages in queue, someone processed them before us");
             }
-        }, appCtx);
+        });
     }
     //If the GUI thread is waiting, we must wake it up to process messages if any.
     //If it processes any messages, it will signal the condvar once again

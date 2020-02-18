@@ -15,7 +15,7 @@ public:
     struct lws_context *wscontext;
     uv_loop_t* eventloop;
 
-    LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
+    LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api);
     virtual ~LibwebsocketsIO();
     
     virtual void addevents(::mega::Waiter*, int);

@@ -855,7 +855,6 @@ public:
 
     std::string mAppDir;
     WebsocketsIO *websocketIO;  // network-layer interface
-    void *appCtx;               // app's context
     MyMegaApi api;              // MegaApi's instance
     IApp& app;                  // app's interface
     SqliteDb db;                // db-layer interface
@@ -934,7 +933,7 @@ public:
      * delete the karere.db file and re-create it from scratch.
      */
     Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& app, const std::string& appDir,
-           uint8_t caps, void *ctx = NULL);
+           uint8_t caps);
 
     virtual ~Client();
 

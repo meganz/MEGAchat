@@ -75,6 +75,7 @@ typedef void (*GcmPostFunc)(void*, void*);
 * call on the main (GUI) thread.
 */
 extern MEGA_GCM_IMPEXP GcmPostFunc megaPostMessageToGui;
+extern MEGA_GCM_IMPEXP void *appCtx;
 
 /** When the application's main (GUI) thread receives a message posted by
  * megaPostMessageToGui(), the user's code must forward the \c void* pointer

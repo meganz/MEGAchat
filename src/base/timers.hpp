@@ -56,12 +56,11 @@ void init_uv_timer(void *ctx, uv_timer_t *timer);
 extern std::recursive_mutex timerMutex;
 
 template <int persist, class CB>
-inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
+inline megaHandle setTimer(CB&& callback, unsigned time)
 {
     struct Msg: public TimerMsg
     {
         CB cb;
-        void *appCtx;
         Msg(CB&& aCb, megaMessageFunc cFunc)
         :TimerMsg(cFunc), cb(aCb)
         {}
@@ -99,20 +98,19 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
     Msg* pMsg = new Msg(std::forward<CB>(callback), cfunc);
     timerMutex.unlock();
 
-    pMsg->appCtx = ctx;
     pMsg->time = time;
     pMsg->loop = persist;  
-    marshallCall([pMsg, ctx]()
+    marshallCall([pMsg]()
     {
         pMsg->timerEvent = new uv_timer_t();
         pMsg->timerEvent->data = pMsg;
-        init_uv_timer(ctx, pMsg->timerEvent);
+        init_uv_timer(appCtx, pMsg->timerEvent);
         uv_timer_start(pMsg->timerEvent,
                        [](uv_timer_t* handle)
                        {
-                           megaPostMessageToGui(handle->data, ((Msg*)handle->data)->appCtx);
+                           megaPostMessageToGui(handle->data, appCtx);
                        }, pMsg->time, pMsg->loop ? pMsg->time : 0);
-    }, ctx);    
+    });
     return pMsg->handle;
 }
 /** Cancels a previously set timeout with setTimeout()
@@ -120,7 +118,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
  * already triggered, then the handle is invalidated. This situation is safe and
  * considered normal
  */
-static inline bool cancelTimeout(megaHandle handle, void *ctx)
+static inline bool cancelTimeout(megaHandle handle)
 {
     timerMutex.lock();
 
@@ -138,23 +136,23 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
 //That call should be processed after all timer messages
     timer->canceled = true; //disable timer callback being called by possibly queued messages, and message freeing in one-shot timer handler
     timerMutex.unlock();    
-    marshallCall([timer, ctx]()
+    marshallCall([timer]()
     {
         uv_timer_stop(timer->timerEvent);
 
-        marshallCall([timer, ctx]()
+        marshallCall([timer]()
         {
             delete timer;
-        }, ctx);
-    }, ctx);
+        });
+    });
     return true;
 }
 /** @brief Cancels a previously set timer with setInterval.
  * @return \c false if the handle is not valid.
  */
-static inline bool cancelInterval(megaHandle handle, void *ctx)
+static inline bool cancelInterval(megaHandle handle)
 {
-    return cancelTimeout(handle, ctx);
+    return cancelTimeout(handle);
 }
 /**
  *
@@ -167,9 +165,9 @@ static inline bool cancelInterval(megaHandle handle, void *ctx)
  * @returns a handle that can be used to cancel the timeout
  */
 template<class CB>
-static inline megaHandle setTimeout(CB&& cb, unsigned timeMs, void *ctx)
+static inline megaHandle setTimeout(CB&& cb, unsigned timeMs)
 {
-    return setTimer<0>(std::forward<CB>(cb), timeMs, ctx);
+    return setTimer<0>(std::forward<CB>(cb), timeMs);
 }
 /**
  @brief Sets a repeating timer, similar to javascript's setInterval
@@ -180,9 +178,9 @@ static inline megaHandle setTimeout(CB&& cb, unsigned timeMs, void *ctx)
  @returns a handle that can be used to cancel the timer
 */
 template <class CB>
-static inline megaHandle setInterval(CB&& callback, unsigned timeMs, void *ctx)
+static inline megaHandle setInterval(CB&& callback, unsigned timeMs)
 {
-    return setTimer<0x10>(std::forward<CB>(callback), timeMs, ctx);
+    return setTimer<0x10>(std::forward<CB>(callback), timeMs);
 }
 
 }

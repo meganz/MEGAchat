@@ -38,11 +38,10 @@ public:
 
 class MyListener: public ::mega::MegaRequestListener
 {
-    void *appCtx;
     karere::DeleteTrackable::Handle wptr;
     
 public:
-    MyListener(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
+    MyListener(karere::DeleteTrackable::Handle wptr) : wptr(wptr) { }
     ApiPromise mPromise;
     virtual void onRequestFinish(::mega::MegaApi* /*api*/, ::mega::MegaRequest *request, ::mega::MegaError* e)
     {
@@ -71,17 +70,16 @@ public:
                 mPromise.resolve(req);
             }
             delete this;
-        }, appCtx);
+        });
     }
 };
 
 class MyListenerNoResult: public ::mega::MegaRequestListener
 {
-    void *appCtx;
     karere::DeleteTrackable::Handle wptr;
 
 public:
-    MyListenerNoResult(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
+    MyListenerNoResult(karere::DeleteTrackable::Handle wptr) : wptr(wptr) { }
 
     promise::Promise<void> mPromise;
     virtual void onRequestFinish(::mega::MegaApi* /*api*/, ::mega::MegaRequest * /*request*/, ::mega::MegaError* e)
@@ -110,7 +108,7 @@ public:
                 mPromise.resolve();
             }
             delete this;
-        }, appCtx);
+        });
     }
 };
 
@@ -147,11 +145,10 @@ class MyMegaApi: public karere::DeleteTrackable
 public:
     ::mega::MegaApi& sdk;
     std::unique_ptr<MyMegaLogger> mLogger;
-    void *appCtx;
     bool logging;
     
-    MyMegaApi(::mega::MegaApi& aSdk, void *ctx, bool addlogger = true)
-    :sdk(aSdk), mLogger(new MyMegaLogger), appCtx(ctx), logging(addlogger)
+    MyMegaApi(::mega::MegaApi& aSdk, bool addlogger = true)
+    :sdk(aSdk), mLogger(new MyMegaLogger), logging(addlogger)
     {
         if (addlogger)
         {
@@ -161,14 +158,14 @@ public:
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)
     {
-        auto listener = new MyListener(appCtx, getDelTracker());
+        auto listener = new MyListener(getDelTracker());
         (sdk.*method)(args..., listener);
         return listener->mPromise;
     }
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     promise::Promise<void> callIgnoreResult(MSig method, Args... args)
     {
-        auto listener = new MyListenerNoResult(appCtx, getDelTracker());
+        auto listener = new MyListenerNoResult(getDelTracker());
         (sdk.*method)(args..., listener);
         return listener->mPromise;
     }

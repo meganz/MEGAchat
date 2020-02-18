@@ -337,7 +337,7 @@ void Client::cancelSeenTimers()
 {
    for (std::set<megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
    {
-        cancelTimeout(*it, mKarereClient->appCtx);
+        cancelTimeout(*it);
    }
    mSeenTimers.clear();
 }
@@ -554,7 +554,7 @@ void Connection::sendEcho()
         abortRetryController();
         reconnect();
 
-    }, kEchoTimeout * 1000, mChatdClient.mKarereClient->appCtx);
+    }, kEchoTimeout * 1000);
 
     CHATDS_LOG_DEBUG("send ECHO");
     sendBuf(Command(OP_ECHO));
@@ -603,14 +603,14 @@ void Connection::setState(State state)
         // if an ECHO was sent, no need to wait for its response
         if (mEchoTimer)
         {
-            cancelTimeout(mEchoTimer, mChatdClient.mKarereClient->appCtx);
+            cancelTimeout(mEchoTimer);
             mEchoTimer = 0;
         }
 
         // if connect-timer is running, it must be reset (kStateResolving --> kStateDisconnected)
         if (mConnectTimer)
         {
-            cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+            cancelTimeout(mConnectTimer);
             mConnectTimer = 0;
         }
 
@@ -630,7 +630,7 @@ void Connection::setState(State state)
 
                 retryPendingConnection(true);
 
-            }, kConnectTimeout * 1000, mChatdClient.mKarereClient->appCtx);
+            }, kConnectTimeout * 1000);
         }
 
         // notify chatrooms that connection is down
@@ -670,7 +670,7 @@ void Connection::setState(State state)
 
         if (mConnectTimer)
         {
-            cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+            cancelTimeout(mConnectTimer);
             mConnectTimer = 0;
         }
     }
@@ -877,7 +877,7 @@ Promise<void> Connection::reconnect()
                 sendKeepalive();
                 rejoinExistingChats();
             });
-        }, wptr, mChatdClient.mKarereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+        }, wptr, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
 
         return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
@@ -982,7 +982,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         // abort and prevent any further reconnection attempt
         setState(kStateDisconnected);
         abortRetryController();
-        cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+        cancelTimeout(mConnectTimer);
         mConnectTimer = 0;
 
         auto wptr = getDelTracker();
@@ -1663,7 +1663,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 
                 CHATID_LOG_DEBUG("Fetching history (%u messages) from server...", count);
                 requestHistoryFromServer(-count);
-            }, mChatdClient.mKarereClient->appCtx);
+            });
         }
         mServerOldHistCbEnabled = true;
         return kHistSourceServer;
@@ -1705,7 +1705,7 @@ void Chat::requestNodeHistoryFromServer(Id oldestMsgid, uint32_t count)
         assert(mAttachNodesReceived == 0);
         mAttachmentHistDoneReceived = false;
         sendCommand(Command(OP_NODEHIST) + mChatId + oldestMsgid + -count);
-    }, mChatdClient.mKarereClient->appCtx);
+    });
 }
 
 Message *Chat::oldest() const
@@ -2243,7 +2243,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 if (mEchoTimer)
                 {
                     CHATDS_LOG_DEBUG("Socket is still alive");
-                    cancelTimeout(mEchoTimer, mChatdClient.mKarereClient->appCtx);
+                    cancelTimeout(mEchoTimer);
                     mEchoTimer = 0;
                 }
                 break;
@@ -2606,7 +2606,7 @@ void Chat::addReaction(const Message &message, const std::string &reaction)
         {
             CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
         });
-    }, mChatdClient.mKarereClient->appCtx);
+    });
 }
 
 void Chat::delReaction(const Message &message, const std::string &reaction)
@@ -2630,7 +2630,7 @@ void Chat::delReaction(const Message &message, const std::string &reaction)
         {
             CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
         });
-    }, mChatdClient.mKarereClient->appCtx);
+    });
 }
 
 void Chat::sendReactionSn()
@@ -2975,7 +2975,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
 
         msgSubmit(message, recipients);
 
-    }, mChatdClient.mKarereClient->appCtx);
+    });
     return message;
 }
 void Chat::msgSubmit(Message* msg, SetOfIds recipients)
@@ -3300,7 +3300,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
 
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd, recipients);
 
-    }, mChatdClient.mKarereClient->appCtx);
+    });
 
     return upd;
 }
@@ -3525,7 +3525,7 @@ bool Chat::setMessageSeen(Idx idx)
         mLastSeenId = id;
         CALL_DB(setLastSeen, mLastSeenId);
         CALL_LISTENER(onUnreadChanged);
-    }, kSeenTimeout, mChatdClient.mKarereClient->appCtx);
+    }, kSeenTimeout);
 
     mChatdClient.mSeenTimers.insert(seenTimer);
 
@@ -5037,7 +5037,7 @@ void Chat::setOnlineState(ChatState state)
                 CHATID_LOG_DEBUG("Pending pushReceived is completed now");
                 if (mChatdClient.mKarereClient->mSyncTimer)
                 {
-                    cancelTimeout(mChatdClient.mKarereClient->mSyncTimer, mChatdClient.mKarereClient->appCtx);
+                    cancelTimeout(mChatdClient.mKarereClient->mSyncTimer);
                     mChatdClient.mKarereClient->mSyncTimer = 0;
                 }
                 mChatdClient.mKarereClient->mSyncPromise.resolve();
@@ -5173,7 +5173,7 @@ bool Chat::findLastTextMsg()
             mLastTextMsg.setState(LastTextMsgState::kFetching);
         }
 
-    }, mChatdClient.mKarereClient->appCtx);
+    });
 
     return false;
 }

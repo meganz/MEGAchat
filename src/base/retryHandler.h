@@ -112,7 +112,6 @@ protected:
     unsigned long mTimer = 0;
     unsigned short mInitialWaitTime;
     unsigned mRestart = 0;
-    void *appCtx;
     DeleteTrackable::Handle wptr;
     
 public:
@@ -135,13 +134,13 @@ public:
      * This can be used for high frequency initial retrying.
      */
     RetryController(const std::string& aName, Func&& func, CancelFunc&& cancelFunc, unsigned attemptTimeout,
-        DeleteTrackable::Handle wptr, void *ctx, unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime,
+        DeleteTrackable::Handle wptr, unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime,
         size_t maxAttemptCount=kDefaultMaxAttemptCount, unsigned short backoffStart=1000)
         :IRetryController(aName), mFunc(std::forward<Func>(func)), mCancelFunc(std::forward<CancelFunc>(cancelFunc)),
          mMaxAttemptCount(maxAttemptCount), mAttemptTimeout(attemptTimeout),
          mMaxSingleWaitTime(maxSingleWaitTime),
          mInitialWaitTime(backoffStart),
-         appCtx(ctx), wptr(wptr)
+         wptr(wptr)
     {}
     ~RetryController()
     {
@@ -166,7 +165,7 @@ public:
                     return;
                 mTimer = 0;
                 nextTry();
-            }, delay, appCtx);
+            }, delay);
         }
         else
         {
@@ -269,7 +268,7 @@ protected:
     {
         if (!mTimer)
             return;
-        cancelTimeout(mTimer, appCtx);
+        cancelTimeout(mTimer);
         mTimer = 0;
     }
 
@@ -347,7 +346,7 @@ protected:
                     }
                 }
                 schedNextRetry(timeoutError);
-            }, mAttemptTimeout, appCtx);
+            }, mAttemptTimeout);
         }
         mState = kStateInProgress;
 
@@ -402,7 +401,7 @@ protected:
                 return;
             mTimer = 0;
             nextTry();
-        }, waitTime, appCtx);
+        }, waitTime);
         return true;
     }
 };
@@ -448,7 +447,7 @@ static inline auto retry(const std::string& aName, Func&& func, DeleteTrackable:
 template <class Func, class CancelFunc=void*>
 static inline rh::RetryController<Func, CancelFunc>* createRetryController(
     const std::string& aName, Func&& func,
-    DeleteTrackable::Handle wptr, void *ctx,
+    DeleteTrackable::Handle wptr,
     CancelFunc&& cancelFunc = nullptr,
     unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
@@ -457,7 +456,7 @@ static inline rh::RetryController<Func, CancelFunc>* createRetryController(
 {
     rh::RetryController<Func, CancelFunc>* retryController = new rh::RetryController<Func, CancelFunc>(aName,
         std::forward<Func>(func),
-        std::forward<CancelFunc>(cancelFunc), attemptTimeout, wptr, ctx,
+        std::forward<CancelFunc>(cancelFunc), attemptTimeout, wptr,
         maxSingleWaitTime, maxRetries, backoffStart);
     return retryController;
 }

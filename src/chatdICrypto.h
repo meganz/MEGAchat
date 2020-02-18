@@ -20,10 +20,9 @@ enum
 class Chat;
 class ICrypto
 {
-    void *appCtx;
     
 public:
-    ICrypto(void *ctx) : appCtx(ctx) {}
+    ICrypto() {}
     
     virtual void setUsers(karere::SetOfIds* users) = 0;
 

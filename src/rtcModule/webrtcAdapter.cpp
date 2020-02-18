@@ -29,7 +29,7 @@ static bool gIsInitialized = false;
 AsyncWaiter* gAsyncWaiter = nullptr;
 
 bool isInitialized() { return gIsInitialized; }
-bool init(void *appCtx)
+bool init()
 {
     if (gIsInitialized)
         return false;
@@ -45,7 +45,7 @@ bool init(void *appCtx)
     }
 // Put our custom Thread object in the main thread, so our main thread can process
 // webrtc messages, in a non-blocking way, integrated with the application's message loop
-    gAsyncWaiter = new AsyncWaiter(appCtx);
+    gAsyncWaiter = new AsyncWaiter();
     auto thread = new rtc::Thread(gAsyncWaiter);
     gAsyncWaiter->setThread(thread);
     thread->SetName("Main Thread", thread);

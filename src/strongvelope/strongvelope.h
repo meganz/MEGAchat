@@ -343,7 +343,7 @@ public:
         const StaticBuffer& privEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
-        int isUnifiedKeyEncrypted, karere::Id ph, void *ctx);
+        int isUnifiedKeyEncrypted, karere::Id ph);
 
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);

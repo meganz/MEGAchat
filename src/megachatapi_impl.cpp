@@ -102,6 +102,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     if (!megaPostMessageToGui)
     {
         megaPostMessageToGui = MegaChatApiImpl::megaApiPostMessage;
+        appCtx = this;
     }
 
     this->chatApi = chatApi;
@@ -110,7 +111,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->mClient = NULL;
     this->terminating = false;
     this->waiter = new MegaChatWaiter();
-    this->websocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
+    this->websocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi);
     this->reqtag = 0;
 
     //Start blocking thread
@@ -356,7 +357,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete mClient;
                 mClient = NULL;
                 terminating = false;
-            }, this);
+            });
 
             break;
         }
@@ -1872,7 +1873,7 @@ void MegaChatApiImpl::createKarereClient()
 #else
         uint8_t caps = karere::kClientIsMobile | karere::kClientSupportLastGreen;
 #endif
-        mClient = new karere::Client(*megaApi, websocketsIO, *this, megaApi->getBasePath(), caps, this);
+        mClient = new karere::Client(*megaApi, websocketsIO, *this, megaApi->getBasePath(), caps);
         terminating = false;
     }
 }

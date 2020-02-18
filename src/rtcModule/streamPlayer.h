@@ -15,7 +15,6 @@ typedef rtcModule::IVideoRenderer IVideoRenderer;
 class StreamPlayer: public rtc::VideoSinkInterface<webrtc::VideoFrame>
 {
 protected:
-    void *appCtx;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
     IVideoRenderer* mRenderer;
@@ -26,11 +25,10 @@ protected:
 
 public:
     IVideoRenderer* videoRenderer() const {return mRenderer;}
-    StreamPlayer(IVideoRenderer* renderer, void *ctx, webrtc::AudioTrackInterface* audio=nullptr,
+    StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio=nullptr,
     webrtc::VideoTrackInterface *video=nullptr)
      :mAudio(audio), mVideo(video), mRenderer(renderer)
     {
-        appCtx = ctx;
     }
 
     ~StreamPlayer()
@@ -149,7 +147,7 @@ public:
                 karere::marshallCall([callback]()
                 {
                     callback();
-                }, appCtx);
+                });
             }
         }
 

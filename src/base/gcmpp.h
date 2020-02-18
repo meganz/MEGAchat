@@ -19,7 +19,7 @@ namespace karere
  * and all code is in the same compilation unit, so it can be inlined
  */
 template <class F>
-static inline void marshallCall(F&& func, void *appCtx)
+static inline void marshallCall(F&& func)
 {
     struct Msg: public megaMessage
     {
