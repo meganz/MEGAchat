@@ -58,7 +58,6 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 {
     vector<string> ipsv4, ipsv6;
-    std::function<void (int, vector<string>&, vector<string>&)>* func = (std::function<void (int, vector<string>&, vector<string>&)>*)req->data;
     struct addrinfo *hp = res;
     while (hp)
     {
@@ -92,9 +91,16 @@ static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *re
         WEBSOCKETS_LOG_ERROR("Failed to resolve DNS. Reason: %s (%d)", uv_strerror(status), status);
     }
 
-    (*func)(status, ipsv4, ipsv6);
+    void* func = req->data;
+    karere::marshallCall([func, status, ipsv4, ipsv6]()
+    {
+        std::function<void (int, const vector<string>&, const vector<string>&)>* cb = (std::function<void (int, const vector<string>&, const vector<string>&)>*)func;
+
+        (*cb)(status, ipsv4, ipsv6);
+        delete cb;
+    });
+
     uv_freeaddrinfo(res);
-    delete func;
     delete req;
 }
 
