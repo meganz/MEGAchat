@@ -1110,6 +1110,7 @@ public:
     void setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
+    void setChatRetentionTime(MegaChatHandle chatid, int period, bool inSeconds, MegaChatRequestListener *listener = NULL);
 
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);

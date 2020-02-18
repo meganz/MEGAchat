@@ -1752,6 +1752,47 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+
+        case MegaChatRequest::TYPE_SET_RETENTION_TIME:
+        {
+            MegaChatHandle chatid = request->getChatHandle();
+            int period = request->getParamType();
+            bool inSeconds = request->getFlag();
+
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+            if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            chatroom->setChatRetentionTime(period, inSeconds)
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const ::promise::Error& err)
+            {
+                API_LOG_ERROR("Error setting retention time : %s", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
+
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -3113,6 +3154,16 @@ void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatR
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ARCHIVE_CHATROOM, listener);
     request->setChatHandle(chatid);
     request->setFlag(archive);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, int period, bool inSeconds, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_RETENTION_TIME, listener);
+    request->setChatHandle(chatid);
+    request->setParamType(period);
+    request->setFlag(inSeconds);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4835,6 +4886,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "LAST_GREEN";
         case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
+        case TYPE_SET_RETENTION_TIME: return "SET_RETENTION_TIME";
     }
     return "UNKNOWN";
 }

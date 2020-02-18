@@ -1530,7 +1530,8 @@ public:
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
-        TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
+        TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT,
+        TYPE_CHANGE_VIDEO_STREAM, TYPE_SET_RETENTION_TIME,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -3500,6 +3501,8 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
+
+    void setChatRetentionTime(MegaChatHandle chatid, int period, bool inSeconds = false, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened

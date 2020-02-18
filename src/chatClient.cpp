@@ -2399,6 +2399,16 @@ promise::Promise<void> ChatRoom::archiveChat(bool archive)
     });
 }
 
+promise::Promise<void> ChatRoom::setChatRetentionTime(int period, bool inSeconds)
+{
+    auto wptr = getDelTracker();
+    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatRetentionTime, chatid(), period, inSeconds)
+    .then([wptr]()
+    {
+        wptr.throwIfDeleted();
+    });
+}
+
 void GroupChatRoom::deleteSelf()
 {
     //have to post a delete on the event loop, as there may be pending

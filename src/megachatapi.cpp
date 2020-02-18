@@ -617,6 +617,11 @@ void MegaChatApi::archiveChat(MegaChatHandle chatid, bool archive, MegaChatReque
     pImpl->archiveChat(chatid, archive, listener);
 }
 
+void MegaChatApi::setChatRetentionTime(MegaChatHandle chatid, int period, bool inSeconds, MegaChatRequestListener *listener)
+{
+    pImpl->setChatRetentionTime(chatid, period, inSeconds, listener);
+}
+
 bool MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
     return pImpl->openChatRoom(chatid, listener);
