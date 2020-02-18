@@ -112,7 +112,6 @@ HEADERS  += asyncTest-framework.h \
             ../bindings/qt/QTMegaChatVideoListener.h \
             ../bindings/qt/QTMegaChatNotificationListener.h \
             ../bindings/qt/QTMegaChatNodeHistoryListener.h \
-            base/asyncTools.h \
             base/addrinfo.hpp \
             base/cservices-thread.h \
             base/cservices.h \

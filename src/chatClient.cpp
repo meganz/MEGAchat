@@ -30,7 +30,6 @@
 #include <chatdDb.h>
 #include <megaapi_impl.h>
 #include <autoHandle.h>
-#include <asyncTools.h>
 #include <codecvt> //for nonWhitespaceStr()
 #include <locale>
 #include "strongvelope/strongvelope.h"
