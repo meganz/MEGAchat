@@ -1604,7 +1604,7 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
             return;
         }
 
-        updateUsers(*users);
+        mContactList->syncWithApi(*users);
     });
 }
 
