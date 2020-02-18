@@ -1405,6 +1405,16 @@ public:
     virtual int getDuration() const;
 
     /**
+     * @brief Return retention time in seconds
+     *
+     * This funcion returns a valid value for:
+     *  - MegaChatMessage::TYPE_SET_RETENTION_TIME
+     *
+     * @return Retention time
+     */
+    virtual int getRetentionTime() const;
+
+    /**
      * @brief Return the termination code of the call
      *
      * This funcion returns a valid value for:

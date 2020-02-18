@@ -831,6 +831,7 @@ public:
     virtual const MegaChatContainsMeta *getContainsMeta() const;
     virtual mega::MegaHandleList *getMegaHandleList() const;
     virtual int getDuration() const;
+    virtual int getRetentionTime() const;
     virtual int getTermCode() const;
 
     virtual int getChanges() const;

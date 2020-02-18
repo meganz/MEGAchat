@@ -1735,6 +1735,11 @@ int MegaChatMessage::getDuration() const
     return 0;
 }
 
+int MegaChatMessage::getRetentionTime() const
+{
+    return 0;
+}
+
 int MegaChatMessage::getTermCode() const
 {
     return 0;

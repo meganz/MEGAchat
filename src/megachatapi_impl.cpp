@@ -7775,6 +7775,11 @@ int MegaChatMessagePrivate::getDuration() const
     return priv;
 }
 
+int MegaChatMessagePrivate::getRetentionTime() const
+{
+    return priv;
+}
+
 int MegaChatMessagePrivate::getTermCode() const
 {
     return code;
