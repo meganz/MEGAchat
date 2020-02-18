@@ -7067,6 +7067,14 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
                 break;
             }
 
+            case MegaChatMessage::TYPE_SET_RETENTION_TIME:
+            {
+               int32_t retentionTime;
+               memcpy(&retentionTime, msg->contents().c_str(), msg->contents().size());
+               this->lastMsg = std::to_string(retentionTime);
+               break;
+            }
+
             case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:  // deprecated: should not be notified as last-message
             case MegaChatMessage::TYPE_TRUNCATE:                // no content at all
             case MegaChatMessage::TYPE_CALL_STARTED:            // no content at all
@@ -7486,6 +7494,15 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             }
             break;
         }
+
+        case MegaChatMessage::TYPE_SET_RETENTION_TIME:
+        {
+          int32_t retentionTime;
+          memcpy(&retentionTime, msg.buf(), msg.dataSize());
+          priv = retentionTime;
+          break;
+        }
+
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:

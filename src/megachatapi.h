@@ -1070,7 +1070,8 @@ public:
         TYPE_PUBLIC_HANDLE_CREATE   = 8,    /// Management message indicating a public handle has been created
         TYPE_PUBLIC_HANDLE_DELETE   = 9,    /// Management message indicating a public handle has been removed
         TYPE_SET_PRIVATE_MODE       = 10,   /// Management message indicating the chat mode has been set to private
-        TYPE_HIGHEST_MANAGEMENT     = 10,
+        TYPE_SET_RETENTION_TIME     = 11,   /// Management message indicating the retention time for a chatroom
+        TYPE_HIGHEST_MANAGEMENT     = 11,
         TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts

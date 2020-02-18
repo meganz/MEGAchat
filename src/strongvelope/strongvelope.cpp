@@ -1252,6 +1252,13 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
             msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
+        case Message::kMsgSetRetentionTime:
+        {
+            int32_t retentionTime = parsedMsg->payload.read<int32_t>(0);
+            msg->append<int32_t>(retentionTime);
+            msg->setEncrypted(Message::kNotEncrypted);
+            return msg;
+        }
 
         default:
             return ::promise::Error("Unknown management message type "+

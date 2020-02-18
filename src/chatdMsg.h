@@ -463,7 +463,8 @@ public:
         kMsgPublicHandleCreate  = 0x08,
         kMsgPublicHandleDelete  = 0x09,
         kMsgSetPrivateMode      = 0x0A,
-        kMsgManagementHighest   = 0x0A,
+        kMsgSetRetentionTime    = 0x0B,
+        kMsgManagementHighest   = 0x0B,
         kMsgOffset              = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst           = 0x65,
         kMsgAttachment          = 0x65,   // kMsgNormal's subtype = 0x10
