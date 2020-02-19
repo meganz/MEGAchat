@@ -416,7 +416,7 @@ Client::reconnect()
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mKarereClient->websocketIO, host.c_str(),
-                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
