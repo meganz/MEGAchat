@@ -1971,16 +1971,17 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
     }
 
     auto wptr = weakHandle();
-    auto wptrManager = mManager.weakHandle();
-    mManager.mRetryCallTimers[chatid] = setTimeout([this, wptr, wptrManager, chatid, reason]()
+    RtcModule* manager = &mManager;
+    auto wptrManager = manager->weakHandle();
+    mManager.mRetryCallTimers[chatid] = setTimeout([this, wptr, wptrManager, manager, chatid, reason]()
     {
         if (wptrManager.deleted())
         {
             return;
         }
 
-        mManager.mRetryCall.erase(chatid);
-        mManager.mRetryCallTimers.erase(chatid);
+        manager->mRetryCall.erase(chatid);
+        manager->mRetryCallTimers.erase(chatid);
 
         if (wptr.deleted())
             return;
