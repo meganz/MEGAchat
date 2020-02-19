@@ -99,6 +99,7 @@ static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *re
     }, msg->appCtx);
 
     uv_freeaddrinfo(res);
+    delete req;
 }
 
 bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, const vector<string>&, const vector<string>&)> f)
