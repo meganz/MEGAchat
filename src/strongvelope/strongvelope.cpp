@@ -1254,8 +1254,8 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
         case Message::kMsgSetRetentionTime:
         {
-            int32_t retentionTime = parsedMsg->payload.read<int32_t>(0);
-            msg->append<int32_t>(retentionTime);
+            uint32_t retentionTime = parsedMsg->payload.read<uint32_t>(0);
+            msg->append<uint32_t>(retentionTime);
             msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }

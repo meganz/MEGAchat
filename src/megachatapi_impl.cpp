@@ -7069,7 +7069,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
 
             case MegaChatMessage::TYPE_SET_RETENTION_TIME:
             {
-               int32_t retentionTime;
+               uint32_t retentionTime;
                memcpy(&retentionTime, msg->contents().c_str(), msg->contents().size());
                this->lastMsg = std::to_string(retentionTime);
                break;
@@ -7497,6 +7497,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
 
         case MegaChatMessage::TYPE_SET_RETENTION_TIME:
         {
+          // Interpret retentionTime as int32_t to store it in an existing member.
+          // There's no overflow risk since retentionTime shouldn't reach such high values
           int32_t retentionTime;
           memcpy(&retentionTime, msg.buf(), msg.dataSize());
           priv = retentionTime;
