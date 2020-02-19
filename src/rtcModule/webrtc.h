@@ -263,6 +263,7 @@ protected:
     karere::Id mPeerAnonId;
     uint32_t mPeerClient;
     karere::AvFlags mPeerAv;
+    TermCode mTermCode = TermCode::kInvalid;
     ISession(Call& call, karere::Id peer, uint32_t peerClient): mCall(call), mPeer(peer), mPeerClient(peerClient){}
 public:
     enum: uint8_t
@@ -286,6 +287,7 @@ public:
     uint32_t peerClient() const { return mPeerClient; }
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
+    TermCode getTermCode() {return mTermCode;}
 };
 
 class ICall: public karere::WeakReferenceable<ICall>

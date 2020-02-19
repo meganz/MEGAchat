@@ -98,7 +98,6 @@ protected:
     long mAudioPacketLostAverage = 0;
     unsigned int mPreviousStatsSize = 0;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
-    TermCode mTermCode = TermCode::kInvalid;
     bool mPeerSupportRenegotiation = false;
     bool mRenegotiationInProgress = false;
     megaHandle mStreamRenegotiationTimer = 0;

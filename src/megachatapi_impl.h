@@ -187,6 +187,7 @@ public:
     void setNetworkQuality(int quality);
     void setAudioDetected(bool audioDetected);
     void setSessionFullyOperative();
+    void setTermCode(int termCode);
     void removeChanges();
 
 private:

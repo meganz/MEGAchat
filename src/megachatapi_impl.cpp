@@ -5214,6 +5214,11 @@ void MegaChatSessionPrivate::setSessionFullyOperative()
     changed |= MegaChatSession::CHANGE_TYPE_SESSION_OPERATIVE;
 }
 
+void MegaChatSessionPrivate::setTermCode(int termCode)
+{
+    this->termCode = termCode;
+}
+
 void MegaChatSessionPrivate::removeChanges()
 {
     changed = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
@@ -8219,6 +8224,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
             {
                 MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
                 megaChatSession->setState(newState);
+                megaChatSession->setTermCode(session->getTermCode());
                 megaChatApi->fireOnChatSessionUpdate(chatCall->getChatid(), chatCall->getId(), megaChatSession);
             }
 
