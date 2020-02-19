@@ -91,23 +91,21 @@ static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *re
         WEBSOCKETS_LOG_ERROR("Failed to resolve DNS. Reason: %s (%d)", uv_strerror(status), status);
     }
 
-    void* func = req->data;
-    karere::marshallCall([func, status, ipsv4, ipsv6]()
+    WebsocketsIO::Msg *msg = static_cast<WebsocketsIO::Msg*>(req->data);
+    karere::marshallCall([msg, status, ipsv4, ipsv6]()
     {
-        std::function<void (int, const vector<string>&, const vector<string>&)>* cb = (std::function<void (int, const vector<string>&, const vector<string>&)>*)func;
-
-        (*cb)(status, ipsv4, ipsv6);
-        delete cb;
-    });
+        (*msg->cb)(status, ipsv4, ipsv6);
+        delete msg;
+    }, msg->appCtx);
 
     uv_freeaddrinfo(res);
-    delete req;
 }
 
-bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, vector<string>&, vector<string>&)> f)
+bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, const vector<string>&, const vector<string>&)> f)
 {
     uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
-    h->data = new std::function<void (int, vector<string>&, vector<string>&)>(f);
+    Msg *msg = new Msg(appCtx, f);
+    h->data = msg;
     return uv_getaddrinfo(eventloop, h, onDnsResolved, hostname, NULL, NULL);
 }
 

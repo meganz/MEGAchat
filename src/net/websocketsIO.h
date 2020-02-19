@@ -69,6 +69,21 @@ public:
     WebsocketsIO(Mutex &mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
     
+    // apart from the lambda function to be executed, since it needs to be executed on a marshall call,
+    // the appCtx is also required for some callbacks, so Msg wraps them both
+    struct Msg
+    {
+        void *appCtx;
+        std::function<void (int, const std::vector<std::string>&, const std::vector<std::string>&)> *cb;
+        Msg(void *ctx, std::function<void (int, const std::vector<std::string>&, const std::vector<std::string>&)> func)
+            : appCtx(ctx), cb(new std::function<void (int, const std::vector<std::string>&, const std::vector<std::string>&)>(func))
+        {}
+        ~Msg()
+        {
+            delete cb;
+        }
+    };
+
 protected:
     Mutex &mutex;
     MyMegaApi mApi;
@@ -76,7 +91,7 @@ protected:
     
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
-    virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)> f) = 0;
+    virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)> f) = 0;
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client) = 0;
@@ -101,7 +116,7 @@ private:
 public:
     WebsocketsClient();
     virtual ~WebsocketsClient();
-    bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, std::vector<std::string>&, std::vector<std::string>&)> f);
+    bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f);
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl);
     int wsGetNoNameErrorCode(WebsocketsIO *websocketIO);
