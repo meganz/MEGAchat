@@ -8220,7 +8220,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
         }
         case rtcModule::ISession::kStateDestroyed:
         {
-            if (callHandler->getCall()->state() < rtcModule::ICall::kStateTerminating)
+            if (callHandler->getCall()->state() < rtcModule::ICall::kStateDestroyed)
             {
                 MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
                 megaChatSession->setState(newState);
