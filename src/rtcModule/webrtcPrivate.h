@@ -101,6 +101,10 @@ protected:
     TermCode mTermCode = TermCode::kInvalid;
     bool mPeerSupportRenegotiation = false;
     bool mRenegotiationInProgress = false;
+    unsigned int mIceDisconnections = 0;
+    time_t mIceDisconnectionTs = 0;
+    megaHandle mIceDisconnectionTimer = 0;
+    time_t mMaxIceDisconnectedTime = 0;
     megaHandle mStreamRenegotiationTimer = 0;
     time_t mTsSdpHandshakeCompleted = 0;
     void setState(uint8_t state);
@@ -127,6 +131,9 @@ protected:
     void setStreamRenegotiationTimeout();
     void renegotiationComplete();
     promise::Promise<void> setRemoteAnswerSdp(RtMessage& packet);
+    void handleIceConnectionRecovered();
+    void handleIceDisconnected();
+    void cancelIceDisconnectionTimer();
 
 public:
     RtcModule& mManager;
@@ -303,7 +310,8 @@ public:
         kRetryCallTimeout = 30000,
         kSessFinishTimeout = 1000,
         kStreamRenegotiationTimeout = 10000,
-        kIceTimeout = 18000
+        kIceTimeout = 18000,
+        kMediaConnRecoveryTimeout = 15000,
     };
 
     enum Resolution

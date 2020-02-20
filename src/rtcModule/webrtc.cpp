@@ -2998,6 +2998,8 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
 
     if (state == webrtc::PeerConnectionInterface::kIceConnectionClosed)
     {
+        cancelIceDisconnectionTimer();
+
         if (mRenegotiationInProgress)
         {
             SUB_LOG_DEBUG("Skip Ice connection closed, renegotiation in progress");
@@ -3008,10 +3010,22 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
     }
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionFailed)
     {
-        terminateAndDestroy(TermCode::kErrIceFail);
+        cancelIceDisconnectionTimer();
+        TermCode termCode = (mState == kStateInProgress) ? TermCode::kErrIceDisconn : TermCode::kErrIceFail;
+        terminateAndDestroy(termCode);
+    }
+    else if (state == webrtc::PeerConnectionInterface::kIceConnectionDisconnected)
+    {
+        handleIceDisconnected();
     }
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
     {
+        if (mState == kStateInProgress)
+        {
+            handleIceConnectionRecovered();
+            return;
+        }
+
         setState(kStateInProgress);
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
@@ -3919,6 +3933,48 @@ promise::Promise<void> Session::setRemoteAnswerSdp(RtMessage &packet)
         std::string msg = "Error setting SDP answer: " + err.msg();
         terminateAndDestroy(TermCode::kErrSdp, msg);
     });
+}
+
+void Session::handleIceConnectionRecovered()
+{
+    assert(mIceDisconnectionTimer);
+    cancelTimeout(mIceDisconnectionTimer, mManager.mKarereClient.appCtx);
+    mIceDisconnectionTimer = 0;
+
+    time_t iceReconnectionDuration = time(nullptr) - mIceDisconnectionTs;
+    if (iceReconnectionDuration > mMaxIceDisconnectedTime)
+    {
+        mMaxIceDisconnectedTime = iceReconnectionDuration;
+    }
+
+    mIceDisconnections++;
+}
+
+void Session::handleIceDisconnected()
+{
+    mIceDisconnectionTs = time(nullptr);
+    cancelIceDisconnectionTimer();
+
+    auto wptr = this->weakHandle();
+    mStreamRenegotiationTimer = setTimeout([wptr, this]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        SUB_LOG_WARNING("Timed out waiting for media connection to recover, terminating session");
+        terminateAndDestroy(TermCode::kErrIceDisconn);
+    }, RtcModule::kMediaConnRecoveryTimeout, mManager.mKarereClient.appCtx);
+}
+
+void Session::cancelIceDisconnectionTimer()
+{
+    if (mIceDisconnectionTimer)
+    {
+        cancelTimeout(mIceDisconnectionTimer, mManager.mKarereClient.appCtx);
+        mIceDisconnectionTimer = 0;
+    }
 }
 
 AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)
