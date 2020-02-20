@@ -264,6 +264,7 @@ public:
     bool isParticipating(karere::Id userid);
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
+    static void convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local);
 
 protected:
     MegaChatHandle chatid;
@@ -284,7 +285,6 @@ protected:
     int termCode;
     bool ignored;
     bool localTermCode;
-    void convertTermCode(rtcModule::TermCode termCode);
 
     bool ringing;
     bool mIsCaller;

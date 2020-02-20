@@ -5216,7 +5216,11 @@ void MegaChatSessionPrivate::setSessionFullyOperative()
 
 void MegaChatSessionPrivate::setTermCode(int termCode)
 {
-    this->termCode = termCode;
+    int megaTermCode;
+    bool local;
+    MegaChatCallPrivate::convertTermCode(static_cast<rtcModule::TermCode>(termCode), megaTermCode, local);
+    this->termCode = megaTermCode;
+    this->localTermCode = local;
 }
 
 void MegaChatSessionPrivate::removeChanges()
@@ -5574,61 +5578,61 @@ void MegaChatCallPrivate::removeChanges()
 
 void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
 {
-    convertTermCode(termCode);
+    convertTermCode(termCode, this->termCode, localTermCode);
 }
 
-void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
+void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local)
 {
     // Last four bits indicate the termination code and fifth bit indicate local or peer
     switch (termCode & (~rtcModule::TermCode::kPeer))
     {
         case rtcModule::TermCode::kUserHangup:
-            this->termCode = MegaChatCall::TERM_CODE_USER_HANGUP;
+            megaTermCode = MegaChatCall::TERM_CODE_USER_HANGUP;
             break;        
         case rtcModule::TermCode::kCallReqCancel:
-            this->termCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
+            megaTermCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
             break;
         case rtcModule::TermCode::kCallRejected:
-            this->termCode = MegaChatCall::TERM_CODE_CALL_REJECT;
+            megaTermCode = MegaChatCall::TERM_CODE_CALL_REJECT;
             break;
         case rtcModule::TermCode::kAnsElsewhere:
-            this->termCode = MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE;
+            megaTermCode = MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE;
             break;
         case rtcModule::TermCode::kRejElsewhere:
-            this->termCode = MegaChatCall::TEMR_CODE_REJECT_ELSE_WHERE;
+            megaTermCode = MegaChatCall::TEMR_CODE_REJECT_ELSE_WHERE;
             break;
         case rtcModule::TermCode::kAnswerTimeout:
-            this->termCode = MegaChatCall::TERM_CODE_ANSWER_TIMEOUT;
+            megaTermCode = MegaChatCall::TERM_CODE_ANSWER_TIMEOUT;
             break;
         case rtcModule::TermCode::kRingOutTimeout:
-            this->termCode = MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT;
+            megaTermCode = MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT;
             break;
         case rtcModule::TermCode::kAppTerminating:
-            this->termCode = MegaChatCall::TERM_CODE_APP_TERMINATING;
+            megaTermCode = MegaChatCall::TERM_CODE_APP_TERMINATING;
             break;
         case rtcModule::TermCode::kBusy:
-            this->termCode = MegaChatCall::TERM_CODE_BUSY;
+            megaTermCode = MegaChatCall::TERM_CODE_BUSY;
             break;
         case rtcModule::TermCode::kNotFinished:
-            this->termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
+            megaTermCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
             break;
         case rtcModule::TermCode::kDestroyByCallCollision:
-            this->termCode = MegaChatCall::TERM_CODE_DESTROY_BY_COLLISION;
+            megaTermCode = MegaChatCall::TERM_CODE_DESTROY_BY_COLLISION;
             break;
         case rtcModule::TermCode::kCallerGone:
         case rtcModule::TermCode::kInvalid:
         default:
-            this->termCode = MegaChatCall::TERM_CODE_ERROR;
+            megaTermCode = MegaChatCall::TERM_CODE_ERROR;
             break;
     }
 
     if (termCode & rtcModule::TermCode::kPeer)
     {
-        localTermCode = false;
+        local = false;
     }
     else
     {
-        localTermCode = true;
+        local = true;
     }
 }
 
