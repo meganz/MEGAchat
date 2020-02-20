@@ -328,6 +328,10 @@ std::string Recorder::terminate(const StatSessInfo& info)
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
     mStats->mTermRsn = info.mTermReason;
     mStats->mDeviceInfo = info.deviceInfo;
+    mStats->mMaxIceDisconnectionTime = info.maxIceDisconnectionTime;
+    mStats->mIceDisconnections = info.iceDisconnections;
+    mStats->mPreviousSessioId = info.previousSessionId;
+    mStats->mReconnections = info.reconnections;
     std::string json;
     mStats->toJson(json);
     return json;
@@ -389,6 +393,17 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_STR(sid, mSessionId.toString());
     JSON_ADD_INT(ts, round((float)mStartTs/1000));
     JSON_ADD_INT(dur, round((float)mDur/1000));
+    JSON_SUBOBJ("hicc");
+    JSON_ADD_INT(cnt, mIceDisconnections);
+    JSON_ADD_INT(maxDur, mMaxIceDisconnectionTime);
+    JSON_END_SUBOBJ();
+    if (mReconnections > 0)
+    {
+         JSON_SUBOBJ("reconn");
+         JSON_ADD_INT(cnt, mReconnections);
+         JSON_ADD_STR(prevSid, mCallId.toString());
+         JSON_END_SUBOBJ();
+    }
     JSON_SUBOBJ("samples");
         JSON_ADD_SAMPLES(, ts);
         JSON_ADD_SAMPLES(, lq);

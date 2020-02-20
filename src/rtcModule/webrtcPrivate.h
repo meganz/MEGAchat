@@ -163,6 +163,29 @@ public:
     friend class stats::Recorder; //needs access to mRtcConn
 };
 
+class SessionReconnectInfo
+{
+public:
+    time_t getStartTime() const;
+    karere::Id getOldSid() const;
+    unsigned int getReconnections() const;
+    TermCode getReasonNoPeer() const;
+    time_t getLastMedia() const;
+
+    void setStartTime(time_t startTime);
+    void setOldSid(const karere::Id& oldSid);
+    void setReconnections(unsigned int reconnections);
+    void setReasonNoPeer(TermCode reasonNoPeer);
+    void setLastMedia(time_t lastMedia);
+
+protected:
+    time_t mStartTime;
+    karere::Id mOldSid;
+    unsigned int mReconnections = 0;
+    TermCode mReasonNoPeer;
+    time_t mLastMedia;
+};
+
 class Call: public ICall
 {
     enum CallDataState
@@ -210,6 +233,7 @@ protected:
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::map<chatd::EndpointId, int> mIceFails;
     std::map<chatd::EndpointId, Session::SessionInfo> mSessionsInfo;
+    std::map<chatd::EndpointId, SessionReconnectInfo> mSessionsReconnectionInfo;
     std::string mName;
     megaHandle mCallOutTimer = 0;
     bool mCallStartingSignalled = false;

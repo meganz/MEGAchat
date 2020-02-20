@@ -1741,6 +1741,7 @@ void Call::removeSession(Session& sess, TermCode reason)
     uint32_t sessionPeerClient = sess.mPeerClient;
     bool caller = sess.isCaller();
 
+    time_t sessionLastMedia = sess.mIceDisconnectionTs;
     mSessions.erase(sessionId);
 
     if (mState == kStateTerminating)
@@ -1754,6 +1755,30 @@ void Call::removeSession(Session& sess, TermCode reason)
         return;
     }
 
+    EndpointId endpointId(sessionPeer, sessionPeerClient);
+    auto sessionReconnectionIt = mSessionsReconnectionInfo.find(endpointId);
+    if (sessionReconnectionIt == mSessionsReconnectionInfo.end())
+    {
+        SessionReconnectInfo reconnectInfo;
+        reconnectInfo = sessionReconnectionIt->second;
+        mSessionsReconnectionInfo[endpointId] = reconnectInfo;
+        sessionReconnectionIt = mSessionsReconnectionInfo.find(endpointId);
+    }
+
+    SessionReconnectInfo& info = sessionReconnectionIt->second;
+    info.setReconnections(info.getReconnections() + 1);
+    info.setOldSid(sessionId);
+    info.setReasonNoPeer(reason);
+    info.setStartTime(time(nullptr));
+    if (sessionLastMedia == 0)
+    {
+        sessionLastMedia = info.getLastMedia();
+    }
+
+    info.setLastMedia(sessionLastMedia);
+
+
+
     // If we want to terminate the call (no matter if initiated by us or peer), we first
     // set the call's state to kTerminating. If that is not set, then it's only the session
     // that terminates for a reason that is not fatal to the call,
@@ -1764,7 +1789,7 @@ void Call::removeSession(Session& sess, TermCode reason)
         assert(false);
     }
 
-    EndpointId endpointId(sessionPeer, sessionPeerClient);
+
     TermCode terminationCode = (TermCode)(reason & ~TermCode::kPeer);
     if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout)
     {
@@ -2392,6 +2417,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
             }
 
             sess->destroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
+            mSessionsReconnectionInfo.erase(EndpointId(userid, clientid));
             return;
         }
     }
@@ -3379,6 +3405,16 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.aaid = mPeerAnonId;
     }
 
+    info.iceDisconnections = mIceDisconnections;
+    info.maxIceDisconnectionTime = mMaxIceDisconnectedTime;
+    auto sessionReconnectionIt = mCall.mSessionsReconnectionInfo.find(EndpointId(mPeer, mPeerClient));
+    if (sessionReconnectionIt != mCall.mSessionsReconnectionInfo.end())
+    {
+        info.previousSessionId = sessionReconnectionIt->second.getOldSid();
+        info.reconnections = sessionReconnectionIt->second.getReconnections();
+    }
+
+
     std::string stats = mStatRecorder->terminate(info);
     mCall.mManager.mKarereClient.api.sdk.sendChatStats(stats.c_str(), CHATSTATS_PORT);
     return;
@@ -3521,6 +3557,57 @@ bool Session::isTermRetriable(TermCode reason)
 {
     TermCode termCode = static_cast<TermCode>(reason & ~TermCode::kPeer);
     return (termCode != TermCode::kErrPeerOffline) && (termCode != TermCode::kUserHangup);
+}
+
+
+time_t SessionReconnectInfo::getStartTime() const
+{
+    return mStartTime;
+}
+
+karere::Id SessionReconnectInfo::getOldSid() const
+{
+    return mOldSid;
+}
+
+unsigned int SessionReconnectInfo::getReconnections() const
+{
+    return mReconnections;
+}
+
+TermCode SessionReconnectInfo::getReasonNoPeer() const
+{
+    return mReasonNoPeer;
+}
+
+time_t SessionReconnectInfo::getLastMedia() const
+{
+    return mLastMedia;
+}
+
+void SessionReconnectInfo::setStartTime(time_t startTime)
+{
+    mStartTime = startTime;
+}
+
+void SessionReconnectInfo::setOldSid(const Id &oldSid)
+{
+    mOldSid = oldSid;
+}
+
+void SessionReconnectInfo::setReconnections(unsigned int reconnections)
+{
+    mReconnections = reconnections;
+}
+
+void SessionReconnectInfo::setReasonNoPeer(TermCode reasonNoPeer)
+{
+    mReasonNoPeer = reasonNoPeer;
+}
+
+void SessionReconnectInfo::setLastMedia(time_t lastMedia)
+{
+    mLastMedia = lastMedia;
 }
 
 #define RET_ENUM_NAME(name) case name: return #name
