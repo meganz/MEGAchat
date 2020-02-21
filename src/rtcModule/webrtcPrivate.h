@@ -211,7 +211,7 @@ protected:
     promise::Promise<void> mDestroyPromise;
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
-    std::shared_ptr<artc::CapturerTrackSource> mVideoDevice;
+    rtc::scoped_refptr<artc::VideoManager> mVideoDevice;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
@@ -385,7 +385,7 @@ protected:
     //=== Implementation methods
     void initInputDevices();
 
-    void removeCallRetry(karere::Id chatid);
+    void removeCallRetry(karere::Id chatid, bool retry = true);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
     friend class Call;
     friend class Session;

@@ -58,7 +58,6 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 {
     vector<string> ipsv4, ipsv6;
-    std::function<void (int, vector<string>&, vector<string>&)>* func = (std::function<void (int, vector<string>&, vector<string>&)>*)req->data;
     struct addrinfo *hp = res;
     while (hp)
     {
@@ -92,16 +91,22 @@ static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *re
         WEBSOCKETS_LOG_ERROR("Failed to resolve DNS. Reason: %s (%d)", uv_strerror(status), status);
     }
 
-    (*func)(status, ipsv4, ipsv6);
+    WebsocketsIO::Msg *msg = static_cast<WebsocketsIO::Msg*>(req->data);
+    karere::marshallCall([msg, status, ipsv4, ipsv6]()
+    {
+        (*msg->cb)(status, ipsv4, ipsv6);
+        delete msg;
+    }, msg->appCtx);
+
     uv_freeaddrinfo(res);
-    delete func;
     delete req;
 }
 
-bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, vector<string>&, vector<string>&)> f)
+bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, const vector<string>&, const vector<string>&)> f)
 {
     uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
-    h->data = new std::function<void (int, vector<string>&, vector<string>&)>(f);
+    Msg *msg = new Msg(appCtx, f);
+    h->data = msg;
     return uv_getaddrinfo(eventloop, h, onDnsResolved, hostname, NULL, NULL);
 }
 
@@ -136,6 +141,11 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
         return NULL;
     }
     return libwebsocketsClient;
+}
+
+int LibwebsocketsIO::wsGetNoNameErrorCode()
+{
+    return UV__EAI_NONAME;
 }
 
 LibwebsocketsClient::LibwebsocketsClient(WebsocketsIO::Mutex &mutex, WebsocketsClient *client) : WebsocketsClientImpl(mutex, client)
@@ -452,4 +462,3 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
     
     return 0;
 }
-

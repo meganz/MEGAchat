@@ -78,6 +78,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
           appCtx(ctx),
           api(sdk, ctx),
           app(aApp),
+          mDnsCache(db, chatd::Client::chatdVersion),
           contactList(new ContactList(*this)),
           chats(new ChatRoomList(*this)),
           mPresencedClient(&api, this, *this, caps)
@@ -308,6 +309,17 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "8" && (strcmp(gDbSchemaVersionSuffix, "9") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Add dns_cache table
+                db.simpleQuery("CREATE TABLE dns_cache(shard tinyint primary key, url text, ipv4 text, ipv6 text);");
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -407,9 +419,15 @@ promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
 
 void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts)
 {
-    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, url);
+    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey);
     chats->emplace(chatId, room);
-    room->connect(url.c_str());
+    if (!mDnsCache.hasRecord(shard))
+    {
+        // If DNS cache doesn't contains a record for this shard, addRecord otherwise skip.
+        mDnsCache.addRecord(shard, url);    // the URL has been already pre-fetched
+    }
+
+    room->connect();
 }
 
 promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle)
@@ -819,6 +837,7 @@ void Client::initWithDbSession(const char* sid)
         });
 
         loadOwnKeysFromDb();
+        mDnsCache.loadFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
         mChatdClient.reset(new chatd::Client(this));
@@ -1806,7 +1825,7 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers, bool isPubl
         std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const karere::Id ph)
 {
     mChat = &parent.mKarereClient.mChatdClient->createChat(
-        mChatid, mShardNo, mUrl, this, initialUsers,
+        mChatid, mShardNo, this, initialUsers,
         parent.mKarereClient.newStrongvelope(mChatid, isPublic, unifiedKey, isUnifiedKeyEncrypted, ph), mCreationTs, mIsGroup);
 }
 
@@ -1833,7 +1852,7 @@ void PeerChatRoom::initWithChatd()
     createChatdChat(SetOfIds({Id(mPeer), parent.mKarereClient.myHandle()}));
 }
 
-void PeerChatRoom::connect(const char */*url*/)
+void PeerChatRoom::connect()
 {
     mChat->connect();
 }
@@ -2043,17 +2062,16 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, std::string aUrl)
+    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
   mRoomGui(nullptr)
 {
-    //save to db
-    auto db = parent.mKarereClient.db;
-
     Buffer unifiedKeyBuf;
     unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
     unifiedKeyBuf.append(unifiedKey->data(), unifiedKey->size());
 
+    //save to db
+    auto db = parent.mKarereClient.db;
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
         "own_priv, ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
@@ -2061,7 +2079,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 
     initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
-    mUrl = aUrl;
 
     initChatTitle(title, strongvelope::kDecrypted, true);
 
@@ -2088,12 +2105,12 @@ void GroupChatRoom::initWithChatd(bool isPublic, std::shared_ptr<std::string> un
     createChatdChat(users, isPublic, unifiedKey, isUnifiedKeyEncrypted, ph);
 }
 
-void GroupChatRoom::connect(const char *url)
+void GroupChatRoom::connect()
 {
     if (chat().onlineState() != chatd::kChatStateOffline)
         return;
 
-    mChat->connect(url);
+    mChat->connect();
 }
 
 promise::Promise<void> GroupChatRoom::memberNamesResolved() const
@@ -2107,11 +2124,14 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
     return list ? list->addPeerChatItem(*this) : nullptr;
 }
 
+//Resume from cache
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, int64_t ts, bool aIsArchived)
-:ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts, aIsArchived), mPeer(peer),
-  mPeerPriv(peerPriv),
-  mRoomGui(nullptr)
+    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer,
+    chatd::Priv peerPriv, int64_t ts, bool aIsArchived)
+    :ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts, aIsArchived),
+    mPeer(peer),
+    mPeerPriv(peerPriv),
+    mRoomGui(nullptr)
 {
     initContact(peer);
     initWithChatd();
@@ -2119,6 +2139,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     mIsInitializing = false;
 }
 
+//Create chat or receive an invitation
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     :ChatRoom(parent, chat.getHandle(), false, chat.getShard(),
      (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime(), chat.isArchived()),
@@ -2483,6 +2504,7 @@ void ChatRoomList::loadFromDb()
         emplace(chatid, room);
     }
 }
+
 void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, SetOfIds& chatids)
 {
     auto size = rooms.size();

@@ -74,7 +74,7 @@ WebsocketsClient::~WebsocketsClient()
     ctx = NULL;
 }
 
-bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void (int, std::vector<std::string>&, std::vector<std::string>&)> f)
+bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void (int, const std::vector<std::string>&, const std::vector<std::string>&)> f)
 {
     return websocketIO->wsResolveDNS(hostname, f);
 }
@@ -102,6 +102,11 @@ bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, cons
         WEBSOCKETS_LOG_WARNING("Immediate error in wsConnect");
     }
     return ctx != NULL;
+}
+
+int WebsocketsClient::wsGetNoNameErrorCode(WebsocketsIO *websocketIO)
+{
+    return websocketIO->wsGetNoNameErrorCode();
 }
 
 bool WebsocketsClient::wsSendMessage(char *msg, size_t len)
@@ -184,45 +189,134 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
     wsCloseCb(errcode, errtype, preason, reason_len);
 }
 
-bool DNScache::set(const std::string &url, const std::string &ipv4, const std::string &ipv6)
+DNScache::DNScache(SqliteDb &db, int chatdVersion)
+    : mDb(db),
+      mChatdVersion(chatdVersion)
 {
-    if (!isMatch(url, ipv4, ipv6))
+
+}
+
+void DNScache::addRecord(int shard, const std::string &url, bool saveToDb)
+{    
+    if (hasRecord(shard))
     {
-        DNSrecord record;
-        record.ipv4 = ipv4;
-        record.ipv6 = ipv6;
-        record.resolveTs = time(NULL);
+        assert(false);
+        return;
+    }
 
-        mRecords[url] = record;
+    DNSrecord record;
+    record.mUrl.parse(url);
+    if (shard >= 0) // only chatd needs to append the protocol version
+    {
+        record.mUrl.path.append("/").append(std::to_string(mChatdVersion));
+    }
+    mRecords[shard] = record;
 
-        return true;
+    if (saveToDb)
+    {
+        mDb.query("insert or replace into dns_cache(shard, url) values(?,?)", shard, url);
+    }
+}
+
+void DNScache::removeRecord(int shard)
+{
+    mRecords.erase(shard);
+    mDb.query("delete from dns_cache where shard=?", shard);
+}
+
+bool DNScache::hasRecord(int shard)
+{
+    return mRecords.find(shard) != mRecords.end();
+}
+
+bool DNScache::isValidUrl(int shard)
+{
+    auto it = mRecords.find(shard);
+    if (it != mRecords.end())
+    {
+        return it->second.mUrl.isValid();
     }
 
     return false;
 }
 
-void DNScache::clear(const std::string &url)
+const karere::Url &DNScache::getUrl(int shard)
 {
-    mRecords.erase(url);
+    auto it = mRecords.find(shard);
+    assert(it != mRecords.end());
+    return it->second.mUrl;
 }
 
-bool DNScache::get(const std::string &url, std::string &ipv4, std::string &ipv6)
+void DNScache::loadFromDb()
 {
-    auto it = mRecords.find(url);
+    SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6 from dns_cache");
+    while (stmt.step())
+    {
+        int shard = stmt.intCol(0);
+        std::string url = stmt.stringCol(1);
+        if (url.size())
+        {
+            // if the record is for chatd, need to add the protocol version to the URL
+            addRecord(shard, url, false);
+            setIp(shard, stmt.stringCol(2), stmt.stringCol(3));
+        }
+        else
+        {
+            assert(false);  // there shouldn't be emtpy urls in cache
+            mDb.query("delete from dns_cache where shard=?", shard);
+        }
+    }
+}
+
+bool DNScache::setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+{
+    if (!isMatch(shard, ipsv4, ipsv6))
+    {
+        auto it = mRecords.find(shard);
+        assert (it != mRecords.end());
+        it->second.ipv4 = ipsv4.empty() ? "" : ipsv4.front();
+        it->second.ipv6 = ipsv6.empty() ? "" : ipsv6.front();
+        it->second.resolveTs = time(NULL);
+        mDb.query("update dns_cache set ipv4=?, ipv6=? where shard=?", it->second.ipv4, it->second.ipv6, shard);
+        return true;
+    }
+    return false;
+}
+
+bool DNScache::setIp(int shard, std::string ipv4, std::string ipv6)
+{
+    if (!isMatch(shard, ipv4, ipv6))
+    {
+        auto it = mRecords.find(shard);
+        assert(it != mRecords.end());
+        it->second.ipv4 = ipv4;
+        it->second.ipv6 = ipv6;
+        it->second.resolveTs = time(NULL);
+        mDb.query("update dns_cache set ipv4=?, ipv6=? where shard=?", ipv4, ipv6, shard);
+        return true;
+    }
+    return false;
+}
+
+bool DNScache::getIp(int shard, std::string &ipv4, std::string &ipv6)
+{
+    auto it = mRecords.find(shard);
     if (it == mRecords.end())
     {
         return false;
     }
 
+    assert(it->second.mUrl.isValid());
     ipv4 = it->second.ipv4;
     ipv6 = it->second.ipv6;
 
-    return true;
+    // If both Ip's are empty there's no cached ip's
+    return ipv4.size() || ipv6.size();
 }
 
-void DNScache::connectDone(const std::string &url, const std::string &ip)
+void DNScache::connectDone(int shard, const std::string &ip)
 {
-    auto it = mRecords.find(url);
+    auto it = mRecords.find(shard);
     if (it != mRecords.end())
     {
         if (ip == it->second.ipv4)
@@ -236,9 +330,9 @@ void DNScache::connectDone(const std::string &url, const std::string &ip)
     }
 }
 
-time_t DNScache::age(const std::string &url)
+time_t DNScache::age(int shard)
 {
-    auto it = mRecords.find(url);
+    auto it = mRecords.find(shard);
     if (it != mRecords.end())
     {
         return it->second.resolveTs;
@@ -247,11 +341,10 @@ time_t DNScache::age(const std::string &url)
     return 0;
 }
 
-bool DNScache::isMatch(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+bool DNScache::isMatch(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
 {
     bool match = false;
-
-    auto it = mRecords.find(url);
+    auto it = mRecords.find(shard);
     if (it != mRecords.end())
     {
         std::string ipv4 = it->second.ipv4;
@@ -266,11 +359,11 @@ bool DNScache::isMatch(const std::string &url, const std::vector<std::string> &i
     return match;
 }
 
-bool DNScache::isMatch(const std::string &url, const std::string &ipv4, const std::string &ipv6)
+bool DNScache::isMatch(int shard, const std::string &ipv4, const std::string &ipv6)
 {
     bool match = false;
 
-    auto it = mRecords.find(url);
+    auto it = mRecords.find(shard);
     if (it != mRecords.end())
     {
         match = (it->second.ipv4 == ipv4) && (it->second.ipv6 == ipv6);

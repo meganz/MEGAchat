@@ -46,6 +46,9 @@ In case the `fetch` command above failed, you may need to get the Chromium build
  - `cd <chromium_build_dir>`  
  - `git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git`  
  - `export PATH="$PATH:/<chromium_build_dir>"`
+ 
+### Android Webrtc ###
+For more information about WebRTC compilation for Android, you can visit this link [WebRTC for Android](https://github.com/meganz/MEGAchat/blob/develop/WebrtcAndroid.md).
 
 ## Get MEGAchat code ##
 
@@ -219,5 +222,3 @@ doesn't contain other executables with names clashing with ones in the system pa
 and include this directory to be first in the system PATH in the shell where you
 build webrtc, before invoking `build-webrtc.sh`:  
 `export PATH=/path/to/dir-with-python-symlink:$PATH`  
-
-

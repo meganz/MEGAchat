@@ -33,24 +33,23 @@ namespace presenced
 {
 
 Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
-: mApi(api), mKarereClient(client), mListener(&listener), mCapabilities(caps),
-  mDNScache(mKarereClient->websocketIO->mDnsCache)
+    : mApi(api),
+      mKarereClient(client),
+      mDnsCache(client->mDnsCache),
+      mListener(&listener),
+      mCapabilities(caps)
 {
     mApi->sdk.addGlobalListener(this);
 }
 
-Promise<void> Client::connect()
+Promise<void> Client::fetchUrl()
 {
-    if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
+    if (mKarereClient->anonymousMode() || mDnsCache.isValidUrl(kPresencedShard))
     {
-        PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
-        return ::promise::Void();
+       return promise::_Void();
     }
 
-    assert(!mUrl.isValid());
-
     setConnState(kFetchingUrl);
-
     auto wptr = getDelTracker();
     return mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
     .then([this, wptr](ReqResult result) -> Promise<void>
@@ -61,8 +60,36 @@ Promise<void> Client::connect()
             return ::promise::_Void();
         }
 
-        mUrl.parse(result->getLink());
-        return reconnect();
+        if (!result->getLink())
+        {
+            PRESENCED_LOG_DEBUG("No Presenced URL received from API");
+            return ::promise::_Void();
+        }
+
+        // Update presenced url in ram and db
+        const char *url = result->getLink();
+        if (!url || !url[0])
+        {
+           return promise::_Void();
+        }
+
+        // Add new record to DNS cache
+        mDnsCache.addRecord(kPresencedShard, url);
+        return promise::_Void();
+    });
+}
+
+Promise<void> Client::connect()
+{
+    assert (mConnState == kConnNew);
+    return fetchUrl()
+    .then([this]
+    {
+        return reconnect()
+        .fail([](const ::promise::Error& err)
+        {
+            PRESENCED_LOG_DEBUG("Presenced::connect(): Error connecting to server after getting URL: %s", err.what());
+        });
     });
 }
 
@@ -107,6 +134,14 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     }
 
     PRESENCED_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
+
+    if (mConnState == kFetchingUrl)
+    {
+        PRESENCED_LOG_DEBUG("Socket close while fetching URL. Ignoring...");
+        // it should happen only when the cached URL becomes invalid (wsResolveDNS() returns UV_EAI_NONAME
+        // and it will reconnect automatically once the URL is fetched again
+        return;
+    }
 
     auto oldState = mConnState;
     setConnState(kDisconnected);
@@ -350,7 +385,7 @@ Client::reconnect()
         if (mConnState >= kResolving) //would be good to just log and return, but we have to return a promise
             return ::promise::Error(std::string("Already connecting/connected"));
 
-        if (!mUrl.isValid())
+        if (!mDnsCache.isValidUrl(kPresencedShard))
             return ::promise::Error("Current URL is not valid");
 
         setConnState(kResolving);
@@ -371,15 +406,17 @@ Client::reconnect()
             setConnState(kDisconnected);
             mConnectPromise = Promise<void>();
 
+            const std::string &host = mDnsCache.getUrl(kPresencedShard).host;
+
             string ipv4, ipv6;
-            bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+            bool cachedIPs = mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
 
             setConnState(kResolving);
-            PRESENCED_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
+            PRESENCED_LOG_DEBUG("Resolving hostname %s...", host.c_str());
 
             auto retryCtrl = mRetryCtrl.get();
-            int statusDNS = wsResolveDNS(mKarereClient->websocketIO, mUrl.host.c_str(),
-                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+            int statusDNS = wsResolveDNS(mKarereClient->websocketIO, host.c_str(),
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -431,34 +468,33 @@ Client::reconnect()
                     }
 
                     assert(!isOnline());
-                    onSocketClose(0, 0, "Async DNS error (presenced)");
+                    if (statusDNS == wsGetNoNameErrorCode(mKarereClient->websocketIO))
+                    {
+                        retryPendingConnection(true, true);
+                    }
+                    else
+                    {
+                        onSocketClose(0, 0, "Async DNS error (presenced)");
+                    }
                     return;
                 }
 
                 if (!cachedIPs) // connect required DNS lookup
                 {
                     PRESENCED_LOG_DEBUG("Hostname resolved by first time. Connecting...");
-
-                    mDNScache.set(mUrl.host,
-                                  ipsv4.size() ? ipsv4.at(0) : "",
-                                  ipsv6.size() ? ipsv6.at(0) : "");
+                    mDnsCache.setIp(kPresencedShard, ipsv4, ipsv6);
                     doConnect();
                     return;
                 }
 
-                if (mDNScache.isMatch(mUrl.host, ipsv4, ipsv6))
+                if (mDnsCache.isMatch(kPresencedShard, ipsv4, ipsv6))
                 {
                     PRESENCED_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
                 else
                 {
-                    // update DNS cache
-                    bool ret = mDNScache.set(mUrl.host,
-                                             ipsv4.size() ? ipsv4.at(0) : "",
-                                             ipsv6.size() ? ipsv6.at(0) : "");
-                    assert(!ret);
-
                     PRESENCED_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    mDnsCache.setIp(kPresencedShard, ipsv4, ipsv6);
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (presenced)");
                 }
             });
@@ -466,7 +502,7 @@ Client::reconnect()
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                string errStr = "Immediate DNS error in presenced. Error code: "+std::to_string(statusDNS);
+                string errStr = "Immediate DNS error in presenced. Error code: " + std::to_string(statusDNS);
                 PRESENCED_LOG_ERROR("%s", errStr.c_str());
 
                 assert(mConnState == kResolving);
@@ -833,18 +869,21 @@ void Client::disconnect()
 void Client::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+    bool cachedIPs = mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
+
+    const karere::Url &url = mDnsCache.getUrl(kPresencedShard);
+    assert (url.isValid());
 
     setConnState(kConnecting);
     PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", mTargetIp.c_str());
 
     bool rt = wsConnect(mKarereClient->websocketIO, mTargetIp.c_str(),
-          mUrl.host.c_str(),
-          mUrl.port,
-          mUrl.path.c_str(),
-          mUrl.isSecure);
+          url.host.c_str(),
+          url.port,
+          url.path.c_str(),
+          url.isSecure);
 
     if (!rt)    // immediate failure --> try the other IP family (if available)
     {
@@ -865,10 +904,10 @@ void Client::doConnect()
         {
             PRESENCED_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
             if (wsConnect(mKarereClient->websocketIO, mTargetIp.c_str(),
-                          mUrl.host.c_str(),
-                          mUrl.port,
-                          mUrl.path.c_str(),
-                          mUrl.isSecure))
+                          url.host.c_str(),
+                          url.port,
+                          url.path.c_str(),
+                          url.isSecure))
             {
                 return;
             }
@@ -894,7 +933,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
         return;
     }
 
-    if (refreshURL || !mUrl.isValid())
+    if (refreshURL || !mDnsCache.isValidUrl(kPresencedShard))
     {
         if (mConnState == kFetchingUrl)
         {
@@ -913,13 +952,12 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
             mConnectTimer = 0;
         }
 
-        // clear existing URL
-        mUrl = Url();
-        setConnState(kFetchingUrl);
+        // Remove DnsCache record
+        mDnsCache.removeRecord(kPresencedShard);
 
         auto wptr = getDelTracker();
-        mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
-        .then([this, wptr](ReqResult result)
+        fetchUrl()
+        .then([this, wptr]
         {
             if (wptr.deleted())
             {
@@ -927,7 +965,6 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
                 return;
             }
 
-            mUrl.parse(result->getLink());
             retryPendingConnection(true);
         });
     }
@@ -1386,7 +1423,7 @@ void Client::setConnState(ConnState newState)
     {
         PRESENCED_LOG_DEBUG("Presenced connected to %s", mTargetIp.c_str());
 
-        mDNScache.connectDone(mUrl.host, mTargetIp);
+        mDnsCache.connectDone(kPresencedShard, mTargetIp);
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();

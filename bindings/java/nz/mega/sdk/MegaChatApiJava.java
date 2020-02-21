@@ -13,6 +13,15 @@ public class MegaChatApiJava {
     MegaChatApi megaChatApi;
     static DelegateMegaChatLogger logger;
 
+    /**
+     * MEGACHAT_INVALID_HANDLE Invalid value for a handle
+     *
+     * This value is used to represent an invalid handle. Several MEGA objects can have
+     * a handle but it will never be MEGACHAT_INVALID_HANDLE.
+     */
+    public final static long MEGACHAT_INVALID_HANDLE = ~(long)0;
+    public final static int MEGACHAT_INVALID_INDEX = 0x7fffffff;
+
     // Error information but application will continue run.
     public final static int LOG_LEVEL_ERROR = MegaChatApi.LOG_LEVEL_ERROR;
     // Information representing errors in applicationThe autoaway settings are preserved even when the auto-away mechanism  but application will keep running
@@ -2421,6 +2430,34 @@ public class MegaChatApiJava {
      */
     public void pushReceived(boolean beep, long chatid, MegaChatRequestListenerInterface listener){
         megaChatApi.pushReceived(beep, chatid, createDelegateRequestListener(listener));
+    }
+
+
+    /**
+     * Select the video device to be used in calls
+     *
+     * Video device identifiers are obtained with function MegaChatApi::getChatVideoInDevices
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getText - Returns the device
+     *
+     * @param device Identifier of device to be selected
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void setChatVideoInDevice(String device, MegaChatRequestListenerInterface listener) {
+        megaChatApi.setChatVideoInDevice(device, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the video selected device name
+     *
+     * You take the ownership of the returned value
+     *
+     * @return Device selected name
+     */
+    public String getVideoDeviceSelected() {
+        return megaChatApi.getVideoDeviceSelected();
     }
 
     // Call management

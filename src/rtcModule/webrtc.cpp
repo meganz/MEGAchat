@@ -133,13 +133,20 @@ void RtcModule::initInputDevices()
     }
 }
 
-void RtcModule::removeCallRetry(karere::Id chatid)
+void RtcModule::removeCallRetry(karere::Id chatid, bool retry)
 {
     auto retryCalltimerIt = mRetryCallTimers.find(chatid);
     if (retryCalltimerIt != mRetryCallTimers.end())
     {
         cancelTimeout(retryCalltimerIt->second, mKarereClient.appCtx);
         mRetryCallTimers.erase(retryCalltimerIt);
+
+        if (!retry)
+        {
+            auto callHandlerIt = mCallHandlers.find(chatid);
+            assert(callHandlerIt != mCallHandlers.end());
+            callHandlerIt->second->setReconnectionFailed();
+        }
     }
 
     mRetryCall.erase(chatid);
@@ -152,7 +159,7 @@ bool RtcModule::selectAudioInDevice(const string &devname)
 
 std::set<std::pair<std::string, std::string>> RtcModule::loadDeviceList() const
 {
-    return artc::CapturerTrackSource::getVideoDevices();
+    return artc::VideoManager::getVideoDevices();
 }
 
 string RtcModule::getVideoDeviceSelected()
@@ -179,7 +186,7 @@ bool RtcModule::selectVideoInDevice(const string &devname)
             mVideoDeviceSelected = device.second;
             for (auto callIt : mCalls)
             {
-                if (callIt.second->state() == Call::kStateInProgress && callIt.second->sentAv().video())
+                if (callIt.second->state() >= Call::kStateHasLocalStream && callIt.second->sentAv().video())
                 {
                     callIt.second->changeVideoInDevice();
                 }
@@ -837,7 +844,7 @@ std::vector<Id> RtcModule::chatsWithCall() const
 
 void RtcModule::abortCallRetry(Id chatid)
 {
-    removeCallRetry(chatid);
+    removeCallRetry(chatid, false);
     removeCallWithoutParticipants(chatid);
     auto itHandler = mCallHandlers.find(chatid);
     if (itHandler != mCallHandlers.end())
@@ -880,7 +887,7 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
             callHandlerIt->second->removeAllParticipants();
         }
 
-        removeCallRetry(chatid);
+        removeCallRetry(chatid, false);
         removeCallWithoutParticipants(chatid);
     }
 
@@ -1959,17 +1966,25 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
     auto itRetryTimerHandle = mManager.mRetryCallTimers.find(chatid);
     if (itRetryTimerHandle != mManager.mRetryCallTimers.end())
     {
-        cancelTimeout(itRetryTimerHandle->second, mManager.mKarereClient.appCtx);
+        // There is a retry and it isn't neccesary launch another one
+        return;
     }
 
     auto wptr = weakHandle();
-    mManager.mRetryCallTimers[chatid] = setTimeout([this, wptr, chatid, reason]()
+    RtcModule* manager = &mManager;
+    auto wptrManager = manager->weakHandle();
+    mManager.mRetryCallTimers[chatid] = setTimeout([this, wptr, wptrManager, manager, chatid, reason]()
     {
-        if (wptr.deleted() || mManager.mRetryCall.find(chatid) == mManager.mRetryCall.end())
+        if (wptrManager.deleted())
+        {
             return;
+        }
 
-        mManager.mRetryCall.erase(chatid);
-        mManager.mRetryCallTimers.erase(chatid);
+        manager->mRetryCall.erase(chatid);
+        manager->mRetryCallTimers.erase(chatid);
+
+        if (wptr.deleted())
+            return;
 
         SUB_LOG_DEBUG("Everybody left, terminating call- After reconnection");
         mHandler->setReconnectionFailed();
@@ -2137,7 +2152,7 @@ void Call::enableVideo(bool enable)
                 capabilities.maxFPS = 30;
             }
 
-            mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities, mManager.mVideoDeviceSelected, artc::gAsyncWaiter->guiThread()));
+            mVideoDevice = artc::VideoManager::Create(capabilities, mManager.mVideoDeviceSelected, artc::gAsyncWaiter->guiThread());
             assert(mVideoDevice);
 
             videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
@@ -2147,6 +2162,12 @@ void Call::enableVideo(bool enable)
         {
             videoTrack = mLocalStream->video();
             assert(videoTrack);
+        }
+
+        if (mManager.mVideoDeviceSelected.empty())
+        {
+            SUB_LOG_ERROR("Unable to open device, no device selected");
+            return;
         }
 
         mVideoDevice->openDevice(mManager.mVideoDeviceSelected);
@@ -2241,7 +2262,7 @@ bool Call::answer(AvFlags av)
 
 void Call::hangup(TermCode reason)
 {
-    mManager.removeCallRetry(mChat.chatId());
+    mManager.removeCallRetry(mChat.chatId(), false);
 
     switch (mState)
     {
@@ -2503,7 +2524,7 @@ bool Call::isCaller(Id userid, uint32_t clientid)
 void Call::changeVideoInDevice()
 {
     enableVideo(false);
-    mVideoDevice.reset();
+    mVideoDevice = nullptr;
     enableVideo(true);
 }
 
@@ -2750,6 +2771,8 @@ void Session::handleMessage(RtMessage& packet)
             return;
         case RTCMD_SDP_ANSWER_RENEGOTIATE:
             msgSdpAnswerRenegotiate(packet);
+            return;
+        case RTCMD_END_ICE_CANDIDATES:
             return;
         default:
             SUB_LOG_WARNING("Don't know how to handle", packet.typeStr());
@@ -3583,6 +3606,7 @@ const char* rtcmdTypeToStr(uint8_t type)
         RET_ENUM_NAME(RTCMD_MUTE);
         RET_ENUM_NAME(RTCMD_SDP_OFFER_RENEGOTIATE);
         RET_ENUM_NAME(RTCMD_SDP_ANSWER_RENEGOTIATE);
+        RET_ENUM_NAME(RTCMD_END_ICE_CANDIDATES);
         default: return "(invalid RTCMD)";
     }
 }

@@ -102,13 +102,14 @@ CaptureModuleLinux::~CaptureModuleLinux()
 {
 }
 
-void CaptureModuleLinux::SetState(webrtc::MediaSourceInterface::SourceState new_state)
+void CaptureModuleLinux::RegisterObserver(webrtc::ObserverInterface*)
 {
-    if (mState != new_state)
-    {
-        mState = new_state;
-        FireOnChanged();
-    }
+
+}
+
+void CaptureModuleLinux::UnregisterObserver(webrtc::ObserverInterface*)
+{
+
 }
 
 webrtc::MediaSourceInterface::SourceState CaptureModuleLinux::state() const
@@ -151,22 +152,6 @@ bool CaptureModuleLinux::remote() const
 void CaptureModuleLinux::OnFrame(const webrtc::VideoFrame& frame)
 {
     mBroadcaster.OnFrame(frame);
-}
-
-void CaptureModuleLinux::AddRef() const
-{
-    mRefCount.IncRef();
-}
-
-rtc::RefCountReleaseStatus CaptureModuleLinux::Release() const
-{
-    const auto status = mRefCount.DecRef();
-    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
-    {
-        delete this;
-    }
-
-    return status;
 }
 
 std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevices()
@@ -232,66 +217,6 @@ rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CaptureModuleLinux::getVid
     return this;
 }
 
-CapturerTrackSource* CapturerTrackSource::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
-{
-    return new rtc::RefCountedObject<CapturerTrackSource>(capabilities, deviceName, thread);
-}
-
-CapturerTrackSource::~CapturerTrackSource()
-{
-    releaseDevice();
-}
-
-std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevices()
-{
-
-#ifdef __APPLE__
-    return OBJCCaptureModule::getVideoDevices();
-#elif __ANDROID__
-    return CaptureModuleAndroid::getVideoDevices();
-#else
-    return CaptureModuleLinux::getVideoDevices();
-#endif
-}
-
-void CapturerTrackSource::openDevice(const std::string &videoDevice)
-{
-    if (videoDevice.empty())
-    {
-        RTCM_LOG_WARNING("Unable to open device, no device selected");
-        return;
-    }
-
-    VideoManager *videoManager = dynamic_cast<VideoManager *>(mCaptureModule.get());
-    assert(videoManager);
-    videoManager->openDevice(videoDevice);
-}
-
-void CapturerTrackSource::releaseDevice()
-{
-    VideoManager *videoManager = dynamic_cast<VideoManager *>(mCaptureModule.get());
-    assert(videoManager);
-    videoManager->releaseDevice();
-}
-
-rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>CapturerTrackSource::getVideoTrackSource()
-{
-    return mCaptureModule;
-}
-
-CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
-{
-
-#ifdef __APPLE__
-    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new OBJCCaptureModule(capabilities, deviceName));
-#elif __ANDROID__
-    JNIEnv* env;
-    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleAndroid(capabilities, deviceName, thread));
-#else
-    mCaptureModule = rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(new CaptureModuleLinux(capabilities));
-#endif
-}
-
 karere::AvFlags LocalStreamHandle::av()
 {
     return karere::AvFlags(mAudio.get(), mVideo.get());
@@ -337,12 +262,50 @@ void LocalStreamHandle::addVideoTrack(const rtc::scoped_refptr<webrtc::VideoTrac
 
 webrtc::AudioTrackInterface *LocalStreamHandle::audio()
 {
-    return mAudio ? mAudio.get() : (webrtc::AudioTrackInterface*)nullptr;
+    return mAudio ? mAudio.get() : static_cast<webrtc::AudioTrackInterface*>(nullptr);
 }
 
 webrtc::VideoTrackInterface *LocalStreamHandle::video()
 {
-    return mVideo ? mVideo.get() : (webrtc::VideoTrackInterface*)nullptr;
+    return mVideo ? mVideo.get() : static_cast<webrtc::VideoTrackInterface*>(nullptr);
+}
+
+VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
+{
+#ifdef __APPLE__
+    return new OBJCCaptureModule(capabilities, deviceName);
+#elif __ANDROID__
+    return new CaptureModuleAndroid(capabilities, deviceName, thread);
+#else
+    return new CaptureModuleLinux(capabilities);
+#endif
+}
+
+std::set<std::pair<std::string, std::string> > VideoManager::getVideoDevices()
+{
+    #ifdef __APPLE__
+        return OBJCCaptureModule::getVideoDevices();
+    #elif __ANDROID__
+        return CaptureModuleAndroid::getVideoDevices();
+    #else
+        return CaptureModuleLinux::getVideoDevices();
+    #endif
+}
+
+void VideoManager::AddRef() const
+{
+    mRefCount.IncRef();
+}
+
+rtc::RefCountReleaseStatus VideoManager::Release() const
+{
+    const auto status = mRefCount.DecRef();
+    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
+    {
+        delete this;
+    }
+
+    return status;
 }
 
 #ifdef __ANDROID__
@@ -454,21 +417,6 @@ void CaptureModuleAndroid::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::Video
 void CaptureModuleAndroid::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
 {
     mVideoSource->RemoveSink(sink);
-}
-
-void CaptureModuleAndroid::AddRef() const
-{
-    mRefCount.IncRef();
-}
-
-rtc::RefCountReleaseStatus CaptureModuleAndroid::Release() const
-{
-    const auto status = mRefCount.DecRef();
-    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
-    {
-        delete this;
-    }
-    return status;
 }
 
 void CaptureModuleAndroid::RegisterObserver(webrtc::ObserverInterface* observer)

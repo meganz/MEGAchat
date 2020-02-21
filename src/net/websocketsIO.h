@@ -8,6 +8,9 @@
 #include <mega/thread.h>
 #include "base/logger.h"
 #include "sdkApi.h"
+#include "buffer.h"
+#include "db.h"
+#include "url.h"
 
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
@@ -20,19 +23,30 @@ class WebsocketsClientImpl;
 class DNScache
 {
 public:
-    DNScache() {}
-    // returns false if ipv4 and ipv6 for the given url already match the ones in cache, true if not (so they are updated)
-    bool set(const std::string &url, const std::string &ipv4, const std::string &ipv6);
-    void clear(const std::string &url);
-    // returns true if hit in cache, false if there's no record for the given url
-    bool get(const std::string &url, std::string &ipv4, std::string &ipv6);
-    void connectDone(const std::string &url, const std::string &ip);
-    time_t age(const std::string &url);
-    bool isMatch(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
-    bool isMatch(const std::string &url, const std::string &ipv4, const std::string &ipv6);
+    // reference to db-layer interface
+    SqliteDb &mDb;
+
+    DNScache(SqliteDb &db, int chatdVersion);
+    void loadFromDb();
+    void addRecord(int shard, const std::string &url, bool saveToDb = true);
+    void removeRecord(int shard);
+    bool hasRecord(int shard);
+    bool isValidUrl(int shard);
+    // the record for the given shard must exist
+    bool setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    // the record for the given shard must exist (to load from DB)
+    bool setIp(int shard, std::string ipv4, std::string ipv6);
+    bool getIp(int shard, std::string &ipv4, std::string &ipv6);
+    void connectDone(int shard, const std::string &ip);
+    bool isMatch(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool isMatch(int shard, const std::string &ipv4, const std::string &ipv6);
+    time_t age(int shard);
+    const karere::Url &getUrl(int shard);
+
 private:
     struct DNSrecord
     {
+        karere::Url mUrl;
         std::string ipv4;
         std::string ipv6;
         time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
@@ -40,7 +54,9 @@ private:
         time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
     };
 
-    std::map<std::string, DNSrecord> mRecords;
+    // Maps shard to DNSrecord
+    std::map<int, DNSrecord> mRecords;
+    int mChatdVersion;
 };
 
 // Generic websockets network layer
@@ -52,9 +68,22 @@ public:
 
     WebsocketsIO(Mutex &mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
-
-    DNScache mDnsCache;
     
+    // apart from the lambda function to be executed, since it needs to be executed on a marshall call,
+    // the appCtx is also required for some callbacks, so Msg wraps them both
+    struct Msg
+    {
+        void *appCtx;
+        std::function<void (int, const std::vector<std::string>&, const std::vector<std::string>&)> *cb;
+        Msg(void *ctx, std::function<void (int, const std::vector<std::string>&, const std::vector<std::string>&)> func)
+            : appCtx(ctx), cb(new std::function<void (int, const std::vector<std::string>&, const std::vector<std::string>&)>(func))
+        {}
+        ~Msg()
+        {
+            delete cb;
+        }
+    };
+
 protected:
     Mutex &mutex;
     MyMegaApi mApi;
@@ -62,10 +91,11 @@ protected:
     
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
-    virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)> f) = 0;
+    virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)> f) = 0;
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client) = 0;
+    virtual int wsGetNoNameErrorCode() = 0;   // depends on the implementation
     friend WebsocketsClient;
 };
 
@@ -86,9 +116,10 @@ private:
 public:
     WebsocketsClient();
     virtual ~WebsocketsClient();
-    bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, std::vector<std::string>&, std::vector<std::string>&)> f);
+    bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f);
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl);
+    int wsGetNoNameErrorCode(WebsocketsIO *websocketIO);
     bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error
     void wsDisconnect(bool immediate);
     bool wsIsConnected();

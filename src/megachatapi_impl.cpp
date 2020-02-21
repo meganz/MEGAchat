@@ -8105,6 +8105,7 @@ void MegaChatCallHandler::onReconnectingState(bool start)
     API_LOG_INFO("Reconnecting call. ChatId: %s  - %s", ID_CSTR(chatCall->getChatid()), start ? "Start" : "Finish");
     if (start)
     {
+        mReconnectionFailed = false;
         chatCall->setStatus(MegaChatCall::CALL_STATUS_RECONNECTING);
     }
     else
