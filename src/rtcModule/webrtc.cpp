@@ -2407,6 +2407,10 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         cancelSessionRetryTimer(userid, clientid);
         destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
     }
+
+    // If we have sent a session we remove the information, that session isn't be succesfull becasuse
+    // we receive a ENDCALL, we don't destroy the call because we are trying to reconnect
+    mSessionsInfo.erase(EndpointId(userid, clientid));
 }
 
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)
