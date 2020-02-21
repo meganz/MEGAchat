@@ -4271,6 +4271,101 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     }
 }
 
+void Chat::handleRetentionTime(uint32_t period)
+{
+    chatd::Idx idx = CHATD_IDX_INVALID;
+    time_t ts = time(nullptr) - period;
+    CALL_DB(getIdxByRetentionTime, ts, idx);
+    if (!period || idx == CHATD_IDX_INVALID)
+    {
+        // If retentionTime is disabled or there are no messages to remove
+        return;
+    }
+
+    CHATID_LOG_DEBUG("Cleaning messages previous to %d seconds", period);
+    CALL_CRYPTO(resetSendKey);              // discard current key, if any
+    CALL_DB(retentionHistoryTruncate, idx); // clean all msgs previous to retention time
+    assert(idx != CHATD_IDX_INVALID);
+    truncateByRetentionTime(idx);
+    removePendingRichLinks(idx);
+
+    // GUI must detach and free any resources associated with erased messages
+    CALL_LISTENER(onRetentionHistoryTruncated, ts);
+
+    // update last-seen pointer
+    if (mLastSeenIdx != CHATD_IDX_INVALID)
+    {
+        if (mLastSeenIdx <= idx)
+        {
+            //if we haven't seen even messages before the truncation point,
+            //now we will have not seen any message after the truncation
+            mLastSeenIdx = CHATD_IDX_INVALID;
+            mLastSeenId = 0;
+            CALL_DB(setLastSeen, 0);
+        }
+    }
+
+    // update last-received pointer
+    if (mLastReceivedIdx != CHATD_IDX_INVALID)
+    {
+        if (mLastReceivedIdx <= idx)
+        {
+            mLastReceivedIdx = CHATD_IDX_INVALID;
+            mLastReceivedId = 0;
+            CALL_DB(setLastReceived, 0);
+        }
+    }
+
+    if (mChatdClient.isMessageReceivedConfirmationActive() && mLastIdxReceivedFromServer <= idx)
+    {
+        mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+        mLastIdReceivedFromServer = karere::Id::null();
+        // TODO: the update of those variables should be persisted
+    }
+
+    // since we have discarted part of the history backwards given a message in local history
+    // now we know we have all history and what's the oldest msgid.
+    CALL_DB(setHaveAllHistory, true);
+    mHaveAllHistory = true;
+
+    if (!mBackwardList.empty())
+    {
+        mOldestKnownMsgId = mBackwardList.at((mBackwardList.size()-1))->id();
+    }
+    else if (!mForwardList.empty())
+    {
+        mOldestKnownMsgId = (*mForwardList.begin())->id();
+    }
+    else
+    {
+        mOldestKnownMsgId = 0;
+    }
+
+    // we don't have more history in DB
+    mHasMoreHistoryInDb = false;
+
+    // Find an attachment newer than truncate (lownum) in order to truncate node-history
+    // (if no more attachments in history buffer, node-history will be fully cleared)
+    Id attachmentTruncateFromId = Id::inval();
+    for (Idx i = lownum(); i < highnum(); i++)
+    {
+        if (at(i).type == Message::kMsgAttachment)
+        {
+            attachmentTruncateFromId = at(i).id();
+            break;
+        }
+    }
+    mAttachmentNodes->truncateHistory(attachmentTruncateFromId);
+    if (mDecryptionAttachmentsHalted)
+    {
+        while (!mAttachmentsPendingToDecrypt.empty())
+        {
+            mAttachmentsPendingToDecrypt.pop();
+        }
+        mTruncateAttachment = true; // --> indicates the message being decrypted must be discarded
+    }
+}
+
 Id Chat::makeRandomId()
 {
     static std::uniform_int_distribution<uint64_t>distrib(0, 0xffffffffffffffff);
@@ -4291,6 +4386,23 @@ void Chat::deleteMessagesBefore(Idx idx)
     else
     {
         mBackwardList.erase(mBackwardList.begin()+mForwardStart-idx, mBackwardList.end());
+    }
+}
+
+void Chat::truncateByRetentionTime(Idx idx)
+{
+    if (idx >= mForwardStart)
+    {
+        mBackwardList.clear();
+        auto delCount = idx - mForwardStart;
+        auto end = mForwardList.begin() + delCount;
+        mForwardList.erase(mForwardList.begin(), end);
+        mForwardList.erase(mForwardList.begin());
+        mForwardStart += delCount + 1;
+    }
+    else
+    {
+        mBackwardList.erase(mBackwardList.begin() + mForwardStart-abs(idx) - 1, mBackwardList.end());
     }
 }
 
@@ -4971,7 +5083,9 @@ void Chat::onReactionSn(Id rsn)
 void Chat::onRetentionTimeUpdate(uint32_t period)
 {
     mRetentionTime = period;
+    handleRetentionTime(period);
 }
+
 uint32_t Chat::getRetentionTime()
 {
     return mRetentionTime;

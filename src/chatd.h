@@ -1337,6 +1337,8 @@ protected:
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
+    void handleRetentionTime(uint32_t period);
+    void truncateByRetentionTime(Idx idx);
 
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
