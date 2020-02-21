@@ -1324,6 +1324,11 @@ bool MegaChatRoom::isArchived() const
     return false;
 }
 
+unsigned int MegaChatRoom::getRetentionTime() const
+{
+    return 0;
+}
+
 MegaChatPeerList * MegaChatPeerList::createInstance()
 {
     return new MegaChatPeerListPrivate();

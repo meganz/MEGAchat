@@ -1304,7 +1304,6 @@ public:
     uint64_t getPublicHandle() const;
     bool previewMode();
     void rejoin();
-    uint32_t getRetentionTime();
 
     /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
     void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
@@ -1319,6 +1318,7 @@ public:
     bool isFetchingNodeHistory() const;
     void setNodeHistoryHandler(FilteredHistoryHandler *handler);
     void unsetHandlerToNodeHistory();
+    const uint32_t &getRetentionTime() const;
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

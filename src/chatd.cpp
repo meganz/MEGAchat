@@ -5086,11 +5086,6 @@ void Chat::onRetentionTimeUpdate(uint32_t period)
     handleRetentionTime(period);
 }
 
-uint32_t Chat::getRetentionTime()
-{
-    return mRetentionTime;
-}
-
 void Chat::onPreviewersUpdate(uint32_t numPrev)
 {
     if ((mNumPreviewers == numPrev)
@@ -5338,6 +5333,11 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
     {
         CHATID_LOG_WARNING("recv BROADCAST <unknown_type>");
     }
+}
+
+const uint32_t& Chat::getRetentionTime() const
+{
+    return mRetentionTime;
 }
 
 void Client::leave(Id chatid)

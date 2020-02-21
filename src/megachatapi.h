@@ -5347,6 +5347,12 @@ public:
      */
     virtual bool isArchived() const;
 
+    /**
+     * @brief Returns the retention time for this chat
+     * @return
+     */
+    virtual unsigned int getRetentionTime() const;
+
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 };

@@ -6477,6 +6477,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
     this->mNumPreviewers = chat->getNumPreviewers();
+    this->mRetentionTime = chat->getRetentionTime();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -6495,6 +6496,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->archived = chat.isArchived();
     this->uh = MEGACHAT_INVALID_HANDLE;
     this->mNumPreviewers = chat.chat().getNumPreviewers();
+    this->mRetentionTime = chat.getRetentionTime();
 
     if (group)
     {
@@ -6873,6 +6875,11 @@ char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
     }
 
     return ret;
+}
+
+unsigned int MegaChatRoomPrivate::getRetentionTime() const
+{
+    return mRetentionTime;
 }
 
 void MegaChatListItemHandler::onTitleChanged(const string &title)

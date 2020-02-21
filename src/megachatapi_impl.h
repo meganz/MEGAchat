@@ -733,6 +733,7 @@ public:
 
     virtual int getUnreadCount() const;
     virtual MegaChatHandle getUserTyping() const;
+    virtual unsigned int getRetentionTime() const;
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
@@ -765,6 +766,7 @@ private:
     int unreadCount;
     unsigned int mNumPreviewers;
     MegaChatHandle uh;
+    uint32_t mRetentionTime;
 
 public:
     // you take the ownership of return value
