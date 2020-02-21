@@ -577,6 +577,28 @@ public:
             reactions.insert(std::pair<std::string, karere::Id>(stmt.stringCol(0), stmt.uint64Col(1)));
         }
     }
+
+    void getIdxByRetentionTime(const time_t retentionTime, chatd::Idx &limitIdx) override
+    {
+        // Find the first msg affected by retention time if any
+        SqliteStmt stmt(mDb, "select MAX(ts), MAX(idx) from history where chatid = ? and ts < ?");
+        stmt.bind(mChat.chatId())
+                .bind(retentionTime)
+                .step();
+
+        if (sqlite3_column_type(stmt, 0) != SQLITE_NULL)
+        {
+           limitIdx = stmt.intCol(1);
+        }
+    }
+
+    void retentionHistoryTruncate(const chatd::Idx &idx) override
+    {
+        if (idx != CHATD_IDX_INVALID)
+        {
+            mDb.query("delete from history where chatid = ? and idx <= ?", mChat.chatId(), idx);
+        }
+    }
 };
 
 #endif
