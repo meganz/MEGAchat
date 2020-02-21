@@ -2014,6 +2014,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(period, 16);
                 CHATDS_LOG_DEBUG("%s: recv RETENTION by user '%s' to %u second(s)",
                                 ID_CSTR(chatid), ID_CSTR(userid), period);
+
+                auto &chat = mChatdClient.chats(chatid);
+                chat.onRetentionTimeUpdate(period);
                 break;
             }
             case OP_MSGID:
@@ -4963,6 +4966,15 @@ void Chat::onReactionSn(Id rsn)
 {
     mReactionSn = rsn;
     CALL_DB(setReactionSn, mReactionSn.toString());
+}
+
+void Chat::onRetentionTimeUpdate(uint32_t period)
+{
+    mRetentionTime = period;
+}
+uint32_t Chat::getRetentionTime()
+{
+    return mRetentionTime;
 }
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)

@@ -839,6 +839,8 @@ protected:
     bool mTruncateAttachment = false;
     /** Indicates the reaction sequence number for this chatroom */
     karere::Id mReactionSn = karere::Id::inval();
+    /** Indicates the retention time for this chat room, where the previous messages are automatically deleted **/
+    uint32_t mRetentionTime = 0;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -866,6 +868,7 @@ protected:
     void onReactionSn(karere::Id rsn);
     void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
+    void onRetentionTimeUpdate(uint32_t period);
     void loadAndProcessUnsent();
     void initialFetchHistory(karere::Id serverNewest);
     void requestHistoryFromServer(int32_t count);
@@ -1301,6 +1304,7 @@ public:
     uint64_t getPublicHandle() const;
     bool previewMode();
     void rejoin();
+    uint32_t getRetentionTime();
 
     /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
     void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
