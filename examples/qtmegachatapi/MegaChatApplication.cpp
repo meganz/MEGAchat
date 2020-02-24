@@ -637,6 +637,11 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         }
         break;
 
+        case MegaRequest::TYPE_SET_RETENTION_TIME:
+        {
+        }
+        break;
+
         default:
             break;
     }

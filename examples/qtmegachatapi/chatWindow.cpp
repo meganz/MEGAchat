@@ -217,6 +217,20 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
     {
        updatePreviewers(chat->getNumPreviewers());
     }
+
+    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_RETENTION_TIME))
+    {
+        QMessageBox *msgBox = new QMessageBox(this);
+        QString text("onRetentionTimeUpdated: ");
+        text.append(std::to_string(chat->getRetentionTime()).c_str());
+        msgBox->setIcon( QMessageBox::Information );
+        msgBox->setAttribute(Qt::WA_DeleteOnClose);
+        msgBox->setStandardButtons(QMessageBox::Ok);
+        msgBox->setWindowTitle(tr("RETENTION HISTORY"));
+        msgBox->setText(text);
+        msgBox->setModal(false);
+        msgBox->show();
+    }
 }
 
 void ChatWindow::previewUpdate(MegaChatRoom *auxRoom)
@@ -502,6 +516,40 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi*, megachat::MegaChatMessa
 void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *)
 {
     truncateChatUI();
+}
+
+void ChatWindow::onRetentionHistoryTruncated(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
+{
+    QDateTime t;
+    t.setTime_t(msg->getTimestamp());
+    QString lastTs = t.toString("hh:mm:ss - dd.MM.yy");
+    QMessageBox *msgBox = new QMessageBox(this);
+    msgBox->setIcon( QMessageBox::Information );
+    msgBox->setAttribute(Qt::WA_DeleteOnClose);
+    msgBox->setStandardButtons(QMessageBox::Ok);
+    msgBox->setWindowTitle(tr("onRetentionHistoryTruncated"));
+    msgBox->setText("Messages previous to (" + lastTs+ "), will be cleared");
+    msgBox->setModal(false);
+    msgBox->show();
+
+    ChatListItemController *itemController = getChatItemController();
+    if (itemController)
+    {
+        std::map<megachat::MegaChatHandle, ChatMessage*>::iterator itMessages;
+        for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end();)
+        {
+            auto auxIt = itMessages++;
+            ChatMessage *auxMessage = auxIt->second;
+            if (auxMessage->mMessage->getTimestamp() <= msg->getTimestamp())
+            {
+                auxMessage->clearReactions();
+                int row = ui->mMessageList->row(auxMessage->getWidgetItem());
+                QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
+                mMsgsWidgetsMap.erase(auxIt);
+                delete auxItem;
+            }
+        }
+    }
 }
 
 void ChatWindow::onReactionUpdate(megachat::MegaChatApi *, megachat::MegaChatHandle msgid, const char *reaction, int count)
@@ -840,7 +888,6 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     actArchive->setCheckable(true);
     actArchive->setChecked(mChatRoom->isArchived());
 
-
     QMenu *clMenu = menu.addMenu("Chat links");
 
     //Create chat link
@@ -910,6 +957,18 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
 
     menu.addSeparator();
 
+    // Retention history
+    QMenu *retentionMenu = menu.addMenu("Retention history");
+    auto actGetRetentionTime = retentionMenu->addAction(tr("Get retention time"));
+    connect(actGetRetentionTime, SIGNAL(triggered()), getChatItemController(), SLOT(onGetRetentionTime()));
+
+    auto actSetRetentionTime = retentionMenu->addAction(tr("Set retention time"));
+    connect(actSetRetentionTime, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetRetentionTime();});
+
+    auto actSetRetentionTimeSec = retentionMenu->addAction(tr("Set retention time (in seconds)"));
+    connect(actSetRetentionTimeSec, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetRetentionTime(true);});
+
+    menu.addSeparator();
     // Attachments
     auto actAttachments = menu.addAction("Show attachments");
     connect(actAttachments, SIGNAL(triggered(bool)), this, SLOT(onShowAttachments(bool)));

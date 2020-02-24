@@ -62,6 +62,8 @@ public slots:
     void onMuteNotifications(bool enabled);
     void onSetAlwaysNotify(bool enabled);
     void onSetDND();
+    void onGetRetentionTime();
+    void onSetRetentionTime(bool inSeconds = false);
 
 private:
     void onPushReceived(unsigned int type);

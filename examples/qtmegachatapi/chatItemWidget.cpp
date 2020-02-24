@@ -188,6 +188,11 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             lastMessage = "Truncate";
             break;
 
+        case megachat::MegaChatMessage::TYPE_SET_RETENTION_TIME:
+            lastMessage.append("User ").append(senderHandle)
+                   .append(" set retention time to: ").append(item->getLastMessage());
+            break;
+
         case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
             lastMessage.append("User ").append(senderHandle)
                        .append(" attached a contact: ").append(item->getLastMessage());
@@ -427,7 +432,6 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     actArchive->setCheckable(true);
     actArchive->setChecked(chatRoom->isArchived());
 
-
     QMenu *clMenu = menu.addMenu("Chat links");
 
     auto actExportLink = clMenu->addAction(tr("Create chat link"));
@@ -493,8 +497,19 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     connect(actSetDND, SIGNAL(triggered()), mController, SLOT(onSetDND()));
     actSetDND->setEnabled(bool(notificationSettings));
 
+    // Retention history
     clMenu->addSeparator();
+    QMenu *retentionMenu = menu.addMenu("Retention time");
+    auto actGetRetentionTime = retentionMenu->addAction(tr("Get retention time"));
+    connect(actGetRetentionTime, SIGNAL(triggered()), mController, SLOT(onGetRetentionTime()));
 
+    auto actSetRetentionTime = retentionMenu->addAction(tr("Set retention time"));
+    connect(actSetRetentionTime, &QAction::triggered, mController, [=](){mController->onSetRetentionTime();});
+
+    auto actSetRetentionTimeSec = retentionMenu->addAction(tr("Set retention time (in seconds)"));
+    connect(actSetRetentionTimeSec, &QAction::triggered, mController, [=](){mController->onSetRetentionTime(true);});
+
+    clMenu->addSeparator();
     auto actPrintChat = menu.addAction(tr("Print chat info"));
     connect(actPrintChat, SIGNAL(triggered()), this, SLOT(onPrintChatInfo()));
 
