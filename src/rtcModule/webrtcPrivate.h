@@ -138,6 +138,7 @@ public:
     void manageNetworkQuality(stats::Sample* sample);
     void createRtcConn();
     promise::Promise<void> processSdpOfferSendAnswer();
+    void forceDestroy();
     //PeerConnection events
     void onAddStream(artc::tspMediaStream stream);
     void onRemoveStream(artc::tspMediaStream stream);
@@ -248,6 +249,7 @@ protected:
     void asyncDestroy(TermCode code, bool weTerminate);
     promise::Promise<void> gracefullyTerminateAllSessions(TermCode code);
     promise::Promise<void> waitAllSessionsTerminated(TermCode code, const std::string& msg="");
+    promise::Promise<void> terminateAllSessionInmediately(TermCode code);
     bool startOrJoin(karere::AvFlags av);
     template <class... Args>
     bool cmd(uint8_t type, karere::Id userid, uint32_t clientid, Args... args);
