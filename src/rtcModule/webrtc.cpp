@@ -1547,7 +1547,6 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
 
 promise::Promise<void> Call::terminateAllSessionInmediately(TermCode code)
 {
-    std::vector<::promise::Promise<void>> promises;
     for (auto it = mSessions.begin(); it != mSessions.end();)
     {
         std::shared_ptr<Session> session = it++->second;
@@ -3265,7 +3264,6 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         {
             auto pms = mTerminatePromise;
             pms.resolve();
-            return pms;
         }
     }
 
