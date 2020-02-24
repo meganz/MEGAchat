@@ -5596,7 +5596,7 @@ public:
      *
      * @param ts Timestamp that indicates that all messages whose timestamp is previous must be cleared
      */
-    virtual void onRetentionHistoryTruncated(MegaChatApi* /*api*/, MegaChatRoom * chat, int64_t ts);
+    virtual void onRetentionHistoryTruncated(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/);
 };
 
 /**

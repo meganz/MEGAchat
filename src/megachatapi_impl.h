@@ -454,7 +454,7 @@ public:
     void fireOnChatRoomUpdate(MegaChatRoom *chat);
     void fireOnMessageLoaded(MegaChatMessage *msg);
     void fireOnMessageReceived(MegaChatMessage *msg);
-    void fireOnRetentionHistoryTruncated(MegaChatRoom *chat, int64_t ts);
+    void fireOnRetentionHistoryTruncated(MegaChatRoom *chat, MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
     void fireOnHistoryReloaded(MegaChatRoom *chat);
     void fireOnReactionUpdate(MegaChatHandle msgid, const char *reaction, int count);
@@ -503,7 +503,7 @@ public:
     virtual void onHistoryReloaded();
     virtual void onChatModeChanged(bool mode);
     virtual void onReactionUpdate(karere::Id msgid, const char *reaction, int count);
-    virtual void onRetentionHistoryTruncated(int64_t ts) override;
+    virtual void onRetentionHistoryTruncated(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments

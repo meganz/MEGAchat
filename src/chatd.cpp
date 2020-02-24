@@ -4283,7 +4283,9 @@ void Chat::handleRetentionTime(uint32_t period)
     }
 
     // GUI must detach and free any resources associated with erased messages
-    CALL_LISTENER(onRetentionHistoryTruncated, ts);
+    Message msg = at(idx);
+    Message::Status status = getMsgStatus(msg, idx);
+    CALL_LISTENER(onRetentionHistoryTruncated, msg, idx, status);
 
     CHATID_LOG_DEBUG("Cleaning messages previous to %d seconds", period);
     CALL_CRYPTO(resetSendKey);              // discard current key, if any
