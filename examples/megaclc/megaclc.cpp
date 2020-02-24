@@ -1314,6 +1314,11 @@ struct CLCRoomListener : public c::MegaChatRoomListener
     {
         conlock(cout) << "Room " << room << " notification that room " << chat->getChatId() << " is reloading" << endl;
     }
+
+    void onRetentionHistoryTruncated(c::MegaChatApi*, c::MegaChatRoom *chat, int64_t ts) override
+    {
+        // TODO implement
+    }
 };
 
 

@@ -125,6 +125,15 @@ public:
     virtual void onHistoryDone(HistSource /*source*/) {}
 
     /**
+     * @brief Chat history have been truncated as result of reception of OP_RETENTION command.
+     * All messages previous to received retention time have been cleared, so we need to inform app
+     * to free all resources associated to these messages.
+     *
+     * @param ts Timestamp that indicates that all messages whose timestamp is previous must be cleared
+     */
+    virtual void onRetentionHistoryTruncated(int64_t /*ts*/) {}
+
+    /**
      * @brief An unsent message was loaded from local db. The app should normally
      * display it at the end of the message history, indicating that it has not been
      * sent. This callback is called for all unsent messages, in order in which

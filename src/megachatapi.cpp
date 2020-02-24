@@ -1550,6 +1550,11 @@ void MegaChatRoomListener::onReactionUpdate(MegaChatApi* /*api*/, MegaChatHandle
 
 }
 
+void MegaChatRoomListener::onRetentionHistoryTruncated(MegaChatApi* /*api*/, MegaChatRoom *chat, int64_t ts)
+{
+
+}
+
 MegaChatMessage *MegaChatMessage::copy() const
 {
     return NULL;

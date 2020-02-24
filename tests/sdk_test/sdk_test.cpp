@@ -4517,6 +4517,11 @@ void TestChatRoomListener::onReactionUpdate(MegaChatApi *api, MegaChatHandle msg
     reactionReceived[apiIndex] = true;
 }
 
+void TestChatRoomListener::onRetentionHistoryTruncated(MegaChatApi *api, MegaChatRoom *chat, int64_t ts)
+{
+    // TODO implement
+}
+
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);

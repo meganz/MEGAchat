@@ -5588,6 +5588,14 @@ public:
      * @param count Number of users who have reacted to this message with the same reaction
      */
     virtual void onReactionUpdate(MegaChatApi* api, MegaChatHandle msgid, const char* reaction, int count);
+
+    /**
+     * @brief This function is called when we need to clear some messages previous to chatroom retention time
+     * All messages previous to received retention time must be cleared.
+     *
+     * @param ts Timestamp that indicates that all messages whose timestamp is previous must be cleared
+     */
+    virtual void onRetentionHistoryTruncated(MegaChatApi* /*api*/, MegaChatRoom * chat, int64_t ts);
 };
 
 /**

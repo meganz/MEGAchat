@@ -4282,15 +4282,15 @@ void Chat::handleRetentionTime(uint32_t period)
         return;
     }
 
+    // GUI must detach and free any resources associated with erased messages
+    CALL_LISTENER(onRetentionHistoryTruncated, ts);
+
     CHATID_LOG_DEBUG("Cleaning messages previous to %d seconds", period);
     CALL_CRYPTO(resetSendKey);              // discard current key, if any
     CALL_DB(retentionHistoryTruncate, idx); // clean all msgs previous to retention time
     assert(idx != CHATD_IDX_INVALID);
     truncateByRetentionTime(idx);
     removePendingRichLinks(idx);
-
-    // GUI must detach and free any resources associated with erased messages
-    CALL_LISTENER(onRetentionHistoryTruncated, ts);
 
     // update last-seen pointer
     if (mLastSeenIdx != CHATD_IDX_INVALID)

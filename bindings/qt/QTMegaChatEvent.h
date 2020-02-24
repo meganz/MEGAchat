@@ -35,6 +35,7 @@ public:
         OnAttachmentDeleted,
         OnAttachmentTruncated,
         OnReactionUpdated,
+        OnRetentionHistoryTruncated,
     };
 
     QTMegaChatEvent(MegaChatApi *megaChatApi, Type type);
