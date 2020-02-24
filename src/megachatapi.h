@@ -4859,7 +4859,8 @@ public:
         CHANGE_TYPE_CALL                = 0x200, /// There's a new call or a call has finished
         CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
         CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800, /// The number of previewers has changed
-        CHANGE_TYPE_PREVIEW_CLOSED      = 0x1000 /// The chat preview has been closed
+        CHANGE_TYPE_PREVIEW_CLOSED      = 0x1000, /// The chat preview has been closed
+        CHANGE_TYPE_RETENTION_TIME      = 0x2000, /// The retention time has changed
     };
 
     virtual ~MegaChatListItem() {}

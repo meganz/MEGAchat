@@ -490,6 +490,7 @@ public:
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
     virtual void onUnreadChanged();
+    virtual void onRetentionTimeUpdated(unsigned int period);
     void onPreviewersUpdate();
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
@@ -734,6 +735,7 @@ public:
     virtual int getUnreadCount() const;
     virtual MegaChatHandle getUserTyping() const;
     virtual unsigned int getRetentionTime() const;
+    virtual void setRetentionTime(unsigned int period);
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);

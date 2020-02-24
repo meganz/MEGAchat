@@ -6321,6 +6321,14 @@ void MegaChatRoomHandler::onUnreadChanged()
     }
 }
 
+void MegaChatRoomHandler::onRetentionTimeUpdated(unsigned int period)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
+    chat->setRetentionTime(period);
+
+    fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onPreviewersUpdate()
 {
     if (mRoom)
@@ -6835,6 +6843,12 @@ void MegaChatRoomPrivate::setArchived(bool archived)
 {
     this->archived = archived;
     this->changed |= MegaChatRoom::CHANGE_TYPE_ARCHIVE;
+}
+
+void MegaChatRoomPrivate::setRetentionTime(unsigned int period)
+{
+    this->mRetentionTime = period;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_RETENTION_TIME;
 }
 
 char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)

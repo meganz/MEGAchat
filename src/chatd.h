@@ -321,6 +321,9 @@ public:
      * @brief Called when the number of previewers in a public chat has changed
      */
     virtual void onPreviewersUpdate(){}
+
+    /** @brief Retention time period has changed */
+    virtual void onRetentionTimeUpdated(unsigned int /*period*/) {}
 };
 
 class FilteredHistoryHandler
@@ -868,7 +871,7 @@ protected:
     void onReactionSn(karere::Id rsn);
     void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
-    void onRetentionTimeUpdate(uint32_t period);
+    void onRetentionTimeUpdated(uint32_t period);
     void loadAndProcessUnsent();
     void initialFetchHistory(karere::Id serverNewest);
     void requestHistoryFromServer(int32_t count);
