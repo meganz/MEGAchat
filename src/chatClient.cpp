@@ -1504,6 +1504,13 @@ void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 
 void Client::terminate(bool deleteDb)
 {
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+            rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    }
+#endif
+
     setInitState(kInitTerminated);
 
     api.sdk.removeRequestListener(this);

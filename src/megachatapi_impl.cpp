@@ -362,9 +362,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             if (mClient && !terminating)
             {
-#ifndef KARERE_DISABLE_WEBRTC
                 cleanChatHandlers();
-#endif
                 mClient->terminate();
                 API_LOG_INFO("Chat engine closed!");
 
@@ -7911,7 +7909,8 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
         unique_ptr<MegaChatRoom> chatRoom(megaChatApi->getChatRoom(chatid));
         if (!chatRoom)
         {
-            // ChatRoom has been deleted => logout
+            // Protection to destroy the app during call
+            assert(false);
             return;
         }
 
