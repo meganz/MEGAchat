@@ -105,7 +105,7 @@ protected:
     time_t mIceDisconnectionTs = 0;
     megaHandle mIceDisconnectionTimer = 0;
     time_t mMaxIceDisconnectedTime = 0;
-    megaHandle mStreamRenegotiationTimer = 0;
+    megaHandle mMediaRecoveryTimer = 0;
     time_t mTsSdpHandshakeCompleted = 0;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
@@ -179,11 +179,11 @@ public:
     void setLastMedia(time_t lastMedia);
 
 protected:
-    time_t mStartTime;
+    time_t mStartTime = 0;
     karere::Id mOldSid;
     unsigned int mReconnections = 0;
-    TermCode mReasonNoPeer;
-    time_t mLastMedia;
+    TermCode mReasonNoPeer = TermCode::kInvalid;
+    time_t mLastMedia = 0;
 };
 
 class Call: public ICall

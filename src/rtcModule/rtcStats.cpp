@@ -393,17 +393,6 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_STR(sid, mSessionId.toString());
     JSON_ADD_INT(ts, round((float)mStartTs/1000));
     JSON_ADD_INT(dur, round((float)mDur/1000));
-    JSON_SUBOBJ("hicc");
-    JSON_ADD_INT(cnt, mIceDisconnections);
-    JSON_ADD_INT(maxDur, mMaxIceDisconnectionTime);
-    JSON_END_SUBOBJ();
-    if (mReconnections > 0)
-    {
-         JSON_SUBOBJ("reconn");
-         JSON_ADD_INT(cnt, mReconnections);
-         JSON_ADD_STR(prevSid, mCallId.toString());
-         JSON_END_SUBOBJ();
-    }
     JSON_SUBOBJ("samples");
         JSON_ADD_SAMPLES(, ts);
         JSON_ADD_SAMPLES(, lq);
@@ -454,7 +443,22 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_INT(isJoiner, mIsJoiner);
     JSON_ADD_STR(caid, mIsJoiner ? mOwnAnonId.toString() : mPeerAnonId.toString());
     JSON_ADD_STR(aaid, mIsJoiner ? mPeerAnonId.toString() : mOwnAnonId.toString());
-    JSON_ADD_STR(termRsn, mTermRsn);
+    JSON_ADD_STR(termRsn, mTermRsn)
+    if (mIceDisconnections > 0)
+    {
+        JSON_SUBOBJ("hicc");
+        JSON_ADD_INT(cnt, mIceDisconnections);
+        JSON_ADD_INT(maxDur, mMaxIceDisconnectionTime);
+        JSON_END_SUBOBJ();
+    }
+
+    if (mReconnections > 0)
+    {
+        JSON_SUBOBJ("reconn");
+        JSON_ADD_INT(cnt, mReconnections);
+        JSON_ADD_STR(prevSid, mPreviousSessioId.toString());
+        JSON_END_SUBOBJ();
+    }
     json[json.size()-1]='}'; //all
 }
 }

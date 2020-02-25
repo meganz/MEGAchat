@@ -1742,6 +1742,7 @@ void Call::removeSession(Session& sess, TermCode reason)
     bool caller = sess.isCaller();
 
     time_t sessionLastMedia = sess.mIceDisconnectionTs;
+    time_t sessionIceConnectionTs = sess.mTsIceConn;
     mSessions.erase(sessionId);
 
     if (mState == kStateTerminating)
@@ -1760,7 +1761,6 @@ void Call::removeSession(Session& sess, TermCode reason)
     if (sessionReconnectionIt == mSessionsReconnectionInfo.end())
     {
         SessionReconnectInfo reconnectInfo;
-        reconnectInfo = sessionReconnectionIt->second;
         mSessionsReconnectionInfo[endpointId] = reconnectInfo;
         sessionReconnectionIt = mSessionsReconnectionInfo.find(endpointId);
     }
@@ -1770,14 +1770,12 @@ void Call::removeSession(Session& sess, TermCode reason)
     info.setOldSid(sessionId);
     info.setReasonNoPeer(reason);
     info.setStartTime(time(nullptr));
-    if (sessionLastMedia == 0)
+    if (sessionLastMedia == 0 && sessionIceConnectionTs == 0)
     {
         sessionLastMedia = info.getLastMedia();
     }
 
     info.setLastMedia(sessionLastMedia);
-
-
 
     // If we want to terminate the call (no matter if initiated by us or peer), we first
     // set the call's state to kTerminating. If that is not set, then it's only the session
@@ -3352,6 +3350,11 @@ void Session::msgSessTerminate(RtMessage& packet)
         mTermCode = code;
     }
 
+    if (code == TermCode::kErrIceDisconn && mTsIceConn)
+    {
+        mIceDisconnectionTs = time(nullptr);
+    }
+
     setState(kStateTerminating);
     destroy(static_cast<TermCode>(mTermCode | TermCode::kPeer));
 }
@@ -3503,7 +3506,7 @@ void Session::msgSdpOfferRenegotiate(RtMessage &packet)
 
 void Session::msgSdpAnswerRenegotiate(RtMessage &packet)
 {
-    if (!mStreamRenegotiationTimer)
+    if (!mMediaRecoveryTimer)
     {
         SUB_LOG_WARNING("Ingoring SDP_ANSWER_RENEGOTIATE - not in renegotiation state");
         return;
@@ -3558,7 +3561,6 @@ bool Session::isTermRetriable(TermCode reason)
     TermCode termCode = static_cast<TermCode>(reason & ~TermCode::kPeer);
     return (termCode != TermCode::kErrPeerOffline) && (termCode != TermCode::kUserHangup);
 }
-
 
 time_t SessionReconnectInfo::getStartTime() const
 {
@@ -3953,16 +3955,16 @@ void Session::removeRtcConnection()
 
 void Session::setStreamRenegotiationTimeout()
 {
-    if (mStreamRenegotiationTimer)
+    if (mMediaRecoveryTimer)
     {
         SUB_LOG_WARNING("New renegotation started, while another in-progress");
-        cancelTimeout(mStreamRenegotiationTimer, mManager.mKarereClient.appCtx);
+        cancelTimeout(mMediaRecoveryTimer, mManager.mKarereClient.appCtx);
     }
 
     auto wptr = weakHandle();
 
     mRenegotiationInProgress = true;
-    mStreamRenegotiationTimer = setTimeout([wptr, this]()
+    mMediaRecoveryTimer = setTimeout([wptr, this]()
     {
         if (wptr.deleted())
         {
@@ -3970,22 +3972,22 @@ void Session::setStreamRenegotiationTimeout()
         }
 
         mRenegotiationInProgress = false;
-        if (!mStreamRenegotiationTimer || mState >= kStateTerminating)
+        if (!mMediaRecoveryTimer || mState >= kStateTerminating)
         {
-            mStreamRenegotiationTimer = 0;
+            mMediaRecoveryTimer = 0;
             return;
         }
 
-        mStreamRenegotiationTimer = 0;
+        mMediaRecoveryTimer = 0;
         terminateAndDestroy(TermCode::kErrStreamRenegotationTimeout);
     }, RtcModule::kStreamRenegotiationTimeout, mManager.mKarereClient.appCtx);
 }
 
 void Session::renegotiationComplete()
 {
-    assert(mStreamRenegotiationTimer);
-    cancelTimeout(mStreamRenegotiationTimer, mManager.mKarereClient.appCtx);
-    mStreamRenegotiationTimer = 0;
+    assert(mMediaRecoveryTimer);
+    cancelTimeout(mMediaRecoveryTimer, mManager.mKarereClient.appCtx);
+    mMediaRecoveryTimer = 0;
     mRenegotiationInProgress = false;
 }
 
@@ -4043,7 +4045,7 @@ void Session::handleIceDisconnected()
     cancelIceDisconnectionTimer();
 
     auto wptr = this->weakHandle();
-    mStreamRenegotiationTimer = setTimeout([wptr, this]()
+    mMediaRecoveryTimer = setTimeout([wptr, this]()
     {
         if (wptr.deleted())
         {
