@@ -103,9 +103,9 @@ protected:
     bool mRenegotiationInProgress = false;
     unsigned int mIceDisconnections = 0;
     time_t mIceDisconnectionTs = 0;
-    megaHandle mIceDisconnectionTimer = 0;
-    time_t mMaxIceDisconnectedTime = 0;
     megaHandle mMediaRecoveryTimer = 0;
+    time_t mMaxIceDisconnectedTime = 0;
+    megaHandle mStreamRenegotiationTimer = 0;
     time_t mTsSdpHandshakeCompleted = 0;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);

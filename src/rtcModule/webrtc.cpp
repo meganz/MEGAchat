@@ -3506,7 +3506,7 @@ void Session::msgSdpOfferRenegotiate(RtMessage &packet)
 
 void Session::msgSdpAnswerRenegotiate(RtMessage &packet)
 {
-    if (!mMediaRecoveryTimer)
+    if (!mStreamRenegotiationTimer)
     {
         SUB_LOG_WARNING("Ingoring SDP_ANSWER_RENEGOTIATE - not in renegotiation state");
         return;
@@ -3956,16 +3956,16 @@ void Session::removeRtcConnection()
 
 void Session::setStreamRenegotiationTimeout()
 {
-    if (mMediaRecoveryTimer)
+    if (mStreamRenegotiationTimer)
     {
         SUB_LOG_WARNING("New renegotation started, while another in-progress");
-        cancelTimeout(mMediaRecoveryTimer, mManager.mKarereClient.appCtx);
+        cancelTimeout(mStreamRenegotiationTimer, mManager.mKarereClient.appCtx);
     }
 
     auto wptr = weakHandle();
 
     mRenegotiationInProgress = true;
-    mMediaRecoveryTimer = setTimeout([wptr, this]()
+    mStreamRenegotiationTimer = setTimeout([wptr, this]()
     {
         if (wptr.deleted())
         {
@@ -3973,22 +3973,22 @@ void Session::setStreamRenegotiationTimeout()
         }
 
         mRenegotiationInProgress = false;
-        if (!mMediaRecoveryTimer || mState >= kStateTerminating)
+        if (!mStreamRenegotiationTimer || mState >= kStateTerminating)
         {
-            mMediaRecoveryTimer = 0;
+            mStreamRenegotiationTimer = 0;
             return;
         }
 
-        mMediaRecoveryTimer = 0;
+        mStreamRenegotiationTimer = 0;
         terminateAndDestroy(TermCode::kErrStreamRenegotationTimeout);
     }, RtcModule::kStreamRenegotiationTimeout, mManager.mKarereClient.appCtx);
 }
 
 void Session::renegotiationComplete()
 {
-    assert(mMediaRecoveryTimer);
-    cancelTimeout(mMediaRecoveryTimer, mManager.mKarereClient.appCtx);
-    mMediaRecoveryTimer = 0;
+    assert(mStreamRenegotiationTimer);
+    cancelTimeout(mStreamRenegotiationTimer, mManager.mKarereClient.appCtx);
+    mStreamRenegotiationTimer = 0;
     mRenegotiationInProgress = false;
 }
 
@@ -4027,9 +4027,13 @@ promise::Promise<void> Session::setRemoteAnswerSdp(RtMessage &packet)
 
 void Session::handleIceConnectionRecovered()
 {
-    assert(mIceDisconnectionTimer);
-    cancelTimeout(mIceDisconnectionTimer, mManager.mKarereClient.appCtx);
-    mIceDisconnectionTimer = 0;
+    if (!mIceDisconnectionTs)
+    {
+        return;
+    }
+
+    cancelTimeout(mMediaRecoveryTimer, mManager.mKarereClient.appCtx);
+    mMediaRecoveryTimer = 0;
 
     time_t iceReconnectionDuration = time(nullptr) - mIceDisconnectionTs;
     if (iceReconnectionDuration > mMaxIceDisconnectedTime)
@@ -4060,10 +4064,10 @@ void Session::handleIceDisconnected()
 
 void Session::cancelIceDisconnectionTimer()
 {
-    if (mIceDisconnectionTimer)
+    if (mMediaRecoveryTimer)
     {
-        cancelTimeout(mIceDisconnectionTimer, mManager.mKarereClient.appCtx);
-        mIceDisconnectionTimer = 0;
+        cancelTimeout(mMediaRecoveryTimer, mManager.mKarereClient.appCtx);
+        mMediaRecoveryTimer = 0;
     }
 }
 
