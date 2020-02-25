@@ -3532,6 +3532,7 @@ void Session::msgSdpAnswerRenegotiate(RtMessage &packet)
 Session::~Session()
 {
     removeRtcConnection();
+    cancelIceDisconnectionTimer();
     SUB_LOG_DEBUG("Destroyed");
 }
 
