@@ -443,7 +443,7 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_INT(isJoiner, mIsJoiner);
     JSON_ADD_STR(caid, mIsJoiner ? mOwnAnonId.toString() : mPeerAnonId.toString());
     JSON_ADD_STR(aaid, mIsJoiner ? mPeerAnonId.toString() : mOwnAnonId.toString());
-    JSON_ADD_STR(termRsn, mTermRsn)
+    JSON_ADD_STR(termRsn, mTermRsn);
     if (mIceDisconnections > 0)
     {
         JSON_SUBOBJ("hicc");

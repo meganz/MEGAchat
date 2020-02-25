@@ -65,7 +65,7 @@ public:
     unsigned long mMaxIceDisconnectionTime = 0;
     unsigned int mIceDisconnections = 0;
     karere::Id mPreviousSessioId;
-    unsigned int mReconnections;
+    unsigned int mReconnections = 0;
     ~RtcStats();
     //IRtcStats implementation
     virtual const std::string& termRsn() const { return mTermRsn; }

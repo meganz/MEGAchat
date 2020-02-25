@@ -1750,13 +1750,14 @@ void Call::removeSession(Session& sess, TermCode reason)
         return;
     }
 
+    EndpointId endpointId(sessionPeer, sessionPeerClient);
     if (!Session::isTermRetriable(reason))
     {
+        mSessionsReconnectionInfo.erase(endpointId);
         destroyIfNoSessionsOrRetries(reason);
         return;
     }
 
-    EndpointId endpointId(sessionPeer, sessionPeerClient);
     auto sessionReconnectionIt = mSessionsReconnectionInfo.find(endpointId);
     if (sessionReconnectionIt == mSessionsReconnectionInfo.end())
     {
@@ -1827,7 +1828,9 @@ void Call::removeSession(Session& sess, TermCode reason)
         if (wptr.deleted())
             return;
 
+
         mSessRetries.erase(endpointId);
+        mSessionsReconnectionInfo.erase(endpointId);
         if (mState >= kStateTerminating) // call already terminating
         {
            return; //timer is not relevant anymore
@@ -2415,7 +2418,6 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
             }
 
             sess->destroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
-            mSessionsReconnectionInfo.erase(EndpointId(userid, clientid));
             return;
         }
     }
