@@ -2408,8 +2408,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
     }
 
-    // If we have sent a session we remove the information, that session isn't be succesfull becasuse
-    // we receive a ENDCALL, we don't destroy the call because we are trying to reconnect
+    // We discard the previous JOIN becasue we have rececived an ENDCALL from that peer
     mSessionsInfo.erase(EndpointId(userid, clientid));
 }
 
