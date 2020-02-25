@@ -1545,6 +1545,18 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
     return ctx->pms;
 }
 
+promise::Promise<void> Call::terminateAllSessionInmediately(TermCode code)
+{
+    for (auto it = mSessions.begin(); it != mSessions.end();)
+    {
+        std::shared_ptr<Session> session = it++->second;
+        session->terminateAndDestroy(code);
+        session->forceDestroy();
+    }
+
+    return promise::_Void();
+}
+
 Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
 {
     if (mState == Call::kStateDestroyed)
@@ -1588,9 +1600,16 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
             pms = ::promise::_Void();
             break;
         default:
-            // if we initiate the call termination, we must initiate the
-            // session termination handshake
-            pms = gracefullyTerminateAllSessions(code);
+            if (code == TermCode::kAppTerminating)
+            {
+                pms = terminateAllSessionInmediately(code);
+            }
+            else
+            {
+                // if we initiate the call termination, we must initiate the
+                // session termination handshake
+                pms = gracefullyTerminateAllSessions(code);
+            }
             break;
         }
     }
@@ -2921,6 +2940,15 @@ promise::Promise<void> Session:: processSdpOfferSendAnswer()
         terminateAndDestroy(TermCode::kErrSdp, msg);
     });
 }
+
+void Session::forceDestroy()
+{
+    if (!mTerminatePromise.done())
+    {
+        mTerminatePromise.resolve();
+    }
+}
+
 //PeerConnection events
 void Session::onAddStream(artc::tspMediaStream stream)
 {
@@ -3239,7 +3267,6 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         {
             auto pms = mTerminatePromise;
             pms.resolve();
-            return pms;
         }
     }
 
@@ -3514,7 +3541,7 @@ void Session::manageNetworkQuality(stats::Sample *sample)
 bool Session::isTermRetriable(TermCode reason)
 {
     TermCode termCode = static_cast<TermCode>(reason & ~TermCode::kPeer);
-    return (termCode != TermCode::kErrPeerOffline) && (termCode != TermCode::kUserHangup);
+    return (termCode != TermCode::kErrPeerOffline) && (termCode != TermCode::kUserHangup) && (termCode != TermCode::kAppTerminating);
 }
 
 #define RET_ENUM_NAME(name) case name: return #name

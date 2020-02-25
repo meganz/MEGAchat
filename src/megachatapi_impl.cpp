@@ -341,9 +341,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_LOGOUT:
         {
             bool deleteDb = request->getFlag();
-#ifndef KARERE_DISABLE_WEBRTC
             cleanChatHandlers();
-#endif
             terminating = true;
             mClient->terminate(deleteDb);
 
@@ -364,9 +362,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             if (mClient && !terminating)
             {
-#ifndef KARERE_DISABLE_WEBRTC
                 cleanChatHandlers();
-#endif
                 mClient->terminate();
                 API_LOG_INFO("Chat engine closed!");
 
@@ -4433,6 +4429,14 @@ void MegaChatApiImpl::removeCall(MegaChatHandle chatid)
 
 void MegaChatApiImpl::cleanChatHandlers()
 {
+#ifndef KARERE_DISABLE_WEBRTC
+    if (mClient->rtc)
+    {
+        mClient->rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    }
+    cleanCallHandlerMap();
+#endif
+
 	MegaChatHandle chatid;
 	for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
 	{
@@ -4451,10 +4455,6 @@ void MegaChatApiImpl::cleanChatHandlers()
 		closeNodeHistory(chatid, NULL);
 	}
 	assert(nodeHistoryHandlers.empty());
-
-#ifndef KARERE_DISABLE_WEBRTC
-	cleanCallHandlerMap();
-#endif
 }
 
 void MegaChatApiImpl::onInitStateChange(int newState)
@@ -7907,7 +7907,13 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
     {
         chatid = chatCall->getChatid();
         unique_ptr<MegaChatRoom> chatRoom(megaChatApi->getChatRoom(chatid));
-        assert(chatRoom);
+        if (!chatRoom)
+        {
+            // Protection to destroy the app during call
+            assert(false);
+            return;
+        }
+
         unique_ptr<MegaHandleList> peeridParticipants(chatCall->getPeeridParticipants());
         unique_ptr<MegaHandleList> clientidParticipants(chatCall->getClientidParticipants());
         bool uniqueParticipant = (peeridParticipants && peeridParticipants->size() == 1 &&

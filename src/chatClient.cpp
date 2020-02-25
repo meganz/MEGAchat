@@ -1506,7 +1506,9 @@ void Client::terminate(bool deleteDb)
 {
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
-        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    {
+            rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    }
 #endif
 
     setInitState(kInitTerminated);
