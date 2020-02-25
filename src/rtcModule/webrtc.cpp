@@ -2407,6 +2407,9 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         cancelSessionRetryTimer(userid, clientid);
         destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
     }
+
+    // We discard the previous JOIN becasue we have rececived an ENDCALL from that peer
+    mSessionsInfo.erase(EndpointId(userid, clientid));
 }
 
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)
