@@ -1769,14 +1769,6 @@ void Call::removeSession(Session& sess, TermCode reason)
     SessionReconnectInfo& info = sessionReconnectionIt->second;
     info.setReconnections(info.getReconnections() + 1);
     info.setOldSid(sessionId);
-    info.setReasonNoPeer(reason);
-    info.setStartTime(time(nullptr));
-    if (sessionLastMedia == 0 && sessionIceConnectionTs == 0)
-    {
-        sessionLastMedia = info.getLastMedia();
-    }
-
-    info.setLastMedia(sessionLastMedia);
 
     // If we want to terminate the call (no matter if initiated by us or peer), we first
     // set the call's state to kTerminating. If that is not set, then it's only the session
@@ -3565,11 +3557,6 @@ bool Session::isTermRetriable(TermCode reason)
     return (termCode != TermCode::kErrPeerOffline) && (termCode != TermCode::kUserHangup);
 }
 
-time_t SessionReconnectInfo::getStartTime() const
-{
-    return mStartTime;
-}
-
 karere::Id SessionReconnectInfo::getOldSid() const
 {
     return mOldSid;
@@ -3580,20 +3567,6 @@ unsigned int SessionReconnectInfo::getReconnections() const
     return mReconnections;
 }
 
-TermCode SessionReconnectInfo::getReasonNoPeer() const
-{
-    return mReasonNoPeer;
-}
-
-time_t SessionReconnectInfo::getLastMedia() const
-{
-    return mLastMedia;
-}
-
-void SessionReconnectInfo::setStartTime(time_t startTime)
-{
-    mStartTime = startTime;
-}
 
 void SessionReconnectInfo::setOldSid(const Id &oldSid)
 {
@@ -3603,16 +3576,6 @@ void SessionReconnectInfo::setOldSid(const Id &oldSid)
 void SessionReconnectInfo::setReconnections(unsigned int reconnections)
 {
     mReconnections = reconnections;
-}
-
-void SessionReconnectInfo::setReasonNoPeer(TermCode reasonNoPeer)
-{
-    mReasonNoPeer = reasonNoPeer;
-}
-
-void SessionReconnectInfo::setLastMedia(time_t lastMedia)
-{
-    mLastMedia = lastMedia;
 }
 
 #define RET_ENUM_NAME(name) case name: return #name

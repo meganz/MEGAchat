@@ -166,24 +166,14 @@ public:
 class SessionReconnectInfo
 {
 public:
-    time_t getStartTime() const;
     karere::Id getOldSid() const;
     unsigned int getReconnections() const;
-    TermCode getReasonNoPeer() const;
-    time_t getLastMedia() const;
-
-    void setStartTime(time_t startTime);
     void setOldSid(const karere::Id& oldSid);
     void setReconnections(unsigned int reconnections);
-    void setReasonNoPeer(TermCode reasonNoPeer);
-    void setLastMedia(time_t lastMedia);
 
 protected:
-    time_t mStartTime = 0;
     karere::Id mOldSid;
     unsigned int mReconnections = 0;
-    TermCode mReasonNoPeer = TermCode::kInvalid;
-    time_t mLastMedia = 0;
 };
 
 class Call: public ICall
