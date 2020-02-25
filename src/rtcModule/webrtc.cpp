@@ -1740,9 +1740,6 @@ void Call::removeSession(Session& sess, TermCode reason)
     karere::Id sessionPeer = sess.mPeer;
     uint32_t sessionPeerClient = sess.mPeerClient;
     bool caller = sess.isCaller();
-
-    time_t sessionLastMedia = sess.mIceDisconnectionTs;
-    time_t sessionIceConnectionTs = sess.mTsIceConn;
     mSessions.erase(sessionId);
 
     if (mState == kStateTerminating)
@@ -1779,7 +1776,6 @@ void Call::removeSession(Session& sess, TermCode reason)
         SUB_LOG_DEBUG("removeSession: Trying to remove a session for which there is a scheduled retry, the retry should not be there");
         assert(false);
     }
-
 
     TermCode terminationCode = (TermCode)(reason & ~TermCode::kPeer);
     if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout)
