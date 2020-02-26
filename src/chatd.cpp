@@ -2725,6 +2725,7 @@ void Chat::initChat()
     mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
     mLastServerHistFetchCount = 0;
     mLastHistDecryptCount = 0;
+    mRetentionTime = 0;
 
     mLastTextMsg.clear();
     mEncryptionHalted = false;
@@ -4281,12 +4282,15 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     }
 }
 
-void Chat::handleRetentionTime(uint32_t period)
+void Chat::handleRetentionTime()
 {
+    uint32_t retentionTime = getRetentionTime();
     chatd::Idx idx = CHATD_IDX_INVALID;
-    time_t ts = time(nullptr) - period;
+    time_t ts = time(nullptr) - retentionTime;
+
+    // Get idx of newest msg affected by retention time, if any
     CALL_DB(getIdxByRetentionTime, ts, idx);
-    if (!period || idx == CHATD_IDX_INVALID)
+    if (!retentionTime || idx == CHATD_IDX_INVALID)
     {
         // If retentionTime is disabled or there are no messages to remove
         return;
@@ -4294,87 +4298,88 @@ void Chat::handleRetentionTime(uint32_t period)
 
     // GUI must detach and free any resources associated with erased messages
     Message msg = at(idx);
-    Message::Status status = getMsgStatus(msg, idx);
-    CALL_LISTENER(onRetentionHistoryTruncated, msg, idx, status);
+    CALL_LISTENER(onRetentionHistoryTruncated, msg, idx, getMsgStatus(msg, idx));
 
-    CHATID_LOG_DEBUG("Cleaning messages previous to %d seconds", period);
-    CALL_CRYPTO(resetSendKey);              // discard current key, if any
-    CALL_DB(retentionHistoryTruncate, idx); // clean all msgs previous to retention time
-    assert(idx != CHATD_IDX_INVALID);
+    // Discard current key, if any
+    CALL_CRYPTO(resetSendKey);
+
+    // Clean affected messages in db and RAM
+    CHATID_LOG_DEBUG("Cleaning messages previous to %d seconds", retentionTime);
+    CALL_DB(retentionHistoryTruncate, idx);
     truncateByRetentionTime(idx);
+
+    // Clean pending rich links
     removePendingRichLinks(idx);
 
-    // update last-seen pointer
-    if (mLastSeenIdx != CHATD_IDX_INVALID)
-    {
-        if (mLastSeenIdx <= idx)
-        {
-            //if we haven't seen even messages before the truncation point,
-            //now we will have not seen any message after the truncation
-            mLastSeenIdx = CHATD_IDX_INVALID;
-            mLastSeenId = 0;
-            CALL_DB(setLastSeen, 0);
-        }
-    }
+    // update oldest index in db
+    mOldestIdxInDb = mDbInterface->getOldestIdx();
 
-    // update last-received pointer
-    if (mLastReceivedIdx != CHATD_IDX_INVALID)
-    {
-        if (mLastReceivedIdx <= idx)
-        {
-            mLastReceivedIdx = CHATD_IDX_INVALID;
-            mLastReceivedId = 0;
-            CALL_DB(setLastReceived, 0);
-        }
-    }
-
-    if (mChatdClient.isMessageReceivedConfirmationActive() && mLastIdxReceivedFromServer <= idx)
+    if (mOldestIdxInDb == CHATD_IDX_INVALID) // If there's no messages in db
     {
         mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
         mLastIdReceivedFromServer = karere::Id::null();
-        // TODO: the update of those variables should be persisted
+        mHaveAllHistory = true;
+        mHasMoreHistoryInDb = false;
+        CALL_DB(setHaveAllHistory, true);
     }
 
-    // since we have discarted part of the history backwards given a message in local history
-    // now we know we have all history and what's the oldest msgid.
-    CALL_DB(setHaveAllHistory, true);
-    mHaveAllHistory = true;
+    if (empty()) // There's no messages loaded in RAM
+    {
+        // reset forward start
+        mForwardStart = CHATD_IDX_RANGE_MIDDLE;
 
-    if (!mBackwardList.empty())
-    {
-        mOldestKnownMsgId = mBackwardList.at((mBackwardList.size()-1))->id();
-    }
-    else if (!mForwardList.empty())
-    {
-        mOldestKnownMsgId = (*mForwardList.begin())->id();
+        // reset last-seen pointer
+        mLastSeenIdx = CHATD_IDX_INVALID;
+        mLastSeenId = 0;
+        CALL_DB(setLastSeen, 0);
+
+        // reset last-received pointer
+        mLastReceivedIdx = CHATD_IDX_INVALID;
+        mLastReceivedId = 0;
+        CALL_DB(setLastReceived, 0);
+
+        // truncate node-history
+        mAttachmentNodes->truncateHistory(Id::inval());
+
+        //reset OldestKnownMsgId
+        mOldestKnownMsgId = 0;
+
+        // reset mNextHistFetchIdx
+        mNextHistFetchIdx = CHATD_IDX_INVALID;
     }
     else
     {
-        mOldestKnownMsgId = 0;
-    }
-
-    // we don't have more history in DB
-    mHasMoreHistoryInDb = false;
-
-    // Find an attachment newer than truncate (lownum) in order to truncate node-history
-    // (if no more attachments in history buffer, node-history will be fully cleared)
-    Id attachmentTruncateFromId = Id::inval();
-    for (Idx i = lownum(); i < highnum(); i++)
-    {
-        if (at(i).type == Message::kMsgAttachment)
+        // Find oldest msg id in loaded messages in RAM
+        if (!mBackwardList.empty())
         {
-            attachmentTruncateFromId = at(i).id();
-            break;
+            mOldestKnownMsgId = mBackwardList.at((mBackwardList.size()-1))->id();
         }
-    }
-    mAttachmentNodes->truncateHistory(attachmentTruncateFromId);
-    if (mDecryptionAttachmentsHalted)
-    {
-        while (!mAttachmentsPendingToDecrypt.empty())
+        else if (!mForwardList.empty())
         {
-            mAttachmentsPendingToDecrypt.pop();
+            mOldestKnownMsgId = (*mForwardList.begin())->id();
         }
-        mTruncateAttachment = true; // --> indicates the message being decrypted must be discarded
+
+        // Find an attachment newer than truncate (lownum) in order to truncate node-history
+        // (if no more attachments in history buffer, node-history will be fully cleared)
+        Id attachmentTruncateFromId = Id::inval();
+        for (Idx i = lownum(); i < highnum(); i++)
+        {
+            if (at(i).type == Message::kMsgAttachment)
+            {
+                attachmentTruncateFromId = at(i).id();
+                break;
+            }
+        }
+
+        mAttachmentNodes->truncateHistory(attachmentTruncateFromId);
+        if (mDecryptionAttachmentsHalted)
+        {
+            while (!mAttachmentsPendingToDecrypt.empty())
+            {
+                mAttachmentsPendingToDecrypt.pop();
+            }
+            mTruncateAttachment = true; // --> indicates the message being decrypted must be discarded
+        }
     }
 }
 
@@ -5103,7 +5108,7 @@ void Chat::onRetentionTimeUpdated(uint32_t period)
         CALL_LISTENER(onRetentionTimeUpdated, period);
     }
 
-    handleRetentionTime(period);
+    handleRetentionTime();
 }
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)

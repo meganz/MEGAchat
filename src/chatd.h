@@ -854,7 +854,7 @@ protected:
     bool mTruncateAttachment = false;
     /** Indicates the reaction sequence number for this chatroom */
     karere::Id mReactionSn = karere::Id::inval();
-    /** Indicates the retention time for this chat room, where the previous messages are automatically deleted **/
+    /** Indicates the retention time for this chat room, after which the previous messages are automatically deleted **/
     uint32_t mRetentionTime = 0;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
@@ -1352,7 +1352,7 @@ protected:
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
-    void handleRetentionTime(uint32_t period);
+    void handleRetentionTime();
     void truncateByRetentionTime(Idx idx);
 
     /**
