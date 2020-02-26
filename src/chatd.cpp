@@ -1037,13 +1037,33 @@ void Connection::heartbeat()
     if (!mHeartbeatEnabled)
         return;
 
-    if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
+    time_t now = time(NULL);
+    if (now - mTsLastRecv >= Connection::kIdleTimeout)
     {
         CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
 
         setState(kStateDisconnected);
         abortRetryController();
         reconnect();
+    }
+    else
+    {
+        for (auto& chatid: mChatIds)
+        {
+            // For every chat check, if timestamp of it's oldest message in db
+            // has exceeded retention time
+            Chat &chat = mChatdClient.chats(chatid);
+            if (chat.mOldestIdxInDb == CHATD_IDX_INVALID)
+            {
+                continue;
+            }
+
+            Message &msg = chat.at(chat.mOldestIdxInDb);
+            if (msg.ts <= now - chat.getRetentionTime())
+            {
+                chat.handleRetentionTime();
+            }
+        }
     }
 }
 
