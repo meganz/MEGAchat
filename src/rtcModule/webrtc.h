@@ -222,7 +222,7 @@ public:
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
     virtual int callParticipants() = 0;
     virtual bool isParticipating(karere::Id userid) = 0;
-    virtual void removeAllParticipants() = 0;
+    virtual void removeAllParticipants(bool exceptMe = false) = 0;
     virtual karere::Id getCallId() const = 0;
     virtual void setCallId(karere::Id callid) = 0;
     virtual rtcModule::ICall *getCall() = 0;

@@ -8095,12 +8095,19 @@ bool MegaChatCallHandler::isParticipating(Id userid)
     return chatCall->isParticipating(userid);
 }
 
-void MegaChatCallHandler::removeAllParticipants()
+void MegaChatCallHandler::removeAllParticipants(bool exceptMe)
 {
     MegaHandleList* clientids = chatCall->getClientidParticipants();
     MegaHandleList* peerids = chatCall->getPeeridParticipants();
     for (unsigned int i = 0; i < peerids->size(); i++)
     {
+        if (exceptMe &&
+                peerids->get(i) == megaChatApi->getMyUserHandle() &&
+                clientids->get(i) == megaChatApi->getMyClientidHandle(chatCall->getChatid()))
+        {
+            continue;
+        }
+
         chatCall->removeParticipant(peerids->get(i), clientids->get(i));
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }

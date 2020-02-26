@@ -565,8 +565,9 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
             auto itHandler = mCallHandlers.find(chatid);
             assert(itHandler != mCallHandlers.end());
             itHandler->second->setReconnectionFailed();
+            Chat& chat = mManager.mKarereClient.mChatdClient->chats(chatid);
+            itHandler->second->removeParticipant(mManager.mKarereClient.myHandle(), chat.connection().clientId());
             removeCallWithoutParticipants(chatid);
-
         }, kRetryCallTimeout, mKarereClient.appCtx);
     }
 }
@@ -782,7 +783,13 @@ void RtcModule::removeCall(Id chatid, bool retry)
         {
             if (retry || itHandler->second->callParticipants())
             {
-                itHandler->second->removeAllParticipants();
+                bool reconnectionState = false;
+                if (mRetryCall.find(chatid) != mRetryCall.end())
+                {
+                    reconnectionState = true;
+                }
+
+                itHandler->second->removeAllParticipants(reconnectionState);
             }
             else if (mRetryCall.find(chatid) == mRetryCall.end())
             {
@@ -848,12 +855,14 @@ std::vector<Id> RtcModule::chatsWithCall() const
 void RtcModule::abortCallRetry(Id chatid)
 {
     removeCallRetry(chatid, false);
-    removeCallWithoutParticipants(chatid);
     auto itHandler = mCallHandlers.find(chatid);
     if (itHandler != mCallHandlers.end())
     {
         itHandler->second->onReconnectingState(false);
+        itHandler->second->removeParticipant(mManager.mKarereClient.myHandle(), chat.connection().clientId());
     }
+
+    removeCallWithoutParticipants(chatid);
 }
 
 void RtcModule::onKickedFromChatRoom(Id chatid)

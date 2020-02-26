@@ -594,7 +594,7 @@ public:
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) override;
     virtual int callParticipants() override;
     virtual bool isParticipating(karere::Id userid) override;
-    virtual void removeAllParticipants() override;
+    virtual void removeAllParticipants(bool exceptMe = false) override;
     virtual karere::Id getCallId() const override;
     virtual void setCallId(karere::Id callid) override;
     virtual void setInitialTimeStamp(int64_t timeStamp) override;
