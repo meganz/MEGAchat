@@ -354,7 +354,15 @@ public:
         SqliteStmt stmt(mDb, "select min(idx) from history where chatid = ?");
         stmt << mChat.chatId();
         stmt.stepMustHaveData(__FUNCTION__);
-        return stmt.uint64Col(0);
+
+        if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) // no db history
+        {
+            return CHATD_IDX_INVALID;
+        }
+        else
+        {
+            return stmt.uint64Col(0);
+        }
     }
     virtual void setLastSeen(karere::Id msgid)
     {
