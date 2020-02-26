@@ -755,7 +755,7 @@ Promise<void> Connection::reconnect()
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, host.c_str(),
-                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -3805,6 +3805,12 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     }
 
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
+
+    // if first message is own msg we need to init mNextHistFetchIdx to avoid loading own messages twice
+    if (mNextHistFetchIdx == CHATD_IDX_INVALID && size() == 1)
+    {
+        mNextHistFetchIdx = -1;
+    }
 
     // last text message stuff
     if (msg->isValidLastMessage())
