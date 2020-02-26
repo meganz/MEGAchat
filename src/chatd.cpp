@@ -3803,6 +3803,12 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
 
+    // if first message is own msg we need to init mNextHistFetchIdx to avoid loading own messages twice
+    if (mNextHistFetchIdx == CHATD_IDX_INVALID && size() == 1)
+    {
+        mNextHistFetchIdx = -1;
+    }
+
     // last text message stuff
     if (msg->isValidLastMessage())
     {
