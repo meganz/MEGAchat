@@ -330,7 +330,7 @@ std::string Recorder::terminate(const StatSessInfo& info)
     mStats->mDeviceInfo = info.deviceInfo;
     mStats->mMaxIceDisconnectionTime = info.maxIceDisconnectionTime;
     mStats->mIceDisconnections = info.iceDisconnections;
-    mStats->mPreviousSessioId = info.previousSessionId;
+    mStats->mPreviousSessionId = info.previousSessionId;
     mStats->mReconnections = info.reconnections;
     std::string json;
     mStats->toJson(json);
@@ -456,7 +456,7 @@ void RtcStats::toJson(std::string& json) const
     {
         JSON_SUBOBJ("reconn");
         JSON_ADD_INT(cnt, mReconnections);
-        JSON_ADD_STR(prevSid, mPreviousSessioId.toString());
+        JSON_ADD_STR(prevSid, mPreviousSessionId.toString());
         JSON_END_SUBOBJ();
     }
     json[json.size()-1]='}'; //all

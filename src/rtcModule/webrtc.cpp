@@ -1816,7 +1816,6 @@ void Call::removeSession(Session& sess, TermCode reason)
         if (wptr.deleted())
             return;
 
-
         mSessRetries.erase(endpointId);
         mSessionsReconnectionInfo.erase(endpointId);
         if (mState >= kStateTerminating) // call already terminating

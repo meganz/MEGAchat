@@ -64,7 +64,7 @@ public:
     ConnInfo mConnInfo;
     unsigned long mMaxIceDisconnectionTime = 0;
     unsigned int mIceDisconnections = 0;
-    karere::Id mPreviousSessioId;
+    karere::Id mPreviousSessionId;
     unsigned int mReconnections = 0;
     ~RtcStats();
     //IRtcStats implementation
