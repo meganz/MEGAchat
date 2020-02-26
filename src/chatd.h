@@ -800,6 +800,7 @@ protected:
     bool mHaveAllHistory = false;
     bool mIsDisabled = false;
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
+    Idx mOldestIdxInDb = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
     // last text message stuff
     LastTextMsgState mLastTextMsg;

@@ -1838,6 +1838,7 @@ void Chat::disable(bool state)
 Idx Chat::getHistoryFromDb(unsigned count)
 {
     assert(mHasMoreHistoryInDb); //we are within the db range
+    mOldestIdxInDb = mDbInterface->getOldestIdx();
     std::vector<Message*> messages;
     CALL_DB(fetchDbHistory, lownum()-1, count, messages);
     for (auto msg: messages)
@@ -2719,6 +2720,7 @@ void Chat::initChat()
     mLastSeenIdx = CHATD_IDX_INVALID;
     mLastReceivedIdx = CHATD_IDX_INVALID;
     mNextHistFetchIdx = CHATD_IDX_INVALID;
+    mOldestIdxInDb = CHATD_IDX_INVALID;
     mLastIdReceivedFromServer = 0;
     mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
     mLastServerHistFetchCount = 0;
@@ -3778,6 +3780,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         mAttachmentNodes->addMessage(*msg, true, false);
     }
     CALL_DB(addMsgToHistory, *msg, idx);
+    mOldestIdxInDb = mDbInterface->getOldestIdx();
 
     assert(msg->backRefId);
     if (!mRefidToIdxMap.emplace(msg->backRefId, idx).second)
@@ -4204,6 +4207,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
     CALL_CRYPTO(resetSendKey);      // discard current key, if any
     CALL_DB(truncateHistory, msg);
+    mOldestIdxInDb = mDbInterface->getOldestIdx();
     if (idx != CHATD_IDX_INVALID)   // message is loaded in RAM
     {
         //GUI must detach and free any resources associated with
@@ -4487,7 +4491,9 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
             if (mHasMoreHistoryInDb)
             { //we have db history that is not loaded, so we determine the index
               //by the db, and don't add the message to RAM
-                idx = mDbInterface->getOldestIdx()-1;
+                chatd::Idx oldestIdx = mDbInterface->getOldestIdx();
+                assert(oldestIdx!= CHATD_IDX_INVALID);
+                idx = oldestIdx - 1;
             }
             else
             {
@@ -4761,6 +4767,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             mAttachmentNodes->addMessage(msg, isNew, false);
         }
         CALL_DB(addMsgToHistory, msg, idx);
+        mOldestIdxInDb = mDbInterface->getOldestIdx();
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mChatdClient.mMyHandle) && // message is not ours
