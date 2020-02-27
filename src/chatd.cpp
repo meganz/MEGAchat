@@ -4439,7 +4439,7 @@ void Chat::truncateByRetentionTime(Idx idx)
     }
     else
     {
-        mBackwardList.erase(mBackwardList.begin() + mForwardStart-abs(idx) - 1, mBackwardList.end());
+        mBackwardList.erase(mBackwardList.begin() + mForwardStart - idx - 1, mBackwardList.end());
     }
 }
 
