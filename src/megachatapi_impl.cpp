@@ -467,8 +467,8 @@ void MegaChatApiImpl::sendPendingRequests()
                     errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
-                ContactList::iterator it = mClient->contactList->find(peersList->getPeerHandle(0));
-                if (it == mClient->contactList->end())
+                ContactList::iterator it = mClient->mContactList->find(peersList->getPeerHandle(0));
+                if (it == mClient->mContactList->end())
                 {
                     // contact not found
                     errorCode = MegaChatError::ERROR_ACCESS;
@@ -850,7 +850,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             mClient->openChatPreview(ph)
-            .then([request, this, unifiedKey](ReqResult result)
+            .then([request, this, unifiedKey, ph](ReqResult result)
             {
                 assert(result);
 
@@ -859,7 +859,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 uint64_t chatId = result->getParentHandle();
 
-                mClient->decryptChatTitle(chatId, unifiedKey, encTitle)
+                mClient->decryptChatTitle(chatId, unifiedKey, encTitle, ph)
                 .then([request, this, unifiedKey, result, chatId](std::string decryptedTitle)
                 {
                    bool createChat = request->getFlag();
@@ -1486,6 +1486,13 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else
             {
+                if (!chatroom->chat().isLoggedIn())
+                {
+                    API_LOG_ERROR("Start call - Refusing start/join a call, not logged-in yet: %d", chatroom->chat().connection().shardNo());
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+
                 handler = new MegaChatCallHandler(this);
                 mClient->rtc->addCallHandler(chatid, handler);
                 karere::AvFlags avFlags(true, enableVideo);
@@ -1595,7 +1602,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     API_LOG_DEBUG("There isn't an internal call, abort call retry");
                     mClient->rtc->abortCallRetry(chatid);
-
                     break;
                 }
 
@@ -1986,8 +1992,8 @@ karere::ChatRoom *MegaChatApiImpl::findChatRoomByUser(MegaChatHandle userhandle)
 
     if (mClient && !terminating)
     {
-        ContactList::iterator it = mClient->contactList->find(userhandle);
-        if (it != mClient->contactList->end())
+        ContactList::iterator it = mClient->mContactList->find(userhandle);
+        if (it != mClient->mContactList->end())
         {
             chatroom = it->second->chatRoom();
         }
@@ -2653,7 +2659,7 @@ char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)
 
     sdkMutex.lock();
 
-    const std::string *email = mClient ? mClient->contactList->getUserEmail(userhandle) : NULL;
+    const std::string *email = mClient ? mClient->mContactList->getUserEmail(userhandle) : NULL;
     if (email)
     {
         ret = MegaApi::strdup(email->c_str());
@@ -2672,7 +2678,7 @@ MegaChatHandle MegaChatApiImpl::getUserHandleByEmail(const char *email)
     {
         sdkMutex.lock();
 
-        Contact *contact = mClient ? mClient->contactList->contactFromEmail(email) : NULL;
+        Contact *contact = mClient ? mClient->mContactList->contactFromEmail(email) : NULL;
         if (contact)
         {
             uh = contact->userId();
@@ -3427,7 +3433,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHand
 
     sdkMutex.lock();
 
-    string buf = JSonUtils::generateAttachContactJSon(contacts, mClient->contactList.get());
+    string buf = JSonUtils::generateAttachContactJSon(contacts, mClient->mContactList.get());
     MegaChatMessage *megaMsg = sendMessage(chatid, buf.c_str(), buf.size(), Message::kMsgContact);
 
     sdkMutex.unlock();
@@ -5273,6 +5279,15 @@ void MegaChatSessionPrivate::setOnHold(bool onHold)
     changed |= CHANGE_TYPE_SESSION_ON_HOLD;
 }
 
+void MegaChatSessionPrivate::setTermCode(int termCode)
+{
+    int megaTermCode;
+    bool local;
+    MegaChatCallPrivate::convertTermCode(static_cast<rtcModule::TermCode>(termCode), megaTermCode, local);
+    this->termCode = megaTermCode;
+    this->localTermCode = local;
+}
+
 void MegaChatSessionPrivate::removeChanges()
 {
     changed = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
@@ -5633,61 +5648,61 @@ void MegaChatCallPrivate::removeChanges()
 
 void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
 {
-    convertTermCode(termCode);
+    convertTermCode(termCode, this->termCode, localTermCode);
 }
 
-void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
+void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local)
 {
     // Last four bits indicate the termination code and fifth bit indicate local or peer
     switch (termCode & (~rtcModule::TermCode::kPeer))
     {
         case rtcModule::TermCode::kUserHangup:
-            this->termCode = MegaChatCall::TERM_CODE_USER_HANGUP;
+            megaTermCode = MegaChatCall::TERM_CODE_USER_HANGUP;
             break;        
         case rtcModule::TermCode::kCallReqCancel:
-            this->termCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
+            megaTermCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
             break;
         case rtcModule::TermCode::kCallRejected:
-            this->termCode = MegaChatCall::TERM_CODE_CALL_REJECT;
+            megaTermCode = MegaChatCall::TERM_CODE_CALL_REJECT;
             break;
         case rtcModule::TermCode::kAnsElsewhere:
-            this->termCode = MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE;
+            megaTermCode = MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE;
             break;
         case rtcModule::TermCode::kRejElsewhere:
-            this->termCode = MegaChatCall::TEMR_CODE_REJECT_ELSE_WHERE;
+            megaTermCode = MegaChatCall::TEMR_CODE_REJECT_ELSE_WHERE;
             break;
         case rtcModule::TermCode::kAnswerTimeout:
-            this->termCode = MegaChatCall::TERM_CODE_ANSWER_TIMEOUT;
+            megaTermCode = MegaChatCall::TERM_CODE_ANSWER_TIMEOUT;
             break;
         case rtcModule::TermCode::kRingOutTimeout:
-            this->termCode = MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT;
+            megaTermCode = MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT;
             break;
         case rtcModule::TermCode::kAppTerminating:
-            this->termCode = MegaChatCall::TERM_CODE_APP_TERMINATING;
+            megaTermCode = MegaChatCall::TERM_CODE_APP_TERMINATING;
             break;
         case rtcModule::TermCode::kBusy:
-            this->termCode = MegaChatCall::TERM_CODE_BUSY;
+            megaTermCode = MegaChatCall::TERM_CODE_BUSY;
             break;
         case rtcModule::TermCode::kNotFinished:
-            this->termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
+            megaTermCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
             break;
         case rtcModule::TermCode::kDestroyByCallCollision:
-            this->termCode = MegaChatCall::TERM_CODE_DESTROY_BY_COLLISION;
+            megaTermCode = MegaChatCall::TERM_CODE_DESTROY_BY_COLLISION;
             break;
         case rtcModule::TermCode::kCallerGone:
         case rtcModule::TermCode::kInvalid:
         default:
-            this->termCode = MegaChatCall::TERM_CODE_ERROR;
+            megaTermCode = MegaChatCall::TERM_CODE_ERROR;
             break;
     }
 
     if (termCode & rtcModule::TermCode::kPeer)
     {
-        localTermCode = false;
+        local = false;
     }
     else
     {
-        localTermCode = true;
+        local = true;
     }
 }
 
@@ -8156,12 +8171,19 @@ bool MegaChatCallHandler::isParticipating(Id userid)
     return chatCall->isParticipating(userid);
 }
 
-void MegaChatCallHandler::removeAllParticipants()
+void MegaChatCallHandler::removeAllParticipants(bool exceptMe)
 {
     MegaHandleList* clientids = chatCall->getClientidParticipants();
     MegaHandleList* peerids = chatCall->getPeeridParticipants();
     for (unsigned int i = 0; i < peerids->size(); i++)
     {
+        if (exceptMe &&
+                peerids->get(i) == megaChatApi->getMyUserHandle() &&
+                clientids->get(i) == megaChatApi->getMyClientidHandle(chatCall->getChatid()))
+        {
+            continue;
+        }
+
         chatCall->removeParticipant(peerids->get(i), clientids->get(i));
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }
@@ -8291,10 +8313,11 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
         }
         case rtcModule::ISession::kStateDestroyed:
         {
-            if (callHandler->getCall()->state() < rtcModule::ICall::kStateTerminating)
+            if (callHandler->getCall()->state() < rtcModule::ICall::kStateDestroyed)
             {
                 MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
                 megaChatSession->setState(newState);
+                megaChatSession->setTermCode(session->getTermCode());
                 megaChatApi->fireOnChatSessionUpdate(chatCall->getChatid(), chatCall->getId(), megaChatSession);
             }
 

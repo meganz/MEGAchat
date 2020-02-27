@@ -2,6 +2,7 @@
 #import "DelegateMEGAChatCallListener.h"
 #import "MEGAChatCall+init.h"
 #import "MEGAChatError+init.h"
+#import "MEGAChatSession+init.h"
 
 using namespace megachat;
 
@@ -22,6 +23,17 @@ void DelegateMEGAChatCallListener::onChatCallUpdate(megachat::MegaChatApi *api, 
         id<MEGAChatCallDelegate>tempListener = this->listener;
         dispatch_async(dispatch_get_main_queue(), ^{
             [tempListener onChatCallUpdate:tempMEGAChatSdk call:[[MEGAChatCall alloc] initWithMegaChatCall:tempCall cMemoryOwn:YES]];
+        });
+    }
+}
+
+void DelegateMEGAChatCallListener::onChatSessionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatHandle callid, megachat::MegaChatSession *session) {
+    if (listener != nil && [listener respondsToSelector:@selector(onChatSessionUpdate:chatId:callId:session:)]) {
+        MegaChatSession *tempSession = session->copy();
+        MEGAChatSdk *tempMEGAChatSdk = this->megaChatSdk;
+        id<MEGAChatCallDelegate>tempListener = this->listener;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [tempListener onChatSessionUpdate:tempMEGAChatSdk chatId:chatid callId:callid session:[MEGAChatSession.alloc initWithMegaChatSession:tempSession cMemoryOwn:YES]];
         });
     }
 }

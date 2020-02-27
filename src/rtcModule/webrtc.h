@@ -223,7 +223,7 @@ public:
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
     virtual int callParticipants() = 0;
     virtual bool isParticipating(karere::Id userid) = 0;
-    virtual void removeAllParticipants() = 0;
+    virtual void removeAllParticipants(bool exceptMe = false) = 0;
     virtual karere::Id getCallId() const = 0;
     virtual void setCallId(karere::Id callid) = 0;
     virtual rtcModule::ICall *getCall() = 0;
@@ -265,6 +265,7 @@ protected:
     karere::Id mPeerAnonId;
     uint32_t mPeerClient;
     karere::AvFlags mPeerAv;
+    TermCode mTermCode = TermCode::kInvalid;
     ISession(Call& call, karere::Id peer, uint32_t peerClient): mCall(call), mPeer(peer), mPeerClient(peerClient){}
 public:
     enum: uint8_t
@@ -288,6 +289,7 @@ public:
     uint32_t peerClient() const { return mPeerClient; }
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
+    TermCode getTermCode() {return mTermCode;}
 };
 
 class ICall: public karere::WeakReferenceable<ICall>

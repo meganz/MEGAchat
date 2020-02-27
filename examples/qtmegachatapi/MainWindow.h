@@ -145,7 +145,7 @@ class MainWindow :
         void setNContacts(int nContacts);
         void createSettingsMenu();
         void createFactorMenu(bool factorEnabled);
-        void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
+        void updateContactTitle(megachat::MegaChatHandle contactHandle, const char *title);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         void updateToolTipMyInfo();
         void removeListeners();

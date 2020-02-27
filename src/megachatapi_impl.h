@@ -189,6 +189,7 @@ public:
     void setAudioDetected(bool audioDetected);
     void setSessionFullyOperative();
     void setOnHold(bool onHold);
+    void setTermCode(int termCode);
     void removeChanges();
 
 private:
@@ -267,6 +268,7 @@ public:
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
     void setOnHold(bool onHold);
+    static void convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local);
 
 protected:
     MegaChatHandle chatid;
@@ -287,7 +289,6 @@ protected:
     int termCode;
     bool ignored;
     bool localTermCode;
-    void convertTermCode(rtcModule::TermCode termCode);
 
     bool ringing;
     bool mIsCaller;
@@ -597,7 +598,7 @@ public:
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) override;
     virtual int callParticipants() override;
     virtual bool isParticipating(karere::Id userid) override;
-    virtual void removeAllParticipants() override;
+    virtual void removeAllParticipants(bool exceptMe = false) override;
     virtual karere::Id getCallId() const override;
     virtual void setCallId(karere::Id callid) override;
     virtual void setInitialTimeStamp(int64_t timeStamp) override;
