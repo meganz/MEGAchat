@@ -101,6 +101,10 @@ protected:
     TermCode mTermCode = TermCode::kInvalid;
     bool mPeerSupportRenegotiation = false;
     bool mRenegotiationInProgress = false;
+    unsigned int mIceDisconnections = 0;
+    time_t mIceDisconnectionTs = 0;
+    megaHandle mMediaRecoveryTimer = 0;
+    time_t mMaxIceDisconnectedTime = 0;
     megaHandle mStreamRenegotiationTimer = 0;
     time_t mTsSdpHandshakeCompleted = 0;
     void setState(uint8_t state);
@@ -127,6 +131,9 @@ protected:
     void setStreamRenegotiationTimeout();
     void renegotiationComplete();
     promise::Promise<void> setRemoteAnswerSdp(RtMessage& packet);
+    void handleIceConnectionRecovered();
+    void handleIceDisconnected();
+    void cancelIceDisconnectionTimer();
 
 public:
     RtcModule& mManager;
@@ -155,6 +162,19 @@ public:
     static bool isTermRetriable(TermCode reason);
     friend class Call;
     friend class stats::Recorder; //needs access to mRtcConn
+};
+
+class SessionReconnectInfo
+{
+public:
+    karere::Id getOldSid() const;
+    unsigned int getReconnections() const;
+    void setOldSid(const karere::Id& oldSid);
+    void setReconnections(unsigned int reconnections);
+
+protected:
+    karere::Id mOldSid;
+    unsigned int mReconnections = 0;
 };
 
 class Call: public ICall
@@ -204,6 +224,7 @@ protected:
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::map<chatd::EndpointId, int> mIceFails;
     std::map<chatd::EndpointId, Session::SessionInfo> mSessionsInfo;
+    std::map<chatd::EndpointId, SessionReconnectInfo> mSessionsReconnectionInfo;
     std::string mName;
     megaHandle mCallOutTimer = 0;
     bool mCallStartingSignalled = false;
@@ -305,7 +326,8 @@ public:
         kRetryCallTimeout = 30000,
         kSessFinishTimeout = 1000,
         kStreamRenegotiationTimeout = 10000,
-        kIceTimeout = 18000
+        kIceTimeout = 18000,
+        kMediaConnRecoveryTimeout = 15000,
     };
 
     enum Resolution
