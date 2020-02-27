@@ -859,6 +859,7 @@ void RtcModule::abortCallRetry(Id chatid)
     if (itHandler != mCallHandlers.end())
     {
         itHandler->second->onReconnectingState(false);
+        Chat& chat = mManager.mKarereClient.mChatdClient->chats(chatid);
         itHandler->second->removeParticipant(mManager.mKarereClient.myHandle(), chat.connection().clientId());
     }
 
