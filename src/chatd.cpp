@@ -4308,7 +4308,7 @@ void Chat::handleRetentionTime()
     chatd::Idx idx = CHATD_IDX_INVALID;
     time_t ts = time(nullptr) - retentionTime;
 
-    // Get idx of newest msg affected by retention time, if any
+    // Get idx of the most recent msg affected by retention time, if any
     CALL_DB(getIdxByRetentionTime, ts, idx);
     if (!retentionTime || idx == CHATD_IDX_INVALID)
     {

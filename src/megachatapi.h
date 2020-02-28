@@ -4881,8 +4881,7 @@ public:
         CHANGE_TYPE_CALL                = 0x200, /// There's a new call or a call has finished
         CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
         CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800, /// The number of previewers has changed
-        CHANGE_TYPE_PREVIEW_CLOSED      = 0x1000, /// The chat preview has been closed
-        CHANGE_TYPE_RETENTION_TIME      = 0x2000, /// The retention time has changed
+        CHANGE_TYPE_PREVIEW_CLOSED      = 0x1000 /// The chat preview has been closed
     };
 
     virtual ~MegaChatListItem() {}
@@ -5373,7 +5372,7 @@ public:
 
     /**
      * @brief Returns the retention time for this chat
-     * @return
+     * @return The retention time for this chat
      */
     virtual unsigned int getRetentionTime() const;
 
@@ -5613,10 +5612,11 @@ public:
     virtual void onReactionUpdate(MegaChatApi* api, MegaChatHandle msgid, const char* reaction, int count);
 
     /**
-     * @brief This function is called when we need to clear some messages previous to chatroom retention time
-     * All messages previous to received retention time must be cleared.
+     * @brief This function is called when we need to clear messages previous to retention time,
+     * all messages previous to received msg as parameter must be cleared.
      *
-     * @param ts Timestamp that indicates that all messages whose timestamp is previous must be cleared
+     * @param api MegaChatApi connected to the account
+     * @param msg Most recent message whose timestamp has exceeded retention time
      */
     virtual void onRetentionHistoryTruncated(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/);
 };

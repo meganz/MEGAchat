@@ -129,7 +129,7 @@ public:
      * All messages that exceed retention time must be cleared, so we need to inform app
      * to free all resources associated to these messages.
      *
-     * @param msg Newest message affected by retention time
+     * @param msg Most recent message affected by retention time
      * @param idx Index of the message
      * @param status Status of the message
      */

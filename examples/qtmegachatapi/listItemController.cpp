@@ -135,7 +135,7 @@ void ChatListItemController::onSetRetentionTime(bool inSeconds)
 {
     QString text = QInputDialog::getText(mMainWindow, tr("Set retention time"),
          tr("Specify retention time")
-         .append(inSeconds ? " <b>in seconds</b>":" <b>in minutes</b>")
+         .append(inSeconds ? " <b>in seconds</b>":" <b>in days</b>")
          .append(" (0 to disable)"));
 
     if (!text.isNull() && !text.isEmpty())

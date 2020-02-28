@@ -588,7 +588,7 @@ public:
 
     void getIdxByRetentionTime(const time_t retentionTime, chatd::Idx &limitIdx) override
     {
-        // Find the first msg affected by retention time if any
+        // Find the most recent msg affected by retention time if any
         SqliteStmt stmt(mDb, "select MAX(ts), MAX(idx) from history where chatid = ? and ts < ?");
         stmt.bind(mChat.chatId())
                 .bind(retentionTime)

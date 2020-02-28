@@ -223,6 +223,7 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
         QMessageBox *msgBox = new QMessageBox(this);
         QString text("onRetentionTimeUpdated: ");
         text.append(std::to_string(chat->getRetentionTime()).c_str());
+        msgBox->setAttribute(Qt::WA_DeleteOnClose, true);
         msgBox->setIcon( QMessageBox::Information );
         msgBox->setAttribute(Qt::WA_DeleteOnClose);
         msgBox->setStandardButtons(QMessageBox::Ok);
