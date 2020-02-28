@@ -196,6 +196,7 @@ public:
     void TEST_Attachment(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
+    void TEST_RetentionHistory(unsigned int a1, unsigned int a2);
     void TEST_ChangeMyOwnName(unsigned int a1);
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
@@ -384,8 +385,10 @@ public:
     bool msgContactReceived[NUM_ACCOUNTS];
     bool msgRevokeAttachmentReceived[NUM_ACCOUNTS];
     bool reactionReceived[NUM_ACCOUNTS];
+    bool retentionHistoryTruncated[NUM_ACCOUNTS];
     megachat::MegaChatHandle mConfirmedMessageHandle[NUM_ACCOUNTS];
     megachat::MegaChatHandle mEditedMessageHandle[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mRetentionMessageHandle[NUM_ACCOUNTS];
 
     megachat::MegaChatMessage *message;
     std::vector <megachat::MegaChatHandle>msgId[NUM_ACCOUNTS];
@@ -398,6 +401,7 @@ public:
     bool titleUpdated[NUM_ACCOUNTS];
     bool archiveUpdated[NUM_ACCOUNTS];
     bool previewsUpdated[NUM_ACCOUNTS];
+    bool retentionTimeUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);
