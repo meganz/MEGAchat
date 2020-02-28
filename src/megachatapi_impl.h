@@ -973,7 +973,7 @@ public:
     static void setLogWithColors(bool useColors);
     static void setLogToConsole(bool enable);
 
-    int init(const char *sid);
+    int init(const char *sid, bool waitForFetchnodesToConnect = true);
     int initAnonymous();
     void createKarereClient();
     void resetClientid();

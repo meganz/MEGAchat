@@ -73,6 +73,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->init((sid != nil) ? [sid UTF8String] : NULL);
 }
 
+- (MEGAChatInit)initKarereLeanModeWithSid:(NSString *)sid {
+    return (MEGAChatInit) self.megaChatApi->initLeanMode((sid != nil) ? [sid UTF8String] : NULL);
+}
+
 - (MEGAChatInit)initAnonymous {
     return (MEGAChatInit) self.megaChatApi->initAnonymous();
 }
