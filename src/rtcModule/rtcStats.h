@@ -22,6 +22,10 @@ struct StatSessInfo
     karere::Id aaid;
     bool isCaller;
     std::string deviceInfo;
+    unsigned long maxIceDisconnectionTime = 0;
+    unsigned int iceDisconnections = 0;
+    unsigned int reconnections = 0;
+    karere::Id previousSessionId;
     StatSessInfo(karere::Id aSid, uint8_t code, const std::string& aErrInfo, const std::string &aDeviceInfo);
 };
 
@@ -59,6 +63,10 @@ public:
     bool mIsGroupCall;
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
+    unsigned long mMaxIceDisconnectionTime = 0;
+    unsigned int mIceDisconnections = 0;
+    karere::Id mPreviousSessionId;
+    unsigned int mReconnections = 0;
     ~RtcStats();
     //IRtcStats implementation
     virtual const std::string& termRsn() const { return mTermRsn; }

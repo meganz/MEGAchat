@@ -857,12 +857,18 @@ void Client::setInitState(InitState newState)
     app.onInitStateChange(mInitState);
 }
 
-Client::InitState Client::init(const char* sid)
+Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 {
     if (mInitState > kInitCreated)
     {
         KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
         return kInitErrAlready;
+    }
+
+    if (!waitForFetchnodesToConnect && !sid)
+    {
+        KR_LOG_ERROR("init: sid required to initialize in Lean Mode");
+        return kInitErrGeneric;
     }
 
     mInitStats.stageStart(InitStats::kStatsInit);
@@ -878,12 +884,26 @@ Client::InitState Client::init(const char* sid)
     }
     else
     {
+        assert(waitForFetchnodesToConnect);
         setInitState(kInitWaitingNewSession);
+    }
+
+    if (!waitForFetchnodesToConnect)
+    {
+        if (mInitState != kInitHasOfflineSession)
+        {
+            KR_LOG_ERROR("init: failed to initialize Lean Mode. Current state: %s", initStateStr());
+            return kInitErrGeneric;
+        }
+
+        mSessionReadyPromise.resolve();
+        mInitStats.onCanceled();    // do not collect stats for this initialization mode
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
     api.sdk.addRequestListener(this);
+
     return mInitState;
 }
 
