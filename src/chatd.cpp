@@ -4305,14 +4305,19 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 void Chat::handleRetentionTime()
 {
     uint32_t retentionTime = getRetentionTime();
-    chatd::Idx idx = CHATD_IDX_INVALID;
-    time_t ts = time(nullptr) - retentionTime;
+    if (!retentionTime)
+    {
+        // If retentionTime is disabled
+        return;
+    }
 
     // Get idx of the most recent msg affected by retention time, if any
+    chatd::Idx idx = CHATD_IDX_INVALID;
+    time_t ts = time(nullptr) - retentionTime;
     CALL_DB(getIdxByRetentionTime, ts, idx);
-    if (!retentionTime || idx == CHATD_IDX_INVALID)
+    if (idx == CHATD_IDX_INVALID)
     {
-        // If retentionTime is disabled or there are no messages to remove
+        // If there are no messages to remove
         return;
     }
 
@@ -4517,7 +4522,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
             { //we have db history that is not loaded, so we determine the index
               //by the db, and don't add the message to RAM
                 chatd::Idx oldestIdx = mDbInterface->getOldestIdx();
-                assert(oldestIdx!= CHATD_IDX_INVALID);
+                assert(oldestIdx != CHATD_IDX_INVALID);
                 idx = oldestIdx - 1;
             }
             else
