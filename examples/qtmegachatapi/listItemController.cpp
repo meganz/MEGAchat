@@ -125,9 +125,9 @@ void ChatListItemController::onGetRetentionTime()
     {
         return;
     }
-    unsigned int retentionTime = chatRoom->getRetentionTime();
+
     QMessageBox::information(mMainWindow, tr("Retention time: "), tr("Retention time: ")
-                             .append(std::to_string(retentionTime).c_str())
+                             .append(std::to_string(chatRoom->getRetentionTime()).c_str())
                              .append(" seconds"));
 }
 

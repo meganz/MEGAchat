@@ -225,7 +225,6 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
         text.append(std::to_string(chat->getRetentionTime()).c_str());
         msgBox->setAttribute(Qt::WA_DeleteOnClose, true);
         msgBox->setIcon( QMessageBox::Information );
-        msgBox->setAttribute(Qt::WA_DeleteOnClose);
         msgBox->setStandardButtons(QMessageBox::Ok);
         msgBox->setWindowTitle(tr("RETENTION HISTORY"));
         msgBox->setText(text);
@@ -521,15 +520,13 @@ void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRo
 
 void ChatWindow::onRetentionHistoryTruncated(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
 {
-    QDateTime t;
-    t.setTime_t(msg->getTimestamp());
-    QString lastTs = t.toString("hh:mm:ss - dd.MM.yy");
+    QString date = QDateTime::fromTime_t(msg->getTimestamp()).toString("hh:mm:ss - dd.MM.yy");
     QMessageBox *msgBox = new QMessageBox(this);
     msgBox->setIcon( QMessageBox::Information );
     msgBox->setAttribute(Qt::WA_DeleteOnClose);
     msgBox->setStandardButtons(QMessageBox::Ok);
     msgBox->setWindowTitle(tr("onRetentionHistoryTruncated"));
-    msgBox->setText("Messages previous to (" + lastTs+ "), will be cleared");
+    msgBox->setText("Messages previous to (" + date+ "), will be cleared");
     msgBox->setModal(false);
     msgBox->show();
 
@@ -541,7 +538,9 @@ void ChatWindow::onRetentionHistoryTruncated(megachat::MegaChatApi *, megachat::
         {
             auto auxIt = itMessages++;
             ChatMessage *auxMessage = auxIt->second;
-            if (auxMessage->mMessage->getTimestamp() <= msg->getTimestamp())
+            if (auxMessage->mMessage->getTimestamp() <= msg->getTimestamp()
+                    && auxMessage->mMessage->getStatus() != megachat::MegaChatMessage::STATUS_SENDING
+                    && auxMessage->mMessage->getStatus() != megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
             {
                 auxMessage->clearReactions();
                 int row = ui->mMessageList->row(auxMessage->getWidgetItem());
