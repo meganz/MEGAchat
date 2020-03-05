@@ -103,7 +103,7 @@ struct UserAttrReqCb: public karere::WeakReferenceable<UserAttrReqCb>
     : WeakReferenceable(this), owner(aOwner), cb(aCb), userp(aUserp), oneShot(aOneShot){}
 };
 
-enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2, kCacheFetchInvalid=3};
+enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2, kCacheNotFetchUntilUse=3};
 
 class UserAttrCache;
 struct UserAttrCacheItem

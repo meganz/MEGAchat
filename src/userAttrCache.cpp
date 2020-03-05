@@ -375,7 +375,7 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
             // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
             if (item.pending != kCacheFetchNewPending)
             {
-                if (item.pending != kCacheFetchInvalid)
+                if (item.pending != kCacheNotFetchUntilUse)
                 {
                     // we have something in the cache, call the cb
                     auto handle = oneShot ? Handle::invalid() : item.addCb(cb, userp, false);
@@ -409,7 +409,7 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
 
     //we don't have the attrib item, create it
     UACACHE_LOG_DEBUG("Attibute %s not found in cache, fetching", key.toString().c_str());
-    auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, fetch ? kCacheFetchNewPending : kCacheFetchInvalid);
+    auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, fetch ? kCacheFetchNewPending : kCacheNotFetchUntilUse);
     it = emplace(key, item).first;
     Handle handle = cb ? item->addCb(cb, userp, oneShot) : Handle::invalid();
     if (fetch)
@@ -593,7 +593,7 @@ void UserAttrCache::onLogin()
     mIsLoggedIn = true;
     for (auto& item: *this)
     {
-        if (item.second->pending != kCacheFetchNotPending)
+        if (item.second->pending != kCacheFetchNotPending && item.second->pending != kCacheNotFetchUntilUse)
             fetchAttr(item.first, item.second);
     }
 }
