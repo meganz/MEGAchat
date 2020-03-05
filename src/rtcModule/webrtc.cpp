@@ -1052,11 +1052,29 @@ void Call::handleMessage(RtMessage& packet)
             // This message can be received from old clients. It can be ignored
             return;
         case RTCMD_SESSION:
-            msgSession(packet);
+        {
+            auto wptr = weakHandle();
+            mManager.mKarereClient.userAttrCache().getAttr(packet.userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
+            .then([wptr, this, packet](Buffer*)
+            {
+                RtMessage packetReceived = packet;
+                msgSession(packetReceived);
+            });
+
             return;
+        }
         case RTCMD_JOIN:
-            msgJoin(packet);
+        {
+            auto wptr = weakHandle();
+            mManager.mKarereClient.userAttrCache().getAttr(packet.userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
+            .then([wptr, this, packet](Buffer*)
+            {
+                RtMessage packetReceived = packet;
+                msgJoin(packetReceived);
+            });
+
             return;
+        }
         case RTCMD_CALL_RINGING:
             msgRinging(packet);
             return;
@@ -1067,8 +1085,17 @@ void Call::handleMessage(RtMessage& packet)
             msgCallReqCancel(packet);
             return;
         case RTCMD_SDP_OFFER:
-            msgSdpOffer(packet);
+        {
+            auto wptr = weakHandle();
+            mManager.mKarereClient.userAttrCache().getAttr(packet.userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
+            .then([wptr, this, packet](Buffer*)
+            {
+                RtMessage packetReceived = packet;
+                msgSdpOffer(packetReceived);
+            });
+
             return;
+        }
     }
     auto& data = packet.payload;
     assert(data.dataSize() >= 8); // must start with sid.8
@@ -3192,28 +3219,40 @@ Promise<void> Session::sendOffer()
         SdpKey hash;
         mCall.mManager.crypto().mac(mOwnSdpOffer, mPeerHashKey, hash);
 
-        SdpKey encKey;
-        uint8_t opcode = 0;
+        // SDP_OFFER/RTCMD_SDP_OFFER_RENEGOTIATE sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
         if (isRenegotiation)
         {
-            opcode = RTCMD_SDP_OFFER_RENEGOTIATE;
+            SdpKey encKey;
             memset(encKey.data, 0, sizeof(encKey.data));
+            cmd(RTCMD_SDP_OFFER_RENEGOTIATE,
+                mCall.mManager.mOwnAnonId,
+                encKey,
+                hash,
+                mCall.mLocalStream->effectiveAv().value(),
+                static_cast<uint16_t>(mOwnSdpOffer.size()),
+                mOwnSdpOffer
+            );
         }
         else
         {
-            opcode = RTCMD_SDP_OFFER;
-            mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
+            mManager.mKarereClient.userAttrCache().getAttr(mPeer, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
+            .then([wptr, this, hash](Buffer*)
+            {
+                SdpKey encKey;
+                mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
+                cmd(RTCMD_SDP_OFFER,
+                    mCall.mManager.mOwnAnonId,
+                    encKey,
+                    hash,
+                    mCall.mLocalStream->effectiveAv().value(),
+                    static_cast<uint16_t>(mOwnSdpOffer.size()),
+                    mOwnSdpOffer
+                );
+            });
+
         }
 
         // SDP_OFFER/RTCMD_SDP_OFFER_RENEGOTIATE sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
-        cmd(opcode,
-            mCall.mManager.mOwnAnonId,
-            encKey,
-            hash,
-            mCall.mLocalStream->effectiveAv().value(),
-            static_cast<uint16_t>(mOwnSdpOffer.size()),
-            mOwnSdpOffer
-        );
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
