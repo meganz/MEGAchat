@@ -427,6 +427,11 @@ void MegaChatApi::getUserEmail(MegaChatHandle userhandle, MegaChatRequestListene
     pImpl->getUserEmail(userhandle, listener);
 }
 
+void MegaChatApi::loadUserAttributes(MegaChatHandle chatid, MegaHandleList userList, const char *authorizationToken, MegaChatRequestListener *listener)
+{
+    pImpl->loadUserAttributes(chatid, userList, authorizationToken, listener);
+}
+
 char *MegaChatApi::getContactEmail(MegaChatHandle userhandle)
 {
     return pImpl->getContactEmail(userhandle);

@@ -103,6 +103,7 @@ public:
     virtual unsigned int getNumPreviewers() const { return 0; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
+    virtual bool isMember(karere::Id peerid) const = 0;
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
@@ -280,6 +281,7 @@ public:
     void initContact(const uint64_t& peer);
     void updateChatRoomTitle();
 
+    virtual bool isMember(karere::Id peerid) const override;
 /** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
@@ -441,6 +443,7 @@ public:
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
     void handleTitleChange(const std::string &title, bool saveToDb = false);
+    virtual bool isMember(karere::Id peerid) const override;
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,

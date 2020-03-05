@@ -1748,6 +1748,50 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES:
+        {
+            handle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            const char* publicHandle = request->getLink();
+            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
+
+            std::vector<::promise::Promise<void>> promises;
+            for (int i = 0; i < request->getMegaHandleList()->size(); i++)
+            {
+                MegaChatHandle peerid = request->getMegaHandleList()->get(i);
+                if (!chatroom->isMember(peerid))
+                {
+                    API_LOG_ERROR("Error %s is not a chat memeber of chatroom(%s)", Id(peerid).toString().c_str(), Id(chatid).toString().c_str());
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
+                    fireOnChatRequestFinish(request, megaChatError);
+                    return;
+
+                }
+
+                promises.push_back(mClient->userAttrCache().getAttributes(peerid, ph));
+            }
+
+            ::promise::when(promises)
+            .then([this, request]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+
+            break;
+        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -2586,6 +2630,16 @@ void MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle, MegaChatRequestLis
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_EMAIL, listener);
     request->setUserHandle(userhandle);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList userList, const char *authorizationToken, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES, listener);
+    request->setChatHandle(chatid);
+    request->setMegaHandleList(userList.copy());
+    request->setLink(authorizationToken);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4835,6 +4889,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "LAST_GREEN";
         case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
+        case TYPE_GET_PEER_ATTRIBUTES: return "GET_PEER_ATTRIBUTES";
     }
     return "UNKNOWN";
 }
@@ -6535,11 +6590,11 @@ const char *MegaChatRoomPrivate::getPeerFirstnameByHandle(MegaChatHandle userhan
     {
         if (peers.at(i).first == userhandle)
         {
-            return peerFirstnames.at(i).c_str();
+            return (!peerFirstnames.at(i).empty()) ? peerFirstnames.at(i).c_str() : nullptr;
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhandle) const
@@ -6548,11 +6603,11 @@ const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhand
     {
         if (peers.at(i).first == userhandle)
         {
-            return peerLastnames.at(i).c_str();
+            return (!peerLastnames.at(i).empty()) ? peerLastnames.at(i).c_str() : nullptr;
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhandle) const
@@ -6568,11 +6623,11 @@ const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhand
             }
             ret.append(peerLastnames.at(i));
 
-            return MegaApi::strdup(ret.c_str());
+            return (!ret.empty()) ? MegaApi::strdup(ret.c_str()) : nullptr;
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 const char *MegaChatRoomPrivate::getPeerEmailByHandle(MegaChatHandle userhandle) const
@@ -6581,11 +6636,11 @@ const char *MegaChatRoomPrivate::getPeerEmailByHandle(MegaChatHandle userhandle)
     {
         if (peers.at(i).first == userhandle)
         {
-            return peerEmails.at(i).c_str();
+            return (!peerEmails.at(i).empty()) ? peerEmails.at(i).c_str() : nullptr;
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const

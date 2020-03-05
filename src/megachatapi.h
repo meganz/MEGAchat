@@ -1531,7 +1531,7 @@ public:
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
-        TOTAL_OF_REQUEST_TYPES
+        TYPE_GET_PEER_ATTRIBUTES, TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -2733,6 +2733,30 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief request to server user attributes
+     *
+     * This function is useful to get the email address, first name, last name and full name
+     * from chat link participants that they are not loaded
+     *
+     * After request is finished, you can call to MegaChatRoom::getPeerFirstnameByHandle,
+     * MegaChatRoom::getPeerLastnameByHandle, MegaChatRoom::getPeerFullnameByHandle,
+     * MegaChatRoom::getPeerEmailByHandle
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of chat
+     * - MegaChatRequest::getMegaHandleList - Returns the handles of user that attributes have been requested
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
+     *
+     * @param chatid Handle of the chat whose member attributes requested
+     * @param userList List of user whose attributes has been requested
+     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList userList, const char *authorizationToken, MegaChatRequestListener *listener = nullptr);
 
     /**
      * @brief Returns the current email address of the contact
@@ -5157,7 +5181,13 @@ public:
     /**
      * @brief Returns the current firstname of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * If NULL is returned in public link, it's due that the peer attributes
+     * isn't in cache yet. You have to request the user attributes with
+     * MegaApi::getUserAttributes. To improve the performance, if several
+     * users has to be request, call MegaApi::getUserAttributes with a package
+     * of users
+     *
+     * NULL can be returned if user doesn't participate in the group
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Firstname of the chat peer with the handle specified.
@@ -5167,7 +5197,13 @@ public:
     /**
      * @brief Returns the current lastname of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * If NULL is returned in public link, it's due that the peer attributes
+     * isn't in cache yet. You have to request the user attributes with
+     * MegaApi::getUserAttributes. To improve the performance, if several
+     * users has to be request, call MegaApi::getUserAttributes with a package
+     * of users
+     *
+     * NULL can be returned if user doesn't participate in the group
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Lastname of the chat peer with the handle specified.
@@ -5177,7 +5213,13 @@ public:
     /**
      * @brief Returns the current fullname of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * If NULL is returned in public link, it's due that the peer attributes
+     * isn't in cache yet. You have to request the user attributes with
+     * MegaApi::getUserAttributes. To improve the performance, if several
+     * users has to be request, call MegaApi::getUserAttributes with a package
+     * of users
+     *
+     * NULL can be returned if user doesn't participate in the group
      *
      * You take the ownership of the returned value. Use delete [] value
      *
@@ -5189,7 +5231,13 @@ public:
     /**
      * @brief Returns the email address of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * If NULL is returned in public link, it's due that the peer attributes
+     * isn't in cache yet. You have to request the user attributes with
+     * MegaApi::getUserAttributes. To improve the performance, if several
+     * users has to be request, call MegaApi::getUserAttributes with a package
+     * of users
+     *
+     * NULL can be returned if user doesn't participate in the group
      *
      * @param userhandle Handle of the peer whose email is requested.
      * @return Email address of the chat peer with the handle specified.
