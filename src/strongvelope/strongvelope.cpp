@@ -1895,9 +1895,12 @@ void ProtocolHandler::setUsers(karere::SetOfIds* users)
     assert(users);
     mParticipants = users;
 
-    for (auto userid: *users)
+    if (!isPublicChat())
     {
-        fetchUserKeys(userid);
+        for (auto userid: *users)
+        {
+            fetchUserKeys(userid);
+        }
     }
 }
 
