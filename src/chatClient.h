@@ -451,6 +451,8 @@ public:
 
     void handleTitleChange(const std::string &title, bool saveToDb = false);
     virtual bool isMember(karere::Id peerid) const override;
+
+    unsigned long numMembers() const override;
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
