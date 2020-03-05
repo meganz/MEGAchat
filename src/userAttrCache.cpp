@@ -354,8 +354,16 @@ bool UserAttrCache::removeCb(Handle h)
     return true;
 }
 
+promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
+{
+    std::vector<::promise::Promise<Buffer*>> promises;
+    promises.push_back(getAttr(user, USER_ATTR_EMAIL));
+    promises.push_back(getAttr(user, USER_ATTR_FULLNAME, ph));
+    return  ::promise::when(promises);
+}
+
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
-            void* userp, UserAttrReqCbFunc cb, bool oneShot, uint64_t ph)
+            void* userp, UserAttrReqCbFunc cb, bool oneShot, bool fetch, uint64_t ph)
 {
     UserAttrPair key(userHandle, type, ph);
     auto it = find(key);
@@ -367,10 +375,24 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
             // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
             if (item.pending != kCacheFetchNewPending)
             {
-                // we have something in the cache, call the cb
-                auto handle = oneShot ? Handle::invalid() : item.addCb(cb, userp, false);
-                cb(item.data.get(), userp);
-                return handle;
+                if (item.pending != kCacheFetchInvalid)
+                {
+                    // we have something in the cache, call the cb
+                    auto handle = oneShot ? Handle::invalid() : item.addCb(cb, userp, false);
+                    cb(item.data.get(), userp);
+                    return handle;
+                }
+                else
+                {
+                    Handle handle = cb ? item.addCb(cb, userp, oneShot) : Handle::invalid();
+                    if (fetch)
+                    {
+                        it->second->pending = kCacheFetchNewPending;
+                        fetchAttr(key, it->second);
+                    }
+
+                    return handle;
+                }
             }
             else //nothing in cache, must always add a callback, even if one shot
             {
@@ -387,10 +409,14 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
 
     //we don't have the attrib item, create it
     UACACHE_LOG_DEBUG("Attibute %s not found in cache, fetching", key.toString().c_str());
-    auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, kCacheFetchNewPending);
+    auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, fetch ? kCacheFetchNewPending : kCacheFetchInvalid);
     it = emplace(key, item).first;
     Handle handle = cb ? item->addCb(cb, userp, oneShot) : Handle::invalid();
-    fetchAttr(key, item);
+    if (fetch)
+    {
+        fetchAttr(key, item);
+    }
+
     return handle;
 }
 
@@ -590,7 +616,7 @@ UserAttrCache::getAttr(uint64_t user, unsigned attrType, uint64_t ph)
         else
             p->reject("User attribute fetch failed");
         delete p;
-    }, true, ph);
+    }, true, true, ph);
     return ret;
 }
 

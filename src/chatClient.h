@@ -38,6 +38,7 @@ class Buffer;
 
 #define ID_CSTR(id) Id(id).toString().c_str()
 
+#define PRELOAD_CHATLINK_PARTICIPANTS 20
 namespace karere
 {
 namespace rh { class IRetryController; }
@@ -330,6 +331,7 @@ public:
     /**
      * @brief A map that holds all the members of a group chat room, keyed by the userid */
     typedef std::map<uint64_t, Member*> MemberMap;
+    bool mPublicChat = false;
 
     /** @cond PRIVATE */
 protected:

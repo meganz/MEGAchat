@@ -1961,6 +1961,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
   mRoomGui(nullptr)
 {
+    mPublicChat = aChat.isPublicChat();
     // Initialize list of peers and fetch their names
     auto peers = aChat.getPeerList();
     std::vector<promise::Promise<void>> promises;
@@ -1980,10 +1981,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
-    bool isPublicChat = aChat.isPublicChat();
     db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
              "own_priv, ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
-             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
+             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), mPublicChat);
     db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
@@ -1995,7 +1995,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
     // Initialize unified-key, if any (note private chats may also have unfied-key if user participated while chat was public)
     const char *unifiedKeyPtr = aChat.getUnifiedKey();
-    assert(!(isPublicChat && !unifiedKeyPtr));
+    assert(!(mPublicChat && !unifiedKeyPtr));
     std::shared_ptr<std::string> unifiedKey;
     int isUnifiedKeyEncrypted = strongvelope::kDecrypted;
     if (unifiedKeyPtr)
@@ -2022,7 +2022,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     }
 
     // Initialize chatd::Client (and strongvelope)
-    initWithChatd(isPublicChat, unifiedKey, isUnifiedKeyEncrypted);
+    initWithChatd(mPublicChat, unifiedKey, isUnifiedKeyEncrypted);
 
     // Initialize title, if any
     std::string title = aChat.getTitle() ? aChat.getTitle() : "";
@@ -2036,8 +2036,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
     const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted)
-    :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived),
-    mRoomGui(nullptr)
+    : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived)
+    , mRoomGui(nullptr)
+    , mPublicChat(publicChat)
+
 {
     // Initialize list of peers
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
@@ -2063,8 +2065,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
     const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey)
-:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
-  mRoomGui(nullptr)
+  : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title)
+  , mRoomGui(nullptr)
+  , mPublicChat(true)
 {
     Buffer unifiedKeyBuf;
     unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
@@ -2278,6 +2281,7 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
         {
             //Join
             mChat->setPublicHandle(Id::inval());
+            static_cast<GroupChatRoom*>(this)->mPublicChat = true;
 
             //Remove preview mode flag from DB
             parent.mKarereClient.db.query("update chats set mode = '1' where chatid = ?", mChatid);
@@ -3502,6 +3506,7 @@ void GroupChatRoom::setChatPrivateMode()
 {
     //Update strongvelope
     chat().crypto()->setPrivateChatMode();
+    mPublicChat = false;
 
     //Update cache
     parent.mKarereClient.db.query("update chats set mode = '0' where chatid = ?", mChatid);
@@ -3512,6 +3517,12 @@ void GroupChatRoom::setChatPrivateMode()
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
 : mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0", 1)
 {
+    bool fetch = true;
+    if (aRoom.mPeers.size() > PRELOAD_CHATLINK_PARTICIPANTS && aRoom.mPublicChat)
+    {
+        fetch = false;
+    }
+
     mNameAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
         user, USER_ATTR_FULLNAME, this, [](Buffer* buf, void* userp)
     {
@@ -3537,7 +3548,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mRoom.makeTitleFromMemberNames();
         }
-    }, false, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
+    }, false, fetch, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
 
     if (!mRoom.parent.mKarereClient.anonymousMode())
     {
@@ -3553,7 +3564,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
                     self->mRoom.makeTitleFromMemberNames();
                 }
             }
-        });
+        }, false, fetch);
     }
 }
 

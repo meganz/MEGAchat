@@ -103,7 +103,7 @@ struct UserAttrReqCb: public karere::WeakReferenceable<UserAttrReqCb>
     : WeakReferenceable(this), owner(aOwner), cb(aCb), userp(aUserp), oneShot(aOneShot){}
 };
 
-enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2};
+enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2, kCacheFetchInvalid=3};
 
 class UserAttrCache;
 struct UserAttrCacheItem
@@ -175,7 +175,7 @@ public:
      * every time the attribute changes on the server and the new value is fetched.
      */
     Handle getAttr(uint64_t user, unsigned attrType, void* userp,
-                             UserAttrReqCbFunc cb, bool oneShot=false, uint64_t ph = Id::inval());
+                             UserAttrReqCbFunc cb, bool oneShot=false, bool fetch = true, uint64_t ph = Id::inval());
     /** @brief A promise-based version of \c getAttr. The request
      * is implicitly one-shot, as a promise can be resolved only once.
      */
@@ -187,6 +187,8 @@ public:
      * request is currently registered (expired one-shot for example).
      */
     bool removeCb(Handle handle);
+
+    promise::Promise<void> getAttributes(uint64_t user, uint64_t ph = Id::inval());
 };
 
 }

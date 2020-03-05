@@ -2947,6 +2947,16 @@ void Chat::attachmentHistDone()
     mAttachmentNodes->finishFetchingFromServer();
 }
 
+void Chat::requestUserAttributes(Id sender)
+{
+    if (!isGroup() && !isPublic())
+    {
+        return;
+    }
+
+    mChatdClient.mKarereClient->userAttrCache().getAttributes(sender, mCrypto->getPublicHandle());
+}
+
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
     if (msglen > kMaxMsgSize)
