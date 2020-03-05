@@ -4672,6 +4672,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
     }
 
+    if (isPublic() && msg.userid != mChatdClient.mMyHandle)
+    {
+        requestUserAttributes(msg.userid);
+    }
+
     auto status = getMsgStatus(msg, idx);
     if (isNew)
     {
