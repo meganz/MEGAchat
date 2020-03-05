@@ -2249,6 +2249,11 @@ bool PeerChatRoom::isMember(Id peerid) const
     return peerid == mPeer;
 }
 
+unsigned long PeerChatRoom::numMembers() const
+{
+    return 1;
+}
+
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
 {
     auto peers = chat.getPeerList();
@@ -3138,6 +3143,11 @@ void GroupChatRoom::handleTitleChange(const std::string &title, bool saveToDB)
 bool GroupChatRoom::isMember(Id peerid) const
 {
     return mPeers.find(peerid.val) != mPeers.end();
+}
+
+unsigned long GroupChatRoom::numMembers() const
+{
+    return mPeers.size();
 }
 
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)

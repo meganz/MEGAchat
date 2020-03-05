@@ -4838,7 +4838,11 @@ void Chat::onUserJoin(Id userid, Priv priv)
     }
 
     mUsers.insert(userid);
-    CALL_CRYPTO(onUserJoin, userid);
+    if (!isPublic())
+    {
+        CALL_CRYPTO(onUserJoin, userid);
+    }
+
     CALL_LISTENER(onUserJoin, userid, priv);
 }
 

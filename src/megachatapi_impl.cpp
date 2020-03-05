@@ -59,6 +59,9 @@
 namespace rtcModule {void globalCleanup(); }
 #endif
 
+#define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
+#define MAX_PUBLICCHAT_MEMBERS_FOR_CALL 20
+
 using namespace std;
 using namespace megachat;
 using namespace mega;
@@ -943,6 +946,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (room->numMembers() > MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE)
+            {
+                errorCode = MegaChatError::ERROR_TOOMANY;
+                break;
+            }
+
             if (room->ownPriv() != chatd::PRIV_OPER)
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
@@ -1426,6 +1435,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (chatroom->publicChat() && chatroom->numMembers() > MAX_PUBLICCHAT_MEMBERS_FOR_CALL)
+            {
+                API_LOG_ERROR("Start call - the public chat has too many participants");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (chatroom->previewMode())
             {
                 API_LOG_ERROR("Start call - Chatroom is in preview mode");
@@ -1511,6 +1527,13 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Answer call - Chatroom has not been found");
                 errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            if (chatroom->publicChat() && chatroom->numMembers() > MAX_PUBLICCHAT_MEMBERS_FOR_CALL)
+            {
+                API_LOG_ERROR("Answer call - the public chat has too many participants");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 

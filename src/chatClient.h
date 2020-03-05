@@ -195,6 +195,8 @@ public:
 
     bool hasChatHandler() const;
 
+    virtual unsigned long numMembers() const = 0;
+
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
@@ -283,6 +285,9 @@ public:
     void updateChatRoomTitle();
 
     virtual bool isMember(karere::Id peerid) const override;
+
+    unsigned long numMembers() const override;
+
 /** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
