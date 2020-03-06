@@ -39,6 +39,8 @@ class Buffer;
 #define ID_CSTR(id) Id(id).toString().c_str()
 
 #define PRELOAD_CHATLINK_PARTICIPANTS 20
+#define MAX_NAMES_CHAT_WITHOUT_TITLE 5
+
 namespace karere
 {
 namespace rh { class IRetryController; }

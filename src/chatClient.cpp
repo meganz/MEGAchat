@@ -1973,7 +1973,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
             auto handle = peers->getPeerHandle(i);
             assert(handle != parent.mKarereClient.myHandle());
             mPeers[handle] = new Member(*this, handle, (chatd::Priv)peers->getPeerPrivilege(i)); //may try to access mContactGui, but we have set it to nullptr, so it's ok
-            promises.push_back(mPeers[handle]->nameResolved());
+            if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
+            {
+                promises.push_back(mPeers[handle]->nameResolved());
+            }
         }
     }
     // If there is not any promise at vector promise, promise::when is resolved directly
@@ -2047,8 +2050,13 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     std::vector<promise::Promise<void> > promises;
     while(stmt.step())
     {
-        promises.push_back(addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false));
+        promise::Promise<void> promise = addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false);
+        if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
+        {
+            promises.push_back(promise);
+        }
     }
+
     mMemberNamesResolved = promise::when(promises);
 
     // Initialize chatd::Client (and strongvelope)
@@ -2746,6 +2754,7 @@ void GroupChatRoom::makeTitleFromMemberNames()
     }
     else
     {
+        unsigned int numMemberNames = 0;
         for (auto& m: mPeers)
         {
             Id userid = m.first;
@@ -2787,7 +2796,14 @@ void GroupChatRoom::makeTitleFromMemberNames()
                         newTitle.append("..., ");
                 }
             }
+
+            numMemberNames++;
+            if (numMemberNames == MAX_NAMES_CHAT_WITHOUT_TITLE)
+            {
+                break;
+            }
         }
+
         newTitle.resize(newTitle.size()-2); //truncate last ", "
     }
     assert(!newTitle.empty());
@@ -3343,7 +3359,11 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
         if (mPeers.find(user.first) == mPeers.end())
         {
             peersChanged = true;
-            promises.push_back(addMember(user.first, user.second, true));
+            promise::Promise<void> promise = addMember(user.first, user.second, true);
+            if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
+            {
+                promises.push_back(promise);
+            }
         }
     }
 
