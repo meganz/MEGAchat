@@ -1067,8 +1067,8 @@ void Call::handleMessage(RtMessage& packet)
             msgCallReqCancel(packet);
             return;
         case RTCMD_SDP_OFFER:
-           msgSdpOffer(packet);
-           return;
+            msgSdpOffer(packet);
+            return;
     }
     auto& data = packet.payload;
     assert(data.dataSize() >= 8); // must start with sid.8
