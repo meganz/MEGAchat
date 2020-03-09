@@ -3542,6 +3542,12 @@ void GroupChatRoom::setChatPrivateMode()
     parent.mKarereClient.db.query("update chats set mode = '0' where chatid = ?", mChatid);
 
     notifyChatModeChanged();
+
+    for (auto member : mPeers)
+    {
+        parent.mKarereClient.userAttrCache().getAttributes(member.first);
+        chat().crypto()->fetchUserKeys(member.first);
+    }
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)

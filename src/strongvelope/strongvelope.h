@@ -409,8 +409,6 @@ protected:
     chatd::Message* legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
         chatd::Message* msg, const SendKey& key);
 
-    void fetchUserKeys(karere::Id userid);
-
 // legacy RSA encryption methods
     promise::Promise<std::shared_ptr<Buffer>>
         rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, karere::Id toUser);
@@ -458,6 +456,8 @@ public:
 
     promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const chatd::Message &msg, const std::string &reaction) override;
     promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const chatd::Message &msg, const std::string &reaction) override;
+
+    void fetchUserKeys(karere::Id userid) override;
 };
 }
 namespace chatd

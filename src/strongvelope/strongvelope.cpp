@@ -748,6 +748,18 @@ ProtocolHandler::reactionDecrypt(const Message &msg, const std::string &reaction
     });
 }
 
+void ProtocolHandler::fetchUserKeys(karere::Id userid)
+{
+    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mPh);
+
+    if (!previewMode())
+    {
+        // preload keys for the new participant
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY);
+        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY);
+    }
+}
+
 unsigned int ProtocolHandler::getCacheVersion() const
 {
     return mCacheVersion;
@@ -1266,18 +1278,6 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         default:
             return ::promise::Error("Unknown management message type "+
                 std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ENOTYPE);
-    }
-}
-
-void ProtocolHandler::fetchUserKeys(karere::Id userid)
-{
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
-
-    if (!previewMode())
-    {
-        // preload keys for the new participant
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
     }
 }
 
