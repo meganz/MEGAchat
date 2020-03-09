@@ -3990,7 +3990,6 @@ void Client::updateAliases(Buffer *data)
     }
 
     // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
-    for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
     for (auto &itChats : *chats)
     {
         ChatRoom *chatroom = itChats.second;
