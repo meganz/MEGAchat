@@ -2855,17 +2855,14 @@ void Session::createRtcConn()
             mVideoSender = error.MoveValue();
         }
 
-        if (mCall.sentAv().audio())
+        webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
+        webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
+        if (!error.ok())
         {
-            webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
-            webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
-            if (!error.ok())
-            {
-                SUB_LOG_WARNING("Error: %s", error.MoveError().message());
-            }
-
-            mAudioSender = error.MoveValue();
+            SUB_LOG_WARNING("Error: %s", error.MoveError().message());
         }
+
+        mAudioSender = error.MoveValue();
     }
 
     mStatRecorder.reset(new stats::Recorder(*this, kStatsPeriod, kMaxStatsPeriod));
