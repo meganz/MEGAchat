@@ -321,6 +321,7 @@ void Recorder::start()
     mStats->mPeerAnonId = mSession.peerAnonId();
     mStats->mSper = mScanPeriod;
     mStats->mStartTs = karere::timestampMs();
+    mStats->mIsGroupCall = mSession.call().chat().isGroup();
 }
 
 std::string Recorder::terminate(const StatSessInfo& info)
@@ -444,6 +445,7 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_STR(caid, mIsJoiner ? mOwnAnonId.toString() : mPeerAnonId.toString());
     JSON_ADD_STR(aaid, mIsJoiner ? mPeerAnonId.toString() : mOwnAnonId.toString());
     JSON_ADD_STR(termRsn, mTermRsn);
+    JSON_ADD_INT(grp, mIsGroupCall ? 1 : 0);
     if (mIceDisconnections > 0)
     {
         JSON_SUBOBJ("hicc");
