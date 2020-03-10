@@ -1800,7 +1800,6 @@ void MegaChatApiImpl::sendPendingRequests()
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
                     fireOnChatRequestFinish(request, megaChatError);
                     return;
-
                 }
 
                 promises.push_back(mClient->userAttrCache().getAttributes(peerid, ph));

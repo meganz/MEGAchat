@@ -1390,7 +1390,6 @@ void Call::msgSession(RtMessage& packet)
         }
 
         mManager.crypto().decryptKeyFrom(sess->mPeer, encKey, sess->mPeerHashKey);
-
         sess->createRtcConnSendOffer();
         sess->processPackets();
     })

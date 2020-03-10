@@ -1738,7 +1738,7 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser, b
             blob->clear();
             blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
             blob->append<uint8_t>(Message::kMsgChatTitle);
-            if (isPublicChat())
+            if (!isPublicChat())
             {
                 Signature signature;
                 signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
@@ -1859,7 +1859,6 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
     {
         ctx->sendKey = key;
     });
-
 
     // Get signing key
     promise::Promise<void> edPms;
