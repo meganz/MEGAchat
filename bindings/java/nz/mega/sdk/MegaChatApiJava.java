@@ -55,6 +55,105 @@ public class MegaChatApiJava {
         megaChatApi = new MegaChatApi(megaApi.getMegaApi());
     }
 
+    /**
+     * Adds a reaction for a message in a chatroom
+     *
+     * The reactions updates will be notified one by one through the MegaChatRoomListener
+     * specified at MegaChatApi::openChatRoom (and through any other listener you may have
+     * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
+     * is MegaChatRoomListener::onReactionUpdate.
+     *
+     * You take the ownership of the returned value.
+     *
+     * Possible error codes associated to MegaChatError can be:
+     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
+     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     * - MegaChatError::API_EEXIST: if our own user has reacted previously with this reaction
+     * for this message
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
+     *
+     * @return returns MegaChatError with an error code associated.
+     */
+    public MegaChatError addReaction(long chatid, long msgid, String reaction) {
+        return megaChatApi.addReaction(chatid, msgid, reaction);
+    }
+
+    /**
+     * Removes a reaction for a message in a chatroom
+     *
+     * The reactions updates will be notified one by one through the MegaChatRoomListener
+     * specified at MegaChatApi::openChatRoom (and through any other listener you may have
+     * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
+     * is MegaChatRoomListener::onReactionUpdate.
+     *
+     * You take the ownership of the returned value.
+     *
+     * Possible error codes associated to MegaChatError can be:
+     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists, or if your own user has
+     * not reacted to the message with the specified reaction.
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
+     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
+     *
+     * @return returns MegaChatError with an error code associated.
+     */
+    public MegaChatError delReaction(long chatid, long msgid, String reaction) {
+        return megaChatApi.delReaction(chatid, msgid, reaction);
+    }
+
+    /**
+     * Returns the number of users that reacted to a message with a specific reaction
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     *
+     * @return return the number of users that reacted to a message with a specific reaction,
+     * or -1 if the chatroom or message is not found.
+     */
+    public int getMessageReactionCount(long chatid, long msgid, String reaction) {
+        return megaChatApi.getMessageReactionCount(chatid, msgid, reaction);
+    }
+
+    /**
+     * Gets a list of reactions associated to a message
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @return return a list with the reactions associated to a message.
+     */
+    public MegaStringList getMessageReactions(long chatid, long msgid) {
+        return megaChatApi.getMessageReactions(chatid, msgid);
+    }
+
+    /**
+     * Gets a list of users that reacted to a message with a specific reaction
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     *
+     * @return return a list with the users that reacted to a message with a specific reaction.
+     */
+    public MegaHandleList getReactionUsers(long chatid, long msgid, String reaction) {
+        return megaChatApi.getReactionUsers(chatid, msgid, reaction);
+    }
+
     public void addChatRequestListener(MegaChatRequestListenerInterface listener)
     {
         megaChatApi.addChatRequestListener(createDelegateRequestListener(listener, false));
