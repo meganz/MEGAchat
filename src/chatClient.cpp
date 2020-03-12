@@ -2040,8 +2040,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
     const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted)
     : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived)
-    , mRoomGui(nullptr)
     , mPublicChat(publicChat)
+    , mRoomGui(nullptr)
 
 {
     // Initialize list of peers
@@ -2074,8 +2074,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
     const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey)
   : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title)
-  , mRoomGui(nullptr)
   , mPublicChat(true)
+  , mRoomGui(nullptr)
 {
     Buffer unifiedKeyBuf;
     unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
