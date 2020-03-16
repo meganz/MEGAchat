@@ -1013,11 +1013,13 @@ Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGr
     callerUser, callerClient), mName("call["+mId.toString()+"]")
 , mRecovered(callRecovered) // the joiner is actually the answerer in case of new call
 {
-    if (isJoiner)
+    if (isJoiner && mCallerUser && mCallerClient)
     {
         mState = kStateRingIn;
-        mCallerUser = callerUser;
-        mCallerClient = callerClient;
+    }
+    else if (isJoiner)
+    {
+        mState = kStateInitial;
     }
     else
     {
