@@ -1008,24 +1008,19 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
 }
 
 Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGroup,
-    bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient, bool callRecovered)
-: ICall(rtcModule, chat, callid, isGroup, isJoiner, handler,
-    callerUser, callerClient), mName("call["+mId.toString()+"]")
-, mRecovered(callRecovered) // the joiner is actually the answerer in case of new call
+           bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient, bool callRecovered)
+    : ICall(rtcModule, chat, callid, isGroup, isJoiner, handler, callerUser, callerClient)
+    , mName("call["+mId.toString()+"]")
+    , mRecovered(callRecovered) // the joiner is actually the answerer in case of new call
 {
     if (isJoiner && mCallerUser && mCallerClient)
     {
         mState = kStateRingIn;
     }
-    else if (isJoiner)
-    {
-        mState = kStateInitial;
-    }
     else
     {
         mState = kStateInitial;
-        assert(!callerUser);
-        assert(!callerClient);
+        assert(isJoiner || (!callerUser && !callerClient));
     }
 
     mSessionsInfo.clear();
@@ -2410,7 +2405,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         return;
     }
 
-    if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient) // caller went offline
+    if (mState == kStateRingIn && isCaller(userid, clientid))   // caller went offline
     {
         destroy(TermCode::kCallerGone, false);
         return;
