@@ -3794,7 +3794,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             std::string contactName = self->getContactName();
             if (alias.empty() && contactName.empty())
             {
-                self->updateTitle(self->mEmail);
+                self->updateTitle(encodeFirstName(self->mEmail));
             }
         }
     });
