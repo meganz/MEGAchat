@@ -4,6 +4,7 @@
 #import "MEGAChatSession.h"
 
 typedef NS_ENUM (NSInteger, MEGAChatCallStatus) {
+    MEGAChatCallStatusUndefined = -1,
     MEGAChatCallStatusInitial = 0,
     MEGAChatCallStatusHasLocalStream,
     MEGAChatCallStatusRequestSent,

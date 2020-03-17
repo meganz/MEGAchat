@@ -857,12 +857,18 @@ void Client::setInitState(InitState newState)
     app.onInitStateChange(mInitState);
 }
 
-Client::InitState Client::init(const char* sid)
+Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 {
     if (mInitState > kInitCreated)
     {
         KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
         return kInitErrAlready;
+    }
+
+    if (!waitForFetchnodesToConnect && !sid)
+    {
+        KR_LOG_ERROR("init: sid required to initialize in Lean Mode");
+        return kInitErrGeneric;
     }
 
     mInitStats.stageStart(InitStats::kStatsInit);
@@ -878,12 +884,26 @@ Client::InitState Client::init(const char* sid)
     }
     else
     {
+        assert(waitForFetchnodesToConnect);
         setInitState(kInitWaitingNewSession);
+    }
+
+    if (!waitForFetchnodesToConnect)
+    {
+        if (mInitState != kInitHasOfflineSession)
+        {
+            KR_LOG_ERROR("init: failed to initialize Lean Mode. Current state: %s", initStateStr());
+            return kInitErrGeneric;
+        }
+
+        mSessionReadyPromise.resolve();
+        mInitStats.onCanceled();    // do not collect stats for this initialization mode
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
     api.sdk.addRequestListener(this);
+
     return mInitState;
 }
 
@@ -930,7 +950,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
         bool loggedOut = ((errorCode == ::mega::MegaError::API_OK || errorCode == ::mega::MegaError::API_ESID)
-                          && request->getFlag());    // SDK has been logged out normally closing session
+                          && (request->getFlag() || request->getParamType() == ::mega::MegaError::API_EBLOCKED));
 
         bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
         if (loggedOut)
@@ -1506,7 +1526,9 @@ void Client::terminate(bool deleteDb)
 {
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
-        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    {
+            rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    }
 #endif
 
     setInitState(kInitTerminated);
@@ -3968,7 +3990,6 @@ void Client::updateAliases(Buffer *data)
     }
 
     // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
-    for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
     for (auto &itChats : *chats)
     {
         ChatRoom *chatroom = itChats.second;

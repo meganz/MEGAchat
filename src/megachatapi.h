@@ -2307,6 +2307,35 @@ public:
     int init(const char *sid);
 
     /**
+     * @brief Initializes karere in Lean Mode
+     *
+     * In Lean Mode, the app may skip the fetchnodes steps and call MegaChatApi::connect directly
+     * after login. MEGAchat will not wait for the completion of fetchnodes. It will resume the cached
+     * state from persistent storage.
+     *
+     * @note This mode is required by iOS Notification service extension. The extension restricts the
+     * amount of memory used by the app. In order to avoid OOM errors, the iOS app may use this mode
+     * to skip the fetchnodes and, consequently, save some bytes by not loading all the nodes of the
+     * account in memory.
+     *
+     * If a session id is provided, karere will try to resume the session from its cache and will
+     * return MegaChatApi::INIT_OFFLINE_SESSION. Since a fetchnodes is not requires for this mode,
+     * the app should not expect a transition to MegaChatApi::INIT_ONLINE_SESION.
+     *
+     * If no session is provided, or if it is provided but the correspoding cache is not available,
+     * it will return MegaChatApi::INIT_ERROR. No Lean Mode will be available in that case.
+     *
+     * The initialization status is notified via `MegaChatListener::onChatInitStateUpdate`. See
+     * the documentation of the callback for possible values.
+     *
+     * This function should be called before MegaApi::login.
+     *
+     * @param sid Session id that wants to be resumed.
+     * @return The initialization state
+     */
+    int initLeanMode(const char *sid);
+
+    /**
      * @brief Reset the Client Id for chatd
      *
      * When the app is running and another instance is launched i.e (share-extension in iOS),

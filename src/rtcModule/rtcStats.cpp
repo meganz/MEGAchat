@@ -321,6 +321,7 @@ void Recorder::start()
     mStats->mPeerAnonId = mSession.peerAnonId();
     mStats->mSper = mScanPeriod;
     mStats->mStartTs = karere::timestampMs();
+    mStats->mIsGroupCall = mSession.call().chat().isGroup();
 }
 
 std::string Recorder::terminate(const StatSessInfo& info)
@@ -328,6 +329,10 @@ std::string Recorder::terminate(const StatSessInfo& info)
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
     mStats->mTermRsn = info.mTermReason;
     mStats->mDeviceInfo = info.deviceInfo;
+    mStats->mMaxIceDisconnectionTime = info.maxIceDisconnectionTime;
+    mStats->mIceDisconnections = info.iceDisconnections;
+    mStats->mPreviousSessionId = info.previousSessionId;
+    mStats->mReconnections = info.reconnections;
     std::string json;
     mStats->toJson(json);
     return json;
@@ -440,6 +445,22 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_STR(caid, mIsJoiner ? mOwnAnonId.toString() : mPeerAnonId.toString());
     JSON_ADD_STR(aaid, mIsJoiner ? mPeerAnonId.toString() : mOwnAnonId.toString());
     JSON_ADD_STR(termRsn, mTermRsn);
+    JSON_ADD_INT(grp, mIsGroupCall ? 1 : 0);
+    if (mIceDisconnections > 0)
+    {
+        JSON_SUBOBJ("hicc");
+        JSON_ADD_INT(cnt, mIceDisconnections);
+        JSON_ADD_INT(maxDur, mMaxIceDisconnectionTime);
+        JSON_END_SUBOBJ();
+    }
+
+    if (mReconnections > 0)
+    {
+        JSON_SUBOBJ("reconn");
+        JSON_ADD_INT(cnt, mReconnections);
+        JSON_ADD_STR(prevSid, mPreviousSessionId.toString());
+        JSON_END_SUBOBJ();
+    }
     json[json.size()-1]='}'; //all
 }
 }

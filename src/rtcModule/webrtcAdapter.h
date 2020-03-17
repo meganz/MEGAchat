@@ -194,6 +194,10 @@ protected:
         }
         virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
         {
+            // It's deprecate in webrtc
+        }
+        virtual void OnStandardizedIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
+        {
             RTCM_DO_CALLBACK(mHandler.onIceConnectionChange(newState), this, newState);
         }
         virtual void OnRenegotiationNeeded()
