@@ -680,21 +680,31 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
              {
              MegaChatHandle userHandle = request->getUserHandle();
              int errorCode = error;
+             mFirstnameFetching[userHandle] = false;
              if (errorCode == MegaChatError::ERROR_OK)
              {
                 const char *firstname = request->getText();
                 if ((strlen(firstname)) == 0)
                 {
-                    this->mMegaChatApi->getUserEmail(userHandle);
+                    auto it = mFirstnamesMap.find(userHandle);
+                    if (it != mFirstnamesMap.end())
+                    {
+                        mFirstnamesMap.erase(it);
+                    }
+                    mMegaChatApi->getUserEmail(userHandle);
                     break;
                 }
                 mFirstnamesMap[userHandle] = firstname;
-                mFirstnameFetching[userHandle] = false;
                 mMainWin->updateContactTitle(userHandle,firstname);
                 mMainWin->updateMessageFirstname(userHandle,firstname);
              }
              else if (errorCode == MegaChatError::ERROR_NOENT)
              {
+                auto it = mFirstnamesMap.find(userHandle);
+                if (it != mFirstnamesMap.end())
+                {
+                    mFirstnamesMap.erase(it);
+                }
                 this->mMegaChatApi->getUserEmail(userHandle);
              }
              break;
@@ -712,7 +722,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                }
                else
                {
-                  if (!getFirstname(userHandle, nullptr) && !getLocalUserAlias(userHandle).empty())
+                  if (mFirstnamesMap.find(userHandle) == mFirstnamesMap.end()
+                          && getLocalUserAlias(userHandle).empty())
                   {
                      // Update contact title and messages
                      mMainWin->updateContactTitle(userHandle, email);
