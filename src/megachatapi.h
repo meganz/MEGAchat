@@ -5362,6 +5362,12 @@ public:
      */
     virtual bool isArchived() const;
 
+    /**
+     * @brief Returns the creation timestamp of the chat.
+     * @return The creation timestamp of the chat.
+     */
+    virtual int64_t getCreationTs() const;
+
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 };
