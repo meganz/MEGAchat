@@ -686,11 +686,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 const char *firstname = request->getText();
                 if ((strlen(firstname)) == 0)
                 {
-                    auto it = mFirstnamesMap.find(userHandle);
-                    if (it != mFirstnamesMap.end())
-                    {
-                        mFirstnamesMap.erase(it);
-                    }
+                    mFirstnamesMap.erase(userHandle);
                     mMegaChatApi->getUserEmail(userHandle);
                     break;
                 }
@@ -700,11 +696,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
              }
              else if (errorCode == MegaChatError::ERROR_NOENT)
              {
-                auto it = mFirstnamesMap.find(userHandle);
-                if (it != mFirstnamesMap.end())
-                {
-                    mFirstnamesMap.erase(it);
-                }
+                mFirstnamesMap.erase(userHandle);
                 this->mMegaChatApi->getUserEmail(userHandle);
              }
              break;
