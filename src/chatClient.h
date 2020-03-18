@@ -874,8 +874,6 @@ public:
     char mMyPrivEd25519[32] = {0};
     char mMyPrivRsa[1024] = {0};
     unsigned short mMyPrivRsaLen = 0;
-    char mMyPubRsa[512] = {0};
-    unsigned short mMyPubRsaLen = 0;
 
     /** @brief The contact list of the client */
     std::unique_ptr<ContactList> mContactList;

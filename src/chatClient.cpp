@@ -1404,7 +1404,7 @@ uint64_t Client::initMyIdentity()
 promise::Promise<void> Client::loadOwnKeysFromApi()
 {
     return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
-    .then([this](ReqResult result) -> ApiPromise
+    .then([this](ReqResult result) -> promise::Promise<void>
     {
         auto keys = result->getMegaStringMap();
         auto cu25519 = keys->get("prCu255");
@@ -1423,24 +1423,18 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         if (b64len != 43)
             return ::promise::Error("prEd255 base64 key length is not 43 bytes");
         base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
-        return api.call(&mega::MegaApi::getUserData);
-    })
-    .then([this](ReqResult result) -> promise::Promise<void>
-    {
-        auto pubrsa = result->getPassword();
-        if (!pubrsa)
-            return ::promise::Error("No public RSA key in getUserData API response");
-        mMyPubRsaLen = base64urldecode(pubrsa, strlen(pubrsa), mMyPubRsa, sizeof(mMyPubRsa));
-        auto privrsa = result->getPrivateKey();
+
+        char* privrsa = api.sdk.getMyPrivkey();
         if (!privrsa)
-            return ::promise::Error("No private RSA key in getUserData API response");
+            return ::promise::Error("No private RSA key in MegaApi::getMyPrivkey");
         mMyPrivRsaLen = base64urldecode(privrsa, strlen(privrsa), mMyPrivRsa, sizeof(mMyPrivRsa));
         // write to db
         db.query("insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
         db.query("insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
-        db.query("insert or replace into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
         db.query("insert or replace into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
+        return promise::_Void();
+
         return promise::_Void();
     });
 }
@@ -1453,9 +1447,6 @@ void Client::loadOwnKeysFromDb()
     stmt.stepMustHaveData();
     mMyPrivRsaLen = stmt.blobCol(0, mMyPrivRsa, sizeof(mMyPrivRsa));
     stmt.reset().clearBind();
-    stmt << "pub_rsa";
-    stmt.stepMustHaveData();
-    mMyPubRsaLen = stmt.blobCol(0, mMyPubRsa, sizeof(mMyPubRsa));
 
     stmt.reset().clearBind();
     stmt << "pr_cu25519";
