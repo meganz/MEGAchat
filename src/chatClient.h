@@ -139,6 +139,9 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
+    /** @brief Returns the creation timestamp of the chatroom */
+    int64_t getCreationTs() const { return mCreationTs; }
+
     bool isCallActive() const;
 
     /** @brief The chatd shart number for that chatroom */

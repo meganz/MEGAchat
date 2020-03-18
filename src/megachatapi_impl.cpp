@@ -6425,6 +6425,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
     this->mNumPreviewers = chat->getNumPreviewers();
+    this->mCreationTs = chat->getCreationTs();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -6443,6 +6444,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->archived = chat.isArchived();
     this->uh = MEGACHAT_INVALID_HANDLE;
     this->mNumPreviewers = chat.chat().getNumPreviewers();
+    this->mCreationTs = chat.getCreationTs();
 
     if (group)
     {
@@ -6703,6 +6705,11 @@ bool MegaChatRoomPrivate::isActive() const
 bool MegaChatRoomPrivate::isArchived() const
 {
     return archived;
+}
+
+int64_t MegaChatRoomPrivate::getCreationTs() const
+{
+    return mCreationTs;
 }
 
 int MegaChatRoomPrivate::getChanges() const
