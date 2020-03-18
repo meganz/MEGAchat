@@ -318,7 +318,7 @@ public:
         promise::Promise<void> mNameResolved;
 
     public:
-        Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
+        Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv, bool isPublicChat);
         ~Member();
 
         /** @brief The current display name of the member */
@@ -338,7 +338,6 @@ public:
     /**
      * @brief A map that holds all the members of a group chat room, keyed by the userid */
     typedef std::map<uint64_t, Member*> MemberMap;
-    bool mPublicChat = false;
 
     /** @cond PRIVATE */
 protected:
@@ -352,7 +351,7 @@ protected:
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
-    promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
+    promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv);
     bool removeMember(uint64_t userid);
     bool syncWithApi(const mega::MegaTextChat &chat) override;
     IApp::IGroupChatListItem* addAppItem();
