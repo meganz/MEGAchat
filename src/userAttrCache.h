@@ -168,9 +168,14 @@ public:
      * is successfully obtained, the callback \c will be called with a Buffer object, containing
      * the attribute data. If there is an error obraining the attribute, the callback
      * will be called with a \c null Buffer object.
+     * @param user User from attribute is request
+     * @param attrType Attriute type
      * @param userp An arbitrary user-supplied pointer that will be passed to the
      * callback
+     * @param cb Callback called when attribute is available
      * @param oneShot If \true, the callback will be called only once, and will
+     * @param fetch if attribute doesn't exist only callback is regitered, attribuete isn't feched
+     * @param ph Public handle for previews
      * be unregistered immediately after that. If \false, the callback will be called
      * every time the attribute changes on the server and the new value is fetched.
      */
