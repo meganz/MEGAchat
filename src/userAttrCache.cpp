@@ -357,9 +357,17 @@ bool UserAttrCache::removeCb(Handle h)
 promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
 {
     std::vector<::promise::Promise<Buffer*>> promises;
-    promises.push_back(getAttr(user, USER_ATTR_EMAIL));
-    promises.push_back(getAttr(user, USER_ATTR_FULLNAME, ph));
-    return  ::promise::when(promises);
+    if (fetchIsRequired(user, USER_ATTR_EMAIL))
+    {
+        promises.push_back(getAttr(user, USER_ATTR_EMAIL));
+    }
+
+    if (fetchIsRequired(user, USER_ATTR_FULLNAME, ph))
+    {
+        promises.push_back(getAttr(user, USER_ATTR_FULLNAME, ph));
+    }
+
+    return ::promise::when(promises);
 }
 
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
@@ -618,6 +626,18 @@ UserAttrCache::getAttr(uint64_t user, unsigned attrType, uint64_t ph)
         delete p;
     }, true, true, ph);
     return ret;
+}
+
+bool UserAttrCache::fetchIsRequired(uint64_t userHandle, uint8_t type, uint64_t ph)
+{
+    UserAttrPair key(userHandle, type, ph);
+    auto it = find(key);
+    if (it != end() && it->second->pending != kCacheNotFetchUntilUse)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 }
