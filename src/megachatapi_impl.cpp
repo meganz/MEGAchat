@@ -1438,7 +1438,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatroom->publicChat() && chatroom->numMembers() > MAX_PUBLICCHAT_MEMBERS_FOR_CALL)
             {
                 API_LOG_ERROR("Start call - the public chat has too many participants");
-                errorCode = MegaChatError::ERROR_ACCESS;
+                errorCode = MegaChatError::ERROR_TOOMANY;
                 break;
             }
 
@@ -1533,7 +1533,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatroom->publicChat() && chatroom->numMembers() > MAX_PUBLICCHAT_MEMBERS_FOR_CALL)
             {
                 API_LOG_ERROR("Answer call - the public chat has too many participants");
-                errorCode = MegaChatError::ERROR_ACCESS;
+                errorCode = MegaChatError::ERROR_TOOMANY;
                 break;
             }
 
