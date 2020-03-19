@@ -8886,8 +8886,7 @@ std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, Conta
             emailValue.SetString(contact->email().c_str(), contact->email().length(), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("email"), emailValue, jSonDocument.GetAllocator());
 
-            std::string nameString = contact->titleString();
-            nameString.erase(0, 1);
+            std::string nameString = contact->getContactName();
             rapidjson::Value nameValue(rapidjson::kStringType);
             nameValue.SetString(nameString.c_str(), nameString.length(), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("name"), nameValue, jSonDocument.GetAllocator());
