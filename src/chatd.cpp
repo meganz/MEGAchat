@@ -2949,7 +2949,7 @@ void Chat::attachmentHistDone()
 
 void Chat::requestUserAttributes(Id sender)
 {
-    if (!isGroup() && !isPublic())
+    if (!isPublic())
     {
         return;
     }
