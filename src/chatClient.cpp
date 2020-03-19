@@ -2257,7 +2257,7 @@ bool PeerChatRoom::isMember(Id peerid) const
 
 unsigned long PeerChatRoom::numMembers() const
 {
-    return 1;
+    return 2;
 }
 
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
@@ -3161,7 +3161,7 @@ bool GroupChatRoom::isMember(Id peerid) const
 
 unsigned long GroupChatRoom::numMembers() const
 {
-    return mPeers.size();
+    return mPeers.size() + 1;
 }
 
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
