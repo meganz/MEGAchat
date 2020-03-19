@@ -176,7 +176,7 @@ public:
      * callback
      * @param cb Callback called when attribute is available
      * @param oneShot If \true, the callback will be called only once, and will
-     * @param fetch if attribute doesn't exist only callback is regitered, attribuete isn't feched
+     * @param fetch If attribute doesn't exist, the callback is resgitered but the attribute is not fetched
      * @param ph Public handle for previews
      * be unregistered immediately after that. If \false, the callback will be called
      * every time the attribute changes on the server and the new value is fetched.

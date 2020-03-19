@@ -3500,6 +3500,7 @@ public:
      * - MegaChatError::ERROR_ARGS   - If the chatroom is not groupal or public.
      * - MegaChatError::ERROR_NOENT  - If the chat room does not exists or the chatid is invalid.
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_TOOMANY - If the chat is public and there are too many participants.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -4286,7 +4287,8 @@ public:
      * in preview mode.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it.
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
      *
      * @note In case of group calls, if there is already too many peers sending video and there are no
      * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
@@ -4315,7 +4317,8 @@ public:
      * called without being already connected to chatd.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it.
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
      *
      * @note In case of group calls, if there is already too many peers sending video and there are no
      * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
