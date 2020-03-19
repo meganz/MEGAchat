@@ -3992,6 +3992,25 @@ void Client::updateAliases(Buffer *data)
         }
     }
 
+    // Update those contact's titles without a peer chatroom associated
+    for (auto &userid : aliasesUpdated)
+    {
+        Contact *contact =  mContactList->contactFromUserId(userid);
+        if (contact && !contact->chatRoom())
+        {
+            std::string title = getUserAlias(userid);
+            if (title.empty())
+            {
+                title = !contact->getContactName().empty()
+                    ? contact->getContactName()
+                    : contact->email();
+            }
+
+            // Contact title has a binary layout
+            contact->updateTitle(encodeFirstName(title));
+        }
+    }
+
     // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
     for (auto &itChats : *chats)
     {
