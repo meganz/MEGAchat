@@ -874,7 +874,7 @@ void ProtocolHandler::msgEncryptWithKey(const Message& src, MsgCommand& dest,
     Signature signature;
     signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, SVCRYPTO_MSGTYPE_FOLLOWUP,
                 encryptedMessage.key, signature);
-    unsigned long size = tlv.dataSize() +2;
+
     TlvWriter sigTlv;
     sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
     // finally, prepare the MsgCommand: <protVer><msgType><sigTLV><contentTLV>
