@@ -1150,10 +1150,6 @@ void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char
         {
             widget->updateToolTip(item, firstname);
         }
-        else
-        {
-            widget->updateToolTip(item);
-        }
 
         ChatWindow *chatWindow = itemController->getChatWindow();
         if (chatWindow)

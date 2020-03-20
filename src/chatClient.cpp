@@ -3755,21 +3755,24 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         //if lastname is not null the first byte will contain the
         //firstname-size-prefix but datasize will be bigger than 1 byte.
 
-        // If the contact has alias don't update the title
+        // If fullname received is valid
         auto self = static_cast<Contact*>(userp);
         std::string alias = self->mClist.client.getUserAlias(self->userId());
-        if (alias.empty())
+        if (data && !data->empty() && *data->buf() != 0 && data->size() != 1)
         {
-            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
+            // Update contact name
+            std::string name(data->buf(), data->dataSize());
+            self->setContactName(name.substr(1));
+            if (alias.empty())
             {
-                self->updateTitle(encodeFirstName(self->mEmail));
-            }
-            else
-            {
-                std::string name(data->buf(), data->dataSize());
-                self->setContactName(name.substr(1));
+                // Update title if there's no alias
                 self->updateTitle(name);
             }
+        }
+        else if (alias.empty())
+        {
+            // If there's no alias nor fullname
+            self->updateTitle(encodeFirstName(self->mEmail));
         }
     });
 
@@ -3791,7 +3794,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             std::string contactName = self->getContactName();
             if (alias.empty() && contactName.empty())
             {
-                self->updateTitle(self->mEmail);
+                self->updateTitle(encodeFirstName(self->mEmail));
             }
         }
     });
@@ -3986,6 +3989,25 @@ void Client::updateAliases(Buffer *data)
                 mAliasesMap.erase(it);
                 aliasesUpdated.emplace_back(userid);
             }
+        }
+    }
+
+    // Update those contact's titles without a peer chatroom associated
+    for (auto &userid : aliasesUpdated)
+    {
+        Contact *contact =  mContactList->contactFromUserId(userid);
+        if (contact && !contact->chatRoom())
+        {
+            std::string title = getUserAlias(userid);
+            if (title.empty())
+            {
+                title = !contact->getContactName().empty()
+                    ? contact->getContactName()
+                    : contact->email();
+            }
+
+            // Contact title has a binary layout
+            contact->updateTitle(encodeFirstName(title));
         }
     }
 
