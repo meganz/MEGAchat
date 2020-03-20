@@ -871,29 +871,19 @@ void ProtocolHandler::msgEncryptWithKey(const Message& src, MsgCommand& dest,
     tlv.addRecord(TLV_TYPE_NONCE, encryptedMessage.nonce);
     tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(encryptedMessage.ciphertext, false));
 
+    Signature signature;
+    signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, SVCRYPTO_MSGTYPE_FOLLOWUP,
+                encryptedMessage.key, signature);
     unsigned long size = tlv.dataSize() +2;
     TlvWriter sigTlv;
-    if (!isPublicChat())
-    {
-        // prepare TLV for signature: <signature>
-        Signature signature;
-        signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, SVCRYPTO_MSGTYPE_FOLLOWUP,
-                    encryptedMessage.key, signature);
-        sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
-
-        size += sigTlv.size();
-    }
-
-    // finally, prepare the MsgCommand: <protVer><msgType>[if public chat <sigTLV>]<contentTLV>
-    dest.reserve(size);
+    sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
+    // finally, prepare the MsgCommand: <protVer><msgType><sigTLV><contentTLV>
+    dest.reserve(tlv.dataSize()+sigTlv.dataSize()+2);
     dest.append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION)
-        .append<uint8_t>(SVCRYPTO_MSGTYPE_FOLLOWUP);
-    if (!isPublicChat())
-    {
-        dest.append(sigTlv);
-    }
+        .append<uint8_t>(SVCRYPTO_MSGTYPE_FOLLOWUP)
+        .append(sigTlv)
+        .append(tlv.buf(), tlv.dataSize()); //tlv must always be last, and the payload must always be last within the tlv, because the payload may span till end of message, (len code = 0xffff)
 
-    dest.append(tlv.buf(), tlv.dataSize()); //tlv must always be last, and the payload must always be last within the tlv, because the payload may span till end of message, (len code = 0xffff)
     dest.updateMsgSize();
 }
 
@@ -1734,20 +1724,17 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser, b
                 tlv.addRecord(TLV_TYPE_OPENMODE, true);
             }
 
+            Signature signature;
+            signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
+                enc.key, signature);
+            TlvWriter sigTlv;
+            sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
+
             auto blob = std::make_shared<Buffer>(512);
             blob->clear();
             blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
             blob->append<uint8_t>(Message::kMsgChatTitle);
-            if (!isPublicChat())
-            {
-                Signature signature;
-                signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
-                    enc.key, signature);
-                TlvWriter sigTlv;
-                sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
-                blob->append(sigTlv);
-            }
-
+            blob->append(sigTlv);
             blob->append(tlv);
             return blob;
         });
