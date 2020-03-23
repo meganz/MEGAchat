@@ -2454,8 +2454,6 @@ void Chat::onFetchHistDone()
             //server. Tell app that is complete.
             CALL_LISTENER(onHistoryDone, kHistSourceServer);
         }
-        if (mLastSeenIdx == CHATD_IDX_INVALID)
-            CALL_LISTENER(onUnreadChanged);
     }
 
     // handle last text message fetching
