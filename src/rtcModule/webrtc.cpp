@@ -47,6 +47,8 @@ template <class... Args>
 const char* termCodeFirstArgToString(Args...) { return nullptr; }
 const char* iceStateToStr(webrtc::PeerConnectionInterface::IceConnectionState);
 
+DnsRequest* DnsRequest::instance = nullptr;
+
 struct CallerInfo
 {
     Id chatid;
@@ -87,7 +89,33 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 
 void RtcModule::init()
 {
-    StaticProvider iceServerStatic(mStaticIceSever);
+    string ipv4;
+    string ipv6;
+    StaticProvider iceServerStatic;
+    mKarereClient.mDnsCache.getIp(TURNSERVER_SHARE, ipv4, ipv6);
+    if (ipv4.size())
+    {
+        string jsonTurnServer;
+        jsonTurnServer.append("[{\"host\":\"turn:")
+                .append(ipv4)
+                .append(":3478?transport=udp\"}]");
+
+        iceServerStatic.setServer(jsonTurnServer.c_str());
+    }
+    else if (ipv6.size())
+    {
+        string jsonTurnServer;
+        jsonTurnServer.append("[{\"host\":\"turn:[")
+                .append(ipv6)
+                .append("]:3478?transport=udp\"}]");
+
+        iceServerStatic.setServer(jsonTurnServer.c_str());
+    }
+    else
+    {
+        iceServerStatic.setServer(mStaticIceSever);
+    }
+
     setIceServers(iceServerStatic);
     auto wptr = weakHandle();
     mIceServerProvider.fetchServers()
@@ -95,7 +123,12 @@ void RtcModule::init()
     {
         if (wptr.deleted())
             return;
+
         setIceServers(mIceServerProvider);
+        if (mIceServerProvider.size())
+        {
+            refreshTurnServerIp();
+        }
     })
     .fail([](const ::promise::Error& err)
     {
@@ -850,6 +883,34 @@ void RtcModule::abortCallRetry(Id chatid)
     if (itHandler != mCallHandlers.end())
     {
         itHandler->second->onReconnectingState(false);
+    }
+}
+
+void RtcModule::refreshTurnServerIp()
+{
+    std::string url = mIceServerProvider[0]->url;
+    if (mIceServerProvider[0]->url.size())
+    {
+        size_t postInitialColon = url.find(":") + 1;
+        size_t postFinalColon = url.rfind(":");
+        std::string subString = url.substr(postInitialColon, postFinalColon - postInitialColon);
+        auto wptr = weakHandle();
+        DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, subString.c_str(), [wptr, this, subString](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+        {
+            if (wptr.deleted())
+                return;
+
+            if (!mKarereClient.mDnsCache.hasRecord(TURNSERVER_SHARE))
+            {
+                mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARE, subString);
+            }
+
+            if (ipsv4.size() || ipsv6.size())
+            {
+                mKarereClient.mDnsCache.setIp(TURNSERVER_SHARE, ipsv4, ipsv6);
+                KR_LOG_DEBUG("New IP for Turn servers: %s", ipsv4[0].c_str());
+            }
+        });
     }
 }
 

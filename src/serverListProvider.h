@@ -105,7 +105,16 @@ class StaticProvider: public ListProvider
 {
 protected:
 public:
+    StaticProvider()
+    {
+    }
+
     StaticProvider(const char* serversJson)
+    {
+        setServer(serversJson);
+    }
+
+    void setServer(const char* serversJson)
     {
         rapidjson::Document doc;
         doc.Parse(serversJson);
@@ -120,7 +129,6 @@ public:
         {
             KR_LOG_ERROR("Error to extract server form static ice-server list");
         }
-
     }
 };
 

@@ -8,6 +8,8 @@
 #include <base/trackDelete.h>
 #include <streamPlayer.h>
 
+#define TURNSERVER_SHARE -10
+
 namespace rtcModule
 {
 namespace stats { class IRtcStats; }
@@ -374,6 +376,7 @@ public:
     virtual int numCalls() const;
     virtual std::vector<karere::Id> chatsWithCall() const;
     virtual void abortCallRetry(karere::Id chatid);
+    void refreshTurnServerIp() override;
 //==
     void updatePeerAvState(karere::Id chatid, karere::Id callid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
     void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);
@@ -485,6 +488,46 @@ public:
         doPayloadAppend(arg1, args...);
         updateLenField();
     }
+};
+
+class DnsRequest : public WebsocketsClient
+{
+private:
+    DnsRequest()
+    {
+
+    }
+
+    static DnsRequest* instance;
+
+public:
+    static DnsRequest* getInstance()
+    {
+        if (!instance)
+        {
+            instance = new DnsRequest();
+        }
+
+        return instance;
+    }
+
+    ~DnsRequest()
+    {
+
+    }
+
+    bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
+                   const char *host, int port, const char *path, bool ssl) = delete;
+    int wsGetNoNameErrorCode(WebsocketsIO *websocketIO) = delete;
+    bool wsSendMessage(char *msg, size_t len) = delete;  // returns true on success, false if error
+    void wsDisconnect(bool immediate) = delete;
+    bool wsIsConnected() = delete;
+    void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len) = delete;
+
+    void wsConnectCb(){}
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/){}
+    virtual void wsHandleMsgCb(char *data, size_t len){}
+    virtual void wsSendMsgCb(const char *, size_t) {}
 };
 }
 
