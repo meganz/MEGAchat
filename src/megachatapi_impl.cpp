@@ -2656,11 +2656,11 @@ void MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle, MegaChatRequestLis
     waiter->notify();
 }
 
-void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList userList, const char *authorizationToken, MegaChatRequestListener *listener)
+void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList *userList, const char *authorizationToken, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES, listener);
     request->setChatHandle(chatid);
-    request->setMegaHandleList(userList.copy());
+    request->setMegaHandleList(userList->copy());
     request->setLink(authorizationToken);
     requestQueue.push(request);
     waiter->notify();

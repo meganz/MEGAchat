@@ -2756,7 +2756,7 @@ public:
      * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      * @param listener MegaChatRequestListener to track this request
      */
-    void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList userList, const char *authorizationToken, MegaChatRequestListener *listener = nullptr);
+    void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList *userList, const char *authorizationToken, MegaChatRequestListener *listener = nullptr);
 
     /**
      * @brief Returns the current email address of the contact
