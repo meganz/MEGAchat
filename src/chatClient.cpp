@@ -344,6 +344,142 @@ void Client::createDbSchema()
     db.commit();
 }
 
+int Client::importMessages(const char *externalDbPath)
+{
+    SqliteDb db;
+    if (!db.open(externalDbPath, false))
+    {
+        KR_LOG_ERROR("importMessages: failed to open external DB (%s)", externalDbPath);
+        return -1;
+    }
+    // check external DB uses the same DB schema than the app
+    SqliteStmt stmtVersion(db, "select value from vars where name = 'schema_version'");
+    if (!stmtVersion.step())
+    {
+        db.close();
+        KR_LOG_ERROR("importMessages: failed to get external DB version");
+        return false;
+    }
+    // check external DB uses the same DB version than the app
+    std::string currentVersion(gDbSchemaHash);
+    currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
+    std::string cachedVersion(stmtVersion.stringCol(0));
+    if (cachedVersion != currentVersion)
+    {
+        db.close();
+        KR_LOG_ERROR("importMessages: external DB version is too old");
+        return -1;
+    }
+    // check external DB is for the same user than the app's DB
+    SqliteStmt stmtMyHandle(db, "select value from vars where name = 'my_handle'");
+    if (!stmtMyHandle.step() || stmtMyHandle.uint64Col(0) != myHandle())
+    {
+        db.close();
+        KR_LOG_ERROR("importMessages: external DB of a different user");
+        return -1;
+    }
+
+    int count = 0;
+    for (auto& it : *chats)
+    {
+        // find the newest message in the app
+        karere::ChatRoom *chatroom = it.second;
+        chatd::Chat &chat = chatroom->chat();
+        karere::Id chatid = chatroom->chatid();
+        chatd::Idx newestAppIdx = chat.highnum();
+        chatd::Message *newestAppMsg = chat.findOrNull(newestAppIdx);
+        karere::Id newestAppMsgid = newestAppMsg->id();
+
+        // find that message in the external DB
+        std::string query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history"
+                            " where chatid = ?1 and msgid = ?2";
+        SqliteStmt stmtNewestMsg(db, query.c_str());
+        stmtNewestMsg << chatid << newestAppMsgid;
+        if (!stmtNewestMsg.step())
+        {
+            // the newest message known by the app is not found in the external DB
+            // (it means app is ahead of external DB for this chat, so nothing to import)
+            KR_LOG_DEBUG("importMessages: no messages to import for chatid: %s", chatid.toString().c_str());
+            continue;
+        }
+        // check the message in external DB has the same index than in app's DB
+        chatd::Idx newestIdx = stmtNewestMsg.intCol(4);
+        if (newestIdx != newestAppIdx)
+        {
+            // if indexes don't match, the external DB is not inline with app DB
+            // (it means external DB might have been reloaded, in example)
+            KR_LOG_WARNING("importMessages: index mismatch. chatid: %s msgid: %s index-app: %d index-NSE: %d",
+                           chatid.toString().c_str(), newestAppMsgid.toString().c_str(), newestAppIdx, newestIdx);
+            continue;
+        }
+
+        // restore Message from external DB
+        std::unique_ptr<chatd::Message> newestMsg;
+        karere::Id userid(stmtNewestMsg.uint64Col(0));
+        karere::Id msgid(newestAppMsgid);
+        unsigned ts = stmtNewestMsg.uintCol(1);
+        unsigned char type = (unsigned char)stmtNewestMsg.intCol(2);
+        bool updated = stmtNewestMsg.intCol(7);
+        chatd::KeyId keyid = stmtNewestMsg.uintCol(5);
+        Buffer buf;
+        stmtNewestMsg.blobCol(3, buf);
+        newestMsg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
+        newestMsg->backRefId = stmtNewestMsg.uint64Col(6);
+        newestMsg->setEncrypted((uint8_t)stmtNewestMsg.intCol(8));
+
+        // TODO: check if this message has been edited/removed or truncated
+        // (changes in userid/type, data, delta...)
+
+        // for every newer message in external DB, add them to the app's history
+        query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted, msgid from history"
+                            " where chatid = ?1 and idx > ?2";
+        SqliteStmt stmtMsg(db, query.c_str());
+        stmtMsg << chatroom->chatid() << newestAppIdx;
+        while (stmtMsg.step())
+        {
+            // restore Message from external DB
+            std::unique_ptr<chatd::Message> msg;
+            karere::Id userid(stmtMsg.uint64Col(0));
+            karere::Id msgid(stmtMsg.uint64Col(9));
+            unsigned ts = stmtMsg.uintCol(1);
+            bool updated = stmtMsg.intCol(7);
+            chatd::KeyId keyid = stmtMsg.uintCol(5);
+            Buffer buf;
+            stmtMsg.blobCol(3, buf);
+            msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf),
+                                                 false, keyid, (unsigned char)stmtMsg.intCol(2)));
+            msg->backRefId = stmtMsg.uint64Col(6);
+            msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
+
+            // restore the SendKey of the message from external DB
+            std::string queryKey = "select key from sendkeys "
+                    " where chatid = ?1 and userid = ?2 and keyid = ?3";
+            SqliteStmt stmtKey(db, queryKey.c_str());
+            stmtKey << chatroom->chatid() << userid << keyid;
+            if (!stmtKey.step())
+            {
+                KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %d",
+                             chatid.toString().c_str(), msgid.toString().c_str(), keyid);
+                continue;
+            }
+            Buffer key;
+            stmtKey.blobCol(0, key);
+
+            // import the corresponding key and the message itself
+            chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
+            chat.msgImport(move(msg));
+            count++;
+
+            KR_LOG_DEBUG("Message imported: chatid: %s msgid: %s", chatid.toString().c_str(), msgid.toString().c_str());
+        }
+    }
+
+    db.close();
+
+    KR_LOG_DEBUG("Imported messages: %d", count);
+    return count;
+}
+
 void Client::heartbeat()
 {
     if (db.isOpen())

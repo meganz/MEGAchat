@@ -3303,6 +3303,16 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     return upd;
 }
 
+Idx Chat::msgImport(std::unique_ptr<Message> msg)
+{
+    return msgIncoming(true, msg.release(), false);
+}
+
+void Chat::keyImport(KeyId keyid, Id userid, const char *key, uint16_t keylen)
+{
+    CALL_CRYPTO(onKeyReceived, keyid, userid, mChatdClient.myHandle(), key, keylen, false);
+}
+
 void Chat::onLastReceived(Id msgid)
 {
     mLastReceivedId = msgid;
