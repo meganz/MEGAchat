@@ -2201,8 +2201,8 @@ public:
      * after login. MEGAchat will not wait for the completion of fetchnodes. It will resume the cached
      * state from persistent storage.
      *
-     * @note This mode is required by iOS Notification service extension. The extension restricts the
-     * amount of memory used by the app. In order to avoid OOM errors, the iOS app may use this mode
+     * @note This mode is required by iOS Notification Service Extension (NSE). The extension restricts
+     * the amount of memory used by the app. In order to avoid OOM errors, the iOS app may use this mode
      * to skip the fetchnodes and, consequently, save some bytes by not loading all the nodes of the
      * account in memory.
      *
@@ -2222,6 +2222,18 @@ public:
      * @return The initialization state
      */
     int initLeanMode(const char *sid);
+
+    /**
+     * @brief Import messages from an external DB
+     *
+     * This method allows to import messages from an external cache. The cache should be a copy
+     * of the app's cache, but may include new messages that wants to be imported into the app's
+     * cache in one shot.
+     *
+     * @note This mode is required by iOS Notification Service Extension (NSE). The extension runs
+     * separately from iOS app, with its independent cache.
+     */
+    int importMessages(const char *externalDbPath);
 
     /**
      * @brief Reset the Client Id for chatd

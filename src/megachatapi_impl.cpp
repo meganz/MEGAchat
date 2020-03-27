@@ -1911,6 +1911,12 @@ int MegaChatApiImpl::getInitState()
     return initState;
 }
 
+int MegaChatApiImpl::importMessages(const char *externalDbPath)
+{
+    SdkMutexGuard g(sdkMutex);
+    return mClient->importMessages(externalDbPath);
+}
+
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
 {
     map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
