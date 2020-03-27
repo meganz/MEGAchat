@@ -1442,6 +1442,26 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!chatroom->isGroup())
+            {
+                uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
+                Contact *contact = mClient->mContactList->contactFromUserId(uh);
+                if (!contact || contact->visibility() != ::mega::MegaUser::VISIBILITY_VISIBLE)
+                {
+                    API_LOG_ERROR("Start call - Refusing start a call with a non active contact");
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+            }
+            else if (chatroom->ownPriv() <= Priv::PRIV_RDONLY
+                     || ((GroupChatRoom *)chatroom)->peers().empty())
+            {
+                API_LOG_ERROR("Start call - Refusing start a call in an empty chatroom"
+                              "or withouth enough privileges");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (chatroom->previewMode())
             {
                 API_LOG_ERROR("Start call - Chatroom is in preview mode");
@@ -6502,6 +6522,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
     this->mNumPreviewers = chat->getNumPreviewers();
+    this->mCreationTs = chat->getCreationTs();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -6520,6 +6541,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->archived = chat.isArchived();
     this->uh = MEGACHAT_INVALID_HANDLE;
     this->mNumPreviewers = chat.chat().getNumPreviewers();
+    this->mCreationTs = chat.getCreationTs();
 
     if (group)
     {
@@ -6780,6 +6802,11 @@ bool MegaChatRoomPrivate::isActive() const
 bool MegaChatRoomPrivate::isArchived() const
 {
     return archived;
+}
+
+int64_t MegaChatRoomPrivate::getCreationTs() const
+{
+    return mCreationTs;
 }
 
 int MegaChatRoomPrivate::getChanges() const
@@ -8956,8 +8983,7 @@ std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, Conta
             emailValue.SetString(contact->email().c_str(), contact->email().length(), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("email"), emailValue, jSonDocument.GetAllocator());
 
-            std::string nameString = contact->titleString();
-            nameString.erase(0, 1);
+            std::string nameString = contact->getContactName();
             rapidjson::Value nameValue(rapidjson::kStringType);
             nameValue.SetString(nameString.c_str(), nameString.length(), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("name"), nameValue, jSonDocument.GetAllocator());

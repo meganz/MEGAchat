@@ -3333,7 +3333,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     loadHistory(a2, chatid, chatroomListener);
 
     // Send message with url
-    std::string messageToSend = "www.mega.nz";
+    std::string messageToSend = "http://mega.nz";
     bool *msgEdited1 = &chatroomListener->msgEdited[a1]; *msgEdited1 = false;
     bool *msgEdited2 = &chatroomListener->msgEdited[a2]; *msgEdited1 = false;
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);

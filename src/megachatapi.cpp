@@ -1329,6 +1329,11 @@ bool MegaChatRoom::isArchived() const
     return false;
 }
 
+int64_t MegaChatRoom::getCreationTs() const
+{
+    return 0;
+}
+
 MegaChatPeerList * MegaChatPeerList::createInstance()
 {
     return new MegaChatPeerListPrivate();

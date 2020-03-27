@@ -143,6 +143,9 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
+    /** @brief Returns the creation timestamp of the chatroom */
+    int64_t getCreationTs() const { return mCreationTs; }
+
     bool isCallActive() const;
 
     /** @brief The chatd shart number for that chatroom */
@@ -494,7 +497,6 @@ protected:
     std::string mName;
     int mVisibility;
     bool mIsInitializing = true;
-    void updateTitle(const std::string& str);
     void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
@@ -545,6 +547,9 @@ public:
 
     /** @brief Set the full name of this contact */
     void setContactName(std::string name);
+
+    /** @brief Set the title of this contact */
+    void updateTitle(const std::string& str);
 
     /** @brief Returns the full name of this contact */
     std::string getContactName();

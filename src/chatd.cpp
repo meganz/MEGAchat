@@ -2454,8 +2454,6 @@ void Chat::onFetchHistDone()
             //server. Tell app that is complete.
             CALL_LISTENER(onHistoryDone, kHistSourceServer);
         }
-        if (mLastSeenIdx == CHATD_IDX_INVALID)
-            CALL_LISTENER(onUnreadChanged);
     }
 
     // handle last text message fetching
@@ -4368,6 +4366,12 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
         idx = highnum();
         if (!mOldestKnownMsgId)
             mOldestKnownMsgId = msgid;
+
+        // upon first message received we need to init mNextHistFetchIdx if history was empty, to avoid loading messages twice
+        if (mNextHistFetchIdx == CHATD_IDX_INVALID && size() == 1)
+        {
+            mNextHistFetchIdx = -1;
+        }
     }
     else
     {

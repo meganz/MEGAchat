@@ -4280,11 +4280,12 @@ public:
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
-     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
-     * called without being already connected to chatd.
-     *
-     * The request will fail with MegaChatError::ERROR_ACCESS when the chatroom is
-     * in preview mode.
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     *  - if groupchatroom has no participants
+     *  - if peer of a 1on1 chatroom it's a non visible contact
+     *  - if this function is called without being already connected to chatd.
+     *  - if the chatroom is in preview mode.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
@@ -5412,6 +5413,12 @@ public:
      * @return True if the chat is archived, false otherwise.
      */
     virtual bool isArchived() const;
+
+    /**
+     * @brief Returns the creation timestamp of the chat.
+     * @return The creation timestamp of the chat.
+     */
+    virtual int64_t getCreationTs() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
