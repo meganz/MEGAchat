@@ -379,6 +379,8 @@ int Client::importMessages(const char *externalDbPath)
         return -1;
     }
 
+    setCommitMode(false);
+
     int count = 0;
     for (auto& it : *chats)
     {
@@ -477,6 +479,7 @@ int Client::importMessages(const char *externalDbPath)
         }
     }
 
+    setCommitMode(false);   // commit the open transaction to import all messages
     db.close();
 
     KR_LOG_DEBUG("Imported messages: %d", count);
