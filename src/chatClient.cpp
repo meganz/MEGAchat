@@ -433,8 +433,9 @@ int Client::importMessages(const char *externalDbPath)
         // (changes in userid/type, data, delta...)
 
         // for every newer message in external DB, add them to the app's history
+        // (also consider the newest app message to update history in case of truncate)
         query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted, msgid from history"
-                            " where chatid = ?1 and idx > ?2";
+                            " where chatid = ?1 and idx >= ?2";
         SqliteStmt stmtMsg(db, query.c_str());
         stmtMsg << chatroom->chatid() << newestAppIdx;
         while (stmtMsg.step())
@@ -444,14 +445,17 @@ int Client::importMessages(const char *externalDbPath)
             karere::Id userid(stmtMsg.uint64Col(0));
             karere::Id msgid(stmtMsg.uint64Col(9));
             unsigned ts = stmtMsg.uintCol(1);
+            unsigned char type = (unsigned char)stmtMsg.intCol(2);
             bool updated = stmtMsg.intCol(7);
             chatd::KeyId keyid = stmtMsg.uintCol(5);
             Buffer buf;
             stmtMsg.blobCol(3, buf);
-            msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf),
-                                                 false, keyid, (unsigned char)stmtMsg.intCol(2)));
+            msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
             msg->backRefId = stmtMsg.uint64Col(6);
             msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
+
+            // first message could be a truncate
+            bool isUpdate = (count == 0) && (type == chatd::Message::kMsgTruncate);
 
             if (keyid != CHATD_KEYID_INVALID)   // invalid for mngt msgs and public chats
             {
@@ -472,7 +476,7 @@ int Client::importMessages(const char *externalDbPath)
                 // import the corresponding key and the message itself
                 chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
             }
-            chat.msgImport(move(msg));
+            chat.msgImport(move(msg), isUpdate);
             count++;
 
             KR_LOG_DEBUG("Message imported: chatid: %s msgid: %s", chatid.toString().c_str(), msgid.toString().c_str());

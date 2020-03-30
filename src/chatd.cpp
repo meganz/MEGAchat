@@ -3303,9 +3303,16 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     return upd;
 }
 
-Idx Chat::msgImport(std::unique_ptr<Message> msg)
+void Chat::msgImport(std::unique_ptr<Message> msg, bool isUpdate)
 {
-    return msgIncoming(true, msg.release(), false);
+    if (isUpdate)
+    {
+        onMsgUpdated(msg.release());
+    }
+    else
+    {
+        msgIncoming(true, msg.release(), false);
+    }
 }
 
 void Chat::keyImport(KeyId keyid, Id userid, const char *key, uint16_t keylen)
@@ -4006,6 +4013,14 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             mSending.erase(erased);
         }
     }
+
+    // in case of imported messages, they can be decrypted already
+    if (!cipherMsg->isEncrypted())
+    {
+        onMsgUpdatedAfterDecrypt(updateTs, richLinkRemoved, cipherMsg);
+        return;
+    }
+
     mCrypto->msgDecrypt(cipherMsg)
     .fail([this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
@@ -4049,130 +4064,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     })
     .then([this, updateTs, richLinkRemoved](Message* msg)
     {
-        assert(!msg->isPendingToDecrypt()); //either decrypted or error
-        if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
-        {
-            if (msg->dataSize() < 2)
-                CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
-            else
-                msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
-        }
-
-        //update in memory, if loaded
-        auto msgit = mIdToIndexMap.find(msg->id());
-        Idx idx;
-        if (msgit != mIdToIndexMap.end())   // message is loaded in RAM
-        {
-            idx = msgit->second;
-            auto& histmsg = at(idx);
-            unsigned char histType = histmsg.type;
-
-            if ( (msg->type == Message::kMsgTruncate
-                  && histmsg.type == msg->type
-                  && histmsg.ts == msg->ts)
-                    || (msg->type != Message::kMsgTruncate
-                        && histmsg.updated == msg->updated) )
-            {
-                CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
-                delete msg;
-                return;
-            }
-
-            if (!msg->empty() && msg->type == Message::kMsgNormal
-                             && !richLinkRemoved        // user have not requested to remove rich-link preview (generate it)
-                             && updateTs && (updateTs == msg->updated)) // message could have been updated by another client earlier/later than our update's attempt
-            {
-                if (client().richLinkState() == Client::kRichLinkEnabled)
-                {
-                    requestRichLink(*msg);
-                }
-                else if (mChatdClient.richLinkState() == Client::kRichLinkNotDefined)
-                {
-                    manageRichLinkMessage(*msg);
-                }
-            }
-
-            //update in db
-            CALL_DB(updateMsgInHistory, msg->id(), *msg);
-
-            // update in RAM
-            histmsg.assign(*msg);     // content
-            histmsg.updated = msg->updated;
-            histmsg.type = msg->type;
-            histmsg.userid = msg->userid;
-            histmsg.setEncrypted(msg->isEncrypted());
-            if (msg->type == Message::kMsgTruncate)
-            {
-                histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
-                histmsg.keyid = msg->keyid;
-            }
-
-            if (idx > mNextHistFetchIdx)
-            {
-                // msg.ts is zero - chatd doesn't send the original timestamp
-                CALL_LISTENER(onMessageEdited, histmsg, idx);
-            }
-            else
-            {
-                CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
-            }
-
-            if (msg->isDeleted())
-            {
-                if (!msg->isOwnMessage(client().myHandle()))
-                {
-                    CALL_LISTENER(onUnreadChanged);
-                }
-
-                if (histType == Message::kMsgAttachment)
-                {
-                    mAttachmentNodes->deleteMessage(*msg);
-                }
-
-                // Clean message reactions
-                msg->cleanReactions();
-                CALL_DB(cleanReactions, msg->id());
-            }
-
-            if (msg->type == Message::kMsgTruncate)
-            {
-                handleTruncate(*msg, idx);
-            }
-
-            if (mLastTextMsg.idx() == idx) //last text msg stuff
-            {
-                //our last text message was edited
-                if (histmsg.isValidLastMessage()) //same message, but with updated contents
-                {
-                    onLastTextMsgUpdated(histmsg, idx);
-                }
-                else //our last text msg is not valid anymore, find another one
-                {
-                    findAndNotifyLastTextMsg();
-                }
-            }
-        }
-        else    // message not loaded in RAM
-        {
-            CHATID_LOG_DEBUG("onMsgUpdated(): update for message not loaded");
-
-            // check if message in DB is outdated
-            uint16_t delta = 0;
-            CALL_DB(getMessageDelta, msg->id(), &delta);
-
-            if (delta < msg->updated)
-            {
-                //update in db
-                CALL_DB(updateMsgInHistory, msg->id(), *msg);
-            }
-
-            if (msg->isDeleted()) // previous type is unknown, so cannot check for attachment type here
-            {
-                mAttachmentNodes->deleteMessage(*msg);
-            }
-        }
-
-        delete msg;
+        onMsgUpdatedAfterDecrypt(updateTs, richLinkRemoved, msg);
     })
     .fail([this, cipherMsg](const ::promise::Error& err)
     {
@@ -4191,6 +4083,134 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             delete cipherMsg;
         }
     });
+}
+
+void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Message* msg)
+{
+    assert(!msg->isPendingToDecrypt()); //either decrypted or error
+    if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
+    {
+        if (msg->dataSize() < 2)
+            CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
+        else
+            msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
+    }
+
+    //update in memory, if loaded
+    auto msgit = mIdToIndexMap.find(msg->id());
+    Idx idx;
+    if (msgit != mIdToIndexMap.end())   // message is loaded in RAM
+    {
+        idx = msgit->second;
+        auto& histmsg = at(idx);
+        unsigned char histType = histmsg.type;
+
+        if ( (msg->type == Message::kMsgTruncate
+              && histmsg.type == msg->type
+              && histmsg.ts == msg->ts)
+                || (msg->type != Message::kMsgTruncate
+                    && histmsg.updated == msg->updated) )
+        {
+            CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
+            delete msg;
+            return;
+        }
+
+        if (!msg->empty() && msg->type == Message::kMsgNormal
+                         && !richLinkRemoved        // user have not requested to remove rich-link preview (generate it)
+                         && updateTs && (updateTs == msg->updated)) // message could have been updated by another client earlier/later than our update's attempt
+        {
+            if (client().richLinkState() == Client::kRichLinkEnabled)
+            {
+                requestRichLink(*msg);
+            }
+            else if (mChatdClient.richLinkState() == Client::kRichLinkNotDefined)
+            {
+                manageRichLinkMessage(*msg);
+            }
+        }
+
+        //update in db
+        CALL_DB(updateMsgInHistory, msg->id(), *msg);
+
+        // update in RAM
+        histmsg.assign(*msg);     // content
+        histmsg.updated = msg->updated;
+        histmsg.type = msg->type;
+        histmsg.userid = msg->userid;
+        histmsg.setEncrypted(msg->isEncrypted());
+        if (msg->type == Message::kMsgTruncate)
+        {
+            histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
+            histmsg.keyid = msg->keyid;
+        }
+
+        if (idx > mNextHistFetchIdx)
+        {
+            // msg.ts is zero - chatd doesn't send the original timestamp
+            CALL_LISTENER(onMessageEdited, histmsg, idx);
+        }
+        else
+        {
+            CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
+        }
+
+        if (msg->isDeleted())
+        {
+            if (!msg->isOwnMessage(client().myHandle()))
+            {
+                CALL_LISTENER(onUnreadChanged);
+            }
+
+            if (histType == Message::kMsgAttachment)
+            {
+                mAttachmentNodes->deleteMessage(*msg);
+            }
+
+            // Clean message reactions
+            msg->cleanReactions();
+            CALL_DB(cleanReactions, msg->id());
+        }
+
+        if (msg->type == Message::kMsgTruncate)
+        {
+            handleTruncate(*msg, idx);
+        }
+
+        if (mLastTextMsg.idx() == idx) //last text msg stuff
+        {
+            //our last text message was edited
+            if (histmsg.isValidLastMessage()) //same message, but with updated contents
+            {
+                onLastTextMsgUpdated(histmsg, idx);
+            }
+            else //our last text msg is not valid anymore, find another one
+            {
+                findAndNotifyLastTextMsg();
+            }
+        }
+    }
+    else    // message not loaded in RAM
+    {
+        CHATID_LOG_DEBUG("onMsgUpdated(): update for message not loaded");
+
+        // check if message in DB is outdated
+        uint16_t delta = 0;
+        CALL_DB(getMessageDelta, msg->id(), &delta);
+
+        if (delta < msg->updated)
+        {
+            //update in db
+            CALL_DB(updateMsgInHistory, msg->id(), *msg);
+        }
+
+        if (msg->isDeleted()) // previous type is unknown, so cannot check for attachment type here
+        {
+            mAttachmentNodes->deleteMessage(*msg);
+        }
+    }
+
+    delete msg;
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
 {
