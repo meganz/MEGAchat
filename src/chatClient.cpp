@@ -451,22 +451,25 @@ int Client::importMessages(const char *externalDbPath)
             msg->backRefId = stmtMsg.uint64Col(6);
             msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
 
-            // restore the SendKey of the message from external DB
-            std::string queryKey = "select key from sendkeys "
-                    " where chatid = ?1 and userid = ?2 and keyid = ?3";
-            SqliteStmt stmtKey(db, queryKey.c_str());
-            stmtKey << chatroom->chatid() << userid << keyid;
-            if (!stmtKey.step())
+            if (keyid != CHATD_KEYID_INVALID)   // invalid for mngt msgs and public chats
             {
-                KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %d",
-                             chatid.toString().c_str(), msgid.toString().c_str(), keyid);
-                continue;
-            }
-            Buffer key;
-            stmtKey.blobCol(0, key);
+                // restore the SendKey of the message from external DB
+                std::string queryKey = "select key from sendkeys "
+                        " where chatid = ?1 and userid = ?2 and keyid = ?3";
+                SqliteStmt stmtKey(db, queryKey.c_str());
+                stmtKey << chatroom->chatid() << userid << keyid;
+                if (!stmtKey.step())
+                {
+                    KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %d",
+                                 chatid.toString().c_str(), msgid.toString().c_str(), keyid);
+                    continue;
+                }
+                Buffer key;
+                stmtKey.blobCol(0, key);
 
-            // import the corresponding key and the message itself
-            chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
+                // import the corresponding key and the message itself
+                chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
+            }
             chat.msgImport(move(msg));
             count++;
 
