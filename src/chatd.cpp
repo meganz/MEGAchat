@@ -4478,8 +4478,15 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         }
         return true;    // decrypt was not done immediately, but none checks the returned value in this codepath
     }
-    else
+    else    // (isLocal == false)
     {
+        // in case of imported messages, they can be decrypted already
+        if (!msg.isEncrypted())
+        {
+            msgIncomingAfterDecrypt(isNew, false, msg, idx);
+            return true;
+        }
+
         assert(msg.isPendingToDecrypt()); //no decrypt attempt was made
     }
 
