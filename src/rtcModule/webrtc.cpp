@@ -2060,7 +2060,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
         }
 
         case kCallReqCancel:
-            assert(mPredestroyState == kStateReqSent);
+            assert(mPredestroyState == kStateReqSent || mPredestroyState == kStateJoining);
             codeToChatd = kCallDataReasonCancelled;
             break;
 
