@@ -1426,6 +1426,26 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!chatroom->isGroup())
+            {
+                uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
+                Contact *contact = mClient->mContactList->contactFromUserId(uh);
+                if (!contact || contact->visibility() != ::mega::MegaUser::VISIBILITY_VISIBLE)
+                {
+                    API_LOG_ERROR("Start call - Refusing start a call with a non active contact");
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+            }
+            else if (chatroom->ownPriv() <= Priv::PRIV_RDONLY
+                     || ((GroupChatRoom *)chatroom)->peers().empty())
+            {
+                API_LOG_ERROR("Start call - Refusing start a call in an empty chatroom"
+                              "or withouth enough privileges");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (chatroom->previewMode())
             {
                 API_LOG_ERROR("Start call - Chatroom is in preview mode");
