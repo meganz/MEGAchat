@@ -9,6 +9,7 @@ public:
     id<MEGAChatCallDelegate>getUserListener();
     
     void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
+    void onChatSessionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatHandle callid, megachat::MegaChatSession *session);
     
 private:
     __weak MEGAChatSdk *megaChatSdk;

@@ -6,17 +6,19 @@ using namespace std;
 QTMegaChatEvent::QTMegaChatEvent(MegaChatApi *megaChatApi, Type type) : QEvent(type)
 {
     this->megaChatApi = megaChatApi;
-    request = NULL;
-    error = NULL;
-    item = NULL;
+    request = nullptr;
+    error = nullptr;
+    item = nullptr;
     handle = ::mega::INVALID_HANDLE;
-    config = NULL;
-    chat = NULL;
-    msg = NULL;
-    buffer = NULL;
+    config = nullptr;
+    chat = nullptr;
+    msg = nullptr;
+    buffer = nullptr;
     inProgress = false;
     status = 0;
-    call = NULL;
+    call = nullptr;
+    callid = MEGACHAT_INVALID_HANDLE;
+    session = nullptr;
 }
 
 QTMegaChatEvent::~QTMegaChatEvent()
@@ -29,6 +31,7 @@ QTMegaChatEvent::~QTMegaChatEvent()
     delete chat;
     delete msg;
     delete call;
+    delete session;
 }
 
 MegaChatApi *QTMegaChatEvent::getMegaChatApi()
@@ -106,6 +109,16 @@ size_t QTMegaChatEvent::getSize()
     return size;
 }
 
+MegaChatSession *QTMegaChatEvent::getChatSession()
+{
+    return session;
+}
+
+MegaChatHandle QTMegaChatEvent::getChatCallid()
+{
+    return callid;
+}
+
 void QTMegaChatEvent::setChatRequest(MegaChatRequest *request)
 {
     this->request = request;
@@ -179,4 +192,14 @@ void QTMegaChatEvent::setBuffer(char *buffer)
 void QTMegaChatEvent::setSize(size_t size)
 {
     this->size = size;
+}
+
+void QTMegaChatEvent::setChatSession(MegaChatSession *session)
+{
+    this->session = session;
+}
+
+void QTMegaChatEvent::setChatCallid(MegaChatHandle callid)
+{
+    this->callid = callid;
 }

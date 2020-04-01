@@ -84,6 +84,17 @@ public:
         SESSION_STATUS_DESTROYED            /// Session is finished and resources can be released
     };
 
+    enum
+    {
+        CHANGE_TYPE_NO_CHANGES = 0x00,              /// Session doesn't have any change
+        CHANGE_TYPE_STATUS = 0x01,                  /// Session status has changed
+        CHANGE_TYPE_REMOTE_AVFLAGS = 0x02,          /// Remote audio/video flags has changed
+        CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04, /// Session network quality has changed
+        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08,     /// Session audio level has changed
+        CHANGE_TYPE_SESSION_OPERATIVE = 0x10,       /// Session is fully operative (A/V stream is received)
+    };
+
+
     virtual ~MegaChatSession();
 
     /**
@@ -139,6 +150,37 @@ public:
     virtual bool hasVideo() const;
 
     /**
+     * @brief Returns the termination code for this session
+     *
+     * Possible values are:
+     *
+     *   - MegaChatCall::TERM_CODE_USER_HANGUP       = 0
+     *  Normal user hangup. User has left the call
+     *
+     *   - MegaChatCall::TERM_CODE_NOT_FINISHED      = 10
+     *  The session is in progress, no termination code yet
+     *
+     *   -MegaChatCall::TERM_CODE_ERROR             = 21
+     *  Notify any error type. A reconnection is launched
+     *
+     * @note If the session is not finished yet, it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
+     * The rest of values are invalid as term code for a session
+     *
+     * To check if the call was terminated locally or remotely, see MegaChatSession::isLocalTermCode().
+     *
+     * @return termination code for the call
+     */
+    virtual int getTermCode() const;
+
+    /**
+     * @brief Returns if the session finished locally or remotely
+     *
+     * @return True if the call finished locally. False if the call finished remotely
+     */
+    virtual bool isLocalTermCode() const;
+
+
+    /**
      * @brief Returns network quality
      *
      * The valid network quality values are between 0 and 5
@@ -157,6 +199,64 @@ public:
      * @return true if audio is detected for this session, false in other case
      */
     virtual bool getAudioDetected() const;
+
+    /**
+     * @brief Returns a bit field with the changes of the session
+     *
+     * This value is only useful for session notified by MegaChatCallListener::onChatSessionUpdate
+     * that can notify about session modifications. The value only will be valid inside
+     * MegaChatCallListener::onChatSessionUpdate. A copy of MegaChatSession will be necessary to use
+     * outside this callback.
+     *
+     * @return The returned value is an OR combination of these flags:
+     *
+     *  - CHANGE_TYPE_STATUS = 0x01
+     * Check if the status of the session changed
+     *
+     *  - CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
+     * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
+     *
+     *  - CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04
+     * Check if the network quality of the session changed. Check MegaChatSession::getNetworkQuality
+     *
+     *  - CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08
+     * Check if the level audio of the session changed. Check MegaChatSession::getAudioDetected
+     *
+     *  - CHANGE_TYPE_SESSION_OPERATIVE = 0x10
+     * Notify session is fully operative
+     */
+    virtual int getChanges() const;
+
+    /**
+     * @brief Returns true if this session has an specific change
+     *
+     * This value is only useful for session notified by MegaChatCallListener::onChatSessionUpdate
+     * that can notify about session modifications. The value only will be valid inside
+     * MegaChatCallListener::onChatSessionUpdate. A copy of MegaChatSession will be necessary to use
+     * outside this callback.
+     *
+     * In other cases, the return value of this function will be always false.
+     *
+     * @param changeType The type of change to check. It can be one of the following values:
+     *
+     *  - CHANGE_TYPE_STATUS = 0x01
+     * Check if the status of the session changed
+     *
+     *  - CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
+     * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
+     *
+     *  - CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04
+     * Check if the network quality of the session changed. Check MegaChatSession::getNetworkQuality
+     *
+     *  - CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08
+     * Check if the level audio of the session changed. Check MegaChatSession::getAudioDetected
+     *
+     *  - CHANGE_TYPE_SESSION_OPERATIVE = 0x10
+     * Notify session is fully operative
+     *
+     * @return true if this session has an specific change
+     */
+    virtual bool hasChanged(int changeType) const;
 };
 
 /**
@@ -196,7 +296,7 @@ public:
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
         CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
-        CALL_STATUS_RECONNECTING                       /// User is reconnecting to the call
+        CALL_STATUS_RECONNECTING,                       /// User is reconnecting to the call
     };
 
     enum
@@ -204,14 +304,8 @@ public:
         CHANGE_TYPE_NO_CHANGES = 0x00,              /// Call doesn't have any change
         CHANGE_TYPE_STATUS = 0x01,                  /// Call status has changed
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,           /// Local audio/video flags has changed
-        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,          /// Remote audio/video flags has changed
-        CHANGE_TYPE_TEMPORARY_ERROR = 0x08,         /// New temporary error is notified
-        CHANGE_TYPE_RINGING_STATUS = 0x10,          /// Peer has change its ringing state
-        CHANGE_TYPE_SESSION_STATUS = 0x20,          /// Session status has changed
-        CHANGE_TYPE_CALL_COMPOSITION = 0x40,        /// Call composition has changed (User added or removed from call)
-        CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x80, /// Session network quality has changed
-        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x100,    /// Session audio level has changed
-        CHANGE_TYPE_SESSION_OPERATIVE = 0x200      /// Session is fully operative
+        CHANGE_TYPE_RINGING_STATUS = 0x04,          /// Peer has changed its ringing state
+        CHANGE_TYPE_CALL_COMPOSITION = 0x08,        /// Call composition has changed (User added or removed from call)
     };
 
     enum
@@ -236,6 +330,12 @@ public:
         AUDIO = 0,
         VIDEO = 1,
         ANY_FLAG = 2
+    };
+
+    enum {
+        PEER_REMOVED = -1,
+        NO_COMPOSITION_CHANGE = 0,
+        PEER_ADDED = 1,
     };
 
     virtual ~MegaChatCall();
@@ -333,18 +433,11 @@ public:
      * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
-     * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
-     * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
-     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
-     *
-     * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
-     * Check MegaChatCall::getTemporaryError() value
-     *
-     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
+     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x04
      * Check MegaChatCall::isRinging() value
      *
-     * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
-     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
+     * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
+     * @see MegaChatCall::getPeeridCallCompositionChange and MegaChatCall::getClientidCallCompositionChange values
      */
     virtual int getChanges() const;
 
@@ -366,18 +459,11 @@ public:
      * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
-     * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
-     * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
-     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
-     *
-     * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
-     * Check MegaChatCall::getTemporaryError() value
-     *
-     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
+     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x04
      * Check MegaChatCall::isRinging() value
      *
-     * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
-     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
+     * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
+     * @see MegaChatCall::getPeeridCallCompositionChange and MegaChatCall::getClientidCallCompositionChange values
      *
      * @return true if this call has an specific change
      */
@@ -408,18 +494,6 @@ public:
      * @return Final timestamp or 0 if call is in progress
      */
     virtual int64_t getFinalTimeStamp() const;
-
-    /**
-     * @brief Returns the content of the temporary error
-     *
-     * This temporary error is cleared after notification through MegaChatCallListener::onChatCallUpdate
-     *
-     * The SDK retains the ownership of the returned value. It will be valid until
-     * the MegaChatCall object is deleted.
-     *
-     * @return Content of the error. If there isn't a error, it returns a empty string.
-     */
-    virtual const char *getTemporaryError() const;
 
     /**
      * @brief Returns the termination code for this call
@@ -501,24 +575,43 @@ public:
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid);
 
     /**
-     * @brief Returns peer id which session status has changed
+     * @brief Returns the handle of the peer that has been added/removed to call
      *
-     * This function only returns a valid value when session status change is notified
+     * This function only returns a valid value when MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION is notified
      * via MegaChatCallListener::onChatCallUpdate
      *
-     * @return Handle of the peer which session has changed its status
+     * @return Handle of the peer which has been added/removed to call
      */
-    virtual MegaChatHandle getPeerSessionStatusChange() const;
+    virtual MegaChatHandle getPeeridCallCompositionChange() const;
 
     /**
-     * @brief Returns client id of the peer which session status has changed
+     * @brief Returns client id of the peer which has been added/removed from call
      *
-     * This function only returns a valid value when session status change is notified
+     * This function only returns a valid value when MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION is notified
      * via MegaChatCallListener::onChatCallUpdate
      *
-     * @return Handle of the client which session has changed its status
+     * @return Handle of the client which has been added/removed to call
      */
-    virtual MegaChatHandle getClientidSessionStatusChange() const;
+    virtual MegaChatHandle getClientidCallCompositionChange() const;
+
+    /**
+     * @brief Returns if peer has been added or removed from the call
+     *
+     * This function only returns a valid value when MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION is notified
+     * via MegaChatCallListener::onChatCallUpdate
+     *
+     * Valid values:
+     *   PEER_REMOVED = -1,
+     *   NO_COMPOSITION_CHANGE = 0,
+     *   PEER_ADDED = 1,
+     *
+     * @note During reconnection this callback has to be ignored to avoid notify that all users
+     * in the call have left the call and have joined again. When status change to In-progres again,
+     * the GUI can be adapted to all participants in the call
+     *
+     * @return if peer with peerid-clientid has been added/removed from call
+     */
+    virtual int  getCallCompositionChange() const;
 
     /**
      * @brief Get a list with the ids of peers that are participating in the call
@@ -584,7 +677,7 @@ public:
     /**
      * @brief Returns if call is outgoing
      *
-     * @return Ture if outgoing call, false if incoming
+     * @return True if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
 
@@ -657,6 +750,25 @@ public:
      * @param call MegaChatCall that contains the call with its changes
      */
     virtual void onChatCallUpdate(MegaChatApi* api, MegaChatCall *call);
+
+    /**
+     * @brief This function is called when there are changes in a session
+     *
+     * The changes can be accessed by MegaChatSession::getChanges or MegaChatSession::hasChanged
+     *
+     * The SDK retains the ownership of the MegaChatSession.
+     * The call object that it contains will be valid until this function returns.
+     * If you want to save the object, use MegaChatSession::copy.
+     *
+     * The api object is the one created by the application, it will be valid until
+     * the application deletes it.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param callid MegaChatHandle that identifies the call
+     * @param session MegaChatSession that contains the session with its changes
+     */
+    virtual void onChatSessionUpdate(MegaChatApi* api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session);
 };
 
 class MegaChatPeerList

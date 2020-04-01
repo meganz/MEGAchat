@@ -18,4 +18,5 @@ package nz.mega.sdk;
 
 public interface MegaChatCallListenerInterface {
     public void onChatCallUpdate(MegaChatApiJava api, MegaChatCall call);
+    public void onChatSessionUpdate(MegaChatApiJava api, long chatid, long callid, MegaChatSession session);
 }

@@ -83,16 +83,6 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->getInitialTimeStamp() : 0;
 }
 
-- (NSString *)error {
-    const char *val = self.megaChatCall->getTemporaryError();
-    if (!val) return nil;
-    
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    
-    delete [] val;
-    return ret;
-}
-
 - (BOOL)hasLocalAudio {
     return self.megaChatCall ? self.megaChatCall->hasLocalAudio() : NO;
 }
@@ -125,12 +115,16 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->isRinging() : NO;
 }
 
-- (uint64_t)peerSessionStatusChange {
-    return self.megaChatCall ? self.megaChatCall->getPeerSessionStatusChange() : MEGACHAT_INVALID_HANDLE;
+- (uint64_t)peeridCallCompositionChange {
+    return self.megaChatCall ? self.megaChatCall->getPeeridCallCompositionChange() : MEGACHAT_INVALID_HANDLE;
 }
 
-- (uint64_t)clientSessionStatusChange {
-    return self.megaChatCall ? self.megaChatCall->getClientidSessionStatusChange() : MEGACHAT_INVALID_HANDLE;
+- (uint64_t)clientidCallCompositionChange {
+    return self.megaChatCall ? self.megaChatCall->getClientidCallCompositionChange() : MEGACHAT_INVALID_HANDLE;
+}
+
+- (uint64_t)callCompositionChange {
+    return self.megaChatCall ? self.megaChatCall->getCallCompositionChange() : MEGACHAT_INVALID_HANDLE;
 }
 
 - (MEGAHandleList *)sessionsPeerId {
