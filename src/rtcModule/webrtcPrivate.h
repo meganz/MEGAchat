@@ -399,6 +399,7 @@ protected:
     RtcModule &mManager;
     std::map<karere::Id, megaHandle> mRetryCallTimers;
     std::string mVideoDeviceSelected;
+    int mTurnServerDnsRequest = 0;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
@@ -414,6 +415,9 @@ protected:
 
     void removeCallRetry(karere::Id chatid, bool retry = true);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
+
+    karere::StaticProvider getTurnServerProvider(std::string ip1, std::string ip2);
+
     friend class Call;
     friend class Session;
 public:

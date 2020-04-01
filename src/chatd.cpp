@@ -673,6 +673,8 @@ void Connection::setState(State state)
             cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
             mConnectTimer = 0;
         }
+
+        mChatdClient.mKarereClient->rtc->refreshTurnServerIp();
     }
 }
 
