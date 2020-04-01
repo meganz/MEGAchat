@@ -674,7 +674,12 @@ void Connection::setState(State state)
             mConnectTimer = 0;
         }
 
-        mChatdClient.mKarereClient->rtc->refreshTurnServerIp();
+#ifndef KARERE_DISABLE_WEBRTC
+        if (mChatdClient.mKarereClient->rtc)
+        {
+            mChatdClient.mKarereClient->rtc->refreshTurnServerIp();
+        }
+#endif
     }
 }
 
