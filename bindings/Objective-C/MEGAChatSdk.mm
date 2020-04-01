@@ -1214,8 +1214,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (NSInteger)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
-    return self.megaChatApi->loadAttachments(chatId, (int)count);
+- (MEGAChatSource)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
+    return MEGAChatSource(self.megaChatApi->loadAttachments(chatId, (int)count));
 }
 
 @end
