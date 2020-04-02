@@ -74,7 +74,7 @@ WebsocketsClient::~WebsocketsClient()
     ctx = NULL;
 }
 
-bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void (int, std::vector<std::string>&, std::vector<std::string>&)> f)
+bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void (int, const std::vector<std::string>&, const std::vector<std::string>&)> f)
 {
     return websocketIO->wsResolveDNS(hostname, f);
 }
@@ -93,6 +93,7 @@ bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, cons
     if (ctx)
     {
         WEBSOCKETS_LOG_ERROR("Valid context at connect()");
+        websocketIO->mApi.sdk.sendEvent(99010, "A valid previous context existed upon new wsConnect");
         delete ctx;
     }
 

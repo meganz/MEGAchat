@@ -2323,6 +2323,35 @@ public:
     int init(const char *sid);
 
     /**
+     * @brief Initializes karere in Lean Mode
+     *
+     * In Lean Mode, the app may skip the fetchnodes steps and call MegaChatApi::connect directly
+     * after login. MEGAchat will not wait for the completion of fetchnodes. It will resume the cached
+     * state from persistent storage.
+     *
+     * @note This mode is required by iOS Notification service extension. The extension restricts the
+     * amount of memory used by the app. In order to avoid OOM errors, the iOS app may use this mode
+     * to skip the fetchnodes and, consequently, save some bytes by not loading all the nodes of the
+     * account in memory.
+     *
+     * If a session id is provided, karere will try to resume the session from its cache and will
+     * return MegaChatApi::INIT_OFFLINE_SESSION. Since a fetchnodes is not requires for this mode,
+     * the app should not expect a transition to MegaChatApi::INIT_ONLINE_SESION.
+     *
+     * If no session is provided, or if it is provided but the correspoding cache is not available,
+     * it will return MegaChatApi::INIT_ERROR. No Lean Mode will be available in that case.
+     *
+     * The initialization status is notified via `MegaChatListener::onChatInitStateUpdate`. See
+     * the documentation of the callback for possible values.
+     *
+     * This function should be called before MegaApi::login.
+     *
+     * @param sid Session id that wants to be resumed.
+     * @return The initialization state
+     */
+    int initLeanMode(const char *sid);
+
+    /**
      * @brief Reset the Client Id for chatd
      *
      * When the app is running and another instance is launched i.e (share-extension in iOS),
@@ -4354,11 +4383,12 @@ public:
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
-     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
-     * called without being already connected to chatd.
-     *
-     * The request will fail with MegaChatError::ERROR_ACCESS when the chatroom is
-     * in preview mode.
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     *  - if groupchatroom has no participants
+     *  - if peer of a 1on1 chatroom it's a non visible contact
+     *  - if this function is called without being already connected to chatd.
+     *  - if the chatroom is in preview mode.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it.
@@ -5473,6 +5503,12 @@ public:
      * @return True if the chat is archived, false otherwise.
      */
     virtual bool isArchived() const;
+
+    /**
+     * @brief Returns the creation timestamp of the chat.
+     * @return The creation timestamp of the chat.
+     */
+    virtual int64_t getCreationTs() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;

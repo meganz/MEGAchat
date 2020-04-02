@@ -307,6 +307,11 @@ int MegaChatApi::init(const char *sid)
     return pImpl->init(sid);
 }
 
+int MegaChatApi::initLeanMode(const char *sid)
+{
+    return pImpl->init(sid, false);
+}
+
 void MegaChatApi::resetClientid()
 {
    pImpl->resetClientid();
@@ -1352,6 +1357,11 @@ bool MegaChatRoom::isActive() const
 bool MegaChatRoom::isArchived() const
 {
     return false;
+}
+
+int64_t MegaChatRoom::getCreationTs() const
+{
+    return 0;
 }
 
 MegaChatPeerList * MegaChatPeerList::createInstance()

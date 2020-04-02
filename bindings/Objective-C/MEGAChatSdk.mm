@@ -73,6 +73,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->init((sid != nil) ? [sid UTF8String] : NULL);
 }
 
+- (MEGAChatInit)initKarereLeanModeWithSid:(NSString *)sid {
+    return (MEGAChatInit) self.megaChatApi->initLeanMode((sid != nil) ? [sid UTF8String] : NULL);
+}
+
 - (MEGAChatInit)initAnonymous {
     return (MEGAChatInit) self.megaChatApi->initAnonymous();
 }
@@ -1210,8 +1214,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (NSInteger)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
-    return self.megaChatApi->loadAttachments(chatId, (int)count);
+- (MEGAChatSource)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
+    return MEGAChatSource(self.megaChatApi->loadAttachments(chatId, (int)count));
 }
 
 @end

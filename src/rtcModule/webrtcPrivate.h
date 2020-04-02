@@ -100,6 +100,10 @@ protected:
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     bool mPeerSupportRenegotiation = false;
     bool mRenegotiationInProgress = false;
+    unsigned int mIceDisconnections = 0;
+    time_t mIceDisconnectionTs = 0;
+    megaHandle mMediaRecoveryTimer = 0;
+    time_t mMaxIceDisconnectedTime = 0;
     megaHandle mStreamRenegotiationTimer = 0;
     time_t mTsSdpHandshakeCompleted = 0;
     void setState(uint8_t state);
@@ -128,6 +132,9 @@ protected:
     promise::Promise<void> setRemoteAnswerSdp(RtMessage& packet);
     void setOnHold(bool onHold);
     void sendAVFlags() const;
+    void handleIceConnectionRecovered();
+    void handleIceDisconnected();
+    void cancelIceDisconnectionTimer();
 
 public:
     RtcModule& mManager;
@@ -139,6 +146,7 @@ public:
     void manageNetworkQuality(stats::Sample* sample);
     void createRtcConn();
     promise::Promise<void> processSdpOfferSendAnswer();
+    void forceDestroy();
     //PeerConnection events
     void onAddStream(artc::tspMediaStream stream);
     void onRemoveStream(artc::tspMediaStream stream);
@@ -155,6 +163,19 @@ public:
     static bool isTermRetriable(TermCode reason);
     friend class Call;
     friend class stats::Recorder; //needs access to mRtcConn
+};
+
+class SessionReconnectInfo
+{
+public:
+    karere::Id getOldSid() const;
+    unsigned int getReconnections() const;
+    void setOldSid(const karere::Id& oldSid);
+    void setReconnections(unsigned int reconnections);
+
+protected:
+    karere::Id mOldSid;
+    unsigned int mReconnections = 0;
 };
 
 class Call: public ICall
@@ -205,6 +226,7 @@ protected:
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::map<chatd::EndpointId, int> mIceFails;
     std::map<chatd::EndpointId, Session::SessionInfo> mSessionsInfo;
+    std::map<chatd::EndpointId, SessionReconnectInfo> mSessionsReconnectionInfo;
     std::string mName;
     megaHandle mCallOutTimer = 0;
     bool mCallStartingSignalled = false;
@@ -252,6 +274,7 @@ protected:
     void asyncDestroy(TermCode code, bool weTerminate);
     promise::Promise<void> gracefullyTerminateAllSessions(TermCode code);
     promise::Promise<void> waitAllSessionsTerminated(TermCode code, const std::string& msg="");
+    promise::Promise<void> terminateAllSessionInmediately(TermCode code);
     bool startOrJoin(karere::AvFlags av);
     template <class... Args>
     bool cmd(uint8_t type, karere::Id userid, uint32_t clientid, Args... args);
@@ -309,7 +332,8 @@ public:
         kRetryCallTimeout = 30000,
         kSessFinishTimeout = 1000,
         kStreamRenegotiationTimeout = 10000,
-        kIceTimeout = 18000
+        kIceTimeout = 18000,
+        kMediaConnRecoveryTimeout = 15000,
     };
 
     enum Resolution

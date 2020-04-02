@@ -857,12 +857,18 @@ void Client::setInitState(InitState newState)
     app.onInitStateChange(mInitState);
 }
 
-Client::InitState Client::init(const char* sid)
+Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 {
     if (mInitState > kInitCreated)
     {
         KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
         return kInitErrAlready;
+    }
+
+    if (!waitForFetchnodesToConnect && !sid)
+    {
+        KR_LOG_ERROR("init: sid required to initialize in Lean Mode");
+        return kInitErrGeneric;
     }
 
     mInitStats.stageStart(InitStats::kStatsInit);
@@ -878,12 +884,26 @@ Client::InitState Client::init(const char* sid)
     }
     else
     {
+        assert(waitForFetchnodesToConnect);
         setInitState(kInitWaitingNewSession);
+    }
+
+    if (!waitForFetchnodesToConnect)
+    {
+        if (mInitState != kInitHasOfflineSession)
+        {
+            KR_LOG_ERROR("init: failed to initialize Lean Mode. Current state: %s", initStateStr());
+            return kInitErrGeneric;
+        }
+
+        mSessionReadyPromise.resolve();
+        mInitStats.onCanceled();    // do not collect stats for this initialization mode
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
     api.sdk.addRequestListener(this);
+
     return mInitState;
 }
 
@@ -930,7 +950,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
         bool loggedOut = ((errorCode == ::mega::MegaError::API_OK || errorCode == ::mega::MegaError::API_ESID)
-                          && request->getFlag());    // SDK has been logged out normally closing session
+                          && (request->getFlag() || request->getParamType() == ::mega::MegaError::API_EBLOCKED));
 
         bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
         if (loggedOut)
@@ -1506,7 +1526,9 @@ void Client::terminate(bool deleteDb)
 {
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
-        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    {
+            rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    }
 #endif
 
     setInitState(kInitTerminated);
@@ -3733,21 +3755,24 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         //if lastname is not null the first byte will contain the
         //firstname-size-prefix but datasize will be bigger than 1 byte.
 
-        // If the contact has alias don't update the title
+        // If fullname received is valid
         auto self = static_cast<Contact*>(userp);
         std::string alias = self->mClist.client.getUserAlias(self->userId());
-        if (alias.empty())
+        if (data && !data->empty() && *data->buf() != 0 && data->size() != 1)
         {
-            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
+            // Update contact name
+            std::string name(data->buf(), data->dataSize());
+            self->setContactName(name.substr(1));
+            if (alias.empty())
             {
-                self->updateTitle(encodeFirstName(self->mEmail));
-            }
-            else
-            {
-                std::string name(data->buf(), data->dataSize());
-                self->setContactName(name.substr(1));
+                // Update title if there's no alias
                 self->updateTitle(name);
             }
+        }
+        else if (alias.empty())
+        {
+            // If there's no alias nor fullname
+            self->updateTitle(encodeFirstName(self->mEmail));
         }
     });
 
@@ -3769,7 +3794,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             std::string contactName = self->getContactName();
             if (alias.empty() && contactName.empty())
             {
-                self->updateTitle(self->mEmail);
+                self->updateTitle(encodeFirstName(self->mEmail));
             }
         }
     });
@@ -3967,8 +3992,26 @@ void Client::updateAliases(Buffer *data)
         }
     }
 
+    // Update those contact's titles without a peer chatroom associated
+    for (auto &userid : aliasesUpdated)
+    {
+        Contact *contact =  mContactList->contactFromUserId(userid);
+        if (contact && !contact->chatRoom())
+        {
+            std::string title = getUserAlias(userid);
+            if (title.empty())
+            {
+                title = !contact->getContactName().empty()
+                    ? contact->getContactName()
+                    : contact->email();
+            }
+
+            // Contact title has a binary layout
+            contact->updateTitle(encodeFirstName(title));
+        }
+    }
+
     // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
-    for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
     for (auto &itChats : *chats)
     {
         ChatRoom *chatroom = itChats.second;
