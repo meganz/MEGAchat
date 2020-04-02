@@ -386,6 +386,13 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     {
         mChatdClient->retryPendingConnections(disconnect, refreshURL);
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        rtc->refreshTurnServerIp();
+    }
+#endif
 }
 
 promise::Promise<void> Client::notifyUserStatus(bool background)
