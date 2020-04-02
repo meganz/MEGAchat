@@ -132,7 +132,12 @@ using namespace megachat;
     if ([self hasChanged:MEGAChatSessionChangeOperative]) {
         changes = [changes stringByAppendingString:@" | OPERATIVE"];
     }
-    return [changes substringFromIndex:3];
+    
+    if ([changes isEqualToString:@""]) {
+        return @"CHANGES NOT MANAGED";
+    } else {
+        return [changes substringFromIndex:3];
+    }
 }
 
 @end
