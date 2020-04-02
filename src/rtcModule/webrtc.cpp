@@ -3214,6 +3214,14 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
         mCall.notifySessionConnected(*this);
+
+        // Compabilit with old clients notify avFlags
+        if (mCall.mLocalFlags.onHold())
+        {
+            AvFlags av = mCall.mLocalStream ? mCall.mLocalStream->effectiveAv() : AvFlags(0);
+            av.setOnHold(mCall.mLocalFlags.onHold());
+            sendAv(av);
+        }
     }
 }
 
