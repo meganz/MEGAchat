@@ -2966,7 +2966,7 @@ void Session::createRtcConn()
         if (mCall.sentAv().video())
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoInterface =
-                    artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()),  mCall.mLocalStream->video()->GetSource());
+                    artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mCall.mLocalStream->video()->GetSource());
             webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(videoInterface, vector);
 
             if (!error.ok())
@@ -2980,7 +2980,7 @@ void Session::createRtcConn()
         }
 
         rtc::scoped_refptr<webrtc::AudioTrackInterface> audioInterface =
-                artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()),  mCall.mLocalStream->audio()->GetSource());
+                artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), mCall.mLocalStream->audio()->GetSource());
         webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(audioInterface, vector);
         if (!error.ok())
         {
