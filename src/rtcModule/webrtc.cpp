@@ -2979,7 +2979,8 @@ void Session::createRtcConn()
             mVideoSender = error.MoveValue();
         }
 
-        rtc::scoped_refptr<webrtc::AudioTrackInterface> audioInterface = mCall.mLocalStream->audio();
+        rtc::scoped_refptr<webrtc::AudioTrackInterface> audioInterface =
+                artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()),  mCall.mLocalStream->audio()->GetSource());
         webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(audioInterface, vector);
         if (!error.ok())
         {
