@@ -177,6 +177,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (NSString *)contacEmailByHandle:(uint64_t)userHandle;
 - (uint64_t)userHandleByEmail:(NSString *)email;
 
+- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles authorizationToken:(NSString *)authorizationToken delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles authorizationToken:(NSString *)authorizationToken;
+
 #pragma mark - Chat management
 
 - (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers delegate:(id<MEGAChatRequestDelegate>)delegate;
