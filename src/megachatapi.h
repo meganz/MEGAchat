@@ -4525,6 +4525,7 @@ public:
      * - MegaChatRequest::getFlag - Returns true (set on hold) false (unset on hold)
      *
      * @param chatid MegaChatHandle that identifies the chat room
+     * @param setOnHold indicates if call is set or unset on hold
      * @param listener MegaChatRequestListener to track this request
      */
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
