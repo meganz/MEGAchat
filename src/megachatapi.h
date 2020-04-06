@@ -2228,10 +2228,15 @@ public:
      *
      * This method allows to import messages from an external cache. The cache should be a copy
      * of the app's cache, but may include new messages that wants to be imported into the app's
-     * cache in one shot.
+     * cache in one shot. In case the history has been truncated, this method applies truncation.
      *
      * @note This mode is required by iOS Notification Service Extension (NSE). The extension runs
      * separately from iOS app, with its independent cache.
+     *
+     * @note This method should be called after \c MegaChatApi::init, when the initialization state
+     * is MegaChatApi::INIT_OFFLINE_SESSION or MegaChatApi::INIT_ONLINE_SESSION.
+     *
+     * @return Number of messages imported successfully, or a negative number in case of error.
      */
     int importMessages(const char *externalDbPath);
 

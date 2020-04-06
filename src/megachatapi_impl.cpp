@@ -1914,7 +1914,17 @@ int MegaChatApiImpl::getInitState()
 int MegaChatApiImpl::importMessages(const char *externalDbPath)
 {
     SdkMutexGuard g(sdkMutex);
-    return mClient->importMessages(externalDbPath);
+    if (mClient
+            && (mClient->initState() == karere::Client::kInitHasOfflineSession
+                || mClient->initState() == karere::Client::kInitHasOnlineSession))
+    {
+        return mClient->importMessages(externalDbPath);
+    }
+    else
+    {
+        API_LOG_WARNING("importMessages: client not properly initialized");
+        return -1;
+    }
 }
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
