@@ -40,4 +40,16 @@ class DelegateMegaChatCallListener extends MegaChatCallListener{
             });
         }
     }
+
+    @Override
+    public void onChatSessionUpdate(MegaChatApi api, long chatid, long callid, MegaChatSession session) {
+        if (listener != null) {
+            final MegaChatSession megaChatSession = session.copy();
+            megaChatApi.runCallback(new Runnable() {
+                public void run() {
+                    listener.onChatSessionUpdate(megaChatApi, chatid, callid, megaChatSession);
+                }
+            });
+        }
+    }
 }

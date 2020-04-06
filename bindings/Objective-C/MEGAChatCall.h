@@ -43,19 +43,20 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeNoChages = 0x00,
     MEGAChatCallChangeTypeStatus = 0x01,
     MEGAChatCallChangeTypeLocalAVFlags = 0x02,
-    MEGAChatCallChangeTypeRemoteAVFlags = 0x04,
-    MEGAChatCallChangeTypeTemporaryError = 0x08,
-    MEGAChatCallChangeTypeRingingStatus = 0x10,
-    MEGAChatCallChangeTypeSessionStatus = 0x20,
-    MEGAChatCallChangeTypeCallComposition = 0x40,
-    MEGAChatCallChangeTypeNetworkQuality = 0x80,
-    MEGAChatCallChangeTypeAudioLevel = 0x100
+    MEGAChatCallChangeTypeRingingStatus = 0x04,
+    MEGAChatCallChangeTypeCallComposition = 0x08,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
     MEGAChatCallConfigurationWithAudio = 0,
     MEGAChatCallConfigurationWithVideo = 1,
     MEGAChatCallConfigurationAnyFlag = 2,
+};
+
+typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
+    MEGAChatCallCompositionChangePeerRemoved = -1,
+    MEGAChatCallCompositionChangeNoChange = 0,
+    MEGAChatCallCompositionChangePeerAdded = 1,
 };
 
 @interface MEGAChatCall : NSObject
@@ -67,7 +68,6 @@ typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
 @property (nonatomic, readonly) int64_t duration;
 @property (nonatomic, readonly) int64_t initialTimeStamp;
 @property (nonatomic, readonly) int64_t finalTimeStamp;
-@property (nonatomic, readonly) NSString *temporaryError;
 @property (nonatomic, readonly, getter=hasLocalAudio) BOOL localAudio;
 @property (nonatomic, readonly, getter=hasLocalVideo) BOOL localVideo;
 @property (nonatomic, readonly, getter=hasAudioInitialCall) BOOL audioInitialCall;
@@ -75,8 +75,9 @@ typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
 @property (nonatomic, readonly) MEGAChatCallTermCode termCode;
 @property (nonatomic, readonly, getter=isLocalTermCode) BOOL localTermCode;
 @property (nonatomic, readonly, getter=isRinging) BOOL ringing;
-@property (nonatomic, readonly) uint64_t peerSessionStatusChange;
-@property (nonatomic, readonly) uint64_t clientSessionStatusChange;
+@property (nonatomic, readonly) uint64_t peeridCallCompositionChange;
+@property (nonatomic, readonly) uint64_t clientidCallCompositionChange;
+@property (nonatomic, readonly) uint64_t callCompositionChange;
 
 @property (nonatomic, readonly) NSInteger numParticipants;
 @property (nonatomic, readonly) MEGAHandleList *sessionsPeerId;
@@ -93,5 +94,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
 - (MEGAChatSession *)sessionForPeer:(uint64_t)peerId clientId:(uint64_t)clientId;
 
 - (instancetype)clone;
+
++ (NSString *)stringForTermCode:(MEGAChatCallTermCode)termCode;
 
 @end
