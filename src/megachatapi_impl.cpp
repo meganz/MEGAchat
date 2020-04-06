@@ -7405,7 +7405,7 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
-    if (mRoom.publicChat() && mRoom.chat().onlineState() == chatd::ChatState::kChatStateOnline)
+    if (!mRoom.publicChat() || mRoom.chat().onlineState() == chatd::ChatState::kChatStateOnline)
     {
         MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
         if (userid == chatApi.getMyUserHandle())
