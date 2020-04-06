@@ -73,6 +73,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->init((sid != nil) ? [sid UTF8String] : NULL);
 }
 
+- (MEGAChatInit)initKarereLeanModeWithSid:(NSString *)sid {
+    return (MEGAChatInit) self.megaChatApi->initLeanMode((sid != nil) ? [sid UTF8String] : NULL);
+}
+
 - (MEGAChatInit)initAnonymous {
     return (MEGAChatInit) self.megaChatApi->initAnonymous();
 }
@@ -479,7 +483,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId {
-    return [[MEGAChatRoom alloc] initWithMegaChatRoom:self.megaChatApi->getChatRoom(chatId) cMemoryOwn:YES];
+    MegaChatRoom *chatRoom = self.megaChatApi->getChatRoom(chatId);
+    return chatRoom ? [[MEGAChatRoom alloc] initWithMegaChatRoom:chatRoom cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatRoom *)chatRoomByUser:(uint64_t)userHandle {
@@ -881,19 +886,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-- (MEGAStringList *)chatAudioInDevices {
-    return self.megaChatApi ? [[MEGAStringList alloc] initWithMegaStringList:self.megaChatApi->getChatAudioInDevices() cMemoryOwn:YES] : nil;
-}
-
 - (MEGAStringList *)chatVideoInDevices {
     return self.megaChatApi ? [[MEGAStringList alloc] initWithMegaStringList:self.megaChatApi->getChatVideoInDevices() cMemoryOwn:YES] : nil;
 }
 
-- (BOOL)setChatAudioInDevices:(NSString *)devices {
-    return self.megaChatApi->setChatAudioInDevice(devices ? [devices UTF8String] : NULL);
-}
-
-- (BOOL)setChatVideoInDevices:(NSString *)devices {
+- (void)setChatVideoInDevices:(NSString *)devices {
     return self.megaChatApi->setChatVideoInDevice(devices ? [devices UTF8String] : NULL);
 }
 
@@ -984,7 +981,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAHandleList *)chatCallsWithState:(MEGAChatCallStatus)callState {
-    return self.megaChatApi ? [MEGAHandleList.alloc initWithMegaHandleList:self.megaChatApi->getChatCalls(callState) cMemoryOwn:YES] : nil;
+    return self.megaChatApi ? [MEGAHandleList.alloc initWithMegaHandleList:self.megaChatApi->getChatCalls((int)callState) cMemoryOwn:YES] : nil;
 }
 
 - (MEGAHandleList *)chatCallsIds {
@@ -1217,8 +1214,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (NSInteger)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
-    return self.megaChatApi->loadAttachments(chatId, (int)count);
+- (MEGAChatSource)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
+    return MEGAChatSource(self.megaChatApi->loadAttachments(chatId, (int)count));
 }
 
 @end

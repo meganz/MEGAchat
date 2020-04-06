@@ -187,7 +187,10 @@ void CallGui::onMuteCam(bool checked)
             mChatWindow->mMegaChatApi->enableVideo(mChatWindow->mChatRoom->getChatId());
             ui->videoRenderer->disableStaticImage();
         }
+
+        mVideo = !checked;
    }
+
 }
 
 void CallGui::onDestroy(rtcModule::TermCode code, bool byPeer, const std::string& text)
@@ -274,7 +277,3 @@ void CallGui::onRemoteStreamAdded(rtcModule::IVideoRenderer*& rendererRet)
     rendererRet = ui->videoRenderer;
 }
 
-void CallGui::onLocalMediaError(const std::string err)
-{
-    KR_LOG_ERROR("=============LocalMediaFail: %s", err.c_str());
-}

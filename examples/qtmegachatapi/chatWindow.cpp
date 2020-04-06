@@ -1273,7 +1273,7 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
     }
     else
     {
-        mMegaApi->startUpload(node.toStdString().c_str(), parent);
+        mMegaApi->startUploadForChat(node.toStdString().c_str(), parent, nullptr, false);
     }
 
     delete parent;

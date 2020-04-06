@@ -8,6 +8,15 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionStatus) {
     MEGAChatSessionStatusDestroyed
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatSessionChange) {
+    MEGAChatSessionChangeNoChanges = 0x00,
+    MEGAChatSessionChangeStatus = 0x01,
+    MEGAChatSessionChangeRemoteAvFlags = 0x02,
+    MEGAChatSessionChangeNetworkQuality = 0x04,
+    MEGAChatSessionChangeAudioLevel = 0x08,
+    MEGAChatSessionChangeOperative = 0x10,
+};
+
 @interface MEGAChatSession : NSObject
 
 @property (nonatomic, readonly) MEGAChatSessionStatus status;
@@ -19,5 +28,10 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionStatus) {
 @property (nonatomic, readonly) uint64_t clientId;
 @property (nonatomic, readonly) BOOL audioDetected;
 @property (nonatomic, readonly) NSInteger networkQuality;
+@property (nonatomic, readonly) NSInteger termCode;
+@property (nonatomic, readonly) BOOL isLocalTermCode;
+@property (nonatomic, readonly) NSInteger changes;
+
+- (BOOL)hasChanged:(MEGAChatSessionChange)change;
 
 @end

@@ -421,6 +421,7 @@ protected:
     Connection(Client& chatdClient, int shardNo);
 
     Client& mChatdClient;
+    DNScache &mDnsCache;
 
     /** Shard number for which the Connection is configured */
     int mShardNo;
@@ -436,12 +437,6 @@ protected:
 
     /** When enabled, hearbeat() method is called periodically */
     bool mHeartbeatEnabled = false;
-
-    /** URL retrieved from API to establish the connection */
-    karere::Url mUrl;
-
-    /** DNS cache to store resolved IPs */
-    DNScache &mDNScache;
 
     /** Target IP address being used for the reconnection in-flight */
     std::string mTargetIp;
@@ -507,6 +502,9 @@ public:
 
     int shardNo() const;
     promise::Promise<void> sendSync();
+
+    promise::Promise<void> connect();
+    promise::Promise<void> fetchUrl();
 };
 
 enum ServerHistFetchState
@@ -969,7 +967,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect(const char *url = NULL);
+    void connect();
 
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
@@ -1471,7 +1469,7 @@ public:
     /** @brief Joins the specifed chatroom on the specified shard, using the specified url, and
      * associates the specified Listener and ICrypto instances with the newly created Chat object.
      */
-    Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
+    Chat& createChat(karere::Id chatid, int shardNo,
     Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
 
     /** @brief Leaves the specified chatroom */

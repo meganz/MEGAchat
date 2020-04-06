@@ -145,7 +145,7 @@ class MainWindow :
         void setNContacts(int nContacts);
         void createSettingsMenu();
         void createFactorMenu(bool factorEnabled);
-        void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
+        void updateContactTitle(megachat::MegaChatHandle contactHandle, const char *title);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         void updateToolTipMyInfo();
         void removeListeners();
@@ -163,6 +163,7 @@ class MainWindow :
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
+        void onChatSessionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatHandle callid, megachat::MegaChatSession *session);
 #endif
         MegaChatApplication* getApp() const;
 

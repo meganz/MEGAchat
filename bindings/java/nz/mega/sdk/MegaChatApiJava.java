@@ -6,9 +6,21 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import mega.privacy.android.app.MegaApplication;
+import mega.privacy.android.app.utils.VideoCaptureUtils;
+
 public class MegaChatApiJava {
     MegaChatApi megaChatApi;
     static DelegateMegaChatLogger logger;
+
+    /**
+     * MEGACHAT_INVALID_HANDLE Invalid value for a handle
+     *
+     * This value is used to represent an invalid handle. Several MEGA objects can have
+     * a handle but it will never be MEGACHAT_INVALID_HANDLE.
+     */
+    public final static long MEGACHAT_INVALID_HANDLE = ~(long)0;
+    public final static int MEGACHAT_INVALID_INDEX = 0x7fffffff;
 
     // Error information but application will continue run.
     public final static int LOG_LEVEL_ERROR = MegaChatApi.LOG_LEVEL_ERROR;
@@ -41,6 +53,105 @@ public class MegaChatApiJava {
      */
     public MegaChatApiJava(MegaApiJava megaApi){
         megaChatApi = new MegaChatApi(megaApi.getMegaApi());
+    }
+
+    /**
+     * Adds a reaction for a message in a chatroom
+     *
+     * The reactions updates will be notified one by one through the MegaChatRoomListener
+     * specified at MegaChatApi::openChatRoom (and through any other listener you may have
+     * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
+     * is MegaChatRoomListener::onReactionUpdate.
+     *
+     * You take the ownership of the returned value.
+     *
+     * Possible error codes associated to MegaChatError can be:
+     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
+     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     * - MegaChatError::API_EEXIST: if our own user has reacted previously with this reaction
+     * for this message
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
+     *
+     * @return returns MegaChatError with an error code associated.
+     */
+    public MegaChatError addReaction(long chatid, long msgid, String reaction) {
+        return megaChatApi.addReaction(chatid, msgid, reaction);
+    }
+
+    /**
+     * Removes a reaction for a message in a chatroom
+     *
+     * The reactions updates will be notified one by one through the MegaChatRoomListener
+     * specified at MegaChatApi::openChatRoom (and through any other listener you may have
+     * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
+     * is MegaChatRoomListener::onReactionUpdate.
+     *
+     * You take the ownership of the returned value.
+     *
+     * Possible error codes associated to MegaChatError can be:
+     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists, or if your own user has
+     * not reacted to the message with the specified reaction.
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
+     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL-terminated string that represents the reaction
+     *
+     * @return returns MegaChatError with an error code associated.
+     */
+    public MegaChatError delReaction(long chatid, long msgid, String reaction) {
+        return megaChatApi.delReaction(chatid, msgid, reaction);
+    }
+
+    /**
+     * Returns the number of users that reacted to a message with a specific reaction
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     *
+     * @return return the number of users that reacted to a message with a specific reaction,
+     * or -1 if the chatroom or message is not found.
+     */
+    public int getMessageReactionCount(long chatid, long msgid, String reaction) {
+        return megaChatApi.getMessageReactionCount(chatid, msgid, reaction);
+    }
+
+    /**
+     * Gets a list of reactions associated to a message
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @return return a list with the reactions associated to a message.
+     */
+    public MegaStringList getMessageReactions(long chatid, long msgid) {
+        return megaChatApi.getMessageReactions(chatid, msgid);
+    }
+
+    /**
+     * Gets a list of users that reacted to a message with a specific reaction
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chatroom
+     * @param msgid MegaChatHandle that identifies the message
+     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     *
+     * @return return a list with the users that reacted to a message with a specific reaction.
+     */
+    public MegaHandleList getReactionUsers(long chatid, long msgid, String reaction) {
+        return megaChatApi.getReactionUsers(chatid, msgid, reaction);
     }
 
     public void addChatRequestListener(MegaChatRequestListenerInterface listener)
@@ -1750,6 +1861,8 @@ public class MegaChatApiJava {
             DelegateMegaChatRoomListener item = itr.next();
             if(item.getUserListener() == listener){
                 listenerToDelete = item;
+                boolean success = listenerToDelete.invalidateUserListener();
+                assert success; // failed if listener was already invalidated
                 itr.remove();
                 break;
             }
@@ -2418,6 +2531,34 @@ public class MegaChatApiJava {
         megaChatApi.pushReceived(beep, chatid, createDelegateRequestListener(listener));
     }
 
+
+    /**
+     * Select the video device to be used in calls
+     *
+     * Video device identifiers are obtained with function MegaChatApi::getChatVideoInDevices
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getText - Returns the device
+     *
+     * @param device Identifier of device to be selected
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void setChatVideoInDevice(String device, MegaChatRequestListenerInterface listener) {
+        megaChatApi.setChatVideoInDevice(device, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the video selected device name
+     *
+     * You take the ownership of the returned value
+     *
+     * @return Device selected name
+     */
+    public String getVideoDeviceSelected() {
+        return megaChatApi.getVideoDeviceSelected();
+    }
+
     // Call management
     /**
      * Start a call in a chat room
@@ -2427,7 +2568,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
-     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -2438,6 +2579,12 @@ public class MegaChatApiJava {
      */
     public void startChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
     {
+        // Always try to start the call using the front camera
+        String frontCamera = VideoCaptureUtils.getFrontCamera();
+        if (frontCamera != null) {
+            megaChatApi.setChatVideoInDevice(frontCamera, null);
+        }
+
         megaChatApi.startChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
     }
 
@@ -2449,7 +2596,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
-     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -2460,6 +2607,12 @@ public class MegaChatApiJava {
      */
     public void answerChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
     {
+        // Always try to start the call using the front camera
+        String frontCamera = VideoCaptureUtils.getFrontCamera();
+        if (frontCamera != null) {
+            megaChatApi.setChatVideoInDevice(frontCamera, null);
+        }
+
         megaChatApi.answerChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
     }
 

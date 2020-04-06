@@ -14,6 +14,7 @@ public:
     QTMegaChatCallListener(MegaChatApi *megaChatApi, MegaChatCallListener *parent = NULL);
     virtual ~QTMegaChatCallListener();
     virtual void onChatCallUpdate(MegaChatApi *api, MegaChatCall *call);
+    virtual void onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session);
 
 protected:
     virtual void customEvent(QEvent * event);

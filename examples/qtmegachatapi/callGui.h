@@ -47,7 +47,6 @@ class CallGui: public QWidget
         virtual void onRemoteStreamAdded(rtcModule::IVideoRenderer *&rendererRet);
         virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string &msg);
         virtual void onPeerMute(karere::AvFlags state, karere::AvFlags oldState);
-        virtual void onLocalMediaError(const std::string err);
         virtual void onVideoRecv();
         MegaChatHandle getPeerid();
         MegaChatHandle getClientid();

@@ -27,7 +27,6 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     onlineStatus = NULL;
     mShowArchived = false;
     mLogger = logger;
-    mChatSettings = new ChatSettings();
     qApp->installEventFilter(this);
 
     megaChatListenerDelegate = new QTMegaChatListener(mMegaChatApi, this);
@@ -41,7 +40,6 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
 MainWindow::~MainWindow()
 {
     removeListeners();
-    delete mChatSettings;
     delete mSettings;
     clearChatControllers();
     clearContactControllersMap();
@@ -209,6 +207,19 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                     window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
                 }
 
+                MegaHandleList* clientids = call->getClientidParticipants();
+                MegaHandleList* peerids = call->getPeeridParticipants();
+                for (unsigned int i = 0; i < peerids->size(); i++)
+                {
+                    if (peerids->get(i) != mMegaChatApi->getMyUserHandle() || mMegaChatApi->getMyClientidHandle(call->getChatid()) != clientids->get(i))
+                    {
+                        window->createCallGui(false, peerids->get(i), clientids->get(i));
+                    }
+                }
+
+                delete clientids;
+                delete peerids;
+
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
@@ -230,19 +241,41 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         }
     }
 
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS) &&
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION) &&
             call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+    {
+        if (call->getCallCompositionChange() == MegaChatCall::PEER_ADDED)
+        {
+            window->createCallGui(false, call->getPeeridCallCompositionChange(), call->getClientidCallCompositionChange());
+        }
+        else if (call->getCallCompositionChange() == MegaChatCall::PEER_REMOVED)
+        {
+            window->destroyCallGui(call->getPeeridCallCompositionChange(), call->getClientidCallCompositionChange());
+        }
+    }
+}
+
+void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)
+{
+    ChatListItemController *itemController = getChatControllerById(chatid);
+    if (!itemController)
+    {
+        throw std::runtime_error("Session notification in a call without associated item");
+    }
+
+    ChatWindow *window = itemController->showChatWindow();
+    assert(window);
+
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS) &&
+            session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
     {
         std::set<CallGui *> *setOfCallGui = window->getCallGui();
         std::set<CallGui *>::iterator it;
         for (it = setOfCallGui->begin(); it != setOfCallGui->end(); ++it)
         {
             CallGui *callGui = *it;
-            MegaChatHandle peerid = call->getPeerSessionStatusChange();
-            MegaChatHandle clientid = call->getClientidSessionStatusChange();
-            if (callGui->getPeerid() == peerid && callGui->getClientid() == clientid)
+            if (callGui->getPeerid() == session->getPeerid() && callGui->getClientid() == session->getClientid())
             {
-                MegaChatSession *session = call->getMegaChatSession(peerid, clientid);
                 if (session->hasVideo())
                 {
                     callGui->ui->videoRenderer->disableStaticImage();
@@ -258,27 +291,20 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
 
     //NEW SESSIONS
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SESSION_STATUS))
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
     {
-       MegaChatHandle peerid = call->getPeerSessionStatusChange();
-       MegaChatHandle clientid = call->getClientidSessionStatusChange();
-       MegaChatSession *session = call->getMegaChatSession(peerid, clientid);
        assert(session);
        switch (session->getStatus())
        {
            case MegaChatSession::SESSION_STATUS_IN_PROGRESS:
            {
-               window->createCallGui(call->hasVideoInitialCall(), peerid, clientid);
-               window->connectPeerCallGui(peerid, clientid);
+               window->connectPeerCallGui(session->getPeerid(), session->getClientid());
 
                break;
            }
-
-           case MegaChatSession::SESSION_STATUS_DESTROYED:
-               window->destroyCallGui(peerid, clientid);
-               break;
        }
     }
+
 }
 
 MegaChatApplication* MainWindow::getApp() const
@@ -364,7 +390,14 @@ void MainWindow::addOrUpdateContactControllersItems(MegaUserList *contactList)
             }
             else
             {
-                itemController->addOrUpdateItem(contact->copy());
+                MegaUser *auxContact = contact->copy();
+                itemController->addOrUpdateItem(auxContact);
+
+                ContactItemWidget *widget = itemController->getWidget();
+                if (widget)
+                {
+                    widget->updateToolTip(auxContact);
+                }
             }
         }
     }
@@ -650,7 +683,7 @@ void MainWindow::onWebRTCsetting()
 
 void MainWindow::createSettingsMenu()
 {
-    ChatSettingsDialog *chatSettings = new ChatSettingsDialog(this, mChatSettings);
+    ChatSettingsDialog *chatSettings = new ChatSettingsDialog(this);
     chatSettings->exec();
     chatSettings->deleteLater();
 }
@@ -798,7 +831,7 @@ ChatItemWidget *MainWindow::addQtChatWidget(const MegaChatListItem *chatListItem
     }
 
     ChatItemWidget *widget = new ChatItemWidget(this, chatListItem);
-    widget->updateToolTip(chatListItem, NULL);
+    widget->updateToolTip(chatListItem);
     QListWidgetItem *item = new QListWidgetItem();
     widget->setWidgetItem(item);
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
@@ -854,7 +887,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         //Last Message update
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_MSG))
         {
-            widget->updateToolTip(item, NULL);
+            widget->updateToolTip(item);
         }
 
         //Unread count update
@@ -872,13 +905,13 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         //Own priv update
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_OWN_PRIV))
         {
-            widget->updateToolTip(item, NULL);
+            widget->updateToolTip(item);
         }
 
         //Participants update
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS))
         {
-            widget->updateToolTip(item, NULL);
+            widget->updateToolTip(item);
         }
 
         if (item->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS))
@@ -1054,17 +1087,17 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
 
 void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhandle, int status, bool inProgress)
 {
-    if (status == megachat::MegaChatApi::STATUS_INVALID)
-    {
-        // If we don't receive our presence we'll skip all chats reorders
-        // when we are connected to all chats this flag will be set true
-        // and chatlist will be reordered
-        mAllowOrder = false;
-        status = 0;
-    }
-
     if (mMegaChatApi->getMyUserHandle() == userhandle)
     {
+        if (status == megachat::MegaChatApi::STATUS_INVALID)
+        {
+            // If we don't receive our presence we'll skip all chats reorders
+            // when we are connected to all chats this flag will be set true
+            // and chatlist will be reordered
+            mAllowOrder = false;
+            status = 0;
+        }
+
         ui->bOnlineStatus->setText(inProgress
             ? kOnlineSymbol_InProgress
             : kOnlineSymbol_Set);
@@ -1240,7 +1273,7 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
 }
 
 
-void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char *firstname)
+void MainWindow::updateContactTitle(MegaChatHandle contactHandle, const char *title)
 {
     std::map<mega::MegaHandle, ContactListItemController *>::iterator itContacts;
     itContacts = mContactControllers.find(contactHandle);
@@ -1248,7 +1281,7 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
     if (itContacts != mContactControllers.end())
     {
         ContactListItemController *itemController = itContacts->second;
-        itemController->getWidget()->updateName(firstname);
+        itemController->getWidget()->updateName(title);
     }
 }
 

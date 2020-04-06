@@ -83,7 +83,10 @@ enum: uint8_t
     RTCMD_SESS_TERMINATE = 10, // initiate termination of a session | <sessionId><termCode>
     RTCMD_SESS_TERMINATE_ACK = 11, // acknowledge the receipt of SESS_TERMINATE, so the sender can safely stop the stream and
     // it will not be detected as an error by the receiver
-    RTCMD_MUTE = 12 // Change audio-video call  <av>
+    RTCMD_MUTE = 12, // Change audio-video call  <av>
+    RTCMD_SDP_OFFER_RENEGOTIATE = 13, // SDP offer, generated after changing the local stream. Used to renegotiate the stream
+    RTCMD_SDP_ANSWER_RENEGOTIATE = 14, // SDP answer, resulting from SDP_OFFER_RENEGOTIATE
+    RTCMD_END_ICE_CANDIDATES = 15, // Marks the end of the sequence of sent ICE_CANDIDATE-s. Required for Edge support
 };
 enum TermCode: uint8_t
 {
@@ -100,7 +103,8 @@ enum TermCode: uint8_t
     kAppTerminating = 7,        // < The application is terminating
     kCallerGone = 8,
     kBusy = 9,                  // < Peer is in another call
-    kNotFinished = 10,          // < It is no finished value, it is TermCode value while call is in progress
+    kStreamChange = 10,         // < Session was force closed by a client because it wants to change the media stream
+    kNotFinished = 125,         // < It is no finished value, it is TermCode value while call is in progress
     kDestroyByCallCollision = 19,// < The call has finished by a call collision
     kNormalHangupLast = 20,     // < Last enum specifying a normal call termination
     kErrorFirst = 21,           // < First enum specifying call termination due to error
@@ -125,8 +129,10 @@ enum TermCode: uint8_t
     kErrCallSetupTimeout =  38, // < Timed out waiting for a connected session after the call was answered/joined
     kErrKickedFromChat = 39,    // < Call terminated because we were removed from the group chat
     kErrIceTimeout = 40,        // < Sesion setup timed out, because ICE stuck at the 'checking' stage
-    kErrorLast = 40,            // < Last enum indicating call termination due to error
-    kLast = 40,                 // < Last call terminate enum value
+    kErrStreamRenegotation = 41,// < SDP error during stream renegotiation
+    kErrStreamRenegotationTimeout = 42, // < Timed out waiting for completion of offer-answer exchange
+    kErrorLast = 42,            // < Last enum indicating call termination due to error
+    kLast = 42,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f
@@ -156,7 +162,14 @@ public:
     virtual void onRemoteStreamAdded(IVideoRenderer*& rendererOut) = 0;
     virtual void onRemoteStreamRemoved() = 0;
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv) = 0;
-    virtual void onVideoRecv() {}
+
+    /**
+     * @brief Notifies when the Stream has been added to the session
+     *
+     * This callback is received when the stream is added, so audio/video
+     * data is being received.
+     */
+    virtual void onDataRecv() {}
 
     /**
      * @brief Notifies about changes in network quality
@@ -202,7 +215,6 @@ public:
     virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
     virtual ISessionHandler* onNewSession(ISession& /*sess*/) { return nullptr; }
     virtual void onLocalStreamObtained(IVideoRenderer*& /*rendererOut*/) {}
-    virtual void onLocalMediaError(const std::string /*errors*/) {}
     virtual void onRingOut(karere::Id /*peer*/) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}
@@ -210,7 +222,7 @@ public:
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
     virtual int callParticipants() = 0;
     virtual bool isParticipating(karere::Id userid) = 0;
-    virtual void removeAllParticipants() = 0;
+    virtual void removeAllParticipants(bool exceptMe = false) = 0;
     virtual karere::Id getCallId() const = 0;
     virtual void setCallId(karere::Id callid) = 0;
     virtual rtcModule::ICall *getCall() = 0;
@@ -251,6 +263,7 @@ protected:
     karere::Id mPeerAnonId;
     uint32_t mPeerClient;
     karere::AvFlags mPeerAv;
+    TermCode mTermCode = TermCode::kInvalid;
     ISession(Call& call, karere::Id peer, uint32_t peerClient): mCall(call), mPeer(peer), mPeerClient(peerClient){}
 public:
     enum: uint8_t
@@ -259,7 +272,8 @@ public:
         kStateWaitSdpOffer,         // < Session just created, waiting for SDP offer from initiator
         kStateWaitLocalSdpAnswer,   // < Remote SDP offer has been set, and we are generating SDP answer
         kStateWaitSdpAnswer,        // < SDP offer has been sent by initiator, waiting for SDP answer
-        kStateInProgress,
+        kStateConnecting,           // < The SDP handshake has completed at this endpoint, and media connection is to be established
+        kStateInProgress,           // < Media connection established
         kStateTerminating,          // < Session is in terminate handshake
         kStateDestroyed             // < Session object is not valid anymore
     };
@@ -273,6 +287,7 @@ public:
     uint32_t peerClient() const { return mPeerClient; }
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
+    TermCode getTermCode() {return mTermCode;}
 };
 
 class ICall: public karere::WeakReferenceable<ICall>
@@ -388,7 +403,7 @@ public:
     virtual void getAudioInDevices(std::vector<std::string>& devices) const = 0;
 
     /** @brief Returns a list of all detected video input devices on the system */
-    virtual void getVideoInDevices(std::vector<std::string>& devices) const = 0;
+    virtual void getVideoInDevices(std::set<std::string>& devices) const = 0;
 
     /** @brief Selects a video input device to be used for subsequent calls. This can be
      * changed just before a call is made, to allow different calls to use different
@@ -406,12 +421,11 @@ public:
      */
     virtual bool selectAudioInDevice(const std::string& devname) = 0;
 
+    virtual std::string getVideoDeviceSelected() = 0;
     /**
      * @brief Search all audio and video devices at system at that moment.
      */
-    virtual void loadDeviceList() = 0;
-    virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
-    virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
+    virtual  std::set<std::pair<std::string, std::string>> loadDeviceList() const = 0;
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;
     virtual void removeCallWithoutParticipants(karere::Id chatid) = 0;
     virtual bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const = 0;

@@ -78,12 +78,32 @@ bool MegaChatSession::hasVideo() const
     return false;
 }
 
+int MegaChatSession::getTermCode() const
+{
+    return 0;
+}
+
+bool MegaChatSession::isLocalTermCode() const
+{
+    return false;
+}
+
 int MegaChatSession::getNetworkQuality() const
 {
     return 0;
 }
 
 bool MegaChatSession::getAudioDetected() const
+{
+    return false;
+}
+
+int MegaChatSession::getChanges() const
+{
+    return CHANGE_TYPE_NO_CHANGES;
+}
+
+bool MegaChatSession::hasChanged(int changeType) const
 {
     return false;
 }
@@ -157,11 +177,6 @@ int64_t MegaChatCall::getFinalTimeStamp() const
     return 0;
 }
 
-const char* MegaChatCall::getTemporaryError() const
-{
-    return NULL;
-}
-
 int MegaChatCall::getTermCode() const
 {
     return TERM_CODE_NOT_FINISHED;
@@ -192,14 +207,19 @@ MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle /*peerid*/, Meg
     return NULL;
 }
 
-MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
+MegaChatHandle MegaChatCall::getPeeridCallCompositionChange() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
 
-MegaChatHandle MegaChatCall::getClientidSessionStatusChange() const
+MegaChatHandle MegaChatCall::getClientidCallCompositionChange() const
 {
     return MEGACHAT_INVALID_HANDLE;
+}
+
+int MegaChatCall::getCallCompositionChange() const
+{
+    return NO_COMPOSITION_CHANGE;
 }
 
 MegaHandleList *MegaChatCall::getPeeridParticipants() const
@@ -275,6 +295,11 @@ void MegaChatApi::setLogToConsole(bool enable)
 int MegaChatApi::init(const char *sid)
 {
     return pImpl->init(sid);
+}
+
+int MegaChatApi::initLeanMode(const char *sid)
+{
+    return pImpl->init(sid, false);
 }
 
 void MegaChatApi::resetClientid()
@@ -784,24 +809,19 @@ void MegaChatApi::pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequest
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-MegaStringList *MegaChatApi::getChatAudioInDevices()
-{
-    return pImpl->getChatAudioInDevices();
-}
-
 MegaStringList *MegaChatApi::getChatVideoInDevices()
 {
     return pImpl->getChatVideoInDevices();
 }
 
-bool MegaChatApi::setChatAudioInDevice(const char *device)
+void MegaChatApi::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
 {
-    return pImpl->setChatAudioInDevice(device);
+    pImpl->setChatVideoInDevice(device, listener);
 }
 
-bool MegaChatApi::setChatVideoInDevice(const char *device)
+char *MegaChatApi::getVideoDeviceSelected()
 {
-    return pImpl->setChatVideoInDevice(device);
+    return pImpl->getVideoDeviceSelected();
 }
 
 void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
@@ -1324,6 +1344,11 @@ bool MegaChatRoom::isArchived() const
     return false;
 }
 
+int64_t MegaChatRoom::getCreationTs() const
+{
+    return 0;
+}
+
 MegaChatPeerList * MegaChatPeerList::createInstance()
 {
     return new MegaChatPeerListPrivate();
@@ -1371,6 +1396,11 @@ void MegaChatVideoListener::onChatVideoData(MegaChatApi * /*api*/, MegaChatHandl
 
 
 void MegaChatCallListener::onChatCallUpdate(MegaChatApi * /*api*/, MegaChatCall * /*call*/)
+{
+
+}
+
+void MegaChatCallListener::onChatSessionUpdate(MegaChatApi * /*api*/, MegaChatHandle /*chatid*/, MegaChatHandle /*callid*/, MegaChatSession * /*session*/)
 {
 
 }

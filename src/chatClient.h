@@ -73,7 +73,6 @@ public:
 protected:
     IApp::IChatHandler* mAppChatHandler = nullptr;
     uint64_t mChatid;
-    std::string mUrl;
     unsigned char mShardNo;
     bool mIsGroup;
     chatd::Priv mOwnPriv;
@@ -117,7 +116,7 @@ public:
     virtual bool hasTitle() const { return mHasTitle; }
 
     /** @brief Connects to the chatd chatroom */
-    virtual void connect(const char *url = NULL) = 0;
+    virtual void connect() = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
              unsigned char shard, chatd::Priv ownPriv, int64_t ts, bool isArchived,
@@ -140,10 +139,10 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
-    bool isCallActive() const;
+    /** @brief Returns the creation timestamp of the chatroom */
+    int64_t getCreationTs() const { return mCreationTs; }
 
-    /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
-    const std::string& url() const { return mUrl; }
+    bool isCallActive() const;
 
     /** @brief The chatd shart number for that chatroom */
     unsigned char shardNo() const { return mShardNo; }
@@ -251,14 +250,18 @@ protected:
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
-    virtual void connect(const char *url = NULL);
+    virtual void connect();
     UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
+
+    //Resume from cache
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
             chatd::Priv peerPriv, int64_t ts, bool aIsArchived);
+
+    //Create chat or receive an invitation
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
 
@@ -352,7 +355,7 @@ protected:
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void notifyPreviewClosed();
     void setRemoved();
-    virtual void connect(const char *url = NULL);
+    virtual void connect();
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
 
@@ -360,16 +363,20 @@ protected:
     friend class Member;
     friend class Client;
 
+    //Create chat or receive an invitation
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
 
+    //Resume from cache
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
 
+    //Load chatLink
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title,
-                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, std::string aUrl);
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey);
+
     ~GroupChatRoom();
 
 public:
@@ -470,13 +477,13 @@ protected:
     uint64_t mUserid;
     PeerChatRoom* mChatRoom;
     UserAttrCache::Handle mUsernameAttrCbId;
+    UserAttrCache::Handle mEmailAttrCbId;
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
     std::string mName;
     int mVisibility;
     bool mIsInitializing = true;
-    void updateTitle(const std::string& str);
     void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
@@ -528,6 +535,9 @@ public:
     /** @brief Set the full name of this contact */
     void setContactName(std::string name);
 
+    /** @brief Set the title of this contact */
+    void updateTitle(const std::string& str);
+
     /** @brief Returns the full name of this contact */
     std::string getContactName();
 };
@@ -538,8 +548,6 @@ public:
 class ContactList: public std::map<uint64_t, Contact*>
 {
     friend class Client;
-protected:
-    void removeUser(iterator it);
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
@@ -551,12 +559,8 @@ public:
     ContactList(Client& aClient);
     ~ContactList();
     void loadFromDb();
-    bool addUserFromApi(mega::MegaUser& user);
-    void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
-    promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
     const std::string* getUserEmail(uint64_t userid) const;
-    bool isExContact(karere::Id userid);
     /** @endcond */
 };
 
@@ -625,9 +629,12 @@ public:
 class InitStats
 {
     public:
-
-        /** @brief MEGAchat init stats version */
-        const uint32_t INITSTATSVERSION = 2;
+        /** @brief MEGAchat init stats version :
+         * - Version 1: Initial version
+         * - Version 2: Fix errors and discard atypical values
+         * - Version 3: Implement DNS, Chatd and Presenced Ip/Url cache
+         */
+        const uint32_t INITSTATSVERSION = 3;
 
         /** @brief Init states in init stats */
         enum
@@ -857,6 +864,7 @@ public:
     MyMegaApi api;              // MegaApi's instance
     IApp& app;                  // app's interface
     SqliteDb db;                // db-layer interface
+    DNScache mDnsCache;         // dns cache
 
     std::unique_ptr<chatd::Client> mChatdClient;
 
@@ -872,7 +880,7 @@ public:
     unsigned short mMyPubRsaLen = 0;
 
     /** @brief The contact list of the client */
-    std::unique_ptr<ContactList> contactList;
+    std::unique_ptr<ContactList> mContactList;
 
     /** @brief The list of chats that we are member of */
     std::unique_ptr<ChatRoomList> chats;
@@ -899,7 +907,6 @@ protected:
     std::string mLastScsn;
     InitState mInitState = kInitCreated;
     ConnState mConnState = kDisconnected;
-    bool mContactsLoaded = false;
 
     // resolved when fetchnodes is completed
     promise::Promise<void> mSessionReadyPromise;
@@ -944,7 +951,6 @@ public:
 
     ConnState connState() const { return mConnState; }
     bool connected() const { return mConnState == kConnected; }
-    bool contactsLoaded() const { return mContactsLoaded; }
 
     presenced::Client& presenced() { return mPresencedClient; }
 
@@ -983,7 +989,7 @@ public:
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
      * @return The decrypted title of the chat
      */
-    promise::Promise<std::string> decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle);
+    promise::Promise<std::string> decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, Id ph = Id::inval());
 
     /** @brief This function invalidates the current public handle and set the chat mode to private
      */
@@ -999,6 +1005,7 @@ public:
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
+     *
      * @param sid - an optional session id to restore from. If one is specified
      * (sid is not \c NULL), the client will try to initialize for offline work
      * from an existing karere cache for that sid. If loading the local cache was
@@ -1007,20 +1014,22 @@ public:
      * will signal its init state as \c kInitErrNoCache and then continue
      * to \c kInitWaitingNewSession, effectively behaving as if a new session
      * is being created by the SDK (see the \c NULL-sid case below).
-     * The app, upon seeing \c kInitErrNoCache must do the complete version of the
-     * \c fetchnodes operation, and not the fast one that fetches only newly queued
-     * actionpackets. This is in order to replay all actionpackets and associated
-     * events, so that karere can rebuild its cache from scratch, as if this was
-     * a new session.
      * If \c sid is \c NULL, then the client will transition to \c kInitWaitingForNewSession,
      * and wait for a fetchnodes completion from the SDK. Then it will initialize
      * its state and cache from scratch, from information provided by the SDK.
      * In both cases, when fetchnodes completes, the client will transition to
      * \c kInitHasOnlineSession.
+     *
+     * @param waitFetchnodesToConnect - if false, the connection request will not
+     * wait for the completion of the fetchnodes. Note that it may result on the
+     * DB cache becoming out of sync with the state of the account, since the app
+     * could connect to chatd and send/receive messages even without being logged
+     * in to the API. In consequence, this option should be used with care.
+     *
      * @note In any case, if there is no existing karere session cache,
      * offline operation is not possible.
      */
-    InitState init(const char* sid);
+    InitState init(const char* sid, bool waitForFetchnodesToConnect);
     InitState initState() const { return mInitState; }
     bool hasInitError() const { return mInitState >= kInitErrFirst; }
     bool isTerminated() const { return mInitState == kInitTerminated; }
@@ -1101,7 +1110,6 @@ public:
 
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
-
     bool anonymousMode() const;
     bool isChatRoomOpened(Id chatid);
     void updateAndNotifyLastGreen(Id userid);
@@ -1115,6 +1123,8 @@ public:
 
     /** @brief Returns a string that contains the user alias in UTF-8 if exists, otherwise returns an empty string*/
     std::string getUserAlias(uint64_t userId);
+    void setMyEmail(const std::string &email);
+    const std::string& getMyEmail() const;
 
 protected:
     void heartbeat();
@@ -1135,8 +1145,6 @@ protected:
     uint64_t getMyIdentityFromDb();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
-    void loadContactListFromApi();
-    void loadContactListFromApi(::mega::MegaUserList& contactList);
 
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid, bool isPublic,
             std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
@@ -1146,7 +1154,7 @@ protected:
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<int> initializeContactList();
 
-    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
+    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats);
     void commit(const std::string& scsn);
 
     /** @brief Does the actual connect, once the SDK is online.
