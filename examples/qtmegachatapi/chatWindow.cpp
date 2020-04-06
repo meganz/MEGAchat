@@ -877,7 +877,7 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     connect(actPushAndReceived, SIGNAL(triggered()), getChatItemController(), SLOT(onPushReceivedAndroid()));
 
     auto actImportMsgs = notificationsMenu->addAction(tr("Import messages from NSE cache"));
-    connect(actImportMsgs, SIGNAL(triggered()), getChatItemController(), SLOT(onImportMessages()));
+    connect(actImportMsgs, SIGNAL(triggered()), mMainWin, SLOT(onImportMessages()));
 
     auto notificationSettings = mMainWin->mApp->getNotificationSettings();
     //Set DND for this chat
