@@ -388,56 +388,75 @@ int Client::importMessages(const char *externalDbPath)
         karere::ChatRoom *chatroom = it.second;
         chatd::Chat &chat = chatroom->chat();
         karere::Id chatid = chatroom->chatid();
-        chatd::Idx newestAppIdx = chat.highnum();
-        chatd::Message *newestAppMsg = chat.findOrNull(newestAppIdx);
-        karere::Id newestAppMsgid = newestAppMsg->id();
 
-        // find that message in the external DB
-        std::string query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history"
-                            " where chatid = ?1 and msgid = ?2";
-        SqliteStmt stmtNewestMsg(db, query.c_str());
-        stmtNewestMsg << chatid << newestAppMsgid;
-        if (!stmtNewestMsg.step())
+        chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
+        karere::Id newestAppMsgid(Id::inval());
+
+        chatd::Idx firstIdxToImport = CHATD_IDX_INVALID;    // may not match the idx from app (even for same msgid)
+        karere::Id firstMsgidToImport(Id::inval());
+
+        std::string query;
+        if (!chat.empty())
         {
-            // the newest message known by the app is not found in the external DB
-            // (it means app is ahead of external DB for this chat, so nothing to import)
-            KR_LOG_DEBUG("importMessages: no messages to import for chatid: %s", chatid.toString().c_str());
-            continue;
+            newestAppIdx = chat.highnum();
+            newestAppMsgid = firstMsgidToImport = chat.at(newestAppIdx).id();
+
+            // find the newest message known by the app in the external DB
+            query = "select idx from history where chatid = ?1 and msgid = ?2";
+            SqliteStmt stmt1(db, query.c_str());
+            stmt1 << chatid << firstMsgidToImport;
+            if (stmt1.step())
+            {
+                firstIdxToImport = stmt1.intCol(0);
+            }
+            else    // not found
+            {
+                // check if a truncate in external DB has cleared this message (idx greater than newest app msg)
+                query = "select msgid, idx, type from history where chatid = ?1 and idx > ?2";
+                SqliteStmt stmt2(db, query.c_str());
+                stmt2 << chatid << newestAppIdx;
+                if (stmt2.step())
+                {
+                    assert(stmt2.intCol(2) == chatd::Message::kMsgTruncate);
+                    firstMsgidToImport = stmt2.uint64Col(0);
+                    firstIdxToImport = stmt2.intCol(1);
+
+                    KR_LOG_DEBUG("importMessages: truncate detected in chatid: %s msgid: %s idx: %d",
+                                 chatid.toString().c_str(), firstMsgidToImport.toString().c_str(), firstIdxToImport);
+                }
+                else
+                {
+                    // (it means app is ahead of external DB for this chat, so nothing to import)
+                    KR_LOG_DEBUG("importMessages: no messages to import for chatid: %s", chatid.toString().c_str());
+                    continue;
+                }
+            }
         }
-        // check the message in external DB has the same index than in app's DB
-        chatd::Idx newestIdx = stmtNewestMsg.intCol(4);
-        if (newestIdx != newestAppIdx)
+        else
         {
-            // if indexes don't match, the external DB is not inline with app DB
-            // (it means external DB might have been reloaded, in example)
-            KR_LOG_WARNING("importMessages: index mismatch. chatid: %s msgid: %s index-app: %d index-NSE: %d",
-                           chatid.toString().c_str(), newestAppMsgid.toString().c_str(), newestAppIdx, newestIdx);
-            continue;
+            // find the oldest message in external DB: first msgid to import
+            query = "select min(idx), msgid, idx from history where chatid = ?1";
+            SqliteStmt stmt(db, query.c_str());
+            stmt << chatid;
+            if (stmt.step())
+            {
+                firstMsgidToImport = stmt.uint64Col(1);
+                firstIdxToImport = stmt.intCol(2);
+            }
+            else
+            {
+                // chatroom has no history in external DB either
+                continue;
+            }
         }
 
-        // restore Message from external DB
-        std::unique_ptr<chatd::Message> newestMsg;
-        karere::Id userid(stmtNewestMsg.uint64Col(0));
-        karere::Id msgid(newestAppMsgid);
-        unsigned ts = stmtNewestMsg.uintCol(1);
-        unsigned char type = (unsigned char)stmtNewestMsg.intCol(2);
-        bool updated = stmtNewestMsg.intCol(7);
-        chatd::KeyId keyid = stmtNewestMsg.uintCol(5);
-        Buffer buf;
-        stmtNewestMsg.blobCol(3, buf);
-        newestMsg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
-        newestMsg->backRefId = stmtNewestMsg.uint64Col(6);
-        newestMsg->setEncrypted((uint8_t)stmtNewestMsg.intCol(8));
-
-        // TODO: check if this message has been edited/removed or truncated
-        // (changes in userid/type, data, delta...)
 
         // for every newer message in external DB, add them to the app's history
         // (also consider the newest app message to update history in case of truncate)
         query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted, msgid from history"
                             " where chatid = ?1 and idx >= ?2";
         SqliteStmt stmtMsg(db, query.c_str());
-        stmtMsg << chatroom->chatid() << newestAppIdx;
+        stmtMsg << chatroom->chatid() << firstIdxToImport;
         while (stmtMsg.step())
         {
             // restore Message from external DB
@@ -454,10 +473,7 @@ int Client::importMessages(const char *externalDbPath)
             msg->backRefId = stmtMsg.uint64Col(6);
             msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
 
-            // first message could be a truncate
-            bool isUpdate = (count == 0) && (type == chatd::Message::kMsgTruncate);
-
-            if (keyid != CHATD_KEYID_INVALID)   // invalid for mngt msgs and public chats
+            if (keyid != CHATD_KEYID_INVALID)   // keyid is invalid for mngt msgs and public chats
             {
                 // restore the SendKey of the message from external DB
                 std::string queryKey = "select key from sendkeys "
@@ -476,6 +492,9 @@ int Client::importMessages(const char *externalDbPath)
                 // import the corresponding key and the message itself
                 chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
             }
+
+            // first message to import may have been converted into a truncate (or simply edited)
+            bool isUpdate = (msgid == newestAppMsgid);
             chat.msgImport(move(msg), isUpdate);
             count++;
 
