@@ -77,6 +77,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->initLeanMode((sid != nil) ? [sid UTF8String] : NULL);
 }
 
+- (NSInteger)importMessagesFromPath:(NSString *)externalDbPath {
+    return self.megaChatApi->importMessages(externalDbPath.UTF8String);
+}
+
 - (MEGAChatInit)initAnonymous {
     return (MEGAChatInit) self.megaChatApi->initAnonymous();
 }
