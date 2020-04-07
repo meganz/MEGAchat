@@ -5572,6 +5572,9 @@ public:
      * The MegaChatListItem object will be valid until this function returns. If you
      * want to save the MegaChatListItem, use MegaChatListItem::copy
      *
+     * @note changes about participants in chat link won't be notified until chat
+     *  is logged in
+     *
      * @param api MegaChatApi connected to the account
      * @param item MegaChatListItem representing a 1on1 or groupchat in the list.
      */
@@ -5674,6 +5677,9 @@ public:
      * chat server has changed, the chat becomes archived/unarchived, there is a new call
      * or a call has finished, the chat has been changed into private mode, the number of
      * previewers has changed, the user has started/stopped typing.
+     *
+     * @note changes about participants in chat link won't be notified until chat
+     * is logged in
      *
      * @param api MegaChatApi connected to the account
      * @param chat MegaChatRoom that contains the updates relatives to the chat
