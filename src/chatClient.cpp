@@ -2078,6 +2078,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     Buffer unifiedKeyBuf;
     unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
     unifiedKeyBuf.append(unifiedKey->data(), unifiedKey->size());
+    parent.mKarereClient.setCommitMode(false);
 
     //save to db
     auto db = parent.mKarereClient.db;

@@ -6353,6 +6353,10 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
     {
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserJoin(userid, privilege);
+        if (mRoom->publicChat() && mRoom->chat().onlineState() != kChatStateOnline)
+        {
+            return;
+        }
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
         if (userid.val == chatApiImpl->getMyUserHandle())
@@ -7402,6 +7406,11 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
+    if (mRoom.publicChat() && mRoom.chat().onlineState() != kChatStateOnline)
+    {
+        return;
+    }
+
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     if (userid == chatApi.getMyUserHandle())
     {

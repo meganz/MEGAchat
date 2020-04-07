@@ -5231,6 +5231,11 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
     {
         CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserTyping");
         CALL_LISTENER(onUserTyping, from);
+
+        if (isPublic() && from != mChatdClient.mMyHandle)
+        {
+            requestUserAttributes(from);
+        }
     }
     else if (type == Command::kBroadcastUserStopTyping)
     {
