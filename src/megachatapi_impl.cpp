@@ -6353,20 +6353,21 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
     {
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserJoin(userid, privilege);
-
-        if (!mRoom->publicChat() || mRoom->chat().onlineState() == kChatStateOnline)
+        if (mRoom->publicChat() && mRoom->chat().onlineState() != kChatStateOnline)
         {
-            MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-            if (userid.val == chatApiImpl->getMyUserHandle())
-            {
-                chatroom->setOwnPriv(privilege);
-            }
-            else
-            {
-                chatroom->setMembersUpdated();
-            }
-            fireOnChatRoomUpdate(chatroom);
+            return;
         }
+
+        MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
+        if (userid.val == chatApiImpl->getMyUserHandle())
+        {
+            chatroom->setOwnPriv(privilege);
+        }
+        else
+        {
+            chatroom->setMembersUpdated();
+        }
+        fireOnChatRoomUpdate(chatroom);
     }
 }
 
@@ -7405,20 +7406,22 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
-    if (!mRoom.publicChat() || mRoom.chat().onlineState() == chatd::ChatState::kChatStateOnline)
+    if (mRoom.publicChat() && mRoom.chat().onlineState() != kChatStateOnline)
     {
-        MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
-        if (userid == chatApi.getMyUserHandle())
-        {
-            item->setOwnPriv(priv);
-        }
-        else
-        {
-            item->setMembersUpdated();
-        }
-
-        chatApi.fireOnChatListItemUpdate(item);
+        return;
     }
+
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
+    if (userid == chatApi.getMyUserHandle())
+    {
+        item->setOwnPriv(priv);
+    }
+    else
+    {
+        item->setMembersUpdated();
+    }
+
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
