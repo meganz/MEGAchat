@@ -475,6 +475,19 @@ int Client::importMessages(const char *externalDbPath)
             msg->backRefId = stmtMsg.uint64Col(6);
             msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
 
+            bool isUpdate = false;
+            if (msgid == newestAppMsgid)
+            {
+                // first message, if not updated or truncate, can be skipped
+                if (!msg->updated && msg->type != chatd::Message::kMsgTruncate)
+                {
+                    KR_LOG_DEBUG("importMessages: newest message not changed. Skipping... (chatid: %s msgid: %s)",
+                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    continue;
+                }
+                isUpdate = true;
+            }
+
             if (keyid != CHATD_KEYID_INVALID)   // keyid is invalid for mngt msgs and public chats
             {
                 // restore the SendKey of the message from external DB
@@ -495,8 +508,6 @@ int Client::importMessages(const char *externalDbPath)
                 chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
             }
 
-            // first message to import may have been converted into a truncate (or simply edited)
-            bool isUpdate = (msgid == newestAppMsgid);
             chat.msgImport(move(msg), isUpdate);
             count++;
 
