@@ -1965,6 +1965,17 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Checks whether the app has already loaded the full history of the chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return True the whole history is already loaded (including old messages from server).
+     */
+    public boolean isFullHistoryLoaded(long chatid) {
+        return megaChatApi.isFullHistoryLoaded(chatid);
+    }
+
+    /**
      * Returns the MegaChatMessage specified from the chat room.
      *
      * This function allows to retrieve only those messages that are been loaded, received and/or
