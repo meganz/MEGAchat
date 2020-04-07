@@ -393,7 +393,7 @@ int Client::importMessages(const char *externalDbPath)
 
         chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
         karere::Id newestAppMsgid(Id::inval());
-
+        chatd::Message *newestAppMsg = nullptr;
         chatd::Idx firstIdxToImport = CHATD_IDX_INVALID;    // may not match the idx from app (even for same msgid)
         karere::Id firstMsgidToImport(Id::inval());
 
@@ -401,7 +401,8 @@ int Client::importMessages(const char *externalDbPath)
         if (!chat.empty())
         {
             newestAppIdx = chat.highnum();
-            newestAppMsgid = firstMsgidToImport = chat.at(newestAppIdx).id();
+            newestAppMsg = &chat.at(newestAppIdx);
+            newestAppMsgid = firstMsgidToImport = newestAppMsg->id();
 
             // find the newest message known by the app in the external DB
             query = "select idx from history where chatid = ?1 and msgid = ?2";
@@ -452,7 +453,6 @@ int Client::importMessages(const char *externalDbPath)
             }
         }
 
-
         // for every newer message in external DB, add them to the app's history
         // (also consider the newest app message to update history in case of truncate)
         query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted, msgid from history"
@@ -465,9 +465,9 @@ int Client::importMessages(const char *externalDbPath)
             std::unique_ptr<chatd::Message> msg;
             karere::Id userid(stmtMsg.uint64Col(0));
             karere::Id msgid(stmtMsg.uint64Col(9));
-            unsigned ts = stmtMsg.uintCol(1);
+            uint32_t ts = stmtMsg.uintCol(1);
             unsigned char type = (unsigned char)stmtMsg.intCol(2);
-            bool updated = stmtMsg.intCol(7);
+            uint16_t updated = stmtMsg.intCol(7);
             chatd::KeyId keyid = stmtMsg.uintCol(5);
             Buffer buf;
             stmtMsg.blobCol(3, buf);
@@ -478,8 +478,9 @@ int Client::importMessages(const char *externalDbPath)
             bool isUpdate = false;
             if (msgid == newestAppMsgid)
             {
-                // first message, if not updated or truncate, can be skipped
-                if (!msg->updated && msg->type != chatd::Message::kMsgTruncate)
+                // first message, if not updated or truncated, msg can be skipped
+                if (msg->updated <= newestAppMsg->updated     // has been edited/deleted
+                        || (msg->type == chatd::Message::kMsgTruncate && msg->ts == newestAppMsg->ts))   // has been truncated
                 {
                     KR_LOG_DEBUG("importMessages: newest message not changed. Skipping... (chatid: %s msgid: %s)",
                                  chatid.toString().c_str(), msgid.toString().c_str());
