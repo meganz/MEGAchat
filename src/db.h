@@ -65,6 +65,13 @@ public:
             return false;
         }
 
+        if (sqlite3_exec(mDb, "PRAGMA journal_mode = WAL;", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            sqlite3_close(mDb);
+            mDb = nullptr;
+            return false;
+        }
+
         mCommitEach = commitEach;
         if (!mCommitEach)
         {
