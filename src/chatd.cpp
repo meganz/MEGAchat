@@ -1197,8 +1197,8 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id chatid = data.read<uint64_t>(1);
-            karere::Id oldestMsgid = data.read<uint64_t>(7);
-            karere::Id newestId = data.read<uint64_t>(15);
+            karere::Id oldestMsgid = data.read<uint64_t>(9);
+            karere::Id newestId = data.read<uint64_t>(17);
 
             tmpString.append("JOINRANGEHIST chatid: ");
             tmpString.append(chatid.toString());
@@ -1351,7 +1351,6 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(newestId.toString());
             return tmpString;
         }
-
 
 #ifndef KARERE_DISABLE_WEBRTC
         case OP_RTMSG_ENDPOINT:
