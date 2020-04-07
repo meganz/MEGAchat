@@ -1096,6 +1096,7 @@ public:
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title = NULL);
     void setCommitMode(bool commitEach);
+    bool commitEach();
     void saveDb();  // forces a commit
 
     /**

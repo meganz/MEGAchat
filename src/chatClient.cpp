@@ -379,6 +379,10 @@ int Client::importMessages(const char *externalDbPath)
         return -5;
     }
 
+    // avoid to write each imported message to disk individually
+    bool oldCommitMode = commitEach();
+    setCommitMode(false);
+
     int count = 0;
     for (auto& it : *chats)
     {
@@ -501,6 +505,9 @@ int Client::importMessages(const char *externalDbPath)
     }
 
     db.close();
+
+    // commit the transaction of importing msgs and restore previous mode
+    setCommitMode(oldCommitMode);
 
     KR_LOG_DEBUG("Imported messages: %d", count);
     return count;
@@ -891,6 +898,11 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
 void Client::setCommitMode(bool commitEach)
 {
     db.setCommitMode(commitEach);
+}
+
+bool Client::commitEach()
+{
+    return db.commitEach();
 }
 
 void Client::commit(const std::string& scsn)

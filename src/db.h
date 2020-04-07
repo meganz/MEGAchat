@@ -99,6 +99,7 @@ public:
             beginTransaction();
         }
     }
+    bool commitEach() { return mCommitEach; }   // false for transactional
     void setCommitInterval(uint16_t sec) { mCommitInterval = sec; }
     bool hasOpenTransaction() const { return !mHasOpenTransaction; }
     operator sqlite3*() { return mDb; }
