@@ -84,7 +84,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (MEGAChatInit)initKarereWithSid:(NSString *)sid;
 - (MEGAChatInit)initKarereLeanModeWithSid:(NSString *)sid;
-- (NSInteger)importMessagesFromPath:(NSString *)externalDbPath;
+- (void)importMessagesFromPath:(NSString *)externalDbPath delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)importMessagesFromPath:(NSString *)externalDbPath;
 - (MEGAChatInit)initAnonymous;
 - (void)resetClientId;
 
@@ -338,5 +339,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)removeNodeHistoryDelegate:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
 - (NSInteger)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count;
 
+#pragma mark - Enumeration to NSString
+
++ (NSString *)stringForMEGAChatInitState:(MEGAChatInit)initState;
 
 @end
