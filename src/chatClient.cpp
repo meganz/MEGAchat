@@ -346,17 +346,17 @@ void Client::createDbSchema()
 
 int Client::importMessages(const char *externalDbPath)
 {
-    SqliteDb db;
-    if (!db.open(externalDbPath, false))
+    SqliteDb dbExternal;
+    if (!dbExternal.open(externalDbPath, false))
     {
         KR_LOG_ERROR("importMessages: failed to open external DB (%s)", externalDbPath);
         return -2;
     }
     // check external DB uses the same DB schema than the app
-    SqliteStmt stmtVersion(db, "select value from vars where name = 'schema_version'");
+    SqliteStmt stmtVersion(dbExternal, "select value from vars where name = 'schema_version'");
     if (!stmtVersion.step())
     {
-        db.close();
+        dbExternal.close();
         KR_LOG_ERROR("importMessages: failed to get external DB version");
         return -3;
     }
@@ -366,15 +366,15 @@ int Client::importMessages(const char *externalDbPath)
     std::string cachedVersion(stmtVersion.stringCol(0));
     if (cachedVersion != currentVersion)
     {
-        db.close();
+        dbExternal.close();
         KR_LOG_ERROR("importMessages: external DB version is too old");
         return -4;
     }
     // check external DB is for the same user than the app's DB
-    SqliteStmt stmtMyHandle(db, "select value from vars where name = 'my_handle'");
+    SqliteStmt stmtMyHandle(dbExternal, "select value from vars where name = 'my_handle'");
     if (!stmtMyHandle.step() || stmtMyHandle.uint64Col(0) != myHandle())
     {
-        db.close();
+        dbExternal.close();
         KR_LOG_ERROR("importMessages: external DB of a different user");
         return -5;
     }
@@ -383,7 +383,8 @@ int Client::importMessages(const char *externalDbPath)
     bool oldCommitMode = commitEach();
     setCommitMode(false);
 
-    int count = 0;
+    int countAdded = 0;
+    int countUpdated = 0;
     for (auto& it : *chats)
     {
         // find the newest message in the app
@@ -404,34 +405,30 @@ int Client::importMessages(const char *externalDbPath)
             newestAppIdx = chat.highnum();
             newestAppMsg = &chat.at(newestAppIdx);
             newestAppMsgid = firstMsgidToImport = newestAppMsg->id();
-            uint32_t tsMissingUpdates = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
-
-            chatd::Idx messageIdx  = chat.highnum() - 1;
-            while (messageIdx > chat.lownum())
-            {
-                chatd::Message &message = chat.at(messageIdx);
-                if (message.ts < tsMissingUpdates)
-                {
-                    break;
-                }
-
-                messagesUpdated[message.id()] = message.updated;
-                messageIdx --;
-            }
 
             // find the newest message known by the app in the external DB
             query = "select idx from history where chatid = ?1 and msgid = ?2";
-            SqliteStmt stmt1(db, query.c_str());
+            SqliteStmt stmt1(dbExternal, query.c_str());
             stmt1 << chatid << firstMsgidToImport;
             if (stmt1.step())
             {
                 firstIdxToImport = stmt1.intCol(0);
+                uint32_t tsMissingUpdates = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
+                query = "select msgid, updated from history where ts > ?1";
+                SqliteStmt stmtUpdates(db, query.c_str());
+                stmtUpdates << tsMissingUpdates;
+                while (stmtUpdates.step())
+                {
+                    karere::Id msgid = stmtUpdates.uint64Col(0);
+                    uint16_t updated = stmtUpdates.intCol(1);
+                    messagesUpdated[msgid] = updated;
+                }
             }
             else    // not found
             {
                 // check if a truncate in external DB has cleared this message (idx greater than newest app msg)
                 query = "select msgid, idx, type from history where chatid = ?1 and idx > ?2";
-                SqliteStmt stmt2(db, query.c_str());
+                SqliteStmt stmt2(dbExternal, query.c_str());
                 stmt2 << chatid << newestAppIdx;
                 if (stmt2.step())
                 {
@@ -441,8 +438,6 @@ int Client::importMessages(const char *externalDbPath)
 
                     KR_LOG_DEBUG("importMessages: truncate detected in chatid: %s msgid: %s idx: %d",
                                  chatid.toString().c_str(), firstMsgidToImport.toString().c_str(), firstIdxToImport);
-
-                    messagesUpdated.clear();
                 }
                 else
                 {
@@ -456,7 +451,7 @@ int Client::importMessages(const char *externalDbPath)
         {
             // find the oldest message in external DB: first msgid to import
             query = "select min(idx), msgid, idx from history where chatid = ?1";
-            SqliteStmt stmt(db, query.c_str());
+            SqliteStmt stmt(dbExternal, query.c_str());
             stmt << chatid;
             if (stmt.step())
             {
@@ -474,7 +469,7 @@ int Client::importMessages(const char *externalDbPath)
         // (also consider the newest app message to update history in case of truncate)
         query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted, msgid from history"
                             " where chatid = ?1 and idx >= ?2";
-        SqliteStmt stmtMsg(db, query.c_str());
+        SqliteStmt stmtMsg(dbExternal, query.c_str());
         stmtMsg << chatroom->chatid() << firstIdxToImport;
         while (stmtMsg.step())
         {
@@ -515,7 +510,7 @@ int Client::importMessages(const char *externalDbPath)
                 // restore the SendKey of the message from external DB
                 std::string queryKey = "select key from sendkeys "
                         " where chatid = ?1 and userid = ?2 and keyid = ?3";
-                SqliteStmt stmtKey(db, queryKey.c_str());
+                SqliteStmt stmtKey(dbExternal, queryKey.c_str());
                 stmtKey << chatroom->chatid() << userid << keyid;
                 if (!stmtKey.step())
                 {
@@ -531,7 +526,7 @@ int Client::importMessages(const char *externalDbPath)
             }
 
             chat.msgImport(move(msg), isUpdate);
-            count++;
+            countAdded++;
 
             KR_LOG_DEBUG("Message imported: chatid: %s msgid: %s", chatid.toString().c_str(), msgid.toString().c_str());
         }
@@ -543,37 +538,38 @@ int Client::importMessages(const char *externalDbPath)
 
             karere::Id msgid = it->first;
             uint16_t updated = it->second;
-            SqliteStmt stmtMsgUpdated(db, query.c_str());
+            SqliteStmt stmtMsgUpdated(dbExternal, query.c_str());
             stmtMsgUpdated << chatroom->chatid() << msgid << updated;
-            while (stmtMsgUpdated.step())
+            if (stmtMsgUpdated.step())
             {
                 // restore Message from external DB
                 std::unique_ptr<chatd::Message> msg;
-                karere::Id userid(stmtMsg.uint64Col(0));
-                uint32_t ts = stmtMsg.uintCol(1);
-                unsigned char type = (unsigned char)stmtMsg.intCol(2);
-                uint16_t updated = stmtMsg.intCol(7);
-                chatd::KeyId keyid = stmtMsg.uintCol(5);
+                karere::Id userid(stmtMsgUpdated.uint64Col(0));
+                uint32_t ts = stmtMsgUpdated.uintCol(1);
+                unsigned char type = (unsigned char)stmtMsgUpdated.intCol(2);
+                uint16_t newUpdated = stmtMsgUpdated.intCol(7);
+                chatd::KeyId keyid = stmtMsgUpdated.uintCol(5);
                 Buffer buf;
-                stmtMsg.blobCol(3, buf);
-                msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
-                msg->backRefId = stmtMsg.uint64Col(6);
-                msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
+                stmtMsgUpdated.blobCol(3, buf);
+                msg.reset(new chatd::Message(msgid, userid, ts, newUpdated, std::move(buf), false, keyid, type));
+                msg->backRefId = stmtMsgUpdated.uint64Col(6);
+                msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
 
                 chat.msgImport(move(msg), true);
                 KR_LOG_DEBUG("Message imported: chatid: %s msgid: %s (update)", chatid.toString().c_str(), msgid.toString().c_str());
+                countUpdated ++;
             }
 
         }
     }
 
-    db.close();
+    dbExternal.close();
 
     // commit the transaction of importing msgs and restore previous mode
     setCommitMode(oldCommitMode);
 
-    KR_LOG_DEBUG("Imported messages: %d", count);
-    return count;
+    KR_LOG_DEBUG("Imported messages: Added - %d   Updated - %d", countAdded, countUpdated);
+    return countAdded + countUpdated;
 }
 
 void Client::heartbeat()
