@@ -479,7 +479,7 @@ int Client::importMessages(const char *externalDbPath)
             karere::Id msgid(stmtMsg.uint64Col(9));
             uint32_t ts = stmtMsg.uintCol(1);
             unsigned char type = (unsigned char)stmtMsg.intCol(2);
-            uint16_t updated = stmtMsg.intCol(7);
+            uint16_t updated = (uint16_t)stmtMsg.intCol(7);
             chatd::KeyId keyid = stmtMsg.uintCol(5);
             Buffer buf;
             stmtMsg.blobCol(3, buf);
@@ -526,9 +526,9 @@ int Client::importMessages(const char *externalDbPath)
             }
 
             chat.msgImport(move(msg), isUpdate);
-            countAdded++;
+            (isUpdate) ? countUpdated++ : countAdded++;
 
-            KR_LOG_DEBUG("Message imported: chatid: %s msgid: %s", chatid.toString().c_str(), msgid.toString().c_str());
+            KR_LOG_DEBUG("importMessages: message added (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
         }
 
         for (auto it = messagesUpdated.begin(); it != messagesUpdated.end(); it++)
@@ -547,7 +547,7 @@ int Client::importMessages(const char *externalDbPath)
                 karere::Id userid(stmtMsgUpdated.uint64Col(0));
                 uint32_t ts = stmtMsgUpdated.uintCol(1);
                 unsigned char type = (unsigned char)stmtMsgUpdated.intCol(2);
-                uint16_t newUpdated = stmtMsgUpdated.intCol(7);
+                uint16_t newUpdated = (uint16_t)stmtMsgUpdated.intCol(7);
                 chatd::KeyId keyid = stmtMsgUpdated.uintCol(5);
                 Buffer buf;
                 stmtMsgUpdated.blobCol(3, buf);
@@ -556,10 +556,10 @@ int Client::importMessages(const char *externalDbPath)
                 msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
 
                 chat.msgImport(move(msg), true);
-                KR_LOG_DEBUG("Message imported: chatid: %s msgid: %s (update)", chatid.toString().c_str(), msgid.toString().c_str());
-                countUpdated ++;
-            }
+                countUpdated++;
 
+                KR_LOG_DEBUG("importMessages: message updated (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
+            }
         }
     }
 
@@ -568,8 +568,9 @@ int Client::importMessages(const char *externalDbPath)
     // commit the transaction of importing msgs and restore previous mode
     setCommitMode(oldCommitMode);
 
-    KR_LOG_DEBUG("Imported messages: Added - %d   Updated - %d", countAdded, countUpdated);
-    return countAdded + countUpdated;
+    int total = countAdded + countUpdated;
+    KR_LOG_DEBUG("Imported messages: %d (added: %d, updated: %d)", total, countAdded, countUpdated);
+    return total;
 }
 
 void Client::heartbeat()
