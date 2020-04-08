@@ -1780,13 +1780,13 @@ void MegaChatApiImpl::sendPendingRequests()
             int count = mClient->importMessages(request->getText());
             if (count < 0)
             {
-                API_LOG_WARNING("Error importing Messages: %d", count);
-                errorCode = MegaChatError::ERROR_UNKNOWN;
+                errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
-            API_LOG_DEBUG("%d Messages has been imported", count);
-            errorCode = MegaChatError::ERROR_OK;
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            request->setNumber(count);
+            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         default:

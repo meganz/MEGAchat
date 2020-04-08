@@ -350,7 +350,7 @@ int Client::importMessages(const char *externalDbPath)
     if (!dbExternal.open(externalDbPath, false))
     {
         KR_LOG_ERROR("importMessages: failed to open external DB (%s)", externalDbPath);
-        return -2;
+        return -1;
     }
     // check external DB uses the same DB schema than the app
     SqliteStmt stmtVersion(dbExternal, "select value from vars where name = 'schema_version'");
@@ -358,7 +358,7 @@ int Client::importMessages(const char *externalDbPath)
     {
         dbExternal.close();
         KR_LOG_ERROR("importMessages: failed to get external DB version");
-        return -3;
+        return -2;
     }
     // check external DB uses the same DB version than the app
     std::string currentVersion(gDbSchemaHash);
@@ -368,7 +368,7 @@ int Client::importMessages(const char *externalDbPath)
     {
         dbExternal.close();
         KR_LOG_ERROR("importMessages: external DB version is too old");
-        return -4;
+        return -3;
     }
     // check external DB is for the same user than the app's DB
     SqliteStmt stmtMyHandle(dbExternal, "select value from vars where name = 'my_handle'");
@@ -376,7 +376,7 @@ int Client::importMessages(const char *externalDbPath)
     {
         dbExternal.close();
         KR_LOG_ERROR("importMessages: external DB of a different user");
-        return -5;
+        return -4;
     }
 
     // avoid to write each imported message to disk individually

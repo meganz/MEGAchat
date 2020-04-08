@@ -2234,11 +2234,16 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getText - Returns the cache path
      *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getNumber - Total number of messages added/updated
+     *
      * @note This mode is required by iOS Notification Service Extension (NSE). The extension runs
      * separately from iOS app, with its independent cache.
      *
-     * @note This method should be called after \c MegaChatApi::init, when the initialization state
-     * is MegaChatApi::INIT_OFFLINE_SESSION or MegaChatApi::INIT_ONLINE_SESSION.
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without a previous call to \c MegaChatApi::init or when the initialization
+     * state is other than MegaChatApi::INIT_OFFLINE_SESSION or MegaChatApi::INIT_ONLINE_SESSION.
      *
      * @param externalDbPath path of the external BD
      * @param listener MegaChatRequestListener to track this request
