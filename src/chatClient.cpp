@@ -383,6 +383,7 @@ int Client::importMessages(const char *externalDbPath)
     bool oldCommitMode = commitEach();
     setCommitMode(false);
 
+    // for every chat, check messages to be added and/or updated
     int countAdded = 0;
     int countUpdated = 0;
     for (auto& it : *chats)
@@ -397,7 +398,7 @@ int Client::importMessages(const char *externalDbPath)
         chatd::Message *newestAppMsg = nullptr;
         chatd::Idx firstIdxToImport = CHATD_IDX_INVALID;    // may not match the idx from app (even for same msgid)
         karere::Id firstMsgidToImport(Id::inval());
-        std::map<karere::Id, uint16_t> messagesUpdated;
+        std::map<karere::Id, uint16_t> editableMsgs;
 
         std::string query;
         if (!chat.empty())
@@ -413,15 +414,17 @@ int Client::importMessages(const char *externalDbPath)
             if (stmt1.step())
             {
                 firstIdxToImport = stmt1.intCol(0);
-                uint32_t tsMissingUpdates = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
+
+                // identify app messages that might have been updated in the NSE
+                uint32_t editableMsgsTs = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
                 query = "select msgid, updated from history where ts > ?1";
-                SqliteStmt stmtUpdates(db, query.c_str());
-                stmtUpdates << tsMissingUpdates;
-                while (stmtUpdates.step())
+                SqliteStmt stmtEditables(db, query.c_str());
+                stmtEditables << editableMsgsTs;
+                while (stmtEditables.step())
                 {
-                    karere::Id msgid = stmtUpdates.uint64Col(0);
-                    uint16_t updated = stmtUpdates.intCol(1);
-                    messagesUpdated[msgid] = updated;
+                    karere::Id msgid = stmtEditables.uint64Col(0);
+                    uint16_t updated = (uint16_t)stmtEditables.intCol(1);
+                    editableMsgs[msgid] = updated;
                 }
             }
             else    // not found
@@ -447,7 +450,7 @@ int Client::importMessages(const char *externalDbPath)
                 }
             }
         }
-        else
+        else    // chat history is empty in the app
         {
             // find the oldest message in external DB: first msgid to import
             query = "select min(idx), msgid, idx from history where chatid = ?1";
@@ -501,7 +504,7 @@ int Client::importMessages(const char *externalDbPath)
                 isUpdate = true;
                 if (msg->type == chatd::Message::kMsgTruncate)
                 {
-                    messagesUpdated.clear();
+                    editableMsgs.clear();
                 }
             }
 
@@ -531,13 +534,14 @@ int Client::importMessages(const char *externalDbPath)
             KR_LOG_DEBUG("importMessages: message added (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
         }
 
-        for (auto it = messagesUpdated.begin(); it != messagesUpdated.end(); it++)
+        // finally, check if any older message has been updated
+        for (auto &it : editableMsgs)
         {
             query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history"
                                 " where chatid = ?1 and msgid = ?2 and updated != ?3";
 
-            karere::Id msgid = it->first;
-            uint16_t updated = it->second;
+            karere::Id msgid = it.first;
+            uint16_t updated = it.second;
             SqliteStmt stmtMsgUpdated(dbExternal, query.c_str());
             stmtMsgUpdated << chatroom->chatid() << msgid << updated;
             if (stmtMsgUpdated.step())
