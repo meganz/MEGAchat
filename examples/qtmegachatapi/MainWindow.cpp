@@ -1334,5 +1334,5 @@ void MainWindow::onImportMessages()
     if (text == "")
         return;
 
-    int count = mMegaChatApi->importMessages(text.toStdString().c_str());
+    mMegaChatApi->importMessages(text.toStdString().c_str());
 }

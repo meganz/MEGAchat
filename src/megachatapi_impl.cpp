@@ -1768,6 +1768,27 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_IMPORT_MESSAGES:
+        {
+            if (mClient->initState() != karere::Client::kInitHasOfflineSession
+                            && mClient->initState() != karere::Client::kInitHasOnlineSession)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            int count = mClient->importMessages(request->getText());
+            if (count < 0)
+            {
+                API_LOG_WARNING("Error importing Messages: %d", count);
+                errorCode = MegaChatError::ERROR_UNKNOWN;
+                break;
+            }
+
+            API_LOG_DEBUG("%d Messages has been imported", count);
+            errorCode = MegaChatError::ERROR_OK;
+            break;
+        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -1911,20 +1932,12 @@ int MegaChatApiImpl::getInitState()
     return initState;
 }
 
-int MegaChatApiImpl::importMessages(const char *externalDbPath)
+void MegaChatApiImpl::importMessages(const char *externalDbPath, MegaChatRequestListener *listener)
 {
-    SdkMutexGuard g(sdkMutex);
-    if (mClient
-            && (mClient->initState() == karere::Client::kInitHasOfflineSession
-                || mClient->initState() == karere::Client::kInitHasOnlineSession))
-    {
-        return mClient->importMessages(externalDbPath);
-    }
-    else
-    {
-        API_LOG_WARNING("importMessages: client not properly initialized");
-        return -1;
-    }
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_IMPORT_MESSAGES, listener);
+    request->setText(externalDbPath);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
@@ -4871,6 +4884,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "LAST_GREEN";
         case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
+        case TYPE_IMPORT_MESSAGES: return "IMPORT_MESSAGES";
     }
     return "UNKNOWN";
 }

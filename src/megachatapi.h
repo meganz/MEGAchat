@@ -1531,7 +1531,7 @@ public:
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
-        TOTAL_OF_REQUEST_TYPES
+        TYPE_IMPORT_MESSAGES, TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -2230,15 +2230,21 @@ public:
      * of the app's cache, but may include new messages that wants to be imported into the app's
      * cache in one shot. In case the history has been truncated, this method applies truncation.
      *
+     * The associated request type with this request is MegaChatRequest::TYPE_IMPORT_MESSAGES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getText - Returns the cache path
+     *
      * @note This mode is required by iOS Notification Service Extension (NSE). The extension runs
      * separately from iOS app, with its independent cache.
      *
      * @note This method should be called after \c MegaChatApi::init, when the initialization state
      * is MegaChatApi::INIT_OFFLINE_SESSION or MegaChatApi::INIT_ONLINE_SESSION.
      *
+     * @param externalDbPath path of the external BD
+     * @param listener MegaChatRequestListener to track this request
      * @return Number of messages imported successfully, or a negative number in case of error.
      */
-    int importMessages(const char *externalDbPath);
+    void importMessages(const char *externalDbPath, MegaChatRequestListener *listener = nullptr);
 
     /**
      * @brief Reset the Client Id for chatd

@@ -974,7 +974,7 @@ public:
     void resetClientid();
     int getInitState();
 
-    int importMessages(const char *externalDbPath);
+    void importMessages(const char *externalDbPath, MegaChatRequestListener *listener);
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
     void removeChatRoomHandler(MegaChatHandle chatid);
