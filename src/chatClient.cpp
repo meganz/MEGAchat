@@ -396,6 +396,7 @@ int Client::importMessages(const char *externalDbPath)
         chatd::Message *newestAppMsg = nullptr;
         chatd::Idx firstIdxToImport = CHATD_IDX_INVALID;    // may not match the idx from app (even for same msgid)
         karere::Id firstMsgidToImport(Id::inval());
+        std::map<karere::Id, uint16_t> messagesUpdated;
 
         std::string query;
         if (!chat.empty())
@@ -403,6 +404,20 @@ int Client::importMessages(const char *externalDbPath)
             newestAppIdx = chat.highnum();
             newestAppMsg = &chat.at(newestAppIdx);
             newestAppMsgid = firstMsgidToImport = newestAppMsg->id();
+            uint32_t tsMissingUpdates = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
+
+            chatd::Idx messageIdx  = chat.highnum() - 1;
+            while (messageIdx > chat.lownum())
+            {
+                chatd::Message &message = chat.at(messageIdx);
+                if (message.ts < tsMissingUpdates)
+                {
+                    break;
+                }
+
+                messagesUpdated[message.id()] = message.updated;
+                messageIdx --;
+            }
 
             // find the newest message known by the app in the external DB
             query = "select idx from history where chatid = ?1 and msgid = ?2";
@@ -426,6 +441,8 @@ int Client::importMessages(const char *externalDbPath)
 
                     KR_LOG_DEBUG("importMessages: truncate detected in chatid: %s msgid: %s idx: %d",
                                  chatid.toString().c_str(), firstMsgidToImport.toString().c_str(), firstIdxToImport);
+
+                    messagesUpdated.clear();
                 }
                 else
                 {
@@ -487,6 +504,10 @@ int Client::importMessages(const char *externalDbPath)
                     continue;
                 }
                 isUpdate = true;
+                if (msg->type == chatd::Message::kMsgTruncate)
+                {
+                    messagesUpdated.clear();
+                }
             }
 
             if (keyid != CHATD_KEYID_INVALID)   // keyid is invalid for mngt msgs and public chats
@@ -513,6 +534,36 @@ int Client::importMessages(const char *externalDbPath)
             count++;
 
             KR_LOG_DEBUG("Message imported: chatid: %s msgid: %s", chatid.toString().c_str(), msgid.toString().c_str());
+        }
+
+        for (auto it = messagesUpdated.begin(); it != messagesUpdated.end(); it++)
+        {
+            query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history"
+                                " where chatid = ?1 and msgid = ?2 and updated != ?3";
+
+            karere::Id msgid = it->first;
+            uint16_t updated = it->second;
+            SqliteStmt stmtMsgUpdated(db, query.c_str());
+            stmtMsgUpdated << chatroom->chatid() << msgid << updated;
+            while (stmtMsgUpdated.step())
+            {
+                // restore Message from external DB
+                std::unique_ptr<chatd::Message> msg;
+                karere::Id userid(stmtMsg.uint64Col(0));
+                uint32_t ts = stmtMsg.uintCol(1);
+                unsigned char type = (unsigned char)stmtMsg.intCol(2);
+                uint16_t updated = stmtMsg.intCol(7);
+                chatd::KeyId keyid = stmtMsg.uintCol(5);
+                Buffer buf;
+                stmtMsg.blobCol(3, buf);
+                msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
+                msg->backRefId = stmtMsg.uint64Col(6);
+                msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
+
+                chat.msgImport(move(msg), true);
+                KR_LOG_DEBUG("Message imported: chatid: %s msgid: %s (update)", chatid.toString().c_str(), msgid.toString().c_str());
+            }
+
         }
     }
 
