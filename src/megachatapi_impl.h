@@ -739,13 +739,14 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     virtual int getUnreadCount() const;
+    virtual MegaChatHandle getUserHandle() const;
     virtual MegaChatHandle getUserTyping() const;
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
     void setNumPreviewers(unsigned int numPrev);
-    void setMembersUpdated();
+    void setMembersUpdated(MegaChatHandle uh);
     void setUserTyping(MegaChatHandle uh);
     void setUserStopTyping(MegaChatHandle uh);
     void setClosed();

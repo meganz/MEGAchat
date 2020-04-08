@@ -5513,6 +5513,15 @@ public:
     virtual MegaChatHandle getUserTyping() const;
 
     /**
+     * @brief Returns the handle of the user who has been Joined/Removed/change its name
+     *
+     * This method return a valid value when hasChanged(CHANGE_TYPE_PARTICIPANTS) true
+     *
+     * @return The user that has changed
+     */
+    virtual MegaChatHandle getUserHandle() const;
+
+    /**
      * @brief Returns whether the user is member of the chatroom (for groupchats),
      * or the user is contact with the peer (for 1on1 chats).
      *

@@ -6129,10 +6129,10 @@ std::set<MegaChatHandle> *MegaChatRoomHandler::handleNewMessage(MegaChatMessage 
     return msgToUpdate;
 }
 
-void MegaChatRoomHandler::onMemberNameChanged(uint64_t /*userid*/, const std::string &/*newName*/)
+void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &/*newName*/)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
-    chat->setMembersUpdated();
+    chat->setMembersUpdated(userid);
 
     fireOnChatRoomUpdate(chat);
 }
@@ -6365,7 +6365,7 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
         }
         else
         {
-            chatroom->setMembersUpdated();
+            chatroom->setMembersUpdated(userid);
         }
         fireOnChatRoomUpdate(chatroom);
     }
@@ -6379,7 +6379,7 @@ void MegaChatRoomHandler::onUserLeave(Id userid)
         mRoom->onUserLeave(userid);
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-        chatroom->setMembersUpdated();
+        chatroom->setMembersUpdated(userid);
         fireOnChatRoomUpdate(chatroom);
     }
 }
@@ -6877,6 +6877,11 @@ int MegaChatRoomPrivate::getUnreadCount() const
     return unreadCount;
 }
 
+MegaChatHandle MegaChatRoomPrivate::getUserHandle() const
+{
+    return uh;
+}
+
 MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
 {
     return uh;
@@ -6906,8 +6911,9 @@ void MegaChatRoomPrivate::setNumPreviewers(unsigned int numPrev)
     this->changed |= MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS;
 }
 
-void MegaChatRoomPrivate::setMembersUpdated()
+void MegaChatRoomPrivate::setMembersUpdated(MegaChatHandle uh)
 {
+    this->uh = uh;
     this->changed |= MegaChatRoom::CHANGE_TYPE_PARTICIPANTS;
 }
 
