@@ -139,6 +139,9 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
+    /** @brief Returns the creation timestamp of the chatroom */
+    int64_t getCreationTs() const { return mCreationTs; }
+
     bool isCallActive() const;
 
     /** @brief The chatd shart number for that chatroom */
@@ -1093,7 +1096,15 @@ public:
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title = NULL);
     void setCommitMode(bool commitEach);
+    bool commitEach();
     void saveDb();  // forces a commit
+
+    /**
+     * @brief Import messages from external DB
+     * @param externalDbPath Path of the DB to open
+     * @return Number of messages added/updated. If error, -1.
+     */
+    int importMessages(const char *externalDbPath);
 
     /** @brief There is a call active in the chatroom*/
     bool isCallActive(karere::Id chatid = karere::Id::inval()) const;

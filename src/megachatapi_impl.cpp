@@ -1426,6 +1426,26 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!chatroom->isGroup())
+            {
+                uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
+                Contact *contact = mClient->mContactList->contactFromUserId(uh);
+                if (!contact || contact->visibility() != ::mega::MegaUser::VISIBILITY_VISIBLE)
+                {
+                    API_LOG_ERROR("Start call - Refusing start a call with a non active contact");
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+            }
+            else if (chatroom->ownPriv() <= Priv::PRIV_RDONLY
+                     || ((GroupChatRoom *)chatroom)->peers().empty())
+            {
+                API_LOG_ERROR("Start call - Refusing start a call in an empty chatroom"
+                              "or withouth enough privileges");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (chatroom->previewMode())
             {
                 API_LOG_ERROR("Start call - Chatroom is in preview mode");
@@ -1748,6 +1768,27 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_IMPORT_MESSAGES:
+        {
+            if (mClient->initState() != karere::Client::kInitHasOfflineSession
+                            && mClient->initState() != karere::Client::kInitHasOnlineSession)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            int count = mClient->importMessages(request->getText());
+            if (count < 0)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            request->setNumber(count);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -1889,6 +1930,14 @@ int MegaChatApiImpl::getInitState()
     sdkMutex.unlock();
 
     return initState;
+}
+
+void MegaChatApiImpl::importMessages(const char *externalDbPath, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_IMPORT_MESSAGES, listener);
+    request->setText(externalDbPath);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
@@ -4835,6 +4884,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "LAST_GREEN";
         case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
+        case TYPE_IMPORT_MESSAGES: return "IMPORT_MESSAGES";
     }
     return "UNKNOWN";
 }
@@ -6425,6 +6475,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
     this->mNumPreviewers = chat->getNumPreviewers();
+    this->mCreationTs = chat->getCreationTs();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -6443,6 +6494,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->archived = chat.isArchived();
     this->uh = MEGACHAT_INVALID_HANDLE;
     this->mNumPreviewers = chat.chat().getNumPreviewers();
+    this->mCreationTs = chat.getCreationTs();
 
     if (group)
     {
@@ -6703,6 +6755,11 @@ bool MegaChatRoomPrivate::isActive() const
 bool MegaChatRoomPrivate::isArchived() const
 {
     return archived;
+}
+
+int64_t MegaChatRoomPrivate::getCreationTs() const
+{
+    return mCreationTs;
 }
 
 int MegaChatRoomPrivate::getChanges() const

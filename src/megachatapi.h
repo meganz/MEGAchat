@@ -1531,7 +1531,7 @@ public:
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
-        TOTAL_OF_REQUEST_TYPES
+        TYPE_IMPORT_MESSAGES, TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -2201,8 +2201,8 @@ public:
      * after login. MEGAchat will not wait for the completion of fetchnodes. It will resume the cached
      * state from persistent storage.
      *
-     * @note This mode is required by iOS Notification service extension. The extension restricts the
-     * amount of memory used by the app. In order to avoid OOM errors, the iOS app may use this mode
+     * @note This mode is required by iOS Notification Service Extension (NSE). The extension restricts
+     * the amount of memory used by the app. In order to avoid OOM errors, the iOS app may use this mode
      * to skip the fetchnodes and, consequently, save some bytes by not loading all the nodes of the
      * account in memory.
      *
@@ -2222,6 +2222,33 @@ public:
      * @return The initialization state
      */
     int initLeanMode(const char *sid);
+
+    /**
+     * @brief Import messages from an external DB
+     *
+     * This method allows to import messages from an external cache. The cache should be a copy
+     * of the app's cache, but may include new messages that wants to be imported into the app's
+     * cache in one shot. In case the history has been truncated, this method applies truncation.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_IMPORT_MESSAGES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getText - Returns the cache path
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getNumber - Total number of messages added/updated
+     *
+     * @note This mode is required by iOS Notification Service Extension (NSE). The extension runs
+     * separately from iOS app, with its independent cache.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without a previous call to \c MegaChatApi::init or when the initialization
+     * state is other than MegaChatApi::INIT_OFFLINE_SESSION or MegaChatApi::INIT_ONLINE_SESSION.
+     *
+     * @param externalDbPath path of the external BD
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void importMessages(const char *externalDbPath, MegaChatRequestListener *listener = nullptr);
 
     /**
      * @brief Reset the Client Id for chatd
@@ -4255,11 +4282,12 @@ public:
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
-     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
-     * called without being already connected to chatd.
-     *
-     * The request will fail with MegaChatError::ERROR_ACCESS when the chatroom is
-     * in preview mode.
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     *  - if groupchatroom has no participants
+     *  - if peer of a 1on1 chatroom it's a non visible contact
+     *  - if this function is called without being already connected to chatd.
+     *  - if the chatroom is in preview mode.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it.
@@ -5361,6 +5389,12 @@ public:
      * @return True if the chat is archived, false otherwise.
      */
     virtual bool isArchived() const;
+
+    /**
+     * @brief Returns the creation timestamp of the chat.
+     * @return The creation timestamp of the chat.
+     */
+    virtual int64_t getCreationTs() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
