@@ -2247,7 +2247,6 @@ public:
      *
      * @param externalDbPath path of the external BD
      * @param listener MegaChatRequestListener to track this request
-     * @return Number of messages imported successfully, or a negative number in case of error.
      */
     void importMessages(const char *externalDbPath, MegaChatRequestListener *listener = nullptr);
 
