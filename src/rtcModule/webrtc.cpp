@@ -452,9 +452,8 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         }
         else
         {
-            assert(false);
             RTCM_LOG_ERROR("There is already a call in this chatroom, destroying it");
-            callIt->second->hangup();
+            removeCall(*callIt->second);
         }
     }
 
