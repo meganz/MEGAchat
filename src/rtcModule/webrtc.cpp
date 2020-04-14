@@ -420,6 +420,7 @@ void RtcModule::removeCall(Call& call)
         RTCM_LOG_DEBUG("removeCall: Call has been replaced, not removing");
         return;
     }
+
     mCalls.erase(chatid);
 }
 
@@ -790,7 +791,8 @@ void RtcModule::removeCall(Id chatid, bool retry)
 
                 itHandler->second->removeAllParticipants(reconnectionState);
             }
-            else if (mRetryCall.find(chatid) == mRetryCall.end())
+
+            if (mRetryCall.find(chatid) == mRetryCall.end())
             {
                 delete itHandler->second;
                 mCallHandlers.erase(itHandler);
