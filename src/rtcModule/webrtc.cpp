@@ -1345,6 +1345,11 @@ void Call::msgSession(RtMessage& packet)
 
     if (mState == Call::kStateJoining)
     {
+        if (!mInCallPingTimer)
+        {
+            startIncallPingTimer();
+        }
+
         setState(Call::kStateInProgress);
         monitorCallSetupTimeout();
     }
