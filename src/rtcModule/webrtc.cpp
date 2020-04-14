@@ -2401,7 +2401,7 @@ Call::~Call()
         mLocalPlayer.reset();
         mLocalStream.reset();
         setState(Call::kStateDestroyed);
-        FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
+        FIRE_EVENT(CALL, onDestroy, mTermCode == TermCode::kNotFinished ? TermCode::kErrInternal : mTermCode, false, "Callback from Call::dtor");
 
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
@@ -3763,6 +3763,8 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrCallSetupTimeout);
         RET_ENUM_NAME(kErrKickedFromChat);
         RET_ENUM_NAME(kErrIceTimeout);
+        RET_ENUM_NAME(kErrStreamRenegotation);
+        RET_ENUM_NAME(kErrStreamRenegotationTimeout);
         RET_ENUM_NAME(kInvalid);
         default: return "(invalid term code)";
     }
