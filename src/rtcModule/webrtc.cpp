@@ -1636,6 +1636,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
             return;
 
         TermCode codeWithOutPeer = static_cast<TermCode>(code & ~TermCode::kPeer);
+        bool sendTerminationInfo = (mPredestroyState != kStateJoining || !mRecovered);
         if (codeWithOutPeer == TermCode::kAnsElsewhere || codeWithOutPeer == TermCode::kErrAlready || codeWithOutPeer == TermCode::kAnswerTimeout)
         {
             SUB_LOG_DEBUG("Not posting termination CALLDATA because term code is kAnsElsewhere, kErrAlready or kAnswerTimeout");
@@ -1644,13 +1645,13 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         {
             SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing in a group call");
         }
-        else
+        else if (sendTerminationInfo)
         {
             sendCallData(CallDataState::kCallDataEnd);
         }
 
         assert(mSessions.empty());
-        stopIncallPingTimer();
+        stopIncallPingTimer(sendTerminationInfo);
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
@@ -1907,7 +1908,11 @@ bool Call::join(Id userid)
         return false;
     }
 
-    startIncallPingTimer();
+    if (!mRecovered)
+    {
+        startIncallPingTimer();
+    }
+
     // we have session setup timeout timer, but in case we don't even reach a session creation,
     // we need another timer as well
     auto wptr = weakHandle();
