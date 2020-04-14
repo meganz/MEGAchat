@@ -2246,8 +2246,7 @@ public:
      * state is other than MegaChatApi::INIT_OFFLINE_SESSION or MegaChatApi::INIT_ONLINE_SESSION.
      *
      * @param externalDbPath path of the external BD
-     * @param listener MegaChatRequestListener to track this request
-     * @return Number of messages imported successfully, or a negative number in case of error.
+     * @param listener MegaChatRequestListener to track this request     
      */
     void importMessages(const char *externalDbPath, MegaChatRequestListener *listener = nullptr);
 
