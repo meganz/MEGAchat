@@ -398,7 +398,7 @@ int Client::importMessages(const char *externalDbPath)
         chatd::Message *newestAppMsg = nullptr;
         chatd::Idx firstIdxToImport = CHATD_IDX_INVALID;    // may not match the idx from app (even for same msgid)
         karere::Id firstMsgidToImport(Id::inval());
-        std::map<karere::Id, uint16_t> editableMsgs;
+        uint32_t editableMsgsTs = 0;
 
         std::string query;
         if (!chat.empty())
@@ -415,17 +415,8 @@ int Client::importMessages(const char *externalDbPath)
             {
                 firstIdxToImport = stmt1.intCol(0);
 
-                // identify app messages that might have been updated in the NSE
-                uint32_t editableMsgsTs = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
-                query = "select msgid, updated from history where ts > ?1";
-                SqliteStmt stmtEditables(db, query.c_str());
-                stmtEditables << editableMsgsTs;
-                while (stmtEditables.step())
-                {
-                    karere::Id msgid = stmtEditables.uint64Col(0);
-                    uint16_t updated = (uint16_t)stmtEditables.intCol(1);
-                    editableMsgs[msgid] = updated;
-                }
+                // ts of oldest message in app that could have been updated/deleted
+                editableMsgsTs = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
             }
             else    // not found
             {
@@ -494,17 +485,15 @@ int Client::importMessages(const char *externalDbPath)
             if (msgid == newestAppMsgid)
             {
                 // first message, if not updated or truncated, msg can be skipped
-                if (msg->updated <= newestAppMsg->updated     // has been edited/deleted
-                        || (msg->type == chatd::Message::kMsgTruncate && msg->ts == newestAppMsg->ts))   // has been truncated
+                isUpdate = (newestAppMsg->type != msg->type && msg->type == chatd::Message::kMsgTruncate)      // become a truncate
+                        || (msg->type == chatd::Message::kMsgTruncate && msg->ts > newestAppMsg->ts)    // truncate a truncate
+                        || (msg->updated > newestAppMsg->updated);  // edited/deleted
+
+                if (!isUpdate)
                 {
                     KR_LOG_DEBUG("importMessages: newest message not changed. Skipping... (chatid: %s msgid: %s)",
                                  chatid.toString().c_str(), msgid.toString().c_str());
                     continue;
-                }
-                isUpdate = true;
-                if (msg->type == chatd::Message::kMsgTruncate)
-                {
-                    editableMsgs.clear();
                 }
             }
 
@@ -535,28 +524,46 @@ int Client::importMessages(const char *externalDbPath)
         }
 
         // finally, check if any older message has been updated
-        for (auto &it : editableMsgs)
+        if (editableMsgsTs) // 0 --> chat was empty or truncated
         {
-            query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history"
-                                " where chatid = ?1 and msgid = ?2 and updated != ?3";
+            query = "select userid, ts, type, data, msgid, keyid, updated, backrefid, is_encrypted from history"
+                                " where chatid = ?1 and ts > ?2 and updated > 0 and idx < ?3";
 
-            karere::Id msgid = it.first;
-            uint16_t updated = it.second;
-            SqliteStmt stmtMsgUpdated(dbExternal, query.c_str());
-            stmtMsgUpdated << chatroom->chatid() << msgid << updated;
-            if (stmtMsgUpdated.step())
+            SqliteStmt stmtMsgUpdated(dbExternal, query);
+            stmtMsgUpdated << chatroom->chatid() << editableMsgsTs << firstIdxToImport;
+            while (stmtMsgUpdated.step())
             {
+                karere::Id msgid(stmtMsgUpdated.uint64Col(4));
+                uint16_t updated = (uint16_t)stmtMsgUpdated.intCol(6);
+
+                // check if the edit in the external DB is newer than in app DB
+                query = "select updated from history where chatid = ?1 and msgid = ?2";
+                SqliteStmt stmtMsgAppUpdated(db, query);
+                stmtMsgAppUpdated << chatroom->chatid() << msgid;
+                if (!stmtMsgAppUpdated.step())
+                {
+                    KR_LOG_ERROR("importMessages: message not found in app's db (chatid: %s msgid: %s)",
+                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    continue;
+                }
+                uint16_t updatedApp = (uint16_t)stmtMsgAppUpdated.intCol(0);
+                if (updated <= updatedApp)
+                {
+                    KR_LOG_DEBUG("importMessages: edited message in external db is older. Skipping... (chatid: %s msgid: %s)",
+                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    continue;
+                }
+
                 // restore Message from external DB
                 std::unique_ptr<chatd::Message> msg;
                 karere::Id userid(stmtMsgUpdated.uint64Col(0));
                 uint32_t ts = stmtMsgUpdated.uintCol(1);
                 unsigned char type = (unsigned char)stmtMsgUpdated.intCol(2);
-                uint16_t newUpdated = (uint16_t)stmtMsgUpdated.intCol(7);
-                chatd::KeyId keyid = stmtMsgUpdated.uintCol(5);
                 Buffer buf;
                 stmtMsgUpdated.blobCol(3, buf);
-                msg.reset(new chatd::Message(msgid, userid, ts, newUpdated, std::move(buf), false, keyid, type));
-                msg->backRefId = stmtMsgUpdated.uint64Col(6);
+                chatd::KeyId keyid = stmtMsgUpdated.uintCol(5);
+                msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
+                msg->backRefId = stmtMsgUpdated.uint64Col(7);
                 msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
 
                 chat.msgImport(move(msg), true);
@@ -1791,7 +1798,7 @@ void Client::terminate(bool deleteDb)
             it++;
         }
     }
-  
+
     if (mConnState != kDisconnected)
     {
         setConnState(kDisconnected);
