@@ -1438,6 +1438,11 @@ void Call::msgJoin(RtMessage& packet)
 
         if (mState == Call::kStateReqSent || mState == Call::kStateJoining)
         {
+            if (!mInCallPingTimer)
+            {
+                startIncallPingTimer();
+            }
+
             setState(Call::kStateInProgress);
             monitorCallSetupTimeout();
 
@@ -1642,7 +1647,6 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
             return;
 
         TermCode codeWithOutPeer = static_cast<TermCode>(code & ~TermCode::kPeer);
-        bool sendTerminationInfo = (mPredestroyState != kStateJoining || !mRecovered);
         if (codeWithOutPeer == TermCode::kAnsElsewhere || codeWithOutPeer == TermCode::kErrAlready || codeWithOutPeer == TermCode::kAnswerTimeout)
         {
             SUB_LOG_DEBUG("Not posting termination CALLDATA because term code is kAnsElsewhere, kErrAlready or kAnswerTimeout");
@@ -1651,13 +1655,13 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         {
             SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing in a group call");
         }
-        else if (sendTerminationInfo)
+        else if (mInCallPingTimer)
         {
             sendCallData(CallDataState::kCallDataEnd);
         }
 
         assert(mSessions.empty());
-        stopIncallPingTimer(sendTerminationInfo);
+        stopIncallPingTimer(mInCallPingTimer);
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
