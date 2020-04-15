@@ -51,7 +51,7 @@
 #define KARERE_DEFAULT_TURN_SERVERS \
    "[{\"host\":\"turn:trn270n001.karere.mega.nz:3478?transport=udp\"}," \
     "{\"host\":\"turn:trn302n001.karere.mega.nz:3478?transport=udp\"}," \
-    "{\"host\":\"turn:trn530n001.karere.mega.nz:3478?transport=udp\"}]"
+    "{\"host\":\"turn:trn530n002.karere.mega.nz:3478?transport=udp\"}]"
 
 #define KARERE_TURN_USERNAME "inoo20jdnH"
 #define KARERE_TURN_PASSWORD "02nNKDBkkS"
