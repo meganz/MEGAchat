@@ -852,7 +852,7 @@ protected:
         mForwardList.clear();
     }
     // msgid can be 0 in case of rejections
-    Idx msgConfirm(karere::Id msgxid, karere::Id msgid);
+    Idx msgConfirm(karere::Id msgxid, karere::Id msgid, uint32_t timestamp = 0);
     bool msgAlreadySent(karere::Id msgxid, karere::Id msgid);
     Message* msgRemoveFromSending(karere::Id msgxid, karere::Id msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
@@ -1407,7 +1407,7 @@ protected:
     void onKeepaliveSent();
 
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
-    void msgConfirm(karere::Id msgxid, karere::Id msgid);
+    void msgConfirm(karere::Id msgxid, karere::Id msgid, uint32_t timestamp = 0);
     promise::Promise<void> sendKeepalive();
     void sendEcho();
 
@@ -1426,7 +1426,9 @@ public:
     //  * Changes at CALLDATA protocol (new state)
     // - Version 6:
     //  * Add commands ADDREACTION DELREACTION REACTIONSN
-    static const unsigned chatdVersion = 6;
+    // - Version 7:
+    //  * Add commands MSGIDTIMESTAMP OP_NEWMSGIDTIMESTAMP
+    static const unsigned chatdVersion = 7;
 
     Client(karere::Client *aKarereClient);
     ~Client();
