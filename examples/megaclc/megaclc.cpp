@@ -90,6 +90,7 @@ std::atomic<bool> g_reportMessagesDeveloper{false};
 // These objects are helping to work around history loading problems for reviewing public chats
 std::atomic<bool> g_reviewingPublicChat{false};
 std::atomic<int> g_reviewPublicChatMsgCountRemaining{0};
+std::atomic<c::MegaChatHandle> g_reviewPublicChatid{c::MEGACHAT_INVALID_HANDLE};
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFile;
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLinks;
 std::mutex g_reviewPublicChatOutFileLogsMutex;
@@ -518,6 +519,8 @@ static void store_line(char* l)
 }
 #endif
 
+void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid);
+
 struct CLCListener : public c::MegaChatListener
 {
     void onChatInitStateUpdate(c::MegaChatApi*, int newState) override
@@ -555,6 +558,27 @@ struct CLCListener : public c::MegaChatListener
                 g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message);
                 break;
             }
+        }
+    }
+
+    void onChatConnectionStateUpdate(c::MegaChatApi* api, c::MegaChatHandle chatid, int newState) override
+    {
+        if (chatid == c::MEGACHAT_INVALID_HANDLE) // Connecte to all chats
+        {
+            return;
+        }
+
+        c::MegaChatRoom *chatRoom = api->getChatRoom(chatid);
+        assert(chatRoom);
+        bool allEmailsReceived = g_reviewPublicChatEmails.size() >= chatRoom->getPeerCount();
+        delete chatRoom;
+        if (allEmailsReceived &&
+                g_reviewingPublicChat &&
+                g_reviewPublicChatMsgCountRemaining > 0 &&
+                g_reviewPublicChatid == chatid &&
+                newState == c::MegaChatApi::CHAT_CONNECTION_ONLINE)
+        {
+            reviewPublicChatLoadMessages(chatid);
         }
     }
 };
@@ -877,32 +901,23 @@ bool oneOpenRoom(c::MegaChatHandle room);
 
 void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
 {
-    constexpr int errorRetryCount = 10;
-    int source = c::MegaChatApi::SOURCE_NONE;
-    for (int i = 0; i < errorRetryCount; ++i)
-    {
-        source = g_chatApi->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining.load());
+    int source = g_chatApi->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining.load());
 
-        auto cl = conlock(cout);
-        switch (source)
-        {
-            case c::MegaChatApi::SOURCE_ERROR:
-            {
-                cout << "Load failed as we are offline." << endl;
-                continue;
-            }
-            case c::MegaChatApi::SOURCE_NONE:
-            {
-                g_reviewPublicChatMsgCountRemaining = 0;
-                cout << "No more messages." << endl;
-                return;
-            }
-            default: return;
-        }
-    }
-    if (source == c::MegaChatApi::SOURCE_ERROR)
+    auto cl = conlock(cout);
+    switch (source)
     {
-        g_reviewPublicChatMsgCountRemaining = 0;
+        case c::MegaChatApi::SOURCE_ERROR:
+        {
+            cout << "Load failed as we are offline." << endl;
+            break;
+        }
+        case c::MegaChatApi::SOURCE_NONE:
+        {
+            g_reviewPublicChatMsgCountRemaining = 0;
+            cout << "No more messages." << endl;
+            return;
+        }
+        default: return;
     }
 }
 
@@ -2238,11 +2253,12 @@ void exec_reviewpublicchat(ac::ACState& s)
                     *g_reviewPublicChatOutFile << "openChatPreview failed. Error: " << e->getErrorString() << endl;
                     return;
                 }
-                const auto chatid = request->getChatHandle();
+
+                g_reviewPublicChatid = request->getChatHandle();
                 const int user_count = static_cast<int>(request->getNumber());
 
                 std::ostringstream os1;
-                os1 << "openChatPreview: chatlink loaded. Chatid: " << k::Id(chatid).toString() << endl;
+                os1 << "openChatPreview: chatlink loaded. Chatid: " << k::Id(g_reviewPublicChatid).toString() << endl;
                 const auto msg1 = os1.str();
                 conlock(cout) << msg1;
                 conlock(*g_reviewPublicChatOutFile) << msg1 << flush;
@@ -2254,13 +2270,13 @@ void exec_reviewpublicchat(ac::ACState& s)
                 conlock(*g_reviewPublicChatOutFile) << msg2 << flush;
 
                 get_user_email_listener.setUserCount(user_count);
-                get_user_email_listener.setChatId(chatid);
+                get_user_email_listener.setChatId(g_reviewPublicChatid);
                 g_megaApi->addListener(&get_user_email_listener);
 
                 auto push_received_listener = new OneShotChatRequestListener;
 
                 push_received_listener->onRequestFinishFunc =
-                        [chatid](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+                        [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
                         {
                             // Called on Mega Chat API thread
                             if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED)
@@ -2275,7 +2291,7 @@ void exec_reviewpublicchat(ac::ACState& s)
                             g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
                                                 "ReviewPublicChat: pushReceived finished");
 
-                            std::unique_ptr<c::MegaChatRoom> chatRoom{g_chatApi->getChatRoom(chatid)};
+                            std::unique_ptr<c::MegaChatRoom> chatRoom{g_chatApi->getChatRoom(g_reviewPublicChatid)};
                             for (unsigned int i = 0; i < chatRoom->getPeerCount(); i++)
                             {
                                 g_megaApi->getUserEmail(chatRoom->getPeerHandle(i));
