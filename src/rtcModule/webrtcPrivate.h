@@ -8,7 +8,7 @@
 #include <base/trackDelete.h>
 #include <streamPlayer.h>
 
-#define TURNSERVER_SHARE -10
+#define TURNSERVER_SHARD -10
 
 namespace rtcModule
 {
@@ -390,7 +390,7 @@ public:
     void launchCallRetry(karere::Id chatid, karere::AvFlags av, bool isActiveRetry = true);
     virtual ~RtcModule();
 protected:
-    const char* mStaticIceSever;
+    const char* mStaticIceServer;
     karere::GelbProvider mIceServerProvider;
     webrtc::PeerConnectionInterface::IceServers mIceServers;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
@@ -399,7 +399,10 @@ protected:
     RtcModule &mManager;
     std::map<karere::Id, megaHandle> mRetryCallTimers;
     std::string mVideoDeviceSelected;
-    int mTurnServerDnsRequest = 0;
+
+    // id of the latest DnsRequest (to avoid using obsolete responses)
+    int mTurnServerDnsRequestId = 0;
+
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
@@ -416,7 +419,7 @@ protected:
     void removeCallRetry(karere::Id chatid, bool retry = true);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
 
-    karere::StaticProvider getTurnServerProvider(std::string ip1, std::string ip2);
+    karere::StaticProvider getTurnServerProvider(std::string ipv4, std::string ipv6);
 
     friend class Call;
     friend class Session;
@@ -497,11 +500,7 @@ public:
 class DnsRequest : public WebsocketsClient
 {
 private:
-    DnsRequest()
-    {
-
-    }
-
+    DnsRequest() {}
     static DnsRequest* instance;
 
 public:
@@ -515,10 +514,7 @@ public:
         return instance;
     }
 
-    ~DnsRequest()
-    {
-
-    }
+    virtual ~DnsRequest() {}
 
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl) = delete;
@@ -528,10 +524,10 @@ public:
     bool wsIsConnected() = delete;
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len) = delete;
 
-    void wsConnectCb(){}
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/){}
-    virtual void wsHandleMsgCb(char *data, size_t len){}
-    virtual void wsSendMsgCb(const char *, size_t) {}
+    void wsConnectCb() override {}
+    void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/) override {}
+    void wsHandleMsgCb(char *data, size_t len) override {}
+    void wsSendMsgCb(const char *, size_t) override {}
 };
 }
 

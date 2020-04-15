@@ -71,7 +71,7 @@ RtMessage::RtMessage(chatd::Chat &aChat, const StaticBuffer& msg)
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto* crypto, const char* iceServers)
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
-  mStaticIceSever(iceServers),
+  mStaticIceServer(iceServers),
   mIceServerProvider(client.api, "turn"),
   mManager(*this)
 {
@@ -92,14 +92,14 @@ void RtcModule::init()
     string ipv4;
     string ipv6;
     StaticProvider iceServerStatic;
-    mKarereClient.mDnsCache.getIp(TURNSERVER_SHARE, ipv4, ipv6);
+    mKarereClient.mDnsCache.getIp(TURNSERVER_SHARD, ipv4, ipv6);
     if (ipv4.size() || ipv6.size())
     {
         iceServerStatic = getTurnServerProvider(ipv4, ipv6);
     }
     else
     {
-        iceServerStatic.setServer(mStaticIceSever);
+        iceServerStatic.setServer(mStaticIceServer);
     }
 
     setIceServers(iceServerStatic);
@@ -170,30 +170,30 @@ void RtcModule::removeCallRetry(karere::Id chatid, bool retry)
     mRetryCall.erase(chatid);
 }
 
-StaticProvider RtcModule::getTurnServerProvider(string ip1, string ip2)
+StaticProvider RtcModule::getTurnServerProvider(string ipv4, string ipv6)
 {
     StaticProvider iceServer;
     string json = "[";
-    bool ip1Added = false;
+    bool ipv4Added = false;
 
-    if (ip1.size())
+    if (ipv4.size())
     {
         json.append("{\"host\":\"turn:")
-                .append(ip1)
+                .append(ipv4)
                 .append(":3478?transport=udp\"}");
 
-        ip1Added = true;
+        ipv4Added = true;
     }
 
-    if (ip2.size())
+    if (ipv6.size())
     {
-        if (ip1Added)
+        if (ipv4Added)
         {
             json.append(", ");
         }
 
         json.append("{\"host\":\"turn:")
-                .append(ip2)
+                .append(ipv6)
                 .append(":3478?transport=udp\"}");
 
     }
@@ -920,30 +920,30 @@ void RtcModule::refreshTurnServerIp()
         size_t postFinalColon = url.rfind(":");
         std::string subString = url.substr(postInitialColon, postFinalColon - postInitialColon);
         auto wptr = weakHandle();
-        int turnServerDnsRequestId = ++mTurnServerDnsRequest;
+        int turnServerDnsRequestId = ++mTurnServerDnsRequestId;
         DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, subString.c_str(),
                                                 [wptr, this, subString, turnServerDnsRequestId]
                                                 (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
         {
-            if (wptr.deleted() || turnServerDnsRequestId != mTurnServerDnsRequest)
+            if (wptr.deleted() || turnServerDnsRequestId != mTurnServerDnsRequestId)
                 return;
 
-            if (!mKarereClient.mDnsCache.hasRecord(TURNSERVER_SHARE))
+            if (!mKarereClient.mDnsCache.hasRecord(TURNSERVER_SHARD))
             {
-                mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARE, subString);
+                mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD, subString);
             }
-            else if (mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARE).host != subString)
+            else if (mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD).host != subString)
             {
-                mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARE);
-                mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARE, subString);
+                mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARD);
+                mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD, subString);
             }
 
             if (ipsv4.size() || ipsv6.size())
             {
-                std::vector<std::string> ips;
-                ips.push_back("127.0.0.1");
-                mKarereClient.mDnsCache.setIp(TURNSERVER_SHARE, ipsv4, ipsv6);
-                KR_LOG_DEBUG("New IP for Turn servers: ipv4 - %s     ipv6 - %s", ipsv4.size() ? ipsv4[0].c_str() : "", ipsv6.size() ? ipsv6[0].c_str() : "");
+                mKarereClient.mDnsCache.setIp(TURNSERVER_SHARD, ipsv4, ipsv6);
+                KR_LOG_DEBUG("New IP for Turn servers: ipv4 - %s     ipv6 - %s",
+                             ipsv4.size() ? ipsv4[0].c_str() : "",
+                             ipsv6.size() ? ipsv6[0].c_str() : "");
                 StaticProvider iceServer = getTurnServerProvider(ipsv4[0], ipsv6[0]);
                 setIceServers(iceServer);
             }
@@ -2926,7 +2926,7 @@ void Session::createRtcConn()
     if (mCall.mIceFails.find(endPoint) != mCall.mIceFails.end())
     {
         RTCM_LOG_ERROR("Using ALL ICE servers, because ICE to this peer has failed %d times", mCall.mIceFails[endPoint]);
-        StaticProvider iceServerStatic(mCall.mManager.mStaticIceSever);
+        StaticProvider iceServerStatic(mCall.mManager.mStaticIceServer);
         mCall.mManager.setIceServers(iceServerStatic);
     }
 
