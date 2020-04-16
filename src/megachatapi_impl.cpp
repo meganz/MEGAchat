@@ -6211,11 +6211,15 @@ void MegaChatRoomHandler::onUnsentEditLoaded(chatd::Message &msg, bool oriMsgIsS
     fireOnMessageLoaded(message);
 }
 
-void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx)
+void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx, bool tsUpdated)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kServerReceived, idx);
     message->setStatus(MegaChatMessage::STATUS_SERVER_RECEIVED);
     message->setTempId(msgxid);     // to allow the app to find the "temporal" message
+    if (tsUpdated)
+    {
+        message->setTsUpdated();
+    }
 
     std::set <MegaChatHandle> *msgToUpdate = handleNewMessage(message);
 
@@ -7725,6 +7729,11 @@ void MegaChatMessagePrivate::setCode(int code)
 void MegaChatMessagePrivate::setAccess()
 {
     this->changed |= MegaChatMessage::CHANGE_TYPE_ACCESS;
+}
+
+void MegaChatMessagePrivate::setTsUpdated()
+{
+    this->changed |= MegaChatMessage::CHANGE_TYPE_TIMESTAMP;
 }
 
 int MegaChatMessagePrivate::convertEndCallTermCodeToUI(const Message::CallEndedInfo  &callEndInfo)

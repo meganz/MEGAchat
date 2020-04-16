@@ -486,7 +486,7 @@ public:
     virtual void onHistoryDone(chatd::HistSource source);
     virtual void onUnsentMsgLoaded(chatd::Message& msg);
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
-    virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx);
+    virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx, bool tsUpdated);
     virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
@@ -850,6 +850,7 @@ public:
     void setContentChanged();
     void setCode(int code);
     void setAccess();
+    void setTsUpdated();
 
     static int convertEndCallTermCodeToUI(const chatd::Message::CallEndedInfo &callEndInfo);
 

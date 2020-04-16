@@ -3833,13 +3833,15 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
         CHATD_LOG_DEBUG("msgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%u to msgid=%u of %d message/s in the sending queue", msgxid, msgid, count);
     }
 
+    bool tsUpdated = false;
     if (timestamp != 0)
     {
         msg->ts = timestamp;
+        tsUpdated = true;
         CHATID_LOG_DEBUG("Message timestamp UPDATE msgConfirm");
     }
 
-    CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
+    CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx, tsUpdated);
 
     // if first message is own msg we need to init mNextHistFetchIdx to avoid loading own messages twice
     if (mNextHistFetchIdx == CHATD_IDX_INVALID && size() == 1)
