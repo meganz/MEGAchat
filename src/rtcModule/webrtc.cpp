@@ -89,11 +89,9 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 
 void RtcModule::init()
 {
-    string ipv4;
-    string ipv6;
     StaticProvider iceServerStatic;
     string jsonCacheTurnServer = getCacheTurnServer();
-    if (jsonCacheTurnServer.length())
+    if (jsonCacheTurnServer.size())
     {
         iceServerStatic.setServer(jsonCacheTurnServer.c_str());
     }
