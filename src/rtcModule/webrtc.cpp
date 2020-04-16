@@ -92,10 +92,10 @@ void RtcModule::init()
     string ipv4;
     string ipv6;
     StaticProvider iceServerStatic;
-    mKarereClient.mDnsCache.getIp(TURNSERVER_SHARD, ipv4, ipv6);
-    if (ipv4.size() || ipv6.size())
+    string jsonCacheTurnServer = getCacheTurnServer();
+    if (jsonCacheTurnServer.length())
     {
-        iceServerStatic = getTurnServerProvider(ipv4, ipv6);
+        iceServerStatic.setServer(jsonCacheTurnServer.c_str());
     }
     else
     {
@@ -170,39 +170,75 @@ void RtcModule::removeCallRetry(karere::Id chatid, bool retry)
     mRetryCall.erase(chatid);
 }
 
-StaticProvider RtcModule::getTurnServerProvider(string ipv4, string ipv6)
+string RtcModule::getCacheTurnServer()
 {
-    StaticProvider iceServer;
-    string json = "[";
-    bool ipv4Added = false;
-
-    if (ipv4.size())
+    int i = 0;
+    vector<string> urls;
+    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - i) && i < MAX_TURN_SERVER)
     {
-        json.append("{\"host\":\"turn:")
-                .append(ipv4)
-                .append(":3478?transport=udp\"}");
+        string ipv4;
+        string ipv6;
+        karere::Url turnServerUrl = mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD - i);
+        mKarereClient.mDnsCache.getIp(TURNSERVER_SHARD, ipv4, ipv6);
 
-        ipv4Added = true;
+        if (ipv4.size() || ipv6.size())
+        {
+            if (ipv4.size())
+            {
+                urls.push_back(buildTurnServerUrl(ipv4, turnServerUrl.port, turnServerUrl.path));
+            }
+
+            if(ipv6.size())
+            {
+                urls.push_back(buildTurnServerUrl(ipv6, turnServerUrl.port, turnServerUrl.path));
+            }
+        }
+        else
+        {
+            urls.push_back(buildTurnServerUrl(turnServerUrl.host, turnServerUrl.port, turnServerUrl.path));
+
+        }
+        i++;
     }
 
-    if (ipv6.size())
+    string json;
+    if (urls.size())
     {
-        if (ipv4Added)
+        json.insert(json.begin(), '[');
+        for (const string& url : urls)
         {
-            json.append(", ");
+            if (json.size() > 2)
+            {
+                json.append(", ");
+            }
+
+            json.append("{\"host\":\"")
+                    .append(url)
+                    .append("\"}");
         }
 
-        json.append("{\"host\":\"turn:")
-                .append(ipv6)
-                .append(":3478?transport=udp\"}");
-
+        json.append("]");
     }
 
-    json.append("]");
+    return json;
+}
 
-    iceServer.setServer(json.c_str());
+string RtcModule::buildTurnServerUrl(const string &host, int port, const string &path) const
+{
+    string url("turn:");
+    url.append(host);
+    if (port > 0)
+    {
+        url.append(":")
+                .append(std::to_string(port));
+    }
 
-    return iceServer;
+    if (path.size())
+    {
+        url.append(path);
+    }
+
+    return url;
 }
 
 bool RtcModule::selectAudioInDevice(const string &devname)
@@ -908,46 +944,64 @@ void RtcModule::abortCallRetry(Id chatid)
 
 void RtcModule::refreshTurnServerIp()
 {
-    if (mIceServerProvider.empty())
+    if (mIceServerProvider.empty() || mNumRequestDnsOnFly)
     {
         return;
     }
 
-    std::string url = mIceServerProvider[0]->url;
-    if (url.size())
+    for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
     {
-        size_t postInitialColon = url.find(":") + 1;
-        size_t postFinalColon = url.rfind(":");
-        std::string subString = url.substr(postInitialColon, postFinalColon - postInitialColon);
-        auto wptr = weakHandle();
-        int turnServerDnsRequestId = ++mTurnServerDnsRequestId;
-        DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, subString.c_str(),
-                                                [wptr, this, subString, turnServerDnsRequestId]
-                                                (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+        mNumRequestDnsOnFly ++;
+        std::string fullUrl = serverInfo->url;
+        if (fullUrl.size())
         {
-            if (wptr.deleted() || turnServerDnsRequestId != mTurnServerDnsRequestId)
-                return;
+            size_t postInitialColon = fullUrl.find(":") + 1;
+            size_t postFinalColon = fullUrl.rfind(":");
+            std::string url = fullUrl.substr(postInitialColon, fullUrl.size() - postInitialColon);
+            std::string host = fullUrl.substr(postInitialColon, postFinalColon - postInitialColon);
+            auto wptr = weakHandle();
+            DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
+                                                    [wptr, this, url]
+                                                    (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+            {
+                if (wptr.deleted())
+                    return;
 
-            if (!mKarereClient.mDnsCache.hasRecord(TURNSERVER_SHARD))
-            {
-                mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD, subString);
-            }
-            else if (mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD).host != subString)
-            {
-                mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARD);
-                mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD, subString);
-            }
+                if (statusDNS < 0)
+                {
+                    KR_LOG_ERROR("Async DNS error in rtcModule. Error code: %d", statusDNS);
+                }
 
-            if (ipsv4.size() || ipsv6.size())
-            {
-                mKarereClient.mDnsCache.setIp(TURNSERVER_SHARD, ipsv4, ipsv6);
-                KR_LOG_DEBUG("New IP for Turn servers: ipv4 - %s     ipv6 - %s",
-                             ipsv4.size() ? ipsv4[0].c_str() : "",
-                             ipsv6.size() ? ipsv6[0].c_str() : "");
-                StaticProvider iceServer = getTurnServerProvider(ipsv4[0], ipsv6[0]);
-                setIceServers(iceServer);
-            }
-        });
+                mNumRequestDnsOnFly --;
+
+                if (!mKarereClient.mDnsCache.hasRecord(TURNSERVER_SHARD))
+                {
+                    mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD, url);
+                }
+                else if (mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD).host != url)
+                {
+                    mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARD);
+                    mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD, url);
+                }
+
+                if (ipsv4.size() || ipsv6.size())
+                {
+                    mKarereClient.mDnsCache.setIp(TURNSERVER_SHARD, ipsv4, ipsv6);
+                    KR_LOG_DEBUG("New IP for Turn servers: ipv4 - %s     ipv6 - %s",
+                                 ipsv4.size() ? ipsv4[0].c_str() : "",
+                                 ipsv6.size() ? ipsv6[0].c_str() : "");
+                }
+
+
+                if (mNumRequestDnsOnFly == 0)
+                {
+                    StaticProvider iceServer;
+                    string jsonCacheTurnServer = getCacheTurnServer();
+                    iceServer.setServer(jsonCacheTurnServer.c_str());
+                    setIceServers(iceServer);
+                }
+            });
+        }
     }
 }
 

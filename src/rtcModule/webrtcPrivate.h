@@ -9,6 +9,7 @@
 #include <streamPlayer.h>
 
 #define TURNSERVER_SHARD -10
+#define MAX_TURN_SERVER 5
 
 namespace rtcModule
 {
@@ -399,9 +400,7 @@ protected:
     RtcModule &mManager;
     std::map<karere::Id, megaHandle> mRetryCallTimers;
     std::string mVideoDeviceSelected;
-
-    // id of the latest DnsRequest (to avoid using obsolete responses)
-    int mTurnServerDnsRequestId = 0;
+    unsigned int mNumRequestDnsOnFly = 0;
 
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
@@ -419,7 +418,8 @@ protected:
     void removeCallRetry(karere::Id chatid, bool retry = true);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
 
-    karere::StaticProvider getTurnServerProvider(std::string ipv4, std::string ipv6);
+    std::string getCacheTurnServer();
+    std::string buildTurnServerUrl(const std::string& host, int port, const std::string& path) const;
 
     friend class Call;
     friend class Session;
