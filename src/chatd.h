@@ -1623,10 +1623,13 @@ public:
     virtual const std::string getReactionSn() const = 0;
     virtual void setReactionSn(const std::string &rsn) = 0;
     virtual void cleanReactions(karere::Id msgId) = 0;
-    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction, uint8_t status) = 0;
-    virtual void confirmReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
+    virtual void cleanPendingReactions(karere::Id msgId) = 0;
+    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction) = 0;
+    virtual void addPendingReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction, uint8_t status) = 0;
     virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
+    virtual void delPendingReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
+    virtual void getPendingReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
     virtual bool hasPendingReactions() = 0;
 };
 

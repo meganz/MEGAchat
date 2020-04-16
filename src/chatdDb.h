@@ -341,6 +341,9 @@ public:
         // Clean reactions for the truncate message
         mDb.query("delete from chat_reactions where chatid = ? and msgid = ?", mChat.chatId(), msg.id());
 
+        // Clean pending reactions for the truncate message
+        mDb.query("delete from chat_pending_reactions where chatid = ? and msgid = ?", mChat.chatId(), msg.id());
+
 #ifndef NDEBUG
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
         stmt << mChat.chatId() << msg.id();
@@ -555,15 +558,21 @@ public:
         mDb.query("delete from chat_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
-    void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction, uint8_t status) override
+    void cleanPendingReactions(karere::Id msgId) override
     {
-        mDb.query("insert or replace into chat_reactions(chatid, msgid, userid, reaction, encReaction, status)"
-            "values(?,?,?,?,?,?)", mChat.chatId(), msgId, userId, reaction, encReaction, status);
+        mDb.query("delete from chat_pending_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
-    void confirmReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction) override
     {
-        mDb.query("update chat_reactions set status = 0 where chatid = ? and msgid = ? and userid = ? and reaction = ?", mChat.chatId(), msgId, userId, reaction);
+        mDb.query("insert or replace into chat_reactions(chatid, msgid, userid, reaction, encReaction)"
+                  "values(?,?,?,?,?)", mChat.chatId(), msgId, userId, reaction, encReaction);
+    }
+
+    void addPendingReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction, uint8_t status) override
+    {
+        mDb.query("insert or replace into chat_pending_reactions(chatid, msgid, userid, reaction, encReaction, status)"
+                  "values(?,?,?,?,?,?)", mChat.chatId(), msgId, userId, reaction, encReaction, status);
     }
 
     void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
@@ -572,9 +581,26 @@ public:
             mChat.chatId(), msgId, userId, reaction);
     }
 
+    void delPendingReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    {
+        mDb.query("delete from chat_pending_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
+            mChat.chatId(), msgId, userId, reaction);
+    }
+
     void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const override
     {
-        SqliteStmt stmt(mDb, "select reaction, encReaction, userid, status from chat_reactions where chatid = ? and msgid = ?");
+        SqliteStmt stmt(mDb, "select reaction, encReaction, userid from chat_reactions where chatid = ? and msgid = ?");
+        stmt << mChat.chatId();
+        stmt << msgId;
+        while (stmt.step())
+        {
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(0), stmt.stringCol(1), msgId.val, stmt.uint64Col(2), stmt.uint64Col(3)));
+        }
+    }
+
+    void getPendingReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const override
+    {
+        SqliteStmt stmt(mDb, "select reaction, encReaction, userid, status from chat_pending_reactions where chatid = ? and msgid = ?");
         stmt << mChat.chatId();
         stmt << msgId;
         while (stmt.step())
@@ -585,7 +611,7 @@ public:
 
     bool hasPendingReactions() override
     {
-        SqliteStmt stmt(mDb, "select count(*) from chat_reactions where chatid = ? and status != 0");
+        SqliteStmt stmt(mDb, "select count(*) from chat_pending_reactions where chatid = ?");
         stmt << mChat.chatId();
         stmt.stepMustHaveData(__FUNCTION__);
         return stmt.intCol(0);
