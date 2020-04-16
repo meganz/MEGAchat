@@ -57,6 +57,15 @@ struct TurnServerInfo
                 url+=+":";
                 url+=std::to_string(port);
             }
+
+            const char* transport = nullptr;
+            SRVJSON_GET_OPTIONAL_PROP(transport, transport, String);
+            if (transport)
+            {
+                url+=+"?";
+                url+="transport=";
+                url+=transport;
+            }
         }
         SRVJSON_GET_OPTIONAL_PROP(user, user, String);
         SRVJSON_GET_OPTIONAL_PROP(pass, pass, String);
