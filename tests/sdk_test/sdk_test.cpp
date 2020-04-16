@@ -4530,7 +4530,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
     msgId[apiIndex].push_back(msg->getMsgId());
 
-    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_STATUS)
+    if (msg->hasChanged(MegaChatMessage::CHANGE_TYPE_STATUS))
     {
         if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
         {
@@ -4543,7 +4543,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
         }
     }
 
-    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_CONTENT && msg->isEdited())
+    if (msg->hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT) && msg->isEdited())
     {
         mEditedMessageHandle[apiIndex] = msg->getMsgId();
         msgEdited[apiIndex] = true;
