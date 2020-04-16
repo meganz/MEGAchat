@@ -300,7 +300,7 @@ bool Client::openDb(const std::string& sid)
 
                 // Create new table for chat reactions
                 db.simpleQuery("CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null,"
-                               "    userid int64 not null, reaction text, encReaction blob, status tinyint default 0,"
+                               "    userid int64 not null, reaction text,"
                                "    UNIQUE(chatid, msgid, userid, reaction),"
                                "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
 
@@ -315,6 +315,24 @@ bool Client::openDb(const std::string& sid)
 
                 // Add dns_cache table
                 db.simpleQuery("CREATE TABLE dns_cache(shard tinyint primary key, url text, ipv4 text, ipv6 text);");
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
+            else if (cachedVersionSuffix == "9" && (strcmp(gDbSchemaVersionSuffix, "10") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Add encReaction to chats reactions table
+                db.query("ALTER TABLE `chat_reactions` ADD encReaction blob");
+
+                // Create new table for chat pending reactions
+                db.simpleQuery("CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null,"
+                               "    userid int64 not null, reaction text, encReaction blob, status tinyint default 0,"
+                               "    UNIQUE(chatid, msgid, userid, reaction),"
+                               "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
+
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
