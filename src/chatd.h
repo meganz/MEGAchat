@@ -1352,6 +1352,9 @@ public:
 
     /** Returns true when fetch in-flight is a NODEHIST */
     bool isFetchingNodeHistory() const;
+
+    /** Returns true when fetch in-flight is a HIST */
+    bool isFetchingHistory() const;
     void setNodeHistoryHandler(FilteredHistoryHandler *handler);
     void unsetHandlerToNodeHistory();
 

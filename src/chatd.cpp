@@ -2758,6 +2758,11 @@ bool Chat::isFetchingNodeHistory() const
     return (!mFetchRequest.empty() && (mFetchRequest.front() == FetchType::kFetchNodeHistory));
 }
 
+bool Chat::isFetchingHistory() const
+{
+    return (!mFetchRequest.empty() && (mFetchRequest.front() == FetchType::kFetchMessages));
+}
+
 void Chat::setNodeHistoryHandler(FilteredHistoryHandler *handler)
 {
     mAttachmentNodes->setHandler(handler);
