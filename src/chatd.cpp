@@ -2629,14 +2629,12 @@ void Chat::addPendingReaction(const std::string reaction, const std::string encR
     mPendingReactions.emplace_back(reaction, encReaction, msgId, Id::null(), status);
 }
 
-void Chat::removePendingReaction(const std::string reaction, Id msgId, uint8_t status)
+void Chat::removePendingReaction(const std::string reaction, Id msgId)
 {
-    assert (status != 0);
     for (auto it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
     {
         if (it->mMsgId == msgId
-            && it->mReactionString == reaction
-            && it->mStatus == status)
+            && it->mReactionString == reaction)
         {
             mPendingReactions.erase(it);
             return;
