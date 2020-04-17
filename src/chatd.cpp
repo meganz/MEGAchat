@@ -3796,6 +3796,14 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
     // update msgxid to msgid
     msg->setId(msgid, false);
 
+    bool tsUpdated = false;
+    if (timestamp != 0)
+    {
+        msg->ts = timestamp;
+        tsUpdated = true;
+        CHATID_LOG_DEBUG("Message timestamp UPDATE msgConfirm");
+    }
+
     // the keyid should be already confirmed by this time
     assert(!msg->isLocalKeyid());
 
@@ -3806,6 +3814,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
     {
         mAttachmentNodes->addMessage(*msg, true, false);
     }
+
     CALL_DB(addMsgToHistory, *msg, idx);
 
     assert(msg->backRefId);
@@ -3831,14 +3840,6 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
         int countDb = mDbInterface->updateSendingItemsMsgidAndOpcode(msgxid, msgid);
         assert(countDb == count);
         CHATD_LOG_DEBUG("msgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%u to msgid=%u of %d message/s in the sending queue", msgxid, msgid, count);
-    }
-
-    bool tsUpdated = false;
-    if (timestamp != 0)
-    {
-        msg->ts = timestamp;
-        tsUpdated = true;
-        CHATID_LOG_DEBUG("Message timestamp UPDATE msgConfirm");
     }
 
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx, tsUpdated);
