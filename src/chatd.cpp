@@ -2722,7 +2722,7 @@ void Chat::addReaction(const Message &message, const std::string &reaction)
         std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
         std::string encReaction (data->buf(), data->bufSize());
         addPendingReaction(reaction, encReaction, message.id(), OP_ADDREACTION);
-        CALL_DB(addReaction, message.mId, client().myHandle(), reaction.c_str(), encReaction, OP_ADDREACTION);
+        CALL_DB(addPendingReaction, message.mId, client().myHandle(), reaction.c_str(), encReaction, OP_ADDREACTION);
         sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
     }, mChatdClient.mKarereClient->appCtx);
 }
@@ -2738,7 +2738,7 @@ void Chat::delReaction(const Message &message, const std::string &reaction)
         std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
         std::string encReaction (data->buf(), data->bufSize());
         addPendingReaction(reaction, encReaction, message.id(), OP_DELREACTION);
-        CALL_DB(addReaction, message.mId, client().myHandle(), reaction.c_str(), encReaction, OP_DELREACTION);
+        CALL_DB(addPendingReaction, message.mId, client().myHandle(), reaction.c_str(), encReaction, OP_DELREACTION);
         sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
     }, mChatdClient.mKarereClient->appCtx);
 }
