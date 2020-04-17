@@ -1848,16 +1848,16 @@ Idx Chat::getHistoryFromDb(unsigned count)
         CALL_DB(getMessageReactions, msg->id(), reactions);
         for (auto &auxReaction : reactions)
         {
-            if (auxReaction.mStatus == 0)
-            {
-                // Add reaction to confirmed reactions queue in message
-                msg->addReaction(auxReaction.mReactionString, auxReaction.mUserId);
-            }
-            else
-            {
-                // Add reaction to pending reactions queue in chat
-                addPendingReaction(auxReaction.mReactionString, auxReaction.mReactionStringEnc, auxReaction.mMsgId, auxReaction.mStatus);
-            }
+            // Add reaction to confirmed reactions queue in message
+            msg->addReaction(auxReaction.mReactionString, auxReaction.mUserId);
+        }
+
+        reactions.clear();
+        CALL_DB(getPendingReactions, msg->id(), reactions);
+        for (auto &auxReaction : reactions)
+        {
+            // Add pending reaction to queue in chat
+            addPendingReaction(auxReaction.mReactionString, auxReaction.mReactionStringEnc, auxReaction.mMsgId, auxReaction.mStatus);
         }
 
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
