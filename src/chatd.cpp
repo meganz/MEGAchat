@@ -2378,7 +2378,6 @@ void Chat::onHistDone()
 {
     FetchType fetchType = mFetchRequest.front();
     mFetchRequest.pop();
-    flushChatPendingReactions();
     if (fetchType == FetchType::kFetchMessages)
     {
         // We may be fetching from memory and db because of a resetHistFetch()
@@ -2393,6 +2392,7 @@ void Chat::onHistDone()
         {
             onJoinComplete();
         }
+        flushChatPendingReactions();
     }
     else if (fetchType == FetchType::kFetchNodeHistory)
     {
