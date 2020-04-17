@@ -1428,7 +1428,7 @@ public:
     // - Version 6:
     //  * Add commands ADDREACTION DELREACTION REACTIONSN
     // - Version 7:
-    //  * Add commands MSGIDTIMESTAMP OP_NEWMSGIDTIMESTAMP
+    //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
     static const unsigned chatdVersion = 7;
 
     Client(karere::Client *aKarereClient);
