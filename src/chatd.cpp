@@ -3801,7 +3801,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
     {
         msg->ts = timestamp;
         tsUpdated = true;
-        CHATID_LOG_DEBUG("Message timestamp UPDATE msgConfirm");
+        CHATID_LOG_DEBUG("Message timestamp has been updated in confirmation");
     }
 
     // the keyid should be already confirmed by this time
