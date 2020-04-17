@@ -426,7 +426,6 @@ void Chat::login()
     mOldestKnownMsgId = info.oldestDbId;
 
     sendReactionSn();
-    retryPendingReactions();
 
     if (previewMode())
     {
@@ -442,6 +441,7 @@ void Chat::login()
         else
             join();
     }
+    retryPendingReactions();
 }
 
 Connection::Connection(Client& chatdClient, int shardNo)
