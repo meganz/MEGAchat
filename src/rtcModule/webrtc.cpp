@@ -1005,6 +1005,14 @@ void RtcModule::refreshTurnServerIp()
                     string jsonCacheTurnServer = getCacheTurnServer();
                     iceServer.setServer(jsonCacheTurnServer.c_str());
                     setIceServers(iceServer);
+
+                    // Remove old entries in cache
+                    int index = numServers;
+                    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVER)
+                    {
+                        mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARD - index);
+                        index ++;
+                    }
                 }
             });
         }
