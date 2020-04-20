@@ -947,8 +947,15 @@ void RtcModule::refreshTurnServerIp()
         return;
     }
 
+    int numServers = (mIceServerProvider.size() < MAX_TURN_SERVER) ? mIceServerProvider.size() : MAX_TURN_SERVER;
+
     for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
     {
+        if (mNumRequestDnsOnFly >= MAX_TURN_SERVER)
+        {
+            return;
+        }
+
         std::string fullUrl = serverInfo->url;
         if (fullUrl.size())
         {
