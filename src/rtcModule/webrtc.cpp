@@ -982,7 +982,7 @@ void RtcModule::refreshTurnServerIp()
                     mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD, url);
                 }
 
-                if (ipsv4.size() || ipsv6.size())
+                if (statusDNS >= 0 && (ipsv4.size() || ipsv6.size()))
                 {
                     mKarereClient.mDnsCache.setIp(TURNSERVER_SHARD, ipsv4, ipsv6);
                     KR_LOG_DEBUG("New IP for Turn servers: ipv4 - %s     ipv6 - %s",
