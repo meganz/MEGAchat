@@ -282,10 +282,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-- (MEGAStringList *)chatAudioInDevices;
 - (MEGAStringList *)chatVideoInDevices;
-- (BOOL)setChatAudioInDevices:(NSString *)devices;
 - (void)setChatVideoInDevices:(NSString *)devices;
+- (NSString *)videoDeviceSelected;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
