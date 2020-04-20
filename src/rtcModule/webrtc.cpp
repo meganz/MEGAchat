@@ -949,17 +949,18 @@ void RtcModule::refreshTurnServerIp()
 
     for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
     {
-        mNumRequestDnsOnFly ++;
         std::string fullUrl = serverInfo->url;
         if (fullUrl.size())
         {
+            int shardIndex = mNumRequestDnsOnFly;
+            mNumRequestDnsOnFly ++;
             size_t postInitialColon = fullUrl.find(":") + 1;
             size_t postFinalColon = fullUrl.rfind(":");
             std::string url = fullUrl.substr(postInitialColon, fullUrl.size() - postInitialColon);
             std::string host = fullUrl.substr(postInitialColon, postFinalColon - postInitialColon);
             auto wptr = weakHandle();
             DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
-                                                    [wptr, this, url]
+                                                    [wptr, this, url, shardIndex, numServers]
                                                     (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
@@ -972,19 +973,19 @@ void RtcModule::refreshTurnServerIp()
 
                 mNumRequestDnsOnFly --;
 
-                if (!mKarereClient.mDnsCache.hasRecord(TURNSERVER_SHARD))
+                if (!mKarereClient.mDnsCache.hasRecord(TURNSERVER_SHARD - shardIndex))
                 {
-                    mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD, url);
+                    mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD - shardIndex, url);
                 }
-                else if (mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD).host != url)
+                else if (mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD - shardIndex).host != url)
                 {
-                    mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARD);
-                    mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD, url);
+                    mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARD - shardIndex);
+                    mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD - shardIndex, url);
                 }
 
                 if (statusDNS >= 0 && (ipsv4.size() || ipsv6.size()))
                 {
-                    mKarereClient.mDnsCache.setIp(TURNSERVER_SHARD, ipsv4, ipsv6);
+                    mKarereClient.mDnsCache.setIp(TURNSERVER_SHARD - shardIndex, ipsv4, ipsv6);
                     KR_LOG_DEBUG("New IP for Turn servers: ipv4 - %s     ipv6 - %s",
                                  ipsv4.size() ? ipsv4[0].c_str() : "",
                                  ipsv6.size() ? ipsv6[0].c_str() : "");
