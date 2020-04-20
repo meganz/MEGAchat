@@ -1408,7 +1408,7 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
     }
     else
     {
-        g_chatApi->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining.load());
+        source = g_chatApi->loadMessages(chatid, g_reviewPublicChatMsgCountRemaining.load());
     }
 
     auto cl = conlock(cout);
