@@ -324,9 +324,6 @@ bool Client::openDb(const std::string& sid)
             {
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
 
-                // Add encReaction to chats reactions table
-                db.query("ALTER TABLE `chat_reactions` ADD encReaction blob");
-
                 // Create new table for chat pending reactions
                 db.simpleQuery("CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null,"
                                "    userid int64 not null, reaction text, encReaction blob, status tinyint default 0,"

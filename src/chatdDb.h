@@ -563,10 +563,10 @@ public:
         mDb.query("delete from chat_pending_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
-    void addReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction) override
+    void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
     {
-        mDb.query("insert or replace into chat_reactions(chatid, msgid, userid, reaction, encReaction)"
-                  "values(?,?,?,?,?)", mChat.chatId(), msgId, userId, reaction, encReaction);
+        mDb.query("insert or replace into chat_reactions(chatid, msgid, userid, reaction)"
+                  "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
     }
 
     void addPendingReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction, uint8_t status) override
