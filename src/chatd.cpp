@@ -437,11 +437,15 @@ void Chat::login()
     else
     {
         if (mOldestKnownMsgId) //if we have local history
+        {
             joinRangeHist(info);
+            retryPendingReactions();
+        }
         else
+        {
             join();
+        }
     }
-    retryPendingReactions();
 }
 
 Connection::Connection(Client& chatdClient, int shardNo)
