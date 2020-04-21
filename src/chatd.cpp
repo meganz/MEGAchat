@@ -2604,7 +2604,6 @@ int Chat::getPendingReactionStatus(const std::string reaction, Id msgId) const
         if (auxReaction.mMsgId == msgId
             && auxReaction.mReactionString == reaction)
         {
-            assert(auxReaction.mStatus != 0);
             return auxReaction.mStatus;
         }
     }
@@ -2613,7 +2612,6 @@ int Chat::getPendingReactionStatus(const std::string reaction, Id msgId) const
 
 void Chat::addPendingReaction(const std::string reaction, const std::string encReaction, Id msgId, uint8_t status)
 {
-    assert (status != 0);
     for (auto &auxReaction : mPendingReactions)
     {
         // If reaction already exists in pending list, only update it's status
@@ -2653,7 +2651,7 @@ void Chat::retryPendingReactions()
         }
         else
         {
-            assert(reaction.mStatus != 0 && !reaction.mReactionStringEnc.empty());
+            assert(!reaction.mReactionStringEnc.empty());
             const Message &msg = at(index);
             sendCommand(Command(reaction.mStatus) + mChatId + client().myHandle() + msg.id() + (int8_t)reaction.mReactionStringEnc.size() + reaction.mReactionStringEnc);
         }
