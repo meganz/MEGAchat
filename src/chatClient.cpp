@@ -326,8 +326,8 @@ bool Client::openDb(const std::string& sid)
 
                 // Create new table for chat pending reactions
                 db.simpleQuery("CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null,"
-                               "    userid int64 not null, reaction text, encReaction blob, status tinyint default 0,"
-                               "    UNIQUE(chatid, msgid, userid, reaction),"
+                               "    reaction text, encReaction blob, status tinyint default 0,"
+                               "    UNIQUE(chatid, msgid, reaction),"
                                "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
 
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);

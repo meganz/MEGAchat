@@ -738,11 +738,10 @@ public:
 
     struct PendingReaction
     {
-        PendingReaction(std::string aReactionString, std::string aReactionStringEnc, uint64_t aMsgId, uint64_t aUserId, uint8_t status);
+        PendingReaction(std::string aReactionString, std::string aReactionStringEnc, uint64_t aMsgId, uint8_t status);
         std::string mReactionString;
         std::string mReactionStringEnc;
         uint64_t mMsgId;
-        uint64_t mUserId;
         uint8_t mStatus;
     };
     typedef std::list<PendingReaction> PendingReactions;
@@ -1649,10 +1648,10 @@ public:
     virtual void cleanReactions(karere::Id msgId) = 0;
     virtual void cleanPendingReactions(karere::Id msgId) = 0;
     virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
-    virtual void addPendingReaction(karere::Id msgId, karere::Id userId, const char *reaction, std::string encReaction, uint8_t status) = 0;
+    virtual void addPendingReaction(karere::Id msgId, const char *reaction, std::string encReaction, uint8_t status) = 0;
     virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
-    virtual void delPendingReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
-    virtual void getMessageReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
+    virtual void delPendingReaction(karere::Id msgId, const char *reaction) = 0;
+    virtual void getMessageReactions(karere::Id msgId, std::map<std::string, karere::Id>& reactions) const = 0;
     virtual void getPendingReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
     virtual bool hasPendingReactions() = 0;
 };

@@ -1843,17 +1843,17 @@ Idx Chat::getHistoryFromDb(unsigned count)
     for (auto msg: messages)
     {
         // Load msg reactions from cache
-        std::vector<PendingReaction> reactions;
+        std::map<std::string, karere::Id> reactions;
         CALL_DB(getMessageReactions, msg->id(), reactions);
-        for (auto &auxReaction : reactions)
+        for (auto auxReact : reactions)
         {
             // Add reaction to confirmed reactions queue in message
-            msg->addReaction(auxReaction.mReactionString, auxReaction.mUserId);
+            msg->addReaction(auxReact.first.c_str(), auxReact.second);
         }
 
-        reactions.clear();
-        CALL_DB(getPendingReactions, msg->id(), reactions);
-        for (auto &auxReaction : reactions)
+        std::vector<PendingReaction> pendingReactions;
+        CALL_DB(getPendingReactions, msg->id(), pendingReactions);
+        for (auto &auxReaction : pendingReactions)
         {
             // Add pending reaction to queue in chat
             addPendingReaction(auxReaction.mReactionString, auxReaction.mReactionStringEnc, auxReaction.mMsgId, auxReaction.mStatus);
@@ -2625,7 +2625,7 @@ void Chat::addPendingReaction(const std::string reaction, const std::string encR
         }
     }
 
-    mPendingReactions.emplace_back(reaction, encReaction, msgId, Id::null(), status);
+    mPendingReactions.emplace_back(reaction, encReaction, msgId, status);
 }
 
 void Chat::removePendingReaction(const std::string reaction, Id msgId)
@@ -2719,7 +2719,7 @@ void Chat::addReaction(const Message &message, const std::string &reaction)
         std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
         std::string encReaction (data->buf(), data->bufSize());
         addPendingReaction(reaction, encReaction, message.id(), OP_ADDREACTION);
-        CALL_DB(addPendingReaction, message.mId, client().myHandle(), reaction.c_str(), encReaction, OP_ADDREACTION);
+        CALL_DB(addPendingReaction, message.mId, reaction.c_str(), encReaction, OP_ADDREACTION);
         sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
     }, mChatdClient.mKarereClient->appCtx);
 }
@@ -2735,7 +2735,7 @@ void Chat::delReaction(const Message &message, const std::string &reaction)
         std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
         std::string encReaction (data->buf(), data->bufSize());
         addPendingReaction(reaction, encReaction, message.id(), OP_DELREACTION);
-        CALL_DB(addPendingReaction, message.mId, client().myHandle(), reaction.c_str(), encReaction, OP_DELREACTION);
+        CALL_DB(addPendingReaction, message.mId, reaction.c_str(), encReaction, OP_DELREACTION);
         sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
     }, mChatdClient.mKarereClient->appCtx);
 }
@@ -5072,11 +5072,11 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
             // If we are not fetching history and reaction is own, remove pending reaction from ram and cache.
             // In case we are fetching history, pending reactions will be flushed upon HISTDONE receive
             removePendingReaction(reaction, message.id());
-            CALL_DB(delPendingReaction, message.mId, userId, reaction.c_str());
+            CALL_DB(delPendingReaction, message.mId, reaction.c_str());
         }
 
         message.addReaction(reaction, userId);
-        CALL_DB(addReaction, message.mId, userId, reaction.c_str(), std::string());
+        CALL_DB(addReaction, message.mId, userId, reaction.c_str());
         CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
     })
     .fail([this, msgId](const ::promise::Error& err)
@@ -5121,7 +5121,7 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
             // If we are not fetching history and reaction is own, remove pending reaction from ram and cache.
             // In case we are fetching history, pending reactions will be flushed upon HISTDONE receive
             removePendingReaction(reaction, message.id());
-            CALL_DB(delPendingReaction, message.mId, userId, reaction.c_str());
+            CALL_DB(delPendingReaction, message.mId, reaction.c_str());
         }
 
         message.delReaction(reaction, userId);
@@ -5589,10 +5589,9 @@ Chat::ManualSendItem::ManualSendItem()
 
 }
 
-Chat::PendingReaction::PendingReaction(std::string aReactionString, std::string aReactionStringEnc, uint64_t aMsgId, uint64_t aUserId, uint8_t aStatus)
+Chat::PendingReaction::PendingReaction(std::string aReactionString, std::string aReactionStringEnc, uint64_t aMsgId, uint8_t aStatus)
 {
     mMsgId = aMsgId;
-    mUserId = aUserId;
     mStatus = aStatus;
     mReactionStringEnc = std::move(aReactionStringEnc);
     mReactionString = std::move(aReactionString);

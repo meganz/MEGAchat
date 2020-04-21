@@ -661,7 +661,7 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
     }
     else
     {
-        QString title = del ? "DEL REACTION" : "ADD REACTION";
+        QString title = del ? "DELREACTION error" : "ADDREACTION error";
         QMessageBox msg(QMessageBox::Critical, title.toStdString().c_str(), res->toString());
         msg.exec();
     }

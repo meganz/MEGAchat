@@ -44,5 +44,5 @@ CREATE TABLE dns_cache(shard tinyint primary key, url text, ipv4 text, ipv6 text
 CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null, userid int64 not null, reaction text,
     UNIQUE(chatid, msgid, userid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);
 
-CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null, userid int64 not null, reaction text, encReaction blob,
-    status tinyint default 0, UNIQUE(chatid, msgid, userid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);
+CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null, reaction text, encReaction blob,
+    status tinyint default 0, UNIQUE(chatid, msgid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);
