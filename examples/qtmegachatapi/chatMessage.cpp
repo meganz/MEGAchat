@@ -58,6 +58,7 @@ ChatMessage::~ChatMessage()
 
 const Reaction *ChatMessage::getLocalReaction(const char *reactionStr) const
 {
+    assert(reactionStr);
     for (int i = 0; i < ui->mReactions->layout()->count(); i++)
     {
         QLayoutItem *item = ui->mReactions->layout()->itemAt(i);
@@ -72,6 +73,7 @@ const Reaction *ChatMessage::getLocalReaction(const char *reactionStr) const
 
 void ChatMessage::updateReaction(const char *reactionStr, int count)
 {
+    assert(reactionStr);
     bool found = false;
     int size = ui->mReactions->layout()->count();
     for (int i = 0; i < size; i++)
