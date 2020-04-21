@@ -1847,7 +1847,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
     for (auto msg: messages)
     {
         // Load msg reactions from cache
-        std::map<std::string, karere::Id> reactions;
+        std::multimap<std::string, karere::Id> reactions;
         CALL_DB(getMessageReactions, msg->id(), reactions);
         for (auto auxReact : reactions)
         {

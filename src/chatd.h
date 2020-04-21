@@ -1651,7 +1651,7 @@ public:
     virtual void addPendingReaction(karere::Id msgId, const char *reaction, std::string encReaction, uint8_t status) = 0;
     virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
     virtual void delPendingReaction(karere::Id msgId, const char *reaction) = 0;
-    virtual void getMessageReactions(karere::Id msgId, std::map<std::string, karere::Id>& reactions) const = 0;
+    virtual void getMessageReactions(karere::Id msgId, std::multimap<std::string, karere::Id>& reactions) const = 0;
     virtual void getPendingReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
     virtual bool hasPendingReactions() = 0;
 };

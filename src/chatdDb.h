@@ -587,14 +587,14 @@ public:
             mChat.chatId(), msgId, reaction);
     }
 
-    void getMessageReactions(karere::Id msgId, std::map<std::string, karere::Id>& reactions) const override
+    void getMessageReactions(karere::Id msgId, std::multimap<std::string, karere::Id>& reactions) const override
     {
         SqliteStmt stmt(mDb, "select reaction, userid from chat_reactions where chatid = ? and msgid = ?");
         stmt << mChat.chatId();
         stmt << msgId;
         while (stmt.step())
         {
-            reactions[stmt.stringCol(0)] = karere::Id(stmt.uint64Col(1));
+            reactions.insert(std::pair<std::string, karere::Id>(stmt.stringCol(0), karere::Id(stmt.uint64Col(1))));
         }
     }
 
