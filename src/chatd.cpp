@@ -5033,8 +5033,7 @@ void Chat::onUserLeave(Id userid)
 
 void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 {
-    Idx messageIdx = msgIndexFromId(msgId);
-    if (messageIdx == CHATD_IDX_INVALID)
+    if (mDbInterface->getIdxOfMsgidFromHistory(msgId) == CHATD_IDX_INVALID)
     {
         CHATID_LOG_WARNING("onAddReaction: message id not found. msgid: %s", ID_CSTR(msgId));
         return;
@@ -5081,8 +5080,7 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 
 void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 {
-    Idx messageIdx = msgIndexFromId(msgId);
-    if (messageIdx == CHATD_IDX_INVALID)
+    if (mDbInterface->getIdxOfMsgidFromHistory(msgId) == CHATD_IDX_INVALID)
     {
         CHATID_LOG_WARNING("onDelReaction: message id not found. msgid: %s)", ID_CSTR(msgId));
         return;
