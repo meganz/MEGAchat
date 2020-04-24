@@ -1328,8 +1328,8 @@ public:
     void addReaction(const Message &message, const std::string &reaction);
     void delReaction(const Message &message, const std::string &reaction);
     const PendingReactions &getPendingReactions() const;
-    void addPendingReaction(const std::string reaction, const std::string encReaction, karere::Id msgId, uint8_t status);
-    void removePendingReaction(const std::string reaction, karere::Id msgId);
+    void addPendingReaction(const std::string &reaction, const std::string &encReaction, karere::Id msgId, uint8_t status);
+    void removePendingReaction(const std::string &reaction, karere::Id msgId);
     void retryPendingReactions();
     void sendReactionSn();
 

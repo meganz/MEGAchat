@@ -2614,7 +2614,7 @@ int Chat::getPendingReactionStatus(const std::string reaction, Id msgId) const
     return -1;
 }
 
-void Chat::addPendingReaction(const std::string reaction, const std::string encReaction, Id msgId, uint8_t status)
+void Chat::addPendingReaction(const std::string &reaction, const std::string &encReaction, Id msgId, uint8_t status)
 {
     for (auto &auxReaction : mPendingReactions)
     {
@@ -2630,7 +2630,7 @@ void Chat::addPendingReaction(const std::string reaction, const std::string encR
     mPendingReactions.emplace_back(reaction, encReaction, msgId, status);
 }
 
-void Chat::removePendingReaction(const std::string reaction, Id msgId)
+void Chat::removePendingReaction(const string &reaction, Id msgId)
 {
     for (auto it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
     {
