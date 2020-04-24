@@ -5045,32 +5045,55 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
         return;
     }
 
-    Message &message = at(messageIdx);
-    if (message.isManagementMessage())
+    promise::Promise<std::shared_ptr<Buffer>> pms;
+    Idx messageIdx = msgIndexFromId(msgId);
+    if (messageIdx != CHATD_IDX_INVALID)
     {
-        CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
-        return;
+        // message loaded in RAM
+        Message &message = at(messageIdx);
+        if (message.isManagementMessage())
+        {
+            CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+        pms = mCrypto->reactionDecrypt(msgId, userId, message.keyid, reaction);
     }
+    else
+    {
+        if (mDbInterface->isManagementMessage(msgId))
+        {
+            CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+        pms = mCrypto->reactionDecrypt(msgId, userId, mDbInterface->getMessageKeyId(msgId), reaction);
+    }
+
     auto wptr = weakHandle();
-    mCrypto->reactionDecrypt(message, reaction)
-    .then([this, wptr, &message, userId, reaction](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
+    pms.then([this, wptr, &msgId, &messageIdx, userId, reaction](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
     {
         if (wptr.deleted())
             return;
 
         const std::string reaction(data->buf(), data->size());
 
+        // Add reaction to db
+        CALL_DB(addReaction, msgId, userId, reaction);
+
         if (userId == mChatdClient.myHandle() && !isFetchingHistory())
         {
             // If we are not fetching history and reaction is own, remove pending reaction from ram and cache.
             // In case we are fetching history, pending reactions will be flushed upon HISTDONE receive
-            removePendingReaction(reaction, message.id());
-            CALL_DB(delPendingReaction, message.mId, reaction);
+            removePendingReaction(reaction, msgId);
+            CALL_DB(delPendingReaction, msgId, reaction);
         }
 
-        message.addReaction(reaction, userId);
-        CALL_DB(addReaction, message.mId, userId, reaction);
-        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+        if (messageIdx != CHATD_IDX_INVALID)
+        {
+            // If reaction is loaded in RAM
+            Message &message = at(messageIdx);
+            message.addReaction(reaction, userId);
+            CALL_LISTENER(onReactionUpdate, msgId, reaction.c_str(), message.getReactionCount(reaction));
+        }
     })
     .fail([this, msgId](const ::promise::Error& err)
     {
@@ -5092,33 +5115,55 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
         return;
     }
 
-    Message &message = at(messageIdx);
-    if (message.isManagementMessage())
+    promise::Promise<std::shared_ptr<Buffer>> pms;
+    Idx messageIdx = msgIndexFromId(msgId);
+    if (messageIdx != CHATD_IDX_INVALID)
     {
-        CHATID_LOG_WARNING("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
-        return;
+        // message loaded in RAM
+        Message &message = at(messageIdx);
+        if (message.isManagementMessage())
+        {
+            CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+        pms = mCrypto->reactionDecrypt(msgId, userId, message.keyid, reaction);
+    }
+    else
+    {
+        if (mDbInterface->isManagementMessage(msgId))
+        {
+            CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+        pms = mCrypto->reactionDecrypt(msgId, userId, mDbInterface->getMessageKeyId(msgId), reaction);
     }
 
     auto wptr = weakHandle();
-    mCrypto->reactionDecrypt(message, reaction)
-    .then([this, wptr, &message, userId](std::shared_ptr<Buffer> data)
+    pms.then([this, wptr, &msgId, &messageIdx, userId, reaction](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
     {
         if (wptr.deleted())
             return;
 
-        const std::string reaction(data->buf(), data->bufSize());
+        const std::string reaction(data->buf(), data->size());
+
+        // Del reaction from db
+        CALL_DB(delReaction, msgId, userId, reaction);
 
         if (userId == mChatdClient.myHandle() && !isFetchingHistory())
         {
             // If we are not fetching history and reaction is own, remove pending reaction from ram and cache.
             // In case we are fetching history, pending reactions will be flushed upon HISTDONE receive
-            removePendingReaction(reaction, message.id());
-            CALL_DB(delPendingReaction, message.mId, reaction);
+            removePendingReaction(reaction, msgId);
+            CALL_DB(delPendingReaction, msgId, reaction);
         }
 
-        message.delReaction(reaction, userId);
-        CALL_DB(delReaction, message.mId, userId, reaction);
-        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+        if (messageIdx != CHATD_IDX_INVALID)
+        {
+            // If reaction is loaded in RAM
+            Message &message = at(messageIdx);
+            message.delReaction(reaction, userId);
+            CALL_LISTENER(onReactionUpdate, msgId, reaction.c_str(), message.getReactionCount(reaction));
+        }
     })
     .fail([this, msgId](const ::promise::Error& err)
     {
