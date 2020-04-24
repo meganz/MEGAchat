@@ -3904,7 +3904,6 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
         }
     }
 
-
     // check connection's round-trip time
     if (sample->cstats.rtt)
     {
