@@ -689,7 +689,7 @@ ProtocolHandler::reactionEncrypt(const Message &msg, const std::string &reaction
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::reactionDecrypt(const Message &msg, const std::string &reaction)
+ProtocolHandler::reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const KeyId &keyid, const std::string &reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (isPublicChat())
@@ -698,11 +698,11 @@ ProtocolHandler::reactionDecrypt(const Message &msg, const std::string &reaction
     }
     else
     {
-        symPms = getKey(UserKeyId(msg.userid, msg.keyid));
+        symPms = getKey(UserKeyId(userid, keyid));
     }
 
     auto wptr = weakHandle();
-    return symPms.then([wptr, &msg, &reaction](const std::shared_ptr<SendKey>& data)
+    return symPms.then([wptr, &msgid, &reaction](const std::shared_ptr<SendKey>& data)
     {
         wptr.throwIfDeleted();
 
@@ -711,7 +711,7 @@ ProtocolHandler::reactionDecrypt(const Message &msg, const std::string &reaction
         std::vector<uint32_t> key32 = ::mega::Utils::str_to_a32<uint32_t>(keyBin);
         size_t key32Len = key32.size();
 
-        std::string msgId = msg.id().toString();
+        std::string msgId = msgid.toString();
         std::vector<uint32_t> msgId32 =  ::mega::Utils::str_to_a32<uint32_t>(msgId);
         size_t msgId32Len = msgId32.size();
 

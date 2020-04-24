@@ -169,10 +169,12 @@ public:
 
     /**
      * @brief Decrypts a reaction with xxtea.
-     * @param msg The message associated to the reaction.
+     * @param msgid The msgId associated to the reaction.
+     * @param userid The userId associated to the reaction.
+     * @param keyid The keyId associated to the message.
      * @param reaction The encrypted reaction.
      */
-    virtual promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const Message &msg,const std::string &reaction) = 0;
+    virtual promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const KeyId &keyid, const std::string &reaction) = 0;
 
     /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed

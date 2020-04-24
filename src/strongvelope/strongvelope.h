@@ -457,7 +457,7 @@ public:
     karere::UserAttrCache& userAttrCache() override;
 
     std::shared_ptr<Buffer> reactionEncrypt(const chatd::Message &msg, const std::string &reaction) override;
-    promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const chatd::Message &msg, const std::string &reaction) override;
+    promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const chatd::KeyId &keyid, const std::string &reaction) override;
 };
 }
 namespace chatd
