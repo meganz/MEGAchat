@@ -598,14 +598,13 @@ public:
         }
     }
 
-    void getPendingReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const override
+    void getPendingReactions(std::vector<chatd::Chat::PendingReaction>& reactions) const override
     {
-        SqliteStmt stmt(mDb, "select reaction, encReaction, status from chat_pending_reactions where chatid = ? and msgid = ?");
+        SqliteStmt stmt(mDb, "select reaction, encReaction, msgid, status from chat_pending_reactions where chatid = ?");
         stmt << mChat.chatId();
-        stmt << msgId;
         while (stmt.step())
         {
-            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(0), stmt.stringCol(1), msgId.val, stmt.uint64Col(2)));
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(0), stmt.stringCol(1), karere::Id (stmt.uint64Col(2)), stmt.uint64Col(3)));
         }
     }
 

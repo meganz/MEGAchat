@@ -1652,7 +1652,7 @@ public:
     virtual void delReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) = 0;
     virtual void delPendingReaction(karere::Id msgId, const std::string &reaction) = 0;
     virtual void getMessageReactions(karere::Id msgId, std::multimap<std::string, karere::Id>& reactions) const = 0;
-    virtual void getPendingReactions(karere::Id msgId, std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
+    virtual void getPendingReactions(std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
     virtual bool hasPendingReactions() = 0;
 };
 

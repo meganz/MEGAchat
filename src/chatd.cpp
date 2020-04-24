@@ -1855,14 +1855,6 @@ Idx Chat::getHistoryFromDb(unsigned count)
             msg->addReaction(auxReact.first.c_str(), auxReact.second);
         }
 
-        std::vector<PendingReaction> pendingReactions;
-        CALL_DB(getPendingReactions, msg->id(), pendingReactions);
-        for (auto &auxReaction : pendingReactions)
-        {
-            // Add pending reaction to queue in chat
-            addPendingReaction(auxReaction.mReactionString, auxReaction.mReactionStringEnc, auxReaction.mMsgId, auxReaction.mStatus);
-        }
-
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
     }
     if (mNextHistFetchIdx == CHATD_IDX_INVALID)
@@ -1873,6 +1865,16 @@ Idx Chat::getHistoryFromDb(unsigned count)
     {
         mNextHistFetchIdx -= messages.size();
     }
+
+    // Load all pending reactions stored in cache
+    std::vector<PendingReaction> pendingReactions;
+    CALL_DB(getPendingReactions, pendingReactions);
+    for (auto &auxReaction : pendingReactions)
+    {
+        // Add pending reaction to queue in chat
+        addPendingReaction(auxReaction.mReactionString, auxReaction.mReactionStringEnc, auxReaction.mMsgId, auxReaction.mStatus);
+    }
+
     CALL_LISTENER(onHistoryDone, kHistSourceDb);
 
     // If we haven't yet seen the message with the last-seen msgid, then all messages
