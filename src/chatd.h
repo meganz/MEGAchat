@@ -1635,6 +1635,8 @@ public:
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
+    virtual uint32_t getMessageKeyId(const karere::Id &msgid) = 0;
+    virtual bool isManagementMessage(const karere::Id &msgid) = 0;
 
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;
     virtual void truncateHistory(const chatd::Message& msg) = 0;

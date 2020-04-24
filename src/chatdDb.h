@@ -174,6 +174,14 @@ public:
         *updated = stmt3.intCol(0);
     }
 
+    uint32_t getMessageKeyId(const karere::Id &msgid) override
+    {
+        SqliteStmt stmt(mDb, "select keyid from history where msgid = ?");
+        stmt << msgid;
+        stmt.stepMustHaveData("getMessageKey");
+        return stmt.uintCol(0);
+    }
+
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
         SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, msg, type, "
@@ -470,6 +478,17 @@ public:
         mDb.query("update node_history set data = ?, updated = ?, type = ? where chatid = ? and msgid = ?",
                   msg, msg.updated, msg.type, mChat.chatId(), msg.id());
         assertAffectedRowCount(1, "deleteMsgFromNodeHistory");
+    }
+
+    bool isManagementMessage(const karere::Id &msgid) override
+    {
+        SqliteStmt stmt(mDb, "select type, userid, keyid from history where msgid = ?");
+        stmt << msgid;
+
+        stmt.stepMustHaveData("isManagementMessage");
+        return ((stmt.uintCol(0) >= chatd::Message::kMsgManagementLowest
+                    && stmt.uintCol(0) <= chatd::Message::kMsgManagementHighest)
+               || (stmt.uint64Col(1) == karere::Id::COMMANDER() && stmt.uintCol(2) == 0));
     }
 
     virtual void truncateNodeHistory(karere::Id id)
