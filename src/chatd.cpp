@@ -2649,18 +2649,8 @@ void Chat::retryPendingReactions()
 {
     for (auto& reaction: mPendingReactions)
     {
-        karere::Id msgid = reaction.mMsgId;
-        Idx index = msgIndexFromId(msgid);
-        if (index == CHATD_IDX_INVALID)
-        {
-            CHATID_LOG_ERROR("retryPendingReactions: failed to find message with id(%d)", msgid);
-        }
-        else
-        {
-            assert(!reaction.mReactionStringEnc.empty());
-            const Message &msg = at(index);
-            sendCommand(Command(reaction.mStatus) + mChatId + client().myHandle() + msg.id() + (int8_t)reaction.mReactionStringEnc.size() + reaction.mReactionStringEnc);
-        }
+        assert(!reaction.mReactionStringEnc.empty());
+        sendCommand(Command(reaction.mStatus) + mChatId + client().myHandle() + reaction.mMsgId + (int8_t)reaction.mReactionStringEnc.size() + reaction.mReactionStringEnc);
     }
 }
 
@@ -2695,7 +2685,7 @@ void Chat::flushChatPendingReactions()
         if (index == CHATD_IDX_INVALID)
         {
             // couldn't find msg
-            CHATID_LOG_ERROR("flushChatPendingReactions: failed to find message with id(%d)", msgid);
+            CHATID_LOG_WARNING("flushChatPendingReactions: message with id(%d) not loaded in RAM", msgid);
             CALL_DB(cleanReactions, auxit->mMsgId);
             CALL_DB(cleanPendingReactions, auxit->mMsgId);
         }
