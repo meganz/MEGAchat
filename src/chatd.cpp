@@ -2601,7 +2601,7 @@ const Chat::PendingReactions& Chat::getPendingReactions() const
     return mPendingReactions;
 }
 
-int Chat::getPendingReactionStatus(const std::string reaction, Id msgId) const
+int Chat::getPendingReactionStatus(const string &reaction, Id msgId) const
 {
     for (auto &auxReaction : mPendingReactions)
     {
@@ -5591,12 +5591,12 @@ Chat::ManualSendItem::ManualSendItem()
 
 }
 
-Chat::PendingReaction::PendingReaction(std::string aReactionString, std::string aReactionStringEnc, uint64_t aMsgId, uint8_t aStatus)
+Chat::PendingReaction::PendingReaction(const std::string &aReactionString, const std::string &aReactionStringEnc, uint64_t aMsgId, uint8_t aStatus)
 {
     mMsgId = aMsgId;
     mStatus = aStatus;
-    mReactionStringEnc = std::move(aReactionStringEnc);
-    mReactionString = std::move(aReactionString);
+    mReactionStringEnc = aReactionStringEnc;
+    mReactionString = aReactionString;
 }
 
 void Message::removeUnnecessaryLastCharacters(string &buf)

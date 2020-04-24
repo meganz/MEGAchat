@@ -738,7 +738,7 @@ public:
 
     struct PendingReaction
     {
-        PendingReaction(std::string aReactionString, std::string aReactionStringEnc, uint64_t aMsgId, uint8_t status);
+        PendingReaction(const std::string &aReactionString, const std::string &aReactionStringEnc, uint64_t aMsgId, uint8_t status);
         std::string mReactionString;
         std::string mReactionStringEnc;
         uint64_t mMsgId;
@@ -1354,7 +1354,7 @@ public:
      *  - returns OP_DELREACTION:   If reaction is pending to be removed
      *  - returns -1:               If pending reaction not exists
      */
-    int getPendingReactionStatus(const std::string reaction, karere::Id msgId) const;
+    int getPendingReactionStatus(const std::string& reaction, karere::Id msgId) const;
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;
     bool previewMode();
