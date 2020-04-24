@@ -563,25 +563,25 @@ public:
         mDb.query("delete from chat_pending_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
-    void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    void addReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) override
     {
         mDb.query("insert or replace into chat_reactions(chatid, msgid, userid, reaction)"
                   "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
     }
 
-    void addPendingReaction(karere::Id msgId, const char *reaction, std::string encReaction, uint8_t status) override
+    void addPendingReaction(karere::Id msgId, const std::string &reaction, const std::string &encReaction, uint8_t status) override
     {
         mDb.query("insert or replace into chat_pending_reactions(chatid, msgid, reaction, encReaction, status)"
                   "values(?,?,?,?,?)", mChat.chatId(), msgId, reaction, encReaction, status);
     }
 
-    void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    void delReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) override
     {
         mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
             mChat.chatId(), msgId, userId, reaction);
     }
 
-    void delPendingReaction(karere::Id msgId, const char *reaction) override
+    void delPendingReaction(karere::Id msgId, const std::string &reaction) override
     {
         mDb.query("delete from chat_pending_reactions where chatid = ? and msgid = ? and reaction = ?",
             mChat.chatId(), msgId, reaction);
