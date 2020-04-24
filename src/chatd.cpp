@@ -2686,15 +2686,13 @@ void Chat::flushChatPendingReactions()
         {
             // couldn't find msg
             CHATID_LOG_WARNING("flushChatPendingReactions: message with id(%d) not loaded in RAM", msgid);
-            CALL_DB(cleanReactions, auxit->mMsgId);
-            CALL_DB(cleanPendingReactions, auxit->mMsgId);
         }
         else
         {
             Message &message = at(index);
-            CALL_DB(cleanPendingReactions, auxit->mMsgId);
             CALL_LISTENER(onReactionUpdate, message.mId, auxit->mReactionString.c_str(), message.getReactionCount(auxit->mReactionString.c_str()));
         }
+        CALL_DB(cleanPendingReactions, auxit->mMsgId);
         mPendingReactions.erase(auxit);
     }
 
