@@ -1424,7 +1424,7 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
             return ::promise::Error("prEd255 base64 key length is not 43 bytes");
         base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
 
-        char* privrsa = api.sdk.getMyPrivkey();
+        char* privrsa = api.sdk.getMyRSAPrivateKey();
         if (!privrsa)
             return ::promise::Error("No private RSA key in MegaApi::getMyPrivkey");
         mMyPrivRsaLen = base64urldecode(privrsa, strlen(privrsa), mMyPrivRsa, sizeof(mMyPrivRsa));
