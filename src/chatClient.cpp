@@ -1434,8 +1434,6 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         db.query("insert or replace into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
-
-        return promise::_Void();
     });
 }
 
