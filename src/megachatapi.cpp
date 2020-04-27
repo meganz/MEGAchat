@@ -307,6 +307,11 @@ int MegaChatApi::init(const char *sid)
     return pImpl->init(sid);
 }
 
+void MegaChatApi::importMessages(const char *externalDbPath, MegaChatRequestListener *listener)
+{
+    pImpl->importMessages(externalDbPath, listener);
+}
+
 int MegaChatApi::initLeanMode(const char *sid)
 {
     return pImpl->init(sid, false);

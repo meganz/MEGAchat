@@ -4027,27 +4027,27 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
                 return 5;
             }
         }
-    }
 
-    // check video frames per second
-    long fps = sample->vstats.s.fps;
-    if (fps < 15)
-    {
-        if (fps < 3)
+        // check video frames per second
+        long fps = sample->vstats.s.fps;
+        if (fps < 15)
         {
-            return 0;
-        }
-        else if (fps < 5)
-        {
-            return 1;
-        }
-        else if (fps < 10)
-        {
-            return 2;
-        }
-        else
-        {
-            return 3;
+            if (fps < 3)
+            {
+                return 0;
+            }
+            else if (fps < 5)
+            {
+                return 1;
+            }
+            else if (fps < 10)
+            {
+                return 2;
+            }
+            else
+            {
+                return 3;
+            }
         }
     }
 

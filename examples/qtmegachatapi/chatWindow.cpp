@@ -876,6 +876,9 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto actPushAndReceived = notificationsMenu->addAction(tr("Simulate PUSH received (Android)"));
     connect(actPushAndReceived, SIGNAL(triggered()), getChatItemController(), SLOT(onPushReceivedAndroid()));
 
+    auto actImportMsgs = notificationsMenu->addAction(tr("Import messages from NSE cache"));
+    connect(actImportMsgs, SIGNAL(triggered()), mMainWin, SLOT(onImportMessages()));
+
     auto notificationSettings = mMainWin->mApp->getNotificationSettings();
     //Set DND for this chat
     auto actDoNotDisturb = notificationsMenu->addAction("Mute notifications");
