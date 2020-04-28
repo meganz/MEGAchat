@@ -350,7 +350,7 @@ protected:
      */
     void loadUnconfirmedKeysFromDb();
 
-    promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);
+    promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid);
     void addDecryptedKey(UserKeyId ukid, const std::shared_ptr<SendKey>& key);
     /**
      * Updates our own sender key. Done when a message is sent and users

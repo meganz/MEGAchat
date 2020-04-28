@@ -1213,7 +1213,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
         else    // message was posted with key-rotation enabled (closed mode)
         {
-            symPms = getKey(UserKeyId(message->userid, keyid), isLegacy);
+            symPms = getKey(UserKeyId(message->userid, keyid));
         }        
         symPms.then([ctx](const std::shared_ptr<SendKey>& key)
         {
@@ -1358,22 +1358,13 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
     }
 }
 promise::Promise<std::shared_ptr<SendKey>>
-ProtocolHandler::getKey(UserKeyId ukid, bool legacy)
+ProtocolHandler::getKey(UserKeyId ukid)
 {
     auto kit = mKeys.find(ukid);
     if (kit == mKeys.end())
     {
-        if (legacy)
-        {
-            auto& key = mKeys[ukid];
-            key.pms.reset(new Promise<std::shared_ptr<SendKey>>);
-            return *key.pms;
-        }
-        else
-        {
-            return ::promise::Error("Key with id "+std::to_string(ukid.keyid)+
-            " from user "+ukid.user.toString()+" not found", EINVAL, SVCRYPTO_ENOKEY);
-        }
+        return ::promise::Error("Key with id "+std::to_string(ukid.keyid)+
+        " from user "+ukid.user.toString()+" not found", EINVAL, SVCRYPTO_ENOKEY);
     }
 
     auto& entry = kit->second;
