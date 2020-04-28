@@ -286,7 +286,6 @@ protected:
     EcKey myPrivCu25519;
     EcKey myPrivEd25519;
     EcKey myPubEd25519;
-    RsaKey myPrivRsaKey;
 
     karere::UserAttrCache& mUserAttrCache;
     SqliteDb& mDb;
@@ -335,7 +334,7 @@ public:
 
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
         const StaticBuffer& privEd25519,
-        const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
+        karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
         int isUnifiedKeyEncrypted, karere::Id ph, void *ctx);
 

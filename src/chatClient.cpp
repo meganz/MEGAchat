@@ -1905,7 +1905,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     {
         crypto = std::make_shared<strongvelope::ProtocolHandler>(mMyHandle,
                 StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-                StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), publicchat,
+                *mUserAttrCache, db, karere::Id::inval(), publicchat,
                 unifiedKey, false, Id::inval(), appCtx);
         crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
     }
@@ -2062,8 +2062,8 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid, bool i
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
          StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-         StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid,
-         isPublic, unifiedKey, isUnifiedKeyEncrypted, ph, appCtx);
+         *mUserAttrCache, db, chatid, isPublic, unifiedKey,
+         isUnifiedKeyEncrypted, ph, appCtx);
 }
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic,
