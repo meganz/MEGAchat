@@ -74,11 +74,6 @@ const char* tlvTypeToString(uint8_t type)
     }
 }
 
-uint32_t getKeyIdLength(uint32_t protocolVersion)
-{
-    return (protocolVersion == 1) ? 8 : 4;
-}
-
 EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
 : key(aKey), backRefId(msg.backRefId)
 {
@@ -747,7 +742,7 @@ void ProtocolHandler::loadKeysFromDb()
         auto key = std::make_shared<SendKey>();
         stmt.blobCol(2, *key);
         Id userid(stmt.uint64Col(0));
-        uint64_t keyid = stmt.uint64Col(1);
+        uint32_t keyid = stmt.uintCol(1);
 
 #ifndef NDEBUG
         auto ret =
@@ -1175,7 +1170,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
 
         // Get keyid
-        uint64_t keyid = message->keyid;
+        uint32_t keyid = message->keyid;
         auto ctx = std::make_shared<Context>();
 
         promise::Promise<std::shared_ptr<SendKey>> symPms;

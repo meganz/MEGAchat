@@ -175,9 +175,8 @@ struct ParsedMessage: public karere::DeleteTrackable
      * messages related to topic changes, which must use unified-key instead of embedded key in `ct` */
     bool openmode = false;
 
-    //legacy key stuff
-    uint64_t keyId;
-    uint64_t prevKeyId;
+    uint32_t keyId;
+    uint32_t prevKeyId;
     Buffer encryptedKey; //may contain also the prev key, concatenated
 
     std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
@@ -236,8 +235,8 @@ struct EncryptedMessage
 struct UserKeyId
 {
     karere::Id user;
-    uint64_t keyid; // 64 bits for backwards compatibility with stronvelope v1 (legacy RSA)
-    explicit UserKeyId(karere::Id aUser, uint64_t aKeyid): user(aUser), keyid(aKeyid){}
+    uint32_t keyid;
+    explicit UserKeyId(karere::Id aUser, uint32_t aKeyid): user(aUser), keyid(aKeyid){}
     bool operator<(UserKeyId other) const
     {
         if (user != other.user)
