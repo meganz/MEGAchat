@@ -384,28 +384,19 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             case TLV_TYPE_KEY_IDS:
             {
 //KEY_IDS, not KEY_ID, because the record may contain the previous keyid appended as well
-                // The key length can change depending on the version
-                uint32_t keyIdLength = getKeyIdLength(protocolVersion);
-                if (record.dataLen != keyIdLength && record.dataLen != keyIdLength*2)
+                if (record.dataLen != SVCRYPTO_KEY_ID_SIZE)
+                {
                     throw std::runtime_error("Key id length is not appropriate for this protocol version "+
                         std::to_string(protocolVersion)+
-                        ": expected "+std::to_string(keyIdLength)+" actual: "+std::to_string(record.dataLen));
+                        ": expected "+std::to_string(SVCRYPTO_KEY_ID_SIZE)+" actual: "+std::to_string(record.dataLen));
+                }
 //we don't do minimal record size checks, as read() does them
 //if we attempt to read past end of buffer, read() will throw
-                if (keyIdLength == 4)
-                {
-                    keyId = ntohl(binaryMessage.read<uint32_t>(record.dataOffset));
-                    prevKeyId = (record.dataLen > 4)
-                        ? ntohl(binaryMessage.read<uint32_t>(record.dataOffset+4))
-                        : 0;
-                }
-                else if (keyIdLength == 8)
-                {
-                    keyId = be64toh(binaryMessage.read<uint64_t>(record.dataOffset));
-                    prevKeyId = (record.dataLen > 8)
-                        ? be64toh(binaryMessage.read<uint64_t>(record.dataOffset+8))
-                        : 0;
-                }
+                keyId = ntohl(binaryMessage.read<uint32_t>(record.dataOffset));
+                prevKeyId = (record.dataLen > SVCRYPTO_KEY_ID_SIZE)
+                    ? ntohl(binaryMessage.read<uint32_t>(record.dataOffset + SVCRYPTO_KEY_ID_SIZE))
+                    : 0;
+
                 break;
             }
             //===

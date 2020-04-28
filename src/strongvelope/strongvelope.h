@@ -198,9 +198,7 @@ enum
     SVCRYPTO_KEY_SIZE = 16,
     SVCRYPTO_IV_SIZE = 16,
     /** Size in bytes of a key ID. */
-    SVCRYPTO_KEY_ID_SIZE = 8,
-    /** Size in bytes of a key ID in version 0 */
-    SVCRYPTO_KEY_ID_SIZE_V0 = 4,
+    SVCRYPTO_KEY_ID_SIZE = 4,
     /** Version 0 of the protocol implemented. */
     SVCRYPTO_PROTOCOL_VERSION = 0x03,
     /** Size (in bytes) of the symmetric send key */
