@@ -383,8 +383,6 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             //===
             case TLV_TYPE_PAYLOAD:
             {
-//                if (type != SVCRYPTO_MSGTYPE_KEYED && type != SVCRYPTO_MSGTYPE_FOLLOWUP)
-//                    throw std::runtime_error("Payload record found in a non-regular message");
                 payload.assign(binaryMessage.buf()+record.dataOffset, record.dataLen);
                 break;
             }

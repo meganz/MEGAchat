@@ -105,8 +105,6 @@ enum
 /** Message types used for the chat message transport. */
 enum: unsigned char
 {
-    ///Legacy message containing a sender key (initial, key rotation, key re-send).
-    SVCRYPTO_MSGTYPE_KEYED                     = 0x00,
     ///Message using an existing sender key for encryption.
     SVCRYPTO_MSGTYPE_FOLLOWUP                  = 0x01,
     SVCRYPTO_MSGTYPES_COUNT
