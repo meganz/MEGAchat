@@ -50,7 +50,7 @@ protected:
     size_t mOffset;
     bool mLegacyMode;
 public:
-    TlvParser(const StaticBuffer& source, size_t offset, bool legacyMode)
+    TlvParser(const StaticBuffer& source, size_t offset, bool legacyMode = false)
     :mSource(source), mOffset(offset), mLegacyMode(legacyMode){}
     bool getRecord(TlvRecord& record)
     {

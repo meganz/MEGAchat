@@ -237,29 +237,24 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
     protocolVersion = binaryMessage.read<uint8_t>(0);
     if (protocolVersion > SVCRYPTO_PROTOCOL_VERSION)
         throw std::runtime_error("Message protocol version "+std::to_string(protocolVersion)+" is newer than the latest supported by this client. Message dump: "+binaryMessage.toString());
+
+    if (protocolVersion < 2)
+        throw std::runtime_error("Message protocol version "+std::to_string(protocolVersion)+" is older than the first supported by this client. Message dump: "+binaryMessage.toString());
+
     sender = binaryMessage.userid;
 
-    size_t offset;
-    bool isLegacy = (protocolVersion < 2);
-    if (isLegacy)
+    size_t offset = 2;
+    type = binaryMessage.read<uint8_t>(1);
+    if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
     {
-        offset = 1;
-        managementInfo = std::unique_ptr<chatd::Message::ManagementInfo>(new chatd::Message::ManagementInfo());
+        managementInfo.reset(new chatd::Message::ManagementInfo());
     }
-    else
+    else if (type == chatd::Message::kMsgCallEnd)
     {
-        offset = 2;
-        type = binaryMessage.read<uint8_t>(1);
-        if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
-        {
-            managementInfo.reset(new chatd::Message::ManagementInfo());
-        }
-        else if (type == chatd::Message::kMsgCallEnd)
-        {
-            callEndedInfo.reset(new chatd::Message::CallEndedInfo());
-        }
+        callEndedInfo.reset(new chatd::Message::CallEndedInfo());
     }
-    TlvParser tlv(binaryMessage, offset, isLegacy);
+
+    TlvParser tlv(binaryMessage, offset);
     TlvRecord record(binaryMessage);
     std::string recordNames;
     while (tlv.getRecord(record))
