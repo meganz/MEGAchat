@@ -214,6 +214,7 @@ class MainWindow :
         void onPushReceived(unsigned int type);
         void onUseApiStagingClicked(bool);
         void onBackgroundStatusClicked(bool status);
+        void onImportMessages();
 
     signals:
         void esidLogout();

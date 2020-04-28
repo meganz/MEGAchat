@@ -569,6 +569,8 @@ void MainWindow::on_bSettings_clicked()
     auto actPushAndReceived = notificationsMenu->addAction(tr("Simulate PUSH received (Android)"));
     connect(actPushAndReceived,  &QAction::triggered, this, [this] {onPushReceived(0);});
 
+    auto actImportMsgs = notificationsMenu->addAction(tr("Import messages from NSE cache"));
+    connect(actImportMsgs, SIGNAL(triggered()), this, SLOT(onImportMessages()));
 
     // Other options
     QMenu *othersMenu = menu.addMenu("Others");
@@ -1352,4 +1354,13 @@ void MainWindow::onUseApiStagingClicked(bool enable)
 void MainWindow::onBackgroundStatusClicked(bool status)
 {
     mMegaChatApi->setBackgroundStatus(status);
+}
+
+void MainWindow::onImportMessages()
+{
+    QString text = QInputDialog::getText(this, tr("Import messages from NSE"), tr("Enter the path of the NSE cache: "));
+    if (text == "")
+        return;
+
+    mMegaChatApi->importMessages(text.toStdString().c_str());
 }

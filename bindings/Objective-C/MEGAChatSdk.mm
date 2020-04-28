@@ -77,6 +77,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->initLeanMode((sid != nil) ? [sid UTF8String] : NULL);
 }
 
+- (void)importMessagesFromPath:(NSString *)externalDbPath delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->importMessages(externalDbPath.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)importMessagesFromPath:(NSString *)externalDbPath {
+    self.megaChatApi->importMessages(externalDbPath.UTF8String);
+}
+
 - (MEGAChatInit)initAnonymous {
     return (MEGAChatInit) self.megaChatApi->initAnonymous();
 }
@@ -914,6 +922,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->setChatVideoInDevice(devices ? [devices UTF8String] : NULL);
 }
 
+- (NSString *)videoDeviceSelected {
+    return self.megaChatApi ? [[NSString alloc] initWithUTF8String:self.megaChatApi->getVideoDeviceSelected()] : nil;
+}
+
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->startChatCall(chatId, enableVideo, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
@@ -1236,6 +1248,47 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (MEGAChatSource)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
     return MEGAChatSource(self.megaChatApi->loadAttachments(chatId, (int)count));
+}
+
+#pragma mark - Enumeration to NSString
+
++ (NSString *)stringForMEGAChatInitState:(MEGAChatInit)initState {
+    NSString *ret;
+    switch (initState) {
+        case MEGAChatInitError:
+            ret = @"MEGA chat init state error";
+            break;
+            
+        case MEGAChatInitNotDone:
+            ret = @"MEGA chat init not done";
+            break;
+            
+        case MEGAChatInitWaitingNewSession:
+            ret = @"MEGA chat init state waiting new session";
+            break;
+            
+        case MEGAChatInitOfflineSession:
+            ret = @"MEGA chat init state offline session";
+            break;
+            
+        case MEGAChatInitOnlineSession:
+            ret = @"MEGA chat init state online session";
+            break;
+            
+        case MEGAChatInitAnonymous:
+            ret = @"MEGA chat init state anonymous";
+            break;
+            
+        case MEGAChatInitNoCache:
+            ret = @"MEGA chat init state no cache";
+            break;
+            
+        default:
+            ret = @"MEGA chat init state default";
+            break;
+    }
+    
+    return ret;
 }
 
 @end

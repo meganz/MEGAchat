@@ -1184,6 +1184,26 @@ public:
      */
     Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype);
 
+    /**
+     * @brief Import a message into the history
+     * This method simulates a NEWMSG received from chatd, when it's actually
+     * loaded from an external DB.
+     * @param msg Message to import (takes ownership)
+     * @param isUpdate True is the message already exist and the import only updates it
+     */
+    void msgImport(std::unique_ptr<Message> msg, bool isUpdate);
+
+    /**
+     * @brief Import the key of a message
+     * This method simulates a NEWKEY received from chatd, when it's actually
+     * loaded from an external DB.
+     * @param keyid Id of the key
+     * @param userid Id of the owner of the key
+     * @param key Decrypted key data
+     * @param keylen Size of the key
+     */
+    void keyImport(KeyId keyid, karere::Id userid, const char* key, uint16_t keylen);
+
     /** Removes metadata from rich-link and converts the message to the original (normal) one */
     Message *removeRichLink(Message &message, const std::string &content);
 
@@ -1322,6 +1342,7 @@ protected:
     bool msgEncryptAndSend(OutputQueue::iterator it);
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
+    void onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Message *msg);
     void onJoinRejected();
     void onHandleJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);

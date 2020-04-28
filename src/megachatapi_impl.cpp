@@ -1832,6 +1832,26 @@ void MegaChatApiImpl::sendPendingRequests()
                 fireOnChatRequestFinish(request, megaChatError);
             });
 
+        }
+        case MegaChatRequest::TYPE_IMPORT_MESSAGES:
+        {
+            if (mClient->initState() != karere::Client::kInitHasOfflineSession
+                            && mClient->initState() != karere::Client::kInitHasOnlineSession)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            int count = mClient->importMessages(request->getText());
+            if (count < 0)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            request->setNumber(count);
+            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         default:
@@ -1975,6 +1995,14 @@ int MegaChatApiImpl::getInitState()
     sdkMutex.unlock();
 
     return initState;
+}
+
+void MegaChatApiImpl::importMessages(const char *externalDbPath, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_IMPORT_MESSAGES, listener);
+    request->setText(externalDbPath);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
@@ -4951,6 +4979,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_LAST_GREEN: return "LAST_GREEN";
         case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
         case TYPE_GET_PEER_ATTRIBUTES: return "GET_PEER_ATTRIBUTES";
+        case TYPE_IMPORT_MESSAGES: return "IMPORT_MESSAGES";
     }
     return "UNKNOWN";
 }

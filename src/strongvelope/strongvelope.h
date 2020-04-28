@@ -428,7 +428,7 @@ public:
     msgEncrypt(chatd::Message *message, const karere::SetOfIds &recipients, chatd::MsgCommand* msgCmd) override;
     promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message) override;
     void onKeyReceived(chatd::KeyId keyid, karere::Id sender,
-        karere::Id receiver, const char* data, uint16_t dataLen) override;
+        karere::Id receiver, const char* data, uint16_t dataLen, bool isEncrypted) override;
     void onKeyConfirmed(chatd::KeyId localkeyid, chatd::KeyId keyid) override;
     void onKeyRejected() override;
     void setUsers(karere::SetOfIds* users) override;
