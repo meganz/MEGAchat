@@ -120,12 +120,6 @@ public:
      */
     virtual void resetSendKey() = 0;
 
-    /** @brief Extract keys from legacy messages.
-     * Must be called for every received message, even if decryption of a previous
-     * message is not completed yet, as it may depend on this key.
-     */
-    virtual bool handleLegacyKeys(chatd::Message& msg) = 0;
-
     virtual void randomBytes(void* buf, size_t bufsize) const = 0;
 
     virtual promise::Promise<std::shared_ptr<Buffer>>

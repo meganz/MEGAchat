@@ -206,10 +206,6 @@ enum
     SVCRYPTO_KEY_ID_SIZE = 8,
     /** Size in bytes of a key ID in version 0 */
     SVCRYPTO_KEY_ID_SIZE_V0 = 4,
-    /** Size threshold for RSA encrypted sender keys (greater than ... bytes).
-     * (1024 bit RSA key --> 128 byte + 2 byte cipher text).
-     */
-    SVCRYPTO_RSA_ENCRYPTION_THRESHOLD = 128,
     /** Version 0 of the protocol implemented. */
     SVCRYPTO_PROTOCOL_VERSION = 0x03,
     /** Size (in bytes) of the symmetric send key */
@@ -317,8 +313,6 @@ protected:
     // in-fligth new-keys
     std::vector<NewKeyEntry> mUnconfirmedKeys;
 
-    bool mForceRsa = false; // for testing of legacy-mode
-
     // received and confirmed keys (doesn't include unconfirmed keys)
     std::map<UserKeyId, KeyEntry> mKeys;
 
@@ -411,19 +405,6 @@ protected:
 
     void fetchUserKeys(karere::Id userid);
 
-// legacy RSA encryption methods
-    promise::Promise<std::shared_ptr<Buffer>>
-        rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, karere::Id toUser);
-
-    void rsaDecrypt(const StaticBuffer& data, Buffer& output);
-
-    promise::Promise<std::shared_ptr<Buffer>>
-        legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedMsg);
-
-    /** @brief Extract keys from a legacy message */
-    promise::Promise<void>
-        legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedMsg);
-
 public:
 //chatd::ICrypto interface
     promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
@@ -437,7 +418,6 @@ public:
     void onUserJoin(karere::Id userid) override;
     void onUserLeave(karere::Id userid) override;
     void resetSendKey() override;
-    bool handleLegacyKeys(chatd::Message& msg) override;
     void randomBytes(void* buf, size_t bufsize) const override;
     promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser = 0, bool encryptAsPrivate = false) override;
     promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0) override;

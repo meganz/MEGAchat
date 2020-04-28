@@ -4489,19 +4489,6 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         assert(msg.isPendingToDecrypt()); //no decrypt attempt was made
     }
 
-    try
-    {
-        mCrypto->handleLegacyKeys(msg);
-    }
-    catch(std::exception& e)
-    {
-        CHATID_LOG_WARNING("handleLegacyKeys threw error: %s\n"
-            "Queued messages for decrypt: %d - %d. Ignoring", e.what(),
-            mDecryptOldHaltedAt, idx);
-        msg.setEncrypted(Message::kEncryptedNoKey);
-        return true;
-    }
-
     if (!msg.isPendingToDecrypt() && msg.isEncrypted() != Message::kEncryptedNoType)
     {
         CHATID_LOG_DEBUG("Message already decrypted or undecryptable: %s, bailing out", ID_CSTR(msg.id()));
