@@ -94,10 +94,6 @@ enum
 
 /** Contains a 64 bit user handle of a user that was excluded from chat */
     TLV_TYPE_EXC_PARTICIPANT    = 0x09,
-
-/** In case we encrypt keys using RSA, we can't reverse-decrypt them like with
- * EC, so we need to encrypt our own keys yo ourself so we can read our own
- * history messages. (legacy only) */
     TLV_TYPE_OWN_KEY            = 0x0a,
     TLV_TYPE_INVITOR            = 0x0b,
     TLV_TYPE_PRIVILEGE          = 0x0c,
@@ -159,7 +155,6 @@ public:
 };
 typedef Key<16> SendKey;
 typedef Key<32> EcKey;
-typedef Key<768> RsaKey;
 typedef Key<16> UnifiedKey;
 typedef Key<64> Signature;
 

@@ -1161,9 +1161,8 @@ void ProtocolHandler::fetchUserKeys(karere::Id userid)
 
 //We should have already received and decrypted the key in advance
 //(which is also async). This will have fetched the public Cu25519 key of
-//the peer (unless the key was encrypted using RSA), but we still need the
-//Ed25519 key for signature verification, which would not be fetched when the key
-//is decrypted.
+//the peer, but we still need the Ed25519 key for signature verification,
+// which would not be fetched when the key is decrypted.
 Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 {
     unsigned int cacheVersion = mCacheVersion;
