@@ -187,12 +187,7 @@ bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& s
     assert(pubKey.dataSize() == 32);
     if (protocolVersion < 2)
     {
-        //legacy
-        Buffer messageStr(SVCRYPTO_SIG.size()+signedContent.dataSize());
-        messageStr.append(SVCRYPTO_SIG.c_str(), SVCRYPTO_SIG.size())
-        .append(signedContent);
-        return (crypto_sign_verify_detached(signature.ubuf(), messageStr.ubuf(),
-                messageStr.dataSize(), pubKey.ubuf()) == 0);
+        return false;
     }
 
     assert(sendKey.dataSize() == SVCRYPTO_KEY_SIZE);
@@ -204,10 +199,6 @@ bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& s
     .append(sendKey)
     .append(signedContent);
 
-//    STRONGVELOPE_LOG_DEBUG("signature:\n%s", signature.toString().c_str());
-//    STRONGVELOPE_LOG_DEBUG("message:\n%s", messageStr.toString().c_str());
-//    STRONGVELOPE_LOG_DEBUG("pubKey:\n%s", pubKey.toString().c_str());
-    // if crypto_sign_verify_detached does not return 0, it means Incorrect signature!
     return (crypto_sign_verify_detached(signature.ubuf(), messageStr.ubuf(),
             messageStr.dataSize(), pubKey.ubuf()) == 0);
 }
