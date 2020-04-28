@@ -1156,7 +1156,6 @@ void ProtocolHandler::fetchUserKeys(karere::Id userid)
     {
         // preload keys for the new participant
         mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
     }
 }
 

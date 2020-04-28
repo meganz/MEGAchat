@@ -24,11 +24,8 @@ enum {
     /** First attribute that is not directly supported by the SDK via getUserAttribute()*/
     USER_ATTR_VIRTUAL_FIRST = 64,
 
-    /** RSA Public key of user */
-    USER_ATTR_RSA_PUBKEY = USER_ATTR_VIRTUAL_FIRST,
-
     /** The email of the user, as returned bh getUserEmail() */
-    USER_ATTR_EMAIL,
+    USER_ATTR_EMAIL = USER_ATTR_VIRTUAL_FIRST,
 
     /** The most significant bit in the attribute type is 1, then the attribute is
      * not directly backed by the db, but rather synthesized by other attributes
@@ -137,7 +134,6 @@ protected:
 //actual attrib fetch backend functions
     void fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
-    void fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
 //==
     void onUserAttrChange(uint64_t userid, int changed);
