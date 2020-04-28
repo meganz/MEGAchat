@@ -1077,15 +1077,6 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
     }
 }
 
-Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
-    Message* msg, const SendKey& key)
-{
-    parsedMsg->symmetricDecrypt(key, *msg);
-    msg->setEncrypted(Message::kNotEncrypted);
-    return msg;
-}
-
-
 void ProtocolHandler::onHistoryReload()
 {
     mCacheVersion++;
@@ -1193,17 +1184,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
 
         // Get keyid
-        uint64_t keyid;
-        bool isLegacy = (parsedMsg->protocolVersion <= 1);
-        if (isLegacy)
-        {
-            keyid = parsedMsg->keyId;
-        }
-        else
-        {
-            keyid = message->keyid;
-        }
-
+        uint64_t keyid = message->keyid;
         auto ctx = std::make_shared<Context>();
 
         promise::Promise<std::shared_ptr<SendKey>> symPms;
@@ -1231,7 +1212,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         // Verify signature and decrypt
         auto wptr = weakHandle();
         return promise::when(symPms, edPms)
-        .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid, cacheVersion]() ->promise::Promise<Message*>
+        .then([this, wptr, message, parsedMsg, ctx, keyid, cacheVersion]() ->promise::Promise<Message*>
         {
             if (wptr.deleted())
             {
@@ -1247,11 +1228,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             {
                 return ::promise::Error("Signature invalid for message "+
                                       message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
-            }
-
-            if (isLegacy)
-            {
-                return legacyMsgDecrypt(parsedMsg, message, *ctx->sendKey);
             }
 
             // Decrypt message payload.

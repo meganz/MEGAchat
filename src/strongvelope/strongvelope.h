@@ -394,9 +394,6 @@ protected:
     promise::Promise<chatd::Message*> handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);
 
-    chatd::Message* legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
-        chatd::Message* msg, const SendKey& key);
-
     void fetchUserKeys(karere::Id userid);
 
 public:
