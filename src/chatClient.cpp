@@ -79,7 +79,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
           api(sdk, ctx),
           app(aApp),
           mDnsCache(db, chatd::Client::chatdVersion),
-          contactList(new ContactList(*this)),
+          mContactList(new ContactList(*this)),
           chats(new ChatRoomList(*this)),
           mPresencedClient(&api, this, *this, caps)
 {
@@ -344,6 +344,246 @@ void Client::createDbSchema()
     db.commit();
 }
 
+int Client::importMessages(const char *externalDbPath)
+{
+    SqliteDb dbExternal;
+    if (!dbExternal.open(externalDbPath, false))
+    {
+        KR_LOG_ERROR("importMessages: failed to open external DB (%s)", externalDbPath);
+        return -1;
+    }
+    // check external DB uses the same DB schema than the app
+    SqliteStmt stmtVersion(dbExternal, "select value from vars where name = 'schema_version'");
+    if (!stmtVersion.step())
+    {
+        dbExternal.close();
+        KR_LOG_ERROR("importMessages: failed to get external DB version");
+        return -2;
+    }
+    // check external DB uses the same DB version than the app
+    std::string currentVersion(gDbSchemaHash);
+    currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
+    std::string cachedVersion(stmtVersion.stringCol(0));
+    if (cachedVersion != currentVersion)
+    {
+        dbExternal.close();
+        KR_LOG_ERROR("importMessages: external DB version is too old");
+        return -3;
+    }
+    // check external DB is for the same user than the app's DB
+    SqliteStmt stmtMyHandle(dbExternal, "select value from vars where name = 'my_handle'");
+    if (!stmtMyHandle.step() || stmtMyHandle.uint64Col(0) != myHandle())
+    {
+        dbExternal.close();
+        KR_LOG_ERROR("importMessages: external DB of a different user");
+        return -4;
+    }
+
+    // avoid to write each imported message to disk individually
+    bool oldCommitMode = commitEach();
+    setCommitMode(false);
+
+    // for every chat, check messages to be added and/or updated
+    int countAdded = 0;
+    int countUpdated = 0;
+    for (auto& it : *chats)
+    {
+        // find the newest message in the app
+        karere::ChatRoom *chatroom = it.second;
+        chatd::Chat &chat = chatroom->chat();
+        karere::Id chatid = chatroom->chatid();
+
+        chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
+        karere::Id newestAppMsgid(Id::inval());
+        chatd::Message *newestAppMsg = nullptr;
+        chatd::Idx firstIdxToImport = CHATD_IDX_INVALID;    // may not match the idx from app (even for same msgid)
+        karere::Id firstMsgidToImport(Id::inval());
+        uint32_t editableMsgsTs = 0;
+
+        std::string query;
+        if (!chat.empty())
+        {
+            newestAppIdx = chat.highnum();
+            newestAppMsg = &chat.at(newestAppIdx);
+            newestAppMsgid = firstMsgidToImport = newestAppMsg->id();
+
+            // find the newest message known by the app in the external DB
+            query = "select idx from history where chatid = ?1 and msgid = ?2";
+            SqliteStmt stmt1(dbExternal, query.c_str());
+            stmt1 << chatid << firstMsgidToImport;
+            if (stmt1.step())
+            {
+                firstIdxToImport = stmt1.intCol(0);
+
+                // ts of oldest message in app that could have been updated/deleted
+                editableMsgsTs = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
+            }
+            else    // not found
+            {
+                // check if a truncate in external DB has cleared this message (idx greater than newest app msg)
+                query = "select msgid, idx, type from history where chatid = ?1 and idx > ?2";
+                SqliteStmt stmt2(dbExternal, query.c_str());
+                stmt2 << chatid << newestAppIdx;
+                if (stmt2.step())
+                {
+                    assert(stmt2.intCol(2) == chatd::Message::kMsgTruncate);
+                    firstMsgidToImport = stmt2.uint64Col(0);
+                    firstIdxToImport = stmt2.intCol(1);
+
+                    KR_LOG_DEBUG("importMessages: truncate detected in chatid: %s msgid: %s idx: %d",
+                                 chatid.toString().c_str(), firstMsgidToImport.toString().c_str(), firstIdxToImport);
+                }
+                else
+                {
+                    // (it means app is ahead of external DB for this chat, so nothing to import)
+                    KR_LOG_DEBUG("importMessages: no messages to import for chatid: %s", chatid.toString().c_str());
+                    continue;
+                }
+            }
+        }
+        else    // chat history is empty in the app
+        {
+            // find the oldest message in external DB: first msgid to import
+            query = "select min(idx), msgid, idx from history where chatid = ?1";
+            SqliteStmt stmt(dbExternal, query.c_str());
+            stmt << chatid;
+            if (stmt.step())
+            {
+                firstMsgidToImport = stmt.uint64Col(1);
+                firstIdxToImport = stmt.intCol(2);
+            }
+            else
+            {
+                // chatroom has no history in external DB either
+                continue;
+            }
+        }
+
+        // for every newer message in external DB, add them to the app's history
+        // (also consider the newest app message to update history in case of truncate)
+        query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted, msgid from history"
+                            " where chatid = ?1 and idx >= ?2";
+        SqliteStmt stmtMsg(dbExternal, query.c_str());
+        stmtMsg << chatroom->chatid() << firstIdxToImport;
+        while (stmtMsg.step())
+        {
+            // restore Message from external DB
+            std::unique_ptr<chatd::Message> msg;
+            karere::Id userid(stmtMsg.uint64Col(0));
+            karere::Id msgid(stmtMsg.uint64Col(9));
+            uint32_t ts = stmtMsg.uintCol(1);
+            unsigned char type = (unsigned char)stmtMsg.intCol(2);
+            uint16_t updated = (uint16_t)stmtMsg.intCol(7);
+            chatd::KeyId keyid = stmtMsg.uintCol(5);
+            Buffer buf;
+            stmtMsg.blobCol(3, buf);
+            msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
+            msg->backRefId = stmtMsg.uint64Col(6);
+            msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
+
+            bool isUpdate = false;
+            if (msgid == newestAppMsgid)
+            {
+                // first message, if not updated or truncated, msg can be skipped
+                isUpdate = (newestAppMsg->type != msg->type && msg->type == chatd::Message::kMsgTruncate)      // become a truncate
+                        || (msg->type == chatd::Message::kMsgTruncate && msg->ts > newestAppMsg->ts)    // truncate a truncate
+                        || (msg->updated > newestAppMsg->updated);  // edited/deleted
+
+                if (!isUpdate)
+                {
+                    KR_LOG_DEBUG("importMessages: newest message not changed. Skipping... (chatid: %s msgid: %s)",
+                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    continue;
+                }
+            }
+
+            if (keyid != CHATD_KEYID_INVALID)   // keyid is invalid for mngt msgs and public chats
+            {
+                // restore the SendKey of the message from external DB
+                std::string queryKey = "select key from sendkeys "
+                        " where chatid = ?1 and userid = ?2 and keyid = ?3";
+                SqliteStmt stmtKey(dbExternal, queryKey.c_str());
+                stmtKey << chatroom->chatid() << userid << keyid;
+                if (!stmtKey.step())
+                {
+                    KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %d",
+                                 chatid.toString().c_str(), msgid.toString().c_str(), keyid);
+                    continue;
+                }
+                Buffer key;
+                stmtKey.blobCol(0, key);
+
+                // import the corresponding key and the message itself
+                chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
+            }
+
+            chat.msgImport(move(msg), isUpdate);
+            (isUpdate) ? countUpdated++ : countAdded++;
+
+            KR_LOG_DEBUG("importMessages: message added (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
+        }
+
+        // finally, check if any older message has been updated
+        if (editableMsgsTs) // 0 --> chat was empty or truncated
+        {
+            query = "select userid, ts, type, data, msgid, keyid, updated, backrefid, is_encrypted from history"
+                                " where chatid = ?1 and ts > ?2 and updated > 0 and idx < ?3";
+
+            SqliteStmt stmtMsgUpdated(dbExternal, query);
+            stmtMsgUpdated << chatroom->chatid() << editableMsgsTs << firstIdxToImport;
+            while (stmtMsgUpdated.step())
+            {
+                karere::Id msgid(stmtMsgUpdated.uint64Col(4));
+                uint16_t updated = (uint16_t)stmtMsgUpdated.intCol(6);
+
+                // check if the edit in the external DB is newer than in app DB
+                query = "select updated from history where chatid = ?1 and msgid = ?2";
+                SqliteStmt stmtMsgAppUpdated(db, query);
+                stmtMsgAppUpdated << chatroom->chatid() << msgid;
+                if (!stmtMsgAppUpdated.step())
+                {
+                    KR_LOG_ERROR("importMessages: message not found in app's db (chatid: %s msgid: %s)",
+                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    continue;
+                }
+                uint16_t updatedApp = (uint16_t)stmtMsgAppUpdated.intCol(0);
+                if (updated <= updatedApp)
+                {
+                    KR_LOG_DEBUG("importMessages: edited message in external db is older. Skipping... (chatid: %s msgid: %s)",
+                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    continue;
+                }
+
+                // restore Message from external DB
+                std::unique_ptr<chatd::Message> msg;
+                karere::Id userid(stmtMsgUpdated.uint64Col(0));
+                uint32_t ts = stmtMsgUpdated.uintCol(1);
+                unsigned char type = (unsigned char)stmtMsgUpdated.intCol(2);
+                Buffer buf;
+                stmtMsgUpdated.blobCol(3, buf);
+                chatd::KeyId keyid = stmtMsgUpdated.uintCol(5);
+                msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
+                msg->backRefId = stmtMsgUpdated.uint64Col(7);
+                msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
+
+                chat.msgImport(move(msg), true);
+                countUpdated++;
+
+                KR_LOG_DEBUG("importMessages: message updated (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
+            }
+        }
+    }
+
+    dbExternal.close();
+
+    // commit the transaction of importing msgs and restore previous mode
+    setCommitMode(oldCommitMode);
+
+    int total = countAdded + countUpdated;
+    KR_LOG_DEBUG("Imported messages: %d (added: %d, updated: %d)", total, countAdded, countUpdated);
+    return total;
+}
+
 void Client::heartbeat()
 {
     if (db.isOpen())
@@ -430,7 +670,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
     room->connect();
 }
 
-promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle)
+promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, karere::Id ph)
 {
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
     Buffer buf(encTitle.size());
@@ -441,7 +681,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
         buf.setDataSize(decLen);
 
         //Create temporary strongvelope instance to decrypt chat title
-        strongvelope::ProtocolHandler *auxCrypto = newStrongvelope(chatId, true, unifiedKey, false, Id::inval());
+        strongvelope::ProtocolHandler *auxCrypto = newStrongvelope(chatId, true, unifiedKey, false, ph);
 
         auto wptr = getDelTracker();
         promise::Promise<std::string> pms = auxCrypto->decryptChatTitleFromApi(buf);
@@ -659,21 +899,6 @@ promise::Promise<void> Client::pushReceived(Id chatid)
     });
 }
 
-void Client::loadContactListFromApi()
-{
-    std::unique_ptr<::mega::MegaUserList> contacts(api.sdk.getContacts());
-    loadContactListFromApi(*contacts);
-}
-
-void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
-{
-#ifndef NDEBUG
-    dumpContactList(contacts);
-#endif
-    contactList->syncWithApi(contacts);
-    mContactsLoaded = true;
-}
-
 Client::InitState Client::initWithAnonymousSession()
 {
     if (mInitState > kInitCreated)
@@ -723,7 +948,9 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     {
         if (wptr.deleted())
             return;
-        loadContactListFromApi(*contactList);
+
+        // Add users from API
+        mContactList->syncWithApi(*contactList);
         mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
@@ -742,6 +969,11 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
 void Client::setCommitMode(bool commitEach)
 {
     db.setCommitMode(commitEach);
+}
+
+bool Client::commitEach()
+{
+    return db.commitEach();
 }
 
 void Client::commit(const std::string& scsn)
@@ -838,8 +1070,7 @@ void Client::initWithDbSession(const char* sid)
 
         loadOwnKeysFromDb();
         mDnsCache.loadFromDb();
-        contactList->loadFromDb();
-        mContactsLoaded = true;
+        mContactList->loadFromDb();
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
 
@@ -871,12 +1102,18 @@ void Client::setInitState(InitState newState)
     app.onInitStateChange(mInitState);
 }
 
-Client::InitState Client::init(const char* sid)
+Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 {
     if (mInitState > kInitCreated)
     {
         KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
         return kInitErrAlready;
+    }
+
+    if (!waitForFetchnodesToConnect && !sid)
+    {
+        KR_LOG_ERROR("init: sid required to initialize in Lean Mode");
+        return kInitErrGeneric;
     }
 
     mInitStats.stageStart(InitStats::kStatsInit);
@@ -892,12 +1129,26 @@ Client::InitState Client::init(const char* sid)
     }
     else
     {
+        assert(waitForFetchnodesToConnect);
         setInitState(kInitWaitingNewSession);
+    }
+
+    if (!waitForFetchnodesToConnect)
+    {
+        if (mInitState != kInitHasOfflineSession)
+        {
+            KR_LOG_ERROR("init: failed to initialize Lean Mode. Current state: %s", initStateStr());
+            return kInitErrGeneric;
+        }
+
+        mSessionReadyPromise.resolve();
+        mInitStats.onCanceled();    // do not collect stats for this initialization mode
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
     api.sdk.addRequestListener(this);
+
     return mInitState;
 }
 
@@ -944,7 +1195,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
         bool loggedOut = ((errorCode == ::mega::MegaError::API_OK || errorCode == ::mega::MegaError::API_ESID)
-                          && request->getFlag());    // SDK has been logged out normally closing session
+                          && (request->getFlag() || request->getParamType() == ::mega::MegaError::API_EBLOCKED));
 
         bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
         if (loggedOut)
@@ -987,6 +1238,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
+
+#ifndef NDEBUG
+        dumpContactList(*contactList);
+#endif
 
         auto wptr = weakHandle();
         marshallCall([wptr, this, state, scsn, contactList, chatList]()
@@ -1101,7 +1356,7 @@ void Client::createDb()
 }
 
 bool Client::checkSyncWithSdkDb(const std::string& scsn,
-    ::mega::MegaUserList& contactList, ::mega::MegaTextChatList& chatList)
+    ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chatList)
 {
     SqliteStmt stmt(db, "select value from vars where name='scsn'");
     stmt.stepMustHaveData("get karere scsn");
@@ -1116,10 +1371,14 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
 
     // invalidate user attrib cache
     mUserAttrCache->invalidate();
+
     // sync contactlist first
-    loadContactListFromApi(contactList);
+    mContactList->clear();   // remove obsolete users, just in case, and add them fresh from SDK
+    mContactList->syncWithApi(aContactList);
+
     // sync the chatroom list
     chats->onChatsUpdate(chatList);
+
     // commit the snapshot
     commit(scsn);
     return false;
@@ -1294,7 +1553,7 @@ void Client::sendStats()
         return;
     }
 
-    std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), contactList->size());
+    std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), mContactList->size());
     KR_LOG_DEBUG("Init stats: %s", stats.c_str());
     api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str());
 }
@@ -1512,7 +1771,9 @@ void Client::terminate(bool deleteDb)
 {
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
-        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    {
+            rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    }
 #endif
 
     setInitState(kInitTerminated);
@@ -1537,7 +1798,7 @@ void Client::terminate(bool deleteDb)
             it++;
         }
     }
-  
+
     if (mConnState != kDisconnected)
     {
         setConnState(kDisconnected);
@@ -1612,23 +1873,7 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
             return;
         }
 
-        assert(mUserAttrCache);
-        auto count = users->size();
-        for (int i = 0; i < count; i++)
-        {
-            auto& user = *users->get(i);
-            if (user.getChanges())
-            {
-                if (user.isOwnChange() == 0)
-                {
-                    mUserAttrCache->onUserAttrChange(user);
-                }
-            }
-            else
-            {
-                contactList->onUserAddRemove(user);
-            }
-        };
+        mContactList->syncWithApi(*users);
     }, appCtx);
 }
 
@@ -2178,7 +2423,7 @@ PeerChatRoom::~PeerChatRoom()
 
 void PeerChatRoom::initContact(const uint64_t& peer)
 {
-    mContact = parent.mKarereClient.contactList->contactFromUserId(peer);
+    mContact = parent.mKarereClient.mContactList->contactFromUserId(peer);
     mEmail = mContact ? mContact->email() : "Inactive account";
     if (mContact)
     {
@@ -2624,8 +2869,6 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
         delete [] scsn;
         return;
     }
-
-    assert(mContactsLoaded);
 
     std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
 #ifndef NDEBUG
@@ -3587,39 +3830,6 @@ void ContactList::loadFromDb()
     }
 }
 
-bool ContactList::addUserFromApi(mega::MegaUser& user)
-{
-    auto userid = user.getHandle();
-    auto it = this->find(userid);
-    if (it != this->end())
-    {
-        Contact *contact = it->second;
-        assert(contact);
-        int newVisibility = user.getVisibility();
-        if (contact->visibility() == newVisibility)
-        {
-            return false;
-        }
-
-        client.db.query("update contacts set visibility = ? where userid = ?",
-            newVisibility, userid);
-        contact->onVisibilityChanged(newVisibility);
-        return true;
-    }
-
-    // contact was not created yet
-    auto cmail = user.getEmail();
-    std::string email(cmail ? cmail : "");
-    int visibility = user.getVisibility();
-    auto ts = user.getTimestamp();
-    client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
-            userid, email, visibility, ts);
-    Contact *contact = new Contact(*this, userid, email, visibility, ts, nullptr);
-    this->emplace(userid, contact);
-    KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
-    return true;
-}
-
 void Contact::onVisibilityChanged(int newVisibility)
 {
     assert(newVisibility != mVisibility);
@@ -3644,73 +3854,103 @@ std::string Contact::getContactName()
     return mName;
 }
 
-void ContactList::syncWithApi(mega::MegaUserList& users)
+void ContactList::syncWithApi(mega::MegaUserList &users)
 {
-    std::set<uint64_t> apiUsers;
-    auto size = users.size();
-    for (int i = 0; i < size; i++)
+    int count = users.size();
+    for (int i = 0; i < count; i++)
     {
-        auto& user = *users.get(i);
-        if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_UNKNOWN)   // user cancelled the account in MEGA
+        ::mega::MegaUser &user = *users.get(i);
+        auto newVisibility = user.getVisibility();
+
+        int changed = user.getChanges();
+        bool updateCache = !user.isOwnChange();
+
+        ContactList::iterator it = find(user.getHandle());
+        if (it != end())    // existing contact or ex-contact
         {
-            continue;
-        }
-        apiUsers.insert(user.getHandle());
-        addUserFromApi(user);
-    }
+            auto handle = it->first;
+            Contact *contact = it->second;
+            auto oldVisibility = contact->visibility();
 
-    // finally, remove known users that are not anymore in the list of users reported by the SDK
-    for (auto it = begin(); it != end();)
-    {
-        auto handle = it->first;
-        if (apiUsers.find(handle) != apiUsers.end())
+            if (oldVisibility != newVisibility)
+            {
+                if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+                {
+                    delete contact;
+                    erase(it);
+                    client.db.query("delete from contacts where userid=?", handle);
+                    return;
+                }
+                else
+                {
+                    client.db.query("update contacts set visibility = ? where userid = ?", newVisibility, handle);
+                    contact->onVisibilityChanged(newVisibility);
+
+                    if (oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN
+                            && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+                    {
+                        // API doesn't notify about changes for ex-contacts, so need to update user attributes
+                        assert(user.getChanges());  // currently, firstname and lastname only (driven by SDK)
+                        updateCache = true;
+                    }
+                }
+            }
+
+            if (contact->email() != user.getEmail())
+            {
+                std::string newEmail;
+                const char *userEmail = user.getEmail();
+                if (userEmail && userEmail[0])
+                {
+                    newEmail.assign(userEmail);
+                }
+
+                // Update contact email in memory and cache
+                contact->mEmail = newEmail;
+                client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
+
+                // If user it's our own user, we need to update our own email in client and cache
+                if (client.myHandle() == user.getHandle())
+                {
+                    client.setMyEmail(newEmail);
+                    client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
+                }
+
+                // We need to update user email in attr cache
+                updateCache = true;
+            }
+
+            if (contact->since() != user.getTimestamp())
+            {
+                contact->mSince = user.getTimestamp();
+                client.db.query("update contacts set since = ? where userid = ?", contact->since(), handle);
+            }
+        }
+        else    // contact was not created yet
         {
-            it++;
-            continue;
+            std::string email(user.getEmail());
+            auto userid = user.getHandle();
+            auto ts = user.getTimestamp();
+            client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
+                            userid, email, newVisibility, ts);
+            Contact *contact = new Contact(*this, userid, email, newVisibility, ts, nullptr);
+            emplace(userid, contact);
+
+            KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
+
+            // If the user was part of a group before being added as a contact, we need to update user attributes,
+            // currently firstname, lastname and email, in order to ensure that are re-fetched for users
+            // with group chats previous to establish contact relationship
+            assert(!changed || userid == client.myHandle());   // new users have no changes (expect own user, who updates some attrs upon login)
+            changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME | ::mega::MegaUser::CHANGE_TYPE_EMAIL;
+            updateCache = true;
         }
 
-        auto erased = it;
-        it++;
-        removeUser(erased);
-    }
-}
-
-void ContactList::onUserAddRemove(mega::MegaUser& user)
-{
-    if (user.getVisibility() == ::mega::MegaUser::VISIBILITY_INACTIVE)
-    {
-        auto it = this->find(user.getHandle());
-        if (it != this->end())
+        if (changed && updateCache)
         {
-            removeUser(it);
+            client.userAttrCache().onUserAttrChange(user.getHandle(), changed);
         }
     }
-    else
-    {
-        addUserFromApi(user);
-    }
-}
-
-void ContactList::removeUser(iterator it)
-{
-    auto handle = it->first;
-    delete it->second;
-    erase(it);
-    client.db.query("delete from contacts where userid=?", handle);
-}
-
-promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
-{
-    auto it = find(userid);
-    if (it == end())
-        return ::promise::Error("User "+karere::Id(userid).toString()+" not in contactlist");
-
-    auto& api = client.api;
-    std::unique_ptr<mega::MegaUser> user(api.sdk.getContact(it->second->email().c_str()));
-    if (!user)
-        return ::promise::Error("Could not get user object from email");
-    //we don't remove it, we just set visibility to HIDDEN
-    return api.callIgnoreResult(&::mega::MegaApi::removeContact, user.get());
 }
 
 ContactList::~ContactList()
@@ -3725,17 +3965,6 @@ const std::string* ContactList::getUserEmail(uint64_t userid) const
     if (it == end())
         return nullptr;
     return &(it->second->email());
-}
-
-bool ContactList::isExContact(Id userid)
-{
-    auto it = find(userid);
-    if (it == end() || (it != end() && it->second->visibility() != mega::MegaUser::VISIBILITY_HIDDEN))
-    {
-        return false;
-    }
-
-    return true;
 }
 
 Contact* ContactList::contactFromEmail(const std::string &email) const
@@ -3771,20 +4000,46 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         //if lastname is not null the first byte will contain the
         //firstname-size-prefix but datasize will be bigger than 1 byte.
 
-        // If the contact has alias don't update the title
+        // If fullname received is valid
         auto self = static_cast<Contact*>(userp);
         std::string alias = self->mClist.client.getUserAlias(self->userId());
-        if (alias.empty())
+        if (data && !data->empty() && *data->buf() != 0 && data->size() != 1)
         {
-            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
+            // Update contact name
+            std::string name(data->buf(), data->dataSize());
+            self->setContactName(name.substr(1));
+            if (alias.empty())
+            {
+                // Update title if there's no alias
+                self->updateTitle(name);
+            }
+        }
+        else if (alias.empty())
+        {
+            // If there's no alias nor fullname
+            self->updateTitle(encodeFirstName(self->mEmail));
+        }
+    });
+
+    mEmailAttrCbId = mClist.client.userAttrCache().getAttr(userid, USER_ATTR_EMAIL, this,
+    [](Buffer* data, void* userp)
+    {
+        auto self = static_cast<Contact*>(userp);
+        if (data && !data->empty() && *data->buf() != 0 && data->size() != 1)
+        {
+            self->mEmail.assign(data->buf(), data->dataSize());
+            if (self->mChatRoom)
+            {
+                // if peerChatRoom exists, update email
+                self->mChatRoom->mEmail.assign(self->mEmail);
+            }
+
+            // If contact has alias or contactName don't update title
+            std::string alias = self->mClist.client.getUserAlias(self->userId());
+            std::string contactName = self->getContactName();
+            if (alias.empty() && contactName.empty())
             {
                 self->updateTitle(encodeFirstName(self->mEmail));
-            }
-            else
-            {
-                std::string name(data->buf(), data->dataSize());
-                self->setContactName(name.substr(1));
-                self->updateTitle(name);
             }
         }
     });
@@ -3822,6 +4077,7 @@ Contact::~Contact()
     if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
+        client.userAttrCache().removeCb(mEmailAttrCbId);
     }
 }
 
@@ -3981,8 +4237,26 @@ void Client::updateAliases(Buffer *data)
         }
     }
 
+    // Update those contact's titles without a peer chatroom associated
+    for (auto &userid : aliasesUpdated)
+    {
+        Contact *contact =  mContactList->contactFromUserId(userid);
+        if (contact && !contact->chatRoom())
+        {
+            std::string title = getUserAlias(userid);
+            if (title.empty())
+            {
+                title = !contact->getContactName().empty()
+                    ? contact->getContactName()
+                    : contact->email();
+            }
+
+            // Contact title has a binary layout
+            contact->updateTitle(encodeFirstName(title));
+        }
+    }
+
     // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
-    for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
     for (auto &itChats : *chats)
     {
         ChatRoom *chatroom = itChats.second;
@@ -4025,6 +4299,16 @@ std::string Client::getUserAlias(uint64_t userId)
         ::mega::Base64::atob(aliasB64, aliasBin);
     }
     return aliasBin;
+}
+
+void Client::setMyEmail(const std::string &email)
+{
+    mMyEmail = email;
+}
+
+const std::string& Client::getMyEmail() const
+{
+    return mMyEmail;
 }
 
 std::string encodeFirstName(const std::string& first)

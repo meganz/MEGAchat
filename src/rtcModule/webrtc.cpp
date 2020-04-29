@@ -1008,22 +1008,19 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
 }
 
 Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGroup,
-    bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient, bool callRecovered)
-: ICall(rtcModule, chat, callid, isGroup, isJoiner, handler,
-    callerUser, callerClient), mName("call["+mId.toString()+"]")
-, mRecovered(callRecovered) // the joiner is actually the answerer in case of new call
+           bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient, bool callRecovered)
+    : ICall(rtcModule, chat, callid, isGroup, isJoiner, handler, callerUser, callerClient)
+    , mName("call["+mId.toString()+"]")
+    , mRecovered(callRecovered) // the joiner is actually the answerer in case of new call
 {
-    if (isJoiner)
+    if (isJoiner && mCallerUser && mCallerClient)
     {
         mState = kStateRingIn;
-        mCallerUser = callerUser;
-        mCallerClient = callerClient;
     }
     else
     {
         mState = kStateInitial;
-        assert(!callerUser);
-        assert(!callerClient);
+        assert(isJoiner || (!callerUser && !callerClient));
     }
 
     mSessionsInfo.clear();
@@ -1545,6 +1542,18 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
     return ctx->pms;
 }
 
+promise::Promise<void> Call::terminateAllSessionInmediately(TermCode code)
+{
+    for (auto it = mSessions.begin(); it != mSessions.end();)
+    {
+        std::shared_ptr<Session> session = it++->second;
+        session->terminateAndDestroy(code);
+        session->forceDestroy();
+    }
+
+    return promise::_Void();
+}
+
 Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
 {
     if (mState == Call::kStateDestroyed)
@@ -1565,6 +1574,11 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
+    if (mVideoDevice)
+    {
+        mVideoDevice->releaseDevice();
+    }
+
     mLocalPlayer.reset();
     mLocalStream.reset();
 
@@ -1583,9 +1597,16 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
             pms = ::promise::_Void();
             break;
         default:
-            // if we initiate the call termination, we must initiate the
-            // session termination handshake
-            pms = gracefullyTerminateAllSessions(code);
+            if (code == TermCode::kAppTerminating)
+            {
+                pms = terminateAllSessionInmediately(code);
+            }
+            else
+            {
+                // if we initiate the call termination, we must initiate the
+                // session termination handshake
+                pms = gracefullyTerminateAllSessions(code);
+            }
             break;
         }
     }
@@ -1735,7 +1756,6 @@ void Call::removeSession(Session& sess, TermCode reason)
     karere::Id sessionPeer = sess.mPeer;
     uint32_t sessionPeerClient = sess.mPeerClient;
     bool caller = sess.isCaller();
-
     mSessions.erase(sessionId);
 
     if (mState == kStateTerminating)
@@ -1743,11 +1763,25 @@ void Call::removeSession(Session& sess, TermCode reason)
         return;
     }
 
+    EndpointId endpointId(sessionPeer, sessionPeerClient);
     if (!Session::isTermRetriable(reason))
     {
+        mSessionsReconnectionInfo.erase(endpointId);
         destroyIfNoSessionsOrRetries(reason);
         return;
     }
+
+    auto sessionReconnectionIt = mSessionsReconnectionInfo.find(endpointId);
+    if (sessionReconnectionIt == mSessionsReconnectionInfo.end())
+    {
+        SessionReconnectInfo reconnectInfo;
+        mSessionsReconnectionInfo[endpointId] = reconnectInfo;
+        sessionReconnectionIt = mSessionsReconnectionInfo.find(endpointId);
+    }
+
+    SessionReconnectInfo& info = sessionReconnectionIt->second;
+    info.setReconnections(info.getReconnections() + 1);
+    info.setOldSid(sessionId);
 
     // If we want to terminate the call (no matter if initiated by us or peer), we first
     // set the call's state to kTerminating. If that is not set, then it's only the session
@@ -1759,7 +1793,6 @@ void Call::removeSession(Session& sess, TermCode reason)
         assert(false);
     }
 
-    EndpointId endpointId(sessionPeer, sessionPeerClient);
     TermCode terminationCode = (TermCode)(reason & ~TermCode::kPeer);
     if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout)
     {
@@ -1800,6 +1833,7 @@ void Call::removeSession(Session& sess, TermCode reason)
             return;
 
         mSessRetries.erase(endpointId);
+        mSessionsReconnectionInfo.erase(endpointId);
         if (mState >= kStateTerminating) // call already terminating
         {
            return; //timer is not relevant anymore
@@ -2335,6 +2369,11 @@ Call::~Call()
             mDestroySessionTimer = 0;
         }
 
+        if (mVideoDevice)
+        {
+            mVideoDevice->releaseDevice();
+        }
+
         clearCallOutTimer();
         mLocalPlayer.reset();
         mLocalStream.reset();
@@ -2366,7 +2405,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         return;
     }
 
-    if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient) // caller went offline
+    if (mState == kStateRingIn && isCaller(userid, clientid))   // caller went offline
     {
         destroy(TermCode::kCallerGone, false);
         return;
@@ -2397,6 +2436,9 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         cancelSessionRetryTimer(userid, clientid);
         destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
     }
+
+    // We discard the previous JOIN becasue we have rececived an ENDCALL from that peer
+    mSessionsInfo.erase(EndpointId(userid, clientid));
 }
 
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)
@@ -2810,17 +2852,14 @@ void Session::createRtcConn()
             mVideoSender = error.MoveValue();
         }
 
-        if (mCall.sentAv().audio())
+        webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
+        webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
+        if (!error.ok())
         {
-            webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
-            webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
-            if (!error.ok())
-            {
-                SUB_LOG_WARNING("Error: %s", error.MoveError().message());
-            }
-
-            mAudioSender = error.MoveValue();
+            SUB_LOG_WARNING("Error: %s", error.MoveError().message());
         }
+
+        mAudioSender = error.MoveValue();
     }
 
     mStatRecorder.reset(new stats::Recorder(*this, kStatsPeriod, kMaxStatsPeriod));
@@ -2908,6 +2947,15 @@ promise::Promise<void> Session:: processSdpOfferSendAnswer()
         terminateAndDestroy(TermCode::kErrSdp, msg);
     });
 }
+
+void Session::forceDestroy()
+{
+    if (!mTerminatePromise.done())
+    {
+        mTerminatePromise.resolve();
+    }
+}
+
 //PeerConnection events
 void Session::onAddStream(artc::tspMediaStream stream)
 {
@@ -2989,14 +3037,8 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
 
     if (state == webrtc::PeerConnectionInterface::kIceConnectionClosed)
     {
-        terminateAndDestroy(TermCode::kErrIceDisconn);
-    }
-    else if (state == webrtc::PeerConnectionInterface::kIceConnectionFailed)
-    {
-        terminateAndDestroy(TermCode::kErrIceFail);
-    }
-    else if (state == webrtc::PeerConnectionInterface::kIceConnectionDisconnected)
-    {
+        cancelIceDisconnectionTimer();
+
         if (mRenegotiationInProgress)
         {
             SUB_LOG_DEBUG("Skip Ice connection closed, renegotiation in progress");
@@ -3005,8 +3047,24 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
 
         terminateAndDestroy(TermCode::kErrIceDisconn);
     }
+    else if (state == webrtc::PeerConnectionInterface::kIceConnectionFailed)
+    {
+        cancelIceDisconnectionTimer();
+        TermCode termCode = (mState == kStateInProgress) ? TermCode::kErrIceDisconn : TermCode::kErrIceFail;
+        terminateAndDestroy(termCode);
+    }
+    else if (state == webrtc::PeerConnectionInterface::kIceConnectionDisconnected)
+    {
+        handleIceDisconnected();
+    }
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
     {
+        if (mState == kStateInProgress)
+        {
+            handleIceConnectionRecovered();
+            return;
+        }
+
         setState(kStateInProgress);
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
@@ -3226,7 +3284,6 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         {
             auto pms = mTerminatePromise;
             pms.resolve();
-            return pms;
         }
     }
 
@@ -3307,6 +3364,11 @@ void Session::msgSessTerminate(RtMessage& packet)
         mTermCode = code;
     }
 
+    if (code == TermCode::kErrIceDisconn && mTsIceConn)
+    {
+        mIceDisconnectionTs = time(nullptr);
+    }
+
     setState(kStateTerminating);
     destroy(static_cast<TermCode>(mTermCode | TermCode::kPeer));
 }
@@ -3359,6 +3421,16 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.caid = mCall.mManager.mOwnAnonId;
         info.aaid = mPeerAnonId;
     }
+
+    info.iceDisconnections = mIceDisconnections;
+    info.maxIceDisconnectionTime = mMaxIceDisconnectedTime;
+    auto sessionReconnectionIt = mCall.mSessionsReconnectionInfo.find(EndpointId(mPeer, mPeerClient));
+    if (sessionReconnectionIt != mCall.mSessionsReconnectionInfo.end())
+    {
+        info.previousSessionId = sessionReconnectionIt->second.getOldSid();
+        info.reconnections = sessionReconnectionIt->second.getReconnections();
+    }
+
 
     std::string stats = mStatRecorder->terminate(info);
     mCall.mManager.mKarereClient.api.sdk.sendChatStats(stats.c_str(), CHATSTATS_PORT);
@@ -3474,6 +3546,7 @@ void Session::msgSdpAnswerRenegotiate(RtMessage &packet)
 Session::~Session()
 {
     removeRtcConnection();
+    cancelIceDisconnectionTimer();
     SUB_LOG_DEBUG("Destroyed");
 }
 
@@ -3501,7 +3574,28 @@ void Session::manageNetworkQuality(stats::Sample *sample)
 bool Session::isTermRetriable(TermCode reason)
 {
     TermCode termCode = static_cast<TermCode>(reason & ~TermCode::kPeer);
-    return (termCode != TermCode::kErrPeerOffline) && (termCode != TermCode::kUserHangup);
+    return (termCode != TermCode::kErrPeerOffline) && (termCode != TermCode::kUserHangup) && (termCode != TermCode::kAppTerminating);
+}
+
+karere::Id SessionReconnectInfo::getOldSid() const
+{
+    return mOldSid;
+}
+
+unsigned int SessionReconnectInfo::getReconnections() const
+{
+    return mReconnections;
+}
+
+
+void SessionReconnectInfo::setOldSid(const Id &oldSid)
+{
+    mOldSid = oldSid;
+}
+
+void SessionReconnectInfo::setReconnections(unsigned int reconnections)
+{
+    mReconnections = reconnections;
 }
 
 #define RET_ENUM_NAME(name) case name: return #name
@@ -3914,6 +4008,52 @@ promise::Promise<void> Session::setRemoteAnswerSdp(RtMessage &packet)
         std::string msg = "Error setting SDP answer: " + err.msg();
         terminateAndDestroy(TermCode::kErrSdp, msg);
     });
+}
+
+void Session::handleIceConnectionRecovered()
+{
+    if (!mIceDisconnectionTs)
+    {
+        return;
+    }
+
+    cancelTimeout(mMediaRecoveryTimer, mManager.mKarereClient.appCtx);
+    mMediaRecoveryTimer = 0;
+
+    time_t iceReconnectionDuration = time(nullptr) - mIceDisconnectionTs;
+    if (iceReconnectionDuration > mMaxIceDisconnectedTime)
+    {
+        mMaxIceDisconnectedTime = iceReconnectionDuration;
+    }
+
+    mIceDisconnections++;
+}
+
+void Session::handleIceDisconnected()
+{
+    mIceDisconnectionTs = time(nullptr);
+    cancelIceDisconnectionTimer();
+
+    auto wptr = this->weakHandle();
+    mMediaRecoveryTimer = setTimeout([wptr, this]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        SUB_LOG_WARNING("Timed out waiting for media connection to recover, terminating session");
+        terminateAndDestroy(TermCode::kErrIceDisconn);
+    }, RtcModule::kMediaConnRecoveryTimeout, mManager.mKarereClient.appCtx);
+}
+
+void Session::cancelIceDisconnectionTimer()
+{
+    if (mMediaRecoveryTimer)
+    {
+        cancelTimeout(mMediaRecoveryTimer, mManager.mKarereClient.appCtx);
+        mMediaRecoveryTimer = 0;
+    }
 }
 
 AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)

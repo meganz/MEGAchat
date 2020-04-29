@@ -341,9 +341,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_LOGOUT:
         {
             bool deleteDb = request->getFlag();
-#ifndef KARERE_DISABLE_WEBRTC
             cleanChatHandlers();
-#endif
             terminating = true;
             mClient->terminate(deleteDb);
 
@@ -364,9 +362,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             if (mClient && !terminating)
             {
-#ifndef KARERE_DISABLE_WEBRTC
                 cleanChatHandlers();
-#endif
                 mClient->terminate();
                 API_LOG_INFO("Chat engine closed!");
 
@@ -467,8 +463,8 @@ void MegaChatApiImpl::sendPendingRequests()
                     errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
-                ContactList::iterator it = mClient->contactList->find(peersList->getPeerHandle(0));
-                if (it == mClient->contactList->end())
+                ContactList::iterator it = mClient->mContactList->find(peersList->getPeerHandle(0));
+                if (it == mClient->mContactList->end())
                 {
                     // contact not found
                     errorCode = MegaChatError::ERROR_ACCESS;
@@ -850,7 +846,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             mClient->openChatPreview(ph)
-            .then([request, this, unifiedKey](ReqResult result)
+            .then([request, this, unifiedKey, ph](ReqResult result)
             {
                 assert(result);
 
@@ -859,7 +855,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 uint64_t chatId = result->getParentHandle();
 
-                mClient->decryptChatTitle(chatId, unifiedKey, encTitle)
+                mClient->decryptChatTitle(chatId, unifiedKey, encTitle, ph)
                 .then([request, this, unifiedKey, result, chatId](std::string decryptedTitle)
                 {
                    bool createChat = request->getFlag();
@@ -1430,6 +1426,26 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!chatroom->isGroup())
+            {
+                uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
+                Contact *contact = mClient->mContactList->contactFromUserId(uh);
+                if (!contact || contact->visibility() != ::mega::MegaUser::VISIBILITY_VISIBLE)
+                {
+                    API_LOG_ERROR("Start call - Refusing start a call with a non active contact");
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+            }
+            else if (chatroom->ownPriv() <= Priv::PRIV_RDONLY
+                     || ((GroupChatRoom *)chatroom)->peers().empty())
+            {
+                API_LOG_ERROR("Start call - Refusing start a call in an empty chatroom"
+                              "or withouth enough privileges");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (chatroom->previewMode())
             {
                 API_LOG_ERROR("Start call - Chatroom is in preview mode");
@@ -1486,6 +1502,13 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else
             {
+                if (!chatroom->chat().isLoggedIn())
+                {
+                    API_LOG_ERROR("Start call - Refusing start/join a call, not logged-in yet: %d", chatroom->chat().connection().shardNo());
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+
                 handler = new MegaChatCallHandler(this);
                 mClient->rtc->addCallHandler(chatid, handler);
                 karere::AvFlags avFlags(true, enableVideo);
@@ -1595,7 +1618,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     API_LOG_DEBUG("There isn't an internal call, abort call retry");
                     mClient->rtc->abortCallRetry(chatid);
-
                     break;
                 }
 
@@ -1746,6 +1768,27 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_IMPORT_MESSAGES:
+        {
+            if (mClient->initState() != karere::Client::kInitHasOfflineSession
+                            && mClient->initState() != karere::Client::kInitHasOnlineSession)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            int count = mClient->importMessages(request->getText());
+            if (count < 0)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            request->setNumber(count);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -1829,12 +1872,12 @@ int MegaChatApiImpl::initAnonymous()
     return MegaChatApiImpl::convertInitState(state);
 }
 
-int MegaChatApiImpl::init(const char *sid)
+int MegaChatApiImpl::init(const char *sid, bool waitForFetchnodesToConnect)
 {
     sdkMutex.lock();
     createKarereClient();
 
-    int state = mClient->init(sid);
+    int state = mClient->init(sid, waitForFetchnodesToConnect);
     if (state != karere::Client::kInitErrNoCache &&
             state != karere::Client::kInitWaitingNewSession &&
             state != karere::Client::kInitHasOfflineSession)
@@ -1887,6 +1930,14 @@ int MegaChatApiImpl::getInitState()
     sdkMutex.unlock();
 
     return initState;
+}
+
+void MegaChatApiImpl::importMessages(const char *externalDbPath, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_IMPORT_MESSAGES, listener);
+    request->setText(externalDbPath);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
@@ -1942,8 +1993,8 @@ karere::ChatRoom *MegaChatApiImpl::findChatRoomByUser(MegaChatHandle userhandle)
 
     if (mClient && !terminating)
     {
-        ContactList::iterator it = mClient->contactList->find(userhandle);
-        if (it != mClient->contactList->end())
+        ContactList::iterator it = mClient->mContactList->find(userhandle);
+        if (it != mClient->mContactList->end())
         {
             chatroom = it->second->chatRoom();
         }
@@ -2594,7 +2645,7 @@ char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)
 
     sdkMutex.lock();
 
-    const std::string *email = mClient ? mClient->contactList->getUserEmail(userhandle) : NULL;
+    const std::string *email = mClient ? mClient->mContactList->getUserEmail(userhandle) : NULL;
     if (email)
     {
         ret = MegaApi::strdup(email->c_str());
@@ -2613,7 +2664,7 @@ MegaChatHandle MegaChatApiImpl::getUserHandleByEmail(const char *email)
     {
         sdkMutex.lock();
 
-        Contact *contact = mClient ? mClient->contactList->contactFromEmail(email) : NULL;
+        Contact *contact = mClient ? mClient->mContactList->contactFromEmail(email) : NULL;
         if (contact)
         {
             uh = contact->userId();
@@ -3368,7 +3419,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHand
 
     sdkMutex.lock();
 
-    string buf = JSonUtils::generateAttachContactJSon(contacts, mClient->contactList.get());
+    string buf = JSonUtils::generateAttachContactJSon(contacts, mClient->mContactList.get());
     MegaChatMessage *megaMsg = sendMessage(chatid, buf.c_str(), buf.size(), Message::kMsgContact);
 
     sdkMutex.unlock();
@@ -4427,6 +4478,14 @@ void MegaChatApiImpl::removeCall(MegaChatHandle chatid)
 
 void MegaChatApiImpl::cleanChatHandlers()
 {
+#ifndef KARERE_DISABLE_WEBRTC
+    if (mClient->rtc)
+    {
+        mClient->rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+    }
+    cleanCallHandlerMap();
+#endif
+
 	MegaChatHandle chatid;
 	for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
 	{
@@ -4445,10 +4504,6 @@ void MegaChatApiImpl::cleanChatHandlers()
 		closeNodeHistory(chatid, NULL);
 	}
 	assert(nodeHistoryHandlers.empty());
-
-#ifndef KARERE_DISABLE_WEBRTC
-	cleanCallHandlerMap();
-#endif
 }
 
 void MegaChatApiImpl::onInitStateChange(int newState)
@@ -4829,6 +4884,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "LAST_GREEN";
         case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
+        case TYPE_IMPORT_MESSAGES: return "IMPORT_MESSAGES";
     }
     return "UNKNOWN";
 }
@@ -6419,6 +6475,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
     this->mNumPreviewers = chat->getNumPreviewers();
+    this->mCreationTs = chat->getCreationTs();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -6437,6 +6494,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->archived = chat.isArchived();
     this->uh = MEGACHAT_INVALID_HANDLE;
     this->mNumPreviewers = chat.chat().getNumPreviewers();
+    this->mCreationTs = chat.getCreationTs();
 
     if (group)
     {
@@ -6697,6 +6755,11 @@ bool MegaChatRoomPrivate::isActive() const
 bool MegaChatRoomPrivate::isArchived() const
 {
     return archived;
+}
+
+int64_t MegaChatRoomPrivate::getCreationTs() const
+{
+    return mCreationTs;
 }
 
 int MegaChatRoomPrivate::getChanges() const
@@ -7901,7 +7964,13 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
     {
         chatid = chatCall->getChatid();
         unique_ptr<MegaChatRoom> chatRoom(megaChatApi->getChatRoom(chatid));
-        assert(chatRoom);
+        if (!chatRoom)
+        {
+            // Protection to destroy the app during call
+            assert(false);
+            return;
+        }
+
         unique_ptr<MegaHandleList> peeridParticipants(chatCall->getPeeridParticipants());
         unique_ptr<MegaHandleList> clientidParticipants(chatCall->getClientidParticipants());
         bool uniqueParticipant = (peeridParticipants && peeridParticipants->size() == 1 &&
@@ -8867,8 +8936,7 @@ std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, Conta
             emailValue.SetString(contact->email().c_str(), contact->email().length(), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("email"), emailValue, jSonDocument.GetAllocator());
 
-            std::string nameString = contact->titleString();
-            nameString.erase(0, 1);
+            std::string nameString = contact->getContactName();
             rapidjson::Value nameValue(rapidjson::kStringType);
             nameValue.SetString(nameString.c_str(), nameString.length(), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("name"), nameValue, jSonDocument.GetAllocator());

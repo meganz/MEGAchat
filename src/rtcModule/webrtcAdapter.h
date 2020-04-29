@@ -143,12 +143,13 @@ public:
     {
         RTCM_DO_CALLBACK(mPromise.resolve(); Release(), this);
     }
-    virtual void OnFailure(const std::string& error)
+
+    virtual void OnFailure(webrtc::RTCError error)
     {
         RTCM_DO_CALLBACK(
-             mPromise.reject(::promise::Error(error, kSetSdpDescriptionFailed, ERRTYPE_RTC));
-             Release();
-        , this, error);
+            mPromise.reject(::promise::Error(error.message(), kSetSdpDescriptionFailed, ERRTYPE_RTC));
+            Release();
+        , this, error.message());
     }
 
 protected:
@@ -192,6 +193,10 @@ protected:
             RTCM_DO_CALLBACK(mHandler.onSignalingChange(newState), this, newState);
         }
         virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
+        {
+            // It's deprecate in webrtc
+        }
+        virtual void OnStandardizedIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
         {
             RTCM_DO_CALLBACK(mHandler.onIceConnectionChange(newState), this, newState);
         }

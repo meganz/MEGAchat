@@ -9,6 +9,7 @@ namespace Ui {
 class ChatItem;
 }
 
+class ContactListItemController;
 class MainWindow;
 class ContactItemWidget : public QWidget
 {
@@ -36,6 +37,7 @@ class ContactItemWidget : public QWidget
         MainWindow *mMainWin;
         std::string mName;
         std::string mAlias;
+        ContactListItemController *mController;
 
     void createChatRoom(megachat::MegaChatHandle uh, bool isGroup);
 
@@ -49,5 +51,6 @@ class ContactItemWidget : public QWidget
         void onExContactInvite();
         void onCopyHandle();
         void onSetNickname();
+        void onUpdateTooltip();
 };
 #endif // CONTACITEMWIDGET_H

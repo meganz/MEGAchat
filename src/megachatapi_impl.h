@@ -727,6 +727,7 @@ public:
     virtual bool hasCustomTitle() const;
     virtual bool isActive() const;
     virtual bool isArchived() const;
+    virtual int64_t getCreationTs() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -760,6 +761,7 @@ private:
     bool active;
     bool archived;
     bool mHasCustomTitle;
+    int64_t mCreationTs;
 
     std::string title;
     int unreadCount;
@@ -966,11 +968,13 @@ public:
     static void setLogWithColors(bool useColors);
     static void setLogToConsole(bool enable);
 
-    int init(const char *sid);
+    int init(const char *sid, bool waitForFetchnodesToConnect = true);
     int initAnonymous();
     void createKarereClient();
     void resetClientid();
     int getInitState();
+
+    void importMessages(const char *externalDbPath, MegaChatRequestListener *listener);
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
     void removeChatRoomHandler(MegaChatHandle chatid);

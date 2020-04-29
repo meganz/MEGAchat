@@ -96,7 +96,7 @@ public:
     * @brief A key was received from the server, and added to Chat.keys
     */
     virtual void onKeyReceived(KeyId keyid, karere::Id sender, karere::Id receiver,
-        const char* keydata, uint16_t keylen) = 0;
+        const char* keydata, uint16_t keylen, bool isEncrypted = true) = 0;
 
     /**
      * @brief A new key sent to server has been confirmed by the server, and added to Chat.keys
@@ -157,6 +157,8 @@ public:
     virtual uint64_t getPublicHandle() const = 0;
 
     virtual void setPublicHandle(const uint64_t ph) = 0;
+
+    virtual karere::UserAttrCache& userAttrCache() = 0;
 
     /**
      * @brief Encrypts a reaction with xxtea.
