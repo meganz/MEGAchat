@@ -2708,6 +2708,21 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Set/unset a call on hold
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CALL_ON_HOLD
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true (set on hold) false (unset on hold)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param setOnHold indicates if call is set or unset on hold
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void setCallOnHold(long chatid, boolean setOnHold,MegaChatRequestListenerInterface listener){
+        megaChatApi.setCallOnHold(chatid, setOnHold,createDelegateRequestListener(listener));
+    }
+    /**
      * Search all audio and video devices at the system at that moment.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
