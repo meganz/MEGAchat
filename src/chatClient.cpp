@@ -320,6 +320,32 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
+            {
+                // Create temporary table and copy sendkeys content
+                db.query("CREATE TABLE tempkeys(chatid int64 not null, userid int64 not null, keyid int32 not null, key blob not null,ts int not null, UNIQUE(chatid, userid, keyid));");
+                db.query("INSERT INTO tempkeys(chatid, userid, keyid, key, ts) SELECT chatid, userid, keyid, key, ts FROM sendkeys");
+
+                // Close and re-open db again to avoid SQLITE_LOCKED
+                db.close();
+                if (!db.open(path.c_str(), false))
+                {
+                    KR_LOG_WARNING("Error opening database");
+                    return false;
+                }
+
+                // drop sendkeys table
+                db.query("DROP TABLE sendkeys");
+
+                // rename temp to sendkeys
+                db.query("ALTER TABLE tempkeys RENAME TO sendkeys");
+
+                // update cache schema version
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
