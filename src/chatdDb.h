@@ -305,7 +305,8 @@ public:
         {
             Buffer buffer;
             stmtEndCAll.blobCol(0, buffer);
-            chatd::Message::CallEndedInfo *callEndedInfo = chatd::Message::CallEndedInfo::fromBuffer(buffer.buf(), buffer.size());
+            std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
+            callEndedInfo.reset(chatd::Message::CallEndedInfo::fromBuffer(buffer.buf(), buffer.size()));
             assert(callEndedInfo);
             if (callEndedInfo->termCode == chatd::CallDataReason::kNoAnswer || callEndedInfo->termCode == chatd::CallDataReason::kCancelled)
             {

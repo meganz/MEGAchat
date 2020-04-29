@@ -761,8 +761,8 @@ public:
         bool validCallEndMessage = false;
         if (type == kMsgCallEnd)
         {
-            Message::CallEndedInfo *callEndedInfo = Message::CallEndedInfo::fromBuffer(buf(), size());
-            if (callEndedInfo->termCode == kCallDataReason::kNoAnswer || callEndedInfo->termCode == kCallDataReason::kCancelled)
+            std::unique_ptr<Message::CallEndedInfo> callEndedInfo;
+            callEndedInfo.reset(Message::CallEndedInfo::fromBuffer(buf(), size()));
             if (callEndedInfo->termCode == CallDataReason::kNoAnswer || callEndedInfo->termCode == CallDataReason::kCancelled)
             {
                 validCallEndMessage = true;
