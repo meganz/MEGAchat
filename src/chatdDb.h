@@ -287,8 +287,7 @@ public:
         int32_t unReadCount = stmt.intCol(0);
 
         sql = "select data from history where (chatid = ?1)"
-                "and (userid != ?2)"
-                "and not length(data) = 0 "
+                "and (userid != ?2 )"
                 "and (type = ?3)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?4)";
