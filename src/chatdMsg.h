@@ -758,6 +758,16 @@ public:
     // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
     bool isValidUnread(karere::Id myHandle) const
     {
+        bool validCallEndMessage = false;
+        if (type == kMsgCallEnd)
+        {
+            Message::CallEndedInfo *callEndedInfo = Message::CallEndedInfo::fromBuffer(buf(), size());
+            if (callEndedInfo->termCode == kCallDataReason::kNoAnswer || callEndedInfo->termCode == kCallDataReason::kCancelled)
+            {
+                validCallEndMessage = true;
+            }
+        }
+
         return (!isOwnMessage(myHandle)             // exclude own messages
                 && !isDeleted()                     // exclude deleted messages
                 && (!mIsEncrypted                   // include decrypted messages
@@ -766,7 +776,8 @@ public:
                     || type == kMsgAttachment
                     || type == kMsgContact
                     || type == kMsgContainsMeta
-                    || type == kMsgVoiceClip)
+                    || type == kMsgVoiceClip
+                    || validCallEndMessage)
                 );
     }
     ContainsMetaSubType containMetaSubtype() const

@@ -3586,6 +3586,7 @@ int Chat::unreadMsgCount() const
             count++;
         }
     }
+
     return count;
 }
 
