@@ -288,15 +288,13 @@ public:
 
         sql = "select data from history where (chatid = ?1)"
                 "and (userid != ?2)"
-                "and not (updated != 0 and length(data) = 0)"
-                "and (is_encrypted = ?3)"
-                "and (type = ?4)";
+                "and not length(data) = 0"
+                "and (type = ?3)";
         if (idx != CHATD_IDX_INVALID)
-            sql+=" and (idx > ?5)";
+            sql+=" and (idx > ?4)";
 
         SqliteStmt stmtEndCAll(mDb, sql);
         stmtEndCAll << mChat.chatId() << mChat.client().myHandle() // skip own messages
-                    << chatd::Message::kNotEncrypted               // include decrypted messages
                     << chatd::Message::kMsgCallEnd;                // include only End call messages
         if (idx != CHATD_IDX_INVALID)
             stmtEndCAll << idx;
