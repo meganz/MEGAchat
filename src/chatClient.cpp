@@ -322,6 +322,9 @@ bool Client::openDb(const std::string& sid)
             }
             else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
             {
+                // Remove USER_ATTR_RSA_PUBKEY attr from cache
+                db.query("delete from userattrs where type = 64");
+
                 // Create temporary table and copy sendkeys content
                 db.query("CREATE TABLE tempkeys(chatid int64 not null, userid int64 not null, keyid int32 not null, key blob not null,ts int not null, UNIQUE(chatid, userid, keyid));");
                 db.query("INSERT INTO tempkeys(chatid, userid, keyid, key, ts) SELECT chatid, userid, keyid, key, ts FROM sendkeys");
