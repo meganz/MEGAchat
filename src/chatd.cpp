@@ -2960,8 +2960,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
 
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().myHandle(), time(NULL),
-        0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
-    message->backRefId = generateRefId(mCrypto);
+        0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp, generateRefId(mCrypto));
 
     auto wptr = weakHandle();
     SetOfIds recipients = mUsers;
@@ -3287,7 +3286,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     }
 
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age, newdata, newlen,
-        msg.isSending(), msg.keyid, newtype, userp);
+        msg.isSending(), msg.keyid, newtype, userp, msg.backRefId, msg.backRefs);
 
     auto wptr = weakHandle();
     marshallCall([wptr, this, upd, recipients]()
