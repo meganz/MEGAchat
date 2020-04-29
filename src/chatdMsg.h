@@ -781,14 +781,14 @@ public:
 
     bool isMissingCall(karere::Id myHandle) const
     {
-        if (type != kMsgCallEnd)
+        if (type != kMsgCallEnd || isOwnMessage(myHandle))
         {
             return false;
         }
 
         uint8_t termCode = Message::extractTermCodeEndCall(*this);
 
-        return !isOwnMessage(myHandle) && (termCode == CallDataReason::kNoAnswer || termCode == CallDataReason::kCancelled);
+        return (termCode == CallDataReason::kNoAnswer || termCode == CallDataReason::kCancelled);
     }
 
     static uint8_t extractTermCodeEndCall(const Buffer& buffer)
