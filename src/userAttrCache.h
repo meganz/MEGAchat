@@ -22,7 +22,7 @@ namespace karere
  */
 enum {
     /** First attribute that is not directly supported by the SDK via getUserAttribute()*/
-    USER_ATTR_VIRTUAL_FIRST = 64,
+    USER_ATTR_VIRTUAL_FIRST = 65,
 
     /** The email of the user, as returned bh getUserEmail() */
     USER_ATTR_EMAIL = USER_ATTR_VIRTUAL_FIRST,
