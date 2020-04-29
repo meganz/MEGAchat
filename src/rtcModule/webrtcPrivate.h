@@ -190,15 +190,6 @@ class Call: public ICall
 
     enum
     {
-        kCallDataReasonEnded        = 0x01, /// normal hangup of on-going call
-        kCallDataReasonRejected     = 0x02, /// incoming call was rejected by callee
-        kCallDataReasonNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
-        kCallDataReasonFailed       = 0x04, /// on-going call failed
-        kCallDataReasonCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
-    };
-
-    enum
-    {
         kFlagRinging = 0x04
     };
 
