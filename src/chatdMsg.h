@@ -799,7 +799,7 @@ public:
 
         if (buffer.size() < (lenCallid + lenDuration + lenTermCode))
         {
-            return -1;
+            return 0xFF;
         }
 
         unsigned int position = lenCallid + lenDuration;
