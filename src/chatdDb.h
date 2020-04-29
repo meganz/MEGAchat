@@ -288,7 +288,7 @@ public:
 
         sql = "select data from history where (chatid = ?1)"
                 "and (userid != ?2)"
-                "and not length(data) = 0"
+                "and not length(data) = 0 "
                 "and (type = ?3)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?4)";
@@ -303,10 +303,8 @@ public:
         {
             Buffer buffer;
             stmtEndCAll.blobCol(0, buffer);
-            std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
-            callEndedInfo.reset(chatd::Message::CallEndedInfo::fromBuffer(buffer.buf(), buffer.size()));
-            assert(callEndedInfo);
-            if (callEndedInfo->termCode == chatd::CallDataReason::kNoAnswer || callEndedInfo->termCode == chatd::CallDataReason::kCancelled)
+            uint8_t termCode = chatd::Message::extractTermCodeEndCall(buffer);
+            if (termCode == chatd::CallDataReason::kNoAnswer || termCode == chatd::CallDataReason::kCancelled)
             {
                 unReadCount ++;
             }

@@ -758,17 +758,6 @@ public:
     // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
     bool isValidUnread(karere::Id myHandle) const
     {
-        bool validCallEndMessage = false;
-        if (type == kMsgCallEnd)
-        {
-            std::unique_ptr<Message::CallEndedInfo> callEndedInfo;
-            callEndedInfo.reset(Message::CallEndedInfo::fromBuffer(buf(), size()));
-            if (callEndedInfo->termCode == CallDataReason::kNoAnswer || callEndedInfo->termCode == CallDataReason::kCancelled)
-            {
-                validCallEndMessage = true;
-            }
-        }
-
         return (!isOwnMessage(myHandle)             // exclude own messages
                 && !isDeleted()                     // exclude deleted messages
                 && (!mIsEncrypted                   // include decrypted messages
@@ -778,7 +767,7 @@ public:
                     || type == kMsgContact
                     || type == kMsgContainsMeta
                     || type == kMsgVoiceClip
-                    || validCallEndMessage)
+                    || isMissingCall(myHandle))
                 );
     }
     ContainsMetaSubType containMetaSubtype() const
@@ -788,6 +777,35 @@ public:
     std::string containsMetaJson() const
     {
         return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
+    }
+
+    bool isMissingCall(karere::Id myHandle) const
+    {
+        if (type != kMsgCallEnd)
+        {
+            return false;
+        }
+
+        uint8_t termCode = Message::extractTermCodeEndCall(*this);
+
+        return !isOwnMessage(myHandle) && (termCode == CallDataReason::kNoAnswer || termCode == CallDataReason::kCancelled);
+    }
+
+    static uint8_t extractTermCodeEndCall(const Buffer& buffer)
+    {
+        unsigned int lenCallid = sizeof (karere::Id);
+        unsigned int lenDuration = sizeof (uint32_t);
+        unsigned int lenTermCode = sizeof (uint8_t);
+
+        if (buffer.size() < (lenCallid + lenDuration + lenTermCode))
+        {
+            return -1;
+        }
+
+        unsigned int position = lenCallid + lenDuration;
+        uint8_t termCode;
+        memcpy(&termCode, &buffer.buf()[position], lenTermCode);
+        return termCode;
     }
 
     /** @brief Convert attachment etc. special messages to text */
