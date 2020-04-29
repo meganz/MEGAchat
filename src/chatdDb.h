@@ -307,7 +307,7 @@ public:
             stmtEndCAll.blobCol(0, buffer);
             chatd::Message::CallEndedInfo *callEndedInfo = chatd::Message::CallEndedInfo::fromBuffer(buffer.buf(), buffer.size());
             assert(callEndedInfo);
-            if (callEndedInfo->termCode == chatd::kCallDataReason::kNoAnswer || callEndedInfo->termCode == chatd::kCallDataReason::kCancelled)
+            if (callEndedInfo->termCode == chatd::CallDataReason::kNoAnswer || callEndedInfo->termCode == chatd::CallDataReason::kCancelled)
             {
                 unReadCount ++;
             }

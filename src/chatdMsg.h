@@ -18,7 +18,7 @@ enum
 namespace chatd
 {
 
-enum kCallDataReason
+enum CallDataReason
 {
     kEnded        = 0x01, /// normal hangup of on-going call
     kRejected     = 0x02, /// incoming call was rejected by callee
@@ -763,6 +763,7 @@ public:
         {
             Message::CallEndedInfo *callEndedInfo = Message::CallEndedInfo::fromBuffer(buf(), size());
             if (callEndedInfo->termCode == kCallDataReason::kNoAnswer || callEndedInfo->termCode == kCallDataReason::kCancelled)
+            if (callEndedInfo->termCode == CallDataReason::kNoAnswer || callEndedInfo->termCode == CallDataReason::kCancelled)
             {
                 validCallEndMessage = true;
             }
