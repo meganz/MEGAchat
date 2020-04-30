@@ -1854,9 +1854,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatHandle peerid = handleList->get(i);
                 if (!chatroom->isMember(peerid))
                 {
-                    API_LOG_ERROR("Error %s is not a chat memeber of chatroom(%s)", Id(peerid).toString().c_str(), Id(chatid).toString().c_str());
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
-                    fireOnChatRequestFinish(request, megaChatError);
+                    API_LOG_ERROR("Error %s is not a chat member of chatroom (%s)", Id(peerid).toString().c_str(), Id(chatid).toString().c_str());
+                    errorCode = MegaChatError::ERROR_ARGS;
                     return;
                 }
 
@@ -1869,7 +1868,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             });
-
+            break;
         }
         case MegaChatRequest::TYPE_IMPORT_MESSAGES:
         {
@@ -1897,7 +1896,6 @@ void MegaChatApiImpl::sendPendingRequests()
             errorCode = MegaChatError::ERROR_UNKNOWN;
         }
         }   // end of switch(request->getType())
-
 
         if(errorCode)
         {
