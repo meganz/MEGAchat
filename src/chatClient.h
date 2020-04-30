@@ -948,6 +948,7 @@ public:
     const std::string& myEmail() const { return mMyEmail; }
     uint64_t myIdentity() const { return mMyIdentity; }
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
+    bool isUserAttrCacheReady() const { return mUserAttrCache.get(); }
 
     ConnState connState() const { return mConnState; }
     bool connected() const { return mConnState == kConnected; }
