@@ -256,7 +256,7 @@ private:
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
     // flags
-    bool requestFlags[NUM_ACCOUNTS][::mega::MegaRequest::TYPE_CHAT_SET_TITLE];
+    bool requestFlags[NUM_ACCOUNTS][::mega::MegaRequest::TOTAL_OF_REQUEST_TYPES];
     bool requestFlagsChat[NUM_ACCOUNTS][megachat::MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];

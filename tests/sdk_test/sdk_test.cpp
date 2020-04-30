@@ -1256,7 +1256,10 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(titleChanged1), "Timeout expired for receiving chatroom update");
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
     ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()), "Title received doesn't match the title set");
-
+    bool *flagRequestCatchup = &requestFlags[a2][MegaRequest::TYPE_CATCHUP]; *flagRequestCatchup = false;
+    megaApi[a2]->catchup();
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestCatchup), "Failed to catchup after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastError[a2], "Failed to catchup. Error: " + std::to_string(lastError[a2]));
     chatroom = megaChatApi[a2]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
     ASSERT_CHAT_TEST(!strcmp(chatroom->getTitle(), title.c_str()), "Titles don't match");
