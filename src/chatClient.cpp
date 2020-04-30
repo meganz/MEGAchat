@@ -1697,7 +1697,6 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         if (b64len != 43)
             return ::promise::Error("prEd255 base64 key length is not 43 bytes");
         base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
-        api.call(&mega::MegaApi::getUserData);
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });

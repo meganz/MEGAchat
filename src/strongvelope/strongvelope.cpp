@@ -184,10 +184,7 @@ void ProtocolHandler::signMessage(const StaticBuffer& signedData,
 bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey)
 {
     assert(pubKey.dataSize() == 32);
-    if (protocolVersion < 2)
-    {
-        return false;
-    }
+    assert(protocolVersion > 1 && protocolVersion <= SVCRYPTO_PROTOCOL_VERSION);
 
     assert(sendKey.dataSize() == SVCRYPTO_KEY_SIZE);
     Buffer messageStr(SVCRYPTO_SIG.size()+sendKey.dataSize()+signedContent.dataSize()+2);
