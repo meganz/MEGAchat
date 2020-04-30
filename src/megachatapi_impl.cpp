@@ -1807,13 +1807,20 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            MegaHandleList *handleList = request->getMegaHandleList();
+            if (!handleList)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             const char* publicHandle = request->getLink();
             MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
 
             std::vector<::promise::Promise<void>> promises;
-            for (int i = 0; i < request->getMegaHandleList()->size(); i++)
+            for (int i = 0; i < handleList->size(); i++)
             {
-                MegaChatHandle peerid = request->getMegaHandleList()->get(i);
+                MegaChatHandle peerid = handleList->get(i);
                 if (!chatroom->isMember(peerid))
                 {
                     API_LOG_ERROR("Error %s is not a chat memeber of chatroom(%s)", Id(peerid).toString().c_str(), Id(chatid).toString().c_str());
@@ -2723,7 +2730,7 @@ void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList *
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES, listener);
     request->setChatHandle(chatid);
-    request->setMegaHandleList(userList->copy());
+    request->setMegaHandleList(userList);
     request->setLink(authorizationToken);
     requestQueue.push(request);
     waiter->notify();
