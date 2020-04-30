@@ -3437,6 +3437,18 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
     mContactRequest[a2] = NULL;
 }
 
+bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle h)
+{
+    for (size_t i = 0; i < mChatListUpdated[index].size(); i++)
+    {
+       if (mChatListUpdated[index].at(i) == h)
+       {
+           return true;
+       }
+    }
+    return false;
+}
+
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
                                                  MegaChatPeerList *peers, bool create, bool publicChat, const char *title)
 {
