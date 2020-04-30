@@ -6114,10 +6114,10 @@ void MegaChatRoomHandler::onChatModeChanged(bool mode)
     fireOnChatRoomUpdate(chat);
 }
 
-void MegaChatRoomHandler::onUnreadCountChanged(int count)
+void MegaChatRoomHandler::onUnreadCountChanged()
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
-    chat->setUnreadCount(count);
+    chat->changeUnreadCount();
 
     fireOnChatRoomUpdate(chat);
 }
@@ -6362,7 +6362,7 @@ void MegaChatRoomHandler::onUnreadChanged()
         if (mChat)
         {
             MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-            chatroom->setUnreadCount(mChat->unreadMsgCount());
+            chatroom->changeUnreadCount();
             fireOnChatRoomUpdate(chatroom);
         }
     }
@@ -6843,9 +6843,8 @@ void MegaChatRoomPrivate::setTitle(const string& title)
     this->changed |= MegaChatRoom::CHANGE_TYPE_TITLE;
 }
 
-void MegaChatRoomPrivate::setUnreadCount(int count)
+void MegaChatRoomPrivate::changeUnreadCount()
 {
-    this->unreadCount = count;
     this->changed |= MegaChatRoom::CHANGE_TYPE_UNREAD_COUNT;
 }
 
@@ -6945,10 +6944,10 @@ void MegaChatListItemHandler::onChatModeChanged(bool mode)
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onUnreadCountChanged(int count)
+void MegaChatListItemHandler::onUnreadCountChanged()
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
-    item->setUnreadCount(count);
+    item->changeUnreadCount();
 
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -7292,9 +7291,8 @@ void MegaChatListItemPrivate::setTitle(const string &title)
     this->changed |= MegaChatListItem::CHANGE_TYPE_TITLE;
 }
 
-void MegaChatListItemPrivate::setUnreadCount(int count)
+void MegaChatListItemPrivate::changeUnreadCount()
 {
-    this->unreadCount = count;
     this->changed |= MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT;
 }
 

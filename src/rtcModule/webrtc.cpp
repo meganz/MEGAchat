@@ -2073,15 +2073,15 @@ uint8_t Call::convertTermCodeToCallDataCode()
                     assert(false);  // it should be kCallRejected
                 case kStateReqSent:
                     assert(false);  // it should be kCallReqCancel
-                    codeToChatd = kCallDataReasonCancelled;
+                    codeToChatd = chatd::CallDataReason::kCancelled;
                     break;
 
                 case kStateInProgress:
-                    codeToChatd = kCallDataReasonEnded;
+                    codeToChatd = chatd::CallDataReason::kEnded;
                     break;
 
                 default:
-                    codeToChatd = kCallDataReasonFailed;
+                    codeToChatd = chatd::CallDataReason::kFailed;
                     break;
             }
             break;
@@ -2089,11 +2089,11 @@ uint8_t Call::convertTermCodeToCallDataCode()
 
         case kCallReqCancel:
             assert(mPredestroyState == kStateReqSent || mPredestroyState == kStateJoining);
-            codeToChatd = kCallDataReasonCancelled;
+            codeToChatd = chatd::CallDataReason::kCancelled;
             break;
 
         case kCallRejected:
-            codeToChatd = kCallDataReasonRejected;
+            codeToChatd = chatd::CallDataReason::kRejected;
             break;
 
         case kAnsElsewhere:
@@ -2106,20 +2106,20 @@ uint8_t Call::convertTermCodeToCallDataCode()
             break;
 
         case kDestroyByCallCollision:
-            codeToChatd = kCallDataReasonRejected;
+            codeToChatd = chatd::CallDataReason::kRejected;
             break;
         case kAnswerTimeout:
         case kRingOutTimeout:
-            codeToChatd = kCallDataReasonNoAnswer;
+            codeToChatd = chatd::CallDataReason::kNoAnswer;
             break;
 
         case kAppTerminating:
-            codeToChatd = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
+            codeToChatd = (mPredestroyState == kStateInProgress) ? chatd::CallDataReason::kEnded : chatd::CallDataReason::kFailed;
             break;
 
         case kBusy:
             assert(!isJoiner());
-            codeToChatd = kCallDataReasonRejected;
+            codeToChatd = chatd::CallDataReason::kRejected;
             break;
 
         default:
@@ -2128,7 +2128,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 SUB_LOG_ERROR("convertTermCodeToCallDataCode: Don't know how to translate term code %s, returning FAILED",
                               termCodeToStr(mTermCode));
             }
-            codeToChatd = kCallDataReasonFailed;
+            codeToChatd = chatd::CallDataReason::kFailed;
             break;
     }
 

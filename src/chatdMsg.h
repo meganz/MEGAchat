@@ -18,6 +18,15 @@ enum
 namespace chatd
 {
 
+enum CallDataReason
+{
+    kEnded        = 0x01, /// normal hangup of on-going call
+    kRejected     = 0x02, /// incoming call was rejected by callee
+    kNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
+    kFailed       = 0x04, /// on-going call failed
+    kCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
+};
+
 typedef uint32_t KeyId;
 typedef uint64_t BackRefId;
 
@@ -758,7 +767,8 @@ public:
                     || type == kMsgAttachment
                     || type == kMsgContact
                     || type == kMsgContainsMeta
-                    || type == kMsgVoiceClip)
+                    || type == kMsgVoiceClip
+                    || isMissingCall(myHandle))
                 );
     }
     ContainsMetaSubType containMetaSubtype() const
@@ -768,6 +778,35 @@ public:
     std::string containsMetaJson() const
     {
         return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
+    }
+
+    bool isMissingCall(karere::Id myHandle) const
+    {
+        if (type != kMsgCallEnd || isOwnMessage(myHandle))
+        {
+            return false;
+        }
+
+        uint8_t termCode = Message::extractTermCodeEndCall(*this);
+
+        return (termCode == CallDataReason::kNoAnswer || termCode == CallDataReason::kCancelled);
+    }
+
+    static uint8_t extractTermCodeEndCall(const Buffer& buffer)
+    {
+        unsigned int lenCallid = sizeof (karere::Id);
+        unsigned int lenDuration = sizeof (uint32_t);
+        unsigned int lenTermCode = sizeof (uint8_t);
+
+        if (buffer.size() < (lenCallid + lenDuration + lenTermCode))
+        {
+            return 0xFF;
+        }
+
+        unsigned int position = lenCallid + lenDuration;
+        uint8_t termCode;
+        memcpy(&termCode, &buffer.buf()[position], lenTermCode);
+        return termCode;
     }
 
     /** @brief Convert attachment etc. special messages to text */

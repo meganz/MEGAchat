@@ -269,7 +269,7 @@ public:
                 "and (is_encrypted = ?3 or is_encrypted = ?4 or is_encrypted = ?5)"
                 "and (type = ?6 or type = ?7 or type = ?8 or type = ?9 or type = ?10)";
         if (idx != CHATD_IDX_INVALID)
-            sql+=" and (idx > ?)";
+            sql+=" and (idx > ?11)";
 
         SqliteStmt stmt(mDb, sql);
         stmt << mChat.chatId() << mChat.client().myHandle()   // skip own messages
@@ -284,7 +284,32 @@ public:
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
-        return stmt.intCol(0);
+        int32_t unReadCount = stmt.intCol(0);
+
+        sql = "select data from history where (chatid = ?1)"
+                "and (userid != ?2 )"
+                "and (type = ?3)";
+        if (idx != CHATD_IDX_INVALID)
+            sql+=" and (idx > ?4)";
+
+        SqliteStmt stmtEndCAll(mDb, sql);
+        stmtEndCAll << mChat.chatId() << mChat.client().myHandle() // skip own messages
+                    << chatd::Message::kMsgCallEnd;                // include only End call messages
+        if (idx != CHATD_IDX_INVALID)
+            stmtEndCAll << idx;
+
+        while(stmtEndCAll.step())
+        {
+            Buffer buffer;
+            stmtEndCAll.blobCol(0, buffer);
+            uint8_t termCode = chatd::Message::extractTermCodeEndCall(buffer);
+            if (termCode == chatd::CallDataReason::kNoAnswer || termCode == chatd::CallDataReason::kCancelled)
+            {
+                unReadCount ++;
+            }
+        }
+
+        return unReadCount;
     }
     virtual void saveItemToManualSending(const chatd::Chat::SendingItem& item, int reason)
     {
