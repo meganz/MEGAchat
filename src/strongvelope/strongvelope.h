@@ -94,7 +94,6 @@ enum
 
 /** Contains a 64 bit user handle of a user that was excluded from chat */
     TLV_TYPE_EXC_PARTICIPANT    = 0x09,
-    TLV_TYPE_OWN_KEY            = 0x0a,
     TLV_TYPE_INVITOR            = 0x0b,
     TLV_TYPE_PRIVILEGE          = 0x0c,
     TLV_TYPE_KEYBLOB            = 0x0f,

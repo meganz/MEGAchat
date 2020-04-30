@@ -68,7 +68,6 @@ const char* tlvTypeToString(uint8_t type)
         case TLV_TYPE_INC_PARTICIPANT: return "TLV_INC_PARTICIPANT";
         case TLV_TYPE_EXC_PARTICIPANT: return "TLV_EXC_PARTICIPANT";
         case TLV_TYPE_INVITOR: return "TLV_INVITOR";
-        case TLV_TYPE_OWN_KEY: return "TLV_OWN_KEY";
         case TLV_TYPE_KEYBLOB: return "TLV_TYPE_KEYBLOB";
         default: return "(unknown)";
     }
