@@ -1178,6 +1178,8 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatLeft0 = &chatroomListener->chatUpdated[a1]; *chatLeft0 = false;
     bool *chatLeft1 = &chatroomListener->chatUpdated[a2]; *chatLeft1 = false;
     bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    bool *flagChatsUpdated1 = &mChatsUpdated[a2]; *flagChatsUpdated1 = false;
+    mChatListUpdated[a2].clear();
     MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[a1]->removeFromChat(chatid, uh);
@@ -1186,8 +1188,16 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Failed to receive management message " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RM, "Privilege is incorrect");
+    ASSERT_CHAT_TEST(waitForResponse(flagChatsUpdated1), "Failed to receive onChatsUpdate " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(isChatroomUpdated(a2, chatid), "Chatroom " + std::to_string(chatid) + " is not included in onChatsUpdate");
+    mChatListUpdated[a2].clear();
 
-    MegaChatRoom *chatroom = megaChatApi[a1]->getChatRoom(chatid);
+    MegaChatRoom *chatroom = megaChatApi[a2]->getChatRoom(chatid);
+    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
+    ASSERT_CHAT_TEST(chatroom->getOwnPrivilege() == MegaChatRoom::PRIV_RM, "Invalid own privilege expected(PRIV_RM), current(" + std::to_string(chatroom->getOwnPrivilege())+ ")");
+    delete chatroom;
+
+    chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
     ASSERT_CHAT_TEST(chatroom->getPeerCount() == 0, "Wrong number of peers in chatroom" + std::to_string(chatid));
     delete chatroom;
@@ -1212,6 +1222,8 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
     bool *chatJoined0 = &chatroomListener->chatUpdated[a1]; *chatJoined0 = false;
     bool *chatJoined1 = &chatroomListener->chatUpdated[a2]; *chatJoined1 = false;
+    *flagChatsUpdated1 = &mChatsUpdated[a2]; *flagChatsUpdated1 = false;
+    mChatListUpdated[a2].clear();
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
@@ -1225,6 +1237,14 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Management message not received after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_UNKNOWN, "Privilege is incorrect");    // the message doesn't report the new priv
+    ASSERT_CHAT_TEST(waitForResponse(flagChatsUpdated1), "Failed to receive onChatsUpdate " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(isChatroomUpdated(a2, chatid), "Chatroom " + std::to_string(chatid) + " is not included in onChatsUpdate");
+    mChatListUpdated[a2].clear();
+
+    chatroom = megaChatApi[a2]->getChatRoom(chatid);
+    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
+    ASSERT_CHAT_TEST(chatroom->getOwnPrivilege() == MegaChatRoom::PRIV_STANDARD, "Invalid own privilege expected(PRIV_RM), current(" + std::to_string(chatroom->getOwnPrivilege())+ ")");
+    delete chatroom;
 
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
