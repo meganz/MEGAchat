@@ -420,6 +420,7 @@ void RtcModule::removeCall(Call& call)
         RTCM_LOG_DEBUG("removeCall: Call has been replaced, not removing");
         return;
     }
+
     mCalls.erase(chatid);
 }
 
@@ -452,9 +453,8 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         }
         else
         {
-            assert(false);
             RTCM_LOG_ERROR("There is already a call in this chatroom, destroying it");
-            callIt->second->hangup();
+            removeCall(*callIt->second);
         }
     }
 
@@ -791,7 +791,8 @@ void RtcModule::removeCall(Id chatid, bool retry)
 
                 itHandler->second->removeAllParticipants(reconnectionState);
             }
-            else if (mRetryCall.find(chatid) == mRetryCall.end())
+
+            if (mRetryCall.find(chatid) == mRetryCall.end())
             {
                 delete itHandler->second;
                 mCallHandlers.erase(itHandler);
@@ -1345,6 +1346,11 @@ void Call::msgSession(RtMessage& packet)
 
     if (mState == Call::kStateJoining)
     {
+        if (!mInCallPingTimer)
+        {
+            startIncallPingTimer();
+        }
+
         setState(Call::kStateInProgress);
         monitorCallSetupTimeout();
     }
@@ -1432,6 +1438,11 @@ void Call::msgJoin(RtMessage& packet)
 
         if (mState == Call::kStateReqSent || mState == Call::kStateJoining)
         {
+            if (!mInCallPingTimer)
+            {
+                startIncallPingTimer();
+            }
+
             setState(Call::kStateInProgress);
             monitorCallSetupTimeout();
 
@@ -1644,13 +1655,13 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         {
             SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing in a group call");
         }
-        else
+        else if (mInCallPingTimer)
         {
             sendCallData(CallDataState::kCallDataEnd);
         }
 
         assert(mSessions.empty());
-        stopIncallPingTimer();
+        stopIncallPingTimer(mInCallPingTimer);
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
@@ -1907,7 +1918,11 @@ bool Call::join(Id userid)
         return false;
     }
 
-    startIncallPingTimer();
+    if (!mRecovered)
+    {
+        startIncallPingTimer();
+    }
+
     // we have session setup timeout timer, but in case we don't even reach a session creation,
     // we need another timer as well
     auto wptr = weakHandle();
@@ -2391,7 +2406,7 @@ Call::~Call()
         mLocalPlayer.reset();
         mLocalStream.reset();
         setState(Call::kStateDestroyed);
-        FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
+        FIRE_EVENT(CALL, onDestroy, mTermCode == TermCode::kNotFinished ? TermCode::kErrInternal : mTermCode, false, "Callback from Call::dtor");
 
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
@@ -3753,6 +3768,8 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrCallSetupTimeout);
         RET_ENUM_NAME(kErrKickedFromChat);
         RET_ENUM_NAME(kErrIceTimeout);
+        RET_ENUM_NAME(kErrStreamRenegotation);
+        RET_ENUM_NAME(kErrStreamRenegotationTimeout);
         RET_ENUM_NAME(kInvalid);
         default: return "(invalid term code)";
     }
