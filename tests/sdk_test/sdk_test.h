@@ -213,7 +213,7 @@ public:
 private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
-    bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle h);
+    bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
     megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
                                               megachat::MegaChatPeerList *peers, bool create = true, bool publicChat = false, const char *title = NULL);
 
@@ -335,7 +335,7 @@ public:
     virtual void onRequestUpdate(::mega::MegaApi*api, ::mega::MegaRequest *request) {}
     virtual void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e);
     virtual void onRequestTemporaryError(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError* error) {}
-    virtual void onChatsUpdate(mega::MegaApi* api, mega::MegaTextChatList *chats);
+    void onChatsUpdate(mega::MegaApi* api, mega::MegaTextChatList *chats) override;
 
     // implementation for MegaListener
     virtual void onContactRequestsUpdate(::mega::MegaApi* api, ::mega::MegaContactRequestList* requests);

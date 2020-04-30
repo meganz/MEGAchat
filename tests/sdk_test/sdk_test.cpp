@@ -3457,11 +3457,11 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
     mContactRequest[a2] = NULL;
 }
 
-bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle h)
+bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chatid)
 {
-    for (size_t i = 0; i < mChatListUpdated[index].size(); i++)
+    for (auto &auxchatid: mChatListUpdated[index])
     {
-       if (mChatListUpdated[index].at(i) == h)
+       if (auxchatid == chatid)
        {
            return true;
        }
