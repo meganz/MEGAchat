@@ -329,6 +329,8 @@ void MegaChatApiTest::SetUp()
         initState[i] = -1;
         mChatConnectionOnline[i] = false;
         mLoggedInAllChats[i] = false;
+        mChatsUpdated[i] = false;
+        mChatListUpdated[i].clear();
         lastError[i] = -1;
         lastErrorChat[i] = -1;
         lastErrorMsgChat[i].clear();
@@ -4105,6 +4107,21 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
     }
 
     requestFlags[apiIndex][request->getType()] = true;
+}
+
+void MegaChatApiTest::onChatsUpdate(MegaApi* api, MegaTextChatList *chats)
+{
+    if (!chats)
+    {
+        return;
+    }
+
+    unsigned int apiIndex = getMegaApiIndex(api);
+    mChatsUpdated[apiIndex] = true;
+    for (int i = 0; i < chats->size(); i++)
+    {
+         mChatListUpdated[apiIndex].emplace_back(chats->get(i)->getHandle());
+    }
 }
 
 void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestList* /*requests*/)

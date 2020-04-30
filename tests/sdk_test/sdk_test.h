@@ -315,6 +315,8 @@ private:
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
     bool mLoggedInAllChats[NUM_ACCOUNTS];
+    std::vector <megachat::MegaChatHandle>mChatListUpdated[NUM_ACCOUNTS];
+    bool mChatsUpdated[NUM_ACCOUNTS];
 
 #endif
 
@@ -332,6 +334,7 @@ public:
     virtual void onRequestUpdate(::mega::MegaApi*api, ::mega::MegaRequest *request) {}
     virtual void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e);
     virtual void onRequestTemporaryError(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError* error) {}
+    virtual void onChatsUpdate(mega::MegaApi* api, mega::MegaTextChatList *chats);
 
     // implementation for MegaListener
     virtual void onContactRequestsUpdate(::mega::MegaApi* api, ::mega::MegaContactRequestList* requests);
