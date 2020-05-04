@@ -1287,8 +1287,8 @@ void ChatWindow::on_mCancelTransfer(QAbstractButton*)
 
 void ChatWindow::on_mCancelReconnection(QAbstractButton *)
 {
-    delete mReconnectingDlg;
-    mReconnectingDlg = NULL;
+    mReconnectingDlg->deleteLater();
+    mReconnectingDlg = nullptr;
     mMegaChatApi->hangChatCall(mChatRoom->getChatId());
 }
 

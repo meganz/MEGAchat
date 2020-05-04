@@ -45,12 +45,8 @@ public:
          * to display an unread message counter next to the contact/groupchat
          * name.
          *
-         * @param count If count == 0, then the indicator should be
-         * removed, if count > 0, the indicator should show the exact value of
-         * count, if count < 0, then there are *at least* \c count unread messages,
-         * and possibly more. In that case the indicator should show e.g. '2+'
          */
-        virtual void onUnreadCountChanged(int /*count*/) {}
+        virtual void onUnreadCountChanged() {}
     };
 
     /** @brief This interface must be implemented to receive events related to a chat.

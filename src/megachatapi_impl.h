@@ -383,7 +383,7 @@ public:
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
-    void setUnreadCount(int count);
+    void changeUnreadCount();
     void setNumPreviewers(unsigned int numPrev);
     void setPreviewClosed();
     void setMembersUpdated();
@@ -411,7 +411,7 @@ public:
 
     // karere::IApp::IListItem::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
-    virtual void onUnreadCountChanged(int count);
+    virtual void onUnreadCountChanged();
 
     // karere::IApp::IListItem::IChatListItem implementation
     virtual void onExcludedFromChat();
@@ -475,7 +475,7 @@ public:
 
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
-    virtual void onUnreadCountChanged(int count);
+    virtual void onUnreadCountChanged();
     virtual void onPreviewersCountUpdate(uint32_t numPrev);
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
@@ -743,7 +743,7 @@ public:
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
-    void setUnreadCount(int count);
+    void changeUnreadCount();
     void setNumPreviewers(unsigned int numPrev);
     void setMembersUpdated();
     void setUserTyping(MegaChatHandle uh);

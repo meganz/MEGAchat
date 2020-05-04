@@ -18,6 +18,20 @@ enum
 namespace chatd
 {
 
+enum CallDataReason
+{
+    kEnded        = 0x01, /// normal hangup of on-going call
+    kRejected     = 0x02, /// incoming call was rejected by callee
+    kNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
+    kFailed       = 0x04, /// on-going call failed
+    kCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
+};
+
+enum
+{
+    kTsMissingCallUnread = 1592222400,  // This ts enable missing call as unread message from 15th June of 2020
+};
+
 typedef uint32_t KeyId;
 typedef uint64_t BackRefId;
 
@@ -663,9 +677,10 @@ public:
 
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
-            KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr)
+            KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr,
+            BackRefId aBackRefId = 0, std::vector<BackRefId> aBackRefs = std::vector<BackRefId>())
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
-            updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
+            updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp), backRefId(aBackRefId), backRefs(aBackRefs){}
 
     Message(const Message& msg)
         : Buffer(msg.buf(), msg.dataSize()), mId(msg.id()), mIdIsXid(msg.mIdIsXid), mIsEncrypted(msg.mIsEncrypted),
@@ -757,7 +772,8 @@ public:
                     || type == kMsgAttachment
                     || type == kMsgContact
                     || type == kMsgContainsMeta
-                    || type == kMsgVoiceClip)
+                    || type == kMsgVoiceClip
+                    || (isMissingCall(myHandle) && ts > kTsMissingCallUnread))
                 );
     }
     ContainsMetaSubType containMetaSubtype() const
@@ -767,6 +783,35 @@ public:
     std::string containsMetaJson() const
     {
         return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
+    }
+
+    bool isMissingCall(karere::Id myHandle) const
+    {
+        if (type != kMsgCallEnd || isOwnMessage(myHandle))
+        {
+            return false;
+        }
+
+        uint8_t termCode = Message::extractTermCodeEndCall(*this);
+
+        return (termCode == CallDataReason::kNoAnswer || termCode == CallDataReason::kCancelled);
+    }
+
+    static uint8_t extractTermCodeEndCall(const Buffer& buffer)
+    {
+        unsigned int lenCallid = sizeof (karere::Id);
+        unsigned int lenDuration = sizeof (uint32_t);
+        unsigned int lenTermCode = sizeof (uint8_t);
+
+        if (buffer.size() < (lenCallid + lenDuration + lenTermCode))
+        {
+            return 0xFF;
+        }
+
+        unsigned int position = lenCallid + lenDuration;
+        uint8_t termCode;
+        memcpy(&termCode, &buffer.buf()[position], lenTermCode);
+        return termCode;
     }
 
     /** @brief Convert attachment etc. special messages to text */

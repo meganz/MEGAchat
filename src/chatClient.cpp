@@ -3394,11 +3394,10 @@ void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status stat
 
 void ChatRoom::onUnreadChanged()
 {
-    auto count = mChat->unreadMsgCount();
     IApp::IChatListItem *room = roomGui();
     if (room)
     {
-        room->onUnreadCountChanged(count);
+        room->onUnreadCountChanged();
     }
 }
 
