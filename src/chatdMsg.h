@@ -27,6 +27,11 @@ enum CallDataReason
     kCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
 };
 
+enum
+{
+    kTsMissingCallUnread = 1592222400,  // This ts enable missing call as unread message from 15th June of 2020
+};
+
 typedef uint32_t KeyId;
 typedef uint64_t BackRefId;
 
@@ -768,7 +773,7 @@ public:
                     || type == kMsgContact
                     || type == kMsgContainsMeta
                     || type == kMsgVoiceClip
-                    || isMissingCall(myHandle))
+                    || (isMissingCall(myHandle) && ts > kTsMissingCallUnread))
                 );
     }
     ContainsMetaSubType containMetaSubtype() const
