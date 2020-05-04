@@ -288,12 +288,14 @@ public:
 
         sql = "select data from history where (chatid = ?1)"
                 "and (userid != ?2 )"
-                "and (type = ?3)";
+                "and (ts > ?3)"
+                "and (type = ?4)";
         if (idx != CHATD_IDX_INVALID)
-            sql+=" and (idx > ?4)";
+            sql+=" and (idx > ?5)";
 
         SqliteStmt stmtEndCAll(mDb, sql);
         stmtEndCAll << mChat.chatId() << mChat.client().myHandle() // skip own messages
+                    << chatd::kTsMissingCallUnread // skip messages older than kTsMissingCallUnread
                     << chatd::Message::kMsgCallEnd;                // include only End call messages
         if (idx != CHATD_IDX_INVALID)
             stmtEndCAll << idx;
