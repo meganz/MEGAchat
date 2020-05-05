@@ -445,7 +445,27 @@ enum Opcode
       */
     OP_REACTIONSN = 48,
 
-    OP_LAST = OP_HANDLELEAVE,
+    /**
+      * @brief
+      * S->C: The NEWMSG with msgxid had been written previously, informs of the permanent
+      *     msgid. This command is similar to MSGID but furthermore update the ts sent in
+      *     the NEWMSG due to incompatibility with the history
+      *
+      * Receive: <msgxid.8> <msgid.8> <ts.4>
+      */
+    OP_MSGIDTIMESTAMP = 49,
+
+    /**
+      * @brief
+      * S->C: The NEWMSG with msgxid was successfully written and now has the permanent
+      *    msgid. This command is similar to MSGID but furthermore update the ts sent in
+      *     the NEWMSGID due to incompatibility with the history
+      *
+      * Receive: <msgxid.8> <msgid.8> <ts.4>
+      */
+    OP_NEWMSGIDTIMESTAMP = 50,
+
+    OP_LAST = OP_NEWMSGIDTIMESTAMP,
     OP_INVALIDCODE = 0xFF
 };
 
