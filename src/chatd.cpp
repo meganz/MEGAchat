@@ -3776,7 +3776,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
     Message *msg = item.msg;
     item.msg = nullptr; // avoid item.msg to be deleted in SendingItem dtor
     assert(msg);
-    assert(msg->isSending());
+    assert(msg->isSending() || item.opcode() == OP_MSGUPD);
 
     CALL_DB(deleteSendingItem, item.rowid);
     mSending.pop_front(); //deletes item
