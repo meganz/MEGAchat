@@ -400,7 +400,7 @@ protected:
     RtcModule &mManager;
     std::map<karere::Id, megaHandle> mRetryCallTimers;
     std::string mVideoDeviceSelected;
-    unsigned int mNumDnsRequestsOnFly = 0;
+    unsigned int mDnsRequestId = 0;
 
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
