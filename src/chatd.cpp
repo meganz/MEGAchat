@@ -5188,6 +5188,7 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
 
 bool Chat::findLastTextMsg()
 {
+    std::set<Id> deletedMsg;
     if (!mSending.empty())
     {
         for (auto it = mSending.rbegin(); it!= mSending.rend(); it++)
@@ -5196,10 +5197,19 @@ bool Chat::findLastTextMsg()
             auto& msg = *it->msg;
             if (msg.isValidLastMessage())
             {
+                if (deletedMsg.find(msg.id()) != deletedMsg.end())
+                {
+                    // Skip lastTextMsg candidate because there's another item to remove this msg in the queue
+                    continue;
+                }
                 mLastTextMsg.assign(msg, CHATD_IDX_INVALID);
                 mLastMsgTs = msg.ts;
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in send queue");
                 return true;
+            }
+            else if (msg.isDeleted())
+            {
+                deletedMsg.insert(msg.id());
             }
         }
     }
@@ -5212,6 +5222,11 @@ bool Chat::findLastTextMsg()
             auto& msg = at(i);
             if (msg.isValidLastMessage())
             {
+                if (deletedMsg.find(msg.id()) != deletedMsg.end())
+                {
+                    // Skip lastTextMsg candidate because there's another item to remove this msg in the queue
+                    continue;
+                }
                 mLastTextMsg.assign(msg, i);
                 mLastMsgTs = msg.ts;
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in RAM");
