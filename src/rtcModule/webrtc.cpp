@@ -177,9 +177,7 @@ string RtcModule::getCachedTurnServers()
         string ipv4;
         string ipv6;
         karere::Url turnServerUrl = mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD - i);
-        mKarereClient.mDnsCache.getIp(TURNSERVER_SHARD, ipv4, ipv6);
-
-        if (ipv4.size() || ipv6.size())
+        if (mKarereClient.mDnsCache.getIp(TURNSERVER_SHARD, ipv4, ipv6))
         {
             if (ipv4.size())
             {
@@ -942,12 +940,12 @@ void RtcModule::abortCallRetry(Id chatid)
 
 void RtcModule::refreshTurnServerIp()
 {
-    if (mIceServerProvider.empty() || mNumRequestDnsOnFly)
+    if (mNumDnsRequestsOnFly)
     {
         return;
     }
 
-    int numServers = std::min(mIceServerProvider.size(), MAX_TURN_SERVERS);
+    size_t numServers = std::min<size_t>(mIceServerProvider.size(), MAX_TURN_SERVERS);
 
     for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
     {
@@ -973,9 +971,15 @@ void RtcModule::refreshTurnServerIp()
                 if (wptr.deleted())
                     return;
 
+                if (mKarereClient.isTerminated())
+                {
+                    RTCM_LOG_ERROR("DNS resolution completed but karere client was terminated.");
+                    return;
+                }
+
                 if (statusDNS < 0)
                 {
-                    KR_LOG_ERROR("Async DNS error in rtcModule. Error code: %d", statusDNS);
+                    RTCM_LOG_ERROR("Async DNS error in rtcModule. Error code: %d", statusDNS);
                 }
 
                 if (!mKarereClient.mDnsCache.hasRecord(shard))
@@ -990,7 +994,7 @@ void RtcModule::refreshTurnServerIp()
 
                 if (statusDNS >= 0 && (ipsv4.size() || ipsv6.size()))
                 {
-                    KR_LOG_DEBUG("New IP for TURN servers: ipv4 - %s     ipv6 - %s",
+                    RTCM_LOG_ERROR("New IP for TURN servers: ipv4 - %s     ipv6 - %s",
                                  ipsv4.size() ? ipsv4[0].c_str() : "",
                                  ipsv6.size() ? ipsv6[0].c_str() : "");
                     mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6);
