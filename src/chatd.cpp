@@ -3823,13 +3823,13 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
         CALL_LISTENER(onMsgOrderVerificationFail, *msg, idx, "A message with that backrefId "+std::to_string(msg->backRefId)+" already exists");
     }
 
-    //update any following MSGUPDX-s referring to this msgxid
+    //update any following NEWMSG or MSGUPDX-s referring to this msgxid
     int count = 0;
     for (auto& item: mSending)
     {
         if (item.msg->id() == msgxid)
         {
-            assert(item.opcode() == OP_MSGUPDX);
+            assert(item.opcode() == OP_NEWMSG || item.opcode() == OP_MSGUPDX);
             item.msg->setId(msgid, false);
             item.setOpcode(OP_MSGUPD);
             count++;
