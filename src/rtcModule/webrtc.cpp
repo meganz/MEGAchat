@@ -90,7 +90,7 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 void RtcModule::init()
 {
     StaticProvider iceServerStatic;
-    string jsonCacheTurnServer = getCacheTurnServer();
+    string jsonCacheTurnServer = getCachedTurnServers();
     if (jsonCacheTurnServer.size())
     {
         iceServerStatic.setServer(jsonCacheTurnServer.c_str());
@@ -168,11 +168,11 @@ void RtcModule::removeCallRetry(karere::Id chatid, bool retry)
     mRetryCall.erase(chatid);
 }
 
-string RtcModule::getCacheTurnServer()
+string RtcModule::getCachedTurnServers()
 {
     int i = 0;
     vector<string> urls;
-    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - i) && i < MAX_TURN_SERVER)
+    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - i) && i < MAX_TURN_SERVERS)
     {
         string ipv4;
         string ipv6;
@@ -191,7 +191,7 @@ string RtcModule::getCacheTurnServer()
                 urls.push_back(buildTurnServerUrl(ipv6, turnServerUrl.port, turnServerUrl.path));
             }
         }
-        else
+        else    // no cached IP available for this URL
         {
             urls.push_back(buildTurnServerUrl(turnServerUrl.host, turnServerUrl.port, turnServerUrl.path));
 
@@ -947,11 +947,11 @@ void RtcModule::refreshTurnServerIp()
         return;
     }
 
-    int numServers = (mIceServerProvider.size() < MAX_TURN_SERVER) ? mIceServerProvider.size() : MAX_TURN_SERVER;
+    int numServers = std::min(mIceServerProvider.size(), MAX_TURN_SERVERS);
 
     for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
     {
-        if (mNumRequestDnsOnFly >= MAX_TURN_SERVER)
+        if (mNumDnsRequestsOnFly >= MAX_TURN_SERVERS)
         {
             return;
         }
@@ -959,15 +959,15 @@ void RtcModule::refreshTurnServerIp()
         std::string fullUrl = serverInfo->url;
         if (fullUrl.size())
         {
-            int shardIndex = mNumRequestDnsOnFly;
-            mNumRequestDnsOnFly ++;
-            size_t postInitialColon = fullUrl.find(":") + 1;
-            size_t postFinalColon = fullUrl.rfind(":");
-            std::string url = fullUrl.substr(postInitialColon, fullUrl.size() - postInitialColon);
-            std::string host = fullUrl.substr(postInitialColon, postFinalColon - postInitialColon);
+            int shard = TURNSERVER_SHARD - mNumDnsRequestsOnFly;
+            mNumDnsRequestsOnFly++;
+            size_t posInitialColon = fullUrl.find(":") + 1;
+            size_t posFinalColon = fullUrl.rfind(":");
+            std::string url = fullUrl.substr(posInitialColon, fullUrl.size() - posInitialColon);
+            std::string host = fullUrl.substr(posInitialColon, posFinalColon - posInitialColon);
             auto wptr = weakHandle();
             DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
-                                                    [wptr, this, url, shardIndex, numServers]
+                                                    [wptr, this, url, shard, numServers]
                                                     (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
@@ -978,40 +978,38 @@ void RtcModule::refreshTurnServerIp()
                     KR_LOG_ERROR("Async DNS error in rtcModule. Error code: %d", statusDNS);
                 }
 
-                mNumRequestDnsOnFly --;
-
-                if (!mKarereClient.mDnsCache.hasRecord(TURNSERVER_SHARD - shardIndex))
+                if (!mKarereClient.mDnsCache.hasRecord(shard))
                 {
-                    mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD - shardIndex, url);
+                    mKarereClient.mDnsCache.addRecord(shard, url);
                 }
-                else if (mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD - shardIndex).host != url)
+                else if (mKarereClient.mDnsCache.getUrl(shard).host != url)
                 {
-                    mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARD - shardIndex);
-                    mKarereClient.mDnsCache.addRecord(TURNSERVER_SHARD - shardIndex, url);
+                    mKarereClient.mDnsCache.removeRecord(shard);
+                    mKarereClient.mDnsCache.addRecord(shard, url);
                 }
 
                 if (statusDNS >= 0 && (ipsv4.size() || ipsv6.size()))
                 {
-                    mKarereClient.mDnsCache.setIp(TURNSERVER_SHARD - shardIndex, ipsv4, ipsv6);
-                    KR_LOG_DEBUG("New IP for Turn servers: ipv4 - %s     ipv6 - %s",
+                    KR_LOG_DEBUG("New IP for TURN servers: ipv4 - %s     ipv6 - %s",
                                  ipsv4.size() ? ipsv4[0].c_str() : "",
                                  ipsv6.size() ? ipsv6[0].c_str() : "");
+                    mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6);
                 }
 
-
-                if (mNumRequestDnsOnFly == 0)
+                mNumDnsRequestsOnFly--;
+                if (mNumDnsRequestsOnFly == 0)
                 {
                     StaticProvider iceServer;
-                    string jsonCacheTurnServer = getCacheTurnServer();
+                    string jsonCacheTurnServer = getCachedTurnServers();
                     iceServer.setServer(jsonCacheTurnServer.c_str());
                     setIceServers(iceServer);
 
                     // Remove old entries in cache
                     int index = numServers;
-                    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVER)
+                    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
                     {
                         mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARD - index);
-                        index ++;
+                        index++;
                     }
                 }
             });

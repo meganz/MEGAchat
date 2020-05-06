@@ -8,8 +8,8 @@
 #include <base/trackDelete.h>
 #include <streamPlayer.h>
 
-#define TURNSERVER_SHARD -10
-#define MAX_TURN_SERVER 5
+#define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
+#define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
 
 namespace rtcModule
 {
@@ -418,7 +418,7 @@ protected:
     void removeCallRetry(karere::Id chatid, bool retry = true);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
 
-    std::string getCacheTurnServer();
+    std::string getCachedTurnServers();
     std::string buildTurnServerUrl(const std::string& host, int port, const std::string& path) const;
 
     friend class Call;
