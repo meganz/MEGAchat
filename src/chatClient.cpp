@@ -388,7 +388,7 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     }
 
 #ifndef KARERE_DISABLE_WEBRTC
-    if (rtc)
+    if (rtc && disconnect)
     {
         rtc->refreshTurnServerIp();
     }
