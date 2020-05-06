@@ -131,8 +131,8 @@ public:
     virtual int updateSendingItemsMsgidAndOpcode(karere::Id msgxid, karere::Id msgid)
     {
         mDb.query(
-            "update sending set opcode=?, msgid=? where chatid=? and opcode=? and msgid=?",
-            chatd::OP_MSGUPD, msgid, mChat.chatId(), chatd::OP_MSGUPDX, msgxid);
+            "update sending set opcode=?, msgid=? where chatid=? and (opcode=? or opcode=?) and msgid=?",
+            chatd::OP_MSGUPD, msgid, mChat.chatId(), chatd::OP_NEWMSG, chatd::OP_MSGUPDX, msgxid);
         return sqlite3_changes(mDb);
     }
 
