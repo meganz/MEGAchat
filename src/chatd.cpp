@@ -3282,7 +3282,6 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             SendingItem &item = it;
             if (item.msg->id() == msg.id())
             {
-                item.msg->updated = age;
                 item.msg->assign((void*)newdata, newlen);
                 count++;
             }
