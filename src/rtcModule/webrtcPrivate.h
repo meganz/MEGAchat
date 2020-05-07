@@ -8,9 +8,6 @@
 #include <base/trackDelete.h>
 #include <streamPlayer.h>
 
-#define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
-#define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
-
 namespace rtcModule
 {
 namespace stats { class IRtcStats; }
@@ -378,6 +375,7 @@ public:
     virtual std::vector<karere::Id> chatsWithCall() const;
     virtual void abortCallRetry(karere::Id chatid);
     void refreshTurnServerIp() override;
+    void updateTurnServer() override;
 //==
     void updatePeerAvState(karere::Id chatid, karere::Id callid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
     void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);

@@ -108,6 +108,37 @@ void RtcModule::init()
         if (wptr.deleted())
             return;
 
+        int shard  = TURNSERVER_SHARD;
+        for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
+        {
+            std::string fullUrl = serverInfo->url;
+            if (fullUrl.size())
+            {
+                size_t posInitialColon = fullUrl.find(":") + 1;
+                std::string urlString = fullUrl.substr(posInitialColon, fullUrl.size() - posInitialColon);
+                karere::Url url(urlString);
+
+                if (!mKarereClient.mDnsCache.isValidUrl(shard) || url != mKarereClient.mDnsCache.getUrl(shard))
+                {
+                    if (mKarereClient.mDnsCache.isValidUrl(shard))
+                    {
+                        mKarereClient.mDnsCache.removeRecord(shard);
+                    }
+
+                    mKarereClient.mDnsCache.addRecord(shard, urlString);
+                }
+
+                shard--;
+            }
+        }
+
+        int maxShard = TURNSERVER_SHARD - MAX_TURN_SERVERS;
+        while (mKarereClient.mDnsCache.isValidUrl(shard) && shard > maxShard)
+        {
+            mKarereClient.mDnsCache.removeRecord(shard);
+            shard--;
+        }
+
         if (mIceServerProvider.size())
         {
             refreshTurnServerIp();
@@ -940,80 +971,56 @@ void RtcModule::abortCallRetry(Id chatid)
 
 void RtcModule::refreshTurnServerIp()
 {
-    mDnsRequestId ++;
+    mDnsRequestId++;
     unsigned int dnsRequestId = mDnsRequestId;
 
-    // Remove old entries in cache
     int index = 0;
     while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
     {
-        mKarereClient.mDnsCache.removeRecord(TURNSERVER_SHARD - index);
-        index++;
-    }
-
-    int shard = TURNSERVER_SHARD;
-    for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
-    {
-        std::string fullUrl = serverInfo->url;
-        if (fullUrl.size())
+        int shard = TURNSERVER_SHARD - index;
+        std::string host = mKarereClient.mDnsCache.getUrl(shard).host;
+        auto wptr = weakHandle();
+        DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
+                                                [wptr, this, shard, dnsRequestId]
+                                                (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
         {
-            if (shard < TURNSERVER_SHARD - MAX_TURN_SERVERS)
+            if (wptr.deleted() || dnsRequestId != mDnsRequestId)
+                return;
+
+            if (mKarereClient.isTerminated())
             {
-                RTCM_LOG_WARNING("We have exceed the number of ips request for turn Servers");
+                RTCM_LOG_ERROR("DNS resolution completed but karere client was terminated.");
                 return;
             }
 
-            size_t posInitialColon = fullUrl.find(":") + 1;
-            size_t posFinalColon = fullUrl.rfind(":");
-            std::string url = fullUrl.substr(posInitialColon, fullUrl.size() - posInitialColon);
-            std::string host = fullUrl.substr(posInitialColon, posFinalColon - posInitialColon);
-            auto wptr = weakHandle();
-            DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
-                                                    [wptr, this, url, shard, dnsRequestId]
-                                                    (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+            if (statusDNS < 0)
             {
-                if (wptr.deleted() || dnsRequestId != mDnsRequestId)
-                    return;
+                RTCM_LOG_ERROR("Async DNS error in rtcModule. Error code: %d", statusDNS);
+            }
 
-                if (mKarereClient.isTerminated())
-                {
-                    RTCM_LOG_ERROR("DNS resolution completed but karere client was terminated.");
-                    return;
-                }
+            assert(mKarereClient.mDnsCache.hasRecord(shard));
 
-                if (statusDNS < 0)
-                {
-                    RTCM_LOG_ERROR("Async DNS error in rtcModule. Error code: %d", statusDNS);
-                }
+            if (statusDNS >= 0 && (ipsv4.size() || ipsv6.size()))
+            {
+                RTCM_LOG_ERROR("New IP for TURN servers: ipv4 - %s     ipv6 - %s",
+                             ipsv4.size() ? ipsv4[0].c_str() : "",
+                             ipsv6.size() ? ipsv6[0].c_str() : "");
+                mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6);
+            }
 
-                if (!mKarereClient.mDnsCache.hasRecord(shard))
-                {
-                    mKarereClient.mDnsCache.addRecord(shard, url);
-                }
-                else if (mKarereClient.mDnsCache.getUrl(shard).host != url)
-                {
-                    assert(false); // They should be removed at begining of the method
-                    mKarereClient.mDnsCache.removeRecord(shard);
-                    mKarereClient.mDnsCache.addRecord(shard, url);
-                }
+            updateTurnServer();
+        });
 
-                if (statusDNS >= 0 && (ipsv4.size() || ipsv6.size()))
-                {
-                    RTCM_LOG_ERROR("New IP for TURN servers: ipv4 - %s     ipv6 - %s",
-                                 ipsv4.size() ? ipsv4[0].c_str() : "",
-                                 ipsv6.size() ? ipsv6[0].c_str() : "");
-                    mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6);
-                }
-
-                StaticProvider iceServer;
-                string jsonCacheTurnServer = getCachedTurnServers();
-                iceServer.setServer(jsonCacheTurnServer.c_str());
-                setIceServers(iceServer);
-            });
-
-            shard --;
-        }
+        index++;
     }
+}
+
+void RtcModule::updateTurnServer()
+{
+    StaticProvider iceServer;
+    string jsonCacheTurnServer = getCachedTurnServers();
+    iceServer.setServer(jsonCacheTurnServer.c_str());
+    setIceServers(iceServer);
 }
 
 void RtcModule::onKickedFromChatRoom(Id chatid)
