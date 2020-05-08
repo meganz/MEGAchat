@@ -393,6 +393,42 @@ int Client::importMessages(const char *externalDbPath)
         chatd::Chat &chat = chatroom->chat();
         karere::Id chatid = chatroom->chatid();
 
+        // Import last seen from external db
+        Id lastSeenId;
+        SqliteStmt stmtLastSeen(dbExternal, "select last_seen, from chats where chatid=?");
+        stmtLastSeen << chatid;
+        stmtLastSeen.stepMustHaveData();
+        lastSeenId = stmtLastSeen.uint64Col(0);
+        chat.setLastSeenId(lastSeenId);
+
+        SqliteStmt stmtLastSeenIdx(dbExternal, "select idx from history where chatid = ? and msgid = ?");
+        stmtLastSeenIdx << chatid << lastSeenId;
+        if (stmtLastSeenIdx.step())
+        {
+            chat.setLastSeenIdx(stmtLastSeenIdx.intCol(0));
+        }
+        chatroom->chat().handleLastImportedSeen(lastSeenId);
+
+        // Import last received from external db
+        Id lastRecvId;
+        SqliteStmt stmtRecv(dbExternal, "select last_recv, from chats where chatid=?");
+        stmtRecv << chatid;
+        stmtRecv.stepMustHaveData();
+        lastRecvId = stmtRecv.uint64Col(0);
+        chat.setLastRecvId(lastRecvId);
+
+        SqliteStmt stmtRecvIdx(dbExternal, "select idx from history where chatid = ? and msgid = ?");
+        stmtRecvIdx << chatid << lastRecvId;
+        if (stmtRecvIdx.step())
+        {
+            chat.setLastRecvIdx(stmtRecvIdx.intCol(0));
+        }
+
+        if (chatroom->chat().lastSeenId() != chatroom->chat().lastReceivedId())
+        {
+            chatroom->chat().handleLastImportedSeen(lastRecvId);
+        }
+
         chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
         karere::Id newestAppMsgid(Id::inval());
         chatd::Message *newestAppMsg = nullptr;
