@@ -3314,6 +3314,11 @@ void Chat::msgImport(std::unique_ptr<Message> msg, bool isUpdate)
     }
 }
 
+void Chat::handleLastImportedSeen(Id msgid)
+{
+    handleLastReceivedSeen(msgid);
+}
+
 void Chat::keyImport(KeyId keyid, Id userid, const char *key, uint16_t keylen)
 {
     CALL_CRYPTO(onKeyReceived, keyid, userid, mChatdClient.myHandle(), key, keylen, false);
@@ -3555,6 +3560,26 @@ bool Chat::setMessageSeen(Id msgid)
         return false;
     }
     return setMessageSeen(it->second);
+}
+
+void Chat::setLastSeenId(Id id)
+{
+    mLastSeenId = id;
+}
+
+void Chat::setLastSeenIdx(Idx idx)
+{
+    mLastSeenIdx = idx;
+}
+
+void Chat::setLastRecvId(Id id)
+{
+    mLastReceivedId = id;
+}
+
+void Chat::setLastRecvIdx(Idx idx)
+{
+    mLastReceivedIdx = idx;
 }
 
 int Chat::unreadMsgCount() const

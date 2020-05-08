@@ -1144,11 +1144,26 @@ public:
      */
     bool setMessageSeen(karere::Id msgid);
 
+    /** @brief Sets the last-seen-by-us pointer to the specified id. */
+    void setLastSeenId(karere::Id id);
+
+    /** @brief Sets the last-seen-by-us pointer to the specified idx. */
+    void setLastSeenIdx(Idx idx);
+
+    /** @brief Sets the last-received pointer to the specified id. */
+    void setLastRecvId(karere::Id id);
+
+    /** @brief Sets the last-received pointer to the specified idx. */
+    void setLastRecvIdx(Idx idx);
+
     /** @brief The last-seen-by-us pointer */
     Idx lastSeenIdx() const { return mLastSeenIdx; }
 
     /** @brief The last-seen-by-us pointer */
     karere::Id lastSeenId() const { return mLastSeenId; }
+
+    /** @brief The last-received pointer */
+    karere::Id lastReceivedId() const { return mLastReceivedId; }
 
     /** @brief Whether the next history fetch will be from local db or from server */
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
@@ -1321,6 +1336,7 @@ public:
     uint64_t getPublicHandle() const;
     bool previewMode();
     void rejoin();
+    void handleLastImportedSeen(karere::Id msgid);
 
     /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
     void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
