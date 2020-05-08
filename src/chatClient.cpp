@@ -395,7 +395,7 @@ int Client::importMessages(const char *externalDbPath)
 
         // Import last seen from external db
         Id lastSeenId;
-        SqliteStmt stmtLastSeen(dbExternal, "select last_seen, from chats where chatid=?");
+        SqliteStmt stmtLastSeen(dbExternal, "select last_seen from chats where chatid=?");
         stmtLastSeen << chatid;
         stmtLastSeen.stepMustHaveData();
         lastSeenId = stmtLastSeen.uint64Col(0);
@@ -411,7 +411,7 @@ int Client::importMessages(const char *externalDbPath)
 
         // Import last received from external db
         Id lastRecvId;
-        SqliteStmt stmtRecv(dbExternal, "select last_recv, from chats where chatid=?");
+        SqliteStmt stmtRecv(dbExternal, "select last_recv from chats where chatid=?");
         stmtRecv << chatid;
         stmtRecv.stepMustHaveData();
         lastRecvId = stmtRecv.uint64Col(0);
