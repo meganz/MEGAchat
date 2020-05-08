@@ -940,8 +940,7 @@ void RtcModule::abortCallRetry(Id chatid)
 
 void RtcModule::refreshTurnServerIp()
 {
-    mDnsRequestId ++;
-    unsigned int dnsRequestId = mDnsRequestId;
+    mDnsRequestId++;
 
     // Remove old entries in cache
     int index = 0;
@@ -968,16 +967,24 @@ void RtcModule::refreshTurnServerIp()
             std::string url = fullUrl.substr(posInitialColon, fullUrl.size() - posInitialColon);
             std::string host = fullUrl.substr(posInitialColon, posFinalColon - posInitialColon);
             auto wptr = weakHandle();
+            unsigned int dnsRequestId = mDnsRequestId;  // capture the value for the lambda
             DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
                                                     [wptr, this, url, shard, dnsRequestId]
                                                     (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
-                if (wptr.deleted() || dnsRequestId != mDnsRequestId)
+                if (wptr.deleted())
                     return;
 
                 if (mKarereClient.isTerminated())
                 {
                     RTCM_LOG_ERROR("DNS resolution completed but karere client was terminated.");
+                    return;
+                }
+
+                if (dnsRequestId != mDnsRequestId)
+                {
+                    RTCM_LOG_ERROR("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                    dnsRequestId, mDnsRequestId);
                     return;
                 }
 
@@ -1011,7 +1018,7 @@ void RtcModule::refreshTurnServerIp()
                 setIceServers(iceServer);
             });
 
-            shard --;
+            shard--;
         }
     }
 }
