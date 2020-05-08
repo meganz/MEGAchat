@@ -393,6 +393,22 @@ int Client::importMessages(const char *externalDbPath)
         chatd::Chat &chat = chatroom->chat();
         karere::Id chatid = chatroom->chatid();
 
+        // Get last seen from external db
+        Id lastSeenId;
+        SqliteStmt stmtLastSeen(dbExternal, "select last_seen from chats where chatid=?");
+        stmtLastSeen << chatid;
+        stmtLastSeen.stepMustHaveData();
+        lastSeenId = stmtLastSeen.uint64Col(0);
+
+        // Get last seen Idx from external db
+        chatd::Idx externalLastSeenIdx = CHATD_IDX_INVALID;
+        SqliteStmt stmtLastSeenIdx(dbExternal, "select idx from history where chatid = ? and msgid = ?");
+        stmtLastSeenIdx << chatid << lastSeenId;
+        if (stmtLastSeenIdx.step())
+        {
+           externalLastSeenIdx = stmtLastSeenIdx.intCol(0);
+        }
+
         chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
         karere::Id newestAppMsgid(Id::inval());
         chatd::Message *newestAppMsg = nullptr;
@@ -471,6 +487,7 @@ int Client::importMessages(const char *externalDbPath)
             std::unique_ptr<chatd::Message> msg;
             karere::Id userid(stmtMsg.uint64Col(0));
             karere::Id msgid(stmtMsg.uint64Col(9));
+            chatd::Idx msgIdx = stmtMsg.intCol(4);
             uint32_t ts = stmtMsg.uintCol(1);
             unsigned char type = (unsigned char)stmtMsg.intCol(2);
             uint16_t updated = (uint16_t)stmtMsg.intCol(7);
@@ -518,6 +535,13 @@ int Client::importMessages(const char *externalDbPath)
             }
 
             chat.msgImport(move(msg), isUpdate);
+            if (externalLastSeenIdx != CHATD_IDX_INVALID && msgIdx <= externalLastSeenIdx)
+            {
+                // If msgIdx is previous to externalDb LastSeenIdx (msg seen in external db),
+                // retrieve fresh local msg index and call setMessageSeen
+                chat.setMessageSeen(chat.msgIndexFromId(msgid));
+            }
+
             (isUpdate) ? countUpdated++ : countAdded++;
 
             KR_LOG_DEBUG("importMessages: message added (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
