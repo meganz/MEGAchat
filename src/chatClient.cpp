@@ -394,13 +394,11 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
         while (mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
         {
             // invalidate IPs
-            std::string ipv4;
-            std::string ipv6;
-            mDnsCache.setIp(TURNSERVER_SHARD - index, ipv4, ipv6);
+            mDnsCache.invalidateIps(TURNSERVER_SHARD - index);
             index++;
         }
 
-        rtc->updateTurnServer();
+        rtc->updateTurnServers();
         rtc->refreshTurnServerIp();
     }
 #endif

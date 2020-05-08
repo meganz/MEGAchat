@@ -71,7 +71,7 @@ RtMessage::RtMessage(chatd::Chat &aChat, const StaticBuffer& msg)
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto* crypto, const char* iceServers)
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
-  mStaticIceServer(iceServers),
+  mStaticIceServers(iceServers),
   mIceServerProvider(client.api, "turn"),
   mManager(*this)
 {
@@ -93,11 +93,11 @@ void RtcModule::init()
     string jsonCacheTurnServer = getCachedTurnServers();
     if (jsonCacheTurnServer.size())
     {
-        iceServerStatic.setServer(jsonCacheTurnServer.c_str());
+        iceServerStatic.setServers(jsonCacheTurnServer.c_str());
     }
     else
     {
-        iceServerStatic.setServer(mStaticIceServer);
+        iceServerStatic.setServers(mStaticIceServers);
     }
 
     setIceServers(iceServerStatic);
@@ -1021,19 +1021,19 @@ void RtcModule::refreshTurnServerIp()
                 mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6);
             }
 
-            updateTurnServer();
+            updateTurnServers();
         });
 
         index++;
     }
 }
 
-void RtcModule::updateTurnServer()
+void RtcModule::updateTurnServers()
 {
-    StaticProvider iceServer;
-    string jsonCacheTurnServer = getCachedTurnServers();
-    iceServer.setServer(jsonCacheTurnServer.c_str());
-    setIceServers(iceServer);
+    StaticProvider iceServersProvider;
+    string jsonCachedTurnServers = getCachedTurnServers();
+    iceServersProvider.setServers(jsonCachedTurnServers.c_str());
+    setIceServers(iceServersProvider);
 }
 
 void RtcModule::onKickedFromChatRoom(Id chatid)
@@ -3010,7 +3010,7 @@ void Session::createRtcConn()
     if (mCall.mIceFails.find(endPoint) != mCall.mIceFails.end())
     {
         RTCM_LOG_ERROR("Using ALL ICE servers, because ICE to this peer has failed %d times", mCall.mIceFails[endPoint]);
-        StaticProvider iceServerStatic(mCall.mManager.mStaticIceServer);
+        StaticProvider iceServerStatic(mCall.mManager.mStaticIceServers);
         mCall.mManager.setIceServers(iceServerStatic);
     }
 

@@ -436,7 +436,7 @@ public:
     virtual std::vector<karere::Id> chatsWithCall() const = 0;
     virtual void abortCallRetry(karere::Id chatid) = 0;
     virtual void refreshTurnServerIp() = 0;
-    virtual void updateTurnServer() = 0;
+    virtual void updateTurnServers() = 0;
 };
 IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
     IRtcCrypto* crypto, const char* iceServers);

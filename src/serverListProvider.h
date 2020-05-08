@@ -120,10 +120,10 @@ public:
 
     StaticProvider(const char* serversJson)
     {
-        setServer(serversJson);
+        setServers(serversJson);
     }
 
-    void setServer(const char* serversJson)
+    void setServers(const char* serversJson)
     {
         rapidjson::Document doc;
         doc.Parse(serversJson);

@@ -375,7 +375,7 @@ public:
     virtual std::vector<karere::Id> chatsWithCall() const;
     virtual void abortCallRetry(karere::Id chatid);
     void refreshTurnServerIp() override;
-    void updateTurnServer() override;
+    void updateTurnServers() override;
 //==
     void updatePeerAvState(karere::Id chatid, karere::Id callid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
     void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);
@@ -389,7 +389,7 @@ public:
     void launchCallRetry(karere::Id chatid, karere::AvFlags av, bool isActiveRetry = true);
     virtual ~RtcModule();
 protected:
-    const char* mStaticIceServer;
+    const char* mStaticIceServers;
     karere::GelbProvider mIceServerProvider;
     webrtc::PeerConnectionInterface::IceServers mIceServers;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;

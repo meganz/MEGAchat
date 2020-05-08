@@ -299,6 +299,11 @@ bool DNScache::setIp(int shard, std::string ipv4, std::string ipv6)
     return false;
 }
 
+bool DNScache::invalidateIps(int shard)
+{
+    return setIp(shard, "", "");
+}
+
 bool DNScache::getIp(int shard, std::string &ipv4, std::string &ipv6)
 {
     auto it = mRecords.find(shard);
