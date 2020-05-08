@@ -390,6 +390,17 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc && disconnect)
     {
+        int index = 0;
+        while (mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
+        {
+            // invalidate IPs
+            std::string ipv4;
+            std::string ipv6;
+            mDnsCache.setIp(TURNSERVER_SHARD - index, ipv4, ipv6);
+            index++;
+        }
+
+        rtc->updateTurnServer();
         rtc->refreshTurnServerIp();
     }
 #endif
