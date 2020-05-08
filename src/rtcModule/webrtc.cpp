@@ -940,6 +940,12 @@ void RtcModule::abortCallRetry(Id chatid)
 
 void RtcModule::refreshTurnServerIp()
 {
+    if (mIceServerProvider.busy())
+    {
+        RTCM_LOG_WARNING("Turn server URLs not available yet. Fetching...");
+        return;
+    }
+
     mDnsRequestId++;
 
     // Remove old entries in cache

@@ -215,7 +215,14 @@ public:
         : mApi(api), mService(service)
     {
     }
+
+    // true if still fetching servers from Gelb
+    bool busy() const
+    {
+        return mBusy;
+    }
 };
+
 }
 
 #endif
