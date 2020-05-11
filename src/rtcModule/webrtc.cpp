@@ -1019,9 +1019,15 @@ void RtcModule::refreshTurnServerIp()
                              ipsv4.size() ? ipsv4[0].c_str() : "",
                              ipsv6.size() ? ipsv6[0].c_str() : "");
                 mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6);
+
+            }
+            else
+            {
+                mKarereClient.mDnsCache.invalidateIps(shard);
             }
 
             updateTurnServers();
+
         });
 
         index++;
