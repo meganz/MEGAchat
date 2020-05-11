@@ -65,7 +65,7 @@ void SettingWindow::onPushNotificationSettingsUpdate()
     ui->globalDnd->setEnabled(!notificationSettings->isGlobalEnabled());
 
     ui->globalChatNotificationsEnabled->setChecked(notificationSettings->isChatsEnabled());
-    mGlobalChatsDifference = notificationSettings->getChatsDnd() - now;
+    mGlobalChatsDifference = notificationSettings->getGlobalChatsDnd() - now;
     mGlobalChatsDifference = (mGlobalChatsDifference >= 0) ? mGlobalChatsDifference : 0;
     std::string globalChatsDnd = std::to_string(mGlobalChatsDifference);
     ui->globalChatDnd->setText(globalChatsDnd.c_str());
