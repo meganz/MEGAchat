@@ -47,8 +47,6 @@ template <class... Args>
 const char* termCodeFirstArgToString(Args...) { return nullptr; }
 const char* iceStateToStr(webrtc::PeerConnectionInterface::IceConnectionState);
 
-DnsRequest* DnsRequest::instance = nullptr;
-
 struct CallerInfo
 {
     Id chatid;
@@ -992,7 +990,7 @@ void RtcModule::refreshTurnServerIp()
         std::string host = mKarereClient.mDnsCache.getUrl(shard).host;
         unsigned int dnsRequestId = mDnsRequestId;  // capture the value for the lambda
         auto wptr = weakHandle();
-        DnsRequest::getInstance()->wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
+        mDnsResolver.wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
                                                 [wptr, this, shard, dnsRequestId]
                                                 (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
         {

@@ -313,6 +313,30 @@ public:
     void changeVideoInDevice();
 };
 
+/*
+ * Partial implementation of the WebsocketsClient, just for the purpose of
+ * resolving the IPs behind the ICE servers in order to be added to cache.
+ */
+class DnsResolver : public WebsocketsClient
+{
+public:
+    DnsResolver() {}
+    virtual ~DnsResolver() {}
+
+    bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
+                   const char *host, int port, const char *path, bool ssl) = delete;
+    int wsGetNoNameErrorCode(WebsocketsIO *websocketIO) = delete;
+    bool wsSendMessage(char *msg, size_t len) = delete;  // returns true on success, false if error
+    void wsDisconnect(bool immediate) = delete;
+    bool wsIsConnected() = delete;
+    void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len) = delete;
+
+    void wsConnectCb() override {}
+    void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/) override {}
+    void wsHandleMsgCb(char *data, size_t len) override {}
+    void wsSendMsgCb(const char *, size_t) override {}
+};
+
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
 {
 public:
@@ -398,6 +422,8 @@ protected:
     RtcModule &mManager;
     std::map<karere::Id, megaHandle> mRetryCallTimers;
     std::string mVideoDeviceSelected;
+
+    DnsResolver mDnsResolver;
     unsigned int mDnsRequestId = 0;
 
     IRtcCrypto& crypto() const { return *mCrypto; }
@@ -495,38 +521,6 @@ public:
     }
 };
 
-class DnsRequest : public WebsocketsClient
-{
-private:
-    DnsRequest() {}
-    static DnsRequest* instance;
-
-public:
-    static DnsRequest* getInstance()
-    {
-        if (!instance)
-        {
-            instance = new DnsRequest();
-        }
-
-        return instance;
-    }
-
-    virtual ~DnsRequest() {}
-
-    bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
-                   const char *host, int port, const char *path, bool ssl) = delete;
-    int wsGetNoNameErrorCode(WebsocketsIO *websocketIO) = delete;
-    bool wsSendMessage(char *msg, size_t len) = delete;  // returns true on success, false if error
-    void wsDisconnect(bool immediate) = delete;
-    bool wsIsConnected() = delete;
-    void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len) = delete;
-
-    void wsConnectCb() override {}
-    void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/) override {}
-    void wsHandleMsgCb(char *data, size_t len) override {}
-    void wsSendMsgCb(const char *, size_t) override {}
-};
 }
 
 #endif
