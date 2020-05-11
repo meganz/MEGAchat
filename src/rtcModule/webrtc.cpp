@@ -117,6 +117,7 @@ void RtcModule::init()
             std::string fullUrl = serverInfo->url;
             if (fullUrl.size())
             {
+                // Example: "turn:example.url.co:3478?transport=udp"
                 size_t posInitialColon = fullUrl.find(":") + 1;
                 std::string urlString = fullUrl.substr(posInitialColon, fullUrl.size() - posInitialColon);
                 karere::Url url(urlString);
