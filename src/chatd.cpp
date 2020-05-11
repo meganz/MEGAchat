@@ -3420,7 +3420,7 @@ void Chat::rejoin()
     join();
 }
 
-void Chat::onLastSeen(Id msgid)
+void Chat::onLastSeen(Id msgid, bool resend)
 {
     Idx idx = CHATD_IDX_INVALID;
 
@@ -3458,7 +3458,7 @@ void Chat::onLastSeen(Id msgid)
         return; // we are up to date
     }
 
-    if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) // msgid is older than the locally seen pointer --> update chatd
+    if (resend && mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) // msgid is older than the locally seen pointer --> update chatd
     {
         // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
         CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
