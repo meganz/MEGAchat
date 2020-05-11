@@ -535,7 +535,9 @@ int Client::importMessages(const char *externalDbPath)
             }
 
             chat.msgImport(move(msg), isUpdate);
-            if (externalLastSeenIdx != CHATD_IDX_INVALID && msgIdx <= externalLastSeenIdx)
+            if (externalLastSeenIdx != CHATD_IDX_INVALID
+                    && userid != mMyHandle
+                    && msgIdx <= externalLastSeenIdx)
             {
                 // If msgIdx is previous to externalDb LastSeenIdx (msg seen in external db),
                 // retrieve fresh local msg index and call setMessageSeen
