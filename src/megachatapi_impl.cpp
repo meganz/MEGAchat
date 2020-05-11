@@ -6414,10 +6414,12 @@ const char* MegaChatErrorPrivate::getGenericErrorString(int errorCode)
         return "No error";
     case ERROR_ARGS:
         return "Invalid argument";
+    case ERROR_TOOMANY:
+        return "Too many uses for this resource";
     case ERROR_ACCESS:
         return "Access denied";
     case ERROR_NOENT:
-        return "Resouce does not exist";
+        return "Resource does not exist";
     case ERROR_EXIST:
         return "Resource already exists";
     case ERROR_UNKNOWN:
