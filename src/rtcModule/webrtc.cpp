@@ -213,7 +213,7 @@ string RtcModule::getCachedTurnServers()
         string ipv4;
         string ipv6;
         karere::Url turnServerUrl = mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD - i);
-        if (mKarereClient.mDnsCache.getIp(TURNSERVER_SHARD, ipv4, ipv6))
+        if (mKarereClient.mDnsCache.getIp(TURNSERVER_SHARD - i, ipv4, ipv6))
         {
             if (ipv4.size())
             {
