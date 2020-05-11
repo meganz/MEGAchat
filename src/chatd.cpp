@@ -3311,7 +3311,22 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         if (wptr.deleted())
             return;
 
+        Id lastMsgId = mLastTextMsg.idx() == CHATD_IDX_INVALID
+                ? mLastTextMsg.xid()
+                : mLastTextMsg.id();
+
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd, recipients);
+        if (lastMsgId == upd->id())
+        {
+            if (upd->isValidLastMessage())
+            {
+                onLastTextMsgUpdated(*upd, msgIndexFromId(upd->id()));
+            }
+            else //our last text msg is not valid anymore, find another one
+            {
+                findAndNotifyLastTextMsg();
+            }
+        }
 
     }, mChatdClient.mKarereClient->appCtx);
 
