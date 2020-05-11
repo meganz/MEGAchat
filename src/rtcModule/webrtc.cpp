@@ -89,18 +89,20 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 
 void RtcModule::init()
 {
-    StaticProvider iceServerStatic;
-    string jsonCacheTurnServer = getCachedTurnServers();
-    if (jsonCacheTurnServer.size())
+    // set cached ICE servers, or static/hardcoded if not available
+    StaticProvider iceServersStatic;
+    string jsonCachedTurnServers = getCachedTurnServers();
+    if (jsonCachedTurnServers.size())
     {
-        iceServerStatic.setServers(jsonCacheTurnServer.c_str());
+        iceServersStatic.setServers(jsonCachedTurnServers.c_str());
     }
     else
     {
-        iceServerStatic.setServers(mStaticIceServers);
+        iceServersStatic.setServers(mStaticIceServers);
     }
+    setIceServers(iceServersStatic);
 
-    setIceServers(iceServerStatic);
+    // fetch ICE servers URLs from Load Balancer (GeLB)
     auto wptr = weakHandle();
     mIceServerProvider.fetchServers()
     .then([wptr, this]()
@@ -108,6 +110,7 @@ void RtcModule::init()
         if (wptr.deleted())
             return;
 
+        // replace cache ICE servers URLs with received ones
         int shard = TURNSERVER_SHARD;
         for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
         {
@@ -132,6 +135,7 @@ void RtcModule::init()
             }
         }
 
+        // discard any obsolete cached URL (not returned by GeLB)
         int maxShard = TURNSERVER_SHARD - MAX_TURN_SERVERS;
         while (mKarereClient.mDnsCache.isValidUrl(shard) && shard > maxShard)
         {
@@ -139,6 +143,7 @@ void RtcModule::init()
             shard--;
         }
 
+        // finally, update the IPs corresponding to the received URLs
         if (mIceServerProvider.size())
         {
             refreshTurnServerIp();
