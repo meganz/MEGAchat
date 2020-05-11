@@ -3314,6 +3314,16 @@ void Chat::msgImport(std::unique_ptr<Message> msg, bool isUpdate)
     }
 }
 
+void Chat::seenImport(Id lastSeenId)
+{
+    if (lastSeenId != mLastSeenId)
+    {
+        // false: avoid to resend the imported SEEN to chatd, since it
+        // is already known by server (it was received by the NSE)
+        onLastSeen(lastSeenId, false);
+    }
+}
+
 void Chat::keyImport(KeyId keyid, Id userid, const char *key, uint16_t keylen)
 {
     CALL_CRYPTO(onKeyReceived, keyid, userid, mChatdClient.myHandle(), key, keylen, false);
