@@ -873,7 +873,7 @@ protected:
     Idx getHistoryFromDb(unsigned count);
     HistSource getHistoryFromDbOrServer(unsigned count);
     void onLastReceived(karere::Id msgid);
-    void onLastSeen(karere::Id msgid);
+    void onLastSeen(karere::Id msgid, bool resend = true);
     void handleLastReceivedSeen(karere::Id msgid);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
@@ -1186,12 +1186,20 @@ public:
 
     /**
      * @brief Import a message into the history
-     * This method simulates a NEWMSG received from chatd, when it's actually
+     * This method simulates a NEWMSG/MSGUPD received from chatd, when it's actually
      * loaded from an external DB.
      * @param msg Message to import (takes ownership)
      * @param isUpdate True is the message already exist and the import only updates it
      */
     void msgImport(std::unique_ptr<Message> msg, bool isUpdate);
+
+    /**
+     * @brief Import the id of the last message seen into the history
+     * This method simulates a SEEN received from chatd, when it's actually
+     * loaded from an external DB.
+     * @param msg Id of the last message seen to import
+     */
+    void seenImport(karere::Id lastSeenId);
 
     /**
      * @brief Import the key of a message
