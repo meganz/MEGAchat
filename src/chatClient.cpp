@@ -393,6 +393,14 @@ int Client::importMessages(const char *externalDbPath)
         chatd::Chat &chat = chatroom->chat();
         karere::Id chatid = chatroom->chatid();
 
+        // get id of last message seen from external db
+        Id lastSeenId;
+        SqliteStmt stmtLastSeen(dbExternal, "select last_seen from chats where chatid=?");
+        stmtLastSeen << chatid;
+        stmtLastSeen.stepMustHaveData();
+        lastSeenId = stmtLastSeen.uint64Col(0);
+        chat.seenImport(lastSeenId);
+
         chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
         karere::Id newestAppMsgid(Id::inval());
         chatd::Message *newestAppMsg = nullptr;
