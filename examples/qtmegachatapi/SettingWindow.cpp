@@ -196,7 +196,7 @@ void SettingWindow::savePushNotificationSettings()
         {
             if (globalChatsDnd)
             {   // If we want to set a valid do not disturb period
-                notificationSettings->setChatsDnd(globalChatsDnd + now);
+                notificationSettings->setGlobalChatsDnd(globalChatsDnd + now);
             }
             else
             {   // If we want to disable global chat notifications by setting mGlobalChatsDND to 0
