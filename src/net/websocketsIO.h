@@ -37,6 +37,7 @@ public:
     // the record for the given shard must exist (to load from DB)
     bool setIp(int shard, std::string ipv4, std::string ipv6);
     bool getIp(int shard, std::string &ipv4, std::string &ipv6);
+    bool invalidateIps(int shard);
     void connectDone(int shard, const std::string &ip);
     bool isMatch(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
     bool isMatch(int shard, const std::string &ipv4, const std::string &ipv6);
