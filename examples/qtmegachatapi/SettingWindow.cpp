@@ -57,19 +57,19 @@ void SettingWindow::onPushNotificationSettingsUpdate()
     ui->pcr->setChecked(notificationSettings->isContactsEnabled());
     ui->shares->setChecked(notificationSettings->isSharesEnabled());
 
-    ui->globalNotificationsEnabled->setChecked(notificationSettings->isGlobalEnabled());
+    ui->globalNotificationsEnabled->setChecked(!notificationSettings->isGlobalDndEnabled());
     mGlobalDifference = notificationSettings->getGlobalDnd() - now;
     mGlobalDifference = (mGlobalDifference >= 0) ? mGlobalDifference : 0;
     std::string globalDnd = std::to_string(mGlobalDifference);
     ui->globalDnd->setText(globalDnd.c_str());
-    ui->globalDnd->setEnabled(!notificationSettings->isGlobalEnabled());
+    ui->globalDnd->setEnabled(notificationSettings->isGlobalDndEnabled());
 
-    ui->globalChatNotificationsEnabled->setChecked(notificationSettings->isChatsEnabled());
+    ui->globalChatNotificationsEnabled->setChecked(!notificationSettings->isGlobalChatsDndEnabled());
     mGlobalChatsDifference = notificationSettings->getGlobalChatsDnd() - now;
     mGlobalChatsDifference = (mGlobalChatsDifference >= 0) ? mGlobalChatsDifference : 0;
     std::string globalChatsDnd = std::to_string(mGlobalChatsDifference);
     ui->globalChatDnd->setText(globalChatsDnd.c_str());
-    ui->globalChatDnd->setEnabled(!notificationSettings->isChatsEnabled());
+    ui->globalChatDnd->setEnabled(notificationSettings->isGlobalChatsDndEnabled());
 
     ui->scheduleEnabled->setChecked(notificationSettings->isGlobalScheduleEnabled());
     onScheduleEnabled(notificationSettings->isGlobalScheduleEnabled());
@@ -161,7 +161,7 @@ void SettingWindow::savePushNotificationSettings()
 
     /* If globalNotifications checkbox changed respect initial value or if globalNotifications checkbox
        is disabled and do not disturb period has been changed */
-    if (ui->globalNotificationsEnabled->isChecked() != notificationSettings->isGlobalEnabled()
+    if (ui->globalNotificationsEnabled->isChecked() == notificationSettings->isGlobalDndEnabled()
             || (!ui->globalNotificationsEnabled->isChecked() && mGlobalDifference != globalDnd))
     {
         updated = true;
@@ -183,7 +183,7 @@ void SettingWindow::savePushNotificationSettings()
         }
     }
 
-    if (ui->globalChatNotificationsEnabled->isChecked() != notificationSettings->isChatsEnabled()
+    if (ui->globalChatNotificationsEnabled->isChecked() == notificationSettings->isGlobalChatsDndEnabled()
             || (!ui->globalChatNotificationsEnabled->isChecked() && mGlobalChatsDifference != globalChatsDnd))
     {
         updated = true;
