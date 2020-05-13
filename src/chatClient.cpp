@@ -397,9 +397,16 @@ int Client::importMessages(const char *externalDbPath)
         Id lastSeenId;
         SqliteStmt stmtLastSeen(dbExternal, "select last_seen from chats where chatid=?");
         stmtLastSeen << chatid;
-        stmtLastSeen.stepMustHaveData();
-        lastSeenId = stmtLastSeen.uint64Col(0);
-        chat.seenImport(lastSeenId);
+        if (stmtLastSeen.step())
+        {
+            lastSeenId = stmtLastSeen.uint64Col(0);
+            chat.seenImport(lastSeenId);
+        }
+        else    // no SEEN pointer for this chat on external cache (or chat not found)
+        {
+            KR_LOG_WARNING("importMessages: SEEN not imported becaus chatid not found in external db (chatid: %s)",
+                         chatid.toString().c_str());
+        }
 
         chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
         karere::Id newestAppMsgid(Id::inval());
