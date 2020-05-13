@@ -3091,6 +3091,7 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
             return;
         }
 
+        mManager.updatePeerAvState(mCall.chat().chatId(), mCall.id(), mPeer, mPeerClient, mPeerAv);
         setState(kStateInProgress);
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
