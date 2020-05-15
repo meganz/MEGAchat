@@ -1457,7 +1457,12 @@ void Client::addPeers(const std::vector<karere::Id> &peers)
     for (size_t i = 0; i < peers.size(); i++)
     {
         const karere::Id &peer = peers.at(i);
-        if (isExContact(peer))
+        if (!isContact(peer))
+        {
+            PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's non-contact", peer.toString().c_str());
+            continue;
+        }
+        else if (isExContact(peer))
         {
             // Notify presence of non-contact that becomes contact again
             Presence presence = peerPresence(peer);
