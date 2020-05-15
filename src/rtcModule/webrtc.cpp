@@ -420,6 +420,7 @@ void RtcModule::removeCall(Call& call)
         RTCM_LOG_DEBUG("removeCall: Call has been replaced, not removing");
         return;
     }
+
     mCalls.erase(chatid);
 }
 
@@ -452,9 +453,8 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         }
         else
         {
-            assert(false);
             RTCM_LOG_ERROR("There is already a call in this chatroom, destroying it");
-            callIt->second->hangup();
+            removeCall(*callIt->second);
         }
     }
 
@@ -565,8 +565,9 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
             auto itHandler = mCallHandlers.find(chatid);
             assert(itHandler != mCallHandlers.end());
             itHandler->second->setReconnectionFailed();
+            Chat& chat = mManager.mKarereClient.mChatdClient->chats(chatid);
+            itHandler->second->removeParticipant(mManager.mKarereClient.myHandle(), chat.connection().clientId());
             removeCallWithoutParticipants(chatid);
-
         }, kRetryCallTimeout, mKarereClient.appCtx);
     }
 }
@@ -661,6 +662,10 @@ void RtcModule::handleInCall(karere::Id chatid, karere::Id userid, uint32_t clie
     {
         updatePeerAvState(chatid, Id::inval(), userid, clientid, AvFlags(false, false));
     }
+    else
+    {
+        callHandlerIt->second->addParticipant(userid, clientid, AvFlags(false, false));
+    }
 }
 
 void RtcModule::handleCallTime(karere::Id chatid, uint32_t duration)
@@ -745,11 +750,10 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
 
     callHandler->addParticipant(userid, clientid, av);
 
-
-    auto itCall = mCalls.find(chatid);
-    if (itCall != mCalls.end())
+    Call *call  = static_cast<Call *>(callHandler->getCall());
+    if (call)
     {
-        itCall->second->updateAvFlags(userid, clientid, av);
+        call->updateAvFlags(userid, clientid, av);
     }
 }
 
@@ -779,9 +783,16 @@ void RtcModule::removeCall(Id chatid, bool retry)
         {
             if (retry || itHandler->second->callParticipants())
             {
-                itHandler->second->removeAllParticipants();
+                bool reconnectionState = false;
+                if (mRetryCall.find(chatid) != mRetryCall.end())
+                {
+                    reconnectionState = true;
+                }
+
+                itHandler->second->removeAllParticipants(reconnectionState);
             }
-            else if (mRetryCall.find(chatid) == mRetryCall.end())
+
+            if (mRetryCall.find(chatid) == mRetryCall.end())
             {
                 delete itHandler->second;
                 mCallHandlers.erase(itHandler);
@@ -845,12 +856,15 @@ std::vector<Id> RtcModule::chatsWithCall() const
 void RtcModule::abortCallRetry(Id chatid)
 {
     removeCallRetry(chatid, false);
-    removeCallWithoutParticipants(chatid);
     auto itHandler = mCallHandlers.find(chatid);
     if (itHandler != mCallHandlers.end())
     {
         itHandler->second->onReconnectingState(false);
+        Chat& chat = mManager.mKarereClient.mChatdClient->chats(chatid);
+        itHandler->second->removeParticipant(mManager.mKarereClient.myHandle(), chat.connection().clientId());
     }
+
+    removeCallWithoutParticipants(chatid);
 }
 
 void RtcModule::onKickedFromChatRoom(Id chatid)
@@ -1120,7 +1134,7 @@ void Call::getLocalStream(AvFlags av)
     mLocalStream = std::make_shared<artc::LocalStreamHandle>();
 
     IVideoRenderer* renderer = NULL;
-    FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
+    FIRE_EVENT(CALL, onLocalStreamObtained, renderer);
     mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
     if (av.video())
     {
@@ -1332,6 +1346,11 @@ void Call::msgSession(RtMessage& packet)
 
     if (mState == Call::kStateJoining)
     {
+        if (!mInCallPingTimer)
+        {
+            startIncallPingTimer();
+        }
+
         setState(Call::kStateInProgress);
         monitorCallSetupTimeout();
     }
@@ -1419,6 +1438,11 @@ void Call::msgJoin(RtMessage& packet)
 
         if (mState == Call::kStateReqSent || mState == Call::kStateJoining)
         {
+            if (!mInCallPingTimer)
+            {
+                startIncallPingTimer();
+            }
+
             setState(Call::kStateInProgress);
             monitorCallSetupTimeout();
 
@@ -1631,13 +1655,13 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         {
             SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing in a group call");
         }
-        else
+        else if (mInCallPingTimer)
         {
             sendCallData(CallDataState::kCallDataEnd);
         }
 
         assert(mSessions.empty());
-        stopIncallPingTimer();
+        stopIncallPingTimer(mInCallPingTimer);
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
@@ -1894,7 +1918,11 @@ bool Call::join(Id userid)
         return false;
     }
 
-    startIncallPingTimer();
+    if (!mRecovered)
+    {
+        startIncallPingTimer();
+    }
+
     // we have session setup timeout timer, but in case we don't even reach a session creation,
     // we need another timer as well
     auto wptr = weakHandle();
@@ -2045,27 +2073,27 @@ uint8_t Call::convertTermCodeToCallDataCode()
                     assert(false);  // it should be kCallRejected
                 case kStateReqSent:
                     assert(false);  // it should be kCallReqCancel
-                    codeToChatd = kCallDataReasonCancelled;
+                    codeToChatd = chatd::CallDataReason::kCancelled;
                     break;
 
                 case kStateInProgress:
-                    codeToChatd = kCallDataReasonEnded;
+                    codeToChatd = chatd::CallDataReason::kEnded;
                     break;
 
                 default:
-                    codeToChatd = kCallDataReasonFailed;
+                    codeToChatd = chatd::CallDataReason::kFailed;
                     break;
             }
             break;
         }
 
         case kCallReqCancel:
-            assert(mPredestroyState == kStateReqSent);
-            codeToChatd = kCallDataReasonCancelled;
+            assert(mPredestroyState == kStateReqSent || mPredestroyState == kStateJoining);
+            codeToChatd = chatd::CallDataReason::kCancelled;
             break;
 
         case kCallRejected:
-            codeToChatd = kCallDataReasonRejected;
+            codeToChatd = chatd::CallDataReason::kRejected;
             break;
 
         case kAnsElsewhere:
@@ -2078,20 +2106,20 @@ uint8_t Call::convertTermCodeToCallDataCode()
             break;
 
         case kDestroyByCallCollision:
-            codeToChatd = kCallDataReasonRejected;
+            codeToChatd = chatd::CallDataReason::kRejected;
             break;
         case kAnswerTimeout:
         case kRingOutTimeout:
-            codeToChatd = kCallDataReasonNoAnswer;
+            codeToChatd = chatd::CallDataReason::kNoAnswer;
             break;
 
         case kAppTerminating:
-            codeToChatd = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
+            codeToChatd = (mPredestroyState == kStateInProgress) ? chatd::CallDataReason::kEnded : chatd::CallDataReason::kFailed;
             break;
 
         case kBusy:
             assert(!isJoiner());
-            codeToChatd = kCallDataReasonRejected;
+            codeToChatd = chatd::CallDataReason::kRejected;
             break;
 
         default:
@@ -2100,7 +2128,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 SUB_LOG_ERROR("convertTermCodeToCallDataCode: Don't know how to translate term code %s, returning FAILED",
                               termCodeToStr(mTermCode));
             }
-            codeToChatd = kCallDataReasonFailed;
+            codeToChatd = chatd::CallDataReason::kFailed;
             break;
     }
 
@@ -2378,7 +2406,7 @@ Call::~Call()
         mLocalPlayer.reset();
         mLocalStream.reset();
         setState(Call::kStateDestroyed);
-        FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
+        FIRE_EVENT(CALL, onDestroy, mTermCode == TermCode::kNotFinished ? TermCode::kErrInternal : mTermCode, false, "Callback from Call::dtor");
 
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
@@ -2972,7 +3000,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
     mRemotePlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
     mRemotePlayer->setOnMediaStart([this]()
     {
-        FIRE_EVENT(SESS, onVideoRecv);
+        FIRE_EVENT(SESSION, onDataRecv);
     });
     mRemotePlayer->attachToStream(stream);
     mRemotePlayer->enableVideo(mPeerAv.video());
@@ -3136,7 +3164,7 @@ void Session::updateAvFlags(AvFlags flags)
         mRemotePlayer->enableVideo(mPeerAv.video());
     }
 
-    FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
+    FIRE_EVENT(SESSION, onPeerMute, mPeerAv, oldAv);
 }
 
 //end of event handlers
@@ -3397,9 +3425,9 @@ void Session::destroy(TermCode code, const std::string& msg)
     removeRtcConnection();
 
     mRemotePlayer.reset();
-    FIRE_EVENT(SESS, onRemoteStreamRemoved);
+    FIRE_EVENT(SESSION, onRemoteStreamRemoved);
     setState(kStateDestroyed);
-    FIRE_EVENT(SESS, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
+    FIRE_EVENT(SESSION, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
         !!(code & TermCode::kPeer), msg);
     mCall.removeSession(*this, code);
 }
@@ -3567,7 +3595,7 @@ void Session::manageNetworkQuality(stats::Sample *sample)
     mNetworkQuality = sample->lq;
     if (previousNetworkquality != mNetworkQuality)
     {
-        FIRE_EVENT(SESS, onSessionNetworkQualityChange, mNetworkQuality);
+        FIRE_EVENT(SESSION, onSessionNetworkQualityChange, mNetworkQuality);
     }
 }
 
@@ -3740,6 +3768,8 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrCallSetupTimeout);
         RET_ENUM_NAME(kErrKickedFromChat);
         RET_ENUM_NAME(kErrIceTimeout);
+        RET_ENUM_NAME(kErrStreamRenegotation);
+        RET_ENUM_NAME(kErrStreamRenegotationTimeout);
         RET_ENUM_NAME(kInvalid);
         default: return "(invalid term code)";
     }
@@ -3867,27 +3897,27 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
                 return 5;
             }
         }
-    }
 
-    // check video frames per second
-    long fps = sample->vstats.s.fps;
-    if (fps < 15)
-    {
-        if (fps < 3)
+        // check video frames per second
+        long fps = sample->vstats.s.fps;
+        if (fps < 15)
         {
-            return 0;
-        }
-        else if (fps < 5)
-        {
-            return 1;
-        }
-        else if (fps < 10)
-        {
-            return 2;
-        }
-        else
-        {
-            return 3;
+            if (fps < 3)
+            {
+                return 0;
+            }
+            else if (fps < 5)
+            {
+                return 1;
+            }
+            else if (fps < 10)
+            {
+                return 2;
+            }
+            else
+            {
+                return 3;
+            }
         }
     }
 

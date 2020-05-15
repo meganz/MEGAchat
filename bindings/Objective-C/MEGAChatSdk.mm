@@ -902,6 +902,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->setChatVideoInDevice(devices ? [devices UTF8String] : NULL);
 }
 
+- (NSString *)videoDeviceSelected {
+    return self.megaChatApi ? [[NSString alloc] initWithUTF8String:self.megaChatApi->getVideoDeviceSelected()] : nil;
+}
+
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->startChatCall(chatId, enableVideo, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
@@ -1222,8 +1226,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (NSInteger)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
-    return self.megaChatApi->loadAttachments(chatId, (int)count);
+- (MEGAChatSource)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
+    return MEGAChatSource(self.megaChatApi->loadAttachments(chatId, (int)count));
 }
 
 #pragma mark - Enumeration to NSString

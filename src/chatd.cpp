@@ -2960,8 +2960,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
 
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().myHandle(), time(NULL),
-        0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
-    message->backRefId = generateRefId(mCrypto);
+        0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp, generateRefId(mCrypto));
 
     auto wptr = weakHandle();
     SetOfIds recipients = mUsers;
@@ -3287,7 +3286,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     }
 
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age, newdata, newlen,
-        msg.isSending(), msg.keyid, newtype, userp);
+        msg.isSending(), msg.keyid, newtype, userp, msg.backRefId, msg.backRefs);
 
     auto wptr = weakHandle();
     marshallCall([wptr, this, upd, recipients]()
@@ -3311,6 +3310,16 @@ void Chat::msgImport(std::unique_ptr<Message> msg, bool isUpdate)
     else
     {
         msgIncoming(true, msg.release(), false);
+    }
+}
+
+void Chat::seenImport(Id lastSeenId)
+{
+    if (lastSeenId != mLastSeenId)
+    {
+        // false: avoid to resend the imported SEEN to chatd, since it
+        // is already known by server (it was received by the NSE)
+        onLastSeen(lastSeenId, false);
     }
 }
 
@@ -3410,7 +3419,7 @@ void Chat::rejoin()
     join();
 }
 
-void Chat::onLastSeen(Id msgid)
+void Chat::onLastSeen(Id msgid, bool resend)
 {
     Idx idx = CHATD_IDX_INVALID;
 
@@ -3448,7 +3457,7 @@ void Chat::onLastSeen(Id msgid)
         return; // we are up to date
     }
 
-    if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) // msgid is older than the locally seen pointer --> update chatd
+    if (resend && mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) // msgid is older than the locally seen pointer --> update chatd
     {
         // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
         CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
@@ -3586,6 +3595,7 @@ int Chat::unreadMsgCount() const
             count++;
         }
     }
+
     return count;
 }
 

@@ -393,6 +393,21 @@ int Client::importMessages(const char *externalDbPath)
         chatd::Chat &chat = chatroom->chat();
         karere::Id chatid = chatroom->chatid();
 
+        // get id of last message seen from external db
+        Id lastSeenId;
+        SqliteStmt stmtLastSeen(dbExternal, "select last_seen from chats where chatid=?");
+        stmtLastSeen << chatid;
+        if (stmtLastSeen.step())
+        {
+            lastSeenId = stmtLastSeen.uint64Col(0);
+            chat.seenImport(lastSeenId);
+        }
+        else    // no SEEN pointer for this chat on external cache (or chat not found)
+        {
+            KR_LOG_WARNING("importMessages: SEEN not imported becaus chatid not found in external db (chatid: %s)",
+                         chatid.toString().c_str());
+        }
+
         chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
         karere::Id newestAppMsgid(Id::inval());
         chatd::Message *newestAppMsg = nullptr;
@@ -3394,11 +3409,10 @@ void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status stat
 
 void ChatRoom::onUnreadChanged()
 {
-    auto count = mChat->unreadMsgCount();
     IApp::IChatListItem *room = roomGui();
     if (room)
     {
-        room->onUnreadCountChanged(count);
+        room->onUnreadCountChanged();
     }
 }
 
