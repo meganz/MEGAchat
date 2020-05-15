@@ -57,6 +57,15 @@ struct TurnServerInfo
                 url+=+":";
                 url+=std::to_string(port);
             }
+
+            const char* transport = nullptr;
+            SRVJSON_GET_OPTIONAL_PROP(transport, transport, String);
+            if (transport)
+            {
+                url+=+"?";
+                url+="transport=";
+                url+=transport;
+            }
         }
         SRVJSON_GET_OPTIONAL_PROP(user, user, String);
         SRVJSON_GET_OPTIONAL_PROP(pass, pass, String);
@@ -105,7 +114,16 @@ class StaticProvider: public ListProvider
 {
 protected:
 public:
+    StaticProvider()
+    {
+    }
+
     StaticProvider(const char* serversJson)
+    {
+        setServers(serversJson);
+    }
+
+    void setServers(const char* serversJson)
     {
         rapidjson::Document doc;
         doc.Parse(serversJson);
@@ -120,7 +138,6 @@ public:
         {
             KR_LOG_ERROR("Error to extract server form static ice-server list");
         }
-
     }
 };
 
@@ -198,7 +215,14 @@ public:
         : mApi(api), mService(service)
     {
     }
+
+    // true if still fetching servers from Gelb
+    bool busy() const
+    {
+        return mBusy;
+    }
 };
+
 }
 
 #endif

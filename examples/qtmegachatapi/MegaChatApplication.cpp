@@ -1056,6 +1056,13 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 break;
             }
+    case MegaChatRequest::TYPE_IMPORT_MESSAGES:
+        if (!error)
+        {
+            if (mMainWin)
+                mMainWin->reorderAppChatList();
+        }
+        break;
     default:
         break;
     }

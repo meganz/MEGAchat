@@ -46,6 +46,9 @@ const uint8_t kCallDataRinging = 1;
 
 #define CHATSTATS_PORT 0
 
+#define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
+#define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
+
 namespace chatd
 {
     class Connection;
@@ -440,6 +443,8 @@ public:
     virtual int numCalls() const = 0;
     virtual std::vector<karere::Id> chatsWithCall() const = 0;
     virtual void abortCallRetry(karere::Id chatid) = 0;
+    virtual void refreshTurnServerIp() = 0;
+    virtual void updateTurnServers() = 0;
 };
 IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
     IRtcCrypto* crypto, const char* iceServers);
