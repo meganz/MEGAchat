@@ -587,6 +587,8 @@ void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *rooms
         }
 
         mLastScsn = scsn;
+        std::vector<karere::Id> addPeerList;
+        std::vector<karere::Id> delPeerList;
 
         for (int i = 0; i < rooms->size(); i++)
         {
@@ -606,7 +608,7 @@ void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *rooms
                 {
                     uint64_t userid = peerList->getPeerHandle(j);
                     mChatMembers[chatid].insert(userid);
-                    addPeer(userid);
+                    addPeerList.emplace_back(userid);
                 }
             }
             else    // existing room
@@ -628,7 +630,7 @@ void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *rooms
                     if (!newPeerList.has(userid))
                     {
                         mChatMembers[chatid].erase(userid);
-                        removePeer(userid);
+                        delPeerList.emplace_back(userid);
                     }
                 }
 
@@ -639,12 +641,15 @@ void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *rooms
                     if (!oldPeerList.has(userid))
                     {
                         mChatMembers[chatid].insert(userid);
-                        addPeer(userid);
+                        addPeerList.emplace_back(userid);
                     }
                 }
             }
         }
 
+        // Send ADD/DELPEERS
+        addPeers(addPeerList);
+        removePeers(delPeerList);
     }, mKarereClient->appCtx);
 }
 
@@ -676,6 +681,8 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
         }
 
         mLastScsn = scsn;
+        std::vector<karere::Id> addPeerList;
+        std::vector<karere::Id> delPeerList;
 
         for (int i = 0; i < users->size(); i++)
         {
@@ -694,7 +701,7 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
                 mContacts[userid] = newVisibility;
                 if (newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
                 {
-                    addPeer(userid);
+                    addPeerList.emplace_back(userid);
                 }
             }
             else    // existing (ex)contact
@@ -705,15 +712,15 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
                 if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE) // user cancelled the account
                 {
                     mContacts.erase(it);
-                    removePeer(userid, true);
+                    delPeerList.emplace_back(userid);
                 }
                 else if (oldVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE && newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
                 {
-                    removePeer(userid, true);
+                    delPeerList.emplace_back(userid);
                 }
                 else if (oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
                 {
-                    addPeer(userid);
+                    addPeerList.emplace_back(userid);
 
                     // update mCurrentPeers's counter in order to consider groupchats. Otherwise, the count=1 will be zeroed if
                     // the user (now contact again) is removed from any groupchat, resulting in an incorrect DELPEERS
@@ -721,13 +728,16 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
                     {
                         if (it->second.has(userid))
                         {
-                            addPeer(userid);
+                            addPeerList.emplace_back(userid);
                         }
                     }
                 }
             }
         }
 
+        // Send ADD/DELPEERS
+        addPeers(addPeerList);
+        removePeers(delPeerList);
     }, mKarereClient->appCtx);
 }
 
