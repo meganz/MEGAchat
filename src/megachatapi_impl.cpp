@@ -4551,8 +4551,11 @@ void MegaChatApiImpl::onInitStateChange(int newState)
 
 void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, Message::Status status, Idx idx)
 {
-    if (megaApi->isChatNotifiable(chatid))
-     {
+    if (megaApi->isChatNotifiable(chatid)
+            && msg.userid != chatApi->getMyUserHandle()
+            && status == chatd::Message::kSeen  // received message from a peer changed to seen
+            && !msg.isEncrypted())  // messages can be "seen" while being decrypted
+    {
          MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
          fireOnChatNotification(chatid, message);
      }
@@ -6254,7 +6257,10 @@ void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status status,
     message->setStatus(status);
     fireOnMessageUpdate(message);
 
-    if (megaApi->isChatNotifiable(chatid) && msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    if (megaApi->isChatNotifiable(chatid)
+            && msg.userid != chatApi->getMyUserHandle()
+            && status == chatd::Message::kSeen  // received message from a peer changed to seen
+            && !msg.isEncrypted())  // messages can be "seen" while being decrypted
     {
         MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
         chatApiImpl->fireOnChatNotification(chatid, message);

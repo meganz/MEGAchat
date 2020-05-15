@@ -3386,10 +3386,7 @@ void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status status, const chatd::Message& msg)
 {
-    if (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
-    {
-        parent.mKarereClient.app.onChatNotification(mChatid, msg, status, idx);
-    }
+    parent.mKarereClient.app.onChatNotification(mChatid, msg, status, idx);
 }
 
 void ChatRoom::onUnreadChanged()
