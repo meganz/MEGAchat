@@ -1435,7 +1435,7 @@ void Client::setConnState(ConnState newState)
         }
     }
 }
-void Client::addPeer(karere::Id peer)
+void Client::addPeers(const std::vector<karere::Id> &peers)
 {
     if (mKarereClient->anonymousMode())
     {
@@ -1443,36 +1443,49 @@ void Client::addPeer(karere::Id peer)
         return;
     }
 
-    if (isExContact(peer))
+    std::vector<karere::Id> sendPeers;
+    for (size_t i = 0; i < peers.size(); i++)
     {
-        // Notify presence of non-contact that becomes contact again
-        Presence presence = peerPresence(peer);
-        if (presence.isValid())
+        const karere::Id &peer = peers.at(i);
+        if (isExContact(peer))
         {
-            CALL_LISTENER(onPresenceChange, peer, presence);
+            // Notify presence of non-contact that becomes contact again
+            Presence presence = peerPresence(peer);
+            if (presence.isValid())
+            {
+                CALL_LISTENER(onPresenceChange, peer, presence);
+            }
+
+            PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's ex-contact", peer.toString().c_str());
+            continue;
         }
 
-        PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's ex-contact", peer.toString().c_str());
+        assert(mLastScsn.isValid());
+
+        int result = mCurrentPeers.insert(peer);
+        if (result == 1) //refcount = 1, wasnt there before
+        {
+            sendPeers.emplace_back(peer);
+        }
+    }
+
+    if (sendPeers.empty())
+    {
         return;
     }
 
-    assert(mLastScsn.isValid());
-
-    int result = mCurrentPeers.insert(peer);
-    if (result == 1) //refcount = 1, wasnt there before
+    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + (sendPeers.size() * sizeof(uint64_t));
+    Command cmd(OP_SNADDPEERS, static_cast<uint8_t>(totalSize));
+    cmd.append<uint64_t>(mLastScsn.val);
+    cmd.append<uint32_t>(static_cast<uint32_t>(sendPeers.size()));
+    for (size_t i = 0; i < sendPeers.size(); i++)
     {
-        size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
-
-        Command cmd(OP_SNADDPEERS, totalSize);
-        cmd.append<uint64_t>(mLastScsn.val);
-        cmd.append<uint32_t>(1);
-        cmd.append<uint64_t>(peer.val);
-
-        sendCommand(std::move(cmd));
+        cmd.append<uint64_t>(sendPeers.at(i).val);
     }
+    sendCommand(std::move(cmd));
 }
 
-void Client::removePeer(karere::Id peer, bool force)
+void Client::removePeers(const std::vector<karere::Id> &peers, bool force)
 {
     if (mKarereClient->anonymousMode())
     {
@@ -1482,44 +1495,55 @@ void Client::removePeer(karere::Id peer, bool force)
 
     assert(mLastScsn.isValid());
 
-    auto it = mCurrentPeers.find(peer);
-    if (it == mCurrentPeers.end())
+    std::vector<karere::Id> sendPeers;
+    for (size_t i = 0; i < peers.size(); i++)
     {
-        PRESENCED_LOG_WARNING("removePeer: Unknown peer %s", peer.toString().c_str());
-        return;
-    }
-    if (--it->second > 0)
-    {
-        if (!force)
+        karere::Id peer = peers.at(i);
+        auto it = mCurrentPeers.find(peer);
+        if (it == mCurrentPeers.end())
         {
-            PRESENCED_LOG_DEBUG("removePeer: decremented number of references for peer %s", peer.toString().c_str());
+            PRESENCED_LOG_WARNING("removePeer: Unknown peer %s", peer.toString().c_str());
             return;
         }
-        else
+        if (--it->second > 0)
         {
-            PRESENCED_LOG_DEBUG("removePeer: Forcing delete of peer %s with refcount > 0", ID_CSTR(peer));
+            if (!force)
+            {
+                PRESENCED_LOG_DEBUG("removePeer: decremented number of references for peer %s", peer.toString().c_str());
+                return;
+            }
+            else
+            {
+                PRESENCED_LOG_DEBUG("removePeer: Forcing delete of peer %s with refcount > 0", ID_CSTR(peer));
+            }
         }
+        else //refcount reched zero
+        {
+            assert(it->second == 0);
+        }
+
+        mCurrentPeers.erase(it);
+
+        // Remove peer from mPeersLastGreen map if exists
+        mPeersLastGreen.erase(peer.val);
+        sendPeers.emplace_back(peer.val);
+        updatePeerPresence(peer, Presence::kUnknown);
     }
-    else //refcount reched zero
+
+    if (sendPeers.empty())
     {
-        assert(it->second == 0);
+        return;
     }
 
-    mCurrentPeers.erase(it);
-
-    // Remove peer from mPeersLastGreen map if exists
-    mPeersLastGreen.erase(peer.val);
-
-
-    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
-
-    Command cmd(OP_SNDELPEERS, totalSize);
+    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + (sendPeers.size() * sizeof(uint64_t));
+    Command cmd(OP_SNDELPEERS, static_cast<uint8_t>(totalSize));
     cmd.append<uint64_t>(mLastScsn.val);
-    cmd.append<uint32_t>(1);
-    cmd.append<uint64_t>(peer.val);
-
+    cmd.append<uint32_t>(static_cast<uint32_t>(sendPeers.size()));
+    for (size_t i = 0; i < sendPeers.size(); i++)
+    {
+        cmd.append<uint64_t>(sendPeers.at(i).val);
+    }
     sendCommand(std::move(cmd));
-    updatePeerPresence(peer, Presence::kUnknown);
 }
 
 void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)

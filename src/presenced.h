@@ -436,8 +436,8 @@ protected:
     void configChanged();
 
     // peers management
-    void addPeer(karere::Id peer);
-    void removePeer(karere::Id peer, bool force=false);
+    void addPeers(const std::vector<karere::Id> &peers);
+    void removePeers(const std::vector<karere::Id> &peers, bool force=false);
     void pushPeers();
     bool isExContact(uint64_t userid);
     bool isContact(uint64_t userid);
