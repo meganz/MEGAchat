@@ -2832,9 +2832,9 @@ void MegaChatApiTest::TEST_RetentionHistory(unsigned int a1, unsigned int a2)
 
     // Check history has 5 messages + setRetentionTime management message
     int count = loadHistory(a1, chatid, chatroomListener);
-    ASSERT_CHAT_TEST(count == 6, "Wrong count of messages: " + std::to_string(count));
+    ASSERT_CHAT_TEST(count == 6 || count == 7, "Wrong count of messages: " + std::to_string(count));
     count = loadHistory(a2, chatid, chatroomListener);
-    ASSERT_CHAT_TEST(count == 6, "Wrong count of messages: " + std::to_string(count));
+    ASSERT_CHAT_TEST(count == 6 || count == 7, "Wrong count of messages: " + std::to_string(count));
 
     // Close the chatrooms
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
