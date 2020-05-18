@@ -596,7 +596,11 @@ public:
 
         if (sqlite3_column_type(stmt, 0) != SQLITE_NULL)
         {
-           limitIdx = stmt.intCol(1);
+            limitIdx = stmt.intCol(1);
+        }
+        else
+        {
+            limitIdx = CHATD_IDX_INVALID;
         }
     }
 
