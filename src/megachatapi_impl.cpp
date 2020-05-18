@@ -1077,6 +1077,14 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_GET_FIRSTNAME:
         {
+            // if the app requested user attributes too early (ie. init with sid but without cache),
+            // the cache will not be ready yet. It needs to wait for fetchnodes to complete.
+            if (!mClient->isUserAttrCacheReady())
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             MegaChatHandle uh = request->getUserHandle();
             const char* publicHandle = request->getLink();
             MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
@@ -1100,6 +1108,14 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_GET_LASTNAME:
         {
+            // if the app requested user attributes too early (ie. init with sid but without cache),
+            // the cache will not be ready yet. It needs to wait for fetchnodes to complete.
+            if (!mClient->isUserAttrCacheReady())
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             MegaChatHandle uh = request->getUserHandle();
             const char* publicHandle = request->getLink();
             MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
@@ -1123,8 +1139,15 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_GET_EMAIL:
         {
-            MegaChatHandle uh = request->getUserHandle();
+            // if the app requested user attributes too early (ie. init with sid but without cache),
+            // the cache will not be ready yet. It needs to wait for fetchnodes to complete.
+            if (!mClient->isUserAttrCacheReady())
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
 
+            MegaChatHandle uh = request->getUserHandle();
             mClient->userAttrCache().getAttr(uh, karere::USER_ATTR_EMAIL)
             .then([request, this](Buffer *data)
             {
@@ -1768,6 +1791,7 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+
         case MegaChatRequest::TYPE_IMPORT_MESSAGES:
         {
             if (mClient->initState() != karere::Client::kInitHasOfflineSession
