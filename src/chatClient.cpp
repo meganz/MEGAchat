@@ -3368,6 +3368,7 @@ void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx 
 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
 {
+    // truncate can be received as NEWMSG when the `msgid` is new for the client (later on the MSGUPD is also received)
     if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
          || (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
     {
@@ -3406,8 +3407,6 @@ void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
     chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
 
-    //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
-    // and, if so, remove the block from `onRecvNewMessage()`
     if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
          || (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
     {
@@ -3417,7 +3416,8 @@ void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status status, const chatd::Message& msg)
 {
-    if (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    if (msg.userid != parent.mKarereClient.myHandle()
+            && status == chatd::Message::kSeen)  // received message from a peer changed to seen
     {
         parent.mKarereClient.app.onChatNotification(mChatid, msg, status, idx);
     }
