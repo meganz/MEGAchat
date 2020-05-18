@@ -891,7 +891,7 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     if (notificationSettings)
     {
         actDoNotDisturb->setCheckable(true);
-        actDoNotDisturb->setChecked(!notificationSettings->isChatEnabled(mChatRoom->getChatId()));
+        actDoNotDisturb->setChecked(notificationSettings->isChatDndEnabled(mChatRoom->getChatId()));
     }
     else
     {

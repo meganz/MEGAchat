@@ -33,13 +33,6 @@
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_4">
             <item>
-             <widget class="QCheckBox" name="chats">
-              <property name="text">
-               <string>Chats</string>
-              </property>
-             </widget>
-            </item>
-            <item>
              <widget class="QCheckBox" name="pcr">
               <property name="text">
                <string>Pending contact request</string>
@@ -53,12 +46,66 @@
               </property>
              </widget>
             </item>
+			<item>
+             <layout class="QHBoxLayout" name="horizontalLayoutc">
+              <item>
+               <widget class="QLabel" name="labelc">
+                <property name="text">
+                 <string>Global chat notifications enabled</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="globalChatNotificationsEnabled">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacerc">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="labelc">
+                <property name="text">
+                 <string>Do not disturb period(s):</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="globalChatDnd"/>
+              </item>
+              <item>
+               <spacer name="horizontalSpacerc">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
             <item>
              <layout class="QHBoxLayout" name="horizontalLayout_2">
               <item>
                <widget class="QLabel" name="label_4">
                 <property name="text">
-                 <string>Global notifications enabled</string>
+                 <string>Global notifications enabled        </string>
                 </property>
                </widget>
               </item>
