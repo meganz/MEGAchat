@@ -1059,7 +1059,7 @@ void Connection::heartbeat()
             }
 
             Message &msg = chat.at(chat.mOldestIdxInDb);
-            if (msg.ts <= now - chat.getRetentionTime())
+            if (msg.ts < now - chat.getRetentionTime())
             {
                 chat.handleRetentionTime();
             }
