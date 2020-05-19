@@ -331,6 +331,8 @@ void MegaChatApiTest::SetUp()
         initState[i] = -1;
         mChatConnectionOnline[i] = false;
         mLoggedInAllChats[i] = false;
+        mChatsUpdated[i] = false;
+        mChatListUpdated[i].clear();
         lastError[i] = -1;
         lastErrorChat[i] = -1;
         lastErrorMsgChat[i].clear();
@@ -1178,6 +1180,8 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatLeft0 = &chatroomListener->chatUpdated[a1]; *chatLeft0 = false;
     bool *chatLeft1 = &chatroomListener->chatUpdated[a2]; *chatLeft1 = false;
     bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    bool *flagChatsUpdated1 = &mChatsUpdated[a2]; *flagChatsUpdated1 = false;
+    mChatListUpdated[a2].clear();
     MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[a1]->removeFromChat(chatid, uh);
@@ -1186,8 +1190,16 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Failed to receive management message " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RM, "Privilege is incorrect");
+    ASSERT_CHAT_TEST(waitForResponse(flagChatsUpdated1), "Failed to receive onChatsUpdate " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(isChatroomUpdated(a2, chatid), "Chatroom " + std::to_string(chatid) + " is not included in onChatsUpdate");
+    mChatListUpdated[a2].clear();
 
-    MegaChatRoom *chatroom = megaChatApi[a1]->getChatRoom(chatid);
+    MegaChatRoom *chatroom = megaChatApi[a2]->getChatRoom(chatid);
+    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
+    ASSERT_CHAT_TEST(chatroom->getOwnPrivilege() == MegaChatRoom::PRIV_RM, "Invalid own privilege expected(PRIV_RM), current(" + std::to_string(chatroom->getOwnPrivilege())+ ")");
+    delete chatroom;
+
+    chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
     ASSERT_CHAT_TEST(chatroom->getPeerCount() == 0, "Wrong number of peers in chatroom" + std::to_string(chatid));
     delete chatroom;
@@ -1212,6 +1224,8 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
     bool *chatJoined0 = &chatroomListener->chatUpdated[a1]; *chatJoined0 = false;
     bool *chatJoined1 = &chatroomListener->chatUpdated[a2]; *chatJoined1 = false;
+    *flagChatsUpdated1 = &mChatsUpdated[a2]; *flagChatsUpdated1 = false;
+    mChatListUpdated[a2].clear();
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
@@ -1225,6 +1239,14 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Management message not received after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_UNKNOWN, "Privilege is incorrect");    // the message doesn't report the new priv
+    ASSERT_CHAT_TEST(waitForResponse(flagChatsUpdated1), "Failed to receive onChatsUpdate " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(isChatroomUpdated(a2, chatid), "Chatroom " + std::to_string(chatid) + " is not included in onChatsUpdate");
+    mChatListUpdated[a2].clear();
+
+    chatroom = megaChatApi[a2]->getChatRoom(chatid);
+    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
+    ASSERT_CHAT_TEST(chatroom->getOwnPrivilege() == MegaChatRoom::PRIV_STANDARD, "Invalid own privilege expected(PRIV_RM), current(" + std::to_string(chatroom->getOwnPrivilege())+ ")");
+    delete chatroom;
 
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
@@ -3542,7 +3564,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     loadHistory(a2, chatid, chatroomListener);
 
     // Send message with url
-    std::string messageToSend = "www.mega.nz";
+    std::string messageToSend = "http://mega.nz";
     bool *msgEdited1 = &chatroomListener->msgEdited[a1]; *msgEdited1 = false;
     bool *msgEdited2 = &chatroomListener->msgEdited[a2]; *msgEdited1 = false;
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
@@ -3642,6 +3664,18 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
 
     delete mContactRequest[a2];
     mContactRequest[a2] = NULL;
+}
+
+bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chatid)
+{
+    for (auto &auxchatid: mChatListUpdated[index])
+    {
+       if (auxchatid == chatid)
+       {
+           return true;
+       }
+    }
+    return false;
 }
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
@@ -4316,6 +4350,21 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
     requestFlags[apiIndex][request->getType()] = true;
 }
 
+void MegaChatApiTest::onChatsUpdate(MegaApi* api, MegaTextChatList *chats)
+{
+    if (!chats)
+    {
+        return;
+    }
+
+    unsigned int apiIndex = getMegaApiIndex(api);
+    mChatsUpdated[apiIndex] = true;
+    for (int i = 0; i < chats->size(); i++)
+    {
+         mChatListUpdated[apiIndex].emplace_back(chats->get(i)->getHandle());
+    }
+}
+
 void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestList* /*requests*/)
 {
     unsigned int apiIndex = getMegaApiIndex(api);
@@ -4751,7 +4800,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
     msgId[apiIndex].push_back(msg->getMsgId());
 
-    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_STATUS)
+    if (msg->hasChanged(MegaChatMessage::CHANGE_TYPE_STATUS))
     {
         if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
         {
@@ -4764,7 +4813,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
         }
     }
 
-    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_CONTENT && msg->isEdited())
+    if (msg->hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT) && msg->isEdited())
     {
         mEditedMessageHandle[apiIndex] = msg->getMsgId();
         msgEdited[apiIndex] = true;

@@ -139,6 +139,9 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
+    /** @brief Returns the creation timestamp of the chatroom */
+    int64_t getCreationTs() const { return mCreationTs; }
+
     bool isCallActive() const;
 
     /** @brief The chatd shart number for that chatroom */
@@ -485,7 +488,6 @@ protected:
     std::string mName;
     int mVisibility;
     bool mIsInitializing = true;
-    void updateTitle(const std::string& str);
     void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
@@ -536,6 +538,9 @@ public:
 
     /** @brief Set the full name of this contact */
     void setContactName(std::string name);
+
+    /** @brief Set the title of this contact */
+    void updateTitle(const std::string& str);
 
     /** @brief Returns the full name of this contact */
     std::string getContactName();
@@ -947,6 +952,7 @@ public:
     const std::string& myEmail() const { return mMyEmail; }
     uint64_t myIdentity() const { return mMyIdentity; }
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
+    bool isUserAttrCacheReady() const { return mUserAttrCache.get(); }
 
     ConnState connState() const { return mConnState; }
     bool connected() const { return mConnState == kConnected; }
@@ -1095,7 +1101,15 @@ public:
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title = NULL);
     void setCommitMode(bool commitEach);
+    bool commitEach();
     void saveDb();  // forces a commit
+
+    /**
+     * @brief Import messages from external DB
+     * @param externalDbPath Path of the DB to open
+     * @return Number of messages added/updated. If error, -1.
+     */
+    int importMessages(const char *externalDbPath);
 
     /** @brief There is a call active in the chatroom*/
     bool isCallActive(karere::Id chatid = karere::Id::inval()) const;

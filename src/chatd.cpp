@@ -1217,8 +1217,8 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id chatid = data.read<uint64_t>(1);
-            karere::Id oldestMsgid = data.read<uint64_t>(7);
-            karere::Id newestId = data.read<uint64_t>(15);
+            karere::Id oldestMsgid = data.read<uint64_t>(9);
+            karere::Id newestId = data.read<uint64_t>(17);
 
             tmpString.append("JOINRANGEHIST chatid: ");
             tmpString.append(chatid.toString());
@@ -1371,7 +1371,6 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(newestId.toString());
             return tmpString;
         }
-
 
 #ifndef KARERE_DISABLE_WEBRTC
         case OP_RTMSG_ENDPOINT:
@@ -2346,6 +2345,24 @@ void Connection::execCommand(const StaticBuffer& buf)
                 chat.onPreviewersUpdate(count);
                 break;
             }
+            case OP_MSGIDTIMESTAMP:
+            {
+                READ_ID(msgxid, 0);
+                READ_ID(msgid, 8);
+                READ_32(timestamp, 16);
+                CHATDS_LOG_DEBUG("recv MSGIDTIMESTAMP: '%s' -> '%s'  %d", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
+                mChatdClient.onMsgAlreadySent(msgxid, msgid);
+                break;
+            }
+            case OP_NEWMSGIDTIMESTAMP:
+            {
+                READ_ID(msgxid, 0);
+                READ_ID(msgid, 8);
+                READ_32(timestamp, 16);
+                CHATDS_LOG_DEBUG("recv NEWMSGIDTIMESTAMP: '%s' -> '%s'   %d", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
+                mChatdClient.msgConfirm(msgxid, msgid, timestamp);
+                break;
+            }
             default:
             {
                 CHATDS_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
@@ -2478,8 +2495,6 @@ void Chat::onFetchHistDone()
             //server. Tell app that is complete.
             CALL_LISTENER(onHistoryDone, kHistSourceServer);
         }
-        if (mLastSeenIdx == CHATD_IDX_INVALID)
-            CALL_LISTENER(onUnreadChanged);
     }
 
     // handle last text message fetching
@@ -2989,8 +3004,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
 
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().myHandle(), time(NULL),
-        0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
-    message->backRefId = generateRefId(mCrypto);
+        0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp, generateRefId(mCrypto));
 
     auto wptr = weakHandle();
     SetOfIds recipients = mUsers;
@@ -3294,7 +3308,6 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             SendingItem &item = it;
             if (item.msg->id() == msg.id())
             {
-                item.msg->updated = age;
                 item.msg->assign((void*)newdata, newlen);
                 count++;
             }
@@ -3316,7 +3329,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     }
 
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age, newdata, newlen,
-        msg.isSending(), msg.keyid, newtype, userp);
+        msg.isSending(), msg.keyid, newtype, userp, msg.backRefId, msg.backRefs);
 
     auto wptr = weakHandle();
     marshallCall([wptr, this, upd, recipients]()
@@ -3324,11 +3337,53 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         if (wptr.deleted())
             return;
 
+        Id lastMsgId = mLastTextMsg.idx() == CHATD_IDX_INVALID
+                ? mLastTextMsg.xid()
+                : mLastTextMsg.id();
+
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd, recipients);
+        if (lastMsgId == upd->id())
+        {
+            if (upd->isValidLastMessage())
+            {
+                onLastTextMsgUpdated(*upd, msgIndexFromId(upd->id()));
+            }
+            else //our last text msg is not valid anymore, find another one
+            {
+                findAndNotifyLastTextMsg();
+            }
+        }
 
     }, mChatdClient.mKarereClient->appCtx);
 
     return upd;
+}
+
+void Chat::msgImport(std::unique_ptr<Message> msg, bool isUpdate)
+{
+    if (isUpdate)
+    {
+        onMsgUpdated(msg.release());
+    }
+    else
+    {
+        msgIncoming(true, msg.release(), false);
+    }
+}
+
+void Chat::seenImport(Id lastSeenId)
+{
+    if (lastSeenId != mLastSeenId)
+    {
+        // false: avoid to resend the imported SEEN to chatd, since it
+        // is already known by server (it was received by the NSE)
+        onLastSeen(lastSeenId, false);
+    }
+}
+
+void Chat::keyImport(KeyId keyid, Id userid, const char *key, uint16_t keylen)
+{
+    CALL_CRYPTO(onKeyReceived, keyid, userid, mChatdClient.myHandle(), key, keylen, false);
 }
 
 void Chat::onLastReceived(Id msgid)
@@ -3422,7 +3477,7 @@ void Chat::rejoin()
     join();
 }
 
-void Chat::onLastSeen(Id msgid)
+void Chat::onLastSeen(Id msgid, bool resend)
 {
     Idx idx = CHATD_IDX_INVALID;
 
@@ -3460,7 +3515,7 @@ void Chat::onLastSeen(Id msgid)
         return; // we are up to date
     }
 
-    if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) // msgid is older than the locally seen pointer --> update chatd
+    if (resend && mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) // msgid is older than the locally seen pointer --> update chatd
     {
         // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
         CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
@@ -3598,6 +3653,7 @@ int Chat::unreadMsgCount() const
             count++;
         }
     }
+
     return count;
 }
 
@@ -3701,12 +3757,12 @@ Id Client::chatidFromPh(Id ph)
     return chatid;
 }
 
-void Client::msgConfirm(Id msgxid, Id msgid)
+void Client::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
 {
     // TODO: maybe it's more efficient to keep a separate mapping of msgxid to messages?
     for (auto& chat: mChatForChatId)
     {
-        if (chat.second->msgConfirm(msgxid, msgid) != CHATD_IDX_INVALID)
+        if (chat.second->msgConfirm(msgxid, msgid, timestamp) != CHATD_IDX_INVALID)
             return;
     }
     CHATD_LOG_DEBUG("msgConfirm: No chat knows about message transaction id %s", ID_CSTR(msgxid));
@@ -3779,7 +3835,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 }
 
 // msgid can be 0 in case of rejections
-Idx Chat::msgConfirm(Id msgxid, Id msgid)
+Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
 {
     Message* msg = msgRemoveFromSending(msgxid, msgid);
     if (!msg)
@@ -3789,6 +3845,14 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
     // update msgxid to msgid
     msg->setId(msgid, false);
+
+    bool tsUpdated = false;
+    if (timestamp != 0)
+    {
+        msg->ts = timestamp;
+        tsUpdated = true;
+        CHATID_LOG_DEBUG("Message timestamp has been updated in confirmation");
+    }
 
     // the keyid should be already confirmed by this time
     assert(!msg->isLocalKeyid());
@@ -3800,6 +3864,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     {
         mAttachmentNodes->addMessage(*msg, true, false);
     }
+
     CALL_DB(addMsgToHistory, *msg, idx);
     mOldestIdxInDb = mDbInterface->getOldestIdx();
 
@@ -3828,7 +3893,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         CHATD_LOG_DEBUG("msgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%u to msgid=%u of %d message/s in the sending queue", msgxid, msgid, count);
     }
 
-    CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
+    CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx, tsUpdated);
 
     // if first message is own msg we need to init mNextHistFetchIdx to avoid loading own messages twice
     if (mNextHistFetchIdx == CHATD_IDX_INVALID && size() == 1)
@@ -4025,6 +4090,14 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             mSending.erase(erased);
         }
     }
+
+    // in case of imported messages, they can be decrypted already
+    if (!cipherMsg->isEncrypted())
+    {
+        onMsgUpdatedAfterDecrypt(updateTs, richLinkRemoved, cipherMsg);
+        return;
+    }
+
     mCrypto->msgDecrypt(cipherMsg)
     .fail([this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
@@ -4068,130 +4141,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     })
     .then([this, updateTs, richLinkRemoved](Message* msg)
     {
-        assert(!msg->isPendingToDecrypt()); //either decrypted or error
-        if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
-        {
-            if (msg->dataSize() < 2)
-                CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
-            else
-                msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
-        }
-
-        //update in memory, if loaded
-        auto msgit = mIdToIndexMap.find(msg->id());
-        Idx idx;
-        if (msgit != mIdToIndexMap.end())   // message is loaded in RAM
-        {
-            idx = msgit->second;
-            auto& histmsg = at(idx);
-            unsigned char histType = histmsg.type;
-
-            if ( (msg->type == Message::kMsgTruncate
-                  && histmsg.type == msg->type
-                  && histmsg.ts == msg->ts)
-                    || (msg->type != Message::kMsgTruncate
-                        && histmsg.updated == msg->updated) )
-            {
-                CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
-                delete msg;
-                return;
-            }
-
-            if (!msg->empty() && msg->type == Message::kMsgNormal
-                             && !richLinkRemoved        // user have not requested to remove rich-link preview (generate it)
-                             && updateTs && (updateTs == msg->updated)) // message could have been updated by another client earlier/later than our update's attempt
-            {
-                if (client().richLinkState() == Client::kRichLinkEnabled)
-                {
-                    requestRichLink(*msg);
-                }
-                else if (mChatdClient.richLinkState() == Client::kRichLinkNotDefined)
-                {
-                    manageRichLinkMessage(*msg);
-                }
-            }
-
-            //update in db
-            CALL_DB(updateMsgInHistory, msg->id(), *msg);
-
-            // update in RAM
-            histmsg.assign(*msg);     // content
-            histmsg.updated = msg->updated;
-            histmsg.type = msg->type;
-            histmsg.userid = msg->userid;
-            histmsg.setEncrypted(msg->isEncrypted());
-            if (msg->type == Message::kMsgTruncate)
-            {
-                histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
-                histmsg.keyid = msg->keyid;
-            }
-
-            if (idx > mNextHistFetchIdx)
-            {
-                // msg.ts is zero - chatd doesn't send the original timestamp
-                CALL_LISTENER(onMessageEdited, histmsg, idx);
-            }
-            else
-            {
-                CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
-            }
-
-            if (msg->isDeleted())
-            {
-                if (!msg->isOwnMessage(client().myHandle()))
-                {
-                    CALL_LISTENER(onUnreadChanged);
-                }
-
-                if (histType == Message::kMsgAttachment)
-                {
-                    mAttachmentNodes->deleteMessage(*msg);
-                }
-
-                // Clean message reactions
-                msg->cleanReactions();
-                CALL_DB(cleanReactions, msg->id());
-            }
-
-            if (msg->type == Message::kMsgTruncate)
-            {
-                handleTruncate(*msg, idx);
-            }
-
-            if (mLastTextMsg.idx() == idx) //last text msg stuff
-            {
-                //our last text message was edited
-                if (histmsg.isValidLastMessage()) //same message, but with updated contents
-                {
-                    onLastTextMsgUpdated(histmsg, idx);
-                }
-                else //our last text msg is not valid anymore, find another one
-                {
-                    findAndNotifyLastTextMsg();
-                }
-            }
-        }
-        else    // message not loaded in RAM
-        {
-            CHATID_LOG_DEBUG("onMsgUpdated(): update for message not loaded");
-
-            // check if message in DB is outdated
-            uint16_t delta = 0;
-            CALL_DB(getMessageDelta, msg->id(), &delta);
-
-            if (delta < msg->updated)
-            {
-                //update in db
-                CALL_DB(updateMsgInHistory, msg->id(), *msg);
-            }
-
-            if (msg->isDeleted()) // previous type is unknown, so cannot check for attachment type here
-            {
-                mAttachmentNodes->deleteMessage(*msg);
-            }
-        }
-
-        delete msg;
+        onMsgUpdatedAfterDecrypt(updateTs, richLinkRemoved, msg);
     })
     .fail([this, cipherMsg](const ::promise::Error& err)
     {
@@ -4210,6 +4160,134 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             delete cipherMsg;
         }
     });
+}
+
+void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Message* msg)
+{
+    assert(!msg->isPendingToDecrypt()); //either decrypted or error
+    if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
+    {
+        if (msg->dataSize() < 2)
+            CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
+        else
+            msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
+    }
+
+    //update in memory, if loaded
+    auto msgit = mIdToIndexMap.find(msg->id());
+    Idx idx;
+    if (msgit != mIdToIndexMap.end())   // message is loaded in RAM
+    {
+        idx = msgit->second;
+        auto& histmsg = at(idx);
+        unsigned char histType = histmsg.type;
+
+        if ( (msg->type == Message::kMsgTruncate
+              && histmsg.type == msg->type
+              && histmsg.ts == msg->ts)
+                || (msg->type != Message::kMsgTruncate
+                    && histmsg.updated == msg->updated) )
+        {
+            CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
+            delete msg;
+            return;
+        }
+
+        if (!msg->empty() && msg->type == Message::kMsgNormal
+                         && !richLinkRemoved        // user have not requested to remove rich-link preview (generate it)
+                         && updateTs && (updateTs == msg->updated)) // message could have been updated by another client earlier/later than our update's attempt
+        {
+            if (client().richLinkState() == Client::kRichLinkEnabled)
+            {
+                requestRichLink(*msg);
+            }
+            else if (mChatdClient.richLinkState() == Client::kRichLinkNotDefined)
+            {
+                manageRichLinkMessage(*msg);
+            }
+        }
+
+        //update in db
+        CALL_DB(updateMsgInHistory, msg->id(), *msg);
+
+        // update in RAM
+        histmsg.assign(*msg);     // content
+        histmsg.updated = msg->updated;
+        histmsg.type = msg->type;
+        histmsg.userid = msg->userid;
+        histmsg.setEncrypted(msg->isEncrypted());
+        if (msg->type == Message::kMsgTruncate)
+        {
+            histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
+            histmsg.keyid = msg->keyid;
+        }
+
+        if (idx > mNextHistFetchIdx)
+        {
+            // msg.ts is zero - chatd doesn't send the original timestamp
+            CALL_LISTENER(onMessageEdited, histmsg, idx);
+        }
+        else
+        {
+            CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
+        }
+
+        if (msg->isDeleted())
+        {
+            if (!msg->isOwnMessage(client().myHandle()))
+            {
+                CALL_LISTENER(onUnreadChanged);
+            }
+
+            if (histType == Message::kMsgAttachment)
+            {
+                mAttachmentNodes->deleteMessage(*msg);
+            }
+
+            // Clean message reactions
+            msg->cleanReactions();
+            CALL_DB(cleanReactions, msg->id());
+        }
+
+        if (msg->type == Message::kMsgTruncate)
+        {
+            handleTruncate(*msg, idx);
+        }
+
+        if (mLastTextMsg.idx() == idx) //last text msg stuff
+        {
+            //our last text message was edited
+            if (histmsg.isValidLastMessage()) //same message, but with updated contents
+            {
+                onLastTextMsgUpdated(histmsg, idx);
+            }
+            else //our last text msg is not valid anymore, find another one
+            {
+                findAndNotifyLastTextMsg();
+            }
+        }
+    }
+    else    // message not loaded in RAM
+    {
+        CHATID_LOG_DEBUG("onMsgUpdated(): update for message not loaded");
+
+        // check if message in DB is outdated
+        uint16_t delta = 0;
+        CALL_DB(getMessageDelta, msg->id(), &delta);
+
+        if (delta < msg->updated)
+        {
+            //update in db
+            CALL_DB(updateMsgInHistory, msg->id(), *msg);
+        }
+
+        if (msg->isDeleted()) // previous type is unknown, so cannot check for attachment type here
+        {
+            mAttachmentNodes->deleteMessage(*msg);
+        }
+    }
+
+    delete msg;
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
 {
@@ -4603,8 +4681,15 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         }
         return true;    // decrypt was not done immediately, but none checks the returned value in this codepath
     }
-    else
+    else    // (isLocal == false)
     {
+        // in case of imported messages, they can be decrypted already
+        if (!msg.isEncrypted())
+        {
+            msgIncomingAfterDecrypt(isNew, false, msg, idx);
+            return true;
+        }
+
         assert(msg.isPendingToDecrypt()); //no decrypt attempt was made
     }
 
@@ -5469,6 +5554,8 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(NUMBYHANDLE);
         RET_ENUM_NAME(HANDLELEAVE);
         RET_ENUM_NAME(REACTIONSN);
+        RET_ENUM_NAME(MSGIDTIMESTAMP);
+        RET_ENUM_NAME(NEWMSGIDTIMESTAMP);
         default: return "(invalid opcode)";
     };
 }

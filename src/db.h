@@ -65,6 +65,13 @@ public:
             return false;
         }
 
+        if (sqlite3_exec(mDb, "PRAGMA journal_mode = WAL;", nullptr, nullptr, nullptr) != SQLITE_OK)
+        {
+            sqlite3_close(mDb);
+            mDb = nullptr;
+            return false;
+        }
+
         mCommitEach = commitEach;
         if (!mCommitEach)
         {
@@ -99,6 +106,7 @@ public:
             beginTransaction();
         }
     }
+    bool commitEach() { return mCommitEach; }   // false for transactional
     void setCommitInterval(uint16_t sec) { mCommitInterval = sec; }
     bool hasOpenTransaction() const { return !mHasOpenTransaction; }
     operator sqlite3*() { return mDb; }

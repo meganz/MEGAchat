@@ -69,7 +69,7 @@ RtMessage::RtMessage(chatd::Chat &aChat, const StaticBuffer& msg)
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto* crypto, const char* iceServers)
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
-  mStaticIceSever(iceServers),
+  mStaticIceServers(iceServers),
   mIceServerProvider(client.api, "turn"),
   mManager(*this)
 {
@@ -87,15 +87,66 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 
 void RtcModule::init()
 {
-    StaticProvider iceServerStatic(mStaticIceSever);
-    setIceServers(iceServerStatic);
+    // set cached ICE servers, or static/hardcoded if not available
+    StaticProvider iceServersStatic;
+    string jsonCachedTurnServers = getCachedTurnServers();
+    if (jsonCachedTurnServers.size())
+    {
+        iceServersStatic.setServers(jsonCachedTurnServers.c_str());
+    }
+    else
+    {
+        iceServersStatic.setServers(mStaticIceServers);
+    }
+    setIceServers(iceServersStatic);
+
+    // fetch ICE servers URLs from Load Balancer (GeLB)
     auto wptr = weakHandle();
     mIceServerProvider.fetchServers()
     .then([wptr, this]()
     {
         if (wptr.deleted())
             return;
-        setIceServers(mIceServerProvider);
+
+        // replace cache ICE servers URLs with received ones
+        int shard = TURNSERVER_SHARD;
+        for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
+        {
+            std::string fullUrl = serverInfo->url;
+            if (fullUrl.size())
+            {
+                // Example: "turn:example.url.co:3478?transport=udp"
+                size_t posInitialColon = fullUrl.find(":") + 1;
+                std::string urlString = fullUrl.substr(posInitialColon, fullUrl.size() - posInitialColon);
+                karere::Url url(urlString);
+
+                if (!mKarereClient.mDnsCache.isValidUrl(shard) || url != mKarereClient.mDnsCache.getUrl(shard))
+                {
+                    if (mKarereClient.mDnsCache.isValidUrl(shard))
+                    {
+                        mKarereClient.mDnsCache.removeRecord(shard);
+                    }
+
+                    mKarereClient.mDnsCache.addRecord(shard, urlString);
+                }
+
+                shard--;
+            }
+        }
+
+        // discard any obsolete cached URL (not returned by GeLB)
+        int maxShard = TURNSERVER_SHARD - MAX_TURN_SERVERS;
+        while (mKarereClient.mDnsCache.isValidUrl(shard) && shard > maxShard)
+        {
+            mKarereClient.mDnsCache.removeRecord(shard);
+            shard--;
+        }
+
+        // finally, update the IPs corresponding to the received URLs
+        if (mIceServerProvider.size())
+        {
+            refreshTurnServerIp();
+        }
     })
     .fail([](const ::promise::Error& err)
     {
@@ -150,6 +201,75 @@ void RtcModule::removeCallRetry(karere::Id chatid, bool retry)
     }
 
     mRetryCall.erase(chatid);
+}
+
+string RtcModule::getCachedTurnServers()
+{
+    int i = 0;
+    vector<string> urls;
+    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - i) && i < MAX_TURN_SERVERS)
+    {
+        string ipv4;
+        string ipv6;
+        karere::Url turnServerUrl = mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD - i);
+        if (mKarereClient.mDnsCache.getIp(TURNSERVER_SHARD - i, ipv4, ipv6))
+        {
+            if (ipv4.size())
+            {
+                urls.push_back(buildTurnServerUrl(ipv4, turnServerUrl.port, turnServerUrl.path));
+            }
+
+            if(ipv6.size())
+            {
+                urls.push_back(buildTurnServerUrl(ipv6, turnServerUrl.port, turnServerUrl.path));
+            }
+        }
+        else    // no cached IP available for this URL
+        {
+            urls.push_back(buildTurnServerUrl(turnServerUrl.host, turnServerUrl.port, turnServerUrl.path));
+
+        }
+        i++;
+    }
+
+    string json;
+    if (urls.size())
+    {
+        json.insert(json.begin(), '[');
+        for (const string& url : urls)
+        {
+            if (json.size() > 2)
+            {
+                json.append(", ");
+            }
+
+            json.append("{\"host\":\"")
+                    .append(url)
+                    .append("\"}");
+        }
+
+        json.append("]");
+    }
+
+    return json;
+}
+
+string RtcModule::buildTurnServerUrl(const string &host, int port, const string &path) const
+{
+    string url("turn:");
+    url.append(host);
+    if (port > 0)
+    {
+        url.append(":")
+                .append(std::to_string(port));
+    }
+
+    if (path.size())
+    {
+        url.append(path);
+    }
+
+    return url;
 }
 
 bool RtcModule::selectAudioInDevice(const string &devname)
@@ -420,6 +540,7 @@ void RtcModule::removeCall(Call& call)
         RTCM_LOG_DEBUG("removeCall: Call has been replaced, not removing");
         return;
     }
+
     mCalls.erase(chatid);
 }
 
@@ -452,9 +573,8 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         }
         else
         {
-            assert(false);
             RTCM_LOG_ERROR("There is already a call in this chatroom, destroying it");
-            callIt->second->hangup();
+            removeCall(*callIt->second);
         }
     }
 
@@ -565,8 +685,9 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
             auto itHandler = mCallHandlers.find(chatid);
             assert(itHandler != mCallHandlers.end());
             itHandler->second->setReconnectionFailed();
+            Chat& chat = mManager.mKarereClient.mChatdClient->chats(chatid);
+            itHandler->second->removeParticipant(mManager.mKarereClient.myHandle(), chat.connection().clientId());
             removeCallWithoutParticipants(chatid);
-
         }, kRetryCallTimeout, mKarereClient.appCtx);
     }
 }
@@ -661,6 +782,10 @@ void RtcModule::handleInCall(karere::Id chatid, karere::Id userid, uint32_t clie
     {
         updatePeerAvState(chatid, Id::inval(), userid, clientid, AvFlags(false, false));
     }
+    else
+    {
+        callHandlerIt->second->addParticipant(userid, clientid, AvFlags(false, false));
+    }
 }
 
 void RtcModule::handleCallTime(karere::Id chatid, uint32_t duration)
@@ -745,11 +870,10 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
 
     callHandler->addParticipant(userid, clientid, av);
 
-
-    auto itCall = mCalls.find(chatid);
-    if (itCall != mCalls.end())
+    Call *call  = static_cast<Call *>(callHandler->getCall());
+    if (call)
     {
-        itCall->second->updateAvFlags(userid, clientid, av);
+        call->updateAvFlags(userid, clientid, av);
     }
 }
 
@@ -779,9 +903,16 @@ void RtcModule::removeCall(Id chatid, bool retry)
         {
             if (retry || itHandler->second->callParticipants())
             {
-                itHandler->second->removeAllParticipants();
+                bool reconnectionState = false;
+                if (mRetryCall.find(chatid) != mRetryCall.end())
+                {
+                    reconnectionState = true;
+                }
+
+                itHandler->second->removeAllParticipants(reconnectionState);
             }
-            else if (mRetryCall.find(chatid) == mRetryCall.end())
+
+            if (mRetryCall.find(chatid) == mRetryCall.end())
             {
                 delete itHandler->second;
                 mCallHandlers.erase(itHandler);
@@ -845,12 +976,88 @@ std::vector<Id> RtcModule::chatsWithCall() const
 void RtcModule::abortCallRetry(Id chatid)
 {
     removeCallRetry(chatid, false);
-    removeCallWithoutParticipants(chatid);
     auto itHandler = mCallHandlers.find(chatid);
     if (itHandler != mCallHandlers.end())
     {
         itHandler->second->onReconnectingState(false);
+        Chat& chat = mManager.mKarereClient.mChatdClient->chats(chatid);
+        itHandler->second->removeParticipant(mManager.mKarereClient.myHandle(), chat.connection().clientId());
     }
+
+    removeCallWithoutParticipants(chatid);
+}
+
+void RtcModule::refreshTurnServerIp()
+{
+    if (mIceServerProvider.busy())
+    {
+        RTCM_LOG_WARNING("Turn server URLs not available yet. Fetching...");
+        return;
+    }
+
+    mDnsRequestId++;
+
+    int index = 0;
+    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
+    {
+        int shard = TURNSERVER_SHARD - index;
+        std::string host = mKarereClient.mDnsCache.getUrl(shard).host;
+        unsigned int dnsRequestId = mDnsRequestId;  // capture the value for the lambda
+        auto wptr = weakHandle();
+        mDnsResolver.wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
+                                                [wptr, this, shard, dnsRequestId]
+                                                (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+        {
+            if (wptr.deleted())
+                return;
+
+            if (mKarereClient.isTerminated())
+            {
+                RTCM_LOG_ERROR("DNS resolution completed but karere client was terminated.");
+                return;
+            }
+
+            if (dnsRequestId != mDnsRequestId)
+            {
+                RTCM_LOG_ERROR("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                               dnsRequestId, mDnsRequestId);
+                return;
+            }
+
+            if (statusDNS < 0)
+            {
+                RTCM_LOG_ERROR("Async DNS error in rtcModule. Error code: %d", statusDNS);
+            }
+
+            assert(mKarereClient.mDnsCache.hasRecord(shard));
+
+            if (statusDNS >= 0 && (ipsv4.size() || ipsv6.size()))
+            {
+                RTCM_LOG_ERROR("New IP for TURN servers: ipv4 - %s     ipv6 - %s",
+                             ipsv4.size() ? ipsv4[0].c_str() : "",
+                             ipsv6.size() ? ipsv6[0].c_str() : "");
+                mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6);
+
+            }
+            else
+            {
+                mKarereClient.mDnsCache.invalidateIps(shard);
+            }
+
+            updateTurnServers();
+
+        });
+
+        index++;
+    }
+}
+
+void RtcModule::updateTurnServers()
+{
+    StaticProvider iceServersProvider;
+    string jsonCachedTurnServers = getCachedTurnServers();
+    iceServersProvider.setServers(jsonCachedTurnServers.c_str());
+    setIceServers(iceServersProvider);
 }
 
 void RtcModule::onKickedFromChatRoom(Id chatid)
@@ -890,7 +1097,6 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
         removeCallRetry(chatid, false);
         removeCallWithoutParticipants(chatid);
     }
-
 }
 
 uint32_t RtcModule::clientidFromPeer(karere::Id chatid, Id userid)
@@ -1008,22 +1214,19 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
 }
 
 Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGroup,
-    bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient, bool callRecovered)
-: ICall(rtcModule, chat, callid, isGroup, isJoiner, handler,
-    callerUser, callerClient), mName("call["+mId.toString()+"]")
-, mRecovered(callRecovered) // the joiner is actually the answerer in case of new call
+           bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient, bool callRecovered)
+    : ICall(rtcModule, chat, callid, isGroup, isJoiner, handler, callerUser, callerClient)
+    , mName("call["+mId.toString()+"]")
+    , mRecovered(callRecovered) // the joiner is actually the answerer in case of new call
 {
-    if (isJoiner)
+    if (isJoiner && mCallerUser && mCallerClient)
     {
         mState = kStateRingIn;
-        mCallerUser = callerUser;
-        mCallerClient = callerClient;
     }
     else
     {
         mState = kStateInitial;
-        assert(!callerUser);
-        assert(!callerClient);
+        assert(isJoiner || (!callerUser && !callerClient));
     }
 
     mSessionsInfo.clear();
@@ -1123,7 +1326,7 @@ void Call::getLocalStream(AvFlags av)
     mLocalStream = std::make_shared<artc::LocalStreamHandle>();
 
     IVideoRenderer* renderer = NULL;
-    FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
+    FIRE_EVENT(CALL, onLocalStreamObtained, renderer);
     mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
     if (av.video())
     {
@@ -1335,6 +1538,11 @@ void Call::msgSession(RtMessage& packet)
 
     if (mState == Call::kStateJoining)
     {
+        if (!mInCallPingTimer)
+        {
+            startIncallPingTimer();
+        }
+
         setState(Call::kStateInProgress);
         monitorCallSetupTimeout();
     }
@@ -1422,6 +1630,11 @@ void Call::msgJoin(RtMessage& packet)
 
         if (mState == Call::kStateReqSent || mState == Call::kStateJoining)
         {
+            if (!mInCallPingTimer)
+            {
+                startIncallPingTimer();
+            }
+
             setState(Call::kStateInProgress);
             monitorCallSetupTimeout();
 
@@ -1634,13 +1847,13 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         {
             SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing in a group call");
         }
-        else
+        else if (mInCallPingTimer)
         {
             sendCallData(CallDataState::kCallDataEnd);
         }
 
         assert(mSessions.empty());
-        stopIncallPingTimer();
+        stopIncallPingTimer(mInCallPingTimer);
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
@@ -1797,7 +2010,7 @@ void Call::removeSession(Session& sess, TermCode reason)
     }
 
     TermCode terminationCode = (TermCode)(reason & ~TermCode::kPeer);
-    if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout)
+    if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout || terminationCode == kErrSessSetupTimeout)
     {
         if (mIceFails.find(endpointId) == mIceFails.end())
         {
@@ -1897,7 +2110,11 @@ bool Call::join(Id userid)
         return false;
     }
 
-    startIncallPingTimer();
+    if (!mRecovered)
+    {
+        startIncallPingTimer();
+    }
+
     // we have session setup timeout timer, but in case we don't even reach a session creation,
     // we need another timer as well
     auto wptr = weakHandle();
@@ -2048,27 +2265,27 @@ uint8_t Call::convertTermCodeToCallDataCode()
                     assert(false);  // it should be kCallRejected
                 case kStateReqSent:
                     assert(false);  // it should be kCallReqCancel
-                    codeToChatd = kCallDataReasonCancelled;
+                    codeToChatd = chatd::CallDataReason::kCancelled;
                     break;
 
                 case kStateInProgress:
-                    codeToChatd = kCallDataReasonEnded;
+                    codeToChatd = chatd::CallDataReason::kEnded;
                     break;
 
                 default:
-                    codeToChatd = kCallDataReasonFailed;
+                    codeToChatd = chatd::CallDataReason::kFailed;
                     break;
             }
             break;
         }
 
         case kCallReqCancel:
-            assert(mPredestroyState == kStateReqSent);
-            codeToChatd = kCallDataReasonCancelled;
+            assert(mPredestroyState == kStateReqSent || mPredestroyState == kStateJoining);
+            codeToChatd = chatd::CallDataReason::kCancelled;
             break;
 
         case kCallRejected:
-            codeToChatd = kCallDataReasonRejected;
+            codeToChatd = chatd::CallDataReason::kRejected;
             break;
 
         case kAnsElsewhere:
@@ -2081,20 +2298,20 @@ uint8_t Call::convertTermCodeToCallDataCode()
             break;
 
         case kDestroyByCallCollision:
-            codeToChatd = kCallDataReasonRejected;
+            codeToChatd = chatd::CallDataReason::kRejected;
             break;
         case kAnswerTimeout:
         case kRingOutTimeout:
-            codeToChatd = kCallDataReasonNoAnswer;
+            codeToChatd = chatd::CallDataReason::kNoAnswer;
             break;
 
         case kAppTerminating:
-            codeToChatd = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
+            codeToChatd = (mPredestroyState == kStateInProgress) ? chatd::CallDataReason::kEnded : chatd::CallDataReason::kFailed;
             break;
 
         case kBusy:
             assert(!isJoiner());
-            codeToChatd = kCallDataReasonRejected;
+            codeToChatd = chatd::CallDataReason::kRejected;
             break;
 
         default:
@@ -2103,7 +2320,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 SUB_LOG_ERROR("convertTermCodeToCallDataCode: Don't know how to translate term code %s, returning FAILED",
                               termCodeToStr(mTermCode));
             }
-            codeToChatd = kCallDataReasonFailed;
+            codeToChatd = chatd::CallDataReason::kFailed;
             break;
     }
 
@@ -2381,7 +2598,7 @@ Call::~Call()
         mLocalPlayer.reset();
         mLocalStream.reset();
         setState(Call::kStateDestroyed);
-        FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
+        FIRE_EVENT(CALL, onDestroy, mTermCode == TermCode::kNotFinished ? TermCode::kErrInternal : mTermCode, false, "Callback from Call::dtor");
 
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
@@ -2408,7 +2625,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         return;
     }
 
-    if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient) // caller went offline
+    if (mState == kStateRingIn && isCaller(userid, clientid))   // caller went offline
     {
         destroy(TermCode::kCallerGone, false);
         return;
@@ -2831,11 +3048,12 @@ void Session::createRtcConn()
     if (mCall.mIceFails.find(endPoint) != mCall.mIceFails.end())
     {
         RTCM_LOG_ERROR("Using ALL ICE servers, because ICE to this peer has failed %d times", mCall.mIceFails[endPoint]);
-        StaticProvider iceServerStatic(mCall.mManager.mStaticIceSever);
-        mCall.mManager.addIceServers(iceServerStatic);
+        StaticProvider iceServerStatic(mCall.mManager.mStaticIceServers);
+        mCall.mManager.setIceServers(iceServerStatic);
     }
 
     mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers, *this);
+    RTCM_LOG_INFO("Create RTC connection ICE server: %s", mCall.mManager.mIceServers[0].uri.c_str());
     if (mCall.mLocalStream)
     {
         std::vector<std::string> vector;
@@ -2855,17 +3073,14 @@ void Session::createRtcConn()
             mVideoSender = error.MoveValue();
         }
 
-        if (mCall.sentAv().audio())
+        webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
+        webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
+        if (!error.ok())
         {
-            webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
-            webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
-            if (!error.ok())
-            {
-                SUB_LOG_WARNING("Error: %s", error.MoveError().message());
-            }
-
-            mAudioSender = error.MoveValue();
+            SUB_LOG_WARNING("Error: %s", error.MoveError().message());
         }
+
+        mAudioSender = error.MoveValue();
     }
 
     mStatRecorder.reset(new stats::Recorder(*this, kStatsPeriod, kMaxStatsPeriod));
@@ -2978,7 +3193,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
     mRemotePlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
     mRemotePlayer->setOnMediaStart([this]()
     {
-        FIRE_EVENT(SESS, onVideoRecv);
+        FIRE_EVENT(SESSION, onDataRecv);
     });
     mRemotePlayer->attachToStream(stream);
     mRemotePlayer->enableVideo(mPeerAv.video());
@@ -3075,6 +3290,8 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
         mCall.notifySessionConnected(*this);
+        EndpointId endpointId(mPeer, mPeerClient);
+        mCall.mIceFails.erase(endpointId);
     }
 }
 
@@ -3142,7 +3359,7 @@ void Session::updateAvFlags(AvFlags flags)
         mRemotePlayer->enableVideo(mPeerAv.video());
     }
 
-    FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
+    FIRE_EVENT(SESSION, onPeerMute, mPeerAv, oldAv);
 }
 
 //end of event handlers
@@ -3403,9 +3620,9 @@ void Session::destroy(TermCode code, const std::string& msg)
     removeRtcConnection();
 
     mRemotePlayer.reset();
-    FIRE_EVENT(SESS, onRemoteStreamRemoved);
+    FIRE_EVENT(SESSION, onRemoteStreamRemoved);
     setState(kStateDestroyed);
-    FIRE_EVENT(SESS, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
+    FIRE_EVENT(SESSION, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
         !!(code & TermCode::kPeer), msg);
     mCall.removeSession(*this, code);
 }
@@ -3573,7 +3790,7 @@ void Session::manageNetworkQuality(stats::Sample *sample)
     mNetworkQuality = sample->lq;
     if (previousNetworkquality != mNetworkQuality)
     {
-        FIRE_EVENT(SESS, onSessionNetworkQualityChange, mNetworkQuality);
+        FIRE_EVENT(SESSION, onSessionNetworkQualityChange, mNetworkQuality);
     }
 }
 
@@ -3746,6 +3963,8 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrCallSetupTimeout);
         RET_ENUM_NAME(kErrKickedFromChat);
         RET_ENUM_NAME(kErrIceTimeout);
+        RET_ENUM_NAME(kErrStreamRenegotation);
+        RET_ENUM_NAME(kErrStreamRenegotationTimeout);
         RET_ENUM_NAME(kInvalid);
         default: return "(invalid term code)";
     }
@@ -3873,27 +4092,27 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
                 return 5;
             }
         }
-    }
 
-    // check video frames per second
-    long fps = sample->vstats.s.fps;
-    if (fps < 15)
-    {
-        if (fps < 3)
+        // check video frames per second
+        long fps = sample->vstats.s.fps;
+        if (fps < 15)
         {
-            return 0;
-        }
-        else if (fps < 5)
-        {
-            return 1;
-        }
-        else if (fps < 10)
-        {
-            return 2;
-        }
-        else
-        {
-            return 3;
+            if (fps < 3)
+            {
+                return 0;
+            }
+            else if (fps < 5)
+            {
+                return 1;
+            }
+            else if (fps < 10)
+            {
+                return 2;
+            }
+            else
+            {
+                return 3;
+            }
         }
     }
 

@@ -344,6 +344,261 @@ void Client::createDbSchema()
     db.commit();
 }
 
+int Client::importMessages(const char *externalDbPath)
+{
+    SqliteDb dbExternal;
+    if (!dbExternal.open(externalDbPath, false))
+    {
+        KR_LOG_ERROR("importMessages: failed to open external DB (%s)", externalDbPath);
+        return -1;
+    }
+    // check external DB uses the same DB schema than the app
+    SqliteStmt stmtVersion(dbExternal, "select value from vars where name = 'schema_version'");
+    if (!stmtVersion.step())
+    {
+        dbExternal.close();
+        KR_LOG_ERROR("importMessages: failed to get external DB version");
+        return -2;
+    }
+    // check external DB uses the same DB version than the app
+    std::string currentVersion(gDbSchemaHash);
+    currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
+    std::string cachedVersion(stmtVersion.stringCol(0));
+    if (cachedVersion != currentVersion)
+    {
+        dbExternal.close();
+        KR_LOG_ERROR("importMessages: external DB version is too old");
+        return -3;
+    }
+    // check external DB is for the same user than the app's DB
+    SqliteStmt stmtMyHandle(dbExternal, "select value from vars where name = 'my_handle'");
+    if (!stmtMyHandle.step() || stmtMyHandle.uint64Col(0) != myHandle())
+    {
+        dbExternal.close();
+        KR_LOG_ERROR("importMessages: external DB of a different user");
+        return -4;
+    }
+
+    // avoid to write each imported message to disk individually
+    bool oldCommitMode = commitEach();
+    setCommitMode(false);
+
+    // for every chat, check messages to be added and/or updated
+    int countAdded = 0;
+    int countUpdated = 0;
+    for (auto& it : *chats)
+    {
+        // find the newest message in the app
+        karere::ChatRoom *chatroom = it.second;
+        chatd::Chat &chat = chatroom->chat();
+        karere::Id chatid = chatroom->chatid();
+
+        // get id of last message seen from external db
+        Id lastSeenId;
+        SqliteStmt stmtLastSeen(dbExternal, "select last_seen from chats where chatid=?");
+        stmtLastSeen << chatid;
+        if (stmtLastSeen.step())
+        {
+            lastSeenId = stmtLastSeen.uint64Col(0);
+            chat.seenImport(lastSeenId);
+        }
+        else    // no SEEN pointer for this chat on external cache (or chat not found)
+        {
+            KR_LOG_WARNING("importMessages: SEEN not imported becaus chatid not found in external db (chatid: %s)",
+                         chatid.toString().c_str());
+        }
+
+        chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
+        karere::Id newestAppMsgid(Id::inval());
+        chatd::Message *newestAppMsg = nullptr;
+        chatd::Idx firstIdxToImport = CHATD_IDX_INVALID;    // may not match the idx from app (even for same msgid)
+        karere::Id firstMsgidToImport(Id::inval());
+        uint32_t editableMsgsTs = 0;
+
+        std::string query;
+        if (!chat.empty())
+        {
+            newestAppIdx = chat.highnum();
+            newestAppMsg = &chat.at(newestAppIdx);
+            newestAppMsgid = firstMsgidToImport = newestAppMsg->id();
+
+            // find the newest message known by the app in the external DB
+            query = "select idx from history where chatid = ?1 and msgid = ?2";
+            SqliteStmt stmt1(dbExternal, query.c_str());
+            stmt1 << chatid << firstMsgidToImport;
+            if (stmt1.step())
+            {
+                firstIdxToImport = stmt1.intCol(0);
+
+                // ts of oldest message in app that could have been updated/deleted
+                editableMsgsTs = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
+            }
+            else    // not found
+            {
+                // check if a truncate in external DB has cleared this message (idx greater than newest app msg)
+                query = "select msgid, idx, type from history where chatid = ?1 and idx > ?2";
+                SqliteStmt stmt2(dbExternal, query.c_str());
+                stmt2 << chatid << newestAppIdx;
+                if (stmt2.step())
+                {
+                    assert(stmt2.intCol(2) == chatd::Message::kMsgTruncate);
+                    firstMsgidToImport = stmt2.uint64Col(0);
+                    firstIdxToImport = stmt2.intCol(1);
+
+                    KR_LOG_DEBUG("importMessages: truncate detected in chatid: %s msgid: %s idx: %d",
+                                 chatid.toString().c_str(), firstMsgidToImport.toString().c_str(), firstIdxToImport);
+                }
+                else
+                {
+                    // (it means app is ahead of external DB for this chat, so nothing to import)
+                    KR_LOG_DEBUG("importMessages: no messages to import for chatid: %s", chatid.toString().c_str());
+                    continue;
+                }
+            }
+        }
+        else    // chat history is empty in the app
+        {
+            // find the oldest message in external DB: first msgid to import
+            query = "select min(idx), msgid, idx from history where chatid = ?1";
+            SqliteStmt stmt(dbExternal, query.c_str());
+            stmt << chatid;
+            if (stmt.step())
+            {
+                firstMsgidToImport = stmt.uint64Col(1);
+                firstIdxToImport = stmt.intCol(2);
+            }
+            else
+            {
+                // chatroom has no history in external DB either
+                continue;
+            }
+        }
+
+        // for every newer message in external DB, add them to the app's history
+        // (also consider the newest app message to update history in case of truncate)
+        query = "select userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted, msgid from history"
+                            " where chatid = ?1 and idx >= ?2";
+        SqliteStmt stmtMsg(dbExternal, query.c_str());
+        stmtMsg << chatroom->chatid() << firstIdxToImport;
+        while (stmtMsg.step())
+        {
+            // restore Message from external DB
+            std::unique_ptr<chatd::Message> msg;
+            karere::Id userid(stmtMsg.uint64Col(0));
+            karere::Id msgid(stmtMsg.uint64Col(9));
+            uint32_t ts = stmtMsg.uintCol(1);
+            unsigned char type = (unsigned char)stmtMsg.intCol(2);
+            uint16_t updated = (uint16_t)stmtMsg.intCol(7);
+            chatd::KeyId keyid = stmtMsg.uintCol(5);
+            Buffer buf;
+            stmtMsg.blobCol(3, buf);
+            msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
+            msg->backRefId = stmtMsg.uint64Col(6);
+            msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
+
+            bool isUpdate = false;
+            if (msgid == newestAppMsgid)
+            {
+                // first message, if not updated or truncated, msg can be skipped
+                isUpdate = (newestAppMsg->type != msg->type && msg->type == chatd::Message::kMsgTruncate)      // become a truncate
+                        || (msg->type == chatd::Message::kMsgTruncate && msg->ts > newestAppMsg->ts)    // truncate a truncate
+                        || (msg->updated > newestAppMsg->updated);  // edited/deleted
+
+                if (!isUpdate)
+                {
+                    KR_LOG_DEBUG("importMessages: newest message not changed. Skipping... (chatid: %s msgid: %s)",
+                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    continue;
+                }
+            }
+
+            if (keyid != CHATD_KEYID_INVALID)   // keyid is invalid for mngt msgs and public chats
+            {
+                // restore the SendKey of the message from external DB
+                std::string queryKey = "select key from sendkeys "
+                        " where chatid = ?1 and userid = ?2 and keyid = ?3";
+                SqliteStmt stmtKey(dbExternal, queryKey.c_str());
+                stmtKey << chatroom->chatid() << userid << keyid;
+                if (!stmtKey.step())
+                {
+                    KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %d",
+                                 chatid.toString().c_str(), msgid.toString().c_str(), keyid);
+                    continue;
+                }
+                Buffer key;
+                stmtKey.blobCol(0, key);
+
+                // import the corresponding key and the message itself
+                chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
+            }
+
+            chat.msgImport(move(msg), isUpdate);
+            (isUpdate) ? countUpdated++ : countAdded++;
+
+            KR_LOG_DEBUG("importMessages: message added (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
+        }
+
+        // finally, check if any older message has been updated
+        if (editableMsgsTs) // 0 --> chat was empty or truncated
+        {
+            query = "select userid, ts, type, data, msgid, keyid, updated, backrefid, is_encrypted from history"
+                                " where chatid = ?1 and ts > ?2 and updated > 0 and idx < ?3";
+
+            SqliteStmt stmtMsgUpdated(dbExternal, query);
+            stmtMsgUpdated << chatroom->chatid() << editableMsgsTs << firstIdxToImport;
+            while (stmtMsgUpdated.step())
+            {
+                karere::Id msgid(stmtMsgUpdated.uint64Col(4));
+                uint16_t updated = (uint16_t)stmtMsgUpdated.intCol(6);
+
+                // check if the edit in the external DB is newer than in app DB
+                query = "select updated from history where chatid = ?1 and msgid = ?2";
+                SqliteStmt stmtMsgAppUpdated(db, query);
+                stmtMsgAppUpdated << chatroom->chatid() << msgid;
+                if (!stmtMsgAppUpdated.step())
+                {
+                    KR_LOG_ERROR("importMessages: message not found in app's db (chatid: %s msgid: %s)",
+                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    continue;
+                }
+                uint16_t updatedApp = (uint16_t)stmtMsgAppUpdated.intCol(0);
+                if (updated <= updatedApp)
+                {
+                    KR_LOG_DEBUG("importMessages: edited message in external db is older. Skipping... (chatid: %s msgid: %s)",
+                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    continue;
+                }
+
+                // restore Message from external DB
+                std::unique_ptr<chatd::Message> msg;
+                karere::Id userid(stmtMsgUpdated.uint64Col(0));
+                uint32_t ts = stmtMsgUpdated.uintCol(1);
+                unsigned char type = (unsigned char)stmtMsgUpdated.intCol(2);
+                Buffer buf;
+                stmtMsgUpdated.blobCol(3, buf);
+                chatd::KeyId keyid = stmtMsgUpdated.uintCol(5);
+                msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
+                msg->backRefId = stmtMsgUpdated.uint64Col(7);
+                msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
+
+                chat.msgImport(move(msg), true);
+                countUpdated++;
+
+                KR_LOG_DEBUG("importMessages: message updated (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
+            }
+        }
+    }
+
+    dbExternal.close();
+
+    // commit the transaction of importing msgs and restore previous mode
+    setCommitMode(oldCommitMode);
+
+    int total = countAdded + countUpdated;
+    KR_LOG_DEBUG("Imported messages: %d (added: %d, updated: %d)", total, countAdded, countUpdated);
+    return total;
+}
+
 void Client::heartbeat()
 {
     if (db.isOpen())
@@ -386,6 +641,22 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     {
         mChatdClient->retryPendingConnections(disconnect, refreshURL);
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc && disconnect)
+    {
+        int index = 0;
+        while (mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
+        {
+            // invalidate IPs
+            mDnsCache.invalidateIps(TURNSERVER_SHARD - index);
+            index++;
+        }
+
+        rtc->updateTurnServers();
+        rtc->refreshTurnServerIp();
+    }
+#endif
 }
 
 promise::Promise<void> Client::notifyUserStatus(bool background)
@@ -731,6 +1002,11 @@ void Client::setCommitMode(bool commitEach)
     db.setCommitMode(commitEach);
 }
 
+bool Client::commitEach()
+{
+    return db.commitEach();
+}
+
 void Client::commit(const std::string& scsn)
 {
     if (scsn.empty())
@@ -950,7 +1226,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
         bool loggedOut = ((errorCode == ::mega::MegaError::API_OK || errorCode == ::mega::MegaError::API_ESID)
-                          && request->getFlag());    // SDK has been logged out normally closing session
+                          && (request->getFlag() || request->getParamType() == ::mega::MegaError::API_EBLOCKED));
 
         bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
         if (loggedOut)
@@ -1553,7 +1829,7 @@ void Client::terminate(bool deleteDb)
             it++;
         }
     }
-  
+
     if (mConnState != kDisconnected)
     {
         setConnState(kDisconnected);
@@ -3102,6 +3378,7 @@ void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx 
 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
 {
+    // truncate can be received as NEWMSG when the `msgid` is new for the client (later on the MSGUPD is also received)
     if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
          || (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
     {
@@ -3140,8 +3417,6 @@ void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
     chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
 
-    //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
-    // and, if so, remove the block from `onRecvNewMessage()`
     if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
          || (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
     {
@@ -3151,7 +3426,8 @@ void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status status, const chatd::Message& msg)
 {
-    if (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    if (msg.userid != parent.mKarereClient.myHandle()
+            && status == chatd::Message::kSeen)  // received message from a peer changed to seen
     {
         parent.mKarereClient.app.onChatNotification(mChatid, msg, status, idx);
     }
@@ -3159,11 +3435,10 @@ void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status stat
 
 void ChatRoom::onUnreadChanged()
 {
-    auto count = mChat->unreadMsgCount();
     IApp::IChatListItem *room = roomGui();
     if (room)
     {
-        room->onUnreadCountChanged(count);
+        room->onUnreadCountChanged();
     }
 }
 
@@ -3765,21 +4040,24 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         //if lastname is not null the first byte will contain the
         //firstname-size-prefix but datasize will be bigger than 1 byte.
 
-        // If the contact has alias don't update the title
+        // If fullname received is valid
         auto self = static_cast<Contact*>(userp);
         std::string alias = self->mClist.client.getUserAlias(self->userId());
-        if (alias.empty())
+        if (data && !data->empty() && *data->buf() != 0 && data->size() != 1)
         {
-            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
+            // Update contact name
+            std::string name(data->buf(), data->dataSize());
+            self->setContactName(name.substr(1));
+            if (alias.empty())
             {
-                self->updateTitle(encodeFirstName(self->mEmail));
-            }
-            else
-            {
-                std::string name(data->buf(), data->dataSize());
-                self->setContactName(name.substr(1));
+                // Update title if there's no alias
                 self->updateTitle(name);
             }
+        }
+        else if (alias.empty())
+        {
+            // If there's no alias nor fullname
+            self->updateTitle(encodeFirstName(self->mEmail));
         }
     });
 
@@ -3801,7 +4079,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             std::string contactName = self->getContactName();
             if (alias.empty() && contactName.empty())
             {
-                self->updateTitle(self->mEmail);
+                self->updateTitle(encodeFirstName(self->mEmail));
             }
         }
     });
@@ -3999,8 +4277,26 @@ void Client::updateAliases(Buffer *data)
         }
     }
 
+    // Update those contact's titles without a peer chatroom associated
+    for (auto &userid : aliasesUpdated)
+    {
+        Contact *contact =  mContactList->contactFromUserId(userid);
+        if (contact && !contact->chatRoom())
+        {
+            std::string title = getUserAlias(userid);
+            if (title.empty())
+            {
+                title = !contact->getContactName().empty()
+                    ? contact->getContactName()
+                    : contact->email();
+            }
+
+            // Contact title has a binary layout
+            contact->updateTitle(encodeFirstName(title));
+        }
+    }
+
     // Iterate through all chatrooms and update the aliases contained in aliasesUpdated
-    for (ChatRoomList::iterator itChats = chats->begin(); itChats != chats->end(); itChats++)
     for (auto &itChats : *chats)
     {
         ChatRoom *chatroom = itChats.second;

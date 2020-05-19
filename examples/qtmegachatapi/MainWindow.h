@@ -163,6 +163,7 @@ class MainWindow :
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
+        void onChatSessionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatHandle callid, megachat::MegaChatSession *session);
 #endif
         MegaChatApplication* getApp() const;
 
@@ -213,6 +214,7 @@ class MainWindow :
         void onPushReceived(unsigned int type);
         void onUseApiStagingClicked(bool);
         void onBackgroundStatusClicked(bool status);
+        void onImportMessages();
 
     signals:
         void esidLogout();

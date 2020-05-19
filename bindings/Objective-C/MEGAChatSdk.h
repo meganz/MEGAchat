@@ -84,6 +84,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (MEGAChatInit)initKarereWithSid:(NSString *)sid;
 - (MEGAChatInit)initKarereLeanModeWithSid:(NSString *)sid;
+- (void)importMessagesFromPath:(NSString *)externalDbPath delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)importMessagesFromPath:(NSString *)externalDbPath;
 - (MEGAChatInit)initAnonymous;
 - (void)resetClientId;
 
@@ -280,10 +282,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-- (MEGAStringList *)chatAudioInDevices;
 - (MEGAStringList *)chatVideoInDevices;
-- (BOOL)setChatAudioInDevices:(NSString *)devices;
 - (void)setChatVideoInDevices:(NSString *)devices;
+- (NSString *)videoDeviceSelected;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -335,7 +336,10 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (BOOL)closeNodeHistoryForChat:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
 - (void)addNodeHistoryDelegate:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
 - (void)removeNodeHistoryDelegate:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
-- (NSInteger)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count;
+- (MEGAChatSource)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count;
 
+#pragma mark - Enumeration to NSString
+
++ (NSString *)stringForMEGAChatInitState:(MEGAChatInit)initState;
 
 @end

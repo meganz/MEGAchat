@@ -60,6 +60,7 @@ public:
     karere::Id mOwnAnonId;
     karere::Id mPeerAnonId;
     std::string mDeviceInfo;
+    bool mIsGroupCall;
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
     unsigned long mMaxIceDisconnectionTime = 0;

@@ -472,7 +472,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     if (notificationSettings)
     {
         actDoNotDisturb->setCheckable(true);
-        actDoNotDisturb->setChecked(!notificationSettings->isChatEnabled(mChatId));
+        actDoNotDisturb->setChecked(notificationSettings->isChatDndEnabled(mChatId));
     }
     else
     {

@@ -1426,10 +1426,18 @@ ProtocolHandler::legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedM
 }
 
 void ProtocolHandler::onKeyReceived(KeyId keyid, Id sender, Id receiver,
-                                    const char* data, uint16_t dataLen)
+                                    const char* data, uint16_t dataLen, bool isEncrypted)
 {
-    auto encKey = std::make_shared<Buffer>(data, dataLen);
     UserKeyId ukid(sender, keyid);
+    if (!isEncrypted)
+    {
+        auto key = std::make_shared<SendKey>();
+        key->assign(data, dataLen);
+        addDecryptedKey(ukid, key);
+        return;
+    }
+
+    auto encKey = std::make_shared<Buffer>(data, dataLen);
 
     // decrypt key (could require to fetch public key from API asynchronously)
     auto pms = decryptKey(encKey, sender, receiver);

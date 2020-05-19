@@ -161,8 +161,9 @@ public:
       * Normally the application doesn't need to care about it
       * @param msg - The message object - \c id() returns a real msgid, and \c isSending() is \c false
       * @param idx - The history buffer index at which the message was put
+      * @param tsUpdated - The ts has been updated or not
       */
-    virtual void onMessageConfirmed(karere::Id /*msgxid*/, const Message& /*msg*/, Idx /*idx*/){}
+    virtual void onMessageConfirmed(karere::Id /*msgxid*/, const Message& /*msg*/, Idx /*idx*/, bool /*tsUpdated*/){}
 
      /** @brief A message was rejected by the server for some reason.
       * As the message is not yet in the history buffer, its \c id()
@@ -869,7 +870,7 @@ protected:
         mForwardList.clear();
     }
     // msgid can be 0 in case of rejections
-    Idx msgConfirm(karere::Id msgxid, karere::Id msgid);
+    Idx msgConfirm(karere::Id msgxid, karere::Id msgid, uint32_t timestamp = 0);
     bool msgAlreadySent(karere::Id msgxid, karere::Id msgid);
     Message* msgRemoveFromSending(karere::Id msgxid, karere::Id msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
@@ -890,7 +891,7 @@ protected:
     Idx getHistoryFromDb(unsigned count);
     HistSource getHistoryFromDbOrServer(unsigned count);
     void onLastReceived(karere::Id msgid);
-    void onLastSeen(karere::Id msgid);
+    void onLastSeen(karere::Id msgid, bool resend = true);
     void handleLastReceivedSeen(karere::Id msgid);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
@@ -1201,6 +1202,34 @@ public:
      */
     Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype);
 
+    /**
+     * @brief Import a message into the history
+     * This method simulates a NEWMSG/MSGUPD received from chatd, when it's actually
+     * loaded from an external DB.
+     * @param msg Message to import (takes ownership)
+     * @param isUpdate True is the message already exist and the import only updates it
+     */
+    void msgImport(std::unique_ptr<Message> msg, bool isUpdate);
+
+    /**
+     * @brief Import the id of the last message seen into the history
+     * This method simulates a SEEN received from chatd, when it's actually
+     * loaded from an external DB.
+     * @param msg Id of the last message seen to import
+     */
+    void seenImport(karere::Id lastSeenId);
+
+    /**
+     * @brief Import the key of a message
+     * This method simulates a NEWKEY received from chatd, when it's actually
+     * loaded from an external DB.
+     * @param keyid Id of the key
+     * @param userid Id of the owner of the key
+     * @param key Decrypted key data
+     * @param keylen Size of the key
+     */
+    void keyImport(KeyId keyid, karere::Id userid, const char* key, uint16_t keylen);
+
     /** Removes metadata from rich-link and converts the message to the original (normal) one */
     Message *removeRichLink(Message &message, const std::string &content);
 
@@ -1340,6 +1369,7 @@ protected:
     bool msgEncryptAndSend(OutputQueue::iterator it);
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
+    void onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Message *msg);
     void onJoinRejected();
     void onHandleJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
@@ -1407,7 +1437,7 @@ protected:
     void onKeepaliveSent();
 
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
-    void msgConfirm(karere::Id msgxid, karere::Id msgid);
+    void msgConfirm(karere::Id msgxid, karere::Id msgid, uint32_t timestamp = 0);
     promise::Promise<void> sendKeepalive();
     void sendEcho();
 
@@ -1426,7 +1456,9 @@ public:
     //  * Changes at CALLDATA protocol (new state)
     // - Version 6:
     //  * Add commands ADDREACTION DELREACTION REACTIONSN
-    static const unsigned chatdVersion = 6;
+    // - Version 7:
+    //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
+    static const unsigned chatdVersion = 7;
 
     Client(karere::Client *aKarereClient);
     ~Client();

@@ -207,6 +207,19 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                     window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
                 }
 
+                MegaHandleList* clientids = call->getClientidParticipants();
+                MegaHandleList* peerids = call->getPeeridParticipants();
+                for (unsigned int i = 0; i < peerids->size(); i++)
+                {
+                    if (peerids->get(i) != mMegaChatApi->getMyUserHandle() || mMegaChatApi->getMyClientidHandle(call->getChatid()) != clientids->get(i))
+                    {
+                        window->createCallGui(false, peerids->get(i), clientids->get(i));
+                    }
+                }
+
+                delete clientids;
+                delete peerids;
+
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
@@ -228,19 +241,41 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         }
     }
 
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS) &&
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION) &&
             call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+    {
+        if (call->getCallCompositionChange() == MegaChatCall::PEER_ADDED)
+        {
+            window->createCallGui(false, call->getPeeridCallCompositionChange(), call->getClientidCallCompositionChange());
+        }
+        else if (call->getCallCompositionChange() == MegaChatCall::PEER_REMOVED)
+        {
+            window->destroyCallGui(call->getPeeridCallCompositionChange(), call->getClientidCallCompositionChange());
+        }
+    }
+}
+
+void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)
+{
+    ChatListItemController *itemController = getChatControllerById(chatid);
+    if (!itemController)
+    {
+        throw std::runtime_error("Session notification in a call without associated item");
+    }
+
+    ChatWindow *window = itemController->showChatWindow();
+    assert(window);
+
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS) &&
+            session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
     {
         std::set<CallGui *> *setOfCallGui = window->getCallGui();
         std::set<CallGui *>::iterator it;
         for (it = setOfCallGui->begin(); it != setOfCallGui->end(); ++it)
         {
             CallGui *callGui = *it;
-            MegaChatHandle peerid = call->getPeerSessionStatusChange();
-            MegaChatHandle clientid = call->getClientidSessionStatusChange();
-            if (callGui->getPeerid() == peerid && callGui->getClientid() == clientid)
+            if (callGui->getPeerid() == session->getPeerid() && callGui->getClientid() == session->getClientid())
             {
-                MegaChatSession *session = call->getMegaChatSession(peerid, clientid);
                 if (session->hasVideo())
                 {
                     callGui->ui->videoRenderer->disableStaticImage();
@@ -256,27 +291,20 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
 
     //NEW SESSIONS
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SESSION_STATUS))
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
     {
-       MegaChatHandle peerid = call->getPeerSessionStatusChange();
-       MegaChatHandle clientid = call->getClientidSessionStatusChange();
-       MegaChatSession *session = call->getMegaChatSession(peerid, clientid);
        assert(session);
        switch (session->getStatus())
        {
            case MegaChatSession::SESSION_STATUS_IN_PROGRESS:
            {
-               window->createCallGui(call->hasVideoInitialCall(), peerid, clientid);
-               window->connectPeerCallGui(peerid, clientid);
+               window->connectPeerCallGui(session->getPeerid(), session->getClientid());
 
                break;
            }
-
-           case MegaChatSession::SESSION_STATUS_DESTROYED:
-               window->destroyCallGui(peerid, clientid);
-               break;
        }
     }
+
 }
 
 MegaChatApplication* MainWindow::getApp() const
@@ -540,6 +568,8 @@ void MainWindow::on_bSettings_clicked()
     auto actPushAndReceived = notificationsMenu->addAction(tr("Simulate PUSH received (Android)"));
     connect(actPushAndReceived,  &QAction::triggered, this, [this] {onPushReceived(0);});
 
+    auto actImportMsgs = notificationsMenu->addAction(tr("Import messages from NSE cache"));
+    connect(actImportMsgs, SIGNAL(triggered()), this, SLOT(onImportMessages()));
 
     // Other options
     QMenu *othersMenu = menu.addMenu("Others");
@@ -829,8 +859,8 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
     }
     itemController = addOrUpdateChatControllerItem(item->copy());
 
-    if (!mAllowOrder
-        && !(item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UPDATE_PREVIEWERS)))
+    bool needreorder = needReorder(item, oldPriv);
+    if ((!mAllowOrder && needreorder) || (!needreorder && !widget))
     {
         return;
     }
@@ -853,7 +883,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
     // If we don't need to reorder and chatItemwidget is rendered
     // we need to update the widget because non order actions requires
     // a live update of widget
-    if (!needReorder(item, oldPriv) && widget)
+    if (!needreorder)
     {
         //Last Message update
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_MSG))
@@ -895,7 +925,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             }
         }
     }
-    else if(mNeedReorder)
+    else
     {
         reorderAppChatList();
     }
@@ -1323,4 +1353,13 @@ void MainWindow::onUseApiStagingClicked(bool enable)
 void MainWindow::onBackgroundStatusClicked(bool status)
 {
     mMegaChatApi->setBackgroundStatus(status);
+}
+
+void MainWindow::onImportMessages()
+{
+    QString text = QInputDialog::getText(this, tr("Import messages from NSE"), tr("Enter the path of the NSE cache: "));
+    if (text == "")
+        return;
+
+    mMegaChatApi->importMessages(text.toStdString().c_str());
 }

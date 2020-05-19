@@ -93,6 +93,7 @@ bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, cons
     if (ctx)
     {
         WEBSOCKETS_LOG_ERROR("Valid context at connect()");
+        websocketIO->mApi.sdk.sendEvent(99010, "A valid previous context existed upon new wsConnect");
         delete ctx;
     }
 
@@ -296,6 +297,11 @@ bool DNScache::setIp(int shard, std::string ipv4, std::string ipv6)
         return true;
     }
     return false;
+}
+
+bool DNScache::invalidateIps(int shard)
+{
+    return setIp(shard, "", "");
 }
 
 bool DNScache::getIp(int shard, std::string &ipv4, std::string &ipv6)

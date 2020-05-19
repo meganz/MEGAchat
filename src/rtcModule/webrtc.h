@@ -46,6 +46,9 @@ const uint8_t kCallDataRinging = 1;
 
 #define CHATSTATS_PORT 0
 
+#define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
+#define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
+
 namespace chatd
 {
     class Connection;
@@ -162,7 +165,14 @@ public:
     virtual void onRemoteStreamAdded(IVideoRenderer*& rendererOut) = 0;
     virtual void onRemoteStreamRemoved() = 0;
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv) = 0;
-    virtual void onVideoRecv() {}
+
+    /**
+     * @brief Notifies when the Stream has been added to the session
+     *
+     * This callback is received when the stream is added, so audio/video
+     * data is being received.
+     */
+    virtual void onDataRecv() {}
 
     /**
      * @brief Notifies about changes in network quality
@@ -208,7 +218,6 @@ public:
     virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
     virtual ISessionHandler* onNewSession(ISession& /*sess*/) { return nullptr; }
     virtual void onLocalStreamObtained(IVideoRenderer*& /*rendererOut*/) {}
-    virtual void onLocalMediaError(const std::string /*errors*/) {}
     virtual void onRingOut(karere::Id /*peer*/) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}
@@ -216,7 +225,7 @@ public:
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
     virtual int callParticipants() = 0;
     virtual bool isParticipating(karere::Id userid) = 0;
-    virtual void removeAllParticipants() = 0;
+    virtual void removeAllParticipants(bool exceptMe = false) = 0;
     virtual karere::Id getCallId() const = 0;
     virtual void setCallId(karere::Id callid) = 0;
     virtual rtcModule::ICall *getCall() = 0;
@@ -257,6 +266,7 @@ protected:
     karere::Id mPeerAnonId;
     uint32_t mPeerClient;
     karere::AvFlags mPeerAv;
+    TermCode mTermCode = TermCode::kInvalid;
     ISession(Call& call, karere::Id peer, uint32_t peerClient): mCall(call), mPeer(peer), mPeerClient(peerClient){}
 public:
     enum: uint8_t
@@ -280,6 +290,7 @@ public:
     uint32_t peerClient() const { return mPeerClient; }
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
+    TermCode getTermCode() {return mTermCode;}
 };
 
 class ICall: public karere::WeakReferenceable<ICall>
@@ -432,6 +443,8 @@ public:
     virtual int numCalls() const = 0;
     virtual std::vector<karere::Id> chatsWithCall() const = 0;
     virtual void abortCallRetry(karere::Id chatid) = 0;
+    virtual void refreshTurnServerIp() = 0;
+    virtual void updateTurnServers() = 0;
 };
 IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
     IRtcCrypto* crypto, const char* iceServers);

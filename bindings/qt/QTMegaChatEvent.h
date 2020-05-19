@@ -30,6 +30,7 @@ public:
         OnChatNotification,
         OnChatVideoData,
         OnChatCallUpdate,
+        onChatSessionUpdate,
         OnAttachmentLoaded,
         OnAttachmentReceived,
         OnAttachmentDeleted,
@@ -56,6 +57,8 @@ public:
     int getHeight();
     char *getBuffer();
     size_t getSize();
+    MegaChatSession *getChatSession();
+    MegaChatHandle getChatCallid();
 
     void setChatRequest(MegaChatRequest *request);
     void setChatError(MegaChatError *error);
@@ -71,6 +74,8 @@ public:
     void setHeight(int height);
     void setBuffer(char *buffer);
     void setSize(size_t size);
+    void setChatSession(MegaChatSession *session);
+    void setChatCallid(MegaChatHandle callid);
 
 private:
     MegaChatApi *megaChatApi;
@@ -82,6 +87,8 @@ private:
     MegaChatRoom *chat;
     MegaChatMessage *msg;
     MegaChatCall *call;
+    MegaChatSession *session;
+    MegaChatHandle callid;
     bool inProgress;
     int status;
     int width;

@@ -437,7 +437,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     int error = e->getErrorCode();
     if (error != API_OK
             && (reqType != MegaRequest::TYPE_LOGIN || error != MegaError::API_EMFAREQUIRED)
-            && (reqType != MegaRequest::TYPE_GET_ATTR_USER || error != MegaError::API_ENOENT))
+            && (reqType != MegaRequest::TYPE_GET_ATTR_USER))
     {
         QMessageBox::critical(nullptr, tr("SDK Request failed: ").append(request->getRequestString()), tr("Error: ").append(e->getErrorString()));
     }
@@ -685,21 +685,23 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
              {
              MegaChatHandle userHandle = request->getUserHandle();
              int errorCode = error;
+             mFirstnameFetching[userHandle] = false;
              if (errorCode == MegaChatError::ERROR_OK)
              {
                 const char *firstname = request->getText();
                 if ((strlen(firstname)) == 0)
                 {
-                    this->mMegaChatApi->getUserEmail(userHandle);
+                    mFirstnamesMap.erase(userHandle);
+                    mMegaChatApi->getUserEmail(userHandle);
                     break;
                 }
                 mFirstnamesMap[userHandle] = firstname;
-                mFirstnameFetching[userHandle] = false;
                 mMainWin->updateContactTitle(userHandle,firstname);
                 mMainWin->updateMessageFirstname(userHandle,firstname);
              }
              else if (errorCode == MegaChatError::ERROR_NOENT)
              {
+                mFirstnamesMap.erase(userHandle);
                 this->mMegaChatApi->getUserEmail(userHandle);
              }
              break;
@@ -717,7 +719,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                }
                else
                {
-                  if (!getFirstname(userHandle, nullptr) && !getLocalUserAlias(userHandle).empty())
+                  if (mFirstnamesMap.find(userHandle) == mFirstnamesMap.end()
+                          && getLocalUserAlias(userHandle).empty())
                   {
                      // Update contact title and messages
                      mMainWin->updateContactTitle(userHandle, email);
@@ -1058,6 +1061,13 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 break;
             }
+    case MegaChatRequest::TYPE_IMPORT_MESSAGES:
+        if (!error)
+        {
+            if (mMainWin)
+                mMainWin->reorderAppChatList();
+        }
+        break;
     default:
         break;
     }
