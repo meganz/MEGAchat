@@ -1431,37 +1431,21 @@ void Client::addPeers(const std::vector<karere::Id> &peers)
         return;
     }
 
-    std::vector<karere::Id> sendPeers;
-    for (size_t i = 0; i < peers.size(); i++)
-    {
-        const karere::Id &peer = peers.at(i);
-        if (!isContact(peer))
-        {
-            PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's non-contact", peer.toString().c_str());
-            continue;
-        }
-        else if (isExContact(peer))
-        {
-            PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's ex-contact", peer.toString().c_str());
-            continue;
-        }
-
-        assert(mLastScsn.isValid());
-        sendPeers.emplace_back(peer);
-    }
-
-    if (sendPeers.empty())
+    if (peers.empty())
     {
         return;
     }
 
-    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + (sendPeers.size() * sizeof(uint64_t));
+    assert(mLastScsn.isValid());
+    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + (peers.size() * sizeof(uint64_t));
     Command cmd(OP_SNADDPEERS, static_cast<uint8_t>(totalSize));
     cmd.append<uint64_t>(mLastScsn.val);
-    cmd.append<uint32_t>(static_cast<uint32_t>(sendPeers.size()));
-    for (size_t i = 0; i < sendPeers.size(); i++)
+    cmd.append<uint32_t>(static_cast<uint32_t>(peers.size()));
+    for (size_t i = 0; i < peers.size(); i++)
     {
-        cmd.append<uint64_t>(sendPeers.at(i).val);
+        auto it = mContacts.find(peers.at(i));
+        assert (it != mContacts.end() && it->second == ::mega::MegaUser::VISIBILITY_VISIBLE);
+        cmd.append<uint64_t>(peers.at(i).val);
     }
     sendCommand(std::move(cmd));
 }
@@ -1473,37 +1457,23 @@ void Client::removePeers(const std::vector<karere::Id> &peers)
         PRESENCED_LOG_WARNING("Not sending DELPEERS in anonymous mode");
         return;
     }
-
-    assert(mLastScsn.isValid());
-
-    std::vector<karere::Id> sendPeers;
-    for (size_t i = 0; i < peers.size(); i++)
-    {
-        karere::Id peer = peers.at(i);
-        if (isContact(peer) && !isExContact(peer))
-        {
-            PRESENCED_LOG_WARNING("Not sending DELPEERS for user %s because it's contact", peer.toString().c_str());
-            continue;
-        }
-
-        // Remove peer from mPeersLastGreen map if exists
-        mPeersLastGreen.erase(peer.val);
-        sendPeers.emplace_back(peer.val);
-        updatePeerPresence(peer, Presence::kUnknown);
-    }
-
-    if (sendPeers.empty())
+    if (peers.empty())
     {
         return;
     }
 
-    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + (sendPeers.size() * sizeof(uint64_t));
+    assert(mLastScsn.isValid());
+    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + (peers.size() * sizeof(uint64_t));
     Command cmd(OP_SNDELPEERS, static_cast<uint8_t>(totalSize));
     cmd.append<uint64_t>(mLastScsn.val);
-    cmd.append<uint32_t>(static_cast<uint32_t>(sendPeers.size()));
-    for (size_t i = 0; i < sendPeers.size(); i++)
+    cmd.append<uint32_t>(static_cast<uint32_t>(peers.size()));
+    for (size_t i = 0; i < peers.size(); i++)
     {
-        cmd.append<uint64_t>(sendPeers.at(i).val);
+        auto it = mContacts.find(peers.at(i));
+        assert (it == mContacts.end() || it->second == ::mega::MegaUser::VISIBILITY_HIDDEN);
+        mPeersLastGreen.erase(peers.at(i).val); // Remove peer from mPeersLastGreen map if exists
+        cmd.append<uint64_t>(peers.at(i).val);
+        updatePeerPresence(peers.at(i), Presence::kUnknown);
     }
     sendCommand(std::move(cmd));
 }
