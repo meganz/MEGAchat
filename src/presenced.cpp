@@ -101,13 +101,13 @@ void Client::pushPeers()
         return;
     }
 
-    size_t numPeers = mCurrentPeers.size();
+    size_t numPeers = mContacts.size();
     size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
 
     Command cmd(OP_SNSETPEERS, totalSize);
     cmd.append<uint64_t>(mLastScsn.val);
     cmd.append<uint32_t>(numPeers);
-    for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
+    for (auto it = mContacts.begin(); it != mContacts.end(); it++)
     {
         cmd.append<uint64_t>(it->first);
     }
@@ -696,8 +696,9 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
             }
 
             auto it = mContacts.find(userid);
-            if (it == mContacts.end())  // new contact
+            if (it == mContacts.end())
             {
+                // new contact
                 mContacts[userid] = newVisibility;
                 if (newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
                 {
@@ -706,31 +707,25 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
             }
             else    // existing (ex)contact
             {
+                // Update visibility
                 int oldVisibility = it->second;
                 it->second = newVisibility;
 
-                if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE) // user cancelled the account
+                if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
                 {
+                    // user cancelled the account
                     mContacts.erase(it);
                     delPeerList.emplace_back(userid);
                 }
                 else if (oldVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE && newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
                 {
+                    // contact to ex-contact
                     delPeerList.emplace_back(userid);
                 }
                 else if (oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
                 {
+                    // ex-contact to contact
                     addPeerList.emplace_back(userid);
-
-                    // update mCurrentPeers's counter in order to consider groupchats. Otherwise, the count=1 will be zeroed if
-                    // the user (now contact again) is removed from any groupchat, resulting in an incorrect DELPEERS
-                    for (auto it = mChatMembers.begin(); it != mChatMembers.end(); it++)
-                    {
-                        if (it->second.has(userid))
-                        {
-                            addPeerList.emplace_back(userid);
-                        }
-                    }
                 }
             }
         }
@@ -754,7 +749,6 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
 
         // reset current status (for the full reload once logged in already)
         mLastScsn = karere::Id::inval();
-        mCurrentPeers.clear();
         mContacts.clear();
         mChatMembers.clear();
 
@@ -767,12 +761,10 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
             }
 
             assert(!mLastScsn.isValid());
-            assert(mCurrentPeers.empty());
             assert(mContacts.empty());
             assert(mChatMembers.empty());
 
             mLastScsn = scsn;
-            mCurrentPeers.clear();
             mContacts.clear();
             mChatMembers.clear();
 
@@ -788,10 +780,6 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
 
                 int visibility = user->getVisibility();
                 mContacts[userid] = visibility; // add ex-contacts to identify them
-                if (visibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
-                {
-                    mCurrentPeers.insert(userid);
-                }
             }
 
             // initialize chatroom's peers
@@ -810,7 +798,6 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
                     uint64_t userid = peerlist->getPeerHandle(j);
                     if (isContact(userid) && !isExContact(userid))
                     {
-                        mCurrentPeers.insert(userid);
                         mChatMembers[chatid].insert(userid);
                     }
                 }
@@ -1423,7 +1410,7 @@ void Client::setConnState(ConnState newState)
         }
 
         // if disconnected, we don't really know the presence status anymore
-        for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
+        for (auto it = mContacts.begin(); it != mContacts.end(); it++)
         {
             updatePeerPresence(it->first, Presence::kUnknown);
         }
@@ -1464,24 +1451,12 @@ void Client::addPeers(const std::vector<karere::Id> &peers)
         }
         else if (isExContact(peer))
         {
-            // Notify presence of non-contact that becomes contact again
-            Presence presence = peerPresence(peer);
-            if (presence.isValid())
-            {
-                CALL_LISTENER(onPresenceChange, peer, presence);
-            }
-
             PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's ex-contact", peer.toString().c_str());
             continue;
         }
 
         assert(mLastScsn.isValid());
-
-        int result = mCurrentPeers.insert(peer);
-        if (result == 1) //refcount = 1, wasnt there before
-        {
-            sendPeers.emplace_back(peer);
-        }
+        sendPeers.emplace_back(peer);
     }
 
     if (sendPeers.empty())
@@ -1500,7 +1475,7 @@ void Client::addPeers(const std::vector<karere::Id> &peers)
     sendCommand(std::move(cmd));
 }
 
-void Client::removePeers(const std::vector<karere::Id> &peers, bool force)
+void Client::removePeers(const std::vector<karere::Id> &peers)
 {
     if (mKarereClient->anonymousMode())
     {
@@ -1514,30 +1489,11 @@ void Client::removePeers(const std::vector<karere::Id> &peers, bool force)
     for (size_t i = 0; i < peers.size(); i++)
     {
         karere::Id peer = peers.at(i);
-        auto it = mCurrentPeers.find(peer);
-        if (it == mCurrentPeers.end())
+        if (isContact(peer) && !isExContact(peer))
         {
-            PRESENCED_LOG_WARNING("removePeer: Unknown peer %s", peer.toString().c_str());
-            return;
+            PRESENCED_LOG_WARNING("Not sending DELPEERS for user %s because it's contact", peer.toString().c_str());
+            continue;
         }
-        if (--it->second > 0)
-        {
-            if (!force)
-            {
-                PRESENCED_LOG_DEBUG("removePeer: decremented number of references for peer %s", peer.toString().c_str());
-                return;
-            }
-            else
-            {
-                PRESENCED_LOG_DEBUG("removePeer: Forcing delete of peer %s with refcount > 0", ID_CSTR(peer));
-            }
-        }
-        else //refcount reched zero
-        {
-            assert(it->second == 0);
-        }
-
-        mCurrentPeers.erase(it);
 
         // Remove peer from mPeersLastGreen map if exists
         mPeersLastGreen.erase(peer.val);
