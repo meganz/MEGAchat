@@ -587,8 +587,6 @@ void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *rooms
         }
 
         mLastScsn = scsn;
-        std::vector<karere::Id> addPeerList;
-        std::vector<karere::Id> delPeerList;
 
         for (int i = 0; i < rooms->size(); i++)
         {
@@ -608,7 +606,6 @@ void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *rooms
                 {
                     uint64_t userid = peerList->getPeerHandle(j);
                     mChatMembers[chatid].insert(userid);
-                    addPeerList.emplace_back(userid);
                 }
             }
             else    // existing room
@@ -630,7 +627,6 @@ void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *rooms
                     if (!newPeerList.has(userid))
                     {
                         mChatMembers[chatid].erase(userid);
-                        delPeerList.emplace_back(userid);
                     }
                 }
 
@@ -641,15 +637,10 @@ void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *rooms
                     if (!oldPeerList.has(userid))
                     {
                         mChatMembers[chatid].insert(userid);
-                        addPeerList.emplace_back(userid);
                     }
                 }
             }
         }
-
-        // Send ADD/DELPEERS
-        addPeers(addPeerList);
-        removePeers(delPeerList);
     }, mKarereClient->appCtx);
 }
 
