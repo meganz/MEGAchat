@@ -706,7 +706,11 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
                 {
                     // user cancelled the account
                     mContacts.erase(it);
-                    delPeerList.emplace_back(userid);
+                    if (oldVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+                    {
+                        // Send delPeer only if an active contact cancelled the account
+                        delPeerList.emplace_back(userid);
+                    }
                 }
                 else if (oldVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE && newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
                 {
