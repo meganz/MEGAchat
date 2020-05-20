@@ -94,6 +94,7 @@ enum
 
 /** Contains a 64 bit user handle of a user that was excluded from chat */
     TLV_TYPE_EXC_PARTICIPANT    = 0x09,
+    // TLV_TYPE_OWN_KEY         = 0x0a, deprecated (used for legacy encryption)
     TLV_TYPE_INVITOR            = 0x0b,
     TLV_TYPE_PRIVILEGE          = 0x0c,
     TLV_TYPE_KEYBLOB            = 0x0f,
@@ -105,6 +106,7 @@ enum
 enum: unsigned char
 {
     ///Message using an existing sender key for encryption.
+    //SVCRYPTO_MSGTYPE_KEYED                   = 0x00, deprecated (used for legacy encryption)
     SVCRYPTO_MSGTYPE_FOLLOWUP                  = 0x01,
     SVCRYPTO_MSGTYPES_COUNT
 };
