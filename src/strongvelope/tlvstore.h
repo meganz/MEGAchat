@@ -48,20 +48,19 @@ class TlvParser
 protected:
     const StaticBuffer& mSource;
     size_t mOffset;
-    bool mLegacyMode;
 public:
-    TlvParser(const StaticBuffer& source, size_t offset, bool legacyMode = false)
-    :mSource(source), mOffset(offset), mLegacyMode(legacyMode){}
+    TlvParser(const StaticBuffer& source, size_t offset)
+    :mSource(source), mOffset(offset){}
     bool getRecord(TlvRecord& record)
     {
        if (mOffset == Buffer::kNotFound)
             return false;
-        size_t typeLen = mLegacyMode ? 2 : 1;
+        size_t typeLen = 1;
         record.type = mSource.read<uint8_t>(mOffset);
         record.dataOffset = mOffset+typeLen+2;
         uint16_t valueLen = ntohs(mSource.read<uint16_t>(mOffset+typeLen));
 
-        if ((valueLen == 0xffff) && !mLegacyMode)
+        if (valueLen == 0xffff)
         {
             record.dataLen = mSource.dataSize() - record.dataOffset;
             mOffset = mSource.dataSize();
