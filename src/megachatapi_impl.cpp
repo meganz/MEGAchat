@@ -1810,7 +1810,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
-            if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
+            if (chatroom->ownPriv() != static_cast<Priv>(MegaChatPeerList::PRIV_MODERATOR))
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
