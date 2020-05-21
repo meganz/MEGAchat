@@ -2625,6 +2625,11 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         destroy(TermCode::kErrNetSignalling, false)
         .then([wptr, this]
         {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
             karere::Id chatid = chat().chatId();
             auto it = mManager.mRetryCall.find(chatid);
             if (it == mManager.mRetryCall.end())
