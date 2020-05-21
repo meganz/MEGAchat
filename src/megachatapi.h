@@ -1210,7 +1210,8 @@ public:
     {
         CHANGE_TYPE_STATUS          = 0x01,
         CHANGE_TYPE_CONTENT         = 0x02,
-        CHANGE_TYPE_ACCESS          = 0x04  /// When the access to attached nodes has changed (obsolete)
+        CHANGE_TYPE_ACCESS          = 0x04,  /// When the access to attached nodes has changed (obsolete)
+        CHANGE_TYPE_TIMESTAMP       = 0x08,  /// When ts has been updated by chatd in confirmation
     };
 
     enum
@@ -1577,6 +1578,9 @@ public:
      *
      * - MegaChatMessage::CHANGE_TYPE_ACCESS   = 0x04
      * Check if the access to attached nodes has changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_TIMESTAMP   = 0x08
+     * Check if the ts has been updated by chatd
      */
     virtual int getChanges() const;
 
@@ -1598,6 +1602,9 @@ public:
      *
      * - MegaChatMessage::CHANGE_TYPE_ACCESS   = 0x04
      * Check if the access to attached nodes has changed
+     *
+     * - MegaChatMessage::CHANGE_TYPE_TIMESTAMP   = 0x08
+     * Check if the ts has been updated by chatd
      *
      * @return true if this message has an specific change
      */

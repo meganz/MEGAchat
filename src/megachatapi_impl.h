@@ -387,7 +387,7 @@ public:
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
-    void setUnreadCount(int count);
+    void changeUnreadCount();
     void setNumPreviewers(unsigned int numPrev);
     void setPreviewClosed();
     void setMembersUpdated();
@@ -415,7 +415,7 @@ public:
 
     // karere::IApp::IListItem::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
-    virtual void onUnreadCountChanged(int count);
+    virtual void onUnreadCountChanged();
 
     // karere::IApp::IListItem::IChatListItem implementation
     virtual void onExcludedFromChat();
@@ -479,7 +479,7 @@ public:
 
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
-    virtual void onUnreadCountChanged(int count);
+    virtual void onUnreadCountChanged();
     virtual void onPreviewersCountUpdate(uint32_t numPrev);
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
@@ -490,7 +490,7 @@ public:
     virtual void onHistoryDone(chatd::HistSource source);
     virtual void onUnsentMsgLoaded(chatd::Message& msg);
     virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
-    virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx);
+    virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx, bool tsUpdated);
     virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
@@ -749,7 +749,7 @@ public:
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
-    void setUnreadCount(int count);
+    void changeUnreadCount();
     void setNumPreviewers(unsigned int numPrev);
     void setMembersUpdated();
     void setUserTyping(MegaChatHandle uh);
@@ -856,6 +856,7 @@ public:
     void setContentChanged();
     void setCode(int code);
     void setAccess();
+    void setTsUpdated();
 
     static int convertEndCallTermCodeToUI(const chatd::Message::CallEndedInfo &callEndInfo);
 

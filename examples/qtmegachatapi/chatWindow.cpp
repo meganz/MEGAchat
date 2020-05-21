@@ -372,16 +372,21 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*tempora
     megachat::MegaChatHandle msgId = getMessageId(msg);
     std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
     itMessages = mMsgsWidgetsMap.find(msgId);
-    if (itMessages != mMsgsWidgetsMap.end())
+    if (itMessages == mMsgsWidgetsMap.end())
     {
-        ChatMessage *auxMessage = itMessages->second;
-        int row = ui->mMessageList->row(auxMessage->getWidgetItem());
-        QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
-        mMsgsWidgetsMap.erase(itMessages);
-        delete auxItem;
-        return true;
+        itMessages = mMsgsWidgetsMap.find(msg->getTempId());
+        if (itMessages == mMsgsWidgetsMap.end())
+        {
+            return false;
+        }
     }
-    return false;
+
+    ChatMessage *auxMessage = itMessages->second;
+    int row = ui->mMessageList->row(auxMessage->getWidgetItem());
+    QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
+    mMsgsWidgetsMap.erase(itMessages);
+    delete auxItem;
+    return true;
 }
 
 ChatMessage *ChatWindow::findChatMessage(megachat::MegaChatHandle msgId)
@@ -886,7 +891,7 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     if (notificationSettings)
     {
         actDoNotDisturb->setCheckable(true);
-        actDoNotDisturb->setChecked(!notificationSettings->isChatEnabled(mChatRoom->getChatId()));
+        actDoNotDisturb->setChecked(notificationSettings->isChatDndEnabled(mChatRoom->getChatId()));
     }
     else
     {
@@ -1291,8 +1296,8 @@ void ChatWindow::on_mCancelTransfer(QAbstractButton*)
 
 void ChatWindow::on_mCancelReconnection(QAbstractButton *)
 {
-    delete mReconnectingDlg;
-    mReconnectingDlg = NULL;
+    mReconnectingDlg->deleteLater();
+    mReconnectingDlg = nullptr;
     mMegaChatApi->hangChatCall(mChatRoom->getChatId());
 }
 

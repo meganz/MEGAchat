@@ -32,6 +32,7 @@ private:
 
     // notification settings
     ::mega::m_time_t mGlobalDifference = -1;
+    ::mega::m_time_t mGlobalChatsDifference = -1;
     QStandardItemModel mNotificationSettingsPerChat;
     void savePushNotificationSettings();
 
@@ -42,6 +43,7 @@ private:
 private slots:
     void onClicked(QAbstractButton*);
     void onGlobalClicked(bool value);
+    void onGlobalChatClicked(bool value);
     void onScheduleEnabled(bool value);
     void on_autoAwayCheckBox_clicked(bool checked);
 };

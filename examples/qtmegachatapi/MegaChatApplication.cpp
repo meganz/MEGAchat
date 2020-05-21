@@ -437,7 +437,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     int error = e->getErrorCode();
     if (error != API_OK
             && (reqType != MegaRequest::TYPE_LOGIN || error != MegaError::API_EMFAREQUIRED)
-            && (reqType != MegaRequest::TYPE_GET_ATTR_USER || error != MegaError::API_ENOENT))
+            && (reqType != MegaRequest::TYPE_GET_ATTR_USER))
     {
         QMessageBox::critical(nullptr, tr("SDK Request failed: ").append(request->getRequestString()), tr("Error: ").append(e->getErrorString()));
     }
@@ -1056,6 +1056,13 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 break;
             }
+    case MegaChatRequest::TYPE_IMPORT_MESSAGES:
+        if (!error)
+        {
+            if (mMainWin)
+                mMainWin->reorderAppChatList();
+        }
+        break;
     default:
         break;
     }

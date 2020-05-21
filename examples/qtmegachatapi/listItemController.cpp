@@ -205,7 +205,7 @@ void ChatListItemController::onPushReceivedAndroid()
 void ChatListItemController::onMuteNotifications(bool enabled)
 {
     auto settings = mMainWindow->mApp->getNotificationSettings();
-    if (settings && !settings->isChatEnabled(mItemId) != enabled)
+    if (settings && settings->isChatDndEnabled(mItemId) != enabled)
     {
         settings->enableChat(mItemId, !enabled);
         mMegaApi->setPushNotificationSettings(settings.get());

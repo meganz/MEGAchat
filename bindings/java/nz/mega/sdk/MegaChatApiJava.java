@@ -7,7 +7,10 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import mega.privacy.android.app.MegaApplication;
+import mega.privacy.android.app.R;
 import mega.privacy.android.app.utils.VideoCaptureUtils;
+
+import static nz.mega.sdk.MegaChatError.*;
 
 public class MegaChatApiJava {
     MegaChatApi megaChatApi;
@@ -3088,5 +3091,36 @@ public class MegaChatApiJava {
         }
 
         return result;
+    }
+
+    /**
+     * Gets the translated string of an error received in a request.
+     *
+     * @param error MegaChatError received in the request
+     * @return The translated string
+     */
+    public static String getTranslatedErrorString(MegaChatError error) {
+        MegaApplication app = MegaApplication.getInstance();
+        if (app == null) {
+            return error.getErrorString();
+        }
+
+        switch (error.getErrorCode()) {
+            case ERROR_OK:
+                return app.getString(R.string.error_ok);
+            case ERROR_ARGS:
+                return app.getString(R.string.error_args);
+            case ERROR_ACCESS:
+                return app.getString(R.string.error_access);
+            case ERROR_NOENT:
+                return app.getString(R.string.error_noent);
+            case ERROR_EXIST:
+                return app.getString(R.string.error_exist);
+            case ERROR_TOOMANY:
+                return app.getString(R.string.error_toomany);
+            case ERROR_UNKNOWN:
+            default:
+                return app.getString(R.string.error_unknown);
+        }
     }
 };

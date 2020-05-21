@@ -193,15 +193,6 @@ class Call: public ICall
 
     enum
     {
-        kCallDataReasonEnded        = 0x01, /// normal hangup of on-going call
-        kCallDataReasonRejected     = 0x02, /// incoming call was rejected by callee
-        kCallDataReasonNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
-        kCallDataReasonFailed       = 0x04, /// on-going call failed
-        kCallDataReasonCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
-    };
-
-    enum
-    {
         kFlagRinging = 0x04
     };
 
@@ -319,6 +310,30 @@ public:
     void changeVideoInDevice();
 };
 
+/*
+ * Partial implementation of the WebsocketsClient, just for the purpose of
+ * resolving the IPs behind the ICE servers in order to be added to cache.
+ */
+class DnsResolver : public WebsocketsClient
+{
+public:
+    DnsResolver() {}
+    virtual ~DnsResolver() {}
+
+    bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
+                   const char *host, int port, const char *path, bool ssl) = delete;
+    int wsGetNoNameErrorCode(WebsocketsIO *websocketIO) = delete;
+    bool wsSendMessage(char *msg, size_t len) = delete;  // returns true on success, false if error
+    void wsDisconnect(bool immediate) = delete;
+    bool wsIsConnected() = delete;
+    void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len) = delete;
+
+    void wsConnectCb() override {}
+    void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/) override {}
+    void wsHandleMsgCb(char *data, size_t len) override {}
+    void wsSendMsgCb(const char *, size_t) override {}
+};
+
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
 {
 public:
@@ -380,6 +395,8 @@ public:
     virtual int numCalls() const;
     virtual std::vector<karere::Id> chatsWithCall() const;
     virtual void abortCallRetry(karere::Id chatid);
+    void refreshTurnServerIp() override;
+    void updateTurnServers() override;
 //==
     void updatePeerAvState(karere::Id chatid, karere::Id callid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
     void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);
@@ -393,7 +410,7 @@ public:
     void launchCallRetry(karere::Id chatid, karere::AvFlags av, bool isActiveRetry = true);
     virtual ~RtcModule();
 protected:
-    const char* mStaticIceSever;
+    const char* mStaticIceServers;
     karere::GelbProvider mIceServerProvider;
     webrtc::PeerConnectionInterface::IceServers mIceServers;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
@@ -402,6 +419,10 @@ protected:
     RtcModule &mManager;
     std::map<karere::Id, megaHandle> mRetryCallTimers;
     std::string mVideoDeviceSelected;
+
+    DnsResolver mDnsResolver;
+    unsigned int mDnsRequestId = 0;
+
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
@@ -417,6 +438,10 @@ protected:
 
     void removeCallRetry(karere::Id chatid, bool retry = true);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
+
+    std::string getCachedTurnServers();
+    std::string buildTurnServerUrl(const std::string& host, int port, const std::string& path) const;
+
     friend class Call;
     friend class Session;
 public:
@@ -492,6 +517,7 @@ public:
         updateLenField();
     }
 };
+
 }
 
 #endif
