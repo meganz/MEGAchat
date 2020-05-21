@@ -36,12 +36,15 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     delete chatRoom;
     updateContent();
 
-    mega::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
-    for (int i = 0; i < reactions->size(); i++)
+    if (mMessage->hasReactions())
     {
-        int count = megaChatApi->getMessageReactionCount(mChatId, mMessage->getMsgId(), reactions->get(i));
-        Reaction *reaction = new Reaction(this, reactions->get(i), count);
-        ui->mReactions->layout()->addWidget(reaction);  // takes ownership
+        mega::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
+        for (int i = 0; i < reactions->size(); i++)
+        {
+            int count = megaChatApi->getMessageReactionCount(mChatId, mMessage->getMsgId(), reactions->get(i));
+            Reaction *reaction = new Reaction(this, reactions->get(i), count);
+            ui->mReactions->layout()->addWidget(reaction);  // takes ownership
+        }
     }
 
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
