@@ -384,9 +384,6 @@ protected:
     /** Map of userids (key) and last green (value) of any contact or any user in our groupchats, except ex-contacts */
     std::map<uint64_t, time_t> mPeersLastGreen;
 
-    /** Map of chatids (key) and the list of peers (value) in every chat (updated only from API) */
-    std::map<uint64_t, karere::SetOfIds> mChatMembers;
-
     /** Map of userid of contacts (key) and their visibility (value) (updated only from API)
      * @note: ex-contacts are included.
      */
@@ -427,7 +424,6 @@ protected:
     bool isContact(uint64_t userid);
 
     // mega::MegaGlobalListener interface, called by worker thread
-    virtual void onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms);
     virtual void onUsersUpdate(::mega::MegaApi*, ::mega::MegaUserList* users);
     virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
     

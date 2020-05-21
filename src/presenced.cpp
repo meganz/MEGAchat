@@ -559,91 +559,6 @@ bool Client::isContact(uint64_t userid)
     return (mContacts.find(userid) != mContacts.end());
 }
 
-void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *roomsUpdated)
-{
-    const char *buf = api->getSequenceNumber();
-    Id scsn(buf, strlen(buf));
-    delete [] buf;
-
-    if (!roomsUpdated)
-    {
-        PRESENCED_LOG_DEBUG("Chatroom list up to date. scsn: %s", scsn.toString().c_str());
-        return;
-    }
-
-    std::shared_ptr<::mega::MegaTextChatList> rooms(roomsUpdated->copy());
-    auto wptr = weakHandle();
-    marshallCall([wptr, this, rooms, scsn]()
-    {
-        if (wptr.deleted())
-        {
-            return;
-        }
-
-        if (!mLastScsn.isValid())
-        {
-            PRESENCED_LOG_DEBUG("onChatsUpdate: still catching-up with actionpackets");
-            return;
-        }
-
-        mLastScsn = scsn;
-
-        for (int i = 0; i < rooms->size(); i++)
-        {
-            const ::mega::MegaTextChat *room = rooms->get(i);
-            uint64_t chatid = room->getHandle();
-            const ::mega::MegaTextChatPeerList *peerList = room->getPeerList();
-
-            auto it = mChatMembers.find(chatid);
-            if (it == mChatMembers.end())  // new room
-            {
-                if (!peerList)
-                {
-                    continue;   // no peers in this chatroom
-                }
-
-                for (int j = 0; j < peerList->size(); j++)
-                {
-                    uint64_t userid = peerList->getPeerHandle(j);
-                    mChatMembers[chatid].insert(userid);
-                }
-            }
-            else    // existing room
-            {
-                SetOfIds oldPeerList = mChatMembers[chatid];
-                SetOfIds newPeerList;
-                if (peerList)
-                {
-                    for (int j = 0; j < peerList->size(); j++)
-                    {
-                        newPeerList.insert(peerList->getPeerHandle(j));
-                    }
-                }
-
-                // check for removals
-                for (auto oldIt = oldPeerList.begin(); oldIt != oldPeerList.end(); oldIt++)
-                {
-                    uint64_t userid = *oldIt;
-                    if (!newPeerList.has(userid))
-                    {
-                        mChatMembers[chatid].erase(userid);
-                    }
-                }
-
-                // check for additions
-                for (auto newIt = newPeerList.begin(); newIt != newPeerList.end(); newIt++)
-                {
-                    uint64_t userid = *newIt;
-                    if (!oldPeerList.has(userid))
-                    {
-                        mChatMembers[chatid].insert(userid);
-                    }
-                }
-            }
-        }
-    }, mKarereClient->appCtx);
-}
-
 void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpdated)
 {
     const char *buf = api->getSequenceNumber();
@@ -745,7 +660,6 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
         // reset current status (for the full reload once logged in already)
         mLastScsn = karere::Id::inval();
         mContacts.clear();
-        mChatMembers.clear();
 
         auto wptr = weakHandle();
         marshallCall([wptr, this, contacts, chats, scsn]()
@@ -757,11 +671,9 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
 
             assert(!mLastScsn.isValid());
             assert(mContacts.empty());
-            assert(mChatMembers.empty());
 
             mLastScsn = scsn;
             mContacts.clear();
-            mChatMembers.clear();
 
             // initialize the list of contacts
             for (int i = 0; i < contacts->size(); i++)
@@ -775,27 +687,6 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
 
                 int visibility = user->getVisibility();
                 mContacts[userid] = visibility; // add ex-contacts to identify them
-            }
-
-            // initialize chatroom's peers
-            for (int i = 0; i < chats->size(); i++)
-            {
-                const ::mega::MegaTextChat *chat = chats->get(i);
-                uint64_t chatid = chat->getHandle();
-                const ::mega::MegaTextChatPeerList *peerlist = chat->getPeerList();
-                if (!peerlist)
-                {
-                    continue;   // no peers in this chatroom
-                }
-
-                for (int j = 0; j < peerlist->size(); j++)
-                {
-                    uint64_t userid = peerlist->getPeerHandle(j);
-                    if (isContact(userid) && !isExContact(userid))
-                    {
-                        mChatMembers[chatid].insert(userid);
-                    }
-                }
             }
 
             // finally send to presenced the initial set of peers
@@ -1429,14 +1320,12 @@ void Client::setConnState(ConnState newState)
 }
 void Client::addPeers(const std::vector<karere::Id> &peers)
 {
+    if (peers.empty())
+        return;
+
     if (mKarereClient->anonymousMode())
     {
         PRESENCED_LOG_WARNING("Not sending ADDPEERS in anonymous mode");
-        return;
-    }
-
-    if (peers.empty())
-    {
         return;
     }
 
@@ -1456,13 +1345,12 @@ void Client::addPeers(const std::vector<karere::Id> &peers)
 
 void Client::removePeers(const std::vector<karere::Id> &peers)
 {
+    if (peers.empty())
+        return;
+
     if (mKarereClient->anonymousMode())
     {
         PRESENCED_LOG_WARNING("Not sending DELPEERS in anonymous mode");
-        return;
-    }
-    if (peers.empty())
-    {
         return;
     }
 
