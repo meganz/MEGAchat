@@ -2621,7 +2621,21 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         }
 
         SUB_LOG_DEBUG("ENDCALL received for ourselves, finishing the call");
-        destroy(TermCode::kErrNetSignalling, false);
+        auto wptr = weakHandle();
+        destroy(TermCode::kErrNetSignalling, false)
+        .then([wptr, this]
+        {
+            karere::Id chatid = chat().chatId();
+            auto it = mManager.mRetryCall.find(chatid);
+            if (it == mManager.mRetryCall.end())
+            {
+                karere::AvFlags flags = sentAv();
+                mManager.mRetryCall[chatid] = std::pair<karere::AvFlags, bool>(flags, true);
+                auto itHandler = mManager.mCallHandlers.find(chatid);
+                mManager.joinCall(chatid, flags, *itHandler->second, mId);
+                mManager.mRetryCall.erase(chatid);
+            }
+        });
         return;
     }
 
