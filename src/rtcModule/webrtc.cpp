@@ -319,24 +319,6 @@ bool RtcModule::selectVideoInDevice(const string &devname)
     return false;
 }
 
-void RtcModule::onDisconnect(chatd::Connection& conn)
-{
-    // notify all relevant calls
-    for (auto chatid: conn.chatIds())
-    {
-        auto it = mCalls.find(chatid);
-        if (it == mCalls.end())
-        {
-            continue;
-        }
-        auto& call = it->second;
-        if (call->state() < Call::kStateTerminating)
-        {
-            call->destroy(TermCode::kErrNetSignalling, false);
-        }
-    }
-}
-
 int RtcModule::setIceServers(const ServerList &servers)
 {
     if (servers.empty())
