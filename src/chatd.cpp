@@ -3481,7 +3481,16 @@ void Chat::onLastSeen(Id msgid, bool resend)
             return;
         }
     }
-    // else --> msgid was found locally
+    else // msgid was found locally
+    {
+        // if both `msgid` and `mLastSeenId` are known and localy available, there's an index to compare
+        if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx)
+        {
+            CHATID_LOG_WARNING("onLastSeen: ignoring attempt to set last seen msgid backwards. Current: %s Attempt: %s", ID_CSTR(mLastSeenId), ID_CSTR(msgid));
+            return; // `mLastSeenId` is newer than the received `msgid`
+        }
+    }
+
     assert(mLastSeenId.isValid());
 
     if (idx == mLastSeenIdx)
