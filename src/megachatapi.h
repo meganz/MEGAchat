@@ -196,6 +196,9 @@ public:
     /**
      * @brief Returns if audio is detected for this session
      *
+     * @note This value will be always false for call in 1to1 chatrooms, when audio flag is disabled
+     * and in a group call when participants will be less than 7
+     *
      * @return true if audio is detected for this session, false in other case
      */
     virtual bool getAudioDetected() const;

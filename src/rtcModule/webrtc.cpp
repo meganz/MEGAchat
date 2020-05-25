@@ -4288,9 +4288,7 @@ AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &se
 
 void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
 {
-    assert(bits_per_sample == 16);
-    time_t nowTime = time(NULL);
-    if (!mSession.receivedAv().audio())
+    if (isDisabledAudioLevelMonitor())
     {
         if (mAudioDetected)
         {
@@ -4301,6 +4299,8 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
         return;
     }
 
+    assert(bits_per_sample == 16);
+    time_t nowTime = time(NULL);
     if (nowTime - mPreviousTime > 2) // Two seconds between samples
     {
         mPreviousTime = nowTime;
@@ -4328,6 +4328,12 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
             mSessionHandler.onSessionAudioDetected(mAudioDetected);
         }
     }
+}
+
+bool AudioLevelMonitor::isDisabledAudioLevelMonitor()
+{
+    std::map<Id, AvFlags> participants = mSession.call().avFlagsRemotePeers();
+    return !mSession.receivedAv().audio() || !mSession.call().chat().isGroup() || participants.size() < MIN_PARTICIPANTS_TO_ENABLE_AUDIO_MONITOR;
 }
 
 void globalCleanup()

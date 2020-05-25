@@ -8,6 +8,8 @@
 #include <base/trackDelete.h>
 #include <streamPlayer.h>
 
+#define MIN_PARTICIPANTS_TO_ENABLE_AUDIO_MONITOR 7
+
 namespace rtcModule
 {
 namespace stats { class IRtcStats; }
@@ -36,6 +38,8 @@ private:
     ISessionHandler &mSessionHandler;
     const Session &mSession;
     bool mAudioDetected = false;
+
+    bool isDisabledAudioLevelMonitor();
 };
 
 class Session: public ISession
