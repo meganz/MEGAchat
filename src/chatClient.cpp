@@ -4046,7 +4046,9 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         {
             // Update contact name
             std::string name(data->buf(), data->dataSize());
-            self->setContactName(name.substr(1));
+
+            // Preserve binary layout for contact name
+            self->setContactName(name);
             if (alias.empty())
             {
                 // Update title if there's no alias
