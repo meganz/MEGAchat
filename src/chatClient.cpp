@@ -2406,7 +2406,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
       mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)), mRoomGui(nullptr)
 {
     parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived) values (?,?,?,?,?,?,?)",
-        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived());
+        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, mCreationTs, mIsArchived);
 //just in case
     parent.mKarereClient.db.query("delete from chat_peers where chatid = ?", mChatid);
 
@@ -2503,6 +2503,11 @@ void PeerChatRoom::updateChatRoomTitle()
 
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
 {
+    if (!chat.getPeerList())
+    {
+        KR_LOG_ERROR("1on1 room without peer: %s", Id(chat.getHandle()).toString().c_str());
+        return Id::inval();
+    }
     auto peers = chat.getPeerList();
     assert(peers);
     assert(peers->size() == 1);
@@ -2511,6 +2516,10 @@ uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
 
 chatd::Priv PeerChatRoom::getSdkRoomPeerPriv(const mega::MegaTextChat &chat)
 {
+    if (!chat.getPeerList())
+    {
+        return chatd::PRIV_INVALID;
+    }
     auto peers = chat.getPeerList();
     assert(peers);
     assert(peers->size() == 1);
