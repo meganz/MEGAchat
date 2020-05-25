@@ -55,10 +55,9 @@ public:
     {
        if (mOffset == Buffer::kNotFound)
             return false;
-        size_t typeLen = 1;
         record.type = mSource.read<uint8_t>(mOffset);
-        record.dataOffset = mOffset+typeLen+2;
-        uint16_t valueLen = ntohs(mSource.read<uint16_t>(mOffset+typeLen));
+        record.dataOffset = mOffset + sizeof(uint8_t) + 2;
+        uint16_t valueLen = ntohs(mSource.read<uint16_t>(mOffset + sizeof(uint8_t)));
 
         if (valueLen == 0xffff)
         {
