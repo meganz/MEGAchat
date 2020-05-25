@@ -2497,11 +2497,16 @@ void PeerChatRoom::initContact(const uint64_t& peer)
 
 void PeerChatRoom::updateChatRoomTitle()
 {
+    bool needEncoding = true;
     std::string title = parent.mKarereClient.getUserAlias(mPeer);
     if (title.empty())
     {
-        title = mContact->getContactName();
-        if (title.empty())
+        if (mContact && !mContact->getContactName().empty())
+        {
+            title = mContact->getContactName();
+            needEncoding = false;
+        }
+        else
         {
             title = mEmail;
         }
@@ -2509,7 +2514,12 @@ void PeerChatRoom::updateChatRoomTitle()
 
     if (mContact)
     {
-        mContact->updateTitle(encodeFirstName(title));
+        if (needEncoding)
+        {
+            // Encode new title to add binary layout, if it's not the fullname
+            title = encodeFirstName(title);
+        }
+        mContact->updateTitle(title);
     }
     else
     {
@@ -4080,6 +4090,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             std::string contactName = self->getContactName();
             if (alias.empty() && contactName.empty())
             {
+                // Set email as title because contact doesn't have alias nor fullname
                 self->updateTitle(encodeFirstName(self->mEmail));
             }
         }
@@ -4281,19 +4292,29 @@ void Client::updateAliases(Buffer *data)
     // Update those contact's titles without a peer chatroom associated
     for (auto &userid : aliasesUpdated)
     {
+        bool needEncoding = true;
         Contact *contact =  mContactList->contactFromUserId(userid);
         if (contact && !contact->chatRoom())
         {
             std::string title = getUserAlias(userid);
             if (title.empty())
             {
-                title = !contact->getContactName().empty()
-                    ? contact->getContactName()
-                    : contact->email();
+                if (!contact->getContactName().empty())
+                {
+                    title = contact->getContactName();
+                    needEncoding = false;
+                }
+                else
+                {
+                    title = contact->email();
+                }
+            }
+            if (needEncoding)
+            {
+                title = encodeFirstName(title);
             }
 
-            // Contact title has a binary layout
-            contact->updateTitle(encodeFirstName(title));
+            contact->updateTitle(title);
         }
     }
 
