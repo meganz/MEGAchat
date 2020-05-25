@@ -22,10 +22,12 @@ namespace karere
  */
 enum {
     /** First attribute that is not directly supported by the SDK via getUserAttribute()*/
-    USER_ATTR_VIRTUAL_FIRST = 65,
+    USER_ATTR_VIRTUAL_FIRST = 64,
+
+    /** USER_ATTR_RSA_PUBKEY = USER_ATTR_VIRTUAL_FIRST, deprecated (used for legacy encryption)*/
 
     /** The email of the user, as returned bh getUserEmail() */
-    USER_ATTR_EMAIL = USER_ATTR_VIRTUAL_FIRST,
+    USER_ATTR_EMAIL,
 
     /** The most significant bit in the attribute type is 1, then the attribute is
      * not directly backed by the db, but rather synthesized by other attributes
