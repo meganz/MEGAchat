@@ -1180,6 +1180,8 @@ public:
     bool hasCallInChatRoom(MegaChatHandle chatid);
     int getMaxCallParticipants();
     int getMaxVideoCallParticipants();
+    bool isAudioMonitorEnabled(MegaChatHandle chatid);
+    void enableAudioMonitor(bool enable, MegaChatHandle chatid);
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);

@@ -196,8 +196,8 @@ public:
     /**
      * @brief Returns if audio is detected for this session
      *
-     * @note This value will be always false for call in 1to1 chatrooms, when audio flag is disabled
-     * and in a group call when participants will be less than 7
+     * @note This value will be always false for call in 1to1 chatrooms, when audio flag is disabled or
+     * when audio level monitor is disabled
      *
      * @return true if audio is detected for this session, false in other case
      */
@@ -4662,6 +4662,30 @@ public:
      * @return Maximum video call participants
      */
     int getMaxVideoCallParticipants();
+
+    /**
+     * @brief Returns if audio level monitor is enabled
+     *
+     * It's true by default when there is a call in the chatroom
+     *
+     * @note If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor will be always false
+     *
+     * @param chatid MegaChatHandle that identifies the chat room from we want know if audio level monitor is disabled
+     * @return true if audio level monitor is enabled
+     */
+    bool isAudioMonitorEnabled(MegaChatHandle chatid);
+
+    /**
+     * @brief Enable or disable audio level monitor
+     *
+     * @note If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor won't be able established
+     *
+     * @param enable True for enable audio level monitor, False to disable
+     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     */
+    void enableAudioMonitor(bool enable, MegaChatHandle chatid);
 
 #endif
 

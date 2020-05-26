@@ -2789,6 +2789,16 @@ void Call::changeVideoInDevice()
     enableVideo(true);
 }
 
+bool Call::isAudioMonitorEnabled() const
+{
+    return mAudioLevelMonitor;
+}
+
+void Call::enableAdioMonitor(bool enable)
+{
+    mAudioLevelMonitor = enable;
+}
+
 AvFlags Call::sentAv() const
 {
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);
@@ -4332,8 +4342,9 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
 
 bool AudioLevelMonitor::isDisabledAudioLevelMonitor() const
 {
-    std::map<Id, AvFlags> participants = mSession.call().avFlagsRemotePeers();
-    return !mSession.receivedAv().audio() || !mSession.call().chat().isGroup() || participants.size() < MIN_PARTICIPANTS_TO_ENABLE_AUDIO_MONITOR;
+    return !mSession.receivedAv().audio()
+            || !mSession.call().chat().isGroup()
+            || (mSession.call().chat().isGroup() && !mSession.call().isAudioMonitorEnabled());
 }
 
 void globalCleanup()

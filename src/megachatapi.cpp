@@ -929,6 +929,16 @@ int MegaChatApi::getMaxVideoCallParticipants()
     return pImpl->getMaxVideoCallParticipants();
 }
 
+bool MegaChatApi::isAudioMonitorEnabled(MegaChatHandle chatid)
+{
+    return pImpl->isAudioMonitorEnabled(chatid);
+}
+
+void MegaChatApi::enableAudioMonitor(bool enable, MegaChatHandle chatid)
+{
+    pImpl->enableAudioMonitor(enable, chatid);
+}
+
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
     pImpl->addChatCallListener(listener);
