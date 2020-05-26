@@ -2497,16 +2497,11 @@ void PeerChatRoom::initContact(const uint64_t& peer)
 
 void PeerChatRoom::updateChatRoomTitle()
 {
-    bool needEncoding = true;
     std::string title = parent.mKarereClient.getUserAlias(mPeer);
     if (title.empty())
     {
-        if (mContact && !mContact->getContactName().empty())
-        {
-            title = mContact->getContactName();
-            needEncoding = false;
-        }
-        else
+        title = mContact ? mContact->getContactName() : "";
+        if (title.empty())
         {
             title = mEmail;
         }
@@ -2514,11 +2509,6 @@ void PeerChatRoom::updateChatRoomTitle()
 
     if (mContact)
     {
-        if (needEncoding)
-        {
-            // Encode new title to add binary layout, if it's not the fullname
-            title = encodeFirstName(title);
-        }
         mContact->updateTitle(title);
     }
     else
@@ -3898,9 +3888,9 @@ void Contact::setContactName(std::string name)
     mName = name;
 }
 
-std::string Contact::getContactName()
+std::string Contact::getContactName(bool binaryLayout)
 {
-    return mName;
+    return binaryLayout ? mName : mName.substr(1);
 }
 
 void ContactList::syncWithApi(mega::MegaUserList &users)
@@ -4062,13 +4052,13 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             if (alias.empty())
             {
                 // Update title if there's no alias
-                self->updateTitle(name);
+                self->updateTitle(self->getContactName());
             }
         }
         else if (alias.empty())
         {
             // If there's no alias nor fullname
-            self->updateTitle(encodeFirstName(self->mEmail));
+            self->updateTitle(self->mEmail);
         }
     });
 
@@ -4091,14 +4081,14 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             if (alias.empty() && contactName.empty())
             {
                 // Set email as title because contact doesn't have alias nor fullname
-                self->updateTitle(encodeFirstName(self->mEmail));
+                self->updateTitle(self->mEmail);
             }
         }
     });
 
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
-        updateTitle(encodeFirstName(email));
+        updateTitle(email);
         assert(!mTitleString.empty());
     }
 
@@ -4292,28 +4282,18 @@ void Client::updateAliases(Buffer *data)
     // Update those contact's titles without a peer chatroom associated
     for (auto &userid : aliasesUpdated)
     {
-        bool needEncoding = true;
         Contact *contact =  mContactList->contactFromUserId(userid);
         if (contact && !contact->chatRoom())
         {
             std::string title = getUserAlias(userid);
             if (title.empty())
             {
-                if (!contact->getContactName().empty())
-                {
-                    title = contact->getContactName();
-                    needEncoding = false;
-                }
-                else
+                title = contact->getContactName();
+                if (title.empty())
                 {
                     title = contact->email();
                 }
             }
-            if (needEncoding)
-            {
-                title = encodeFirstName(title);
-            }
-
             contact->updateTitle(title);
         }
     }

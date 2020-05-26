@@ -6610,7 +6610,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         Contact *contact = peerchat.contact();
         if (contact)
         {
-            string name = contact->getContactName();
+            string name = contact->getContactName(true);
 
             const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
             this->peerFirstnames.push_back(buffer ? buffer : "");
@@ -9015,7 +9015,7 @@ std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, Conta
             emailValue.SetString(contact->email().c_str(), contact->email().length(), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("email"), emailValue, jSonDocument.GetAllocator());
 
-            std::string nameString = contact->getContactName().substr(1);
+            std::string nameString = contact->getContactName();
             rapidjson::Value nameValue(rapidjson::kStringType);
             nameValue.SetString(nameString.c_str(), nameString.length(), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("name"), nameValue, jSonDocument.GetAllocator());
