@@ -4123,12 +4123,6 @@ int MegaChatApiImpl::getMaxVideoCallParticipants()
 bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
 {
     SdkMutexGuard g(sdkMutex);
-    if (!mClient->rtc)
-    {
-        API_LOG_ERROR("isAudioLevelMonitorEnabled - WebRTC is not initialized");
-        return false;
-    }
-
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
         API_LOG_ERROR("isAudioLevelMonitorEnabled - Invalid chatid");

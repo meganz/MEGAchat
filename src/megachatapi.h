@@ -196,7 +196,7 @@ public:
     /**
      * @brief Returns if audio is detected for this session
      *
-     * @note This value will be always false while audio level monitor will be disabled
+     * @note The returned value is always false when audio level monitor is disabled
      * @see MegaChatApi::enableAudioLevelMonitor or audio flag is disabled
      *
      * @return true if audio is detected for this session, false in other case
