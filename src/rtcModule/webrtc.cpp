@@ -4330,7 +4330,7 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
     }
 }
 
-bool AudioLevelMonitor::isDisabledAudioLevelMonitor()
+bool AudioLevelMonitor::isDisabledAudioLevelMonitor() const
 {
     std::map<Id, AvFlags> participants = mSession.call().avFlagsRemotePeers();
     return !mSession.receivedAv().audio() || !mSession.call().chat().isGroup() || participants.size() < MIN_PARTICIPANTS_TO_ENABLE_AUDIO_MONITOR;

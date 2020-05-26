@@ -39,7 +39,7 @@ private:
     const Session &mSession;
     bool mAudioDetected = false;
 
-    bool isDisabledAudioLevelMonitor();
+    bool isDisabledAudioLevelMonitor() const;
 };
 
 class Session: public ISession
