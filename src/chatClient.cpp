@@ -331,23 +331,20 @@ bool Client::openDb(const std::string& sid)
 
                 // Close and re-open db again to avoid SQLITE_LOCKED
                 db.close();
-                if (!db.open(path.c_str(), false))
+                if (db.open(path.c_str(), false))
                 {
-                    KR_LOG_WARNING("Error opening database");
-                    return false;
+                    // drop sendkeys table
+                    db.query("DROP TABLE sendkeys");
+
+                    // rename temp to sendkeys
+                    db.query("ALTER TABLE tempkeys RENAME TO sendkeys");
+
+                    // update cache schema version
+                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                    db.commit();
+                    ok = true;
+                    KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
                 }
-
-                // drop sendkeys table
-                db.query("DROP TABLE sendkeys");
-
-                // rename temp to sendkeys
-                db.query("ALTER TABLE tempkeys RENAME TO sendkeys");
-
-                // update cache schema version
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
-                db.commit();
-                ok = true;
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
         }
     }
