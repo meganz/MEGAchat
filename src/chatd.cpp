@@ -3866,7 +3866,10 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
     }
 
     CALL_DB(addMsgToHistory, *msg, idx);
-    mOldestIdxInDb = mDbInterface->getOldestIdx();
+    if (mOldestIdxInDb == CHATD_IDX_INVALID)
+    {
+        mOldestIdxInDb = mDbInterface->getOldestIdx();
+    }
 
     assert(msg->backRefId);
     if (!mRefidToIdxMap.emplace(msg->backRefId, idx).second)
