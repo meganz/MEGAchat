@@ -196,8 +196,8 @@ public:
     /**
      * @brief Returns if audio is detected for this session
      *
-     * @note This value will be always false for call in 1to1 chatrooms, when audio flag is disabled or
-     * when audio level monitor is disabled
+     * @note This value will be always false while audio level monitor will be disabled
+     * @see MegaChatApi::enableAudioLevelMonitor or audio flag is disabled
      *
      * @return true if audio is detected for this session, false in other case
      */
@@ -1653,7 +1653,7 @@ public:
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
-        TYPE_IMPORT_MESSAGES, TOTAL_OF_REQUEST_TYPES
+        TYPE_IMPORT_MESSAGES, TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -4666,7 +4666,7 @@ public:
     /**
      * @brief Returns if audio level monitor is enabled
      *
-     * It's true by default when there is a call in the chatroom
+     * It's false by default
      *
      * @note If there isn't a call in that chatroom in which user is participating,
      * audio Level monitor will be always false
@@ -4674,18 +4674,21 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room from we want know if audio level monitor is disabled
      * @return true if audio level monitor is enabled
      */
-    bool isAudioMonitorEnabled(MegaChatHandle chatid);
+    bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
 
     /**
      * @brief Enable or disable audio level monitor
+     *
+     * It's false by default and it's app responsability to enable it
      *
      * @note If there isn't a call in that chatroom in which user is participating,
      * audio Level monitor won't be able established
      *
      * @param enable True for enable audio level monitor, False to disable
      * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     * @param listener MegaChatRequestListener to track this request
      */
-    void enableAudioMonitor(bool enable, MegaChatHandle chatid);
+    void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
 #endif
 

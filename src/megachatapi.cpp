@@ -929,14 +929,14 @@ int MegaChatApi::getMaxVideoCallParticipants()
     return pImpl->getMaxVideoCallParticipants();
 }
 
-bool MegaChatApi::isAudioMonitorEnabled(MegaChatHandle chatid)
+bool MegaChatApi::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
 {
-    return pImpl->isAudioMonitorEnabled(chatid);
+    return pImpl->isAudioLevelMonitorEnabled(chatid);
 }
 
-void MegaChatApi::enableAudioMonitor(bool enable, MegaChatHandle chatid)
+void MegaChatApi::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->enableAudioMonitor(enable, chatid);
+    pImpl->enableAudioLevelMonitor(enable, chatid, listener);
 }
 
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)

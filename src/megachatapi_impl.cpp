@@ -1813,6 +1813,39 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+        case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
+        {
+            handle chatid = request->getChatHandle();
+            bool enable = request->getFlag();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR - Invalid chatid");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            MegaChatCallHandler *handler = findChatCallHandler(chatid);
+            if (!handler)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR - Failed to get the call handler associated to chat room");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            rtcModule::ICall *call = handler->getCall();
+            if (!call)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR - There is not any call associated to MegaChatCallHandler");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            call->enableAudioLevelMonitor(enable);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
+
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -4087,68 +4120,45 @@ int MegaChatApiImpl::getMaxVideoCallParticipants()
     return rtcModule::IRtcModule::kMaxCallVideoSenders;
 }
 
-bool MegaChatApiImpl::isAudioMonitorEnabled(MegaChatHandle chatid)
+bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
 {
     SdkMutexGuard g(sdkMutex);
     if (!mClient->rtc)
     {
-        API_LOG_ERROR("isAudioMonitorEnabled - WebRTC is not initialized");
+        API_LOG_ERROR("isAudioLevelMonitorEnabled - WebRTC is not initialized");
         return false;
     }
 
-    if (chatid != MEGACHAT_INVALID_HANDLE)
+    if (chatid == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("isAudioMonitorEnabled - Invalid chatid");
+        API_LOG_ERROR("isAudioLevelMonitorEnabled - Invalid chatid");
         return false;
     }
 
     MegaChatCallHandler *handler = findChatCallHandler(chatid);
     if (!handler)
     {
-        API_LOG_ERROR("isAudioMonitorEnabled - Failed to get the call handler associated to chat room");
+        API_LOG_ERROR("isAudioLevelMonitorEnabled - Failed to get the call handler associated to chat room");
         return false;
     }
 
     rtcModule::ICall *call = handler->getCall();
     if (!call)
     {
-        API_LOG_ERROR("isAudioMonitorEnabled - There is not any call associated to MegaChatCallHandler");
+        API_LOG_ERROR("isAudioLevelMonitorEnabled - There is not any call associated to MegaChatCallHandler");
         return false;
     }
 
-    return call->isAudioMonitorEnabled();
+    return call->isAudioLevelMonitorEnabled();
 }
 
-void MegaChatApiImpl::enableAudioMonitor(bool enable, MegaChatHandle chatid)
+void MegaChatApiImpl::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener* listener)
 {
-    SdkMutexGuard g(sdkMutex);
-    if (!mClient->rtc)
-    {
-        API_LOG_ERROR("enableAudioMonitor - WebRTC is not initialized");
-        return;
-    }
-
-    if (chatid != MEGACHAT_INVALID_HANDLE)
-    {
-        API_LOG_ERROR("enableAudioMonitor - Invalid chatid");
-        return;
-    }
-
-    MegaChatCallHandler *handler = findChatCallHandler(chatid);
-    if (!handler)
-    {
-        API_LOG_ERROR("enableAudioMonitor - Failed to get the call handler associated to chat room");
-        return;
-    }
-
-    rtcModule::ICall *call = handler->getCall();
-    if (!call)
-    {
-        API_LOG_ERROR("enableAudioMonitor - There is not any call associated to MegaChatCallHandler");
-        return;
-    }
-
-    call->enableAdioMonitor(enable);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(enable);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 #endif
@@ -4993,6 +5003,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_LAST_GREEN: return "LAST_GREEN";
         case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
         case TYPE_IMPORT_MESSAGES: return "IMPORT_MESSAGES";
+        case TYPE_ENABLE_AUDIO_LEVEL_MONITOR: return "ENABLE_AUDIO_LEVEL_MONITOR";
     }
     return "UNKNOWN";
 }

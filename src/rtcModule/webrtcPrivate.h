@@ -36,8 +36,6 @@ private:
     ISessionHandler &mSessionHandler;
     const Session &mSession;
     bool mAudioDetected = false;
-
-    bool isDisabledAudioLevelMonitor() const;
 };
 
 class Session: public ISession
@@ -235,7 +233,7 @@ protected:
     bool mIsRingingOut = false;
     bool mHadRingAck = false;
     bool mRecovered = false;
-    bool mAudioLevelMonitor = true;
+    bool mAudioLevelMonitorEnabled = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgSession(RtMessage& packet);
@@ -304,8 +302,8 @@ public:
     void updateAvFlags(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool isCaller(karere::Id userid, uint32_t clientid);
     void changeVideoInDevice();
-    virtual bool isAudioMonitorEnabled() const override;
-    virtual void enableAdioMonitor(bool enable) override;
+    bool isAudioLevelMonitorEnabled() const override;
+    void enableAudioLevelMonitor(bool enable) override;
 };
 
 /*
