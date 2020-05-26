@@ -1053,7 +1053,7 @@ void Connection::heartbeat()
             // For every chat check, if timestamp of it's oldest message in db
             // has exceeded retention time
             Chat &chat = mChatdClient.chats(chatid);
-            if (chat.mOldestIdxInDb == CHATD_IDX_INVALID)
+            if (chat.mOldestIdxInDb == CHATD_IDX_INVALID || chat.getRetentionTime() == 0)
             {
                 continue;
             }
