@@ -4402,9 +4402,12 @@ void Chat::handleRetentionTime()
         return;
     }
 
-    // GUI must detach and free any resources associated with erased messages
-    Message msg = at(idx);
-    CALL_LISTENER(onRetentionHistoryTruncated, msg, idx, getMsgStatus(msg, idx));
+    Message *msg = findOrNull(idx);
+    if (msg)
+    {
+       // GUI must detach and free any resources associated with erased messages
+       CALL_LISTENER(onRetentionHistoryTruncated, *msg, idx, getMsgStatus(*msg, idx));
+    }
 
     // Discard current key, if any
     CALL_CRYPTO(resetSendKey);
