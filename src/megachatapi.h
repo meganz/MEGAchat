@@ -3691,6 +3691,7 @@ public:
     /**
      * @brief Allows a logged in operator/moderator to specify a message retention timeframe
      * after which all messages in the chat are automatically deleted.
+     * To disable the feature, provide a negative value or zero.
      *
      * @note Use inSeconds param only for testing.
      *
