@@ -2077,6 +2077,32 @@ void exec_clearchathistory(ac::ACState& s)
     g_chatApi->clearChatHistory(s_ch(s.words[1].s), &g_chatListener);  
 }
 
+void exec_setRetentionTime(ac::ACState& s)
+{
+    g_chatListener.onFinish(c::MegaChatRequest::TYPE_SET_RETENTION_TIME, [](finishInfo& f)
+    {
+        if (check_err("SetRetentionTime", f.e))
+        {
+            // Clients will not learn about the retention time from the API
+            conlock(cout) << "Retention time was set successfully for chat " << ch_s(f.request->getChatHandle()) << endl;
+        }
+    });
+
+    g_chatApi->setChatRetentionTime(s_ch(s.words[1].s),
+            atoi(s.words[2].s.c_str()), s.words.size() > 3 && s.words[3].s == "seconds", &g_chatListener);
+}
+
+
+void exec_getRetentionTime(ac::ACState& s)
+{
+    ::mega::unique_ptr <megachat::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(s_ch(s.words[1].s)));
+    if (chatRoom)
+    {
+        conlock(cout) << " retentionTime " << std::to_string(chatRoom->getRetentionTime()).c_str()<< endl;
+    }
+}
+
+
 void exec_setchattitle(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_EDIT_CHATROOM_NAME, [](finishInfo& f)
@@ -3778,6 +3804,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_truncatechat,       sequence(text("truncatechat"), param("roomid"), param("msgid")));
     p->Add(exec_clearchathistory,   sequence(text("clearchathistory"), param("roomid")));
     p->Add(exec_setchattitle,       sequence(text("setchattitle"), param("roomid"), param("title")));
+    p->Add(exec_setRetentionTime,   sequence(text("setretentiontime"), param("roomid"), param("period"), opt(either(text("days"), text("seconds")))));
+    p->Add(exec_getRetentionTime,   sequence(text("getretentiontime"), param("roomid")));
 
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
