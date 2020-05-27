@@ -2500,7 +2500,7 @@ void PeerChatRoom::updateChatRoomTitle()
     std::string title = parent.mKarereClient.getUserAlias(mPeer);
     if (title.empty())
     {
-        title = mContact->getContactName();
+        title = mContact ? mContact->getContactName() : "";
         if (title.empty())
         {
             title = mEmail;
@@ -2509,7 +2509,7 @@ void PeerChatRoom::updateChatRoomTitle()
 
     if (mContact)
     {
-        mContact->updateTitle(encodeFirstName(title));
+        mContact->updateTitle(title);
     }
     else
     {
@@ -3888,9 +3888,9 @@ void Contact::setContactName(std::string name)
     mName = name;
 }
 
-std::string Contact::getContactName()
+std::string Contact::getContactName(bool binaryLayout)
 {
-    return mName;
+    return binaryLayout ? mName : mName.substr(1);
 }
 
 void ContactList::syncWithApi(mega::MegaUserList &users)
@@ -4046,17 +4046,19 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         {
             // Update contact name
             std::string name(data->buf(), data->dataSize());
-            self->setContactName(name.substr(1));
+
+            // Preserve binary layout for contact name
+            self->setContactName(name);
             if (alias.empty())
             {
                 // Update title if there's no alias
-                self->updateTitle(name);
+                self->updateTitle(self->getContactName());
             }
         }
         else if (alias.empty())
         {
             // If there's no alias nor fullname
-            self->updateTitle(encodeFirstName(self->mEmail));
+            self->updateTitle(self->mEmail);
         }
     });
 
@@ -4078,14 +4080,15 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             std::string contactName = self->getContactName();
             if (alias.empty() && contactName.empty())
             {
-                self->updateTitle(encodeFirstName(self->mEmail));
+                // Set email as title because contact doesn't have alias nor fullname
+                self->updateTitle(self->mEmail);
             }
         }
     });
 
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
-        updateTitle(encodeFirstName(email));
+        updateTitle(email);
         assert(!mTitleString.empty());
     }
 
@@ -4106,7 +4109,7 @@ void Contact::notifyTitleChanged()
     {
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
-            mChatRoom->updateTitle(mTitleString.substr(1));
+            mChatRoom->updateTitle(mTitleString);
     }, mClist.client.appCtx);
 }
 
@@ -4152,7 +4155,7 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    mChatRoom->updateTitle(mTitleString.substr(1));
+    mChatRoom->updateTitle(mTitleString);
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
@@ -4285,13 +4288,13 @@ void Client::updateAliases(Buffer *data)
             std::string title = getUserAlias(userid);
             if (title.empty())
             {
-                title = !contact->getContactName().empty()
-                    ? contact->getContactName()
-                    : contact->email();
+                title = contact->getContactName();
+                if (title.empty())
+                {
+                    title = contact->email();
+                }
             }
-
-            // Contact title has a binary layout
-            contact->updateTitle(encodeFirstName(title));
+            contact->updateTitle(title);
         }
     }
 
