@@ -4681,6 +4681,11 @@ public:
      *
      * It's false by default and it's app responsability to enable it
      *
+     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     *
      * @note If there isn't a call in that chatroom in which user is participating,
      * audio Level monitor won't be able established
      *

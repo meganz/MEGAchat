@@ -1820,7 +1820,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR - Invalid chatid");
-                errorCode = MegaChatError::ERROR_NOENT;
+                errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
