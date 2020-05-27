@@ -4360,27 +4360,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
     mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
-
-    // Find an attachment newer than truncate (lownum) in order to truncate node-history
-    // (if no more attachments in history buffer, node-history will be fully cleared)
-    Id attachmentTruncateFromId = Id::inval();
-    for (Idx i = lownum(); i < highnum(); i++)
-    {
-        if (at(i).type == Message::kMsgAttachment)
-        {
-            attachmentTruncateFromId = at(i).id();
-            break;
-        }
-    }
-    mAttachmentNodes->truncateHistory(attachmentTruncateFromId);
-    if (mDecryptionAttachmentsHalted)
-    {
-        while (!mAttachmentsPendingToDecrypt.empty())
-        {
-            mAttachmentsPendingToDecrypt.pop();
-        }
-        mTruncateAttachment = true; // --> indicates the message being decrypted must be discarded
-    }
+    truncateAttachmentHistory();
 }
 
 void Chat::handleRetentionTime()
@@ -4468,27 +4448,32 @@ void Chat::handleRetentionTime()
             mOldestKnownMsgId = (*mForwardList.begin())->id();
         }
 
-        // Find an attachment newer than truncate (lownum) in order to truncate node-history
-        // (if no more attachments in history buffer, node-history will be fully cleared)
-        Id attachmentTruncateFromId = Id::inval();
-        for (Idx i = lownum(); i < highnum(); i++)
-        {
-            if (at(i).type == Message::kMsgAttachment)
-            {
-                attachmentTruncateFromId = at(i).id();
-                break;
-            }
-        }
+        truncateAttachmentHistory();
+    }
+}
 
-        mAttachmentNodes->truncateHistory(attachmentTruncateFromId);
-        if (mDecryptionAttachmentsHalted)
+void Chat::truncateAttachmentHistory()
+{
+    // Find an attachment newer than truncate (lownum) in order to truncate node-history
+    // (if no more attachments in history buffer, node-history will be fully cleared)
+    Id attachmentTruncateFromId = Id::inval();
+    for (Idx i = lownum(); i < highnum(); i++)
+    {
+        if (at(i).type == Message::kMsgAttachment)
         {
-            while (!mAttachmentsPendingToDecrypt.empty())
-            {
-                mAttachmentsPendingToDecrypt.pop();
-            }
-            mTruncateAttachment = true; // --> indicates the message being decrypted must be discarded
+            attachmentTruncateFromId = at(i).id();
+            break;
         }
+    }
+
+    mAttachmentNodes->truncateHistory(attachmentTruncateFromId);
+    if (mDecryptionAttachmentsHalted)
+    {
+        while (!mAttachmentsPendingToDecrypt.empty())
+        {
+            mAttachmentsPendingToDecrypt.pop();
+        }
+        mTruncateAttachment = true; // --> indicates the message being decrypted must be discarded
     }
 }
 

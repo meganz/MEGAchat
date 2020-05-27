@@ -1384,6 +1384,7 @@ protected:
     void verifyMsgOrder(const Message& msg, Idx idx);
     void handleRetentionTime();
     void truncateByRetentionTime(Idx idx);
+    void truncateAttachmentHistory();
 
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
