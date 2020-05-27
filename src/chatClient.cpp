@@ -4109,7 +4109,7 @@ void Contact::notifyTitleChanged()
     {
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
-            mChatRoom->updateTitle(mTitleString.substr(1));
+            mChatRoom->updateTitle(mTitleString);
     }, mClist.client.appCtx);
 }
 
@@ -4155,7 +4155,7 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    mChatRoom->updateTitle(mTitleString.substr(1));
+    mChatRoom->updateTitle(mTitleString);
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
