@@ -2845,6 +2845,62 @@ public class MegaChatApiJava {
         return megaChatApi.getMaxVideoCallParticipants();
     }
 
+    /**
+     * Returns if audio level monitor is enabled
+     *
+     * It's false by default
+     *
+     * If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor will be always false
+     *
+     * @param chatid MegaChatHandle that identifies the chat room from we want know if audio level monitor is disabled
+     * @return true if audio level monitor is enabled
+     */
+    public boolean isAudioLevelMonitorEnabled(long chatid) {
+        return megaChatApi.isAudioLevelMonitorEnabled(chatid);
+    }
+
+    /**
+     * Enable or disable audio level monitor
+     *
+     * It's false by default and it's app responsability to enable it
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     *
+     * If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor won't be able established
+     *
+     * @param enable True for enable audio level monitor, False to disable
+     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void enableAudioLevelMonitor(boolean enable, long chatid, MegaChatRequestListenerInterface listener) {
+        megaChatApi.enableAudioLevelMonitor(enable, chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Enable or disable audio level monitor
+     *
+     * It's false by default and it's app responsability to enable it
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     *
+     * If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor won't be able established
+     *
+     * @param enable True for enable audio level monitor, False to disable
+     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     */
+    public void enableAudioLevelMonitor(boolean enable, long chatid) {
+        megaChatApi.enableAudioLevelMonitor(enable, chatid);
+    }
+
     public static void setCatchException(boolean enable) {
         MegaChatApi.setCatchException(enable);
     }
