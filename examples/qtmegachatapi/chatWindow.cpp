@@ -372,12 +372,11 @@ void ChatWindow::truncateChatUI()
     std::map<megachat::MegaChatHandle, ChatMessage*>::iterator itMessages;
     for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end(); itMessages++)
     {
-        ChatMessage *auxMessage = itMessages->second;
+        ::mega::unique_ptr<ChatMessage> auxMessage(itMessages->second);
         auxMessage->clearReactions();
         int row = ui->mMessageList->row(auxMessage->getWidgetItem());
-        QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
+        ::mega::unique_ptr<QListWidgetItem> auxItem(ui->mMessageList->takeItem(row));
         mMsgsWidgetsMap.erase(itMessages);
-        delete auxItem;
     }
 }
 
@@ -395,11 +394,10 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*tempora
         }
     }
 
-    ChatMessage *auxMessage = itMessages->second;
+    ::mega::unique_ptr<ChatMessage> auxMessage(itMessages->second);
     int row = ui->mMessageList->row(auxMessage->getWidgetItem());
-    QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
+    ::mega::unique_ptr<QListWidgetItem> auxItem(ui->mMessageList->takeItem(row));
     mMsgsWidgetsMap.erase(itMessages);
-    delete auxItem;
     return true;
 }
 
@@ -542,16 +540,15 @@ void ChatWindow::onRetentionHistoryTruncated(megachat::MegaChatApi *, megachat::
         for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end();)
         {
             auto auxIt = itMessages++;
-            ChatMessage *auxMessage = auxIt->second;
+            mega::unique_ptr<ChatMessage> auxMessage(auxIt->second);
             if (auxMessage->mMessage->getTimestamp() <= msg->getTimestamp()
                     && auxMessage->mMessage->getStatus() != megachat::MegaChatMessage::STATUS_SENDING
                     && auxMessage->mMessage->getStatus() != megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
             {
                 auxMessage->clearReactions();
                 int row = ui->mMessageList->row(auxMessage->getWidgetItem());
-                QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
+                ::mega::unique_ptr <QListWidgetItem> auxItem(ui->mMessageList->takeItem(row));
                 mMsgsWidgetsMap.erase(auxIt);
-                delete auxItem;
             }
         }
     }
