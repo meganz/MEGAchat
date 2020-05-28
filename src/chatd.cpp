@@ -4879,7 +4879,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             mAttachmentNodes->addMessage(msg, isNew, false);
         }
         CALL_DB(addMsgToHistory, msg, idx);
-        mOldestIdxInDb = mDbInterface->getOldestIdx();
+        if (!isNew || mOldestIdxInDb == CHATD_IDX_INVALID)
+        {
+            mOldestIdxInDb = mDbInterface->getOldestIdx();
+        }
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mChatdClient.mMyHandle) && // message is not ours
