@@ -3890,7 +3890,7 @@ void Contact::setContactName(std::string name)
 
 std::string Contact::getContactName(bool binaryLayout)
 {
-    return binaryLayout ? mName : mName.substr(1);
+    return (binaryLayout || mName.empty()) ? mName : mName.substr(1);
 }
 
 void ContactList::syncWithApi(mega::MegaUserList &users)
