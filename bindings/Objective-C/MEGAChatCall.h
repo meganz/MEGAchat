@@ -45,6 +45,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeLocalAVFlags = 0x02,
     MEGAChatCallChangeTypeRingingStatus = 0x04,
     MEGAChatCallChangeTypeCallComposition = 0x08,
+    MEGAChatCallChangeTypeOnHold = 0x10,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
@@ -80,6 +81,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
 @property (nonatomic, readonly) uint64_t callCompositionChange;
 
 @property (nonatomic, readonly) NSInteger numParticipants;
+@property (nonatomic, readonly, getter=isOnHold) BOOL onHold;
 @property (nonatomic, readonly) MEGAHandleList *sessionsPeerId;
 @property (nonatomic, readonly) MEGAHandleList *sessionsClientId;
 
