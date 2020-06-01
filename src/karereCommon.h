@@ -111,6 +111,7 @@ struct AvFlags
 protected:
     uint8_t mFlags;
 public:
+    //Bit 3 (value 4) is occupied by kFlagRinging = 0x04
     enum: uint8_t { kAudio = 1, kVideo = 2, kScreen = 8, kOnHold = 16, kMask = 27};
     AvFlags(uint8_t flags): mFlags(flags){}
     AvFlags(bool audio, bool video)
