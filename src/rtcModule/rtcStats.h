@@ -88,7 +88,6 @@ protected:
         {
             assert(aBwInfo);
             mBwInfo = aBwInfo;
-            mBwInfo->bt = 0;
         }
         void calculate(uint64_t periodMs, uint64_t newTotalBytes);
     };
