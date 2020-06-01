@@ -55,8 +55,6 @@ void Recorder::resetBwCalculators()
     mVideoTxBwCalc.reset(&(mCurrSample->vstats.s));
     mAudioRxBwCalc.reset(&(mCurrSample->astats.r));
     mAudioTxBwCalc.reset(&(mCurrSample->astats.s));
-    mConnRxBwCalc.reset(&(mCurrSample->cstats.r));
-    mConnTxBwCalc.reset(&(mCurrSample->cstats.s));
 }
 
 int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
@@ -275,9 +273,6 @@ void Recorder::onStats(const webrtc::StatsReports &data)
 
             auto& cstat = mCurrSample->cstats;
             AVG(Rtt, cstat.rtt);
-            mConnRxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
-            mConnTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
-
         }
         else if (item->id()->type() == RPTYPE(Bwe))
         {

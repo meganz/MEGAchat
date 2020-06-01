@@ -103,8 +103,6 @@ protected:
     BwCalculator mVideoTxBwCalc;
     BwCalculator mAudioRxBwCalc;
     BwCalculator mAudioTxBwCalc;
-    BwCalculator mConnRxBwCalc;
-    BwCalculator mConnTxBwCalc;
     void addSample();
     void resetBwCalculators();
     int64_t getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
