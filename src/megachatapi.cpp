@@ -881,7 +881,7 @@ void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *l
 
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
-    pImpl->setCallOnHold(chatid,setOnHold, listener);
+    pImpl->setCallOnHold(chatid, setOnHold, listener);
 }
 
 void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
