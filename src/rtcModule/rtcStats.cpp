@@ -350,7 +350,9 @@ RtcStats::~RtcStats()
 const char* decToString(float v)
 {
     static char buf[128];
-    snprintf(buf, 127, "%.1f", v);
+    int integerPart = static_cast<int>(v);
+    int decimalPart = static_cast<int>((v - integerPart) * 10.0);
+    snprintf(buf, 127, "%d.%d", integerPart, decimalPart);
     return buf;
 }
 
