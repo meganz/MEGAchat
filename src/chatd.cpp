@@ -3052,31 +3052,49 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
         Idx span = (rangeEnd - rangeStart);
         assert(span >= 0);
 
-        // The actual offset of the picked target backreferenced message
-        // It is zero-based: idx of 0 means the message preceding the one for which we are creating backrefs.
-        Idx idx;
-        if (span > 1)
+        bool hasMessage = false;
+        std::set<Idx> backrefs;
+
+        // Iterate while no msg with valid backrefid found and until all messages within the range has been checked
+        while (!hasMessage && backrefs.size() < static_cast<size_t>(span))
         {
-            idx = rangeStart + (distrib(rd) % span);
-        }
-        else
-        {
-            idx = rangeStart;
+            // The actual offset of the picked target backreferenced message
+            // It is zero-based: idx of 0 means the message preceding the one for which we are creating backrefs.
+            Idx idx;
+            if (span > 1)
+            {
+                idx = rangeStart + (distrib(rd) % span);
+            }
+            else
+            {
+                idx = rangeStart;
+            }
+
+            if (backrefs.find(idx) != backrefs.end())
+            {
+                // If idx found in backrefs skip
+                continue;
+            }
+
+            backrefs.insert(idx);
+            Message &msg = (idx < (Idx)sendingIdx.size())
+                    ? *(sendingIdx[sendingIdx.size()-1-idx]->msg)   // msg is from sending queue
+                    : at(highnum()-(idx-sendingIdx.size()));        // msg is from history buffer
+
+            if (!msg.isManagementMessage()) // management-msgs don't have a valid backrefid
+            {
+                hasMessage = true;
+                msgit->msg->backRefs.push_back(msg.backRefId);
+            }
+            else
+            {
+                CHATID_LOG_WARNING("Skipping backrefid for a management message: %s", ID_CSTR(msg.id()));
+            }
         }
 
-        Message &msg = (idx < (Idx)sendingIdx.size())
-                ? *(sendingIdx[sendingIdx.size()-1-idx]->msg)   // msg is from sending queue
-                : at(highnum()-(idx-sendingIdx.size()));        // msg is from history buffer
-
-        if (!msg.isManagementMessage()) // management-msgs don't have a valid backrefid
+        if (!hasMessage)
         {
-            msgit->msg->backRefs.push_back(msg.backRefId);
-        }
-        else
-        {
-            CHATID_LOG_WARNING("Skipping backrefid for a management message: %s", ID_CSTR(msg.id()));
-            // TODO: instead of skipping the backrefid for this range, we should try to find another
-            // message with a valid backrefid within the current range
+            CHATID_LOG_DEBUG("Not message found with a valid backrefid for this range [%d, %d]", rangeStart, rangeEnd);
         }
 
         if (rangeEnd == maxEnd)
@@ -3481,7 +3499,16 @@ void Chat::onLastSeen(Id msgid, bool resend)
             return;
         }
     }
-    // else --> msgid was found locally
+    else // msgid was found locally
+    {
+        // if both `msgid` and `mLastSeenId` are known and localy available, there's an index to compare
+        if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx)
+        {
+            CHATID_LOG_WARNING("onLastSeen: ignoring attempt to set last seen msgid backwards. Current: %s Attempt: %s", ID_CSTR(mLastSeenId), ID_CSTR(msgid));
+            return; // `mLastSeenId` is newer than the received `msgid`
+        }
+    }
+
     assert(mLastSeenId.isValid());
 
     if (idx == mLastSeenIdx)
