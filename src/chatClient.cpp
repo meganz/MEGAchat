@@ -83,6 +83,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
           chats(new ChatRoomList(*this)),
           mPresencedClient(&api, this, *this, caps)
 {
+    setlocale(LC_NUMERIC, "en_GB");
 }
 
 KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)
