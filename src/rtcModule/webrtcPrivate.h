@@ -295,14 +295,14 @@ public:
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
         karere::Id callerUser, uint32_t callerClient, bool callRecovered = false);
     ~Call();
-    virtual karere::AvFlags sentAv() const;
-    virtual void hangup(TermCode reason=TermCode::kInvalid);
-    virtual bool answer(karere::AvFlags av);
-    virtual bool changeLocalRenderer(IVideoRenderer* renderer);
-    virtual karere::AvFlags muteUnmute(karere::AvFlags av);
-    virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
-    virtual std::map<karere::Id, uint8_t> sessionState() const;
-    virtual void setOnHold(bool setOnHold);
+    karere::AvFlags sentFlags() const override;
+    void hangup(TermCode reason=TermCode::kInvalid) override;
+    bool answer(karere::AvFlags av) override;
+    bool changeLocalRenderer(IVideoRenderer* renderer) override;
+    karere::AvFlags muteUnmute(karere::AvFlags av) override;
+    std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const override;
+    std::map<karere::Id, uint8_t> sessionState() const override;
+    void setOnHold(bool setOnHold) override;
     void sendBusy(bool isCallToSameUser);
     uint32_t clientidFromSession(karere::Id userid);
     void updateAvFlags(karere::Id userid, uint32_t clientid, karere::AvFlags flags);

@@ -306,7 +306,7 @@ bool RtcModule::selectVideoInDevice(const string &devname)
             mVideoDeviceSelected = device.second;
             for (auto callIt : mCalls)
             {
-                if (callIt.second->state() >= Call::kStateHasLocalStream && callIt.second->sentAv().video())
+                if (callIt.second->state() >= Call::kStateHasLocalStream && callIt.second->sentFlags().video())
                 {
                     callIt.second->changeVideoInDevice();
                 }
@@ -885,7 +885,7 @@ void RtcModule::removeCall(Id chatid, bool retry)
     {
         if (retry && (itCall->second->state() == Call::kStateJoining || itCall->second->state() == Call::kStateInProgress))
         {
-            launchCallRetry(chatid, itCall->second->sentAv());
+            launchCallRetry(chatid, itCall->second->sentFlags());
         }
 
         RTCM_LOG_DEBUG("Remove Call on state disconnected: %s", chatid.toString().c_str());
@@ -1172,7 +1172,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         }
 
         // hang up existing call and answer automatically incoming call
-        avFlags = existingCall->sentAv();
+        avFlags = existingCall->sentFlags();
         answerAutomatic = true;
         auto itHandler = mCallHandlers.find(chatid);
         if (itHandler != mCallHandlers.end())
@@ -2105,7 +2105,7 @@ bool Call::join(Id userid)
     // if userid is not specified, join all clients in the chat, otherwise
     // join a specific user (used when a session gets broken)
     setState(Call::kStateJoining);
-    uint8_t flags = sentAv() | kSupportsStreamReneg;
+    uint8_t flags = sentFlags() | kSupportsStreamReneg;
     bool sent = userid
             ? cmd(RTCMD_JOIN, userid, 0, mId, mManager.mOwnAnonId, flags)
             : cmdBroadcast(RTCMD_JOIN, mId, mManager.mOwnAnonId, flags);
@@ -2145,7 +2145,7 @@ bool Call::rejoin(karere::Id userid, uint32_t clientid)
     // chatid.8 userid.8 clientid.4 dataLen.2 type.1 callid.8 anonId.8
     // if userid is not specified, join all clients in the chat, otherwise
     // join a specific user (used when a session gets broken)
-    uint8_t flags = sentAv() | kSupportsStreamReneg;
+    uint8_t flags = sentFlags() | kSupportsStreamReneg;
     bool sent = cmd(RTCMD_JOIN, userid, clientid, mId, mManager.mOwnAnonId, flags);
     if (!sent)
     {
@@ -2186,7 +2186,7 @@ bool Call::sendCallData(CallDataState state)
     command.write<uint16_t>(21, payLoadLen);
     command.write<uint64_t>(23, mId);
     command.write<uint8_t>(31, state);
-    uint8_t flags = sentAv().value();
+    uint8_t flags = sentFlags().value();
     if (mIsRingingOut)
     {
         flags = flags | kFlagRinging;
@@ -2699,7 +2699,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         {
             if (mSessions.size() == 1)
             {
-                mManager.launchCallRetry(mChat.chatId(), sentAv(), false);
+                mManager.launchCallRetry(mChat.chatId(), sentFlags(), false);
             }
 
             sess->destroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
@@ -2711,7 +2711,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
     {
         if (mSessRetries.size() == 1 && mSessions.size() == 0)
         {
-            mManager.launchCallRetry(mChat.chatId(), sentAv(), false);
+            mManager.launchCallRetry(mChat.chatId(), sentFlags(), false);
         }
 
         cancelSessionRetryTimer(userid, clientid);
@@ -2891,7 +2891,7 @@ void Call::changeVideoInDevice()
     }
 }
 
-AvFlags Call::sentAv() const
+AvFlags Call::sentFlags() const
 {
     if (mLocalFlags.onHold())
     {
@@ -3171,7 +3171,7 @@ void Session::createRtcConn()
         std::vector<std::string> vector;
         vector.push_back(mName);
 
-        if (mCall.sentAv().video())
+        if (mCall.sentFlags().video())
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoInterface =
                     artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mCall.mLocalStream->video()->GetSource());
@@ -3197,7 +3197,7 @@ void Session::createRtcConn()
 
         mAudioSender = error.MoveValue();
 
-        if (!mCall.sentAv().audio())
+        if (!mCall.sentFlags().audio())
         {
             mAudioSender->track()->set_enabled(false);
         }
@@ -3283,7 +3283,7 @@ promise::Promise<void> Session:: processSdpOfferSendAnswer()
         mCall.mManager.crypto().mac(mOwnSdpAnswer, mPeerHashKey, ownFprHash);
         cmd(opcode,
             ownFprHash,
-            mCall.sentAv().value(),
+            mCall.sentFlags().value(),
             static_cast<uint16_t>(mOwnSdpAnswer.size()),
             mOwnSdpAnswer);
     })
@@ -3574,7 +3574,7 @@ Promise<void> Session::sendOffer()
             mCall.mManager.mOwnAnonId,
             encKey,
             hash,
-            mCall.sentAv().value(),
+            mCall.sentFlags().value(),
             static_cast<uint16_t>(mOwnSdpOffer.size()),
             mOwnSdpOffer
         );

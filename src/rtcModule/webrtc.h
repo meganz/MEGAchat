@@ -342,7 +342,7 @@ public:
     bool isJoiner() { return mIsJoiner; }
     bool isInProgress() const;
     ICallHandler *callHandler() { return mHandler; }
-    virtual karere::AvFlags sentAv() const = 0;
+    virtual karere::AvFlags sentFlags() const = 0;
     virtual void hangup(TermCode reason=TermCode::kInvalid) = 0;
     virtual bool answer(karere::AvFlags av) = 0;
     virtual bool changeLocalRenderer(IVideoRenderer* renderer) = 0;

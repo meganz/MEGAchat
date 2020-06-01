@@ -1697,7 +1697,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
             }
 
-            karere::AvFlags currentFlags = call->sentAv();
+            karere::AvFlags currentFlags = call->sentFlags();
             karere::AvFlags requestedFlags = currentFlags;
             if (operationType == MegaChatRequest::AUDIO)
             {
@@ -1753,7 +1753,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     break;
                 }
 
-                if (onHold == call->sentAv().onHold())
+                if (onHold == call->sentFlags().onHold())
                 {
                     API_LOG_ERROR("Set call on hold - Call is on hold and try to set on hold or conversely");
                     errorCode = MegaChatError::ERROR_ARGS;
@@ -5375,7 +5375,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     callid = call.id();
     mIsCaller = call.isCaller();
     // sentAv are invalid until state change to rtcModule::ICall::KStateHasLocalStream
-    localAVFlags = call.sentAv();
+    localAVFlags = call.sentFlags();
     initialAVFlags = karere::AvFlags(false, false);
     initialTs = 0;
     finalTs = 0;
@@ -8039,7 +8039,7 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
     else
     {
         chatCall->setStatus(call->state());
-        chatCall->setLocalAudioVideoFlags(call->sentAv());
+        chatCall->setLocalAudioVideoFlags(call->sentFlags());
         assert(chatCall->getId() == call->id());
     }
 }
@@ -8063,7 +8063,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateHasLocalStream:
                 state = MegaChatCall::CALL_STATUS_HAS_LOCAL_STREAM;
-                chatCall->setLocalAudioVideoFlags(call->sentAv());
+                chatCall->setLocalAudioVideoFlags(call->sentFlags());
                 break;
             case rtcModule::ICall::kStateReqSent:
                 state = MegaChatCall::CALL_STATUS_REQUEST_SENT;
