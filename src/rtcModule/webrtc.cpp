@@ -428,6 +428,26 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
     else if (state == Call::CallDataState::kCallDataEnd)
     {
+        auto itCall = mCalls.find(chatid);
+        if (itCall == mCalls.end())
+        {
+            return;
+        }
+
+        if (!chat.isGroup() && itCall->second->state() < Call::kStateTerminating)
+        {
+            itCall->second->destroy(static_cast<TermCode>(TermCode::kUserHangup | TermCode::kPeer), "Terminating when there isn't session");
+            return;
+        }
+
+        EndpointId endPointId(userid, clientid);
+        if (chat.isGroup() && itCall->second->mSessRetries.find(endPointId) != itCall->second->mSessRetries.end())
+        {
+            itCall->second->cancelSessionRetryTimer(userid, clientid);
+            itCall->second->destroyIfNoSessionsOrRetries(static_cast<TermCode>(TermCode::kUserHangup | TermCode::kPeer));
+            return;
+        }
+
         // Peer will be removed from call participants with OP_ENDCALL
         RTCM_LOG_DEBUG("Ignoring kCallDataEnd CALLDATA: %s", callid.toString().c_str());
         return;
