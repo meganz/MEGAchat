@@ -4387,9 +4387,6 @@ void Chat::handleRetentionTime()
        CALL_LISTENER(onRetentionHistoryTruncated, *msg, idx, getMsgStatus(*msg, idx));
     }
 
-    // Discard current key, if any
-    CALL_CRYPTO(resetSendKey);
-
     // Clean affected messages in db and RAM
     CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
     CALL_DB(retentionHistoryTruncate, idx);
