@@ -480,7 +480,8 @@ std::string ChatMessage::managementInfoToString() const
         {
             ret.append("User ").append(userHandle_64)
                     .append(" set retention time ")
-                    .append(std::to_string(mMessage->getPrivilege()));
+                    .append(std::to_string(mMessage->getPrivilege()))
+                    .append(" seconds");
             break;
         }
         default:
