@@ -613,7 +613,7 @@ public:
         }
     }
 
-    void getIdxByRetentionTime(const time_t ts, chatd::Idx &limitIdx) override
+    void getIdxByRetentionTime(const time_t ts, chatd::Idx limitIdx) override
     {
         // Find the most recent msg affected by retention time if any
         SqliteStmt stmt(mDb, "select MAX(ts), MAX(idx) from history where chatid = ? and ts < ?");
@@ -631,7 +631,7 @@ public:
         }
     }
 
-    void retentionHistoryTruncate(const chatd::Idx &idx) override
+    void retentionHistoryTruncate(const chatd::Idx idx) override
     {
         if (idx != CHATD_IDX_INVALID)
         {

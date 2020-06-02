@@ -4365,8 +4365,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
 void Chat::handleRetentionTime()
 {
-    uint32_t retentionTime = getRetentionTime();
-    if (!retentionTime)
+    if (!mRetentionTime)
     {
         // If retentionTime is disabled
         return;
@@ -4374,7 +4373,7 @@ void Chat::handleRetentionTime()
 
     // Get idx of the most recent msg affected by retention time, if any
     chatd::Idx idx = CHATD_IDX_INVALID;
-    time_t ts = time(nullptr) - retentionTime;
+    time_t ts = time(nullptr) - mRetentionTime;
     CALL_DB(getIdxByRetentionTime, ts, idx);
     if (idx == CHATD_IDX_INVALID)
     {
@@ -4385,7 +4384,6 @@ void Chat::handleRetentionTime()
     Message *msg = findOrNull(idx);
     if (msg)
     {
-       // GUI must detach and free any resources associated with erased messages
        CALL_LISTENER(onRetentionHistoryTruncated, *msg, idx, getMsgStatus(*msg, idx));
     }
 
@@ -4393,7 +4391,7 @@ void Chat::handleRetentionTime()
     CALL_CRYPTO(resetSendKey);
 
     // Clean affected messages in db and RAM
-    CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", retentionTime);
+    CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
     CALL_DB(retentionHistoryTruncate, idx);
     truncateByRetentionTime(idx);
 

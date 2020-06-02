@@ -1643,8 +1643,8 @@ public:
     virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) = 0;
 
     //  <<<--- Retention history methods --->>>
-    virtual void getIdxByRetentionTime(time_t, chatd::Idx &) = 0;
-    virtual void retentionHistoryTruncate(const chatd::Idx &idx) = 0;
+    virtual void getIdxByRetentionTime(time_t, chatd::Idx) = 0;
+    virtual void retentionHistoryTruncate(const chatd::Idx idx) = 0;
 };
 
 }
