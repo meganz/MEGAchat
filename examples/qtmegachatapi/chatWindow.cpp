@@ -967,11 +967,8 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto actGetRetentionTime = retentionMenu->addAction(tr("Get retention time"));
     connect(actGetRetentionTime, SIGNAL(triggered()), getChatItemController(), SLOT(onGetRetentionTime()));
 
-    auto actSetRetentionTime = retentionMenu->addAction(tr("Set retention time"));
-    connect(actSetRetentionTime, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetRetentionTime();});
-
     auto actSetRetentionTimeSec = retentionMenu->addAction(tr("Set retention time (in seconds)"));
-    connect(actSetRetentionTimeSec, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetRetentionTime(true);});
+    connect(actSetRetentionTimeSec, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetRetentionTime();});
 
     menu.addSeparator();
     // Attachments

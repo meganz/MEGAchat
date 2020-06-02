@@ -3690,16 +3690,13 @@ public:
 
     /**
      * @brief This function allows a logged in operator/moderator to specify a message retention
-     * timeframe after which older messages in the chat are automatically deleted.
+     * timeframe in seconds, after which older messages in the chat are automatically deleted.
      * In order to disable the feature, the period of time can be set to zero (infinite).
-     *
-     * @note Use inSeconds param only for testing.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_RETENTION_TIME
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getParamType - Returns the retention timeframe
-     * - MegaChatRequest::getFlag - Returns true if period is specified in seconds, otherwise returns false.
+     * - MegaChatRequest::getParamType - Returns the retention timeframe in seconds
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If the chatid is invalid
@@ -3707,11 +3704,10 @@ public:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have operator privileges
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param period retention timeframe after which older messages in the chat are automatically deleted
-     * @param inSeconds indicate API that period is specified in seconds. Only for testing
+     * @param period retention timeframe in seconds, after which older messages in the chat are automatically deleted
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatRetentionTime(MegaChatHandle chatid, int period, bool inSeconds = false, MegaChatRequestListener *listener = NULL);
+    void setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened

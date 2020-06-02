@@ -1796,7 +1796,6 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatHandle chatid = request->getChatHandle();
             int period = request->getParamType();
-            bool inSeconds = request->getFlag();
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
@@ -1816,7 +1815,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            chatroom->setChatRetentionTime(period, inSeconds)
+            chatroom->setChatRetentionTime(period)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -3242,12 +3241,11 @@ void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatR
     waiter->notify();
 }
 
-void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, int period, bool inSeconds, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_RETENTION_TIME, listener);
     request->setChatHandle(chatid);
     request->setParamType(period);
-    request->setFlag(inSeconds);
     requestQueue.push(request);
     waiter->notify();
 }

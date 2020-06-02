@@ -2088,8 +2088,7 @@ void exec_setRetentionTime(ac::ACState& s)
         }
     });
 
-    g_chatApi->setChatRetentionTime(s_ch(s.words[1].s),
-            atoi(s.words[2].s.c_str()), s.words.size() > 3 && s.words[3].s == "seconds", &g_chatListener);
+    g_chatApi->setChatRetentionTime(s_ch(s.words[1].s), atoi(s.words[2].s.c_str()), &g_chatListener);
 }
 
 
@@ -3804,7 +3803,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_truncatechat,       sequence(text("truncatechat"), param("roomid"), param("msgid")));
     p->Add(exec_clearchathistory,   sequence(text("clearchathistory"), param("roomid")));
     p->Add(exec_setchattitle,       sequence(text("setchattitle"), param("roomid"), param("title")));
-    p->Add(exec_setRetentionTime,   sequence(text("setretentiontime"), param("roomid"), param("period"), opt(either(text("days"), text("seconds")))));
+    p->Add(exec_setRetentionTime,   sequence(text("setretentiontime"), param("roomid"), param("period")));
     p->Add(exec_getRetentionTime,   sequence(text("getretentiontime"), param("roomid")));
 
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));

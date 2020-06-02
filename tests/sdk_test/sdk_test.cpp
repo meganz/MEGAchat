@@ -2802,7 +2802,7 @@ void MegaChatApiTest::TEST_RetentionHistory(unsigned int a1, unsigned int a2)
     bool *flagConfirmed1 = &chatroomListener->retentionHistoryTruncated[a2]; *flagConfirmed1 = false;
     MegaChatHandle *msgId1 = &chatroomListener->mRetentionMessageHandle[a2]; *msgId1 = MEGACHAT_INVALID_HANDLE;
     flagChatRetentionTime = &requestFlagsChat[a1][MegaChatRequest::TYPE_SET_RETENTION_TIME]; *flagChatRetentionTime = false;
-    megaChatApi[a1]->setChatRetentionTime(chatid, 5, true);
+    megaChatApi[a1]->setChatRetentionTime(chatid, 5);
     ASSERT_CHAT_TEST(waitForResponse(flagChatRetentionTime), "Timeout expired set chat retention time");
     ASSERT_CHAT_TEST(lastErrorChat[a1] == MegaChatError::ERROR_OK, "Set retention time: Unexpected error. Error:" + std::string(lastErrorMsgChat[a1]));
     ASSERT_CHAT_TEST(waitForResponse(retentionTimeChanged0), "Timeout expired for receiving chatroom update");

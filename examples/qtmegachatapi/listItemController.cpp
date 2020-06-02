@@ -131,16 +131,16 @@ void ChatListItemController::onGetRetentionTime()
                              .append(" seconds"));
 }
 
-void ChatListItemController::onSetRetentionTime(bool inSeconds)
+void ChatListItemController::onSetRetentionTime()
 {
     QString text = QInputDialog::getText(mMainWindow, tr("Set retention time"),
          tr("Specify retention time")
-         .append(inSeconds ? " <b>in seconds</b>":" <b>in days</b>")
+         .append(" <b>in seconds</b>")
          .append(" (0 to disable)"));
 
     if (!text.isNull() && !text.isEmpty())
     {
-        mMegaChatApi->setChatRetentionTime(mItemId, text.toInt(), inSeconds);
+        mMegaChatApi->setChatRetentionTime(mItemId, text.toInt());
     }
 }
 

@@ -63,7 +63,7 @@ public slots:
     void onSetAlwaysNotify(bool enabled);
     void onSetDND();
     void onGetRetentionTime();
-    void onSetRetentionTime(bool inSeconds = false);
+    void onSetRetentionTime();
 
 private:
     void onPushReceived(unsigned int type);

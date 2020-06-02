@@ -2697,10 +2697,10 @@ promise::Promise<void> ChatRoom::archiveChat(bool archive)
     });
 }
 
-promise::Promise<void> ChatRoom::setChatRetentionTime(int period, bool inSeconds)
+promise::Promise<void> ChatRoom::setChatRetentionTime(int period)
 {
     auto wptr = getDelTracker();
-    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatRetentionTime, chatid(), period, inSeconds)
+    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatRetentionTime, chatid(), period)
     .then([wptr]()
     {
         wptr.throwIfDeleted();

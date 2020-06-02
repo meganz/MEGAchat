@@ -503,11 +503,8 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actGetRetentionTime = retentionMenu->addAction(tr("Get retention time"));
     connect(actGetRetentionTime, SIGNAL(triggered()), mController, SLOT(onGetRetentionTime()));
 
-    auto actSetRetentionTime = retentionMenu->addAction(tr("Set retention time"));
-    connect(actSetRetentionTime, &QAction::triggered, mController, [=](){mController->onSetRetentionTime();});
-
     auto actSetRetentionTimeSec = retentionMenu->addAction(tr("Set retention time (in seconds)"));
-    connect(actSetRetentionTimeSec, &QAction::triggered, mController, [=](){mController->onSetRetentionTime(true);});
+    connect(actSetRetentionTimeSec, &QAction::triggered, mController, [=](){mController->onSetRetentionTime();});
 
     clMenu->addSeparator();
     auto actPrintChat = menu.addAction(tr("Print chat info"));
