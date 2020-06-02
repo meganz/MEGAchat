@@ -4436,11 +4436,11 @@ void Chat::handleRetentionTime()
         // Find oldest msg id in loaded messages in RAM
         if (!mBackwardList.empty())
         {
-            mOldestKnownMsgId = mBackwardList.at((mBackwardList.size()-1))->id();
+            mOldestKnownMsgId =  mBackwardList.back()->id();
         }
         else if (!mForwardList.empty())
         {
-            mOldestKnownMsgId = (*mForwardList.begin())->id();
+            mOldestKnownMsgId = mForwardList.front()->id();
         }
 
         truncateAttachmentHistory();
@@ -4500,10 +4500,10 @@ void Chat::truncateByRetentionTime(Idx idx)
     if (idx >= mForwardStart)
     {
         mBackwardList.clear();
+        assert(static_cast<size_t>(idx - mForwardStart + 1) <= mForwardList.size());
         auto delCount = idx - mForwardStart;
         auto end = mForwardList.begin() + delCount;
-        mForwardList.erase(mForwardList.begin(), end);
-        mForwardList.erase(mForwardList.begin());
+        mForwardList.erase(mForwardList.begin(), end + 1);
         mForwardStart += delCount + 1;
     }
     else
