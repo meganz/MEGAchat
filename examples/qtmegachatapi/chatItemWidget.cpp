@@ -424,6 +424,12 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actTruncate = roomMenu->addAction(tr("Truncate chat"));
     connect(actTruncate, SIGNAL(triggered()), mController, SLOT(truncateChat()));
 
+    auto actGetRetentionTime = roomMenu->addAction(tr("Get retention time"));
+    connect(actGetRetentionTime, SIGNAL(triggered()), mController, SLOT(onGetRetentionTime()));
+
+    auto actSetRetentionTimeSec = roomMenu->addAction(tr("Set retention time (in seconds)"));
+    connect(actSetRetentionTimeSec, &QAction::triggered, mController, [=](){mController->onSetRetentionTime();});
+
     auto actTopic = roomMenu->addAction(tr("Set title"));
     connect(actTopic, SIGNAL(triggered()), mController, SLOT(setTitle()));
 
@@ -496,15 +502,6 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actSetDND = notificationsMenu->addAction("Set do-not-disturb");
     connect(actSetDND, SIGNAL(triggered()), mController, SLOT(onSetDND()));
     actSetDND->setEnabled(bool(notificationSettings));
-
-    // Retention history
-    clMenu->addSeparator();
-    QMenu *retentionMenu = menu.addMenu("Retention time");
-    auto actGetRetentionTime = retentionMenu->addAction(tr("Get retention time"));
-    connect(actGetRetentionTime, SIGNAL(triggered()), mController, SLOT(onGetRetentionTime()));
-
-    auto actSetRetentionTimeSec = retentionMenu->addAction(tr("Set retention time (in seconds)"));
-    connect(actSetRetentionTimeSec, &QAction::triggered, mController, [=](){mController->onSetRetentionTime();});
 
     clMenu->addSeparator();
     auto actPrintChat = menu.addAction(tr("Print chat info"));
