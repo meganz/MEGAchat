@@ -351,7 +351,7 @@ const char* decToString(float v)
 {
     static char buf[128];
     int integerPart = static_cast<int>(v);
-    int decimalPart = static_cast<int>((v - integerPart) * 10.0);
+    int decimalPart = static_cast<int>(fabs((v - integerPart)) * 10.0);
     snprintf(buf, 127, "%d.%d", integerPart, decimalPart);
     return buf;
 }
