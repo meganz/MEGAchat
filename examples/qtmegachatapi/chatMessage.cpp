@@ -479,7 +479,7 @@ std::string ChatMessage::managementInfoToString() const
         case megachat::MegaChatMessage::TYPE_SET_RETENTION_TIME:
         {
             ret.append("User ").append(userHandle_64)
-                    .append(" set retention time: ")
+                    .append(" set retention time ")
                     .append(std::to_string(mMessage->getPrivilege()));
             break;
         }

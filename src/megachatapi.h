@@ -1182,7 +1182,7 @@ public:
         TYPE_PUBLIC_HANDLE_CREATE   = 8,    /// Management message indicating a public handle has been created
         TYPE_PUBLIC_HANDLE_DELETE   = 9,    /// Management message indicating a public handle has been removed
         TYPE_SET_PRIVATE_MODE       = 10,   /// Management message indicating the chat mode has been set to private
-        TYPE_SET_RETENTION_TIME     = 11,   /// Management message indicating the retention time for a chatroom
+        TYPE_SET_RETENTION_TIME     = 11,   /// Management message indicating the retention time has changed
         TYPE_HIGHEST_MANAGEMENT     = 11,
         TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
@@ -1520,10 +1520,10 @@ public:
     /**
      * @brief Return retention time in seconds
      *
-     * This funcion returns a valid value for:
+     * This function only returns a valid value for messages of type:
      *  - MegaChatMessage::TYPE_SET_RETENTION_TIME
      *
-     * @return Retention time
+     * @return Retention time (in seconds)
      */
     virtual int getRetentionTime() const;
 
@@ -3689,9 +3689,9 @@ public:
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Allows a logged in operator/moderator to specify a message retention timeframe
-     * after which all messages in the chat are automatically deleted.
-     * To disable the feature, provide a negative value or zero.
+     * @brief This function allows a logged in operator/moderator to specify a message retention
+     * timeframe after which older messages in the chat are automatically deleted.
+     * In order to disable the feature, the period of time can be set to zero (infinite).
      *
      * @note Use inSeconds param only for testing.
      *
@@ -3707,7 +3707,7 @@ public:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have operator privileges
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param period retention timeframe after which all messages in the chat are automatically deleted
+     * @param period retention timeframe after which older messages in the chat are automatically deleted
      * @param inSeconds indicate API that period is specified in seconds. Only for testing
      * @param listener MegaChatRequestListener to track this request
      */

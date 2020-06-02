@@ -1046,7 +1046,7 @@ void Connection::heartbeat()
         abortRetryController();
         reconnect();
     }
-    else
+    else    // don't apply retention time while offline
     {
         for (auto& chatid: mChatIds)
         {
@@ -4393,7 +4393,7 @@ void Chat::handleRetentionTime()
     CALL_CRYPTO(resetSendKey);
 
     // Clean affected messages in db and RAM
-    CHATID_LOG_DEBUG("Cleaning messages previous to %d seconds", retentionTime);
+    CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", retentionTime);
     CALL_DB(retentionHistoryTruncate, idx);
     truncateByRetentionTime(idx);
 

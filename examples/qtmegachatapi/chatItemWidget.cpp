@@ -190,7 +190,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
 
         case megachat::MegaChatMessage::TYPE_SET_RETENTION_TIME:
             lastMessage.append("User ").append(senderHandle)
-                   .append(" set retention time to: ").append(item->getLastMessage());
+                   .append(" set retention time to ").append(item->getLastMessage()).append(" seconds");
             break;
 
         case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
@@ -547,4 +547,3 @@ void ChatItemWidget::onCopyHandle()
     clipboard->setText(chatid_64);
     delete []chatid_64;
 }
-
