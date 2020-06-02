@@ -498,7 +498,7 @@ public:
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
     virtual void onUnreadChanged();
-    virtual void onRetentionTimeUpdated(unsigned int period);
+    void onRetentionTimeUpdated(unsigned int period) override;
     void onPreviewersUpdate();
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
@@ -510,7 +510,7 @@ public:
     virtual void onHistoryReloaded();
     virtual void onChatModeChanged(bool mode);
     virtual void onReactionUpdate(karere::Id msgid, const char *reaction, int count);
-    virtual void onRetentionHistoryTruncated(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
+    void onRetentionHistoryTruncated(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -743,9 +743,9 @@ public:
 
     virtual int getUnreadCount() const;
     virtual MegaChatHandle getUserTyping() const;
-    virtual unsigned int getRetentionTime() const;
-    virtual void setRetentionTime(unsigned int period);
+    unsigned int getRetentionTime() const override;
 
+    void setRetentionTime(unsigned int period);
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void changeUnreadCount();
@@ -845,7 +845,7 @@ public:
     virtual const MegaChatContainsMeta *getContainsMeta() const;
     virtual mega::MegaHandleList *getMegaHandleList() const;
     virtual int getDuration() const;
-    virtual int getRetentionTime() const;
+    int getRetentionTime() const override;
     virtual int getTermCode() const;
 
     virtual int getChanges() const;
