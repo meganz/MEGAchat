@@ -776,7 +776,6 @@ protected:
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
     Idx mLastSeenInFlightIdx = CHATD_IDX_INVALID;
     Idx mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
-    karere::Id mLastIdReceivedFromServer;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;
@@ -1335,7 +1334,6 @@ public:
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
     Idx lastIdxReceivedFromServer() const;
-    karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
     bool isPublic() const;
     uint32_t getNumPreviewers() const;

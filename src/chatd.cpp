@@ -2578,11 +2578,6 @@ Idx Chat::lastIdxReceivedFromServer() const
     return mLastIdxReceivedFromServer;
 }
 
-Id Chat::lastIdReceivedFromServer() const
-{
-    return mLastIdReceivedFromServer;
-}
-
 bool Chat::isGroup() const
 {
     return mIsGroup;
@@ -2744,7 +2739,6 @@ void Chat::initChat()
     mLastReceivedIdx = CHATD_IDX_INVALID;
     mNextHistFetchIdx = CHATD_IDX_INVALID;
     mOldestIdxInDb = CHATD_IDX_INVALID;
-    mLastIdReceivedFromServer = 0;
     mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
     mLastServerHistFetchCount = 0;
     mLastHistDecryptCount = 0;
@@ -4335,8 +4329,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         if (mChatdClient.isMessageReceivedConfirmationActive() && mLastIdxReceivedFromServer <= idx)
         {
             mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
-            mLastIdReceivedFromServer = karere::Id::null();
-            // TODO: the update of those variables should be persisted
+            // TODO: the update of this variable should be persisted
         }
     }
 
@@ -4389,7 +4382,6 @@ void Chat::handleRetentionTime()
     if (mOldestIdxInDb == CHATD_IDX_INVALID) // If there's no messages in db
     {
         mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
-        mLastIdReceivedFromServer = karere::Id::null();
         mHaveAllHistory = true;
         mHasMoreHistoryInDb = false;
         CALL_DB(setHaveAllHistory, true);
@@ -4873,8 +4865,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
                  (idx > mLastIdxReceivedFromServer)))   // newer message than last received
         {
             mLastIdxReceivedFromServer = idx;
-            mLastIdReceivedFromServer = msgid;
-            // TODO: the update of those variables should be persisted
+            // TODO: the update of this variable should be persisted
 
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
