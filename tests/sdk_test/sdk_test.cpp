@@ -32,8 +32,7 @@ int main(int argc, char **argv)
     // Tests that requires a groupchat (start with public chat, converted into private)
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
     EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
-    // TODO: uncomment this test once the retention history support is deployed into shards 0 and 1 (currently, it only works in shard 2)
-    // EXECUTE_TEST(t.TEST_RetentionHistory(0, 1), "TEST Retention history");
+    EXECUTE_TEST(t.TEST_RetentionHistory(0, 1), "TEST Retention history");
     // TODO: uncomment this test once the reaction's support is deployed into shards 0 and 1 (currently, it only works in shard 2)
     // EXECUTE_TEST(t.TEST_Reactions(0, 1), "TEST Chat Reactions");
     EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
@@ -2676,8 +2675,6 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
  * @brief TEST_RetentionHistory
  *
  * Requirements:
- *      - API url must points to staging to be able to set retention time in seconds
- * (the test automatically solves it)
  *      - Both accounts should be contacts
  * (if not accomplished, the test automatically solves them)
  *
@@ -2702,10 +2699,6 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
  **/
 void MegaChatApiTest::TEST_RetentionHistory(unsigned int a1, unsigned int a2)
 {
-    // change Api url to run this test
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-    megaApi[a2]->changeApiUrl("https://staging.api.mega.co.nz/");
-
     // Login both accounts
     ::mega::unique_ptr<char[]>sessionPrimary(login(a1));
     ::mega::unique_ptr<char[]>sessionSecondary(login(a2));
@@ -2862,21 +2855,6 @@ void MegaChatApiTest::TEST_RetentionHistory(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
     delete chatroomListener;
-
-    // reset Api url to default value for both accounts
-    bool *flagLogout = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOGOUT]; *flagLogout = false;
-    megaChatApi[a1]->logout();
-    ASSERT_CHAT_TEST(waitForResponse(flagLogout), "Timeout expired for logout");
-    ASSERT_CHAT_TEST(lastErrorChat[a1] == MegaChatError::ERROR_OK, "Logout: Unexpected error for Invalid handle. Error:" + std::string(lastErrorMsgChat[a1]));
-    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
-    sessionPrimary.reset(login(a1));
-
-    flagLogout = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOGOUT]; *flagLogout = false;
-    megaChatApi[a2]->logout();
-    ASSERT_CHAT_TEST(waitForResponse(flagLogout), "Timeout expired for logout");
-    ASSERT_CHAT_TEST(lastErrorChat[a2] == MegaChatError::ERROR_OK, "Logout: Unexpected error for Invalid handle. Error:" + std::string(lastErrorMsgChat[a2]));
-    megaApi[a2]->changeApiUrl("https://g.api.mega.co.nz/");
-    sessionPrimary.reset(login(a2));
 }
 
 /**
