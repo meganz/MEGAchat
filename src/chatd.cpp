@@ -1050,19 +1050,7 @@ void Connection::heartbeat()
     {
         for (auto& chatid: mChatIds)
         {
-            // For every chat check, if timestamp of it's oldest message in db
-            // has exceeded retention time
-            Chat &chat = mChatdClient.chats(chatid);
-            if (chat.mOldestIdxInDb == CHATD_IDX_INVALID || chat.getRetentionTime() == 0)
-            {
-                continue;
-            }
-
-            Message &msg = chat.at(chat.mOldestIdxInDb);
-            if (msg.ts < now - chat.getRetentionTime())
-            {
-                chat.handleRetentionTime();
-            }
+            mChatdClient.chats(chatid).handleRetentionTime();
         }
     }
 }
@@ -4365,9 +4353,9 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
 void Chat::handleRetentionTime()
 {
-    if (!mRetentionTime)
+    if (!mRetentionTime || mOldestIdxInDb == CHATD_IDX_INVALID)
     {
-        // If retentionTime is disabled
+        // If retentionTime is disabled or there's no messages to truncate
         return;
     }
 
