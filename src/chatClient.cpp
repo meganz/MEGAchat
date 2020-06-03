@@ -2699,7 +2699,6 @@ promise::Promise<void> ChatRoom::archiveChat(bool archive)
 
 promise::Promise<void> ChatRoom::setChatRetentionTime(int period)
 {
-    auto wptr = getDelTracker();
     return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatRetentionTime, chatid(), period);
 }
 
