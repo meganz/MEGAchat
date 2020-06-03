@@ -372,11 +372,12 @@ void ChatWindow::truncateChatUI()
     std::map<megachat::MegaChatHandle, ChatMessage*>::iterator itMessages;
     for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end(); itMessages++)
     {
-        ::mega::unique_ptr<ChatMessage> auxMessage(itMessages->second);
+        ChatMessage *auxMessage(itMessages->second);
         auxMessage->clearReactions();
         int row = ui->mMessageList->row(auxMessage->getWidgetItem());
         ::mega::unique_ptr<QListWidgetItem> auxItem(ui->mMessageList->takeItem(row));
         mMsgsWidgetsMap.erase(itMessages);
+        auxMessage->deleteLater();
     }
 }
 
@@ -394,10 +395,11 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*tempora
         }
     }
 
-    ::mega::unique_ptr<ChatMessage> auxMessage(itMessages->second);
+    ChatMessage *auxMessage(itMessages->second);
     int row = ui->mMessageList->row(auxMessage->getWidgetItem());
     ::mega::unique_ptr<QListWidgetItem> auxItem(ui->mMessageList->takeItem(row));
     mMsgsWidgetsMap.erase(itMessages);
+    auxMessage->deleteLater();
     return true;
 }
 
@@ -540,7 +542,7 @@ void ChatWindow::onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *, mega
         for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end();)
         {
             auto auxIt = itMessages++;
-            mega::unique_ptr<ChatMessage> auxMessage(auxIt->second);
+            ChatMessage *auxMessage(auxIt->second);
             if (auxMessage->mMessage->getTimestamp() <= msg->getTimestamp()
                     && auxMessage->mMessage->getStatus() != megachat::MegaChatMessage::STATUS_SENDING
                     && auxMessage->mMessage->getStatus() != megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
@@ -549,6 +551,7 @@ void ChatWindow::onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *, mega
                 int row = ui->mMessageList->row(auxMessage->getWidgetItem());
                 ::mega::unique_ptr <QListWidgetItem> auxItem(ui->mMessageList->takeItem(row));
                 mMsgsWidgetsMap.erase(auxIt);
+                auxMessage->deleteLater();
             }
         }
     }
