@@ -4372,7 +4372,7 @@ void Chat::handleRetentionTime()
     Message *msg = findOrNull(idx);
     if (msg)
     {
-       CALL_LISTENER(onRetentionHistoryTruncated, *msg, idx, getMsgStatus(*msg, idx));
+       CALL_LISTENER(onHistoryTruncatedByRetentionTime, *msg, idx, getMsgStatus(*msg, idx));
     }
 
     // Clean affected messages in db and RAM

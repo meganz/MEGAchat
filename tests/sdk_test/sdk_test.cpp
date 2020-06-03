@@ -28,6 +28,13 @@ int main(int argc, char **argv)
     remove("test.log");
     MegaChatApiTest t;
     t.init();
+EXECUTE_TEST(t.TEST_RetentionHistory(0, 1), "TEST Retention history");
+EXECUTE_TEST(t.TEST_RetentionHistory(0, 1), "TEST Retention history");
+EXECUTE_TEST(t.TEST_RetentionHistory(0, 1), "TEST Retention history");
+EXECUTE_TEST(t.TEST_RetentionHistory(0, 1), "TEST Retention history");
+EXECUTE_TEST(t.TEST_RetentionHistory(0, 1), "TEST Retention history");
+EXECUTE_TEST(t.TEST_RetentionHistory(0, 1), "TEST Retention history");
+
 
     // Tests that requires a groupchat (start with public chat, converted into private)
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
@@ -4758,7 +4765,7 @@ void TestChatRoomListener::onReactionUpdate(MegaChatApi *api, MegaChatHandle msg
     reactionReceived[apiIndex] = true;
 }
 
-void TestChatRoomListener::onRetentionHistoryTruncated(MegaChatApi *api, MegaChatMessage *msg)
+void TestChatRoomListener::onHistoryTruncatedByRetentionTime(MegaChatApi *api, MegaChatMessage *msg)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
     mRetentionMessageHandle[apiIndex] = msg->getMsgId();

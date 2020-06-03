@@ -5797,7 +5797,7 @@ public:
      * @param api MegaChatApi connected to the account
      * @param msg Most recent message whose timestamp has exceeded retention time
      */
-    virtual void onRetentionHistoryTruncated(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/);
+    virtual void onHistoryTruncatedByRetentionTime(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/);
 };
 
 /**

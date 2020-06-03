@@ -55,7 +55,7 @@ class ChatWindow : public QDialog,
         void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
         void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
         void onTruncate(MegaChatApi *api, MegaChatHandle msgid);
-        void onRetentionHistoryTruncated(megachat::MegaChatApi *, MegaChatMessage *msg);
+        void onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *, MegaChatMessage *msg);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void createSettingsMenu(QMenu& menu);

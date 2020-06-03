@@ -413,7 +413,7 @@ public:
     virtual void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);
     virtual void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // new or updated
     virtual void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count);
-    virtual void onRetentionHistoryTruncated(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg) override;
+    virtual void onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg) override;
 
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);

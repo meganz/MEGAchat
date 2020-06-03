@@ -521,14 +521,14 @@ void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRo
     truncateChatUI();
 }
 
-void ChatWindow::onRetentionHistoryTruncated(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
+void ChatWindow::onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
 {
     QString date = QDateTime::fromTime_t(msg->getTimestamp()).toString("hh:mm:ss - dd.MM.yy");
     QMessageBox *msgBox = new QMessageBox(this);
     msgBox->setIcon( QMessageBox::Information );
     msgBox->setAttribute(Qt::WA_DeleteOnClose);
     msgBox->setStandardButtons(QMessageBox::Ok);
-    msgBox->setWindowTitle(tr("onRetentionHistoryTruncated"));
+    msgBox->setWindowTitle(tr("onHistoryTruncatedByRetentionTime"));
     msgBox->setText("Messages previous to (" + date+ "), will be cleared");
     msgBox->setModal(false);
     msgBox->show();

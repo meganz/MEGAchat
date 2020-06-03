@@ -133,7 +133,7 @@ public:
      * @param idx Index of the message
      * @param status Status of the message
      */
-    virtual void onRetentionHistoryTruncated(const Message &msg, const Idx &idx, const Message::Status &status) {}
+    virtual void onHistoryTruncatedByRetentionTime(const Message &msg, const Idx &idx, const Message::Status &status) {}
 
     /**
      * @brief An unsent message was loaded from local db. The app should normally

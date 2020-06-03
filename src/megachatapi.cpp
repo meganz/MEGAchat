@@ -1590,7 +1590,7 @@ void MegaChatRoomListener::onReactionUpdate(MegaChatApi* /*api*/, MegaChatHandle
 
 }
 
-void MegaChatRoomListener::onRetentionHistoryTruncated(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/)
+void MegaChatRoomListener::onHistoryTruncatedByRetentionTime(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/)
 {
 
 }

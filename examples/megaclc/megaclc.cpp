@@ -536,7 +536,7 @@ struct CLCRoomListener : public c::MegaChatRoomListener
 
     void onHistoryReloaded(c::MegaChatApi*, c::MegaChatRoom *chat) override;
 
-    void onRetentionHistoryTruncated(c::MegaChatApi*, c::MegaChatMessage *msg) override;
+    void onHistoryTruncatedByRetentionTime(c::MegaChatApi*, c::MegaChatMessage *msg) override;
 };
 
 struct RoomListenerRecord
@@ -4187,4 +4187,4 @@ void CLCRoomListener::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaCha
 
 void CLCRoomListener::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *chat) {}
 
-void CLCRoomListener::onRetentionHistoryTruncated(c::MegaChatApi*, c::MegaChatMessage *msg) {}
+void CLCRoomListener::onHistoryTruncatedByRetentionTime(c::MegaChatApi*, c::MegaChatMessage *msg) {}

@@ -5988,11 +5988,11 @@ void MegaChatRoomHandler::fireOnMessageLoaded(MegaChatMessage *msg)
     delete msg;
 }
 
-void MegaChatRoomHandler::fireOnRetentionHistoryTruncated(MegaChatMessage *msg)
+void MegaChatRoomHandler::fireOnHistoryTruncatedByRetentionTime(MegaChatMessage *msg)
 {
     for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
     {
-        (*it)->onRetentionHistoryTruncated(chatApi, msg);
+        (*it)->onHistoryTruncatedByRetentionTime(chatApi, msg);
     }
 
     delete msg;
@@ -6279,10 +6279,10 @@ void MegaChatRoomHandler::onHistoryDone(chatd::HistSource /*source*/)
     fireOnMessageLoaded(NULL);
 }
 
-void MegaChatRoomHandler::onRetentionHistoryTruncated(const Message &msg, const Idx &idx, const Message::Status &status)
+void MegaChatRoomHandler::onHistoryTruncatedByRetentionTime(const Message &msg, const Idx &idx, const Message::Status &status)
 {
    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
-   fireOnRetentionHistoryTruncated(message);
+   fireOnHistoryTruncatedByRetentionTime(message);
 }
 
 void MegaChatRoomHandler::onUnsentMsgLoaded(chatd::Message &msg)
