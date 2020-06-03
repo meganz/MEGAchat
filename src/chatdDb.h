@@ -617,18 +617,8 @@ public:
     {
         // Find the most recent msg affected by retention time if any
         SqliteStmt stmt(mDb, "select MAX(ts), MAX(idx) from history where chatid = ? and ts < ?");
-        stmt.bind(mChat.chatId())
-                .bind(ts)
-                .step();
-
-        if (sqlite3_column_type(stmt, 0) != SQLITE_NULL)
-        {
-            limitIdx = stmt.intCol(1);
-        }
-        else
-        {
-            limitIdx = CHATD_IDX_INVALID;
-        }
+        stmt << mChat.chatId() << ts;
+        limitIdx = (stmt.step() && sqlite3_column_type(stmt, 1) != SQLITE_NULL) ? stmt.intCol(1) : CHATD_IDX_INVALID;
     }
 
     void retentionHistoryTruncate(const chatd::Idx idx) override
