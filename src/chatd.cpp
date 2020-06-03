@@ -4874,9 +4874,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             mAttachmentNodes->addMessage(msg, isNew, false);
         }
         CALL_DB(addMsgToHistory, msg, idx);
-        if (!isNew || mOldestIdxInDb == CHATD_IDX_INVALID)
+        if (mOldestIdxInDb == CHATD_IDX_INVALID || idx < mOldestIdxInDb)
         {
-            mOldestIdxInDb = mDbInterface->getOldestIdx();
+            // If mOldestIdxInDb is not set, or idx is oldest that current value update it
+            mOldestIdxInDb = idx;
         }
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
