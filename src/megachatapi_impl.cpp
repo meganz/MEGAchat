@@ -1815,9 +1815,11 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            auto wptr = mClient->weakHandle();
             chatroom->setChatRetentionTime(period)
-            .then([request, this]()
+            .then([request, wptr, this]()
             {
+                wptr.throwIfDeleted();
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
