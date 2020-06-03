@@ -7673,8 +7673,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         case MegaChatMessage::TYPE_SET_RETENTION_TIME:
         {
           // Interpret retentionTime as int32_t to store it in an existing member.
-          // There's no overflow risk since retentionTime shouldn't reach such high values
-          memcpy(&priv, msg.buf(), sizeof(int32_t));
+          assert(sizeof(priv) == msg.dataSize());
+          memcpy(&priv, msg.buf(), min(sizeof(priv), msg.dataSize()));
           break;
         }
 
