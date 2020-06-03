@@ -1796,6 +1796,11 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatHandle chatid = request->getChatHandle();
             int period = request->getParamType();
+            if (period < 0)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
