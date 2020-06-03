@@ -4579,9 +4579,8 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
             if (mHasMoreHistoryInDb)
             { //we have db history that is not loaded, so we determine the index
               //by the db, and don't add the message to RAM
-                chatd::Idx oldestIdx = mDbInterface->getOldestIdx();
-                assert(oldestIdx != CHATD_IDX_INVALID);
-                idx = oldestIdx - 1;
+                assert(mDbInterface->getOldestIdx() != CHATD_IDX_INVALID);
+                idx = mDbInterface->getOldestIdx() - 1;
             }
             else
             {
