@@ -4377,7 +4377,7 @@ void Chat::handleRetentionTime()
     removePendingRichLinks(idx);
 
     // update oldest index in db
-    mOldestIdxInDb = mDbInterface->getOldestIdx();
+    mOldestIdxInDb = (idx + 1 <= highnum()) ? idx + 1 : CHATD_IDX_INVALID;
 
     if (mOldestIdxInDb == CHATD_IDX_INVALID) // If there's no messages in db
     {
@@ -4572,7 +4572,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
             { //we have db history that is not loaded, so we determine the index
               //by the db, and don't add the message to RAM
                 assert(mDbInterface->getOldestIdx() != CHATD_IDX_INVALID);
-                idx = mDbInterface->getOldestIdx() - 1;
+                idx = mOldestIdxInDb - 1;
             }
             else
             {
