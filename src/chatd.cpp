@@ -4290,7 +4290,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
     CALL_CRYPTO(resetSendKey);      // discard current key, if any
     CALL_DB(truncateHistory, msg);
-    mOldestIdxInDb = mDbInterface->getOldestIdx();
+    mOldestIdxInDb = idx;
     if (idx != CHATD_IDX_INVALID)   // message is loaded in RAM
     {
         //GUI must detach and free any resources associated with
