@@ -1845,7 +1845,6 @@ void Chat::disable(bool state)
 Idx Chat::getHistoryFromDb(unsigned count)
 {
     assert(mHasMoreHistoryInDb); //we are within the db range
-    mOldestIdxInDb = mDbInterface->getOldestIdx();
     std::vector<Message*> messages;
     CALL_DB(fetchDbHistory, lownum()-1, count, messages);
     for (auto msg: messages)
@@ -4835,6 +4834,13 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     {
         mLastHistDecryptCount++;
     }
+
+    if (mOldestIdxInDb == CHATD_IDX_INVALID || idx < mOldestIdxInDb)
+    {
+        // If mOldestIdxInDb is not set, or idx is oldest that current value update it
+        mOldestIdxInDb = idx;
+    }
+
     auto msgid = msg.id();
     if (!isLocal)
     {
@@ -4853,11 +4859,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             mAttachmentNodes->addMessage(msg, isNew, false);
         }
         CALL_DB(addMsgToHistory, msg, idx);
-        if (mOldestIdxInDb == CHATD_IDX_INVALID || idx < mOldestIdxInDb)
-        {
-            // If mOldestIdxInDb is not set, or idx is oldest that current value update it
-            mOldestIdxInDb = idx;
-        }
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mChatdClient.mMyHandle) && // message is not ours
