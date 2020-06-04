@@ -567,24 +567,24 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->getUserHandleByEmail([email UTF8String]);
 }
 
-- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles authorizationToken:(NSString *)authorizationToken delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
     MEGAHandleList *handleList = MEGAHandleList.alloc.init;
     
     for (NSNumber *handle in usersHandles) {
         [handleList addMegaHandle:handle.unsignedLongLongValue];
     }
     
-    self.megaChatApi->loadUserAttributes(chatId, handleList.getCPtr, authorizationToken.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    self.megaChatApi->loadUserAttributes(chatId, handleList.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles authorizationToken:(NSString *)authorizationToken {
+- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
     MEGAHandleList *handleList = MEGAHandleList.alloc.init;
     
     for (NSNumber *handle in usersHandles) {
         [handleList addMegaHandle:handle.unsignedLongLongValue];
     }
     
-    self.megaChatApi->loadUserAttributes(chatId, handleList.getCPtr, authorizationToken.UTF8String);
+    self.megaChatApi->loadUserAttributes(chatId, handleList.getCPtr);
 }
 
 #pragma mark - Chat management
