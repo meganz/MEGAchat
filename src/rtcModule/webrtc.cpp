@@ -2827,17 +2827,24 @@ void Call::setOnHold(bool onHold)
     {
         enableVideo(!onHold);
     }
-    else
+
+    for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
     {
-        for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
+        if (session.second->mRemotePlayer)
         {
-            if (session.second->mRemotePlayer)
+            if (session.second->mRemotePlayer->getAudioTrack())
             {
-                session.second->mRemotePlayer->enableVideo(session.second->mPeerAv.video() && !session.second->mPeerAv.onHold());
+                session.second->mRemotePlayer->getAudioTrack()->set_enabled(!onHold);
             }
+
+            if (session.second->mRemotePlayer->getVideoTrack())
+            {
+                session.second->mRemotePlayer->getVideoTrack()->set_enabled(!onHold);
+            }
+
+            session.second->mRemotePlayer->enableVideo(!onHold);
         }
     }
-
 
     sendAVFlags();
     FIRE_EVENT(CALL, onOnHold, onHold);
