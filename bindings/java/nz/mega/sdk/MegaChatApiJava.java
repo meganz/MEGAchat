@@ -1336,11 +1336,10 @@ public class MegaChatApiJava {
      *
      * @param chatid Handle of the chat whose member attributes requested
      * @param userList List of user whose attributes has been requested
-     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      * @param listener MegaChatRequestListener to track this request
      */
-    public void loadUserAttributes(long chatid, MegaHandleList userList, String authorizationToken, MegaChatRequestListenerInterface listener) {
-        megaChatApi.loadUserAttributes(chatid, userList, authorizationToken, createDelegateRequestListener(listener));
+    public void loadUserAttributes(long chatid, MegaHandleList userList, MegaChatRequestListenerInterface listener) {
+        megaChatApi.loadUserAttributes(chatid, userList, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1362,10 +1361,9 @@ public class MegaChatApiJava {
      *
      * @param chatid Handle of the chat whose member attributes requested
      * @param userList List of user whose attributes has been requested
-     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      */
-    public void loadUserAttributes(long chatid, MegaHandleList userList, String authorizationToken) {
-        megaChatApi.loadUserAttributes(chatid, userList, authorizationToken);
+    public void loadUserAttributes(long chatid, MegaHandleList userList) {
+        megaChatApi.loadUserAttributes(chatid, userList);
     }
 
     /**
