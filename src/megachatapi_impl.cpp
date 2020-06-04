@@ -1844,28 +1844,35 @@ void MegaChatApiImpl::sendPendingRequests()
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
-
-            const char* publicHandle = request->getLink();
-            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
-
-            std::vector<::promise::Promise<void>> promises;
-            for (int i = 0; i < handleList->size(); i++)
+            for (unsigned int i = 0; i < handleList->size(); i++)
             {
                 MegaChatHandle peerid = handleList->get(i);
                 if (!chatroom->isMember(peerid))
                 {
                     API_LOG_ERROR("Error %s is not a chat member of chatroom (%s)", Id(peerid).toString().c_str(), Id(chatid).toString().c_str());
                     errorCode = MegaChatError::ERROR_ARGS;
-                    return;
+                    break;
                 }
+            }
 
-                promises.push_back(mClient->userAttrCache().getAttributes(peerid, ph));
+            const char* publicHandle = request->getLink();
+            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
+
+            std::vector<::promise::Promise<void>> promises;
+            for (unsigned int i = 0; i < handleList->size(); i++)
+            {
+                promises.push_back(mClient->userAttrCache().getAttributes(handleList->get(i), ph));
             }
 
             ::promise::when(promises)
             .then([this, request]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const ::promise::Error& e)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
             break;
