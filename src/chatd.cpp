@@ -4361,6 +4361,7 @@ void Chat::handleRetentionTime()
         return;
     }
 
+    bool notifyUnreadChanged = (idx >= mLastSeenIdx) || (mLastSeenIdx == CHATD_IDX_INVALID);
     Message *msg = findOrNull(idx);
     if (msg)
     {
@@ -4423,6 +4424,11 @@ void Chat::handleRetentionTime()
         }
 
         truncateAttachmentHistory();
+    }
+
+    if (notifyUnreadChanged)
+    {
+        CALL_LISTENER(onUnreadChanged);
     }
 }
 
