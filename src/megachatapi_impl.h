@@ -1085,7 +1085,7 @@ public:
     void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
-    void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList* userList, const char *authorizationToken, MegaChatRequestListener *listener = nullptr);
+    void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList* userList, MegaChatRequestListener *listener = nullptr);
     char *getContactEmail(MegaChatHandle userhandle);
     MegaChatHandle getUserHandleByEmail(const char *email);
     MegaChatHandle getMyUserHandle();

@@ -2962,14 +2962,14 @@ void Chat::attachmentHistDone()
     mAttachmentNodes->finishFetchingFromServer();
 }
 
-void Chat::requestUserAttributes(Id sender)
+promise::Promise<void> Chat::requestUserAttributes(Id sender)
 {
     if (!isPublic())
     {
-        return;
+        return promise::_Void();
     }
 
-    mChatdClient.mKarereClient->userAttrCache().getAttributes(sender, mCrypto->getPublicHandle());
+    return mChatdClient.mKarereClient->userAttrCache().getAttributes(sender, getPublicHandle());
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)

@@ -2888,21 +2888,18 @@ public:
      *
      * After request is finished, you can call to MegaChatRoom::getPeerFirstnameByHandle,
      * MegaChatRoom::getPeerLastnameByHandle, MegaChatRoom::getPeerFullnameByHandle,
-     * MegaChatRoom::getPeerEmailByHandle
+     * MegaChatRoom::getPeerEmailByHandle (email will not available during previews)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of chat
      * - MegaChatRequest::getMegaHandleList - Returns the handles of user that attributes have been requested
-     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
-     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
      *
      * @param chatid Handle of the chat whose member attributes requested
      * @param userList List of user whose attributes has been requested
-     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      * @param listener MegaChatRequestListener to track this request
      */
-    void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList *userList, const char *authorizationToken, MegaChatRequestListener *listener = nullptr);
+    void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList *userList, MegaChatRequestListener *listener = nullptr);
 
     /**
      * @brief Returns the current email address of the contact

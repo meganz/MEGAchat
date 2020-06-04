@@ -3818,7 +3818,7 @@ void GroupChatRoom::setChatPrivateMode()
 
     for (auto member : mPeers)
     {
-        parent.mKarereClient.userAttrCache().getAttributes(member.first);
+        chat().requestUserAttributes(member.first);
         chat().crypto()->fetchUserKeys(member.first);
     }
 }

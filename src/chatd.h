@@ -905,7 +905,6 @@ protected:
     void removeMessageReactions(Idx idx);
     void manageRichLinkMessage(Message &message);
     void attachmentHistDone();
-    void requestUserAttributes(karere::Id sender);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -1345,6 +1344,7 @@ public:
     bool isFetchingNodeHistory() const;
     void setNodeHistoryHandler(FilteredHistoryHandler *handler);
     void unsetHandlerToNodeHistory();
+    promise::Promise<void> requestUserAttributes(karere::Id sender);
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

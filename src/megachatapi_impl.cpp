@@ -1855,13 +1855,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
             }
 
-            const char* publicHandle = request->getLink();
-            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
-
             std::vector<::promise::Promise<void>> promises;
             for (unsigned int i = 0; i < handleList->size(); i++)
             {
-                promises.push_back(mClient->userAttrCache().getAttributes(handleList->get(i), ph));
+                promises.push_back(chatroom->chat().requestUserAttributes(handleList->get(i)));
             }
 
             ::promise::when(promises)
@@ -2762,12 +2759,11 @@ void MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle, MegaChatRequestLis
     waiter->notify();
 }
 
-void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList *userList, const char *authorizationToken, MegaChatRequestListener *listener)
+void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList *userList, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES, listener);
     request->setChatHandle(chatid);
     request->setMegaHandleList(userList);
-    request->setLink(authorizationToken);
     requestQueue.push(request);
     waiter->notify();
 }
