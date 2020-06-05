@@ -373,6 +373,19 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
     return ::promise::when(promises);
 }
 
+const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
+{
+    UserAttrPair key(user, attrType);
+    auto it = find(key);
+    if (it == end())
+    {
+        return nullptr;
+    }
+
+    const Buffer* buffer= it->second->data.get();
+    return buffer;
+}
+
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
             void* userp, UserAttrReqCbFunc cb, bool oneShot, bool fetch, uint64_t ph)
 {

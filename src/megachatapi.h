@@ -2835,6 +2835,18 @@ public:
     void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Returns the current firstname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose first name is requested.
+     * @return The first name from user
+     */
+    const char* getUserFirstnameFromCache(MegaChatHandle userhandle);
+
+    /**
      * @brief Returns the current lastname of the user
      *
      * This function is useful to get the lastname of users who participated in a groupchat with
@@ -2855,6 +2867,18 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the current lastname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose last name is requested.
+     * @return The last name from user
+     */
+    const char* getUserLastnameFromCache(MegaChatHandle userhandle);
 
     /**
      * @brief Returns the current email address of the contact
@@ -2879,6 +2903,18 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the current email address of the user
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose email is requested.
+     * @return The email from user
+     */
+    const char* getUserEmailFromCache(MegaChatHandle userhandle);
 
     /**
      * @brief request to server user attributes
