@@ -553,6 +553,50 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->getUserLastname(userHandle, authorizationToken.UTF8String);
 }
 
+- (NSString *)userEmailFromCacheByUserHandle:(uint64_t)userHandle {
+    const char *val = self.megaChatApi->getUserEmailFromCache(userHandle);
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
+}
+
+- (NSString *)userFirstnameFromCacheByUserHandle:(uint64_t)userHandle {
+    const char *val = self.megaChatApi->getUserFirstnameFromCache(userHandle);
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
+}
+
+- (NSString *)userLastnameFromCacheByUserHandle:(uint64_t)userHandle {
+    const char *val = self.megaChatApi->getUserLastnameFromCache(userHandle);
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
+}
+
+- (NSString *)userFullnameFromCacheByUserHandle:(uint64_t)userHandle {
+    NSString *firstName = [self userFirstnameFromCacheByUserHandle:userHandle];
+    NSString *lastName = [self userLastnameFromCacheByUserHandle:userHandle];
+    if (firstName.length > 0) {
+        if (lastName.length > 0) {
+            return [NSString stringWithFormat:@"%@ %@", firstName, lastName];
+        } else {
+            return firstName;
+        }
+    } else {
+        return lastName;
+    }
+}
+
 - (NSString *)contacEmailByHandle:(uint64_t)userHandle {
     const char *val = self.megaChatApi->getContactEmail(userHandle);
     if (!val) return nil;
