@@ -1360,7 +1360,7 @@ public:
     bool isFetchingNodeHistory() const;
     void setNodeHistoryHandler(FilteredHistoryHandler *handler);
     void unsetHandlerToNodeHistory();
-    const uint32_t &getRetentionTime() const;
+    uint32_t getRetentionTime() const;
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

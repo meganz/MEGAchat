@@ -1037,8 +1037,7 @@ void Connection::heartbeat()
     if (!mHeartbeatEnabled)
         return;
 
-    time_t now = time(NULL);
-    if (now - mTsLastRecv >= Connection::kIdleTimeout)
+    if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
     {
         CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
 
@@ -4373,7 +4372,6 @@ void Chat::handleRetentionTime()
     CALL_DB(retentionHistoryTruncate, idx);
     truncateByRetentionTime(idx);
 
-    // Clean pending rich links
     removePendingRichLinks(idx);
 
     // update oldest index in db
@@ -4389,26 +4387,19 @@ void Chat::handleRetentionTime()
 
     if (empty()) // There's no messages loaded in RAM
     {
-        // reset forward start
         mForwardStart = CHATD_IDX_RANGE_MIDDLE;
 
-        // reset last-seen pointer
         mLastSeenIdx = CHATD_IDX_INVALID;
         mLastSeenId = 0;
         CALL_DB(setLastSeen, 0);
 
-        // reset last-received pointer
         mLastReceivedIdx = CHATD_IDX_INVALID;
         mLastReceivedId = 0;
         CALL_DB(setLastReceived, 0);
 
-        // truncate node-history
         mAttachmentNodes->truncateHistory(Id::inval());
 
-        //reset OldestKnownMsgId
         mOldestKnownMsgId = 0;
-
-        // reset mNextHistFetchIdx
         mNextHistFetchIdx = CHATD_IDX_INVALID;
     }
     else
@@ -5450,7 +5441,7 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
     }
 }
 
-const uint32_t& Chat::getRetentionTime() const
+uint32_t Chat::getRetentionTime() const
 {
     return mRetentionTime;
 }
