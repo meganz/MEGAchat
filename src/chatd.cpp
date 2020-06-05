@@ -2964,11 +2964,6 @@ void Chat::attachmentHistDone()
 
 promise::Promise<void> Chat::requestUserAttributes(Id sender)
 {
-    if (!isPublic())
-    {
-        return promise::_Void();
-    }
-
     return mChatdClient.mKarereClient->userAttrCache().getAttributes(sender, getPublicHandle());
 }
 
