@@ -62,12 +62,10 @@ struct UserAttrPair
 {
     Id user;
     uint8_t attrType;
-    Id mPh; // only valid in anonymous preview mode to retrieve user-attributes without valid session
+    Id mPh; // only valid in preview mode to retrieve user-attributes
     bool operator<(const UserAttrPair& other) const
     {
-        if (user == other.user && attrType == other.attrType)
-            return mPh < other.mPh;
-        else if (user == other.user)
+        if (user == other.user)
             return attrType < other.attrType;
         else
             return user < other.user;
