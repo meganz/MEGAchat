@@ -752,17 +752,12 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         {
             QString memberName;
             MegaChatHandle peerHandle = mChatRoom->getPeerHandle(i);
-            const char* name = mMegaChatApi->getUserFirstnameFromCache(peerHandle);
-            if (!name || !strlen(name))
+            std::unique_ptr<const char[]> name(mMegaChatApi->getUserFirstnameFromCache(peerHandle));
+            if (!name || !strlen(name.get()))
             {
-                const char* email = mMegaChatApi->getUserEmailFromCache(peerHandle);
-                memberName = (email && strlen(email))
-                        ? email : tr("Yet unkown");
-
-                delete [] email;
+                std::unique_ptr<const char []> email(mMegaChatApi->getUserEmailFromCache(peerHandle));
+                memberName = (email && strlen(email.get())) ? email.get() : tr("Yet unknown");
             }
-
-            delete [] name;
 
             privilege = mChatRoom->getPeerPrivilege(i);
             userhandle = QVariant((qulonglong)peerHandle);

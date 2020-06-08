@@ -382,8 +382,7 @@ const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
         return nullptr;
     }
 
-    const Buffer* buffer= it->second->data.get();
-    return buffer;
+    return it->second->data.get();
 }
 
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,

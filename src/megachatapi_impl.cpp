@@ -2747,12 +2747,7 @@ const char *MegaChatApiImpl::getUserFirstnameFromCache(MegaChatHandle userhandle
     SdkMutexGuard g(sdkMutex);
     if (mClient && mClient->isUserAttrCacheReady())
     {
-        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(userhandle, ::mega::MegaApi::USER_ATTR_FIRSTNAME);
-        if (buffer != nullptr)
-        {
-            std::string name(buffer->buf(), buffer->size());
-            return MegaApi::strdup(name.c_str());
-        }
+        return move(mClient->userAttrCache().getDataFromCache(userhandle, ::mega::MegaApi::USER_ATTR_FIRSTNAME)->c_str());
     }
 
     return nullptr;
@@ -2772,12 +2767,7 @@ const char *MegaChatApiImpl::getUserLastnameFromCache(MegaChatHandle userhandle)
     SdkMutexGuard g(sdkMutex);
     if (mClient && mClient->isUserAttrCacheReady())
     {
-        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(userhandle, ::mega::MegaApi::USER_ATTR_LASTNAME);
-        if (buffer != nullptr)
-        {
-            std::string lastname(buffer->buf(), buffer->size());
-            return MegaApi::strdup(lastname.c_str());
-        }
+        return move(mClient->userAttrCache().getDataFromCache(userhandle, ::mega::MegaApi::USER_ATTR_LASTNAME)->c_str());
     }
 
     return nullptr;
@@ -2796,12 +2786,7 @@ const char *MegaChatApiImpl::getUserEmailFromCache(MegaChatHandle userhandle)
     SdkMutexGuard g(sdkMutex);
     if (mClient && mClient->isUserAttrCacheReady())
     {
-        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(userhandle, USER_ATTR_EMAIL);
-        if (buffer != nullptr)
-        {
-            std::string email(buffer->buf(), buffer->size());
-            return MegaApi::strdup(email.c_str());
-        }
+        return move(mClient->userAttrCache().getDataFromCache(userhandle, USER_ATTR_EMAIL)->c_str());
     }
 
     return nullptr;
