@@ -8,6 +8,7 @@ import java.util.Set;
 
 import mega.privacy.android.app.MegaApplication;
 import mega.privacy.android.app.R;
+import mega.privacy.android.app.utils.TextUtil;
 import mega.privacy.android.app.utils.VideoCaptureUtils;
 
 import static nz.mega.sdk.MegaChatError.*;
@@ -1270,6 +1271,20 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Returns the current firstname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose first name is requested.
+     * @return The first name from user
+     */
+    public String getUserFirstnameFromCache(long userhandle) {
+        return megaChatApi.getUserFirstnameFromCache(userhandle);
+    }
+
+    /**
      * Returns the current lastname of the user
      *
      * This function is useful to get the lastname of users who participated in a groupchat with
@@ -1289,6 +1304,20 @@ public class MegaChatApiJava {
      */
     public void getUserLastname(long userhandle, String cauth, MegaChatRequestListenerInterface listener){
         megaChatApi.getUserLastname(userhandle, cauth, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the current lastname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose last name is requested.
+     * @return The last name from user
+     */
+    public String getUserLastnameFromCache(long userhandle){
+        return megaChatApi.getUserLastnameFromCache(userhandle);
     }
 
     /**
@@ -1315,6 +1344,48 @@ public class MegaChatApiJava {
      */
     public void getUserEmail(long userhandle, MegaChatRequestListenerInterface listener){
         megaChatApi.getUserEmail(userhandle, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the current email address of the user
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose email is requested.
+     * @return The email from user
+     */
+    public String getUserEmailFromCache(long userhandle){
+        return megaChatApi.getUserEmailFromCache(userhandle);
+    }
+
+    /**
+     * Returns the current full name of the user
+     *
+     * Returns:
+     *      - First name if last name is not cached yet
+     *      - Last name if first name is not cached yet
+     *      - NULL if data is not cached yet
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose full name is requested.
+     * @return The full name from user
+     */
+    public String getUserFullnameFromCache(long userhandle){
+        String firstName = megaChatApi.getUserFirstnameFromCache(userhandle);
+        String lastName = megaChatApi.getUserLastnameFromCache(userhandle);
+
+        if (!TextUtil.isTextEmpty(firstName)) {
+            if (!TextUtil.isTextEmpty(lastName)) {
+                return String.format("%s %s", firstName, lastName);
+            } else {
+                return firstName;
+            }
+        } else {
+            return lastName;
+        }
     }
 
     /**
