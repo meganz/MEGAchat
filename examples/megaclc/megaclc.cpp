@@ -1159,11 +1159,13 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         const char* firstname_ptr = nullptr;
         if (room)
         {
-            firstname_ptr = room->getPeerFirstnameByHandle(handle);
+            firstname_ptr = g_chatApi->getUserFirstnameFromCache(handle);
         }
         if (firstname_ptr && *firstname_ptr != '\0')
         {
-            return std::string{firstname_ptr};
+            std::string name(firstname_ptr);
+            delete [] firstname_ptr;
+            return name;
         }
         else if (g_reviewingPublicChat)
         {
@@ -1185,11 +1187,13 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         const char* lastname_ptr = nullptr;
         if (room)
         {
-            lastname_ptr = room->getPeerLastnameByHandle(handle);
+            lastname_ptr = g_chatApi->getUserLastnameFromCache(handle);
         }
         if (lastname_ptr && *lastname_ptr != '\0')
         {
-            return std::string{lastname_ptr};
+            std::string name(lastname_ptr);
+            delete [] lastname_ptr;
+            return name;
         }
         else if (g_reviewingPublicChat)
         {
@@ -1211,12 +1215,14 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         const char* email_ptr = nullptr;
         if (room)
         {
-            email_ptr = room->getPeerEmailByHandle(handle);
+            email_ptr = g_chatApi->getUserEmailFromCache(handle);
         }
 
         if (email_ptr && *email_ptr != '\0')
         {
-            return std::string{email_ptr};
+            std::string name(email_ptr);
+            delete [] email_ptr;
+            return name;
         }
         else if (g_reviewingPublicChat)
         {
