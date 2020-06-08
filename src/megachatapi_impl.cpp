@@ -6686,9 +6686,16 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     {
         MegaChatHandle uh = chat->getPeerHandle(i);
         peers.push_back(userpriv_pair(uh, (privilege_t) chat->getPeerPrivilege(i)));
-        peerFirstnames.push_back(chat->getPeerFirstname(i));
-        peerLastnames.push_back(chat->getPeerLastname(i));
-        peerEmails.push_back(chat->getPeerEmail(i));
+        if (chat->getPeerFirstname(i) && chat->getPeerLastname(i) && chat->getPeerEmail(i))
+        {
+            peerFirstnames.push_back(chat->getPeerFirstname(i));
+            peerLastnames.push_back(chat->getPeerLastname(i));
+            peerEmails.push_back(chat->getPeerEmail(i));
+        }
+        else
+        {
+            assert(!chat->getPeerEmail(i) && !chat->getPeerLastname(i) && !chat->getPeerEmail(i));
+        }
     }
     this->group = chat->isGroup();
     this->mPublicChat = chat->isPublic();
@@ -6732,15 +6739,18 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         {
             this->peers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
 
-            const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(it->second->name());
-            this->peerFirstnames.push_back(buffer ? buffer : "");
-            delete [] buffer;
+            if (!chat.publicChat() || chat.numMembers() < PRELOAD_CHATLINK_PARTICIPANTS)
+            {
+                const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(it->second->name());
+                this->peerFirstnames.push_back(buffer ? buffer : "");
+                delete [] buffer;
 
-            buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
-            this->peerLastnames.push_back(buffer ? buffer : "");
-            delete [] buffer;
+                buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
+                this->peerLastnames.push_back(buffer ? buffer : "");
+                delete [] buffer;
 
-            this->peerEmails.push_back(it->second->email());
+                this->peerEmails.push_back(it->second->email());
+            }
         }
     }
     else
@@ -6809,8 +6819,9 @@ int MegaChatRoomPrivate::getPeerPrivilegeByHandle(MegaChatHandle userhandle) con
 
 const char *MegaChatRoomPrivate::getPeerFirstnameByHandle(MegaChatHandle userhandle) const
 {
-    for (unsigned int i = 0; i < peers.size(); i++)
+    for (unsigned int i = 0; i < peerFirstnames.size(); i++)
     {
+        assert(i < peers.size());
         if (peers.at(i).first == userhandle)
         {
             return (!peerFirstnames.at(i).empty()) ? peerFirstnames.at(i).c_str() : nullptr;
@@ -6822,8 +6833,9 @@ const char *MegaChatRoomPrivate::getPeerFirstnameByHandle(MegaChatHandle userhan
 
 const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhandle) const
 {
-    for (unsigned int i = 0; i < peers.size(); i++)
+    for (unsigned int i = 0; i < peerLastnames.size(); i++)
     {
+        assert(i < peers.size());
         if (peers.at(i).first == userhandle)
         {
             return (!peerLastnames.at(i).empty()) ? peerLastnames.at(i).c_str() : nullptr;
@@ -6835,8 +6847,9 @@ const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhand
 
 const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhandle) const
 {
-    for (unsigned int i = 0; i < peers.size(); i++)
+    for (unsigned int i = 0; i < peerFirstnames.size(); i++)
     {
+        assert(i < peers.size());
         if (peers.at(i).first == userhandle)
         {
             string ret = peerFirstnames.at(i);
@@ -6857,6 +6870,7 @@ const char *MegaChatRoomPrivate::getPeerEmailByHandle(MegaChatHandle userhandle)
 {
     for (unsigned int i = 0; i < peerEmails.size(); i++)
     {
+        assert(i < peers.size());
         if (peers.at(i).first == userhandle)
         {
             return (!peerEmails.at(i).empty()) ? peerEmails.at(i).c_str() : nullptr;

@@ -521,9 +521,10 @@ void ChatMessage::setAuthor(const char *author)
     else
     {
         mega::unique_ptr<megachat::MegaChatRoom> chatRoom(megaChatApi->getChatRoom(mChatId));
-        const char *firstName = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
+        const char *firstName = megaChatApi->getUserFirstnameFromCache(mMessage->getUserHandle());
         mega::unique_ptr<const char[]> msgAuthor(::mega::MegaApi::strdup(firstName));
         mega::unique_ptr<const char[]> autorizationToken(chatRoom->getAuthorizationToken());
+        delete [] firstName;
 
         if (msgAuthor && msgAuthor[0] != '\0')
         {

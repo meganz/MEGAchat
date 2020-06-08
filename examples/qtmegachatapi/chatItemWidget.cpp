@@ -249,14 +249,14 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
 
     if(!item->isGroup())
     {
-        const char *peerEmail = chatRoom->getPeerEmail(0);
+        const char *peerEmail = mMegaChatApi->getUserEmailFromCache(item->getPeerHandle());
         const char *peerHandle_64 = mMainWin->mMegaApi->userHandleToBase64(item->getPeerHandle());
         text.append(tr("1on1 Chat room handle B64:"))
             .append(QString::fromStdString(chatId_64))
             .append(tr("\n1on1 Chat room handle Bin:"))
             .append(QString::fromStdString(chatId_Bin))
             .append(tr("\nEmail: "))
-            .append(QString::fromStdString(peerEmail))
+            .append(peerEmail ? QString::fromStdString(peerEmail) : tr("(email unknown)"))
             .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle_64))
             .append(tr("\n\n"))
             .append(tr("\nLast message Id: ")).append(lastMessageId_64)
@@ -264,6 +264,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage))
             .append(tr("\nLast ts: ")).append(lastTs);
         delete [] peerHandle_64;
+        delete [] peerEmail;
     }
     else
     {
@@ -286,17 +287,23 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             text.append("\n");
             for(int i=0; i<participantsCount; i++)
             {
-                const char *peerName = chatRoom->getPeerFullname(i);
-                const char *peerEmail = chatRoom->getPeerEmail(i);
+                const char* firstname = mMegaChatApi->getUserFirstnameFromCache(chatRoom->getPeerHandle(i));
+                const char* lastname = mMegaChatApi->getUserLastnameFromCache(chatRoom->getPeerHandle(i));
+                QString peerName = QString(firstname ? firstname : tr("firstname unknown"))
+                        + QString(" ") + QString(lastname ? lastname : tr("lastname unknown"));
+
+                const char *peerEmail = mMegaChatApi->getUserEmailFromCache(chatRoom->getPeerHandle(i));
                 const char *peerId_64 = mMainWin->mMegaApi->userHandleToBase64(chatRoom->getPeerHandle(i));
                 int peerPriv = chatRoom->getPeerPrivilege(i);
                 auto line = QString(" %1 (%2, %3): priv %4\n")
-                        .arg(QString(peerName))
+                        .arg(peerName)
                         .arg(peerEmail ? QString::fromStdString(peerEmail) : tr("(email unknown)"))
                         .arg(QString::fromStdString(peerId_64))
                         .arg(QString(chatRoom->privToString(peerPriv)));
                 text.append(line);
-                delete [] peerName;
+                delete [] firstname;
+                delete [] lastname;
+                delete [] peerEmail;
                 delete [] peerId_64;
             }
             text.resize(text.size()-1);
@@ -326,13 +333,14 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
         megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
         if (chatRoom)
         {
-            const char *msg = chatRoom->getPeerFirstnameByHandle(msgUserId);
+            const char *msg =  mMegaChatApi->getUserFirstnameFromCache(msgUserId);
             size_t len = msg ? strlen(msg) : 0;
             if (len)
             {
                 msgAuthor = new char[len + 1];
                 strncpy(msgAuthor, msg, len);
                 msgAuthor[len] = '\0';
+                delete [] msg;
             }
             delete chatRoom;
         }

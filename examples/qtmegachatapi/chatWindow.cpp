@@ -750,24 +750,26 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         }
         else
         {
-            const char *memberName = mChatRoom->getPeerFirstname(i);
-            if (!memberName)
+            QString memberName;
+            MegaChatHandle peerHandle = mChatRoom->getPeerHandle(i);
+            const char* name = mMegaChatApi->getUserFirstnameFromCache(peerHandle);
+            if (!name || !strlen(name))
             {
-                memberName = mChatRoom->getPeerEmail(i);
+                const char* email = mMegaChatApi->getUserEmailFromCache(peerHandle);
+                memberName = (email && strlen(email))
+                        ? email : tr("Yet unkown");
+
+                delete [] email;
             }
-            else
-            {
-                if ((strlen(memberName)) == 0)
-                {
-                    memberName = mChatRoom->getPeerEmail(i);
-                }
-            }
+
+            delete [] name;
+
             privilege = mChatRoom->getPeerPrivilege(i);
-            userhandle = QVariant((qulonglong)mChatRoom->getPeerHandle(i));
+            userhandle = QVariant((qulonglong)peerHandle);
             title.append(" ")
-                    .append(QString::fromStdString(memberName))
+                    .append(memberName)
                     .append(" [")
-                    .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(mChatRoom->getPeerHandle(i)))))
+                    .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(peerHandle))))
                     .append("]");
         }
 
