@@ -3546,23 +3546,43 @@ void GroupChatRoom::enablePreview(uint64_t ph)
 
 bool GroupChatRoom::publicChat() const
 {
-    return (mChat->crypto()->isPublicChat());
+    if (mChat)
+    {
+        return (mChat->crypto()->isPublicChat());
+    }
+
+    return false;
 }
 
 uint64_t GroupChatRoom::getPublicHandle() const
 {
-    return (mChat->getPublicHandle());
+    if (mChat)
+    {
+        return (mChat->getPublicHandle());
+    }
+
+    return karere::Id::inval();
 }
 
 unsigned int GroupChatRoom::getNumPreviewers() const
 {
-    return mChat->getNumPreviewers();
+    if (mChat)
+    {
+        return mChat->getNumPreviewers();
+    }
+
+    return 0;
 }
 
 // return true if new peer, peer removed or peer's privilege updated
 bool GroupChatRoom::previewMode() const
 {
-    return mChat->previewMode();
+    if (mChat)
+    {
+        return mChat->previewMode();
+    }
+
+    return false;
 }
 
 void ChatRoomList::previewCleanup(Id chatid)
@@ -3842,7 +3862,10 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         }
         if (self->mRoom.mAppChatHandler)
         {
-            self->mRoom.mAppChatHandler->onMemberNameChanged(self->mHandle, self->mName);
+            if (!self->mRoom.publicChat() || self->mRoom.mPeers.size() <= PRELOAD_CHATLINK_PARTICIPANTS)
+            {
+                self->mRoom.mAppChatHandler->onMemberNameChanged(self->mHandle, self->mName);
+            }
         }
 
         if (!self->mNameResolved.done())
