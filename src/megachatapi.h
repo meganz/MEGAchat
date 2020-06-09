@@ -2881,13 +2881,13 @@ public:
     const char* getUserLastnameFromCache(MegaChatHandle userhandle);
 
     /**
-     * @brief Returns the current full of the user
+     * @brief Returns the current fullname of the user
      *
      * Returns NULL if data is not cached yet.
      *
      * You take the ownership of returned value
      *
-     * @param userhandle Handle of the user whose last name is requested.
+     * @param userhandle Handle of the user whose fullname is requested.
      * @return The full name from user
      */
     const char* getUserFullnameFromCache(MegaChatHandle userhandle);
@@ -2950,8 +2950,12 @@ public:
     void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList *userList, MegaChatRequestListener *listener = nullptr);
 
     /**
-     * @brief Return maximum number of member in public chat which attributes are requested automatically
+     * @brief Maximum number of participants in a chat whose attributes are automatically fetched
      *
+     * For very large chatrooms, the user attributes that are usually pre-loaded automatically by MEGAchat
+     * are not loaded. Instead, the app needs to call MegaChatApi::loadUserAttributes in order to request them.
+     * Once the request finishes, attributes like the firstname or the email will be available through the getters,
+     * like MegaChatApi::getUserFirstnameFromCache and alike.
      * @return Maximun number of member in public chat which attributes are requested automatically
      */
     unsigned int getMaxParticipantsWithAttributes();
