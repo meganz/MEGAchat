@@ -3546,43 +3546,38 @@ void GroupChatRoom::enablePreview(uint64_t ph)
 
 bool GroupChatRoom::publicChat() const
 {
+    assert(mChat);
     if (mChat)
     {
         return (mChat->crypto()->isPublicChat());
     }
+
+    parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99011, "GroupChatRoom::publicChat(), chatd::Chat isn't yet created");
 
     return false;
 }
 
 uint64_t GroupChatRoom::getPublicHandle() const
 {
+    assert(mChat);
     if (mChat)
     {
         return (mChat->getPublicHandle());
     }
 
+    parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99011, "GroupChatRoom::getPublicHandle(), chatd::Chat isn't yet created");
     return karere::Id::inval();
 }
 
 unsigned int GroupChatRoom::getNumPreviewers() const
 {
-    if (mChat)
-    {
-        return mChat->getNumPreviewers();
-    }
-
-    return 0;
+    return mChat->getNumPreviewers();
 }
 
 // return true if new peer, peer removed or peer's privilege updated
 bool GroupChatRoom::previewMode() const
 {
-    if (mChat)
-    {
-        return mChat->previewMode();
-    }
-
-    return false;
+    return mChat->previewMode();
 }
 
 void ChatRoomList::previewCleanup(Id chatid)
