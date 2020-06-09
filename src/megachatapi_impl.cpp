@@ -2768,6 +2768,17 @@ const char *MegaChatApiImpl::getUserLastnameFromCache(MegaChatHandle userhandle)
     if (mClient && mClient->isUserAttrCacheReady())
     {
         return move(mClient->userAttrCache().getDataFromCache(userhandle, ::mega::MegaApi::USER_ATTR_LASTNAME)->c_str());
+const char *MegaChatApiImpl::getUserFullnameFromCache(MegaChatHandle userhandle)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(userhandle, USER_ATTR_FULLNAME);
+        if (buffer != nullptr)
+        {
+            std::string fullname(buffer->buf()+1, buffer->dataSize()-1);
+            return MegaApi::strdup(fullname.c_str());
+        }
     }
 
     return nullptr;
@@ -2799,6 +2810,11 @@ void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList *
     request->setMegaHandleList(userList);
     requestQueue.push(request);
     waiter->notify();
+}
+
+unsigned int MegaChatApiImpl::getMaxParticipantsWithAttributes()
+{
+    return PRELOAD_CHATLINK_PARTICIPANTS;
 }
 
 char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)

@@ -457,6 +457,11 @@ const char *MegaChatApi::getUserLastnameFromCache(MegaChatHandle userhandle)
     return pImpl->getUserLastnameFromCache(userhandle);
 }
 
+const char *MegaChatApi::getUserFullnameFromCache(MegaChatHandle userhandle)
+{
+    return pImpl->getUserFullnameFromCache(userhandle);
+}
+
 void MegaChatApi::getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener)
 {
     pImpl->getUserEmail(userhandle, listener);
@@ -470,6 +475,11 @@ const char *MegaChatApi::getUserEmailFromCache(MegaChatHandle userhandle)
 void MegaChatApi::loadUserAttributes(MegaChatHandle chatid, MegaHandleList* userList, MegaChatRequestListener *listener)
 {
     pImpl->loadUserAttributes(chatid, userList, listener);
+}
+
+unsigned int MegaChatApi::getMaxParticipantsWithAttributes()
+{
+    return pImpl->getMaxParticipantsWithAttributes();
 }
 
 char *MegaChatApi::getContactEmail(MegaChatHandle userhandle)

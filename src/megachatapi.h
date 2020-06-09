@@ -2881,6 +2881,18 @@ public:
     const char* getUserLastnameFromCache(MegaChatHandle userhandle);
 
     /**
+     * @brief Returns the current full of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose last name is requested.
+     * @return The full name from user
+     */
+    const char* getUserFullnameFromCache(MegaChatHandle userhandle);
+
+    /**
      * @brief Returns the current email address of the contact
      *
      * This function is useful to get the email address of users you are NOT contact with.
@@ -2936,6 +2948,13 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList *userList, MegaChatRequestListener *listener = nullptr);
+
+    /**
+     * @brief Return maximum number of member in public chat which attributes are requested automatically
+     *
+     * @return Maximun number of member in public chat which attributes are requested automatically
+     */
+    unsigned int getMaxParticipantsWithAttributes();
 
     /**
      * @brief Returns the current email address of the contact
@@ -5365,10 +5384,10 @@ public:
      * @brief Returns the current firstname of the peer
      *
      * NULL can be returned in public link if number of particpants is greater
-     * than 20. In this case, you have to request the user attributes with
-     * MegaChatApi::loadUserAttributes. To improve the performance, if several
-     * users has to be request, call MegaChatApi::loadUserAttributes with a package
-     * of users. When request is finished you can get the firstname with
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the firstname with
      * MegaChatApi::getUserFirstnameFromCache.
      *
      * @param userhandle Handle of the peer whose name is requested.
@@ -5380,11 +5399,11 @@ public:
      * @brief Returns the current lastname of the peer
      *
      * NULL can be returned in public link if number of particpants is greater
-     * than 20. In this case, you have to request the user attributes with
-     * MegaChatApi::loadUserAttributes. To improve the performance, if several
-     * users has to be request, call MegaChatApi::loadUserAttributes with a package
-     * of users. When request is finished you can get the firstname with
-     * MegaChatApi::getUserFirstnameFromCache.
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the lastname with
+     * MegaChatApi::getUserLastnameFromCache.
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Lastname of the chat peer with the handle specified.
@@ -5395,11 +5414,11 @@ public:
      * @brief Returns the current fullname of the peer
      *
      * NULL can be returned in public link if number of particpants is greater
-     * than 20. In this case, you have to request the user attributes with
-     * MegaChatApi::loadUserAttributes. To improve the performance, if several
-     * users has to be request, call MegaChatApi::loadUserAttributes with a package
-     * of users. When request is finished you can get the firstname with
-     * MegaChatApi::getUserFirstnameFromCache.
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the full name  with
+     * MegaChatApi::getUserFullnameFromCache
      *
      * You take the ownership of the returned value. Use delete [] value
      *
@@ -5412,11 +5431,11 @@ public:
      * @brief Returns the email address of the peer
      *
      * NULL can be returned in public link if number of particpants is greater
-     * than 20. In this case, you have to request the user attributes with
-     * MegaChatApi::loadUserAttributes. To improve the performance, if several
-     * users has to be request, call MegaChatApi::loadUserAttributes with a package
-     * of users. When request is finished you can get the firstname with
-     * MegaChatApi::getUserFirstnameFromCache.
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the email with
+     * MegaChatApi::getUserEmailFromCache.
      *
      * @param userhandle Handle of the peer whose email is requested.
      * @return Email address of the chat peer with the handle specified.
@@ -5463,11 +5482,11 @@ public:
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
      *
-     * NULL is returned too in public link if number of particpants is greater
-     * than 20. In this case, you have to request the user attributes with
-     * MegaChatApi::loadUserAttributes. To improve the performance, if several
-     * users has to be request, call MegaChatApi::loadUserAttributes with a package
-     * of users. When request is finished you can get the firstname with
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the firstname with
      * MegaChatApi::getUserFirstnameFromCache.
      *
      * @param i Position of the peer whose name is requested
@@ -5481,12 +5500,12 @@ public:
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
      *
-     * NULL is returned too in public link if number of particpants is greater
-     * than 20. In this case, you have to request the user attributes with
-     * MegaChatApi::loadUserAttributes. To improve the performance, if several
-     * users has to be request, call MegaChatApi::loadUserAttributes with a package
-     * of users. When request is finished you can get the firstname with
-     * MegaChatApi::getUserFirstnameFromCache.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the lastname with
+     * MegaChatApi::getUserLastnameFromCache.
      *
      * @param i Position of the peer whose name is requested
      * @return Lastname of the peer in the position \c i.
@@ -5499,12 +5518,12 @@ public:
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
      *
-     * NULL is returned too in public link if number of particpants is greater
-     * than 20. In this case, you have to request the user attributes with
-     * MegaChatApi::loadUserAttributes. To improve the performance, if several
-     * users has to be request, call MegaChatApi::loadUserAttributes with a package
-     * of users. When request is finished you can get the firstname with
-     * MegaChatApi::getUserFirstnameFromCache.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the fullname with
+     * MegaChatApi::getUserFullnameFromCache.
      *
      * You take the ownership of the returned value. Use delete [] value
      *
@@ -5519,12 +5538,12 @@ public:
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
      *
-     * NULL is returned too in public link if number of particpants is greater
-     * than 20. In this case, you have to request the user attributes with
-     * MegaChatApi::loadUserAttributes. To improve the performance, if several
-     * users has to be request, call MegaChatApi::loadUserAttributes with a package
-     * of users. When request is finished you can get the firstname with
-     * MegaChatApi::getUserFirstnameFromCache.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the email with
+     * MegaChatApi::getUserEmailFromCache.
      *
      * @param i Position of the peer whose email is requested
      * @return Email address of the peer in the position \c i.
