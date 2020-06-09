@@ -171,10 +171,10 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)userEmailByUserHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)userEmailByUserHandle:(uint64_t)userHandle;
-- (void)userFirstnameByUserHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)userFirstnameByUserHandle:(uint64_t)userHandle;
-- (void)userLastnameByUserHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)userLastnameByUserHandle:(uint64_t)userHandle;
+- (void)userFirstnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)userFirstnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken;
+- (void)userLastnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)userLastnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken;
 
 - (NSString *)contacEmailByHandle:(uint64_t)userHandle;
 - (uint64_t)userHandleByEmail:(NSString *)email;
