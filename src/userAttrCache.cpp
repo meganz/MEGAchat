@@ -362,7 +362,7 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
         // email is only accessible to users who are contacts or participate in
         // the same groupchat than you. A previewer (valid `ph`) does not participate,
         // so the API refuses the `uge` command with `ENOENT` for privacy reasons
-        promises.push_back(getAttr(user, USER_ATTR_EMAIL));
+        promises.push_back(getAttr(user, USER_ATTR_EMAIL, ph));
     }
 
     if (fetchIsRequired(user, USER_ATTR_FULLNAME, ph))

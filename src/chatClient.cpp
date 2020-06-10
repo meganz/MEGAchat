@@ -3887,7 +3887,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
                     self->mRoom.makeTitleFromMemberNames();
                 }
             }
-        }, false, fetch);
+        }, false, fetch, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
     }
 }
 
