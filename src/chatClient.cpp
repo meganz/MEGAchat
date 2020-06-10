@@ -3966,6 +3966,26 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
             Contact *contact = new Contact(*this, userid, email, newVisibility, ts, nullptr);
             emplace(userid, contact);
 
+            // find if there is a 1on1 room with this contact
+            // (in case on 1on1 with users who canceled and restored their account,
+            // MEGAchat knows about the chatroom but not about the contact)
+            for (auto &it : *client.chats)
+            {
+                if (it.second->isGroup())
+                    continue;
+
+                auto chat = static_cast<PeerChatRoom*>(it.second);
+                if (chat->peer() == userid)
+                {
+                    KR_LOG_WARNING("Contact restored (%s) for a 1on1 room (%s)",
+                                   Id(userid).toString().c_str(),
+                                   Id(chat->chatid()).toString().c_str());
+
+                    chat->initContact(userid);
+                    break;
+                }
+            }
+
             KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
 
             // If the user was part of a group before being added as a contact, we need to update user attributes,
