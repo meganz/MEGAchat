@@ -359,10 +359,12 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
     std::vector<::promise::Promise<Buffer*>> promises;
     if (fetchIsRequired(user, USER_ATTR_EMAIL) && mClient.initState() != Client::InitState::kInitAnonymousMode)
     {
-        // email is only accessible to users who are contacts or participate in
-        // the same groupchat than you. A previewer (valid `ph`) does not participate,
-        // so the API refuses the `uge` command with `ENOENT` for privacy reasons
+        // email is accessible to users as long as they provide the userhandle, but it
+        // requires a valid user to request it (anonymous previews don't have a session,
+        // so the API refuses the `uge` command with `ENOENT` for privacy reasons)
         promises.push_back(getAttr(user, USER_ATTR_EMAIL, ph));
+        // the `ph` is passed here only to decide whether the email should be persisted
+        // in DB or not (previews/valid-ph should not persist cached data)
     }
 
     if (fetchIsRequired(user, USER_ATTR_FULLNAME, ph))
