@@ -1361,31 +1361,17 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Returns the current full name of the user
+     * Returns the current fullname of the user
      *
-     * Returns:
-     *      - First name if last name is not cached yet
-     *      - Last name if first name is not cached yet
-     *      - NULL if data is not cached yet
+     * Returns NULL if data is not cached yet.
      *
      * You take the ownership of returned value
      *
-     * @param userhandle Handle of the user whose full name is requested.
+     * @param userhandle Handle of the user whose fullname is requested.
      * @return The full name from user
      */
     public String getUserFullnameFromCache(long userhandle){
-        String firstName = megaChatApi.getUserFirstnameFromCache(userhandle);
-        String lastName = megaChatApi.getUserLastnameFromCache(userhandle);
-
-        if (!TextUtil.isTextEmpty(firstName)) {
-            if (!TextUtil.isTextEmpty(lastName)) {
-                return String.format("%s %s", firstName, lastName);
-            } else {
-                return firstName;
-            }
-        } else {
-            return lastName;
-        }
+        return megaChatApi.getUserFullnameFromCache(userhandle);
     }
 
     /**
