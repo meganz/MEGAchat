@@ -357,7 +357,7 @@ bool UserAttrCache::removeCb(Handle h)
 promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
 {
     std::vector<::promise::Promise<Buffer*>> promises;
-    if (fetchIsRequired(user, USER_ATTR_EMAIL) && ph == Id::inval())
+    if (fetchIsRequired(user, USER_ATTR_EMAIL) && mClient.initState() != Client::InitState::kInitAnonymousMode)
     {
         // email is only accessible to users who are contacts or participate in
         // the same groupchat than you. A previewer (valid `ph`) does not participate,
