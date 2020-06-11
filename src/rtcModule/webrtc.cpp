@@ -2376,7 +2376,7 @@ void Call::enableAudio(bool enable)
     {
         if (session.second->mAudioSender)
         {
-            session.second->mAudioSender->track()->set_enabled(enable);
+            session.second->mAudioSender->track()->set_enabled(enable && !session.second->mPeerAv.onHold());
         }
     }
 }
