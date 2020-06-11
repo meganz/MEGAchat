@@ -2934,9 +2934,9 @@ public:
      * This function is useful to get the email address, first name, last name and full name
      * from chat link participants that they are not loaded
      *
-     * After request is finished, you can call to MegaChatRoom::getPeerFirstnameByHandle,
-     * MegaChatRoom::getPeerLastnameByHandle, MegaChatRoom::getPeerFullnameByHandle,
-     * MegaChatRoom::getPeerEmailByHandle (email will not available during previews)
+     * After request is finished, you can call to MegaChatApi::getUserFirstnameFromCache,
+     * MegaChatApi::getUserLastnameFromCache, MegaChatApi::getUserFullnameFromCache,
+     * MegaChatApi::getUserEmailFromCache (email will not available in anonymous mode)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -5394,6 +5394,8 @@ public:
      * with a package of users. When request is finished you can get the firstname with
      * MegaChatApi::getUserFirstnameFromCache.
      *
+     * @deprecated Use MegaChatApi::getUserFirstnameFromCache
+     *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Firstname of the chat peer with the handle specified.
      */
@@ -5408,6 +5410,8 @@ public:
      * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
      * with a package of users. When request is finished you can get the lastname with
      * MegaChatApi::getUserLastnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserLastnameFromCache
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Lastname of the chat peer with the handle specified.
@@ -5426,6 +5430,8 @@ public:
      *
      * You take the ownership of the returned value. Use delete [] value
      *
+     * @deprecated Use MegaChatApi::getUserFullnameFromCache
+     *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Fullname of the chat peer with the handle specified.
      */
@@ -5440,6 +5446,8 @@ public:
      * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
      * with a package of users. When request is finished you can get the email with
      * MegaChatApi::getUserEmailFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserEmailFromCache
      *
      * @param userhandle Handle of the peer whose email is requested.
      * @return Email address of the chat peer with the handle specified.
@@ -5493,6 +5501,8 @@ public:
      * with a package of users. When request is finished you can get the firstname with
      * MegaChatApi::getUserFirstnameFromCache.
      *
+     * @deprecated Use MegaChatApi::getUserFirstnameFromCache
+     *
      * @param i Position of the peer whose name is requested
      * @return Firstname of the peer in the position \c i.
      */
@@ -5510,6 +5520,8 @@ public:
      * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
      * with a package of users. When request is finished you can get the lastname with
      * MegaChatApi::getUserLastnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserLastnameFromCache
      *
      * @param i Position of the peer whose name is requested
      * @return Lastname of the peer in the position \c i.
@@ -5531,6 +5543,8 @@ public:
      *
      * You take the ownership of the returned value. Use delete [] value
      *
+     * @deprecated Use MegaChatApi::getUserFullnameFromCache
+     *
      * @param i Position of the peer whose name is requested
      * @return Fullname of the peer in the position \c i.
      */
@@ -5548,6 +5562,8 @@ public:
      * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
      * with a package of users. When request is finished you can get the email with
      * MegaChatApi::getUserEmailFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserEmailFromCache
      *
      * @param i Position of the peer whose email is requested
      * @return Email address of the peer in the position \c i.
