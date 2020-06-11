@@ -3336,9 +3336,15 @@ void Session::onAddStream(artc::tspMediaStream stream)
     });
     mRemotePlayer->attachToStream(stream);
     mRemotePlayer->enableVideo(mPeerAv.video() && !mPeerAv.onHold());
+    if (mRemotePlayer->getVideoTrack())
+    {
+        mRemotePlayer->getVideoTrack()->set_enabled(!mCall.mLocalFlags.onHold());
+    }
+
 
     if (mRemotePlayer->isAudioAttached())
     {
+        mRemotePlayer->getAudioTrack()->set_enabled(!mCall.mLocalFlags.onHold());
         mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
     }
 }
