@@ -2834,15 +2834,18 @@ void Call::setOnHold(bool onHold)
         {
             if (session.second->mRemotePlayer->getAudioTrack())
             {
-                session.second->mRemotePlayer->getAudioTrack()->set_enabled(!onHold);
+                session.second->mRemotePlayer->getAudioTrack()->set_enabled(!onHold && !session.second->mPeerAv.onHold());
             }
 
             if (session.second->mRemotePlayer->getVideoTrack())
             {
-                session.second->mRemotePlayer->getVideoTrack()->set_enabled(!onHold);
+                session.second->mRemotePlayer->getVideoTrack()->set_enabled(!onHold && !session.second->mPeerAv.onHold());
             }
 
-            session.second->mRemotePlayer->enableVideo(!onHold);
+            if (session.second->mPeerAv.video())
+            {
+                session.second->mRemotePlayer->enableVideo(!onHold && !session.second->mPeerAv.onHold());
+            }
         }
     }
 
@@ -3340,7 +3343,6 @@ void Session::onAddStream(artc::tspMediaStream stream)
     {
         mRemotePlayer->getVideoTrack()->set_enabled(!mCall.mLocalFlags.onHold());
     }
-
 
     if (mRemotePlayer->isAudioAttached())
     {
