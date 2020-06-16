@@ -4352,8 +4352,7 @@ void Chat::handleRetentionTime()
 
     // Get idx of the most recent msg affected by retention time, if any
     chatd::Idx idx = CHATD_IDX_INVALID;
-    time_t ts = time(nullptr) - mRetentionTime;
-    CALL_DB(getIdxByRetentionTime, ts, idx);
+    getIdxByRetentionTime(idx);
     if (idx == CHATD_IDX_INVALID)
     {
         // If there are no messages to remove
@@ -4421,6 +4420,27 @@ void Chat::handleRetentionTime()
     {
         CALL_LISTENER(onUnreadChanged);
     }
+}
+
+void Chat::getIdxByRetentionTime(Idx &idx)
+{
+    time_t expireRetentionTs = time(nullptr) - mRetentionTime;
+    for (Idx i = highnum(); i >= lownum(); i--)
+    {
+        if (at(i).ts < expireRetentionTs)
+        {
+            idx = i;
+            return;
+        }
+    }
+
+    if (lownum() == mOldestIdxInDb)
+    {
+        idx = CHATD_IDX_INVALID;
+        return;
+    }
+
+    CALL_DB(getIdxByRetentionTime, expireRetentionTs, idx);
 }
 
 void Chat::truncateAttachmentHistory()

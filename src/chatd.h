@@ -1383,6 +1383,10 @@ protected:
     void truncateByRetentionTime(Idx idx);
     void truncateAttachmentHistory();
 
+    /** Find the Idx corresponding to the most recent msg affected by retention history (in RAM or Db)
+     *  or CHATD_IDX_INVALID if none */
+    void getIdxByRetentionTime(Idx &idx);
+
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
      * edits, i.e. \c onUnsentMsgLoaded() and \c onUnsentEditLoaded().
