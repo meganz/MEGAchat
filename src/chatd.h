@@ -1379,9 +1379,9 @@ protected:
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
-    void handleRetentionTime();
     void truncateByRetentionTime(Idx idx);
     void truncateAttachmentHistory();
+    time_t handleRetentionTime();
 
     /** Find the Idx corresponding to the most recent msg affected by retention history (in RAM or Db)
      *  or CHATD_IDX_INVALID if none */
