@@ -383,6 +383,15 @@ public:
         stmt.stepMustHaveData(__FUNCTION__);
         return stmt.uint64Col(0);
     }
+
+    uint32_t getOldestMsgTs() override
+    {
+        SqliteStmt stmt(mDb, "select min(ts) from history where chatid = ?");
+        stmt << mChat.chatId();
+        stmt.stepMustHaveData(__FUNCTION__);
+        return stmt.uintCol(0);
+    }
+
     virtual void setLastSeen(karere::Id msgid)
     {
         mDb.query("update chats set last_seen=? where chatid=?", msgid, mChat.chatId());

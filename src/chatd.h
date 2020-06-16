@@ -1624,6 +1624,7 @@ public:
     virtual bool removeChatVar (const char *name) = 0;
 
     virtual Idx getOldestIdx() = 0;
+    virtual uint32_t getOldestMsgTs() = 0;
     virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs) = 0;
