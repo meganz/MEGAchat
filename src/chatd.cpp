@@ -368,6 +368,20 @@ void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
     mLastMsgTs[userid] = lastMsgTs;
 }
 
+void Client::cancelRetentionTimer(bool resetPeriod)
+{
+    if (mRetentionTimer)
+    {
+        cancelTimeout(mRetentionTimer, mKarereClient->appCtx);
+        mRetentionTimer = 0;
+    }
+
+    if (resetPeriod)
+    {
+        mRetentionCheckPeriod = 0;
+    }
+}
+
 uint8_t Client::richLinkState() const
 {
     return mRichLinkState;

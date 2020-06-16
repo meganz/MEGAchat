@@ -1519,6 +1519,7 @@ public:
     // The timestamps of the most recent message from userid
     mega::m_time_t getLastMsgTs(karere::Id userid) const;
     void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
+    void cancelRetentionTimer(bool resetPeriod = true);
 
     friend class Connection;
     friend class Chat;
