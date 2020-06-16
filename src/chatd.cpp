@@ -1060,7 +1060,7 @@ void Connection::heartbeat()
     if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
     {
         CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
-
+        mChatdClient.cancelRetentionTimer(); // Cancel retention timer
         setState(kStateDisconnected);
         abortRetryController();
         reconnect();
@@ -3733,6 +3733,7 @@ void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
 Client::~Client()
 {
     cancelSeenTimers();
+    cancelRetentionTimer();
     mKarereClient->userAttrCache().removeCb(mRichPrevAttrCbHandle);
 }
 
