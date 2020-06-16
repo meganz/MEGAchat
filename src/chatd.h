@@ -1387,6 +1387,10 @@ protected:
      *  or CHATD_IDX_INVALID if none */
     void getIdxByRetentionTime(Idx &idx);
 
+    /** Returns the period (in seconds) until oldest message exceed retention time, or zero if
+     *  history it's empty or retention time is disabled */
+    time_t nextRetentionHistCheck();
+
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
      * edits, i.e. \c onUnsentMsgLoaded() and \c onUnsentEditLoaded().

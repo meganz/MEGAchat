@@ -4443,6 +4443,23 @@ void Chat::getIdxByRetentionTime(Idx &idx)
     CALL_DB(getIdxByRetentionTime, expireRetentionTs, idx);
 }
 
+time_t Chat::nextRetentionHistCheck()
+{
+    if (!mRetentionTime || mOldestIdxInDb == CHATD_IDX_INVALID)
+    {
+        return 0;
+    }
+
+    Message *auxmsg = findOrNull(mOldestIdxInDb);
+    uint32_t oldestMsgTs = auxmsg
+            ? auxmsg->ts                        // Oldest msg is loaded in Ram
+            : mDbInterface->getOldestMsgTs();   // Oldest msg is loaded in Db
+
+    // Ensure that the oldest msg has not exceeded retention time yet
+    assert(oldestMsgTs && oldestMsgTs + mRetentionTime > time(nullptr));
+    return oldestMsgTs + mRetentionTime - time(nullptr);
+}
+
 void Chat::truncateAttachmentHistory()
 {
     // Find an attachment newer than truncate (lownum) in order to truncate node-history
