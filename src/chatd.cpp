@@ -186,6 +186,12 @@ Client::Client(karere::Client *aKarereClient) :
             mLastMsgTs[userid] = stmt2.uintCol(0);
         }
     }
+
+    // Init the handler of the timeout for retention history
+    mRetentionTimer = 0;
+
+    // Init retention check period to 0 (disabled)
+    mRetentionCheckPeriod = 0;
 }
 
 Chat& Client::createChat(Id chatid, int shardNo,

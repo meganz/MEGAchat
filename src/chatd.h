@@ -1447,6 +1447,12 @@ protected:
     promise::Promise<void> sendKeepalive();
     void sendEcho();
 
+    /** Handler of the timeout for retention history checks */
+    megaHandle mRetentionTimer;
+
+    /** Period in seconds until next check of retention history for all chats, or zero (disabled) */
+    uint32_t mRetentionCheckPeriod;
+
 public:
     // Chatd Version:
     // - Version 0: initial version
