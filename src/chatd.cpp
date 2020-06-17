@@ -373,8 +373,13 @@ uint32_t Client::getRetentionCheckPeriod()
     return mRetentionCheckPeriod;
 }
 
-void Client::updateRetentionCheckPeriod(time_t nextCheck, bool force)
+void Client::updateRetentionCheckPeriod(time_t checkPeriod, bool force)
 {
+    // Avoid set a timer with a smaller period than kMinRetentionTimeout
+    time_t nextCheck = (checkPeriod > 0 && checkPeriod < kMinRetentionTimeout)
+            ? kMinRetentionTimeout
+            : checkPeriod;
+
     bool setTimer = false;
     if (force || (nextCheck && (!mRetentionCheckPeriod || nextCheck < mRetentionCheckPeriod)))
     {

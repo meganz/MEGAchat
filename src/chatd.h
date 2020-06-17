@@ -1472,6 +1472,9 @@ public:
     //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
     static const unsigned chatdVersion = 7;
 
+    // Minimum retention history check period (in seconds)
+    static const unsigned kMinRetentionTimeout = 60;
+
     Client(karere::Client *aKarereClient);
     ~Client();
 
@@ -1521,8 +1524,8 @@ public:
     void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
     uint32_t getRetentionCheckPeriod();
 
-    // Update mRetentionCheckPeriod if force is true, nextCheck is smaller than current value
-    void updateRetentionCheckPeriod(time_t nextCheck, bool force);
+    // Update mRetentionCheckPeriod if force is true or nextCheck is smaller than current value
+    void updateRetentionCheckPeriod(time_t checkPeriod, bool force);
     void cancelRetentionTimer(bool resetPeriod = true);
     void setRetentionTimer();
 
