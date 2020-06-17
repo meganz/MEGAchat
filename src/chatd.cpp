@@ -4522,11 +4522,11 @@ time_t Chat::nextRetentionHistCheck(bool updateTimer)
 
     // Ensure that the oldest msg has not exceeded retention time yet, and nextCheck period it's valid
     time_t nextCheck = oldestMsgTs + mRetentionTime - time(nullptr);
-    assert(nextCheck > 0 && nextCheck < UINT32_MAX);
+    assert(nextCheck > 0);
     if (updateTimer && (!mChatdClient.getRetentionCheckPeriod()
                         || nextCheck < mChatdClient.getRetentionCheckPeriod()))
     {
-        mChatdClient.setRetentionCheckPeriod(static_cast<uint32_t>(nextCheck));
+        mChatdClient.setRetentionCheckPeriod(nextCheck);
         mChatdClient.setRetentionTimer();
     }
     return nextCheck;
