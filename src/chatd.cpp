@@ -4449,7 +4449,7 @@ void Chat::getIdxByRetentionTime(Idx &idx)
     time_t expireRetentionTs = time(nullptr) - mRetentionTime;
     for (Idx i = highnum(); i >= lownum(); i--)
     {
-        if (at(i).ts < expireRetentionTs)
+        if (at(i).ts <= expireRetentionTs)
         {
             idx = i;
             return;
