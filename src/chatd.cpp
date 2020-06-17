@@ -394,6 +394,37 @@ void Client::cancelRetentionTimer(bool resetPeriod)
     }
 }
 
+void Client::setRetentionTimer()
+{
+    cancelRetentionTimer(false); // cancel timer if any, but keep mRetentionCheckPeriod
+    CHATD_LOG_DEBUG("set timer for next retention history check to %d (seconds):", mRetentionCheckPeriod);
+    auto wptr = weakHandle();
+    mRetentionTimer = karere::setTimeout([this, wptr]()
+    {
+        if (wptr.deleted())
+          return;
+
+        mRetentionTimer = 0; // it's important to reset here
+
+        // Get the min check period
+        time_t minPeriod = 0;
+        for (auto& chat: mChatForChatId)
+        {
+            // Call with false, to avoid infinite loop by calling setRetentionTimer
+            time_t chatPeriod = chat.second.get()->handleRetentionTime(false);
+            if (chatPeriod && (chatPeriod < minPeriod || !minPeriod))
+            {
+                minPeriod = chatPeriod;
+            }
+        }
+        setRetentionCheckPeriod(minPeriod);
+        if (mRetentionCheckPeriod)
+        {
+            setRetentionTimer();
+        }
+    }, mRetentionCheckPeriod * 1000 , mKarereClient->appCtx);
+}
+
 uint8_t Client::richLinkState() const
 {
     return mRichLinkState;

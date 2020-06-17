@@ -1522,6 +1522,7 @@ public:
     uint32_t getRetentionCheckPeriod();
     void setRetentionCheckPeriod(time_t nextCheck);
     void cancelRetentionTimer(bool resetPeriod = true);
+    void setRetentionTimer();
 
     friend class Connection;
     friend class Chat;
