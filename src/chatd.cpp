@@ -368,6 +368,16 @@ void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
     mLastMsgTs[userid] = lastMsgTs;
 }
 
+uint32_t Client::getRetentionCheckPeriod()
+{
+    return mRetentionCheckPeriod;
+}
+
+void Client::setRetentionCheckPeriod(uint32_t period)
+{
+    mRetentionCheckPeriod = period;
+}
+
 void Client::cancelRetentionTimer(bool resetPeriod)
 {
     if (mRetentionTimer)
