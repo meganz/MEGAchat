@@ -1389,7 +1389,7 @@ protected:
 
     /** Returns the period (in seconds) until oldest message exceed retention time, or zero if
      *  history it's empty or retention time is disabled */
-    time_t nextRetentionHistCheck();
+    time_t nextRetentionHistCheck(bool updateTimer = true);
 
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
