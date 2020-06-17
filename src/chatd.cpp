@@ -1108,13 +1108,6 @@ void Connection::heartbeat()
         abortRetryController();
         reconnect();
     }
-    else    // don't apply retention time while offline
-    {
-        for (auto& chatid: mChatIds)
-        {
-            mChatdClient.chats(chatid).handleRetentionTime();
-        }
-    }
 }
 
 int Connection::shardNo() const
@@ -2467,6 +2460,7 @@ void Chat::onHistDone()
         if (isFetchingFromServer()) //HISTDONE is received for new history or after JOINRANGEHIST
         {
             onFetchHistDone();
+            handleRetentionTime();
         }
         if (isJoining())
         {
@@ -3913,6 +3907,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
     if (mOldestIdxInDb == CHATD_IDX_INVALID)
     {
         mOldestIdxInDb = idx;
+        handleRetentionTime();
     }
 
     assert(msg->backRefId);
@@ -4940,6 +4935,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         mLastHistDecryptCount++;
     }
 
+    bool checkRetentionHist = mOldestIdxInDb == CHATD_IDX_INVALID ;
     if (mOldestIdxInDb == CHATD_IDX_INVALID || idx < mOldestIdxInDb)
     {
         // If mOldestIdxInDb is not set, or idx is oldest that current value update it
@@ -4964,6 +4960,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             mAttachmentNodes->addMessage(msg, isNew, false);
         }
         CALL_DB(addMsgToHistory, msg, idx);
+        if (checkRetentionHist)
+        {
+            // Call after add message to history
+            handleRetentionTime();
+        }
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mChatdClient.mMyHandle) && // message is not ours
