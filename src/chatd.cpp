@@ -373,10 +373,20 @@ uint32_t Client::getRetentionCheckPeriod()
     return mRetentionCheckPeriod;
 }
 
-void Client::setRetentionCheckPeriod(time_t nextCheck)
+void Client::updateRetentionCheckPeriod(time_t nextCheck, bool force)
 {
-    CHATD_LOG_DEBUG("retention history check period updated to %d (seconds)", nextCheck);
-    mRetentionCheckPeriod = static_cast<uint32_t>(nextCheck);
+    bool setTimer = false;
+    if (force || (nextCheck && (!mRetentionCheckPeriod || nextCheck < mRetentionCheckPeriod)))
+    {
+        setTimer = true;
+        mRetentionCheckPeriod = static_cast<uint32_t>(nextCheck);
+        CHATD_LOG_DEBUG("set retention history check period to %d (seconds)", nextCheck);
+    }
+
+    if (mRetentionCheckPeriod && setTimer)
+    {
+        setRetentionTimer();
+    }
 }
 
 void Client::cancelRetentionTimer(bool resetPeriod)
@@ -417,11 +427,7 @@ void Client::setRetentionTimer()
                 minPeriod = chatPeriod;
             }
         }
-        setRetentionCheckPeriod(minPeriod);
-        if (mRetentionCheckPeriod)
-        {
-            setRetentionTimer();
-        }
+        updateRetentionCheckPeriod(minPeriod, true);
     }, mRetentionCheckPeriod * 1000 , mKarereClient->appCtx);
 }
 
@@ -4518,12 +4524,7 @@ time_t Chat::nextRetentionHistCheck(bool updateTimer)
     // Ensure that the oldest msg has not exceeded retention time yet, and nextCheck period it's valid
     time_t nextCheck = oldestMsgTs + mRetentionTime - time(nullptr);
     assert(nextCheck > 0);
-    if (updateTimer && (!mChatdClient.getRetentionCheckPeriod()
-                        || nextCheck < mChatdClient.getRetentionCheckPeriod()))
-    {
-        mChatdClient.setRetentionCheckPeriod(nextCheck);
-        mChatdClient.setRetentionTimer();
-    }
+    mChatdClient.updateRetentionCheckPeriod(nextCheck, false);
     return nextCheck;
 }
 

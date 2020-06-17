@@ -1520,7 +1520,9 @@ public:
     mega::m_time_t getLastMsgTs(karere::Id userid) const;
     void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
     uint32_t getRetentionCheckPeriod();
-    void setRetentionCheckPeriod(time_t nextCheck);
+
+    // Update mRetentionCheckPeriod if force is true, nextCheck is smaller than current value
+    void updateRetentionCheckPeriod(time_t nextCheck, bool force);
     void cancelRetentionTimer(bool resetPeriod = true);
     void setRetentionTimer();
 
