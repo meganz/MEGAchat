@@ -1381,7 +1381,7 @@ protected:
     void verifyMsgOrder(const Message& msg, Idx idx);
     void truncateByRetentionTime(Idx idx);
     void truncateAttachmentHistory();
-    time_t handleRetentionTime();
+    time_t handleRetentionTime(bool updateTimer = true);
 
     /** Find the Idx corresponding to the most recent msg affected by retention history (in RAM or Db)
      *  or CHATD_IDX_INVALID if none */

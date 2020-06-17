@@ -4406,7 +4406,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     truncateAttachmentHistory();
 }
 
-time_t Chat::handleRetentionTime()
+time_t Chat::handleRetentionTime(bool updateTimer)
 {
     if (!mRetentionTime || mOldestIdxInDb == CHATD_IDX_INVALID)
     {
@@ -4420,7 +4420,7 @@ time_t Chat::handleRetentionTime()
     if (idx == CHATD_IDX_INVALID)
     {
         // If there are no messages to remove
-        return nextRetentionHistCheck();
+        return nextRetentionHistCheck(updateTimer);
     }
 
     bool notifyUnreadChanged = (idx >= mLastSeenIdx) || (mLastSeenIdx == CHATD_IDX_INVALID);
@@ -4484,7 +4484,7 @@ time_t Chat::handleRetentionTime()
     {
         CALL_LISTENER(onUnreadChanged);
     }
-    return nextRetentionHistCheck();
+    return nextRetentionHistCheck(updateTimer);
 }
 
 void Chat::getIdxByRetentionTime(Idx &idx)
