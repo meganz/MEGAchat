@@ -1520,7 +1520,7 @@ public:
     mega::m_time_t getLastMsgTs(karere::Id userid) const;
     void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
     uint32_t getRetentionCheckPeriod();
-    void setRetentionCheckPeriod(uint32_t period);
+    void setRetentionCheckPeriod(time_t nextCheck);
     void cancelRetentionTimer(bool resetPeriod = true);
 
     friend class Connection;

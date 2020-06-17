@@ -373,9 +373,10 @@ uint32_t Client::getRetentionCheckPeriod()
     return mRetentionCheckPeriod;
 }
 
-void Client::setRetentionCheckPeriod(uint32_t period)
+void Client::setRetentionCheckPeriod(time_t nextCheck)
 {
-    mRetentionCheckPeriod = period;
+    CHATD_LOG_DEBUG("retention history check period updated to %d (seconds)", nextCheck);
+    mRetentionCheckPeriod = static_cast<uint32_t>(nextCheck);
 }
 
 void Client::cancelRetentionTimer(bool resetPeriod)
@@ -389,6 +390,7 @@ void Client::cancelRetentionTimer(bool resetPeriod)
     if (resetPeriod)
     {
         mRetentionCheckPeriod = 0;
+        CHATD_LOG_DEBUG("retention history check period reset");
     }
 }
 
