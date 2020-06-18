@@ -1381,14 +1381,25 @@ protected:
     void verifyMsgOrder(const Message& msg, Idx idx);
     void truncateByRetentionTime(Idx idx);
     void truncateAttachmentHistory();
+
+    /**
+     * @brief Remove those messages that exceed the retention time frame for this chat.
+     * @param updateTimer - if false, it ensures that updateRetentionCheckPeriod won't be called.
+     * This param is needed, to avoid infitite loops when this method is called upon timeout expiration.
+     *
+     * @return the period (in seconds) until next retention history check.
+     */
     time_t handleRetentionTime(bool updateTimer = true);
 
     /** Return the Idx corresponding to the most recent msg affected by retention history (in RAM or Db)
      *  or CHATD_IDX_INVALID if none */
     Idx getIdxByRetentionTime();
 
-    /** Returns the period (in seconds) until oldest message exceed retention time, or zero if
-     *  history it's empty or retention time is disabled */
+    /**
+     * @brief Returns the period (in seconds) until next retention history check.
+     * @param updateTimer - if false, it ensures that updateRetentionCheckPeriod won't be called.
+     * @return the period (in seconds) until next retention history check.
+     */
     time_t nextRetentionHistCheck(bool updateTimer = true);
 
     /**
@@ -1524,8 +1535,38 @@ public:
     void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
 
     // Update mRetentionCheckPeriod if force is true or nextCheck is smaller than current value
+    /**
+     * @brief Update mRetentionCheckPeriod and set a new timer if required.
+     * mRetentionCheckPeriod will be updated in the following cases:
+     * - force is true
+     * - nextCheck != 0 and current value is 0
+     * - nextCheck != 0 and nextCheck < current value
+     *
+     * A new timer will be set, if mRetentionCheckPeriod has been modified and is not zero
+     *
+     * @param checkPeriod - period (in seconds) until next retention history check
+     * @param force - if true force to update mRetentionCheckPeriod
+     */
     void updateRetentionCheckPeriod(time_t checkPeriod, bool force);
+
+    /**
+     * @brief Cancel retention history timer if active, and reset mRetentionTimer to zero.
+     * If resetPeriod is true, also reset mRetentionCheckPeriod.
+     *
+     * @param resetPeriod - if true, reset mRetentionCheckPeriod to zero.
+     */
     void cancelRetentionTimer(bool resetPeriod = true);
+
+    /**
+     * @brief Sets a new retention history timer.
+     * When timer expires, this method will iterate through all chats,
+     * calling to handleRetentionTime (with false to avoid an infinite loop),
+     * and will get the smaller period until next retention history check.
+     *
+     * Once next retention history check period is obtained, this method will call to
+     * updateRetentionCheckPeriod (with true) that ensures that mRetentionCheckPeriod
+     * will be modified and a new timer will be set if mRetentionCheckPeriod > 0
+     */
     void setRetentionTimer();
 
     friend class Connection;
