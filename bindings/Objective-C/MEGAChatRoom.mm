@@ -133,62 +133,12 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->getPeerPrivilegeByHandle(userHande) : -2;
 }
 
-- (NSString *)peerFirstnameByHandle:(uint64_t)userHande {
-    if (!self.megaChatRoom) return nil;
-    const char *ret = self.megaChatRoom->getPeerFirstnameByHandle(userHande);
-    return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
-}
-
-- (NSString *)peerLastnameByHandle:(uint64_t)userHande {
-    if (!self.megaChatRoom) return nil;
-    const char *ret = self.megaChatRoom->getPeerLastnameByHandle(userHande);
-    return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
-}
-
-- (NSString *)peerFullnameByHandle:(uint64_t)userHande {
-    const char *val = self.megaChatRoom->getPeerFullnameByHandle(userHande);
-    if (!val) return nil;
-    
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    
-    delete [] val;
-    return ret;
-}
-
-- (NSString *)peerEmailByHandle:(uint64_t)userHande {
-    if (!self.megaChatRoom) return nil;
-    const char *ret = self.megaChatRoom->getPeerEmailByHandle(userHande);
-    return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
-}
-
 - (uint64_t)peerHandleAtIndex:(NSUInteger)index {
     return self.megaChatRoom ? self.megaChatRoom->getPeerHandle((int)index) : MEGACHAT_INVALID_HANDLE;
 }
 
 - (MEGAChatRoomPrivilege)peerPrivilegeAtIndex:(NSUInteger)index {
     return (MEGAChatRoomPrivilege) (self.megaChatRoom ? self.megaChatRoom->getPeerPrivilege((int)index) : -2);
-}
-
-- (NSString *)peerFirstnameAtIndex:(NSUInteger)index {
-    if (!self.megaChatRoom) return nil;
-    const char *ret = self.megaChatRoom->getPeerFirstname((unsigned int)index);
-    return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
-}
-
-- (NSString *)peerLastnameAtIndex:(NSUInteger)index {
-    if (!self.megaChatRoom) return nil;
-    const char *ret = self.megaChatRoom->getPeerLastname((unsigned int)index);
-    return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
-}
-
-- (NSString *)peerFullnameAtIndex:(NSUInteger)index {
-    const char *val = self.megaChatRoom->getPeerFullname((unsigned int)index);
-    if (!val) return nil;
-    
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    
-    delete [] val;
-    return ret;
 }
 
 - (BOOL)hasChangedForType:(MEGAChatRoomChangeType)changeType {

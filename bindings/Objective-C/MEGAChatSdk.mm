@@ -584,17 +584,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (NSString *)userFullnameFromCacheByUserHandle:(uint64_t)userHandle {
-    NSString *firstName = [self userFirstnameFromCacheByUserHandle:userHandle];
-    NSString *lastName = [self userLastnameFromCacheByUserHandle:userHandle];
-    if (firstName.length > 0) {
-        if (lastName.length > 0) {
-            return [NSString stringWithFormat:@"%@ %@", firstName, lastName];
-        } else {
-            return firstName;
-        }
-    } else {
-        return lastName;
-    }
+    const char *val = self.megaChatApi->getUserFullnameFromCache(userHandle);
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
 }
 
 - (NSString *)contacEmailByHandle:(uint64_t)userHandle {
