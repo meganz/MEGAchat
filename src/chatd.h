@@ -1383,9 +1383,9 @@ protected:
     void truncateAttachmentHistory();
     time_t handleRetentionTime(bool updateTimer = true);
 
-    /** Find the Idx corresponding to the most recent msg affected by retention history (in RAM or Db)
+    /** Return the Idx corresponding to the most recent msg affected by retention history (in RAM or Db)
      *  or CHATD_IDX_INVALID if none */
-    void getIdxByRetentionTime(Idx &idx);
+    Idx getIdxByRetentionTime();
 
     /** Returns the period (in seconds) until oldest message exceed retention time, or zero if
      *  history it's empty or retention time is disabled */
@@ -1663,7 +1663,7 @@ public:
     virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) = 0;
 
     //  <<<--- Retention history methods --->>>
-    virtual void getIdxByRetentionTime(time_t, chatd::Idx &) = 0;
+    virtual chatd::Idx getIdxByRetentionTime(time_t) = 0;
     virtual void retentionHistoryTruncate(const chatd::Idx idx) = 0;
 };
 

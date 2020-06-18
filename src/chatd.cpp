@@ -4412,8 +4412,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     }
 
     // Get idx of the most recent msg affected by retention time, if any
-    chatd::Idx idx = CHATD_IDX_INVALID;
-    getIdxByRetentionTime(idx);
+    chatd::Idx idx = getIdxByRetentionTime();
     if (idx == CHATD_IDX_INVALID)
     {
         // If there are no messages to remove
@@ -4484,26 +4483,24 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     return nextRetentionHistCheck(updateTimer);
 }
 
-void Chat::getIdxByRetentionTime(Idx &idx)
+Idx Chat::getIdxByRetentionTime()
 {
     time_t expireRetentionTs = time(nullptr) - mRetentionTime;
     for (Idx i = highnum(); i >= lownum(); i--)
     {
         if (at(i).ts <= expireRetentionTs)
         {
-            idx = i;
-            return;
+            return i;
         }
     }
 
     if (lownum() == mOldestIdxInDb)
     {
         assert(!mHasMoreHistoryInDb);
-        idx = CHATD_IDX_INVALID;
-        return;
+        return CHATD_IDX_INVALID;
     }
 
-    CALL_DB(getIdxByRetentionTime, expireRetentionTs, idx);
+    return mDbInterface->getIdxByRetentionTime(expireRetentionTs);
 }
 
 time_t Chat::nextRetentionHistCheck(bool updateTimer)
