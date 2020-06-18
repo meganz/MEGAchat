@@ -426,7 +426,7 @@ void Client::setRetentionTimer()
         for (auto& chat: mChatForChatId)
         {
             // Call with false, to avoid infinite loop by calling setRetentionTimer
-            time_t chatPeriod = chat.second.get()->handleRetentionTime(false);
+            time_t chatPeriod = chat.second->handleRetentionTime(false);
             if (chatPeriod && (chatPeriod < minPeriod || !minPeriod))
             {
                 minPeriod = chatPeriod;
@@ -4507,6 +4507,7 @@ void Chat::getIdxByRetentionTime(Idx &idx)
 
     if (lownum() == mOldestIdxInDb)
     {
+        assert(!mHasMoreHistoryInDb);
         idx = CHATD_IDX_INVALID;
         return;
     }
@@ -4941,7 +4942,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         mLastHistDecryptCount++;
     }
 
-    bool checkRetentionHist = mOldestIdxInDb == CHATD_IDX_INVALID ;
+    bool checkRetentionHist = mOldestIdxInDb == CHATD_IDX_INVALID;
     if (mOldestIdxInDb == CHATD_IDX_INVALID || idx < mOldestIdxInDb)
     {
         // If mOldestIdxInDb is not set, or idx is oldest that current value update it
