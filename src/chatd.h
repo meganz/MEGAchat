@@ -1522,7 +1522,6 @@ public:
     // The timestamps of the most recent message from userid
     mega::m_time_t getLastMsgTs(karere::Id userid) const;
     void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
-    uint32_t getRetentionCheckPeriod();
 
     // Update mRetentionCheckPeriod if force is true or nextCheck is smaller than current value
     void updateRetentionCheckPeriod(time_t checkPeriod, bool force);

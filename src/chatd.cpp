@@ -114,6 +114,8 @@ namespace chatd
 
 Client::Client(karere::Client *aKarereClient) :
     mMyHandle(aKarereClient->myHandle()),
+    mRetentionTimer(0),
+    mRetentionCheckPeriod(0),
     mApi(&aKarereClient->api),
     mKarereClient(aKarereClient)
 {
@@ -186,12 +188,6 @@ Client::Client(karere::Client *aKarereClient) :
             mLastMsgTs[userid] = stmt2.uintCol(0);
         }
     }
-
-    // Init the handler of the timeout for retention history
-    mRetentionTimer = 0;
-
-    // Init retention check period to 0 (disabled)
-    mRetentionCheckPeriod = 0;
 }
 
 Chat& Client::createChat(Id chatid, int shardNo,
@@ -366,11 +362,6 @@ bool Client::isMessageReceivedConfirmationActive() const
 void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
 {
     mLastMsgTs[userid] = lastMsgTs;
-}
-
-uint32_t Client::getRetentionCheckPeriod()
-{
-    return mRetentionCheckPeriod;
 }
 
 void Client::updateRetentionCheckPeriod(time_t checkPeriod, bool force)
