@@ -369,7 +369,6 @@ public:
     virtual void handleCallData(chatd::Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg);
     virtual void onShutdown();
     virtual void onClientLeftCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
-    virtual void onDisconnect(chatd::Connection& conn);
     virtual void stopCallsTimers(int shard);
     virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
     virtual void handleCallTime(karere::Id chatid, uint32_t duration);

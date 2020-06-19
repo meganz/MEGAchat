@@ -1861,11 +1861,6 @@ bool MegaChatPresenceConfig::isPending() const
     return false;
 }
 
-bool MegaChatPresenceConfig::isSignalActivityRequired() const
-{
-    return false;
-}
-
 bool MegaChatPresenceConfig::isLastGreenVisible() const
 {
     return false;

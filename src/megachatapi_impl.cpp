@@ -6773,7 +6773,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         Contact *contact = peerchat.contact();
         if (contact)
         {
-            string name = contact->titleString();
+            string name = contact->getContactName(true);
 
             const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
             this->peerFirstnames.push_back(buffer ? buffer : "");

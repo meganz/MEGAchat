@@ -494,6 +494,7 @@ protected:
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
+    // stores fullname of contact in binary layout: "<firstname_len><firstname> <lastname>"
     std::string mName;
     int mVisibility;
     bool mIsInitializing = true;
@@ -551,8 +552,12 @@ public:
     /** @brief Set the title of this contact */
     void updateTitle(const std::string& str);
 
-    /** @brief Returns the full name of this contact */
-    std::string getContactName();
+    /** @brief Returns the full name of this contact
+     * @param binaryLayout When true, the returned string includes the length
+     * of the firstname in the first byte.
+     * @return The fullname of the this contact
+     */
+    std::string getContactName(bool binaryLayout = false);
 };
 
 /** @brief This is the karere contactlist class. It maps user ids
