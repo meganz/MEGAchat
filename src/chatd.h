@@ -150,8 +150,9 @@ public:
       * Normally the application doesn't need to care about it
       * @param msg - The message object - \c id() returns a real msgid, and \c isSending() is \c false
       * @param idx - The history buffer index at which the message was put
+      * @param tsUpdated - The ts has been updated or not
       */
-    virtual void onMessageConfirmed(karere::Id /*msgxid*/, const Message& /*msg*/, Idx /*idx*/){}
+    virtual void onMessageConfirmed(karere::Id /*msgxid*/, const Message& /*msg*/, Idx /*idx*/, bool /*tsUpdated*/){}
 
      /** @brief A message was rejected by the server for some reason.
       * As the message is not yet in the history buffer, its \c id()
@@ -852,7 +853,7 @@ protected:
         mForwardList.clear();
     }
     // msgid can be 0 in case of rejections
-    Idx msgConfirm(karere::Id msgxid, karere::Id msgid);
+    Idx msgConfirm(karere::Id msgxid, karere::Id msgid, uint32_t timestamp = 0);
     bool msgAlreadySent(karere::Id msgxid, karere::Id msgid);
     Message* msgRemoveFromSending(karere::Id msgxid, karere::Id msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
@@ -1415,7 +1416,7 @@ protected:
     void onKeepaliveSent();
 
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
-    void msgConfirm(karere::Id msgxid, karere::Id msgid);
+    void msgConfirm(karere::Id msgxid, karere::Id msgid, uint32_t timestamp = 0);
     promise::Promise<void> sendKeepalive();
     void sendEcho();
 
@@ -1434,7 +1435,9 @@ public:
     //  * Changes at CALLDATA protocol (new state)
     // - Version 6:
     //  * Add commands ADDREACTION DELREACTION REACTIONSN
-    static const unsigned chatdVersion = 6;
+    // - Version 7:
+    //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
+    static const unsigned chatdVersion = 7;
 
     Client(karere::Client *aKarereClient);
     ~Client();

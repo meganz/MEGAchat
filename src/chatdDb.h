@@ -143,8 +143,8 @@ public:
     }
     virtual int updateSendingItemsContentAndDelta(const chatd::Message& msg)
     {
-        mDb.query("update sending set msg = ?, updated = ? where msgid = ? and chatid = ?",
-                  msg, msg.updated, msg.id(), mChat.chatId());
+        mDb.query("update sending set msg = ? where msgid = ? and chatid = ?",
+                  msg, msg.id(), mChat.chatId());
         return sqlite3_changes(mDb);
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)

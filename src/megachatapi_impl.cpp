@@ -1077,6 +1077,14 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_GET_FIRSTNAME:
         {
+            // if the app requested user attributes too early (ie. init with sid but without cache),
+            // the cache will not be ready yet. It needs to wait for fetchnodes to complete.
+            if (!mClient->isUserAttrCacheReady())
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             MegaChatHandle uh = request->getUserHandle();
             const char* publicHandle = request->getLink();
             MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
@@ -1100,6 +1108,14 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_GET_LASTNAME:
         {
+            // if the app requested user attributes too early (ie. init with sid but without cache),
+            // the cache will not be ready yet. It needs to wait for fetchnodes to complete.
+            if (!mClient->isUserAttrCacheReady())
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             MegaChatHandle uh = request->getUserHandle();
             const char* publicHandle = request->getLink();
             MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
@@ -1123,8 +1139,15 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_GET_EMAIL:
         {
-            MegaChatHandle uh = request->getUserHandle();
+            // if the app requested user attributes too early (ie. init with sid but without cache),
+            // the cache will not be ready yet. It needs to wait for fetchnodes to complete.
+            if (!mClient->isUserAttrCacheReady())
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
 
+            MegaChatHandle uh = request->getUserHandle();
             mClient->userAttrCache().getAttr(uh, karere::USER_ATTR_EMAIL)
             .then([request, this](Buffer *data)
             {
@@ -1768,6 +1791,7 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+
         case MegaChatRequest::TYPE_IMPORT_MESSAGES:
         {
             if (mClient->initState() != karere::Client::kInitHasOfflineSession
@@ -4551,8 +4575,9 @@ void MegaChatApiImpl::onInitStateChange(int newState)
 
 void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, Message::Status status, Idx idx)
 {
-    if (megaApi->isChatNotifiable(chatid))
-     {
+    if (megaApi->isChatNotifiable(chatid)   // filtering based on push-notification settings
+            && !msg.isEncrypted())          // avoid msgs to be notified when marked as "seen", but still decrypting
+    {
          MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
          fireOnChatNotification(chatid, message);
      }
@@ -6211,11 +6236,15 @@ void MegaChatRoomHandler::onUnsentEditLoaded(chatd::Message &msg, bool oriMsgIsS
     fireOnMessageLoaded(message);
 }
 
-void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx)
+void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx, bool tsUpdated)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kServerReceived, idx);
     message->setStatus(MegaChatMessage::STATUS_SERVER_RECEIVED);
     message->setTempId(msgxid);     // to allow the app to find the "temporal" message
+    if (tsUpdated)
+    {
+        message->setTsUpdated();
+    }
 
     std::set <MegaChatHandle> *msgToUpdate = handleNewMessage(message);
 
@@ -6250,7 +6279,10 @@ void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status status,
     message->setStatus(status);
     fireOnMessageUpdate(message);
 
-    if (megaApi->isChatNotifiable(chatid) && msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    if (megaApi->isChatNotifiable(chatid)
+            && msg.userid != chatApi->getMyUserHandle()
+            && status == chatd::Message::kSeen  // received message from a peer changed to seen
+            && !msg.isEncrypted())  // messages can be "seen" while being decrypted
     {
         MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
         chatApiImpl->fireOnChatNotification(chatid, message);
@@ -6410,10 +6442,12 @@ const char* MegaChatErrorPrivate::getGenericErrorString(int errorCode)
         return "No error";
     case ERROR_ARGS:
         return "Invalid argument";
+    case ERROR_TOOMANY:
+        return "Too many uses for this resource";
     case ERROR_ACCESS:
         return "Access denied";
     case ERROR_NOENT:
-        return "Resouce does not exist";
+        return "Resource does not exist";
     case ERROR_EXIST:
         return "Resource already exists";
     case ERROR_UNKNOWN:
@@ -7723,6 +7757,11 @@ void MegaChatMessagePrivate::setCode(int code)
 void MegaChatMessagePrivate::setAccess()
 {
     this->changed |= MegaChatMessage::CHANGE_TYPE_ACCESS;
+}
+
+void MegaChatMessagePrivate::setTsUpdated()
+{
+    this->changed |= MegaChatMessage::CHANGE_TYPE_TIMESTAMP;
 }
 
 int MegaChatMessagePrivate::convertEndCallTermCodeToUI(const Message::CallEndedInfo  &callEndInfo)

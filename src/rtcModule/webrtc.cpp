@@ -69,7 +69,7 @@ RtMessage::RtMessage(chatd::Chat &aChat, const StaticBuffer& msg)
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto* crypto, const char* iceServers)
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
-  mStaticIceSever(iceServers),
+  mStaticIceServers(iceServers),
   mIceServerProvider(client.api, "turn"),
   mManager(*this)
 {
@@ -87,15 +87,66 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 
 void RtcModule::init()
 {
-    StaticProvider iceServerStatic(mStaticIceSever);
-    setIceServers(iceServerStatic);
+    // set cached ICE servers, or static/hardcoded if not available
+    StaticProvider iceServersStatic;
+    string jsonCachedTurnServers = getCachedTurnServers();
+    if (jsonCachedTurnServers.size())
+    {
+        iceServersStatic.setServers(jsonCachedTurnServers.c_str());
+    }
+    else
+    {
+        iceServersStatic.setServers(mStaticIceServers);
+    }
+    setIceServers(iceServersStatic);
+
+    // fetch ICE servers URLs from Load Balancer (GeLB)
     auto wptr = weakHandle();
     mIceServerProvider.fetchServers()
     .then([wptr, this]()
     {
         if (wptr.deleted())
             return;
-        setIceServers(mIceServerProvider);
+
+        // replace cache ICE servers URLs with received ones
+        int shard = TURNSERVER_SHARD;
+        for (const std::shared_ptr<TurnServerInfo>& serverInfo : mIceServerProvider)
+        {
+            std::string fullUrl = serverInfo->url;
+            if (fullUrl.size())
+            {
+                // Example: "turn:example.url.co:3478?transport=udp"
+                size_t posInitialColon = fullUrl.find(":") + 1;
+                std::string urlString = fullUrl.substr(posInitialColon, fullUrl.size() - posInitialColon);
+                karere::Url url(urlString);
+
+                if (!mKarereClient.mDnsCache.isValidUrl(shard) || url != mKarereClient.mDnsCache.getUrl(shard))
+                {
+                    if (mKarereClient.mDnsCache.isValidUrl(shard))
+                    {
+                        mKarereClient.mDnsCache.removeRecord(shard);
+                    }
+
+                    mKarereClient.mDnsCache.addRecord(shard, urlString);
+                }
+
+                shard--;
+            }
+        }
+
+        // discard any obsolete cached URL (not returned by GeLB)
+        int maxShard = TURNSERVER_SHARD - MAX_TURN_SERVERS;
+        while (mKarereClient.mDnsCache.isValidUrl(shard) && shard > maxShard)
+        {
+            mKarereClient.mDnsCache.removeRecord(shard);
+            shard--;
+        }
+
+        // finally, update the IPs corresponding to the received URLs
+        if (mIceServerProvider.size())
+        {
+            refreshTurnServerIp();
+        }
     })
     .fail([](const ::promise::Error& err)
     {
@@ -150,6 +201,75 @@ void RtcModule::removeCallRetry(karere::Id chatid, bool retry)
     }
 
     mRetryCall.erase(chatid);
+}
+
+string RtcModule::getCachedTurnServers()
+{
+    int i = 0;
+    vector<string> urls;
+    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - i) && i < MAX_TURN_SERVERS)
+    {
+        string ipv4;
+        string ipv6;
+        karere::Url turnServerUrl = mKarereClient.mDnsCache.getUrl(TURNSERVER_SHARD - i);
+        if (mKarereClient.mDnsCache.getIp(TURNSERVER_SHARD - i, ipv4, ipv6))
+        {
+            if (ipv4.size())
+            {
+                urls.push_back(buildTurnServerUrl(ipv4, turnServerUrl.port, turnServerUrl.path));
+            }
+
+            if(ipv6.size())
+            {
+                urls.push_back(buildTurnServerUrl(ipv6, turnServerUrl.port, turnServerUrl.path));
+            }
+        }
+        else    // no cached IP available for this URL
+        {
+            urls.push_back(buildTurnServerUrl(turnServerUrl.host, turnServerUrl.port, turnServerUrl.path));
+
+        }
+        i++;
+    }
+
+    string json;
+    if (urls.size())
+    {
+        json.insert(json.begin(), '[');
+        for (const string& url : urls)
+        {
+            if (json.size() > 2)
+            {
+                json.append(", ");
+            }
+
+            json.append("{\"host\":\"")
+                    .append(url)
+                    .append("\"}");
+        }
+
+        json.append("]");
+    }
+
+    return json;
+}
+
+string RtcModule::buildTurnServerUrl(const string &host, int port, const string &path) const
+{
+    string url("turn:");
+    url.append(host);
+    if (port > 0)
+    {
+        url.append(":")
+                .append(std::to_string(port));
+    }
+
+    if (path.size())
+    {
+        url.append(path);
+    }
+
+    return url;
 }
 
 bool RtcModule::selectAudioInDevice(const string &devname)
@@ -867,6 +987,79 @@ void RtcModule::abortCallRetry(Id chatid)
     removeCallWithoutParticipants(chatid);
 }
 
+void RtcModule::refreshTurnServerIp()
+{
+    if (mIceServerProvider.busy())
+    {
+        RTCM_LOG_WARNING("Turn server URLs not available yet. Fetching...");
+        return;
+    }
+
+    mDnsRequestId++;
+
+    int index = 0;
+    while (mKarereClient.mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
+    {
+        int shard = TURNSERVER_SHARD - index;
+        std::string host = mKarereClient.mDnsCache.getUrl(shard).host;
+        unsigned int dnsRequestId = mDnsRequestId;  // capture the value for the lambda
+        auto wptr = weakHandle();
+        mDnsResolver.wsResolveDNS(mKarereClient.websocketIO, host.c_str(),
+                                                [wptr, this, shard, dnsRequestId]
+                                                (int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+        {
+            if (wptr.deleted())
+                return;
+
+            if (mKarereClient.isTerminated())
+            {
+                RTCM_LOG_ERROR("DNS resolution completed but karere client was terminated.");
+                return;
+            }
+
+            if (dnsRequestId != mDnsRequestId)
+            {
+                RTCM_LOG_ERROR("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                               dnsRequestId, mDnsRequestId);
+                return;
+            }
+
+            if (statusDNS < 0)
+            {
+                RTCM_LOG_ERROR("Async DNS error in rtcModule. Error code: %d", statusDNS);
+            }
+
+            assert(mKarereClient.mDnsCache.hasRecord(shard));
+
+            if (statusDNS >= 0 && (ipsv4.size() || ipsv6.size()))
+            {
+                RTCM_LOG_ERROR("New IP for TURN servers: ipv4 - %s     ipv6 - %s",
+                             ipsv4.size() ? ipsv4[0].c_str() : "",
+                             ipsv6.size() ? ipsv6[0].c_str() : "");
+                mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6);
+
+            }
+            else
+            {
+                mKarereClient.mDnsCache.invalidateIps(shard);
+            }
+
+            updateTurnServers();
+
+        });
+
+        index++;
+    }
+}
+
+void RtcModule::updateTurnServers()
+{
+    StaticProvider iceServersProvider;
+    string jsonCachedTurnServers = getCachedTurnServers();
+    iceServersProvider.setServers(jsonCachedTurnServers.c_str());
+    setIceServers(iceServersProvider);
+}
+
 void RtcModule::onKickedFromChatRoom(Id chatid)
 {
     auto callIt = mCalls.find(chatid);
@@ -904,7 +1097,6 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
         removeCallRetry(chatid, false);
         removeCallWithoutParticipants(chatid);
     }
-
 }
 
 uint32_t RtcModule::clientidFromPeer(karere::Id chatid, Id userid)
@@ -1818,7 +2010,7 @@ void Call::removeSession(Session& sess, TermCode reason)
     }
 
     TermCode terminationCode = (TermCode)(reason & ~TermCode::kPeer);
-    if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout)
+    if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout || terminationCode == kErrSessSetupTimeout)
     {
         if (mIceFails.find(endpointId) == mIceFails.end())
         {
@@ -2856,11 +3048,12 @@ void Session::createRtcConn()
     if (mCall.mIceFails.find(endPoint) != mCall.mIceFails.end())
     {
         RTCM_LOG_ERROR("Using ALL ICE servers, because ICE to this peer has failed %d times", mCall.mIceFails[endPoint]);
-        StaticProvider iceServerStatic(mCall.mManager.mStaticIceSever);
-        mCall.mManager.addIceServers(iceServerStatic);
+        StaticProvider iceServerStatic(mCall.mManager.mStaticIceServers);
+        mCall.mManager.setIceServers(iceServerStatic);
     }
 
     mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers, *this);
+    RTCM_LOG_INFO("Create RTC connection ICE server: %s", mCall.mManager.mIceServers[0].uri.c_str());
     if (mCall.mLocalStream)
     {
         std::vector<std::string> vector;
@@ -3097,6 +3290,8 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
         mCall.notifySessionConnected(*this);
+        EndpointId endpointId(mPeer, mPeerClient);
+        mCall.mIceFails.erase(endpointId);
     }
 }
 

@@ -2321,6 +2321,24 @@ void Connection::execCommand(const StaticBuffer& buf)
                 chat.onPreviewersUpdate(count);
                 break;
             }
+            case OP_MSGIDTIMESTAMP:
+            {
+                READ_ID(msgxid, 0);
+                READ_ID(msgid, 8);
+                READ_32(timestamp, 16);
+                CHATDS_LOG_DEBUG("recv MSGIDTIMESTAMP: '%s' -> '%s'  %d", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
+                mChatdClient.onMsgAlreadySent(msgxid, msgid);
+                break;
+            }
+            case OP_NEWMSGIDTIMESTAMP:
+            {
+                READ_ID(msgxid, 0);
+                READ_ID(msgid, 8);
+                READ_32(timestamp, 16);
+                CHATDS_LOG_DEBUG("recv NEWMSGIDTIMESTAMP: '%s' -> '%s'   %d", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
+                mChatdClient.msgConfirm(msgxid, msgid, timestamp);
+                break;
+            }
             default:
             {
                 CHATDS_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
@@ -3264,7 +3282,6 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             SendingItem &item = it;
             if (item.msg->id() == msg.id())
             {
-                item.msg->updated = age;
                 item.msg->assign((void*)newdata, newlen);
                 count++;
             }
@@ -3294,7 +3311,22 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         if (wptr.deleted())
             return;
 
+        Id lastMsgId = mLastTextMsg.idx() == CHATD_IDX_INVALID
+                ? mLastTextMsg.xid()
+                : mLastTextMsg.id();
+
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd, recipients);
+        if (lastMsgId == upd->id())
+        {
+            if (upd->isValidLastMessage())
+            {
+                onLastTextMsgUpdated(*upd, msgIndexFromId(upd->id()));
+            }
+            else //our last text msg is not valid anymore, find another one
+            {
+                findAndNotifyLastTextMsg();
+            }
+        }
 
     }, mChatdClient.mKarereClient->appCtx);
 
@@ -3449,7 +3481,16 @@ void Chat::onLastSeen(Id msgid, bool resend)
             return;
         }
     }
-    // else --> msgid was found locally
+    else // msgid was found locally
+    {
+        // if both `msgid` and `mLastSeenId` are known and localy available, there's an index to compare
+        if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx)
+        {
+            CHATID_LOG_WARNING("onLastSeen: ignoring attempt to set last seen msgid backwards. Current: %s Attempt: %s", ID_CSTR(mLastSeenId), ID_CSTR(msgid));
+            return; // `mLastSeenId` is newer than the received `msgid`
+        }
+    }
+
     assert(mLastSeenId.isValid());
 
     if (idx == mLastSeenIdx)
@@ -3699,12 +3740,12 @@ Id Client::chatidFromPh(Id ph)
     return chatid;
 }
 
-void Client::msgConfirm(Id msgxid, Id msgid)
+void Client::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
 {
     // TODO: maybe it's more efficient to keep a separate mapping of msgxid to messages?
     for (auto& chat: mChatForChatId)
     {
-        if (chat.second->msgConfirm(msgxid, msgid) != CHATD_IDX_INVALID)
+        if (chat.second->msgConfirm(msgxid, msgid, timestamp) != CHATD_IDX_INVALID)
             return;
     }
     CHATD_LOG_DEBUG("msgConfirm: No chat knows about message transaction id %s", ID_CSTR(msgxid));
@@ -3777,7 +3818,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 }
 
 // msgid can be 0 in case of rejections
-Idx Chat::msgConfirm(Id msgxid, Id msgid)
+Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
 {
     Message* msg = msgRemoveFromSending(msgxid, msgid);
     if (!msg)
@@ -3787,6 +3828,14 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
     // update msgxid to msgid
     msg->setId(msgid, false);
+
+    bool tsUpdated = false;
+    if (timestamp != 0)
+    {
+        msg->ts = timestamp;
+        tsUpdated = true;
+        CHATID_LOG_DEBUG("Message timestamp has been updated in confirmation");
+    }
 
     // the keyid should be already confirmed by this time
     assert(!msg->isLocalKeyid());
@@ -3798,6 +3847,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     {
         mAttachmentNodes->addMessage(*msg, true, false);
     }
+
     CALL_DB(addMsgToHistory, *msg, idx);
 
     assert(msg->backRefId);
@@ -3825,7 +3875,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         CHATD_LOG_DEBUG("msgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%u to msgid=%u of %d message/s in the sending queue", msgxid, msgid, count);
     }
 
-    CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
+    CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx, tsUpdated);
 
     // if first message is own msg we need to init mNextHistFetchIdx to avoid loading own messages twice
     if (mNextHistFetchIdx == CHATD_IDX_INVALID && size() == 1)
@@ -5343,6 +5393,8 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(NUMBYHANDLE);
         RET_ENUM_NAME(HANDLELEAVE);
         RET_ENUM_NAME(REACTIONSN);
+        RET_ENUM_NAME(MSGIDTIMESTAMP);
+        RET_ENUM_NAME(NEWMSGIDTIMESTAMP);
         default: return "(invalid opcode)";
     };
 }
