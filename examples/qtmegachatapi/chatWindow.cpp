@@ -218,19 +218,19 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
        updatePreviewers(chat->getNumPreviewers());
     }
 
-    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_RETENTION_TIME))
-    {
-        QMessageBox *msgBox = new QMessageBox(this);
-        QString text("onRetentionTimeUpdated: ");
-        text.append(std::to_string(chat->getRetentionTime()).c_str());
-        msgBox->setAttribute(Qt::WA_DeleteOnClose, true);
-        msgBox->setIcon( QMessageBox::Information );
-        msgBox->setStandardButtons(QMessageBox::Ok);
-        msgBox->setWindowTitle(tr("RETENTION HISTORY"));
-        msgBox->setText(text);
-        msgBox->setModal(false);
-        msgBox->show();
-    }
+//    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_RETENTION_TIME))
+//    {
+//        QMessageBox *msgBox = new QMessageBox(this);
+//        QString text("onRetentionTimeUpdated: ");
+//        text.append(std::to_string(chat->getRetentionTime()).c_str());
+//        msgBox->setAttribute(Qt::WA_DeleteOnClose, true);
+//        msgBox->setIcon( QMessageBox::Information );
+//        msgBox->setStandardButtons(QMessageBox::Ok);
+//        msgBox->setWindowTitle(tr("RETENTION HISTORY"));
+//        msgBox->setText(text);
+//        msgBox->setModal(false);
+//        msgBox->show();
+//    }
 }
 
 void ChatWindow::previewUpdate(MegaChatRoom *auxRoom)
@@ -525,15 +525,15 @@ void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRo
 
 void ChatWindow::onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
 {
-    QString date = QDateTime::fromTime_t(msg->getTimestamp()).toString("hh:mm:ss - dd.MM.yy");
-    QMessageBox *msgBox = new QMessageBox(this);
-    msgBox->setIcon( QMessageBox::Information );
-    msgBox->setAttribute(Qt::WA_DeleteOnClose);
-    msgBox->setStandardButtons(QMessageBox::Ok);
-    msgBox->setWindowTitle(tr("onHistoryTruncatedByRetentionTime"));
-    msgBox->setText("Messages previous to (" + date+ "), will be cleared");
-    msgBox->setModal(false);
-    msgBox->show();
+//    QString date = QDateTime::fromTime_t(msg->getTimestamp()).toString("hh:mm:ss - dd.MM.yy");
+//    QMessageBox *msgBox = new QMessageBox(this);
+//    msgBox->setIcon( QMessageBox::Information );
+//    msgBox->setAttribute(Qt::WA_DeleteOnClose);
+//    msgBox->setStandardButtons(QMessageBox::Ok);
+//    msgBox->setWindowTitle(tr("onHistoryTruncatedByRetentionTime"));
+//    msgBox->setText("Messages previous to (" + date+ "), will be cleared");
+//    msgBox->setModal(false);
+//    msgBox->show();
 
     ChatListItemController *itemController = getChatItemController();
     if (itemController)
