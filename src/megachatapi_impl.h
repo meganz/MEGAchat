@@ -139,14 +139,14 @@ public:
     MegaChatPresenceConfigPrivate(const MegaChatPresenceConfigPrivate &config);
     MegaChatPresenceConfigPrivate(const presenced::Config &config, bool isPending);
     virtual ~MegaChatPresenceConfigPrivate();
-    virtual MegaChatPresenceConfig *copy() const;
+    MegaChatPresenceConfig *copy() const override;
 
-    virtual int getOnlineStatus() const;
-    virtual bool isAutoawayEnabled() const;
-    virtual int64_t getAutoawayTimeout() const;
-    virtual bool isPersist() const;
-    virtual bool isPending() const;
-    virtual bool isLastGreenVisible() const;
+    int getOnlineStatus() const override;
+    bool isAutoawayEnabled() const override;
+    int64_t getAutoawayTimeout() const override;
+    bool isPersist() const override;
+    bool isPending() const override;
+    bool isLastGreenVisible() const override;
 
 private:
     int status;

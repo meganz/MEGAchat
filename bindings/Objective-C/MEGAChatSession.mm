@@ -137,8 +137,8 @@ using namespace megachat;
         changes = [changes stringByAppendingString:@" | OPERATIVE"];
     }
     
-    if ([changes isEqualToString:@""]) {
-        return @"CHANGES NOT MANAGED";
+    if (changes.length < 4) {
+        return changes;
     } else {
         return [changes substringFromIndex:3];
     }

@@ -270,6 +270,9 @@ public:
     time_t autoawayTimeout() const { return mAutoawayTimeout; }
     bool lastGreenVisible() const { return mLastGreenVisible;}
 
+    /** True if the autoaway should be considered to signal user's activity or not */
+    bool autoAwayInEffect() const;
+
     void fromCode(uint16_t code);
     uint16_t toCode() const;
     std::string toString() const;

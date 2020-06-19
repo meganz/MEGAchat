@@ -265,18 +265,9 @@ bool Client::setAutoaway(bool enable, time_t timeout)
     return sendPrefs();
 }
 
-bool Client::autoAwayInEffect()
-{
-    return mConfig.mPresence.isValid()
-            && mConfig.mAutoawayActive
-            && mConfig.mAutoawayTimeout
-            && mConfig.mPresence == Presence::kOnline
-            && !mConfig.mPersist;
-}
-
 void Client::signalActivity()
 {
-    if (!autoAwayInEffect())
+    if (!mConfig.autoAwayInEffect())
     {
         if (!mConfig.mPresence.isValid())
         {
@@ -308,7 +299,7 @@ void Client::signalActivity()
 
 void Client::signalInactivity()
 {
-    if (!autoAwayInEffect())
+    if (!mConfig.autoAwayInEffect())
     {
         if (!mConfig.mPresence.isValid())
         {
@@ -351,7 +342,7 @@ void Client::notifyUserStatus()
 
 bool Client::isSignalActivityRequired()
 {
-    return !mKarereClient->isInBackground() && autoAwayInEffect();
+    return !mKarereClient->isInBackground() && mConfig.autoAwayInEffect();
 }
 
 void Client::abortRetryController()
@@ -703,7 +694,7 @@ void Client::heartbeat()
         return;
 
     auto now = time(NULL);
-    if (autoAwayInEffect()
+    if (mConfig.autoAwayInEffect()
             && mLastSentUserActive
             && (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
             && !mKarereClient->isCallInProgress())
@@ -1076,6 +1067,15 @@ void Client::configChanged()
     CALL_LISTENER(onPresenceChange, mKarereClient->myHandle(), mConfig.mPresence, mPrefsAckWait);
 }
 
+bool Config::autoAwayInEffect() const
+{
+    return mPresence.isValid()
+            && mAutoawayActive
+            && mAutoawayTimeout
+            && mPresence == Presence::kOnline
+            && !mPersist;
+}
+
 void Config::fromCode(uint16_t code)
 {
     mPresence = (code & 3) + karere::Presence::kOffline;
@@ -1188,7 +1188,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                     else if (loginCompleted)
                     {
                         PRESENCED_LOG_DEBUG("recv PREFS from server (initial config): %s", mConfig.toString().c_str());
-                        if (autoAwayInEffect())
+                        if (mConfig.autoAwayInEffect())
                         {
                             // signal whether the user is active or inactive
                             bool isActive = !mKarereClient->isInBackground()    // active is not possible in background
