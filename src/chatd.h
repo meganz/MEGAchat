@@ -1547,7 +1547,7 @@ public:
      * @param checkPeriod - period (in seconds) until next retention history check
      * @param force - if true force to update mRetentionCheckPeriod
      */
-    void updateRetentionCheckPeriod(time_t checkPeriod, bool force);
+    void updateRetentionCheckPeriod(time_t nextCheck, bool force);
 
     /**
      * @brief Cancel retention history timer if active, and reset mRetentionTimer to zero.

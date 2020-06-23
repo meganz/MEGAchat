@@ -364,19 +364,14 @@ void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
     mLastMsgTs[userid] = lastMsgTs;
 }
 
-void Client::updateRetentionCheckPeriod(time_t checkPeriod, bool force)
+void Client::updateRetentionCheckPeriod(time_t nextCheck, bool force)
 {
-    // Avoid set a timer with a smaller period than kMinRetentionTimeout
-    time_t nextCheck = (checkPeriod > 0 && checkPeriod < kMinRetentionTimeout)
-            ? kMinRetentionTimeout
-            : checkPeriod;
-
     bool setTimer = false;
     if (force || (nextCheck && (!mRetentionCheckPeriod || nextCheck < mRetentionCheckPeriod)))
     {
         setTimer = true;
         mRetentionCheckPeriod = static_cast<uint32_t>(nextCheck);
-        CHATD_LOG_DEBUG("set retention history check period to %d (seconds)", nextCheck);
+        CHATD_LOG_DEBUG("set retention history check ts: %d", nextCheck);
     }
 
     if (mRetentionCheckPeriod && setTimer)
@@ -402,8 +397,17 @@ void Client::cancelRetentionTimer(bool resetPeriod)
 
 void Client::setRetentionTimer()
 {
+    time_t nextCheck = mRetentionCheckPeriod - time(nullptr);
+    assert(nextCheck > 0); // next check must be a valid period (in seconds)
+
+    // Avoid set timer with a smaller period than kMinRetentionTimeout, upon previous timer expiration.
+    // If there's an active timer, it's licit to set a timer with a smaller period than kMinRetentionTimeout.
+    nextCheck = (!mRetentionTimer && nextCheck > 0 && nextCheck < kMinRetentionTimeout)
+            ? kMinRetentionTimeout
+            : nextCheck;
+
     cancelRetentionTimer(false); // cancel timer if any, but keep mRetentionCheckPeriod
-    CHATD_LOG_DEBUG("set timer for next retention history check to %d (seconds):", mRetentionCheckPeriod);
+    CHATD_LOG_DEBUG("set timer for next retention history check to %d (seconds):", nextCheck);
     auto wptr = weakHandle();
     mRetentionTimer = karere::setTimeout([this, wptr]()
     {
@@ -424,7 +428,7 @@ void Client::setRetentionTimer()
             }
         }
         updateRetentionCheckPeriod(minPeriod, true);
-    }, mRetentionCheckPeriod * 1000 , mKarereClient->appCtx);
+    }, nextCheck * 1000 , mKarereClient->appCtx);
 }
 
 uint8_t Client::richLinkState() const
@@ -4516,8 +4520,7 @@ time_t Chat::nextRetentionHistCheck(bool updateTimer)
             : mDbInterface->getOldestMsgTs();   // Oldest msg is loaded in Db
 
     // Ensure that the oldest msg has not exceeded retention time yet, and nextCheck period it's valid
-    time_t nextCheck = oldestMsgTs + mRetentionTime - time(nullptr);
-    assert(nextCheck > 0);
+    time_t nextCheck = oldestMsgTs + mRetentionTime;
     if (updateTimer)
     {
         mChatdClient.updateRetentionCheckPeriod(nextCheck, false);
