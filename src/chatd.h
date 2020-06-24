@@ -1385,9 +1385,9 @@ protected:
     /**
      * @brief Remove those messages that exceed the retention time frame for this chat.
      * @param updateTimer - if false, it ensures that updateRetentionCheckPeriod won't be called.
-     * This param is needed, to avoid infitite loops when this method is called upon timeout expiration.
+     * This param is needed, to avoid infitite loops, when this method is called upon timeout expiration.
      *
-     * @return the period (in seconds) until next retention history check.
+     * @return the timestamp when the next retention history check must be done for this chat.
      */
     time_t handleRetentionTime(bool updateTimer = true);
 
@@ -1396,9 +1396,9 @@ protected:
     Idx getIdxByRetentionTime();
 
     /**
-     * @brief Returns the period (in seconds) until next retention history check.
+     * @brief Returns the timestamp, when the next retention history check must be done for this chat
      * @param updateTimer - if false, it ensures that updateRetentionCheckPeriod won't be called.
-     * @return the period (in seconds) until next retention history check.
+     * @return the timestamp, when the next retention history check must be done for this chat.
      */
     time_t nextRetentionHistCheck(bool updateTimer = true);
 
@@ -1461,8 +1461,8 @@ protected:
     /** Handler of the timeout for retention history checks */
     megaHandle mRetentionTimer;
 
-    /** Period in seconds until next check of retention history for all chats, or zero (disabled) */
-    uint32_t mRetentionCheckPeriod;
+    /** Timestamp of the next check of retention history for all chats, or zero (disabled) */
+    uint32_t mRetentionCheckTs;
 
 public:
     // Chatd Version:
@@ -1534,38 +1534,38 @@ public:
     mega::m_time_t getLastMsgTs(karere::Id userid) const;
     void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
 
-    // Update mRetentionCheckPeriod if force is true or nextCheck is smaller than current value
+    // Update mRetentionCheckTs if force is true or nextCheck is smaller than current value
     /**
-     * @brief Update mRetentionCheckPeriod and set a new timer if required.
-     * mRetentionCheckPeriod will be updated in the following cases:
+     * @brief Update mRetentionCheckTs and set a new timer if required.
+     * mRetentionCheckTs will be updated in the following cases:
      * - force is true
      * - nextCheck != 0 and current value is 0
      * - nextCheck != 0 and nextCheck < current value
      *
-     * A new timer will be set, if mRetentionCheckPeriod has been modified and is not zero
+     * A new timer will be set, if mRetentionCheckTs has been modified and is not zero
      *
-     * @param checkPeriod - period (in seconds) until next retention history check
-     * @param force - if true force to update mRetentionCheckPeriod
+     * @param nextCheckTs - timestamp when next retention history check must be done for all chats
+     * @param force - if true force to update mRetentionCheckTs
      */
-    void updateRetentionCheckPeriod(time_t nextCheck, bool force);
+    void updateRetentionCheckTs(time_t nextCheckTs, bool force);
 
     /**
      * @brief Cancel retention history timer if active, and reset mRetentionTimer to zero.
-     * If resetPeriod is true, also reset mRetentionCheckPeriod.
+     * If resetTs is true, also reset mRetentionCheckTs.
      *
-     * @param resetPeriod - if true, reset mRetentionCheckPeriod to zero.
+     * @param resetTs - if true, reset mRetentionCheckTs to zero.
      */
-    void cancelRetentionTimer(bool resetPeriod = true);
+    void cancelRetentionTimer(bool resetTs = true);
 
     /**
      * @brief Sets a new retention history timer.
      * When timer expires, this method will iterate through all chats,
      * calling to handleRetentionTime (with false to avoid an infinite loop),
-     * and will get the smaller period until next retention history check.
+     * and will get the smaller timestamp when the next retention history check must be done.
      *
-     * Once next retention history check period is obtained, this method will call to
-     * updateRetentionCheckPeriod (with true) that ensures that mRetentionCheckPeriod
-     * will be modified and a new timer will be set if mRetentionCheckPeriod > 0
+     * Once next retention history check timestamp is obtained, this method will call to
+     * updateRetentionCheckPeriod (with true) that ensures that mRetentionCheckTs
+     * will be modified, and a new timer will be set if mRetentionCheckTs > 0
      */
     void setRetentionTimer();
 
