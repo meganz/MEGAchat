@@ -383,6 +383,15 @@ public:
         stmt.stepMustHaveData(__FUNCTION__);
         return stmt.uint64Col(0);
     }
+
+    uint32_t getOldestMsgTs() override
+    {
+        SqliteStmt stmt(mDb, "select min(ts) from history where chatid = ?");
+        stmt << mChat.chatId();
+        stmt.stepMustHaveData(__FUNCTION__);
+        return stmt.uintCol(0);
+    }
+
     virtual void setLastSeen(karere::Id msgid)
     {
         mDb.query("update chats set last_seen=? where chatid=?", msgid, mChat.chatId());
@@ -605,12 +614,12 @@ public:
         }
     }
 
-    void getIdxByRetentionTime(const time_t ts, chatd::Idx &limitIdx) override
+    chatd::Idx getIdxByRetentionTime(const time_t ts) override
     {
         // Find the most recent msg affected by retention time if any
-        SqliteStmt stmt(mDb, "select MAX(ts), MAX(idx) from history where chatid = ? and ts < ?");
+        SqliteStmt stmt(mDb, "select MAX(ts), MAX(idx) from history where chatid = ? and ts <= ?");
         stmt << mChat.chatId() << ts;
-        limitIdx = (stmt.step() && sqlite3_column_type(stmt, 1) != SQLITE_NULL) ? stmt.intCol(1) : CHATD_IDX_INVALID;
+        return (stmt.step() && sqlite3_column_type(stmt, 1) != SQLITE_NULL) ? stmt.intCol(1) : CHATD_IDX_INVALID;
     }
 
     void retentionHistoryTruncate(const chatd::Idx idx) override

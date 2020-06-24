@@ -1379,9 +1379,28 @@ protected:
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
-    void handleRetentionTime();
     void truncateByRetentionTime(Idx idx);
     void truncateAttachmentHistory();
+
+    /**
+     * @brief Remove those messages that exceed the retention time frame for this chat.
+     * @param updateTimer - if false, it ensures that updateRetentionCheckPeriod won't be called.
+     * This param is needed, to avoid infitite loops, when this method is called upon timeout expiration.
+     *
+     * @return the timestamp when the next retention history check must be done for this chat.
+     */
+    time_t handleRetentionTime(bool updateTimer = true);
+
+    /** Return the Idx corresponding to the most recent msg affected by retention history (in RAM or Db)
+     *  or CHATD_IDX_INVALID if none */
+    Idx getIdxByRetentionTime();
+
+    /**
+     * @brief Returns the timestamp, when the next retention history check must be done for this chat
+     * @param updateTimer - if false, it ensures that updateRetentionCheckPeriod won't be called.
+     * @return the timestamp, when the next retention history check must be done for this chat.
+     */
+    time_t nextRetentionHistCheck(bool updateTimer = true);
 
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
@@ -1439,6 +1458,12 @@ protected:
     promise::Promise<void> sendKeepalive();
     void sendEcho();
 
+    /** Handler of the timeout for retention history checks */
+    megaHandle mRetentionTimer;
+
+    /** Timestamp of the next check of retention history for all chats, or zero (disabled) */
+    uint32_t mRetentionCheckTs;
+
 public:
     // Chatd Version:
     // - Version 0: initial version
@@ -1457,6 +1482,9 @@ public:
     // - Version 7:
     //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
     static const unsigned chatdVersion = 7;
+
+    // Minimum retention history check period (in seconds)
+    static const unsigned kMinRetentionTimeout = 60;
 
     Client(karere::Client *aKarereClient);
     ~Client();
@@ -1505,6 +1533,41 @@ public:
     // The timestamps of the most recent message from userid
     mega::m_time_t getLastMsgTs(karere::Id userid) const;
     void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
+
+    // Update mRetentionCheckTs if force is true or nextCheck is smaller than current value
+    /**
+     * @brief Update mRetentionCheckTs and set a new timer if required.
+     * mRetentionCheckTs will be updated in the following cases:
+     * - force is true
+     * - nextCheck != 0 and current value is 0
+     * - nextCheck != 0 and nextCheck < current value
+     *
+     * A new timer will be set, if mRetentionCheckTs has been modified and is not zero
+     *
+     * @param nextCheckTs - timestamp when next retention history check must be done for all chats
+     * @param force - if true force to update mRetentionCheckTs
+     */
+    void updateRetentionCheckTs(time_t nextCheckTs, bool force);
+
+    /**
+     * @brief Cancel retention history timer if active, and reset mRetentionTimer to zero.
+     * If resetTs is true, also reset mRetentionCheckTs.
+     *
+     * @param resetTs - if true, reset mRetentionCheckTs to zero.
+     */
+    void cancelRetentionTimer(bool resetTs = true);
+
+    /**
+     * @brief Sets a new retention history timer.
+     * When timer expires, this method will iterate through all chats,
+     * calling to handleRetentionTime (with false to avoid an infinite loop),
+     * and will get the smaller timestamp when the next retention history check must be done.
+     *
+     * Once next retention history check timestamp is obtained, this method will call to
+     * updateRetentionCheckPeriod (with true) that ensures that mRetentionCheckTs
+     * will be modified, and a new timer will be set if mRetentionCheckTs > 0
+     */
+    void setRetentionTimer();
 
     friend class Connection;
     friend class Chat;
@@ -1620,6 +1683,7 @@ public:
     virtual bool removeChatVar (const char *name) = 0;
 
     virtual Idx getOldestIdx() = 0;
+    virtual uint32_t getOldestMsgTs() = 0;
     virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs) = 0;
@@ -1640,7 +1704,7 @@ public:
     virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) = 0;
 
     //  <<<--- Retention history methods --->>>
-    virtual void getIdxByRetentionTime(time_t, chatd::Idx &) = 0;
+    virtual chatd::Idx getIdxByRetentionTime(time_t) = 0;
     virtual void retentionHistoryTruncate(const chatd::Idx idx) = 0;
 };
 
