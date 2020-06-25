@@ -67,6 +67,7 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
 @property (readonly, nonatomic) NSInteger messageIndex;
 @property (readonly, nonatomic) uint64_t userHandle;
 @property (readonly, nonatomic) MEGAChatMessageType type;
+@property (readonly, nonatomic) BOOL hasReactions;
 @property (readonly, nonatomic) NSDate *timestamp;
 @property (readonly, nonatomic) NSString *content;
 @property (readonly, nonatomic, getter=isEdited) BOOL edited;
