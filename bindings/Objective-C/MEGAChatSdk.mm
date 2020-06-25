@@ -861,6 +861,26 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->removeUnsentMessage(chatId, rowId);
 }
 
+- (void)addReactionForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction {
+    self.megaChatApi->addReaction(chatId, messageId, reaction ? [reaction UTF8String] : NULL);
+}
+
+- (void)deleteReactionForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction {
+    self.megaChatApi->delReaction(chatId, messageId, reaction ? [reaction UTF8String] : NULL);
+}
+
+- (NSInteger)getMessageReactionCountForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction {
+    return self.megaChatApi->getMessageReactionCount(chatId, messageId, reaction ? [reaction UTF8String] : NULL);
+}
+
+- (MEGAStringList *)getMessageReactionsForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
+    return self.megaChatApi ? [[MEGAStringList alloc] initWithMegaStringList:self.megaChatApi->getMessageReactions(chatId, messageId) cMemoryOwn:YES] : nil;
+}
+
+- (MEGAHandleList *)getReactionUsersForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction {
+    return self.megaChatApi ? [MEGAHandleList.alloc initWithMegaHandleList:self.megaChatApi->getReactionUsers(chatId, messageId, reaction ? [reaction UTF8String] : NULL) cMemoryOwn:YES] : nil;
+}
+
 - (void)sendTypingNotificationForChat:(uint64_t)chatId {
     self.megaChatApi->sendTypingNotification(chatId);
 }
