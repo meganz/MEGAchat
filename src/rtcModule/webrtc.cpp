@@ -2825,7 +2825,7 @@ void Call::enableAudioLevelMonitor(bool enable)
 
     for (auto& sessionIt : mSessions)
     {
-        if (sessionIt.second->mRemotePlayer->isAudioAttached())
+        if (sessionIt.second->mRemotePlayer && sessionIt.second->mRemotePlayer->isAudioAttached())
         {
             if (mAudioLevelMonitorEnabled)
             {
