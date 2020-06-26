@@ -618,7 +618,7 @@ public:
     {
         // Find the most recent msg affected by retention time if any
         SqliteStmt stmt(mDb, "select MAX(ts), MAX(idx) from history where chatid = ? and ts <= ?");
-        stmt << mChat.chatId() << ts;
+        stmt << mChat.chatId() << static_cast<uint32_t>(ts);
         return (stmt.step() && sqlite3_column_type(stmt, 1) != SQLITE_NULL) ? stmt.intCol(1) : CHATD_IDX_INVALID;
     }
 
