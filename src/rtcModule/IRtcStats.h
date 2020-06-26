@@ -19,9 +19,9 @@ struct BwInfo
 
 struct Sample
 {
-    int64_t ts;
-    int lq;         // network quality
-    long f;         // Av flags + cpu limit resolution + bandwith limit resolution
+    int64_t ts = 0;
+    int lq = 0;         // network quality
+    long f = 0;         // Av flags + cpu limit resolution + bandwith limit resolution
     struct
     {
         long rtt = 0;               // Round-Trip delay Time

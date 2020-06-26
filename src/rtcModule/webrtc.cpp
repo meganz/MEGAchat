@@ -319,24 +319,6 @@ bool RtcModule::selectVideoInDevice(const string &devname)
     return false;
 }
 
-void RtcModule::onDisconnect(chatd::Connection& conn)
-{
-    // notify all relevant calls
-    for (auto chatid: conn.chatIds())
-    {
-        auto it = mCalls.find(chatid);
-        if (it == mCalls.end())
-        {
-            continue;
-        }
-        auto& call = it->second;
-        if (call->state() < Call::kStateTerminating)
-        {
-            call->destroy(TermCode::kErrNetSignalling, false);
-        }
-    }
-}
-
 int RtcModule::setIceServers(const ServerList &servers)
 {
     if (servers.empty())
@@ -446,6 +428,26 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
     else if (state == Call::CallDataState::kCallDataEnd)
     {
+        auto itCall = mCalls.find(chatid);
+        if (itCall == mCalls.end())
+        {
+            return;
+        }
+
+        if (!chat.isGroup() && itCall->second->state() < Call::kStateTerminating)
+        {
+            itCall->second->destroy(static_cast<TermCode>(TermCode::kUserHangup | TermCode::kPeer), "Terminating when there isn't session");
+            return;
+        }
+
+        EndpointId endPointId(userid, clientid);
+        if (chat.isGroup() && itCall->second->mSessRetries.find(endPointId) != itCall->second->mSessRetries.end())
+        {
+            itCall->second->cancelSessionRetryTimer(userid, clientid);
+            itCall->second->destroyIfNoSessionsOrRetries(static_cast<TermCode>(TermCode::kUserHangup | TermCode::kPeer));
+            return;
+        }
+
         // Peer will be removed from call participants with OP_ENDCALL
         RTCM_LOG_DEBUG("Ignoring kCallDataEnd CALLDATA: %s", callid.toString().c_str());
         return;
@@ -478,7 +480,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
                                  "The call should have already been taken out of this state by a RTMSG");
             }
 
-            itCall->second->destroy(TermCode::kAnswerTimeout, false);
+            itCall->second->destroy(TermCode::kAnswerTimeout, false, "Force destroy the call by CALLDATA, the call should be destroyed by RTMSG");
         }
     }
     else
@@ -776,16 +778,14 @@ void RtcModule::stopCallsTimers(int shard)
 
 void RtcModule::handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid)
 {
-    auto callHandlerIt = mCallHandlers.find(chatid);
-    // Call doesn't exist and user isn't participating then create the callHandler (if it's necessary) and add participant to call
-    if (callHandlerIt == mCallHandlers.end() || !callHandlerIt->second->isParticipating(userid))
+    auto& chat = mKarereClient.mChatdClient->chats(chatid);
+
+    // Our own flags are set in `Call::startOrJoin and happend before this`
+    if (userid != mKarereClient.myHandle() || clientid != chat.connection().clientId())
     {
         updatePeerAvState(chatid, Id::inval(), userid, clientid, AvFlags(false, false));
     }
-    else
-    {
-        callHandlerIt->second->addParticipant(userid, clientid, AvFlags(false, false));
-    }
+
 }
 
 void RtcModule::handleCallTime(karere::Id chatid, uint32_t duration)
@@ -889,7 +889,7 @@ void RtcModule::removeCall(Id chatid, bool retry)
         }
 
         RTCM_LOG_DEBUG("Remove Call on state disconnected: %s", chatid.toString().c_str());
-        pms = itCall->second->destroy(TermCode::kErrPeerOffline, false);
+        pms = itCall->second->destroy(TermCode::kErrPeerOffline, false, "Destroy call by network disconnection, call retry has been launched if necessary");
     }
 
     auto wptr = weakHandle();
@@ -1067,7 +1067,7 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
     {
         RTCM_LOG_WARNING("We have been removed from chatroom: %s, and we are in a call. Finishing the call", chatid.toString().c_str());
         auto wptr = weakHandle();
-        callIt->second->destroy(TermCode::kErrKickedFromChat, true)
+        callIt->second->destroy(TermCode::kErrKickedFromChat, true, "Destroy the call due to we have been removed from chatroom")
         .then([this, chatid, wptr]()
         {
             if (wptr.deleted())
@@ -1180,7 +1180,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
             itHandler->second->removeParticipant(userid, clientid);
         }
 
-        existingCall->destroy(TermCode::kErrAlready, false);
+        existingCall->destroy(TermCode::kErrAlready, false, "We have a call collision and we remove the call and answer the other one");
     }
     else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && itCallHandler->second->isParticipating(myHandle))
     {
@@ -1204,7 +1204,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         {
             if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
                 return;
-            static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
+            static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false, "Destroy call due it has not been answer after timeout");
         }, kCallAnswerTimeout+4000, mKarereClient.appCtx); // local timeout a bit longer that the caller
     }
     else
@@ -1407,11 +1407,11 @@ void Call::msgCallReqCancel(RtMessage& packet)
     auto term = packet.payload.read<uint8_t>(8);
     if (term == TermCode::kUserHangup)
     {
-        destroy(static_cast<TermCode>(kCallReqCancel | TermCode::kPeer), false);
+        destroy(static_cast<TermCode>(kCallReqCancel | TermCode::kPeer), false, "Call request has been cancelled by the caller");
     }
     else
     {
-        destroy(static_cast<TermCode>(term | TermCode::kPeer), false);
+        destroy(static_cast<TermCode>(term | TermCode::kPeer), false, "Call request has been cancelled by other reason");
     }
 }
 
@@ -1469,7 +1469,7 @@ void Call::handleReject(RtMessage& packet)
             SUB_LOG_WARNING("Ignoring CALL_REQ_DECLINE. There are active sessions already, so the call is in progress.");
             return;
         }
-        destroy(static_cast<TermCode>(TermCode::kCallRejected | TermCode::kPeer), false);
+        destroy(static_cast<TermCode>(TermCode::kCallRejected | TermCode::kPeer), false, "Call request has been rejected");
     }
     else // Call has been rejected by other client from same user
     {
@@ -1481,7 +1481,7 @@ void Call::handleReject(RtMessage& packet)
             return;
         }
 
-        destroy(static_cast<TermCode>(TermCode::kRejElsewhere), false);
+        destroy(static_cast<TermCode>(TermCode::kRejElsewhere), false, "Call request has been rejected by other client from same user");
     }
 }
 
@@ -1521,7 +1521,7 @@ void Call::handleBusy(RtMessage& packet)
     }
     if (!mIsGroup && mSessions.empty())
     {
-        destroy(static_cast<TermCode>(TermCode::kBusy | TermCode::kPeer), false);
+        destroy(static_cast<TermCode>(TermCode::kBusy | TermCode::kPeer), false, "The peer has rejected the call because it's busy");
     } else
     {
         SUB_LOG_WARNING("Ignoring incoming BUSY for a group call or one with already existing session(s)");
@@ -1588,7 +1588,7 @@ void Call::msgJoin(RtMessage& packet)
         // (indicating that a session has been established with our user, but other users should
         // keep ringing), this client does not start ringing again
         mHandler->addParticipant(packet.userid, packet.clientid, karere::AvFlags());
-        destroy(TermCode::kAnsElsewhere, false);
+        destroy(TermCode::kAnsElsewhere, false, "In 1on1, the call has been answer in other peer");
     }
     else if (!packet.chat.isGroup() && hasSessionWithUser(packet.userid))
     {
@@ -1875,7 +1875,7 @@ bool Call::cmdBroadcast(uint8_t type, Args... args)
     {
         if (wptr.deleted())
             return;
-        destroy(TermCode::kErrNetSignalling, false);
+        destroy(TermCode::kErrNetSignalling, false, "Failure to send BroadCast command");
     }, mManager.mKarereClient.appCtx);
     return false;
 }
@@ -1909,7 +1909,7 @@ bool Call::broadcastCallReq()
         {
             if (mNotSupportedAnswer && !mChat.isGroup())
             {
-                destroy(static_cast<TermCode>(TermCode::kErrNotSupported | TermCode::kPeer), true);
+                destroy(static_cast<TermCode>(TermCode::kErrNotSupported | TermCode::kPeer), true, "No peer has webrtc capabilities to answer the call");
             }
             else
             {
@@ -1948,7 +1948,7 @@ void Call::asyncDestroy(TermCode code, bool weTerminate)
     {
         if (wptr.deleted())
             return;
-        destroy(code, weTerminate);
+        destroy(code, weTerminate, "Failure to send a command");
     }, mManager.mKarereClient.appCtx);
 }
 
@@ -2124,7 +2124,7 @@ bool Call::join(Id userid)
             return;
         if (mState <= Call::kStateJoining)
         {
-            destroy(TermCode::kErrSessSetupTimeout, true);
+            destroy(TermCode::kErrSessSetupTimeout, true, "In state joining, call hasn't progressed to correct state");
         }
     }, RtcModule::kSessSetupTimeout, mManager.mKarereClient.appCtx);
     return true;
@@ -2191,7 +2191,7 @@ bool Call::sendCallData(CallDataState state)
         {
             if (wptr.deleted())
                 return;
-            destroy(TermCode::kErrNetSignalling, true);
+            destroy(TermCode::kErrNetSignalling, true, "Failure to send Calldata");
         }, mManager.mKarereClient.appCtx);
 
         return false;
@@ -2532,7 +2532,7 @@ void Call::hangup(TermCode reason)
                    || reason == TermCode::kAppTerminating);
         }
 
-        destroy(reason, true);
+        destroy(reason, true, "Cancel call request in caller");
         return;
 
     case kStateRingIn:
@@ -2547,7 +2547,7 @@ void Call::hangup(TermCode reason)
             reason = TermCode::kInvalid;
         }
         assert(mSessions.empty());
-        destroy(reason, true);
+        destroy(reason, true, "Reject call request in callee");
         return;
 
     case kStateJoining:
@@ -2575,7 +2575,7 @@ void Call::hangup(TermCode reason)
     }
 
     // in any state, we just have to send CALL_TERMINATE and that's all
-    destroy(reason, true);
+    destroy(reason, true, "Hangup the cal");
 }
 
 Call::~Call()
@@ -2621,13 +2621,32 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         }
 
         SUB_LOG_DEBUG("ENDCALL received for ourselves, finishing the call");
-        destroy(TermCode::kErrNetSignalling, false);
+        auto wptr = weakHandle();
+        destroy(TermCode::kErrNetSignalling, false, "ENDCALL received for ourselves, finishing the call")
+        .then([wptr, this]
+        {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
+            karere::Id chatid = chat().chatId();
+            auto it = mManager.mRetryCall.find(chatid);
+            if (it == mManager.mRetryCall.end())
+            {
+                karere::AvFlags flags = sentAv();
+                mManager.mRetryCall[chatid] = std::pair<karere::AvFlags, bool>(flags, true);
+                auto itHandler = mManager.mCallHandlers.find(chatid);
+                mManager.joinCall(chatid, flags, *itHandler->second, mId);
+                mManager.mRetryCall.erase(chatid);
+            }
+        });
         return;
     }
 
     if (mState == kStateRingIn && isCaller(userid, clientid))   // caller went offline
     {
-        destroy(TermCode::kCallerGone, false);
+        destroy(TermCode::kCallerGone, false, "Caller has lost its connection, destroy the call");
         return;
     }
 
@@ -3286,6 +3305,7 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
             return;
         }
 
+        mManager.updatePeerAvState(mCall.chat().chatId(), mCall.id(), mPeer, mPeerClient, mPeerAv);
         setState(kStateInProgress);
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
@@ -3469,7 +3489,7 @@ bool Session::cmd(uint8_t type, Args... args)
     {
         if (mState < kStateTerminating)
         {
-            mCall.destroy(TermCode::kErrNetSignalling, false);
+            mCall.destroy(TermCode::kErrNetSignalling, false, "Failure to send command");
         }
         return false;
     }

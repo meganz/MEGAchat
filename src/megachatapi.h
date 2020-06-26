@@ -2051,11 +2051,6 @@ public:
     virtual bool isPending() const;
 
     /**
-     * @return True if the app is required to call MegaChatApi::signalPresenceActivity
-     */
-    virtual bool isSignalActivityRequired() const;
-
-    /**
      * @return True if our last green is visible to other users
      */
     virtual bool isLastGreenVisible() const;
