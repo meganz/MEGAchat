@@ -35,6 +35,13 @@ void QTMegaChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *
     QCoreApplication::postEvent(this, event, INT_MIN);
 }
 
+void QTMegaChatRoomListener::onHistoryTruncatedByRetentionTime(MegaChatApi *api, MegaChatMessage *msg)
+{
+    QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::OnHistoryTruncatedByRetentionTime);
+    event->setChatMessage(msg->copy());
+    QCoreApplication::postEvent(this, event, INT_MIN);
+}
+
 void QTMegaChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
 {
     QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::OnMessageReceived);
@@ -87,6 +94,9 @@ void QTMegaChatRoomListener::customEvent(QEvent *e)
             break;
         case QTMegaChatEvent::OnReactionUpdated:
             if (listener) listener->onReactionUpdate(event->getMegaChatApi(), event->getChatHandle(), event->getBuffer(), event->getWidth());
+            break;
+        case QTMegaChatEvent::OnHistoryTruncatedByRetentionTime:
+            if (listener) listener->onHistoryTruncatedByRetentionTime(event->getMegaChatApi(), event->getChatMessage());
             break;
         default:
             break;

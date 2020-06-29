@@ -476,6 +476,14 @@ std::string ChatMessage::managementInfoToString() const
                     .append(" converted chat into private mode ");
             break;
         }
+        case megachat::MegaChatMessage::TYPE_SET_RETENTION_TIME:
+        {
+            ret.append("User ").append(userHandle_64)
+                    .append(" set retention time ")
+                    .append(std::to_string(mMessage->getPrivilege()))
+                    .append(" seconds");
+            break;
+        }
         default:
         {
             ret.append("Management message with unknown type: ")

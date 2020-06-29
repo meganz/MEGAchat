@@ -196,6 +196,9 @@ public:
 
     bool hasChatHandler() const;
 
+    /** @brief Returns the retention time of the chatroom */
+    uint32_t getRetentionTime() const { return mChat->getRetentionTime();}
+
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
@@ -227,6 +230,7 @@ public:
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
     promise::Promise<void> archiveChat(bool archive);
+    promise::Promise<void> setChatRetentionTime(int period);
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes) = 0;
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node) = 0;
