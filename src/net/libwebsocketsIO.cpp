@@ -321,6 +321,12 @@ static bool check_public_key(X509_STORE_CTX* ctx)
     EVP_PKEY* evp;
     if ((evp = X509_PUBKEY_get(X509_get_X509_PUBKEY(X509_STORE_CTX_get0_cert(ctx)))))
     {
+        if (EVP_PKEY_id(evp) != EVP_PKEY_RSA)
+        {
+            WEBSOCKETS_LOG_ERROR("Invalid public key algorithm detected");
+            return false;
+        }
+
         if (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLMODULUS1 - 1
             && BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLEXPONENT - 1)
         {
@@ -339,6 +345,7 @@ static bool check_public_key(X509_STORE_CTX* ctx)
         EVP_PKEY_free(evp);
     }
 
+    WEBSOCKETS_LOG_ERROR("Invalid public key");
     return false;
 }
 
@@ -354,6 +361,11 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             if (check_public_key((X509_STORE_CTX*)user))
             {
                 X509_STORE_CTX_set_error((X509_STORE_CTX*)user, X509_V_OK);
+            }
+            else
+            {
+                X509_STORE_CTX_set_error((X509_STORE_CTX*)user, X509_V_ERR_APPLICATION_VERIFICATION);
+                return -1;
             }
             break;
         }

@@ -465,6 +465,7 @@ public:
     void fireOnChatRoomUpdate(MegaChatRoom *chat);
     void fireOnMessageLoaded(MegaChatMessage *msg);
     void fireOnMessageReceived(MegaChatMessage *msg);
+    void fireOnHistoryTruncatedByRetentionTime(MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
     void fireOnHistoryReloaded(MegaChatRoom *chat);
     void fireOnReactionUpdate(MegaChatHandle msgid, const char *reaction, int count);
@@ -501,6 +502,7 @@ public:
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
     virtual void onUnreadChanged();
+    void onRetentionTimeUpdated(unsigned int period) override;
     void onPreviewersUpdate();
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
@@ -512,6 +514,7 @@ public:
     virtual void onHistoryReloaded();
     virtual void onChatModeChanged(bool mode);
     virtual void onReactionUpdate(karere::Id msgid, const char *reaction, int count);
+    void onHistoryTruncatedByRetentionTime(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -746,7 +749,9 @@ public:
 
     virtual int getUnreadCount() const;
     virtual MegaChatHandle getUserTyping() const;
+    unsigned int getRetentionTime() const override;
 
+    void setRetentionTime(unsigned int period);
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void changeUnreadCount();
@@ -779,6 +784,7 @@ private:
     int unreadCount;
     unsigned int mNumPreviewers;
     MegaChatHandle uh;
+    uint32_t mRetentionTime;
 
 public:
     // you take the ownership of return value
@@ -845,6 +851,7 @@ public:
     virtual const MegaChatContainsMeta *getContainsMeta() const;
     virtual mega::MegaHandleList *getMegaHandleList() const;
     virtual int getDuration() const;
+    int getRetentionTime() const override;
     virtual int getTermCode() const;
 
     virtual int getChanges() const;
@@ -1128,6 +1135,7 @@ public:
     void setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
+    void setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener = NULL);
 
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);

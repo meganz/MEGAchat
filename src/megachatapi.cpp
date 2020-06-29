@@ -657,6 +657,11 @@ void MegaChatApi::archiveChat(MegaChatHandle chatid, bool archive, MegaChatReque
     pImpl->archiveChat(chatid, archive, listener);
 }
 
+void MegaChatApi::setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener)
+{
+    pImpl->setChatRetentionTime(chatid, period, listener);
+}
+
 bool MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
     return pImpl->openChatRoom(chatid, listener);
@@ -1364,6 +1369,11 @@ bool MegaChatRoom::isArchived() const
     return false;
 }
 
+unsigned int MegaChatRoom::getRetentionTime() const
+{
+    return 0;
+}
+
 int64_t MegaChatRoom::getCreationTs() const
 {
     return 0;
@@ -1595,6 +1605,11 @@ void MegaChatRoomListener::onReactionUpdate(MegaChatApi* /*api*/, MegaChatHandle
 
 }
 
+void MegaChatRoomListener::onHistoryTruncatedByRetentionTime(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/)
+{
+
+}
+
 MegaChatMessage *MegaChatMessage::copy() const
 {
     return NULL;
@@ -1781,6 +1796,11 @@ MegaHandleList *MegaChatMessage::getMegaHandleList() const
 }
 
 int MegaChatMessage::getDuration() const
+{
+    return 0;
+}
+
+int MegaChatMessage::getRetentionTime() const
 {
     return 0;
 }

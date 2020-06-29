@@ -2706,6 +2706,11 @@ promise::Promise<void> ChatRoom::archiveChat(bool archive)
     });
 }
 
+promise::Promise<void> ChatRoom::setChatRetentionTime(int period)
+{
+    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatRetentionTime, chatid(), period);
+}
+
 void GroupChatRoom::deleteSelf()
 {
     //have to post a delete on the event loop, as there may be pending
@@ -3975,12 +3980,31 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
             Contact *contact = new Contact(*this, userid, email, newVisibility, ts, nullptr);
             emplace(userid, contact);
 
+            // find if there is a 1on1 room with this contact
+            // (in case on 1on1 with users who canceled and restored their account,
+            // MEGAchat knows about the chatroom but not about the contact)
+            for (auto &it : *client.chats)
+            {
+                if (it.second->isGroup())
+                    continue;
+
+                auto chat = static_cast<PeerChatRoom*>(it.second);
+                if (chat->peer() == userid)
+                {
+                    KR_LOG_WARNING("Contact restored (%s) for a 1on1 room (%s)",
+                                   Id(userid).toString().c_str(),
+                                   Id(chat->chatid()).toString().c_str());
+
+                    chat->initContact(userid);
+                    break;
+                }
+            }
+
             KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
 
             // If the user was part of a group before being added as a contact, we need to update user attributes,
             // currently firstname, lastname and email, in order to ensure that are re-fetched for users
             // with group chats previous to establish contact relationship
-            assert(!changed || userid == client.myHandle());   // new users have no changes (expect own user, who updates some attrs upon login)
             changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME | ::mega::MegaUser::CHANGE_TYPE_EMAIL;
             updateCache = true;
         }

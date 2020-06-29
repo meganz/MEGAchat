@@ -542,7 +542,6 @@ void MainWindow::on_bSettings_clicked()
 
     menu.setAttribute(Qt::WA_DeleteOnClose);
 
-
     // Chats
     QMenu *chatMenu = menu.addMenu("Chats");
 

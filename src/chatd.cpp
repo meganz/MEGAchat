@@ -114,6 +114,8 @@ namespace chatd
 
 Client::Client(karere::Client *aKarereClient) :
     mMyHandle(aKarereClient->myHandle()),
+    mRetentionTimer(0),
+    mRetentionCheckTs(0),
     mApi(&aKarereClient->api),
     mKarereClient(aKarereClient)
 {
@@ -360,6 +362,73 @@ bool Client::isMessageReceivedConfirmationActive() const
 void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
 {
     mLastMsgTs[userid] = lastMsgTs;
+}
+
+void Client::updateRetentionCheckTs(time_t nextCheckTs, bool force)
+{
+    bool setTimer = false;
+    if (force || (nextCheckTs && (!mRetentionCheckTs || nextCheckTs < mRetentionCheckTs)))
+    {
+        setTimer = true;
+        mRetentionCheckTs = static_cast<uint32_t>(nextCheckTs);
+        CHATD_LOG_DEBUG("set retention history check ts: %d", nextCheckTs);
+    }
+
+    if (mRetentionCheckTs && setTimer)
+    {
+        setRetentionTimer();
+    }
+}
+
+void Client::cancelRetentionTimer(bool resetTs)
+{
+    if (mRetentionTimer)
+    {
+        cancelTimeout(mRetentionTimer, mKarereClient->appCtx);
+        mRetentionTimer = 0;
+    }
+
+    if (resetTs)
+    {
+        mRetentionCheckTs = 0;
+        CHATD_LOG_DEBUG("retention history check period reset");
+    }
+}
+
+void Client::setRetentionTimer()
+{
+    time_t retentionPeriod = mRetentionCheckTs - time(nullptr);
+    assert(retentionPeriod > 0); // next timer period (in seconds) must be a valid
+
+    // Avoid set timer with a smaller period than kMinRetentionTimeout, upon previous timer expiration.
+    // If there's an active timer, it's licit to set a timer with a smaller period than kMinRetentionTimeout.
+    retentionPeriod = (!mRetentionTimer && retentionPeriod > 0 && retentionPeriod < kMinRetentionTimeout)
+            ? kMinRetentionTimeout
+            : retentionPeriod;
+
+    cancelRetentionTimer(false); // cancel timer if any, but keep mRetentionCheckTs
+    CHATD_LOG_DEBUG("set timer for next retention history check to %d (seconds):", retentionPeriod);
+    auto wptr = weakHandle();
+    mRetentionTimer = karere::setTimeout([this, wptr]()
+    {
+        if (wptr.deleted())
+          return;
+
+        mRetentionTimer = 0; // it's important to reset here
+
+        // Get the min check period
+        time_t minTs = 0;
+        for (auto& chat: mChatForChatId)
+        {
+            // Call with false, to avoid infinite loop by calling setRetentionTimer
+            time_t nextRetentionTs = chat.second->handleRetentionTime(false);
+            if (nextRetentionTs && (nextRetentionTs < minTs || !minTs))
+            {
+                minTs = nextRetentionTs;
+            }
+        }
+        updateRetentionCheckTs(minTs, true);
+    }, retentionPeriod * 1000 , mKarereClient->appCtx);
 }
 
 uint8_t Client::richLinkState() const
@@ -1040,7 +1109,7 @@ void Connection::heartbeat()
     if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
     {
         CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
-
+        mChatdClient.cancelRetentionTimer(); // Cancel retention timer
         setState(kStateDisconnected);
         abortRetryController();
         reconnect();
@@ -2013,6 +2082,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(period, 16);
                 CHATDS_LOG_DEBUG("%s: recv RETENTION by user '%s' to %u second(s)",
                                 ID_CSTR(chatid), ID_CSTR(userid), period);
+
+                auto &chat = mChatdClient.chats(chatid);
+                chat.onRetentionTimeUpdated(period);
                 break;
             }
             case OP_MSGID:
@@ -2394,6 +2466,7 @@ void Chat::onHistDone()
         if (isFetchingFromServer()) //HISTDONE is received for new history or after JOINRANGEHIST
         {
             onFetchHistDone();
+            handleRetentionTime();
         }
         if (isJoining())
         {
@@ -2566,11 +2639,6 @@ Idx Chat::lastIdxReceivedFromServer() const
     return mLastIdxReceivedFromServer;
 }
 
-Id Chat::lastIdReceivedFromServer() const
-{
-    return mLastIdReceivedFromServer;
-}
-
 bool Chat::isGroup() const
 {
     return mIsGroup;
@@ -2731,10 +2799,11 @@ void Chat::initChat()
     mLastSeenIdx = CHATD_IDX_INVALID;
     mLastReceivedIdx = CHATD_IDX_INVALID;
     mNextHistFetchIdx = CHATD_IDX_INVALID;
-    mLastIdReceivedFromServer = 0;
+    mOldestIdxInDb = CHATD_IDX_INVALID;
     mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
     mLastServerHistFetchCount = 0;
     mLastHistDecryptCount = 0;
+    mRetentionTime = 0;
 
     mLastTextMsg.clear();
     mEncryptionHalted = false;
@@ -3734,6 +3803,7 @@ void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
 Client::~Client()
 {
     cancelSeenTimers();
+    cancelRetentionTimer();
     mKarereClient->userAttrCache().removeCb(mRichPrevAttrCbHandle);
 }
 
@@ -3867,6 +3937,11 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
     }
 
     CALL_DB(addMsgToHistory, *msg, idx);
+    if (mOldestIdxInDb == CHATD_IDX_INVALID)
+    {
+        mOldestIdxInDb = idx;
+        handleRetentionTime();
+    }
 
     assert(msg->backRefId);
     if (!mRefidToIdxMap.emplace(msg->backRefId, idx).second)
@@ -4306,6 +4381,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
     CALL_CRYPTO(resetSendKey);      // discard current key, if any
     CALL_DB(truncateHistory, msg);
+    mOldestIdxInDb = idx;
     if (idx != CHATD_IDX_INVALID)   // message is loaded in RAM
     {
         //GUI must detach and free any resources associated with
@@ -4343,8 +4419,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         if (mChatdClient.isMessageReceivedConfirmationActive() && mLastIdxReceivedFromServer <= idx)
         {
             mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
-            mLastIdReceivedFromServer = karere::Id::null();
-            // TODO: the update of those variables should be persisted
+            // TODO: the update of this variable should be persisted
         }
     }
 
@@ -4356,7 +4431,132 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
     mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
+    truncateAttachmentHistory();
+}
 
+time_t Chat::handleRetentionTime(bool updateTimer)
+{
+    if (!mRetentionTime || mOldestIdxInDb == CHATD_IDX_INVALID)
+    {
+        // If retentionTime is disabled or there's no messages to truncate
+        return 0;
+    }
+
+    // Get idx of the most recent msg affected by retention time, if any
+    chatd::Idx idx = getIdxByRetentionTime();
+    if (idx == CHATD_IDX_INVALID)
+    {
+        // If there are no messages to remove
+        return nextRetentionHistCheck(updateTimer);
+    }
+
+    bool notifyUnreadChanged = (idx >= mLastSeenIdx) || (mLastSeenIdx == CHATD_IDX_INVALID);
+    Message *msg = findOrNull(idx);
+    if (msg)
+    {
+       CALL_LISTENER(onHistoryTruncatedByRetentionTime, *msg, idx, getMsgStatus(*msg, idx));
+    }
+
+    // Clean affected messages in db and RAM
+    CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
+    CALL_DB(retentionHistoryTruncate, idx);
+    truncateByRetentionTime(idx);
+
+    removePendingRichLinks(idx);
+
+    // update oldest index in db
+    mOldestIdxInDb = (idx + 1 <= highnum()) ? idx + 1 : CHATD_IDX_INVALID;
+
+    if (mOldestIdxInDb == CHATD_IDX_INVALID) // If there's no messages in db
+    {
+        mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+        mHaveAllHistory = true;
+        mHasMoreHistoryInDb = false;
+        CALL_DB(setHaveAllHistory, true);
+    }
+
+    if (empty()) // There's no messages loaded in RAM
+    {
+        mForwardStart = CHATD_IDX_RANGE_MIDDLE;
+
+        mLastSeenIdx = CHATD_IDX_INVALID;
+        mLastSeenId = 0;
+        CALL_DB(setLastSeen, 0);
+
+        mLastReceivedIdx = CHATD_IDX_INVALID;
+        mLastReceivedId = 0;
+        CALL_DB(setLastReceived, 0);
+
+        mAttachmentNodes->truncateHistory(Id::inval());
+
+        mOldestKnownMsgId = 0;
+        mNextHistFetchIdx = CHATD_IDX_INVALID;
+    }
+    else
+    {
+        // Find oldest msg id in loaded messages in RAM
+        if (!mBackwardList.empty())
+        {
+            mOldestKnownMsgId =  mBackwardList.back()->id();
+        }
+        else if (!mForwardList.empty())
+        {
+            mOldestKnownMsgId = mForwardList.front()->id();
+        }
+
+        truncateAttachmentHistory();
+    }
+
+    if (notifyUnreadChanged)
+    {
+        CALL_LISTENER(onUnreadChanged);
+    }
+    return nextRetentionHistCheck(updateTimer);
+}
+
+Idx Chat::getIdxByRetentionTime()
+{
+    time_t expireRetentionTs = time(nullptr) - mRetentionTime;
+    for (Idx i = highnum(); i >= lownum(); i--)
+    {
+        if (at(i).ts <= expireRetentionTs)
+        {
+            return i;
+        }
+    }
+
+    if (lownum() == mOldestIdxInDb)
+    {
+        assert(!mHasMoreHistoryInDb);
+        return CHATD_IDX_INVALID;
+    }
+
+    return mDbInterface->getIdxByRetentionTime(expireRetentionTs);
+}
+
+time_t Chat::nextRetentionHistCheck(bool updateTimer)
+{
+    if (!mRetentionTime || mOldestIdxInDb == CHATD_IDX_INVALID)
+    {
+        return 0;
+    }
+
+    Message *auxmsg = findOrNull(mOldestIdxInDb);
+    uint32_t oldestMsgTs = auxmsg
+            ? auxmsg->ts                        // Oldest msg is loaded in Ram
+            : mDbInterface->getOldestMsgTs();   // Oldest msg is loaded in Db
+
+    // Ensure that the oldest msg has not exceeded retention time yet, and nextCheck ts it's valid
+    time_t nextCheck = oldestMsgTs + mRetentionTime;
+    if (updateTimer)
+    {
+        mChatdClient.updateRetentionCheckTs(nextCheck, false);
+    }
+    return nextCheck;
+}
+
+void Chat::truncateAttachmentHistory()
+{
     // Find an attachment newer than truncate (lownum) in order to truncate node-history
     // (if no more attachments in history buffer, node-history will be fully cleared)
     Id attachmentTruncateFromId = Id::inval();
@@ -4368,6 +4568,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
             break;
         }
     }
+
     mAttachmentNodes->truncateHistory(attachmentTruncateFromId);
     if (mDecryptionAttachmentsHalted)
     {
@@ -4399,6 +4600,23 @@ void Chat::deleteMessagesBefore(Idx idx)
     else
     {
         mBackwardList.erase(mBackwardList.begin()+mForwardStart-idx, mBackwardList.end());
+    }
+}
+
+void Chat::truncateByRetentionTime(Idx idx)
+{
+    if (idx >= mForwardStart)
+    {
+        mBackwardList.clear();
+        assert(static_cast<size_t>(idx - mForwardStart + 1) <= mForwardList.size());
+        auto delCount = idx - mForwardStart;
+        auto end = mForwardList.begin() + delCount;
+        mForwardList.erase(mForwardList.begin(), end + 1);
+        mForwardStart += delCount + 1;
+    }
+    else
+    {
+        mBackwardList.erase(mBackwardList.begin() + mForwardStart - idx - 1, mBackwardList.end());
     }
 }
 
@@ -4744,6 +4962,14 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     {
         mLastHistDecryptCount++;
     }
+
+    bool checkRetentionHist = mOldestIdxInDb == CHATD_IDX_INVALID;
+    if (mOldestIdxInDb == CHATD_IDX_INVALID || idx < mOldestIdxInDb)
+    {
+        // If mOldestIdxInDb is not set, or idx is oldest that current value update it
+        mOldestIdxInDb = idx;
+    }
+
     auto msgid = msg.id();
     if (!isLocal)
     {
@@ -4762,6 +4988,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             mAttachmentNodes->addMessage(msg, isNew, false);
         }
         CALL_DB(addMsgToHistory, msg, idx);
+        if (checkRetentionHist)
+        {
+            // Call after add message to history
+            handleRetentionTime();
+        }
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mChatdClient.mMyHandle) && // message is not ours
@@ -4769,8 +5000,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
                  (idx > mLastIdxReceivedFromServer)))   // newer message than last received
         {
             mLastIdxReceivedFromServer = idx;
-            mLastIdReceivedFromServer = msgid;
-            // TODO: the update of those variables should be persisted
+            // TODO: the update of this variable should be persisted
 
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
@@ -5089,6 +5319,17 @@ void Chat::onReactionSn(Id rsn)
     CALL_DB(setReactionSn, mReactionSn.toString());
 }
 
+void Chat::onRetentionTimeUpdated(uint32_t period)
+{
+    if (mRetentionTime != period)
+    {
+        mRetentionTime = period;
+        CALL_LISTENER(onRetentionTimeUpdated, period);
+    }
+
+    handleRetentionTime();
+}
+
 void Chat::onPreviewersUpdate(uint32_t numPrev)
 {
     if ((mNumPreviewers == numPrev)
@@ -5336,6 +5577,11 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
     {
         CHATID_LOG_WARNING("recv BROADCAST <unknown_type>");
     }
+}
+
+uint32_t Chat::getRetentionTime() const
+{
+    return mRetentionTime;
 }
 
 void Client::leave(Id chatid)
