@@ -37,6 +37,7 @@ class CallGui: public QWidget
         void onMuteCam(bool);
         void onMuteMic(bool);
         void onAnswerCallBtn(bool);
+        void onCallOnHoldBtn(bool setOnHold);
     public:
         Ui::CallGui *ui;
         CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChatHandle clientid, bool local);
@@ -48,8 +49,8 @@ class CallGui: public QWidget
         virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string &msg);
         virtual void onPeerMute(karere::AvFlags state, karere::AvFlags oldState);
         virtual void onVideoRecv();
-        MegaChatHandle getPeerid();
-        MegaChatHandle getClientid();
+        MegaChatHandle getPeerid() const;
+        MegaChatHandle getClientid() const;
 
         friend class RemoteCallListener;
         friend class LocalCallListener;
@@ -58,6 +59,7 @@ class CallGui: public QWidget
         void setCall(megachat::MegaChatCall *call);
         int getIndex() const;
         void setIndex(int index);
+        void enableOnHold(bool onHold, bool local = false);
 };
 
 #endif // MAINWINDOW_H

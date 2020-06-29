@@ -130,6 +130,8 @@ protected:
     void setStreamRenegotiationTimeout();
     void renegotiationComplete();
     promise::Promise<void> setRemoteAnswerSdp(RtMessage& packet);
+    void setOnHold(bool onHold);
+    void sendAVFlags() const;
     void handleIceConnectionRecovered();
     void handleIceDisconnected();
     void cancelIceDisconnectionTimer();
@@ -180,6 +182,7 @@ class Call: public ICall
 {
     enum CallDataState
     {
+        kCallDataInvalid                = -1,
         kCallDataNotRinging             = 0,
         kCallDataRinging                = 1,
         kCallDataEnd                    = 2,
@@ -233,6 +236,8 @@ protected:
     bool mIsRingingOut = false;
     bool mHadRingAck = false;
     bool mRecovered = false;
+    CallDataState mLastCallData = kCallDataInvalid;
+    karere::AvFlags mLocalFlags;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgSession(RtMessage& packet);
@@ -272,7 +277,7 @@ protected:
     bool join(karere::Id userid=0);
     bool rejoin(karere::Id userid, uint32_t clientid);
     void sendInCallCommand();
-    bool sendCallData(Call::CallDataState state);
+    bool sendCallData(Call::CallDataState state = CallDataState::kCallDataInvalid);
     void destroyIfNoSessionsOrRetries(TermCode reason);
     bool hasNoSessionsOrPendingRetries() const;
     uint8_t convertTermCodeToCallDataCode();
@@ -281,6 +286,7 @@ protected:
     void enableAudio(bool enable);
     void enableVideo(bool enable);
     bool hasSessionWithUser(karere::Id userId);
+    void sendAVFlags();
     friend class RtcModule;
     friend class Session;
 public:
@@ -289,13 +295,14 @@ public:
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
         karere::Id callerUser, uint32_t callerClient, bool callRecovered = false);
     ~Call();
-    virtual karere::AvFlags sentAv() const;
-    virtual void hangup(TermCode reason=TermCode::kInvalid);
-    virtual bool answer(karere::AvFlags av);
-    virtual bool changeLocalRenderer(IVideoRenderer* renderer);
-    virtual karere::AvFlags muteUnmute(karere::AvFlags av);
-    virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
-    virtual std::map<karere::Id, uint8_t> sessionState() const;
+    karere::AvFlags sentFlags() const override;
+    void hangup(TermCode reason=TermCode::kInvalid) override;
+    bool answer(karere::AvFlags av) override;
+    bool changeLocalRenderer(IVideoRenderer* renderer) override;
+    karere::AvFlags muteUnmute(karere::AvFlags av) override;
+    std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const override;
+    std::map<karere::Id, uint8_t> sessionState() const override;
+    void setOnHold(bool setOnHold) override;
     void sendBusy(bool isCallToSameUser);
     uint32_t clientidFromSession(karere::Id userid);
     void updateAvFlags(karere::Id userid, uint32_t clientid, karere::AvFlags flags);

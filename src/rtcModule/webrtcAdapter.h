@@ -280,14 +280,14 @@ public:
     ~LocalStreamHandle();
 
     karere::AvFlags av();
-    karere::AvFlags effectiveAv();
+    karere::AvFlags effectiveAv() const;
     void setAv(karere::AvFlags av);
 
     void addAudioTrack(const rtc::scoped_refptr<webrtc::AudioTrackInterface>& audio);
     void addVideoTrack(const rtc::scoped_refptr<webrtc::VideoTrackInterface>& video);
 
-    webrtc::AudioTrackInterface* audio();
-    webrtc::VideoTrackInterface* video();
+    rtc::scoped_refptr<webrtc::AudioTrackInterface> audio();
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> video();
 
 protected:
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;

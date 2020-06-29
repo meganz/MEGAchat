@@ -98,6 +98,11 @@ bool MegaChatSession::getAudioDetected() const
     return false;
 }
 
+bool MegaChatSession::isOnHold() const
+{
+    return false;
+}
+
 int MegaChatSession::getChanges() const
 {
     return CHANGE_TYPE_NO_CHANGES;
@@ -255,6 +260,11 @@ bool MegaChatCall::isOutgoing() const
 MegaChatHandle MegaChatCall::getCaller() const
 {
     return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatCall::isOnHold() const
+{
+    return false;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
@@ -872,6 +882,11 @@ void MegaChatApi::enableVideo(MegaChatHandle chatid, MegaChatRequestListener *li
 void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->setVideoEnable(chatid,false, listener);
+}
+
+void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
+{
+    pImpl->setCallOnHold(chatid, setOnHold, listener);
 }
 
 void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)

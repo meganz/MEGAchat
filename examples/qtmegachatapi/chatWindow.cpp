@@ -1048,7 +1048,7 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle clientid)
+void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle clientid, bool onHold)
 {
     int row = 0;
     int col = 0;
@@ -1082,6 +1082,10 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle
     layout->addWidget(callGui,row,col);
     ui->mTitlebar->hide();
     ui->mTextChatWidget->hide();
+    if (onHold)
+    {
+        callGui->enableOnHold(onHold, true);
+    }
 }
 
 void ChatWindow::destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid)

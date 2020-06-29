@@ -137,7 +137,7 @@ class ChatWindow : public QDialog,
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
         void closeEvent(QCloseEvent *event);
-        void createCallGui(bool, MegaChatHandle peerid, MegaChatHandle clientid);
+        void createCallGui(bool, MegaChatHandle peerid, MegaChatHandle clientid, bool onHold = false);
         void getCallPos(int index, int &row, int &col);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
