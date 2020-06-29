@@ -122,8 +122,9 @@ enum Opcode
     OP_RECEIVED = 6,
 
     /**
-      * @brief Currently not implemented.
-      * <chatid><timestamp>
+      * @brief
+      * (S->C): Indicate the retention timeframe (in seconds) for this chat, or zero if disabled.
+      * Receive: <chatid.8> <userid.8> <timestamp.4>
       */
     OP_RETENTION = 7,
 
