@@ -71,11 +71,12 @@ void DelegateMEGAChatRoomListener::onHistoryReloaded(megachat::MegaChatApi *api,
 }
 
 void DelegateMEGAChatRoomListener::onReactionUpdate(MegaChatApi *api, MegaChatHandle msgid, const char *reaction, int count) {
-    if (listener != nil && [listener respondsToSelector:@selector(onHistoryReloaded:chat:)]) {
-          MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
-          id<MEGAChatRoomDelegate> tempListener = this->listener;
-          dispatch_async(dispatch_get_main_queue(), ^{
-              [tempListener onReactionUpdate:tempMegaChatSDK messageId:msgid reaction:(reaction ? [NSString stringWithUTF8String:reaction] : nil) count:count];
-          });
-      }
+    if (listener != nil && [listener respondsToSelector:@selector(onReactionUpdate:messageId:reaction:count:)]) {
+        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
+        id<MEGAChatRoomDelegate> tempListener = this->listener;
+        NSString *str = [NSString stringWithUTF8String:reaction];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [tempListener onReactionUpdate:tempMegaChatSDK messageId:msgid reaction:str count:count];
+        });
+    }
 }
