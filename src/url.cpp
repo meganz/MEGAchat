@@ -66,6 +66,11 @@ void Url::parse(const std::string& url)
         throw std::runtime_error("Url::parse: Invalid URL '"+url+"', host is empty");
 }
 
+bool Url::operator!=(const Url &url) const
+{
+    return host != url.host || protocol != url.protocol || port != url.port || path != url.path;
+}
+
 uint16_t Url::getPortFromProtocol() const
 {
     if ((protocol == "http") || (protocol == "ws"))

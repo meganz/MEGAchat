@@ -34,6 +34,7 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
     {
         ui->videoRenderer->setMirrored(true);
         ui->mFullScreenChk->hide();
+        connect(ui->mCallOnHoldBtn, SIGNAL(clicked(bool)), this, SLOT(onCallOnHoldBtn(bool)));
         if (!mVideo)
         {
             ui->mMuteCamChk->setChecked(true);
@@ -47,6 +48,7 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
         ui->mMuteCamChk->hide();
         ui->mMuteMicChk->hide();
         ui->mShowChatBtn->hide();
+        ui->mCallOnHoldBtn->hide();
     }
 }
 
@@ -68,15 +70,17 @@ void CallGui::connectPeerCallGui()
     else
     {
         remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid, mClientid);
+        MegaChatSession * session = auxCall->getMegaChatSession(mPeerid, mClientid);
+        enableOnHold(session->isOnHold(), false);
     }
 }
 
-MegaChatHandle CallGui::getPeerid()
+MegaChatHandle CallGui::getPeerid() const
 {
     return mPeerid;
 }
 
-MegaChatHandle CallGui::getClientid()
+MegaChatHandle CallGui::getClientid() const
 {
     return mClientid;
 }
@@ -84,6 +88,11 @@ MegaChatHandle CallGui::getClientid()
 void CallGui::onAnswerCallBtn(bool)
 {
     mChatWindow->mMegaChatApi->answerChatCall(mChatWindow->mChatRoom->getChatId(), mVideo);
+}
+
+void CallGui::onCallOnHoldBtn(bool setOnHold)
+{
+    mChatWindow->mMegaChatApi->setCallOnHold(mChatWindow->mChatRoom->getChatId(), setOnHold);
 }
 
 void CallGui::drawPeerAvatar(QImage &image)
@@ -243,6 +252,33 @@ int CallGui::getIndex() const
 void CallGui::setIndex(int index)
 {
     mIndex = index;
+}
+
+void CallGui::enableOnHold(bool onHold, bool local)
+{
+    if (onHold)
+    {
+        if (local)
+        {
+            ui->mCallOnHoldBtn->setChecked(true);
+        }
+        else
+        {
+            ui->mCallOnHoldBtn->show();
+        }
+    }
+    else
+    {
+        if (local)
+        {
+            ui->mCallOnHoldBtn->setChecked(false);
+        }
+        else
+        {
+            ui->mCallOnHoldBtn->hide();
+        }
+    }
+
 }
 
 void CallGui::setAvatar()

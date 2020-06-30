@@ -46,6 +46,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (readonly, nonatomic) uint64_t userTypingHandle;
 @property (readonly, nonatomic, getter=isActive) BOOL active;
 @property (readonly, nonatomic, getter=isArchived) BOOL archived;
+@property (readonly, nonatomic) uint64_t creationTimeStamp;
+
 @property (readonly, nonatomic) NSUInteger previewersCount;
 
 

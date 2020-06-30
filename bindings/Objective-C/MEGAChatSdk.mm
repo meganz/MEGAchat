@@ -902,6 +902,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->setChatVideoInDevice(devices ? [devices UTF8String] : NULL);
 }
 
+- (NSString *)videoDeviceSelected {
+    return self.megaChatApi ? [[NSString alloc] initWithUTF8String:self.megaChatApi->getVideoDeviceSelected()] : nil;
+}
+
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->startChatCall(chatId, enableVideo, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
@@ -964,6 +968,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)disableVideoForChat:(uint64_t)chatId {
     self.megaChatApi->disableVideo(chatId);
+}
+
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setCallOnHold(chatId, onHold, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold {
+    self.megaChatApi->setCallOnHold(chatId, onHold);
 }
 
 - (void)loadAudioVideoDeviceListWithDelegate:(id<MEGAChatRequestDelegate>)delegate {

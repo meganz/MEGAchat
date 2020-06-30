@@ -18,9 +18,7 @@ namespace artc
         mCaptureDevice = nil;
         for (AVCaptureDevice *captureDevice in AVCaptureDevice.devices)
         {
-            // TODO: Choose captureDevice by its localizedName
-            //if ([captureDevice.localizedName isEqualToString:[NSString stringWithUTF8String:deviceName.c_str()]])
-            if (captureDevice.position == AVCaptureDevicePositionFront)
+            if ([captureDevice.localizedName isEqualToString:[NSString stringWithUTF8String:deviceName.c_str()]])
             {
                 mCaptureDevice = captureDevice;
             }
