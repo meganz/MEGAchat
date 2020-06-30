@@ -970,6 +970,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->disableVideo(chatId);
 }
 
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setCallOnHold(chatId, onHold, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold {
+    self.megaChatApi->setCallOnHold(chatId, onHold);
+}
+
 - (void)loadAudioVideoDeviceListWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->loadAudioVideoDeviceList([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }

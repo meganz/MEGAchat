@@ -98,6 +98,11 @@ bool MegaChatSession::getAudioDetected() const
     return false;
 }
 
+bool MegaChatSession::isOnHold() const
+{
+    return false;
+}
+
 int MegaChatSession::getChanges() const
 {
     return CHANGE_TYPE_NO_CHANGES;
@@ -255,6 +260,11 @@ bool MegaChatCall::isOutgoing() const
 MegaChatHandle MegaChatCall::getCaller() const
 {
     return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatCall::isOnHold() const
+{
+    return false;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
@@ -647,6 +657,11 @@ void MegaChatApi::archiveChat(MegaChatHandle chatid, bool archive, MegaChatReque
     pImpl->archiveChat(chatid, archive, listener);
 }
 
+void MegaChatApi::setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener)
+{
+    pImpl->setChatRetentionTime(chatid, period, listener);
+}
+
 bool MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
     return pImpl->openChatRoom(chatid, listener);
@@ -867,6 +882,11 @@ void MegaChatApi::enableVideo(MegaChatHandle chatid, MegaChatRequestListener *li
 void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->setVideoEnable(chatid,false, listener);
+}
+
+void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
+{
+    pImpl->setCallOnHold(chatid, setOnHold, listener);
 }
 
 void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
@@ -1359,6 +1379,11 @@ bool MegaChatRoom::isArchived() const
     return false;
 }
 
+unsigned int MegaChatRoom::getRetentionTime() const
+{
+    return 0;
+}
+
 int64_t MegaChatRoom::getCreationTs() const
 {
     return 0;
@@ -1590,6 +1615,11 @@ void MegaChatRoomListener::onReactionUpdate(MegaChatApi* /*api*/, MegaChatHandle
 
 }
 
+void MegaChatRoomListener::onHistoryTruncatedByRetentionTime(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/)
+{
+
+}
+
 MegaChatMessage *MegaChatMessage::copy() const
 {
     return NULL;
@@ -1776,6 +1806,11 @@ MegaHandleList *MegaChatMessage::getMegaHandleList() const
 }
 
 int MegaChatMessage::getDuration() const
+{
+    return 0;
+}
+
+int MegaChatMessage::getRetentionTime() const
 {
     return 0;
 }

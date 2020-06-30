@@ -143,6 +143,10 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->getNumParticipants(MEGAChatCallConfigurationAnyFlag) : 0;
 }
 
+- (BOOL)isOnHold {
+    return self.megaChatCall ? self.megaChatCall->isOnHold() : NO;
+}
+
 - (NSUUID *)uuid {
     unsigned char tempUuid[128];
     uint64_t tempChatId = self.chatId;
