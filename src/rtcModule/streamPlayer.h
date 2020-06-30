@@ -181,6 +181,11 @@ public:
     {
         return mAudio.get();
     }
+
+    webrtc::VideoTrackInterface *getVideoTrack()
+    {
+        return mVideo.get();
+    }
 };
 }
 

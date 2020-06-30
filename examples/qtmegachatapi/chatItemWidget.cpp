@@ -188,6 +188,11 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             lastMessage = "Truncate";
             break;
 
+        case megachat::MegaChatMessage::TYPE_SET_RETENTION_TIME:
+            lastMessage.append("User ").append(senderHandle)
+                   .append(" set retention time to ").append(item->getLastMessage()).append(" seconds");
+            break;
+
         case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
             lastMessage.append("User ").append(senderHandle)
                        .append(" attached a contact: ").append(item->getLastMessage());
@@ -427,6 +432,12 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actTruncate = roomMenu->addAction(tr("Truncate chat"));
     connect(actTruncate, SIGNAL(triggered()), mController, SLOT(truncateChat()));
 
+    auto actGetRetentionTime = roomMenu->addAction(tr("Get retention time"));
+    connect(actGetRetentionTime, SIGNAL(triggered()), mController, SLOT(onGetRetentionTime()));
+
+    auto actSetRetentionTimeSec = roomMenu->addAction(tr("Set retention time (in seconds)"));
+    connect(actSetRetentionTimeSec, &QAction::triggered, mController, [=](){mController->onSetRetentionTime();});
+
     auto actTopic = roomMenu->addAction(tr("Set title"));
     connect(actTopic, SIGNAL(triggered()), mController, SLOT(setTitle()));
 
@@ -434,7 +445,6 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     connect(actArchive, SIGNAL(toggled(bool)), mController, SLOT(archiveChat(bool)));
     actArchive->setCheckable(true);
     actArchive->setChecked(chatRoom->isArchived());
-
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
@@ -502,7 +512,6 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     actSetDND->setEnabled(bool(notificationSettings));
 
     clMenu->addSeparator();
-
     auto actPrintChat = menu.addAction(tr("Print chat info"));
     connect(actPrintChat, SIGNAL(triggered()), this, SLOT(onPrintChatInfo()));
 
@@ -540,4 +549,3 @@ void ChatItemWidget::onCopyHandle()
     clipboard->setText(chatid_64);
     delete []chatid_64;
 }
-

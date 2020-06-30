@@ -92,6 +92,7 @@ public:
         CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04, /// Session network quality has changed
         CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08,     /// Session audio level has changed
         CHANGE_TYPE_SESSION_OPERATIVE = 0x10,       /// Session is fully operative (A/V stream is received)
+        CHANGE_TYPE_SESSION_ON_HOLD = 0x20,      /// Session is on hold
     };
 
 
@@ -201,6 +202,13 @@ public:
     virtual bool getAudioDetected() const;
 
     /**
+     * @brief Returns if session is on hold
+     *
+     * @return true if session is on hold
+     */
+    virtual bool isOnHold() const;
+
+    /**
      * @brief Returns a bit field with the changes of the session
      *
      * This value is only useful for session notified by MegaChatCallListener::onChatSessionUpdate
@@ -306,6 +314,7 @@ public:
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,           /// Local audio/video flags has changed
         CHANGE_TYPE_RINGING_STATUS = 0x04,          /// Peer has changed its ringing state
         CHANGE_TYPE_CALL_COMPOSITION = 0x08,        /// Call composition has changed (User added or removed from call)
+        CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
     };
 
     enum
@@ -690,6 +699,13 @@ public:
      * @return user handle of caller
      */
     virtual MegaChatHandle getCaller() const;
+
+    /**
+     * @brief Returns if call is on hold
+     *
+     * @return true if call is on hold
+     */
+    virtual bool isOnHold() const;
 };
 
 /**
@@ -1182,7 +1198,8 @@ public:
         TYPE_PUBLIC_HANDLE_CREATE   = 8,    /// Management message indicating a public handle has been created
         TYPE_PUBLIC_HANDLE_DELETE   = 9,    /// Management message indicating a public handle has been removed
         TYPE_SET_PRIVATE_MODE       = 10,   /// Management message indicating the chat mode has been set to private
-        TYPE_HIGHEST_MANAGEMENT     = 10,
+        TYPE_SET_RETENTION_TIME     = 11,   /// Management message indicating the retention time has changed
+        TYPE_HIGHEST_MANAGEMENT     = 11,
         TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
@@ -1517,6 +1534,16 @@ public:
     virtual int getDuration() const;
 
     /**
+     * @brief Return retention time in seconds
+     *
+     * This function only returns a valid value for messages of type:
+     *  - MegaChatMessage::TYPE_SET_RETENTION_TIME
+     *
+     * @return Retention time (in seconds)
+     */
+    virtual int getRetentionTime() const;
+
+    /**
      * @brief Return the termination code of the call
      *
      * This funcion returns a valid value for:
@@ -1650,7 +1677,8 @@ public:
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
-        TYPE_GET_PEER_ATTRIBUTES, TYPE_IMPORT_MESSAGES, TOTAL_OF_REQUEST_TYPES
+        TYPE_IMPORT_MESSAGES,  TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD, 
+        TYPE_GET_PEER_ATTRIBUTES, TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -3753,6 +3781,27 @@ public:
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief This function allows a logged in operator/moderator to specify a message retention
+     * timeframe in seconds, after which older messages in the chat are automatically deleted.
+     * In order to disable the feature, the period of time can be set to zero (infinite).
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_RETENTION_TIME
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getParamType - Returns the retention timeframe in seconds
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have operator privileges
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param period retention timeframe in seconds, after which older messages in the chat are automatically deleted
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief This method should be called when a chat is opened
      *
      * The second parameter is the listener that will receive notifications about
@@ -4613,6 +4662,20 @@ public:
     void disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Set/unset a call on hold
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CALL_ON_HOLD
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true (set on hold) false (unset on hold)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param setOnHold indicates if call is set or unset on hold
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Search all audio and video devices available at that moment.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
@@ -5328,7 +5391,8 @@ public:
         CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_ARCHIVE             = 0X100, /// Archived or unarchived
         CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
-        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800  /// The number of previewers has changed
+        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800,  /// The number of previewers has changed
+        CHANGE_TYPE_RETENTION_TIME      = 0x1000, /// The retention time has changed
     };
 
     enum {
@@ -5661,6 +5725,12 @@ public:
     virtual bool isArchived() const;
 
     /**
+     * @brief Returns the retention time for this chat
+     * @return The retention time for this chat
+     */
+    virtual unsigned int getRetentionTime() const;
+
+    /**
      * @brief Returns the creation timestamp of the chat.
      * @return The creation timestamp of the chat.
      */
@@ -5906,6 +5976,15 @@ public:
      * @param count Number of users who have reacted to this message with the same reaction
      */
     virtual void onReactionUpdate(MegaChatApi* api, MegaChatHandle msgid, const char* reaction, int count);
+
+    /**
+     * @brief This function is called when we need to clear messages previous to retention time,
+     * all messages previous to received msg as parameter must be cleared.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msg Most recent message whose timestamp has exceeded retention time
+     */
+    virtual void onHistoryTruncatedByRetentionTime(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/);
 };
 
 /**

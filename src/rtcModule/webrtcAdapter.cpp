@@ -222,7 +222,7 @@ karere::AvFlags LocalStreamHandle::av()
     return karere::AvFlags(mAudio.get(), mVideo.get());
 }
 
-karere::AvFlags LocalStreamHandle::effectiveAv()
+karere::AvFlags LocalStreamHandle::effectiveAv() const
 {
     return karere::AvFlags(mAudio && mAudio->enabled(), mVideo && mVideo->enabled());
 }
@@ -260,14 +260,14 @@ void LocalStreamHandle::addVideoTrack(const rtc::scoped_refptr<webrtc::VideoTrac
     mVideo = video;
 }
 
-webrtc::AudioTrackInterface *LocalStreamHandle::audio()
+rtc::scoped_refptr<webrtc::AudioTrackInterface> LocalStreamHandle::audio()
 {
-    return mAudio ? mAudio.get() : static_cast<webrtc::AudioTrackInterface*>(nullptr);
+    return mAudio;
 }
 
-webrtc::VideoTrackInterface *LocalStreamHandle::video()
+rtc::scoped_refptr<webrtc::VideoTrackInterface> LocalStreamHandle::video()
 {
-    return mVideo ? mVideo.get() : static_cast<webrtc::VideoTrackInterface*>(nullptr);
+    return mVideo;
 }
 
 VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)

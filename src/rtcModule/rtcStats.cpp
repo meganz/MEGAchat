@@ -189,7 +189,7 @@ void Recorder::onStats(const webrtc::StatsReports &data)
     long ts = karere::timestampMs() - mStats->mStartTs;
     long period = ts - mCurrSample->ts;
     mCurrSample->ts = ts;
-    mCurrSample->f = mSession.call().sentAv().value();
+    mCurrSample->f = mSession.call().sentFlags().value();
     for (const webrtc::StatsReport* item: data)
     {
         if (item->id()->type() == RPTYPE(Ssrc))
