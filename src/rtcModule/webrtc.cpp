@@ -3392,6 +3392,11 @@ void Session::onRemoveStream(artc::tspMediaStream stream)
 
 void Session::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
 {
+    if (mState >= kStateTerminating)
+    {
+        return;
+    }
+
     // mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     if (!cand)
         return;
@@ -3857,6 +3862,11 @@ bool Session::verifySdpFingerprints(const std::string& sdp)
 
 void Session::msgIceCandidate(RtMessage& packet)
 {
+    if (mState >= kStateTerminating)
+    {
+        return;
+    }
+
     assert(!mPeerSdpAnswer.empty() || !mPeerSdpOffer.empty());
     // sid.8 mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     auto mLineIdx = packet.payload.read<uint8_t>(8);
