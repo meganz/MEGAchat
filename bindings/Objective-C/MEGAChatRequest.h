@@ -41,7 +41,6 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeAutojoinPublicChat,
     MEGAChatRequestTypeChangeVideoStream,
     MEGAChatRequestTypeGetPeerAttributes,
-    MEGAChatRequestTypeImportMessages
     MEGAChatRequestTypeImportMessages,
     MEGAChatRequestTypeSetCallOnHold,
 };
