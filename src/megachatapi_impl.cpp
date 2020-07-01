@@ -6633,6 +6633,16 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
 {
     if (mRoom)
     {
+        const GroupChatRoom* groupChatRoom = dynamic_cast<const GroupChatRoom *>(mRoom);
+        if (groupChatRoom)
+        {
+            auto it = groupChatRoom->peers().find(userid);
+            if (it != groupChatRoom->peers().end() && it->second->priv() == privilege)
+            {
+                return;
+            }
+        }
+
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserJoin(userid, privilege);
         if (mRoom->publicChat() && mRoom->chat().onlineState() != kChatStateOnline)
