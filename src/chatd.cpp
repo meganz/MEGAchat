@@ -4570,6 +4570,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     // Clean affected messages in db and RAM
     CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
     CALL_DB(retentionHistoryTruncate, idx);
+    cleanPendingReactionsByMsg(karere::Id::null(), idx); //clean pending reactions
     truncateByRetentionTime(idx);
 
     removePendingRichLinks(idx);

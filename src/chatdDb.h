@@ -683,6 +683,7 @@ public:
     {
         if (idx != CHATD_IDX_INVALID)
         {
+            // reactions and pending reactions in DB are removed along with messages (FK delete on cascade)
             mDb.query("delete from history where chatid = ? and idx <= ?", mChat.chatId(), idx);
         }
     }
