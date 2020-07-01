@@ -1850,7 +1850,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         }
         else if (mPredestroyState == kStateRingIn)
         {
-            SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing in a group call");
+            SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing");
         }
         else if (mInCallPingTimer)
         {
