@@ -3261,6 +3261,10 @@ promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
     .then([this, myHandle](ReqResult)
     {
         onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_FULL);
+    })
+    .fail([this](const ::promise::Error& err)
+    {
+        mAutoJoiningCompleted = true;
     });
  }
 
@@ -3787,6 +3791,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                 }
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited",  ID_CSTR(mChatid));
                 notifyRejoinedChat();
+                mAutoJoiningCompleted = true;
             }
         }
         else if (mOwnPriv == chatd::PRIV_NOTPRESENT)
@@ -3838,7 +3843,6 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         onArchivedChanged(mIsArchived);
     }
 
-    mAutoJoiningCompleted = true;
     KR_LOG_DEBUG("Synced group chatroom %s with API.", ID_CSTR(mChatid));
     return true;
 }
