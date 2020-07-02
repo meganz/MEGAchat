@@ -5191,6 +5191,8 @@ void Chat::onUserJoin(Id userid, Priv priv)
         CALL_CRYPTO(onUserJoin, userid);
     }
 
+    ///TODO: in public link extra notification can be generated if we are re-invited
+    /// and chatd joins arrive before than api notification
     CALL_LISTENER(onUserJoin, userid, priv);
 }
 
