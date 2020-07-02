@@ -3243,6 +3243,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
 {
     Id myHandle(parent.mKarereClient.myHandle());
+    mAutoJoiningCompleted = false;
 
     return chat().crypto()->encryptUnifiedKeyToUser(myHandle)
     .then([this, myHandle, ph](std::string key) -> ApiPromise
@@ -3326,7 +3327,8 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
             }
         });
     }
-    if (mRoomGui)
+
+    if (mRoomGui && (!publicChat() || mAutoJoiningCompleted))
     {
         mRoomGui->onUserJoin(userid, privilege);
     }
@@ -3454,6 +3456,11 @@ bool GroupChatRoom::isMember(Id peerid) const
 unsigned long GroupChatRoom::numMembers() const
 {
     return mPeers.size() + 1;
+}
+
+bool GroupChatRoom::isAutoJoiningCompleted() const
+{
+    return mAutoJoiningCompleted;
 }
 
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
@@ -3831,6 +3838,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         onArchivedChanged(mIsArchived);
     }
 
+    mAutoJoiningCompleted = true;
     KR_LOG_DEBUG("Synced group chatroom %s with API.", ID_CSTR(mChatid));
     return true;
 }

@@ -352,6 +352,7 @@ protected:
     std::string mEncryptedTitle; //holds the last encrypted title (the "ct" from API)
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
+    bool mAutoJoiningCompleted = true;
 
     void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
@@ -461,6 +462,7 @@ public:
     bool isMember(karere::Id peerid) const override;
 
     unsigned long numMembers() const override;
+    bool isAutoJoiningCompleted() const;
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,

@@ -6645,7 +6645,7 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
 
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserJoin(userid, privilege);
-        if (mRoom->publicChat() && mRoom->chat().onlineState() != kChatStateOnline)
+        if (mRoom->publicChat() && (mRoom->chat().onlineState() != kChatStateOnline || !groupChatRoom->isAutoJoiningCompleted()))
         {
             return;
         }
