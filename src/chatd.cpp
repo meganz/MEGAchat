@@ -5191,8 +5191,10 @@ void Chat::onUserJoin(Id userid, Priv priv)
         CALL_CRYPTO(onUserJoin, userid);
     }
 
-    ///TODO: in public link extra notification can be generated if we are re-invited
-    /// and chatd joins arrive before than api notification
+    ///TODO: we have detected that undesired notification are generated in public link
+    /// if we are re-invitedor or we autojoin in other client.
+    /// If chatd joins arrive before than api `onChatsUpdate`, we are going to notify to app
+    /// every new join. This behavior is not desired in big public link
     CALL_LISTENER(onUserJoin, userid, priv);
 }
 
