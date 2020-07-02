@@ -6645,6 +6645,13 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
 
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserJoin(userid, privilege);
+
+        ///TODO: we have detected that undesired notification are generated in public link
+        /// if we are re-invite or we re-autojoin in other client.
+        /// If chatd joins arrive before than api `onChatsUpdate`, we are going to notify to app
+        /// every new join. This behavior is not desired in big public link
+        /// The case of autojoin, preview or invite is controled because we aren't in kChatStateOnline
+        /// re-autoJoin case from same client is controled with mAutoJoingCompleted flag
         if (mRoom->publicChat() && (mRoom->chat().onlineState() != kChatStateOnline || !groupChatRoom->isAutoJoiningCompleted()))
         {
             return;
