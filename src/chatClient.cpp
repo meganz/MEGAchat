@@ -3659,10 +3659,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
         }
     }
 
-    if (commitEach)
-    {
-        parent.mKarereClient.setCommitMode(true);
-    }
+        parent.mKarereClient.setCommitMode(commitEach);
 
 
     std::vector<promise::Promise<void> > promises;

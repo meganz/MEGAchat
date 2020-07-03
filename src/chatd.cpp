@@ -5221,10 +5221,7 @@ void Chat::onUserLeave(Id userid)
             CALL_LISTENER(onUserLeave, it);
         }
         mUsers.clear();
-        if (commitEach)
-        {
-            mChatdClient.mKarereClient->setCommitMode(true);
-        }
+            mChatdClient.mKarereClient->setCommitMode(commitEach);
 
         if (mChatdClient.mRtcHandler && !previewMode())
         {
