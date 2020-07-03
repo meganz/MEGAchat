@@ -3243,7 +3243,6 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
 {
     Id myHandle(parent.mKarereClient.myHandle());
-    mAutoJoiningCompleted = false;
 
     return chat().crypto()->encryptUnifiedKeyToUser(myHandle)
     .then([this, myHandle, ph](std::string key) -> ApiPromise
@@ -3261,11 +3260,7 @@ promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
     .then([this, myHandle](ReqResult)
     {
         onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_FULL);
-    })
-    .fail([this](const ::promise::Error& err)
-    {
-        mAutoJoiningCompleted = true;
-    });
+    });;
  }
 
 //chatd::Listener::init
@@ -3332,13 +3327,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
         });
     }
 
-    ///TODO: we have detected that undesired notification are generated in public link
-    /// if we are re-invite or we re-autojoin in other client and chatd joins arrive
-    /// before than api `onChatsUpdate`.
-    /// We try to skip this notifications to avoid saturating apps when big chat links are loaded.
-    /// The case of autojoin, preview or invite is controled because we aren't in kChatStateOnline.
-    /// Re-autoJoin case from same client is controled with mAutoJoingCompleted flag
-    if (mRoomGui && (!publicChat() || mAutoJoiningCompleted))
+    if (mRoomGui)
     {
         mRoomGui->onUserJoin(userid, privilege);
     }
@@ -3466,11 +3455,6 @@ bool GroupChatRoom::isMember(Id peerid) const
 unsigned long GroupChatRoom::numMembers() const
 {
     return mPeers.size() + 1;
-}
-
-bool GroupChatRoom::isAutoJoiningCompleted() const
-{
-    return mAutoJoiningCompleted;
 }
 
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
@@ -3797,7 +3781,6 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                 }
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited",  ID_CSTR(mChatid));
                 notifyRejoinedChat();
-                mAutoJoiningCompleted = true;
             }
         }
         else if (mOwnPriv == chatd::PRIV_NOTPRESENT)

@@ -5191,7 +5191,10 @@ void Chat::onUserJoin(Id userid, Priv priv)
         CALL_CRYPTO(onUserJoin, userid);
     }
 
-    CALL_LISTENER(onUserJoin, userid, priv);
+    if (mOwnPrivilege != Priv::PRIV_NOTPRESENT && !isPublic())
+    {
+        CALL_LISTENER(onUserJoin, userid, priv);
+    }
 }
 
 void Chat::onUserLeave(Id userid)
