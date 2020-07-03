@@ -5606,6 +5606,11 @@ uint32_t Chat::getRetentionTime() const
     return mRetentionTime;
 }
 
+Priv Chat::getOwnprivilege() const
+{
+    return mOwnPrivilege;
+}
+
 void Client::leave(Id chatid)
 {
     auto conn = mConnectionForChatId.find(chatid);

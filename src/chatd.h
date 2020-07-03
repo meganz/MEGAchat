@@ -1360,6 +1360,7 @@ public:
     void unsetHandlerToNodeHistory();
     promise::Promise<void> requestUserAttributes(karere::Id sender);
     uint32_t getRetentionTime() const;
+    Priv getOwnprivilege() const;
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

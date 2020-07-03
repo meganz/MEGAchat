@@ -6671,7 +6671,7 @@ void MegaChatRoomHandler::onUserLeave(Id userid)
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserLeave(userid);
 
-        if (mRoom->publicChat() && !mRoom->isMember(chatApiImpl->getMyUserHandle()))
+        if (mRoom->publicChat() && mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT)
         {
             return;
         }
@@ -7773,7 +7773,7 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 {
-    if (mRoom.publicChat() && !mRoom.isMember(chatApi.getMyUserHandle()))
+    if (mRoom.publicChat() && mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT)
     {
         return;
     }
