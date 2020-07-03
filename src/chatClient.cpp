@@ -3631,6 +3631,8 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 
     auto db = parent.mKarereClient.db;
     bool peersChanged = false;
+    bool commitEach = parent.mKarereClient.commitEach();
+    parent.mKarereClient.setCommitMode(false);
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
         auto userid = ourIt->first;
@@ -3656,6 +3658,12 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
             ourIt++;
         }
     }
+
+    if (commitEach)
+    {
+        parent.mKarereClient.setCommitMode(true);
+    }
+
 
     std::vector<promise::Promise<void> > promises;
     for (auto& user: users)

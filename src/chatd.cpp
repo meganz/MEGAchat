@@ -5213,12 +5213,18 @@ void Chat::onUserLeave(Id userid)
         // JOIN -1 for own user, but API response might have cleared the peer list already. In that case,
         // chatd's removal needs to clear the peer list again, since remaining peers would have been
         // added as moderators
+        bool commitEach = mChatdClient.mKarereClient->commitEach();
+        mChatdClient.mKarereClient->setCommitMode(false);
         for (auto &it: mUsers)
         {
             CALL_CRYPTO(onUserLeave, it);
             CALL_LISTENER(onUserLeave, it);
         }
         mUsers.clear();
+        if (commitEach)
+        {
+            mChatdClient.mKarereClient->setCommitMode(true);
+        }
 
         if (mChatdClient.mRtcHandler && !previewMode())
         {
