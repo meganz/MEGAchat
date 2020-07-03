@@ -432,15 +432,21 @@ void MegaChatApiImpl::sendPendingRequests()
             if (group)
             {
                 const char *title = request->getText();
-                string strTitle(title);
-                strTitle = strTitle.substr(0, 30);
                 vector<std::pair<handle, Priv>> peers;
                 for (unsigned int i = 0; i < userpriv->size(); i++)
                 {
                     peers.push_back(std::make_pair(userpriv->at(i).first, (Priv) userpriv->at(i).second));
                 }
 
-                mClient->createGroupChat(peers, publicChat, strTitle.c_str())
+                if (title)  // not mandatory
+                {
+                    string strTitle(title);
+                    strTitle = strTitle.substr(0, 30);
+                    request->setText(strTitle.c_str()); // update, in case it's been truncated
+                    title = request->getText();
+                }
+
+                mClient->createGroupChat(peers, publicChat, title)
                 .then([request,this](Id chatid)
                 {
                     request->setChatHandle(chatid);
