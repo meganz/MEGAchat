@@ -5949,11 +5949,12 @@ Chat::ManualSendItem::ManualSendItem()
 }
 
 Chat::PendingReaction::PendingReaction(const std::string &aReactionString, const std::string &aReactionStringEnc, uint64_t aMsgId, uint8_t aStatus)
+    : mReactionString(aReactionString)
+    , mReactionStringEnc(aReactionStringEnc)
+    , mMsgId(aMsgId)
+    , mStatus(aStatus)
 {
-    mMsgId = aMsgId;
-    mStatus = aStatus;
-    mReactionStringEnc = aReactionStringEnc;
-    mReactionString = aReactionString;
+
 }
 
 void Message::removeUnnecessaryLastCharacters(string &buf)
