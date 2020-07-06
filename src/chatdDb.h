@@ -373,11 +373,8 @@ public:
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
 
-        // Clean reactions for the truncate message
-        mDb.query("delete from chat_reactions where chatid = ? and msgid = ?", mChat.chatId(), msg.id());
-
-        // Clean pending reactions for the truncate message
-        mDb.query("delete from chat_pending_reactions where chatid = ? and msgid = ?", mChat.chatId(), msg.id());
+        cleanReactions(msg.id());
+        cleanPendingReactions(msg.id());
 
 #ifndef NDEBUG
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
