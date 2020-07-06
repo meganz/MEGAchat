@@ -1918,21 +1918,21 @@ Idx Chat::getHistoryFromDb(unsigned count)
         // Load msg reactions from cache
         std::multimap<std::string, karere::Id> reactions;
         CALL_DB(getReactions, msg->id(), reactions);
-        for (auto auxReact : reactions)
+        for (auto& reaction : reactions)
         {
             // Add reaction to confirmed reactions queue in message
-            msg->addReaction(auxReact.first.c_str(), auxReact.second);
+            msg->addReaction(reaction.first, reaction.second);
         }
 
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
     }
     if (mNextHistFetchIdx == CHATD_IDX_INVALID)
     {
-        mNextHistFetchIdx = mForwardStart - 1 - messages.size();
+        mNextHistFetchIdx = mForwardStart - 1 - static_cast<Idx>(messages.size());
     }
     else
     {
-        mNextHistFetchIdx -= messages.size();
+        mNextHistFetchIdx -= static_cast<Idx>(messages.size());
     }
 
     // Load all pending reactions stored in cache
@@ -2790,7 +2790,7 @@ void Chat::addReaction(const Message &message, const std::string &reaction)
             return;
 
         std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
-        std::string encReaction (data->buf(), data->bufSize());
+        std::string encReaction(data->buf(), data->bufSize());
         addPendingReaction(reaction, encReaction, message.id(), OP_ADDREACTION);
         CALL_DB(addPendingReaction, message.mId, reaction, encReaction, OP_ADDREACTION);
         sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
