@@ -2693,8 +2693,7 @@ int Chat::getPendingReactionStatus(const string &reaction, Id msgId) const
 {
     for (auto &auxReaction : mPendingReactions)
     {
-        if (auxReaction.mMsgId == msgId
-            && auxReaction.mReactionString == reaction)
+        if (auxReaction.mMsgId == msgId && auxReaction.mReactionString == reaction)
         {
             return auxReaction.mStatus;
         }
@@ -2707,15 +2706,15 @@ void Chat::addPendingReaction(const std::string &reaction, const std::string &en
     for (auto &auxReaction : mPendingReactions)
     {
         // If reaction already exists in pending list, only update it's status
-        if (auxReaction.mMsgId == msgId
-            && auxReaction.mReactionString == reaction)
+        if (auxReaction.mMsgId == msgId && auxReaction.mReactionString == reaction)
         {
+            assert(encReaction == auxReaction.mReactionStringEnc);
             auxReaction.mStatus = status;
             return;
         }
     }
 
-    mPendingReactions.emplace_back(reaction, encReaction, msgId, status);
+    mPendingReactions.emplace_back(PendingReaction(reaction, encReaction, msgId, status));
 }
 
 void Chat::removePendingReaction(const string &reaction, Id msgId)
@@ -2758,24 +2757,22 @@ void Chat::cleanPendingReactionsOlderThan(Idx idx)
 
 void Chat::flushChatPendingReactions()
 {
-    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end();)
+    for (auto &reaction : mPendingReactions)
     {
-        auto auxit = it++;
-        karere::Id msgid = auxit->mMsgId;
-        Idx index = msgIndexFromId(msgid);
+        Idx index = msgIndexFromId(reaction.mMsgId);
         if (index == CHATD_IDX_INVALID)
         {
             // couldn't find msg
-            CHATID_LOG_WARNING("flushChatPendingReactions: message with id(%d) not loaded in RAM", msgid);
+            CHATID_LOG_WARNING("flushChatPendingReactions: message with id(%d) not loaded in RAM", reaction.mMsgId);
         }
         else
         {
-            Message &message = at(index);
-            CALL_LISTENER(onReactionUpdate, message.mId, auxit->mReactionString.c_str(), message.getReactionCount(auxit->mReactionString.c_str()));
+            const Message &message = at(index);
+            CALL_LISTENER(onReactionUpdate, message.mId, reaction.mReactionString.c_str(), message.getReactionCount(reaction.mReactionString));
         }
-        CALL_DB(cleanPendingReactions, auxit->mMsgId);
-        mPendingReactions.erase(auxit);
+        CALL_DB(cleanPendingReactions, reaction.mMsgId);
     }
+    mPendingReactions.clear();
 
     // Ensure that all pending reactions are flushed upon HISTDONE reception
     assert(mPendingReactions.empty() && !mDbInterface->hasPendingReactions());
@@ -2793,7 +2790,8 @@ void Chat::addReaction(const Message &message, const std::string &reaction)
         std::string encReaction(data->buf(), data->bufSize());
         addPendingReaction(reaction, encReaction, message.id(), OP_ADDREACTION);
         CALL_DB(addPendingReaction, message.mId, reaction, encReaction, OP_ADDREACTION);
-        sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
+        sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id()
+                    + static_cast<int8_t>(data->bufSize()) + encReaction);
     }, mChatdClient.mKarereClient->appCtx);
 }
 
@@ -2809,7 +2807,8 @@ void Chat::delReaction(const Message &message, const std::string &reaction)
         std::string encReaction (data->buf(), data->bufSize());
         addPendingReaction(reaction, encReaction, message.id(), OP_DELREACTION);
         CALL_DB(addPendingReaction, message.mId, reaction, encReaction, OP_DELREACTION);
-        sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
+        sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id()
+                    + static_cast<int8_t>(data->bufSize()) + encReaction);
     }, mChatdClient.mKarereClient->appCtx);
 }
 
