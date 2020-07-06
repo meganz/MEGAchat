@@ -3243,6 +3243,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
 {
     Id myHandle(parent.mKarereClient.myHandle());
+    mAutoJoining = true;
 
     return chat().crypto()->encryptUnifiedKeyToUser(myHandle)
     .then([this, myHandle, ph](std::string key) -> ApiPromise
@@ -3255,12 +3256,17 @@ promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
         std::string uKeyB64;
         mega::Base64::btoa(uKeyBin, uKeyB64);
 
+        parent.mKarereClient.setCommitMode(false);
         return parent.mKarereClient.api.call(&mega::MegaApi::chatLinkJoin, ph, uKeyB64.c_str());
     })
     .then([this, myHandle](ReqResult)
     {
         onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_FULL);
-    });;
+    })
+    .fail([this](const ::promise::Error& err)
+    {
+        mAutoJoining = false;
+    });
  }
 
 //chatd::Listener::init
@@ -3631,7 +3637,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 
     auto db = parent.mKarereClient.db;
     bool peersChanged = false;
-    bool commitEach = parent.mKarereClient.commitEach();
+    bool commitEach = parent.mKarereClient.commitEach() || mAutoJoining;
     parent.mKarereClient.setCommitMode(false);
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
@@ -3659,7 +3665,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
         }
     }
 
-        parent.mKarereClient.setCommitMode(commitEach);
+    parent.mKarereClient.setCommitMode(commitEach);
 
 
     std::vector<promise::Promise<void> > promises;
@@ -3804,6 +3810,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 
     // Peer list changes
     bool membersChanged = syncMembers(chat);
+    mAutoJoining = false;
 
     // Title changes
     const char *title = chat.getTitle();

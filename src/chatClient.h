@@ -352,6 +352,7 @@ protected:
     std::string mEncryptedTitle; //holds the last encrypted title (the "ct" from API)
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
+    bool mAutoJoining = false;
 
     void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
