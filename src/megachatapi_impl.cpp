@@ -6646,7 +6646,8 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserJoin(userid, privilege);
 
-        if (mRoom->publicChat() && mRoom->chat().onlineState() != kChatStateOnline)
+        // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
+        if (mRoom->publicChat() && (mRoom->chat().onlineState() != kChatStateOnline || mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
         {
             return;
         }
@@ -7753,7 +7754,8 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
-    if (mRoom.publicChat() && mRoom.chat().onlineState() != kChatStateOnline)
+    // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
+    if (mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
     {
         return;
     }

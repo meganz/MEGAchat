@@ -5191,11 +5191,7 @@ void Chat::onUserJoin(Id userid, Priv priv)
         CALL_CRYPTO(onUserJoin, userid);
     }
 
-    // avoid to notify if own user doesn't participate and it's a public chat (for large chat-links, for performance)
-    if (mOwnPrivilege != Priv::PRIV_NOTPRESENT && !isPublic())
-    {
-        CALL_LISTENER(onUserJoin, userid, priv);
-    }
+    CALL_LISTENER(onUserJoin, userid, priv);
 }
 
 void Chat::onUserLeave(Id userid)
