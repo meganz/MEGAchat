@@ -639,7 +639,7 @@ public:
             mChat.chatId(), msgId, reaction);
     }
 
-    void getMessageReactions(karere::Id msgId, std::multimap<std::string, karere::Id>& reactions) const override
+    void getReactions(karere::Id msgId, std::multimap<std::string, karere::Id>& reactions) const override
     {
         SqliteStmt stmt(mDb, "select reaction, userid from chat_reactions where chatid = ? and msgid = ?");
         stmt << mChat.chatId();
