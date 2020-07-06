@@ -1356,15 +1356,22 @@ public:
     void retryPendingReactions();
     void sendReactionSn();
 
-    /** @brief Clean pending reactions in a chat for a specific message or range of messages.
-     *
-     * - If idx is not valid the function will clean pending reactions for the given msgid.
-     * - Otherwise, the function will clean all pending reactions for the messages whose
-     * index is previous to idx.
-     *
-     * Reactions in local DB are removed along with messages (FK delete on cascade).
+    /**
+     * @brief Clean pending reactions in a chat for a specific message
+     * @note Reactions in local DB are removed along with messages (FK delete on cascade).
+     * @param msgId Id of message whose pending reactions will be cleaned.
      */
-    void cleanPendingReactionsByMsg(karere::Id msgid, Idx idx);
+    void cleanPendingReactions(const karere::Id &msgId);
+
+    /**
+     * @brief Clean pending reactions in a chat for a specific message or range of messages.
+     *
+     * The function will clean all pending reactions for the messages whose index is previous to idx.
+     *
+     * @note Reactions in local DB are removed along with messages (FK delete on cascade).
+     * @param idx Index of message of the newest message whose pending reactions will be removed
+     */
+    void cleanPendingReactionsOlderThan(Idx idx);
 
     /** @brief Flush all pending reactions (in RAM and local DB) for a chat.
      * Upon HISTDONE reception all pending reactions has been applied in chatd,

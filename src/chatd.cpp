@@ -2740,25 +2740,20 @@ void Chat::retryPendingReactions()
     }
 }
 
-void Chat::cleanPendingReactionsByMsg(karere::Id msgid, Idx idx)
+void Chat::cleanPendingReactions(const karere::Id &msgId)
 {
-    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end();)
+    mPendingReactions.remove_if([msgId](PendingReaction& reaction)
     {
-        auto auxit = it++;
-        if (idx != CHATD_IDX_INVALID)
-        {
-            Idx currentIdx = msgIndexFromId(auxit->mMsgId);
-            assert(currentIdx != CHATD_IDX_INVALID);
-            if (currentIdx <= idx)
-            {
-                mPendingReactions.erase(auxit);
-            }
-        }
-        else if (auxit->mMsgId == msgid)
-        {
-            mPendingReactions.erase(auxit);
-        }
-    }
+        return reaction.mMsgId == msgId;
+    });
+}
+
+void Chat::cleanPendingReactionsOlderThan(Idx idx)
+{
+    mPendingReactions.remove_if([idx, this](PendingReaction& reaction)
+    {
+        return msgIndexFromId(reaction.mMsgId) <= idx;
+    });
 }
 
 void Chat::flushChatPendingReactions()
@@ -3104,8 +3099,10 @@ void Chat::removeMessageReactions(Idx idx, bool cleanPrevious)
     if (msg)
     {
         msg->cleanReactions();
-        Idx auxidx = cleanPrevious ? idx :CHATD_IDX_INVALID;
-        cleanPendingReactionsByMsg(msg->mId, auxidx);
+
+        (cleanPrevious)
+                ? cleanPendingReactionsOlderThan(idx)
+                : cleanPendingReactions(msg->id());
     }
     // reactions in DB are removed along with messages (FK delete on cascade)
 }
@@ -4570,7 +4567,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     // Clean affected messages in db and RAM
     CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
     CALL_DB(retentionHistoryTruncate, idx);
-    cleanPendingReactionsByMsg(karere::Id::null(), idx); //clean pending reactions
+    cleanPendingReactionsOlderThan(idx); //clean pending reactions, including previous indexes
     truncateByRetentionTime(idx);
 
     removePendingRichLinks(idx);
