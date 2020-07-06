@@ -6917,9 +6917,9 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     if (group)
     {
         GroupChatRoom &groupchat = (GroupChatRoom&) chat;
-        GroupChatRoom::MemberMap peers = groupchat.peers();
+        const GroupChatRoom::MemberMap& peers = groupchat.peers();
 
-        GroupChatRoom::MemberMap::iterator it;
+        GroupChatRoom::MemberMap::const_iterator it;
         for (it = peers.begin(); it != peers.end(); it++)
         {
             this->peers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
