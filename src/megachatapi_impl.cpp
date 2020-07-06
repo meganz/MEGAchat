@@ -37,6 +37,7 @@
 #include <IGui.h>
 #include <chatClient.h>
 #include <mega/base64.h>
+#include <chatdMsg.h>
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -4491,9 +4492,8 @@ int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHand
     }
 
     SdkMutexGuard g(sdkMutex);
-    ChatRoom *chatroom = findChatRoom(chatid);
     Message *msg = findMessage(chatid, msgid);
-    if (!msg || !chatroom)
+    if (!msg)
     {
         API_LOG_ERROR("Chatroom or message not found");
         return -1;
@@ -4501,6 +4501,7 @@ int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHand
 
     // Update users of confirmed reactions with pending reactions
     int count = msg->getReactionCount(reaction);
+    ChatRoom *chatroom = findChatRoom(chatid);
     auto pendingReactions = chatroom->chat().getPendingReactions();
     for (auto &auxReact : pendingReactions)
     {
@@ -4520,23 +4521,23 @@ int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHand
 MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     SdkMutexGuard g(sdkMutex);
-    ChatRoom *chatroom = findChatRoom(chatid);
     Message *msg = findMessage(chatid, msgid);
-    if (!msg || !chatroom)
+    if (!msg)
     {
         API_LOG_ERROR("Chatroom or message not found");
         return new MegaStringListPrivate();
     }
 
     // Insert confirmed reactions
-    std::map<std::string, int> auxReactMap;
-    const std::vector<std::string> &reactions = msg->getReactions();
+    std::map<std::string, size_t> auxReactMap;
+    const std::vector<Message::Reaction> &reactions = msg->getReactions();
     for (auto &auxReact : reactions)
     {
-       auxReactMap[auxReact] = msg->getReactionCount(auxReact);
+       auxReactMap[auxReact.mReaction] = auxReact.mUsers.size();
     }
 
     // Update confirmed reactions with pending reactions
+    ChatRoom *chatroom = findChatRoom(chatid);
     auto pendingReactions = chatroom->chat().getPendingReactions();
     for (auto &auxReact : pendingReactions)
     {
@@ -4564,23 +4565,23 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
+    MegaHandleList *userList = MegaHandleList::createInstance();
     if (!reaction)
     {
-        return MegaHandleList::createInstance();
+        return userList;
     }
 
     SdkMutexGuard g(sdkMutex);
-    ChatRoom *chatroom = findChatRoom(chatid);
     Message *msg = findMessage(chatid, msgid);
-    if (!msg || !chatroom)
+    if (!msg)
     {
         API_LOG_ERROR("Chatroom or message not found");
-        return MegaHandleList::createInstance();
+        return userList;
     }
 
     bool reacted = false;
-    MegaHandleList *userList = MegaHandleList::createInstance();
-    const std::vector<karere::Id> &users = msg->getReactionUsers(std::string(reaction));
+    string reactionStr(reaction);
+    const std::vector<karere::Id> &users = msg->getReactionUsers(reactionStr);
     for (auto user: users)
     {
         if (user != mClient->myHandle())
@@ -4593,7 +4594,8 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
         }
     }
 
-    int pendingReactionStatus = chatroom->chat().getPendingReactionStatus(reaction, msgid);
+    ChatRoom *chatroom = findChatRoom(chatid);
+    int pendingReactionStatus = chatroom->chat().getPendingReactionStatus(reactionStr, msgid);
     if ((reacted && pendingReactionStatus != OP_DELREACTION)
         || (!reacted && pendingReactionStatus == OP_ADDREACTION))
     {

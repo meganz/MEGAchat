@@ -851,14 +851,9 @@ public:
     }
 
     /** @brief Returns a vector with all the reactions of the message **/
-    const std::vector<std::string> getReactions() const
+    const std::vector<Reaction> getReactions() const
     {
-        std::vector<std::string> reactions;
-        for (auto &it : mReactions)
-        {
-            reactions.push_back(it.mReaction);
-        }
-        return reactions;
+        return mReactions;
     }
 
     /** @brief Returns true if the user has reacted to this message with the specified reaction **/
