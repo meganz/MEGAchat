@@ -49,6 +49,8 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
         ui->mMuteMicChk->hide();
         ui->mShowChatBtn->hide();
         ui->mCallOnHoldBtn->hide();
+        ui->mVideoParticipants->hide();
+        ui->mVideo->hide();
     }
 }
 
@@ -85,6 +87,10 @@ MegaChatHandle CallGui::getClientid() const
     return mClientid;
 }
 
+void CallGui::setVideoPaticipant(unsigned int videoParticipants)
+{
+    ui->mVideoParticipants->setText(QString(std::to_string(videoParticipants).c_str()));
+}
 void CallGui::onAnswerCallBtn(bool)
 {
     mChatWindow->mMegaChatApi->answerChatCall(mChatWindow->mChatRoom->getChatId(), mVideo);

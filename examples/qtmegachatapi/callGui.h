@@ -51,6 +51,7 @@ class CallGui: public QWidget
         virtual void onVideoRecv();
         MegaChatHandle getPeerid() const;
         MegaChatHandle getClientid() const;
+        void setVideoPaticipant(unsigned int videoParticipants);
 
         friend class RemoteCallListener;
         friend class LocalCallListener;
