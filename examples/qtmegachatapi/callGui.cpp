@@ -48,7 +48,7 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
         ui->mFullScreenChk->hide();
         ui->mHupBtn->hide();
         ui->mMuteCamChk->hide();
-        ui->mMuteMicChk->hide();
+        ui->mMuteMicChk->setDisabled(true);
         ui->mShowChatBtn->hide();
         ui->mCallOnHoldBtn->hide();
         ui->mVideoParticipants->hide();
@@ -100,6 +100,11 @@ void CallGui::setVideoPaticipant(unsigned int videoParticipants)
 void CallGui::setAudioActive(bool active)
 {
     ui->mSpeaking->setVisible(active);
+}
+
+void CallGui::setPeerAudioFlagMuted(bool muted)
+{
+    ui->mMuteMicChk->setChecked(muted);
 }
 
 void CallGui::onAnswerCallBtn(bool)

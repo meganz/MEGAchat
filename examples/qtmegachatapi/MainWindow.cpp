@@ -326,6 +326,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         }
 
         updateVideoParticipants(chatid);
+        callGui->setPeerAudioFlagMuted(!session->hasAudio());
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD) &&
@@ -345,6 +346,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
            {
                window->connectPeerCallGui(session->getPeerid(), session->getClientid());
                updateVideoParticipants(chatid);
+               callGui->setPeerAudioFlagMuted(!session->hasAudio());
                break;
            }
        }
