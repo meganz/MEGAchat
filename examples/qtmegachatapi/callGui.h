@@ -38,6 +38,7 @@ class CallGui: public QWidget
         void onMuteMic(bool);
         void onAnswerCallBtn(bool);
         void onCallOnHoldBtn(bool setOnHold);
+        void onAudioMonitor(bool audioMonitorEnable);
     public:
         Ui::CallGui *ui;
         CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChatHandle clientid, bool local);
@@ -52,6 +53,7 @@ class CallGui: public QWidget
         MegaChatHandle getPeerid() const;
         MegaChatHandle getClientid() const;
         void setVideoPaticipant(unsigned int videoParticipants);
+        void setAudioActive(bool active);
 
         friend class RemoteCallListener;
         friend class LocalCallListener;

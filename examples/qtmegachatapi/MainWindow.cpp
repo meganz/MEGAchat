@@ -350,6 +350,10 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
        }
     }
 
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_AUDIO_LEVEL))
+    {
+        callGui->setAudioActive(session->getAudioDetected());
+    }
 }
 
 MegaChatApplication* MainWindow::getApp() const
