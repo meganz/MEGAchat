@@ -7098,7 +7098,7 @@ void MegaChatRoomPrivate::setRetentionTime(unsigned int period)
 char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
 {
     char *ret = NULL;
-    int len = buffer.length() ? buffer.at(0) : 0;
+    unsigned int len = buffer.length() ? static_cast<unsigned char>(buffer.at(0)) : 0;
 
     if (len > 0)
     {
@@ -7114,12 +7114,13 @@ char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
 {
     char *ret = NULL;
 
-    if (buffer.length() && (int)buffer.length() >= buffer.at(0))
+    unsigned int firstNameLength = buffer.length() ? static_cast<unsigned char>(buffer.at(0)) : 0;
+    if (buffer.length() && (unsigned int)buffer.length() >= firstNameLength)
     {
-        int lenLastname = buffer.length() - buffer.at(0) - 1;
+        int lenLastname = buffer.length() - firstNameLength - 1;
         if (lenLastname)
         {
-            const char *start = buffer.data() + 1 + buffer.at(0);
+            const char *start = buffer.data() + 1 + firstNameLength;
             if (buffer.at(0) != 0)
             {
                 start++;    // there's a space separator
