@@ -1874,6 +1874,8 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
         loadAndProcessUnsent();
         getHistoryFromDb(initialHistoryFetchCount); // ensure we have a minimum set of messages loaded and ready
     }
+
+    calculateUnreadCount();
 }
 Chat::~Chat()
 {
@@ -2623,6 +2625,45 @@ void Chat::loadManualSending()
     for (auto& item: items)
     {
         CALL_LISTENER(onManualSendRequired, item.msg, item.rowid, item.reason);
+    }
+}
+
+void Chat::calculateUnreadCount()
+{
+    int count = 0;
+    if (mLastSeenIdx == CHATD_IDX_INVALID)
+    {
+        if (mHaveAllHistory)
+        {
+            count = mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
+        }
+        else
+        {
+            count = -mDbInterface->getUnreadMsgCountAfterIdx(CHATD_IDX_INVALID);
+        }
+    }
+    else if (mLastSeenIdx < lownum())
+    {
+        count = mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
+    }
+    else
+    {
+        Idx first = mLastSeenIdx+1;
+        auto last = highnum();
+        for (Idx i=first; i<=last; i++)
+        {
+            auto& msg = at(i);
+            if (msg.isValidUnread(mChatdClient.myHandle()))
+            {
+                count++;
+            }
+        }
+    }
+
+    if (count != mUnreadCount)
+    {
+        mUnreadCount = count;
+        CALL_LISTENER(onUnreadChanged);
     }
 }
 
@@ -3565,6 +3606,7 @@ void Chat::onLastSeen(Id msgid, bool resend)
             mLastSeenId = msgid;
             CALL_DB(setLastSeen, msgid);
 
+            calculateUnreadCount();
             return;
         }
     }
@@ -3620,7 +3662,7 @@ void Chat::onLastSeen(Id msgid, bool resend)
         }
     }
 
-    CALL_LISTENER(onUnreadChanged);
+    calculateUnreadCount();
 }
 
 bool Chat::setMessageSeen(Idx idx)
@@ -3675,7 +3717,7 @@ bool Chat::setMessageSeen(Idx idx)
         }
         mLastSeenId = id;
         CALL_DB(setLastSeen, mLastSeenId);
-        CALL_LISTENER(onUnreadChanged);
+        calculateUnreadCount();
     }, kSeenTimeout, mChatdClient.mKarereClient->appCtx);
 
     mChatdClient.mSeenTimers.insert(seenTimer);
@@ -3696,35 +3738,7 @@ bool Chat::setMessageSeen(Id msgid)
 
 int Chat::unreadMsgCount() const
 {
-    if (mLastSeenIdx == CHATD_IDX_INVALID)
-    {
-        if (mHaveAllHistory)
-        {
-            return mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
-        }
-        else
-        {
-            return -mDbInterface->getUnreadMsgCountAfterIdx(CHATD_IDX_INVALID);
-        }
-    }
-    else if (mLastSeenIdx < lownum())
-    {
-        return mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
-    }
-
-    Idx first = mLastSeenIdx+1;
-    unsigned count = 0;
-    auto last = highnum();
-    for (Idx i=first; i<=last; i++)
-    {
-        auto& msg = at(i);
-        if (msg.isValidUnread(mChatdClient.myHandle()))
-        {
-            count++;
-        }
-    }
-
-    return count;
+    return mUnreadCount;
 }
 
 void Chat::flushOutputQueue(bool fromStart)
@@ -4311,7 +4325,7 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
         {
             if (!msg->isOwnMessage(client().myHandle()))
             {
-                CALL_LISTENER(onUnreadChanged);
+                calculateUnreadCount();
             }
 
             if (histType == Message::kMsgAttachment)
@@ -4432,6 +4446,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
     mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
     truncateAttachmentHistory();
+    calculateUnreadCount();
 }
 
 time_t Chat::handleRetentionTime(bool updateTimer)
@@ -4509,7 +4524,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
 
     if (notifyUnreadChanged)
     {
-        CALL_LISTENER(onUnreadChanged);
+        calculateUnreadCount();
     }
     return nextRetentionHistCheck(updateTimer);
 }
@@ -5041,8 +5056,34 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
     }
 
-    if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
-        CALL_LISTENER(onUnreadChanged);
+    if (isNew)
+    {
+        if (msg.isValidUnread(mChatdClient.myHandle()))
+        {
+            mUnreadCount++;
+            CALL_LISTENER(onUnreadChanged);
+        }
+    }
+    else
+    {
+        if (mLastSeenIdx == CHATD_IDX_INVALID)
+        {
+            assert(mUnreadCount <= 0);
+            if (msg.isValidUnread(mChatdClient.myHandle()))
+            {
+                if (mLastSeenId == msg.id())
+                {
+                    mUnreadCount = -mUnreadCount;
+                }
+                else
+                {
+                    mUnreadCount--;
+                }
+
+                CALL_LISTENER(onUnreadChanged);
+            }
+        }
+    }
 
     //handle last text message
     if (msg.isValidLastMessage())

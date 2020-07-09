@@ -804,6 +804,7 @@ protected:
     LastTextMsgState mLastTextMsg;
     // crypto stuff
     ICrypto* mCrypto = NULL;
+    int mUnreadCount = 0;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
      * path of further messages to be sent is written to db, without calling encrypt().
      * Once encryption is finished, this flag is cleared, and all queued unencrypted
@@ -1413,6 +1414,8 @@ protected:
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
     void loadManualSending();
+
+    void calculateUnreadCount();
 public:
 //realtime messaging
 
