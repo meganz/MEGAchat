@@ -147,6 +147,33 @@ public:
 };
 #endif
 
+class RequestListener
+{
+public:
+    bool waitForResponse(unsigned int timeout = maxTimeout);
+    virtual int getErrorCode() const = 0;
+
+protected:
+    bool mFinished = false;
+    mega::MegaApi* mMegaApi = nullptr;
+    megachat::MegaChatApi* mMegaChatApi = nullptr;
+    RequestListener(mega::MegaApi* megaApi, megachat::MegaChatApi *megaChatApi);
+};
+
+class TestMegaRequestListener : public mega::MegaRequestListener, public RequestListener
+{
+public:
+    TestMegaRequestListener(mega::MegaApi* megaApi, megachat::MegaChatApi *megaChatApi);
+    ~TestMegaRequestListener();
+    void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e) override;
+    int getErrorCode() const override;
+    mega::MegaRequest *mRequest = nullptr;
+
+private:
+    mega::MegaError *mError = nullptr;
+
+};
+
 class MegaChatApiTest :
         public ::mega::MegaListener,
         public ::mega::MegaRequestListener,
