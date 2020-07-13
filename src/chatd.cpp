@@ -2775,7 +2775,7 @@ void Chat::flushChatPendingReactions()
     mPendingReactions.clear();
 
     // Ensure that all pending reactions are flushed upon HISTDONE reception
-    assert(mPendingReactions.empty() && !mDbInterface->hasPendingReactions());
+    assert(!mDbInterface->hasPendingReactions());
 }
 
 void Chat::addReaction(const Message &message, const std::string &reaction)
