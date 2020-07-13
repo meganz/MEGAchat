@@ -3344,10 +3344,10 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Expired timeout for rich Link");
    int error = requestListener.getErrorCode();
    ASSERT_CHAT_TEST(!error || error == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(error));
-   ASSERT_CHAT_TEST(requestListener.mRequest->getNumDetails() == 1, "Active at shouldShowRichLink");
+   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getNumDetails() == 1, "Active at shouldShowRichLink");
 
    // Enable/disable rich link generation
-   bool enableRichLink = !(requestListener.mRequest->getFlag());
+   bool enableRichLink = !(requestListener.getMegaRequest()->getFlag());
    requestListener = TestMegaRequestListener(megaApi[a1], nullptr);
    megaApi[a1]->enableRichPreviews(enableRichLink, &requestListener);
    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "User attribute retrieval not finished after timeout");
@@ -3359,7 +3359,7 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Expired timeout for rich Link");
    error = requestListener.getErrorCode();
    ASSERT_CHAT_TEST(!error || error == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(error));
-   ASSERT_CHAT_TEST(requestListener.mRequest->getFlag() == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
+   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getFlag() == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
 
    // Change value for rich link counter
    int counter = 1;
@@ -3373,9 +3373,9 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Expired timeout for rich Link");
    error = requestListener.getErrorCode();
    ASSERT_CHAT_TEST(!error || error == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(error));
-   ASSERT_CHAT_TEST(requestListener.mRequest->getNumDetails() == 1, "Active at shouldShowRichLink");
-   ASSERT_CHAT_TEST(counter == requestListener.mRequest->getNumber(), "Rich link count has not taken the correct value - value: " + std::to_string(requestListener.mRequest->getNumber()) + " Desired value: " + std::to_string(counter));
-   ASSERT_CHAT_TEST(requestListener.mRequest->getFlag() == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
+   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getNumDetails() == 1, "Active at shouldShowRichLink");
+   ASSERT_CHAT_TEST(counter == requestListener.getMegaRequest()->getNumber(), "Rich link count has not taken the correct value - value: " + std::to_string(requestListener.getMegaRequest()->getNumber()) + " Desired value: " + std::to_string(counter));
+   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getFlag() == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
 
    delete [] primarySession;
    primarySession = NULL;
@@ -4990,6 +4990,12 @@ int TestMegaRequestListener::getErrorCode() const
 {
     assert(mError);
     return mError->getValue();
+}
+
+MegaRequest *TestMegaRequestListener::getMegaRequest() const
+{
+    assert(mRequest);
+    return mRequest;
 }
 
 bool RequestListener::waitForResponse(unsigned int timeout)

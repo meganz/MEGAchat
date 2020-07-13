@@ -167,9 +167,10 @@ public:
     ~TestMegaRequestListener();
     void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e) override;
     int getErrorCode() const override;
-    mega::MegaRequest *mRequest = nullptr;
+    mega::MegaRequest* getMegaRequest() const;
 
 private:
+    mega::MegaRequest *mRequest = nullptr;
     mega::MegaError *mError = nullptr;
 
 };
