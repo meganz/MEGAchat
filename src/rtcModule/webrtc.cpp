@@ -668,6 +668,13 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
 
     mRetryCall[chatid] = std::pair<karere::AvFlags, bool>(av, isActiveRetry);
 
+    if (mRetryCallTimers.find(chatid) != mRetryCallTimers.end())
+    {
+        assert(false);
+        mKarereClient.api.call(&::mega::MegaApi::sendEvent, 99011, "mRetryCallTimers shouldn't have an element with that chatid");
+        return;
+    }
+
     auto itHandler = mCallHandlers.find(chatid);
     assert(itHandler != mCallHandlers.end());
     itHandler->second->onReconnectingState(true);
