@@ -513,13 +513,18 @@ public:
         assertAffectedRowCount(1, "deleteMsgFromNodeHistory");
     }
 
-    bool isManagementMessage(const karere::Id &msgid) override
+    bool isValidReactedMessage(const karere::Id &msgid, chatd::Idx &idx) override
     {
-        SqliteStmt stmt(mDb, "select type, userid, keyid from history where msgid = ?");
+        SqliteStmt stmt(mDb, "select type, userid, keyid, idx from history where msgid = ?");
         stmt << msgid;
+        if (!stmt.step())
+        {
+            idx = CHATD_IDX_INVALID;
+            return false;
+        }
 
-        stmt.stepMustHaveData("isManagementMessage");
-        return ((stmt.uintCol(0) >= chatd::Message::kMsgManagementLowest
+        idx = stmt.intCol(3);
+        return !((stmt.uintCol(0) >= chatd::Message::kMsgManagementLowest
                     && stmt.uintCol(0) <= chatd::Message::kMsgManagementHighest)
                || (stmt.uint64Col(1) == karere::Id::COMMANDER() && stmt.uintCol(2) == 0));
     }

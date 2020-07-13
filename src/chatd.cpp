@@ -5336,12 +5336,6 @@ void Chat::onUserLeave(Id userid)
 
 void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 {
-    if (mDbInterface->getIdxOfMsgidFromHistory(msgId) == CHATD_IDX_INVALID)
-    {
-        CHATID_LOG_WARNING("onAddReaction: message id not found. msgid: %s", ID_CSTR(msgId));
-        return;
-    }
-
     if (reaction.empty())
     {
         CHATID_LOG_ERROR("onAddReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
@@ -5363,9 +5357,11 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
     }
     else
     {
-        if (mDbInterface->isManagementMessage(msgId))
+        if (!mDbInterface->isValidReactedMessage(msgId, messageIdx))
         {
-            CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            (messageIdx == CHATD_IDX_INVALID)
+                    ? CHATID_LOG_WARNING("onAddReaction: message id not found. msgid: %s", ID_CSTR(msgId))
+                    : CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
             return;
         }
         pms = mCrypto->reactionDecrypt(msgId, userId, mDbInterface->getMessageKeyId(msgId), reaction);
@@ -5406,12 +5402,6 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 
 void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 {
-    if (mDbInterface->getIdxOfMsgidFromHistory(msgId) == CHATD_IDX_INVALID)
-    {
-        CHATID_LOG_WARNING("onDelReaction: message id not found. msgid: %s)", ID_CSTR(msgId));
-        return;
-    }
-
     if (reaction.empty())
     {
         CHATID_LOG_ERROR("onDelReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
@@ -5433,9 +5423,11 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
     }
     else
     {
-        if (mDbInterface->isManagementMessage(msgId))
+        if (!mDbInterface->isValidReactedMessage(msgId, messageIdx))
         {
-            CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            (messageIdx == CHATD_IDX_INVALID)
+                    ? CHATID_LOG_WARNING("onDelReaction: message id not found. msgid: %s", ID_CSTR(msgId))
+                    : CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
             return;
         }
         pms = mCrypto->reactionDecrypt(msgId, userId, mDbInterface->getMessageKeyId(msgId), reaction);
