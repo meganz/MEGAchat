@@ -1850,7 +1850,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         }
         else if (mPredestroyState == kStateRingIn)
         {
-            SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing in a group call");
+            SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing");
         }
         else if (mInCallPingTimer)
         {
@@ -2269,7 +2269,7 @@ bool Call::hasNoSessionsOrPendingRetries() const
 
 uint8_t Call::convertTermCodeToCallDataCode()
 {
-    uint8_t codeToChatd;
+    uint8_t codeToChatd = chatd::CallDataReason::kEnded;
     switch (mTermCode & ~TermCode::kPeer)
     {
         case kUserHangup:
@@ -2284,16 +2284,20 @@ uint8_t Call::convertTermCodeToCallDataCode()
                     break;
 
                 case kStateInProgress:
+                case kStateJoining:
                     codeToChatd = chatd::CallDataReason::kEnded;
                     break;
 
                 default:
+                    assert(false);  // kStateTerminating, kStateDestroyed, kStateHasLocalStream shouldn't arrive here
                     codeToChatd = chatd::CallDataReason::kFailed;
                     break;
             }
             break;
         }
 
+        case kCallerGone:
+            assert(false);
         case kCallReqCancel:
             assert(mPredestroyState == kStateReqSent || mPredestroyState == kStateJoining);
             codeToChatd = chatd::CallDataReason::kCancelled;
@@ -2309,6 +2313,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
             break;
         case kRejElsewhere:
             SUB_LOG_ERROR("Can't generate a history call ended message for local kRejElsewhere code");
+            codeToChatd = chatd::CallDataReason::kRejected;
             assert(false);
             break;
 
@@ -2332,6 +2337,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
         default:
             if (!isTermError(mTermCode))
             {
+                assert(false);
                 SUB_LOG_ERROR("convertTermCodeToCallDataCode: Don't know how to translate term code %s, returning FAILED",
                               termCodeToStr(mTermCode));
             }
@@ -3423,6 +3429,11 @@ void Session::onRemoveStream(artc::tspMediaStream stream)
 
 void Session::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
 {
+    if (mState >= kStateTerminating)
+    {
+        return;
+    }
+
     // mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     if (!cand)
         return;
@@ -3888,6 +3899,11 @@ bool Session::verifySdpFingerprints(const std::string& sdp)
 
 void Session::msgIceCandidate(RtMessage& packet)
 {
+    if (mState >= kStateTerminating)
+    {
+        return;
+    }
+
     assert(!mPeerSdpAnswer.empty() || !mPeerSdpOffer.empty());
     // sid.8 mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     auto mLineIdx = packet.payload.read<uint8_t>(8);

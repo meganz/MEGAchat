@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef NS_ENUM (NSInteger, MEGAChatRoomChangeType) {
     MEGAChatRoomChangeTypeStatus           = 0x01,
     MEGAChatRoomChangeTypeUnreadCount      = 0x02,
@@ -39,7 +41,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (readonly, nonatomic, getter=isPublicChat) BOOL publicChat;
 @property (readonly, nonatomic, getter=isPreview) BOOL preview;
 @property (readonly, nonatomic) NSString *authorizationToken;
-@property (readonly, nonatomic) NSString *title;
+@property (readonly, nonatomic, nullable) NSString *title;
 @property (readonly, nonatomic, getter=hasCustomTitle) BOOL customTitle;
 @property (readonly, nonatomic) MEGAChatRoomChangeType changes;
 @property (readonly, nonatomic) NSInteger unreadCount;
@@ -69,3 +71,5 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 + (NSString *)stringForChangeType:(MEGAChatRoomChangeType)changeType;
 
 @end
+
+NS_ASSUME_NONNULL_END
