@@ -3519,10 +3519,11 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
 
     // Enable rich link
     bool enableRichLink = true;
-    bool *flagRichLinkRequest = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagRichLinkRequest = false;
-    megaApi[a1]->enableRichPreviews(enableRichLink);
-    ASSERT_CHAT_TEST(waitForResponse(flagRichLinkRequest), "User attribute retrieval not finished after timeout");
-    ASSERT_CHAT_TEST(!lastError[a1], "Failed to enable rich preview. Error: " + std::to_string(lastError[a1]));
+    TestMegaRequestListener requestListener(megaApi[a1], nullptr);
+    megaApi[a1]->enableRichPreviews(enableRichLink, &requestListener);
+    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "User attribute retrieval not finished after timeout");
+    int error = requestListener.getErrorCode();
+    ASSERT_CHAT_TEST(!error, "Failed to enable rich preview. Error: " + std::to_string(error));
 
     MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
