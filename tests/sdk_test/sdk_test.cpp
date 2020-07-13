@@ -354,9 +354,6 @@ void MegaChatApiTest::SetUp()
         mNotTransferRunning[i] = true;
         mPresenceConfigUpdated[i] = false;
 
-        mRichLinkFlag[i] = false;
-        mCountRichLink[i] = 0;
-
 #ifndef KARERE_DISABLE_WEBRTC
         mCallReceived[i] = false;
         mCallAnswered[i] = false;
@@ -4304,21 +4301,7 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                     mLastname = request->getText() ? request->getText() : "";
                     nameReceived[apiIndex] = true;
                 }
-                else if (request->getParamType() == MegaApi::USER_ATTR_RICH_PREVIEWS)
-                {
-                    if (request->getNumDetails() == 1)  // filter out "getua"s other than shouldShowRichLinkWarning()
-                    {
-                        mRichLinkFlag[apiIndex] = request->getFlag();
-                        mCountRichLink[apiIndex] = request->getNumber();
-                    }
-                    else
-                    {
-                        // internal getua() made by MEGAchat upon user-attr changes
-                        // --> do not set the requestFlag, since the request is not made by the tests
-                        // (change this if `isRichPreviewEnabled()` is used in tests)
-                        return;
-                    }
-                }
+
                 break;
 
             case MegaRequest::TYPE_COPY:
