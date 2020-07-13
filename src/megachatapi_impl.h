@@ -831,7 +831,7 @@ public:
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual int getType() const;
-    virtual bool hasReactions() const;
+    virtual bool hasConfirmedReactions() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
     virtual bool isEdited() const;

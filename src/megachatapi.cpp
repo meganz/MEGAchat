@@ -1645,7 +1645,7 @@ int MegaChatMessage::getType() const
     return MegaChatMessage::TYPE_INVALID;
 }
 
-bool MegaChatMessage::hasReactions() const
+bool MegaChatMessage::hasConfirmedReactions() const
 {
     return false;
 }

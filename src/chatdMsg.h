@@ -916,8 +916,8 @@ public:
         mReactions.clear();
     }
 
-    /** @brief Returns true if the message has reactions, otherwise returns false */
-    bool hasReactions() const
+    /** @brief Returns true if the message has confirmed reactions, otherwise returns false */
+    bool hasConfirmedReactions() const
     {
         return !mReactions.empty();
     }

@@ -1340,11 +1340,11 @@ public:
     virtual int getType() const;
 
     /**
-     * @brief Returns if the message has any reaction.
+     * @brief Returns if the message has any confirmed reaction.
      *
-     * @return Returns true if the message has any reaction, otherwise returns false.
+     * @return Returns true if the message has any confirmed reaction, otherwise returns false.
      */
-    bool hasReactions() const;
+    virtual bool hasConfirmedReactions() const;
 
     /**
      * @brief Returns the timestamp of the message.
