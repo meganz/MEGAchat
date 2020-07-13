@@ -4988,18 +4988,21 @@ void TestMegaRequestListener::onRequestFinish(MegaApi *api, MegaRequest *request
 
 int TestMegaRequestListener::getErrorCode() const
 {
+    assert(mFinished);
     assert(mError);
     return mError->getValue();
 }
 
 MegaRequest *TestMegaRequestListener::getMegaRequest() const
 {
+    assert(mFinished);
     assert(mRequest);
     return mRequest;
 }
 
 bool RequestListener::waitForResponse(unsigned int timeout)
 {
+    assert(!mFinished);
     timeout *= 1000000; // convert to micro-seconds
     unsigned int tWaited = 0;    // microseconds
     bool connRetried = false;
