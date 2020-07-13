@@ -45,4 +45,4 @@ CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null, userid 
     UNIQUE(chatid, msgid, userid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);
 
 CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null, reaction text, encReaction blob,
-    status tinyint default 0, UNIQUE(chatid, msgid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);
+    status tinyint, UNIQUE(chatid, msgid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);
