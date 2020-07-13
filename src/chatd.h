@@ -1388,7 +1388,6 @@ public:
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;
     bool previewMode();
-    void rejoin();
 
     /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
     void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);

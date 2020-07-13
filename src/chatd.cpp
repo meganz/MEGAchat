@@ -3636,12 +3636,6 @@ bool Chat::previewMode()
     return crypto()->previewMode();
 }
 
-void Chat::rejoin()
-{
-    clearHistory();
-    join();
-}
-
 void Chat::onLastSeen(Id msgid, bool resend)
 {
     Idx idx = CHATD_IDX_INVALID;
