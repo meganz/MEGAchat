@@ -2780,16 +2780,16 @@ void Chat::flushChatPendingReactions()
 
 void Chat::addReaction(const Message &message, const std::string &reaction)
 {
+    std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
+    std::string encReaction(data->buf(), data->bufSize());
+    addPendingReaction(reaction, encReaction, message.id(), OP_ADDREACTION);
+    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, OP_ADDREACTION);
     auto wptr = weakHandle();
-    marshallCall([wptr, this, &message, reaction]()
+    marshallCall([wptr, this, &message, data, encReaction]()
     {
         if (wptr.deleted())
             return;
 
-        std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
-        std::string encReaction(data->buf(), data->bufSize());
-        addPendingReaction(reaction, encReaction, message.id(), OP_ADDREACTION);
-        CALL_DB(addPendingReaction, message.mId, reaction, encReaction, OP_ADDREACTION);
         sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id()
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
     }, mChatdClient.mKarereClient->appCtx);
@@ -2797,16 +2797,16 @@ void Chat::addReaction(const Message &message, const std::string &reaction)
 
 void Chat::delReaction(const Message &message, const std::string &reaction)
 {
+    std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
+    std::string encReaction (data->buf(), data->bufSize());
+    addPendingReaction(reaction, encReaction, message.id(), OP_DELREACTION);
+    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, OP_DELREACTION);
     auto wptr = weakHandle();
-    marshallCall([wptr, this, &message, reaction]()
+    marshallCall([wptr, this, &message, data, encReaction]()
     {
         if (wptr.deleted())
             return;
 
-        std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
-        std::string encReaction (data->buf(), data->bufSize());
-        addPendingReaction(reaction, encReaction, message.id(), OP_DELREACTION);
-        CALL_DB(addPendingReaction, message.mId, reaction, encReaction, OP_DELREACTION);
         sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id()
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
     }, mChatdClient.mKarereClient->appCtx);
