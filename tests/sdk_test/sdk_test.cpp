@@ -4989,7 +4989,7 @@ int TestMegaRequestListener::getErrorCode() const
 {
     assert(mFinished);
     assert(mError);
-    return mError->getValue();
+    return mError->getErrorCode();
 }
 
 MegaRequest *TestMegaRequestListener::getMegaRequest() const
