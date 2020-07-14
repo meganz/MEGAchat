@@ -175,6 +175,20 @@ private:
 
 };
 
+class TestMegaChatRequestListener : public megachat::MegaChatRequestListener, public RequestListener
+{
+public:
+    TestMegaChatRequestListener(mega::MegaApi *megaApi, megachat::MegaChatApi *megaChatApi);
+    ~TestMegaChatRequestListener();
+    void onRequestFinish(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError *e) override;
+    int getErrorCode() const override;
+    megachat::MegaChatRequest* getMegaChatRequest() const;
+
+private:
+    megachat::MegaChatRequest *mRequest = nullptr;
+    megachat::MegaChatError *mError = nullptr;
+};
+
 class MegaChatApiTest :
         public ::mega::MegaListener,
         public ::mega::MegaRequestListener,

@@ -1777,9 +1777,10 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
         bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
         MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
         int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-        megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
-        ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
-        ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+        TestMegaChatRequestListener requestListener(nullptr, megaChatApi[a1]);
+        megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO, &requestListener);
+        ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Timeout expired for update privilege of peer");
+        ASSERT_CHAT_TEST(!requestListener.getErrorCode(), "Failed to update privilege of peer Error: " + std::to_string(requestListener.getErrorCode()));
         ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
         ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
         ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
@@ -4993,6 +4994,38 @@ int TestMegaRequestListener::getErrorCode() const
 }
 
 MegaRequest *TestMegaRequestListener::getMegaRequest() const
+{
+    assert(mFinished);
+    assert(mRequest);
+    return mRequest;
+}
+
+TestMegaChatRequestListener::TestMegaChatRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)
+    : RequestListener(megaApi, megaChatApi)
+{
+}
+
+TestMegaChatRequestListener::~TestMegaChatRequestListener()
+{
+    delete mRequest;
+    delete mError;
+}
+
+void TestMegaChatRequestListener::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, MegaChatError *e)
+{
+    mFinished = true;
+    mRequest = request->copy();
+    mError = e->copy();
+}
+
+int TestMegaChatRequestListener::getErrorCode() const
+{
+    assert(mFinished);
+    assert(mError);
+    return mError->getErrorCode();
+}
+
+MegaChatRequest *TestMegaChatRequestListener::getMegaChatRequest() const
 {
     assert(mFinished);
     assert(mRequest);
