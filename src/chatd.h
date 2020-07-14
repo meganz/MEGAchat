@@ -1348,8 +1348,7 @@ public:
     uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
-    void addReaction(const Message &message, const std::string &reaction);
-    void delReaction(const Message &message, const std::string &reaction);
+    void manageReaction(const Message &message, const std::string &reaction, Opcode opcode);
     const PendingReactions &getPendingReactions() const;
     void addPendingReaction(const std::string &reaction, const std::string &encReaction, karere::Id msgId, uint8_t status);
     void removePendingReaction(const std::string &reaction, karere::Id msgId);

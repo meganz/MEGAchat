@@ -2778,36 +2778,20 @@ void Chat::flushChatPendingReactions()
     assert(!mDbInterface->hasPendingReactions());
 }
 
-void Chat::addReaction(const Message &message, const std::string &reaction)
+void Chat::manageReaction(const Message &message, const std::string &reaction, Opcode opcode)
 {
+    assert(opcode == OP_ADDREACTION || opcode == OP_DELREACTION);
     std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
     std::string encReaction(data->buf(), data->bufSize());
-    addPendingReaction(reaction, encReaction, message.id(), OP_ADDREACTION);
-    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, OP_ADDREACTION);
+    addPendingReaction(reaction, encReaction, message.id(), opcode);
+    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, opcode);
     auto wptr = weakHandle();
-    marshallCall([wptr, this, &message, data, encReaction]()
+    marshallCall([wptr, this, &message, data, encReaction, opcode]()
     {
         if (wptr.deleted())
             return;
 
-        sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id()
-                    + static_cast<int8_t>(data->bufSize()) + encReaction);
-    }, mChatdClient.mKarereClient->appCtx);
-}
-
-void Chat::delReaction(const Message &message, const std::string &reaction)
-{
-    std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
-    std::string encReaction (data->buf(), data->bufSize());
-    addPendingReaction(reaction, encReaction, message.id(), OP_DELREACTION);
-    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, OP_DELREACTION);
-    auto wptr = weakHandle();
-    marshallCall([wptr, this, &message, data, encReaction]()
-    {
-        if (wptr.deleted())
-            return;
-
-        sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id()
+        sendCommand(Command(opcode) + mChatId + client().myHandle() + message.id()
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
     }, mChatdClient.mKarereClient->appCtx);
 }
