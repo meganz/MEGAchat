@@ -15,6 +15,7 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionChange) {
     MEGAChatSessionChangeNetworkQuality = 0x04,
     MEGAChatSessionChangeAudioLevel = 0x08,
     MEGAChatSessionChangeOperative = 0x10,
+    MEGAChatSessionChangeOnHold = 0x20,
 };
 
 @interface MEGAChatSession : NSObject
@@ -27,6 +28,7 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionChange) {
 @property (nonatomic, readonly) uint64_t peerId;
 @property (nonatomic, readonly) uint64_t clientId;
 @property (nonatomic, readonly) BOOL audioDetected;
+@property (nonatomic, readonly, getter=isOnHold) BOOL onHold;
 @property (nonatomic, readonly) NSInteger networkQuality;
 @property (nonatomic, readonly) NSInteger termCode;
 @property (nonatomic, readonly) BOOL isLocalTermCode;

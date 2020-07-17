@@ -301,6 +301,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)enableVideoForChat:(uint64_t)chatId;
 - (void)disableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)disableVideoForChat:(uint64_t)chatId;
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold;
 - (void)loadAudioVideoDeviceListWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)loadAudioVideoDeviceList;
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
@@ -312,6 +314,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (NSInteger)getMaxVideoCallParticipants;
 - (NSInteger)getMaxCallParticipants;
 - (uint64_t)myClientIdHandleForChatId:(uint64_t)chatId;
+- (BOOL)isAudioLevelMonitorEnabledForChatId:(uint64_t)chatId;
+- (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId;
 
 #endif
 

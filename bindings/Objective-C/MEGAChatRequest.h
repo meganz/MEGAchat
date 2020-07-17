@@ -40,7 +40,10 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeSetPrivateMode,
     MEGAChatRequestTypeAutojoinPublicChat,
     MEGAChatRequestTypeChangeVideoStream,
-    MEGAChatRequestTypeImportMessages
+    MEGAChatRequestTypeImportMessages,
+    MEGAChatRequestTypeSetRetentionTime,
+    MEGAChatRequestTypeSetCallOnHold,
+    MEGAChatRequestTypeEnableAudioLevelMonitor,
 };
 
 enum {

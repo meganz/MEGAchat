@@ -535,6 +535,8 @@ struct CLCRoomListener : public c::MegaChatRoomListener
     void onMessageUpdate(c::MegaChatApi*, c::MegaChatMessage *msg) override;
 
     void onHistoryReloaded(c::MegaChatApi*, c::MegaChatRoom *chat) override;
+
+    void onHistoryTruncatedByRetentionTime(c::MegaChatApi*, c::MegaChatMessage *msg) override;
 };
 
 struct RoomListenerRecord
@@ -1093,6 +1095,7 @@ std::string msgTypeToString(const int msgType)
         case c::MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE: return "TYPE_PUBLIC_HANDLE_CREATE";
         case c::MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE: return "TYPE_PUBLIC_HANDLE_DELETE";
         case c::MegaChatMessage::TYPE_SET_PRIVATE_MODE: return "TYPE_SET_PRIVATE_MODE";
+        case c::MegaChatMessage::TYPE_SET_RETENTION_TIME: return "TYPE_SET_RETENTION_TIME";
         case c::MegaChatMessage::TYPE_NODE_ATTACHMENT: return "TYPE_NODE_ATTACHMENT";
         case c::MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT: return "TYPE_REVOKE_NODE_ATTACHMENT";
         case c::MegaChatMessage::TYPE_CONTACT_ATTACHMENT: return "TYPE_CONTACT_ATTACHMENT";
@@ -2073,6 +2076,31 @@ void exec_clearchathistory(ac::ACState& s)
 
     g_chatApi->clearChatHistory(s_ch(s.words[1].s), &g_chatListener);  
 }
+
+void exec_setRetentionTime(ac::ACState& s)
+{
+    g_chatListener.onFinish(c::MegaChatRequest::TYPE_SET_RETENTION_TIME, [](finishInfo& f)
+    {
+        if (check_err("SetRetentionTime", f.e))
+        {
+            // Clients will not learn about the retention time from the API
+            conlock(cout) << "Retention time was set successfully for chat " << ch_s(f.request->getChatHandle()) << endl;
+        }
+    });
+
+    g_chatApi->setChatRetentionTime(s_ch(s.words[1].s), atoi(s.words[2].s.c_str()), &g_chatListener);
+}
+
+
+void exec_getRetentionTime(ac::ACState& s)
+{
+    ::mega::unique_ptr <megachat::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(s_ch(s.words[1].s)));
+    if (chatRoom)
+    {
+        conlock(cout) << " retentionTime " << std::to_string(chatRoom->getRetentionTime()).c_str()<< endl;
+    }
+}
+
 
 void exec_setchattitle(ac::ACState& s)
 {
@@ -3775,6 +3803,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_truncatechat,       sequence(text("truncatechat"), param("roomid"), param("msgid")));
     p->Add(exec_clearchathistory,   sequence(text("clearchathistory"), param("roomid")));
     p->Add(exec_setchattitle,       sequence(text("setchattitle"), param("roomid"), param("title")));
+    p->Add(exec_setRetentionTime,   sequence(text("setretentiontime"), param("roomid"), param("period")));
+    p->Add(exec_getRetentionTime,   sequence(text("getretentiontime"), param("roomid")));
 
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
@@ -4156,3 +4186,5 @@ void CLCRoomListener::onMessageReceived(megachat::MegaChatApi *, megachat::MegaC
 void CLCRoomListener::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMessage *msg) {}
 
 void CLCRoomListener::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *chat) {}
+
+void CLCRoomListener::onHistoryTruncatedByRetentionTime(c::MegaChatApi*, c::MegaChatMessage *msg) {}

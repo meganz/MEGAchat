@@ -147,6 +147,34 @@ public:
 };
 #endif
 
+class RequestListener
+{
+public:
+    bool waitForResponse(unsigned int timeout = maxTimeout);
+    virtual int getErrorCode() const = 0;
+
+protected:
+    bool mFinished = false;
+    mega::MegaApi* mMegaApi = nullptr;
+    megachat::MegaChatApi* mMegaChatApi = nullptr;
+    RequestListener(mega::MegaApi* megaApi, megachat::MegaChatApi *megaChatApi);
+};
+
+class TestMegaRequestListener : public mega::MegaRequestListener, public RequestListener
+{
+public:
+    TestMegaRequestListener(mega::MegaApi* megaApi, megachat::MegaChatApi *megaChatApi);
+    ~TestMegaRequestListener();
+    void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e) override;
+    int getErrorCode() const override;
+    mega::MegaRequest* getMegaRequest() const;
+
+private:
+    mega::MegaRequest *mRequest = nullptr;
+    mega::MegaError *mError = nullptr;
+
+};
+
 class MegaChatApiTest :
         public ::mega::MegaListener,
         public ::mega::MegaRequestListener,
@@ -196,6 +224,7 @@ public:
     void TEST_Attachment(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
+    void TEST_RetentionHistory(unsigned int a1, unsigned int a2);
     void TEST_ChangeMyOwnName(unsigned int a1);
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
@@ -298,8 +327,6 @@ private:
 
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
-    bool mRichLinkFlag[NUM_ACCOUNTS];
-    int mCountRichLink[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
@@ -388,8 +415,10 @@ public:
     bool msgContactReceived[NUM_ACCOUNTS];
     bool msgRevokeAttachmentReceived[NUM_ACCOUNTS];
     bool reactionReceived[NUM_ACCOUNTS];
+    bool retentionHistoryTruncated[NUM_ACCOUNTS];
     megachat::MegaChatHandle mConfirmedMessageHandle[NUM_ACCOUNTS];
     megachat::MegaChatHandle mEditedMessageHandle[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mRetentionMessageHandle[NUM_ACCOUNTS];
 
     megachat::MegaChatMessage *message;
     std::vector <megachat::MegaChatHandle>msgId[NUM_ACCOUNTS];
@@ -402,6 +431,7 @@ public:
     bool titleUpdated[NUM_ACCOUNTS];
     bool archiveUpdated[NUM_ACCOUNTS];
     bool previewsUpdated[NUM_ACCOUNTS];
+    bool retentionTimeUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);
@@ -409,6 +439,7 @@ public:
     virtual void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);
     virtual void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // new or updated
     virtual void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count);
+    virtual void onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg) override;
 
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
