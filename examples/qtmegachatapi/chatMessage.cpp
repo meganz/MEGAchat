@@ -654,27 +654,8 @@ void ChatMessage::onManageReaction(bool del, const char *reactionStr)
     }
 
     std::string utfstring = reaction.toUtf8().toStdString();
-    mega::unique_ptr<MegaChatError> res;
-
-    del ? res.reset(mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()))
-        : res.reset(mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str()));
-
-    if (res->getErrorCode() == MegaChatError::ERROR_OK)
-    {
-        int count = 0;
-        const Reaction *r = getLocalReaction(utfstring.c_str());
-        r ? count = del ? r->getCount() - 1 : r->getCount() + 1
-          : count = del ? 0 : 1;
-
-        //Local update
-        updateReaction(utfstring.c_str(), count);
-    }
-    else
-    {
-        QString title = del ? "DELREACTION error" : "ADDREACTION error";
-        QMessageBox msg(QMessageBox::Critical, title.toStdString().c_str(), res->toString());
-        msg.exec();
-    }
+    del ? mChatWindow->mMegaChatApi->delReaction(mChatId, mMessage->getMsgId(), utfstring.c_str())
+        : mChatWindow->mMegaChatApi->addReaction(mChatId, mMessage->getMsgId(), utfstring.c_str());
 }
 
 void ChatMessage::onMessageRemoveLinkAction()
