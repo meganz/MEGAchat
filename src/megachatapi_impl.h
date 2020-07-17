@@ -1143,7 +1143,7 @@ public:
 
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
-    MegaChatErrorPrivate *manageReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, bool add);
+    void manageReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, bool add, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);

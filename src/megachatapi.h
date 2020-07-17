@@ -4824,7 +4824,7 @@ public:
      *
      * @return returns MegaChatError with an error code associated.
      */
-    MegaChatError *addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    void addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 
     /**
      * @brief Removes a reaction for a message in a chatroom
@@ -4850,7 +4850,7 @@ public:
      *
      * @return returns MegaChatError with an error code associated.
      */
-    MegaChatError *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    void delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 
     /**
      * @brief Returns the number of users that reacted to a message with a specific reaction

@@ -4444,82 +4444,15 @@ void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListene
     sdkMutex.unlock();
 }
 
-MegaChatErrorPrivate *MegaChatApiImpl::manageReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, bool add)
+void MegaChatApiImpl::manageReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, bool add, MegaChatRequestListener *listener)
 {
-    int errorCode = MegaChatError::ERROR_OK;
-    MegaChatErrorPrivate *megaChatError;
-    if (!reaction)
-    {
-        megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ARGS);
-        return megaChatError;
-    }
-
-    SdkMutexGuard g(sdkMutex);
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (!chatroom)
-    {
-        errorCode = MegaChatError::ERROR_NOENT;
-    }
-    else
-    {
-        if (chatroom->ownPriv() < static_cast<chatd::Priv>(MegaChatPeerList::PRIV_STANDARD))
-        {
-            errorCode = MegaChatError::ERROR_ACCESS;
-        }
-        else
-        {
-            Chat &chat = chatroom->chat();
-            Idx index = chat.msgIndexFromId(msgid);
-            if (index == CHATD_IDX_INVALID)
-            {
-                errorCode = MegaChatError::ERROR_NOENT;
-            }
-            else
-            {
-                const Message &msg = chat.at(index);
-                if (msg.isManagementMessage())
-                {
-                    errorCode = MegaChatError::ERROR_ARGS;
-                }
-                else
-                {
-                    int pendingStatus = chat.getPendingReactionStatus(reaction, msg.id());
-                    bool hasReacted = msg.hasReacted(reaction, mClient->myHandle());
-
-                    if (add)
-                    {
-                        if ((hasReacted && pendingStatus != OP_DELREACTION)
-                            || (!hasReacted && pendingStatus == OP_ADDREACTION))
-                        {
-                            // If the reaction exists and there's not a pending DELREACTION
-                            // or the reaction doesn't exists and a ADDREACTION is pending
-                            errorCode = MegaChatError::ERROR_EXIST;
-                        }
-                        else
-                        {
-                            chat.manageReaction(msg, reaction, OP_ADDREACTION);
-                        }
-                    }
-                    else
-                    {
-                        if ((!hasReacted && pendingStatus != OP_ADDREACTION)
-                            || (hasReacted && pendingStatus == OP_DELREACTION))
-                        {
-                            // If the reaction doesn't exist and there's not a pending ADDREACTION
-                            // or reaction exists and a DELREACTION is pending
-                            errorCode = MegaChatError::ERROR_NOENT;
-                        }
-                        else
-                        {
-                            chat.manageReaction(msg, reaction, OP_DELREACTION);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    return new MegaChatErrorPrivate(errorCode);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_MANAGE_REACTION);
+    request->setChatHandle(chatid);
+    request->setUserHandle(msgid);
+    request->setText(reaction);
+    request->setFlag(add);
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
