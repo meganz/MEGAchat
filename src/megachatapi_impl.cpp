@@ -1954,7 +1954,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     // If the reaction doesn't exist and there's not a pending ADDREACTION
                     // or reaction exists and a DELREACTION is pending
-                    errorCode = MegaChatError::ERROR_NOENT;
+                    errorCode = MegaChatError::ERROR_EXIST;
                     break;
                 }
                 else
