@@ -174,12 +174,13 @@ public:
         *updated = stmt3.intCol(0);
     }
 
-    uint32_t getMessageKeyId(const karere::Id &msgid) override
+    void getMessageUserKeyId(const karere::Id &msgid, karere::Id &userid, uint32_t &keyid) override
     {
-        SqliteStmt stmt(mDb, "select keyid from history where msgid = ?");
+        SqliteStmt stmt(mDb, "select userid, keyid from history where msgid = ?");
         stmt << msgid;
-        stmt.stepMustHaveData("getMessageKey");
-        return stmt.uintCol(0);
+        stmt.stepMustHaveData("getMessageUserKeyId");
+        userid = stmt.int64Col(0);
+        keyid = stmt.uintCol(1);
     }
 
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
