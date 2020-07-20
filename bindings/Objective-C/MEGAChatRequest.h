@@ -43,6 +43,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeImportMessages,
     MEGAChatRequestTypeSetRetentionTime,
     MEGAChatRequestTypeSetCallOnHold,
+    MEGAChatRequestTypeEnableAudioLevelMonitor,
     MEGAChatRequestTypeGetPeerAttributes,
 };
 

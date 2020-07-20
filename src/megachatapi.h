@@ -197,6 +197,9 @@ public:
     /**
      * @brief Returns if audio is detected for this session
      *
+     * @note The returned value is always false when audio level monitor is disabled
+     * @see MegaChatApi::enableAudioLevelMonitor or audio flag is disabled
+     *
      * @return true if audio is detected for this session, false in other case
      */
     virtual bool getAudioDetected() const;
@@ -1677,8 +1680,9 @@ public:
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
-        TYPE_IMPORT_MESSAGES,  TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD, 
-        TYPE_GET_PEER_ATTRIBUTES, TOTAL_OF_REQUEST_TYPES
+        TYPE_IMPORT_MESSAGES, TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD,
+        TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TYPE_GET_PEER_ATTRIBUTES,
+        TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -4800,6 +4804,38 @@ public:
      * @return Maximum video call participants
      */
     int getMaxVideoCallParticipants();
+
+    /**
+     * @brief Returns if audio level monitor is enabled
+     *
+     * It's false by default
+     *
+     * @note If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor will be always false
+     *
+     * @param chatid MegaChatHandle that identifies the chat room from we want know if audio level monitor is disabled
+     * @return true if audio level monitor is enabled
+     */
+    bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
+
+    /**
+     * @brief Enable or disable audio level monitor
+     *
+     * It's false by default and it's app responsability to enable it
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     *
+     * @note If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor won't be able established
+     *
+     * @param enable True for enable audio level monitor, False to disable
+     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
 #endif
 

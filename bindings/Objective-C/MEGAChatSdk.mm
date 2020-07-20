@@ -1084,6 +1084,18 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->getMyClientidHandle(chatId);
 }
 
+- (BOOL)isAudioLevelMonitorEnabledForChatId:(uint64_t)chatId {
+    return self.megaChatApi->isAudioLevelMonitorEnabled(chatId);
+}
+
+- (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->enableAudioLevelMonitor(enable, chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId {
+    self.megaChatApi->enableAudioLevelMonitor(enable, chatId);
+}
+
 #endif
 
 #pragma mark - Debug log messages

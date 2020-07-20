@@ -240,6 +240,7 @@ protected:
     bool mIsRingingOut = false;
     bool mHadRingAck = false;
     bool mRecovered = false;
+    bool mAudioLevelMonitorEnabled = false;
     CallDataState mLastCallData = kCallDataInvalid;
     karere::AvFlags mLocalFlags;
     void setState(uint8_t newState);
@@ -313,6 +314,8 @@ public:
     void updateAvFlags(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool isCaller(karere::Id userid, uint32_t clientid);
     void changeVideoInDevice();
+    bool isAudioLevelMonitorEnabled() const override;
+    void enableAudioLevelMonitor(bool enable) override;
 };
 
 /*
