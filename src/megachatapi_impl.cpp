@@ -1962,6 +1962,9 @@ void MegaChatApiImpl::sendPendingRequests()
                     chat.manageReaction(msg, reaction, OP_DELREACTION);
                 }
             }
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
 
@@ -4446,7 +4449,7 @@ void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListene
 
 void MegaChatApiImpl::manageReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, bool add, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_MANAGE_REACTION);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_MANAGE_REACTION, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(msgid);
     request->setText(reaction);

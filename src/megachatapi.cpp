@@ -1056,14 +1056,14 @@ void MegaChatApi::removeChatNotificationListener(MegaChatNotificationListener *l
     pImpl->removeChatNotificationListener(listener);
 }
 
-void MegaChatApi::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+void MegaChatApi::addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, MegaChatRequestListener *listener)
 {
-   pImpl->manageReaction(chatid, msgid, reaction, true);
+   pImpl->manageReaction(chatid, msgid, reaction, true, listener);
 }
 
-void MegaChatApi::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
+void MegaChatApi::delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, MegaChatRequestListener *listener)
 {
-   pImpl->manageReaction(chatid, msgid, reaction, false);
+   pImpl->manageReaction(chatid, msgid, reaction, false, listener);
 }
 
 int MegaChatApi::getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction) const
