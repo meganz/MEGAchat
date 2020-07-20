@@ -5324,7 +5324,7 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
             CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
             return;
         }
-        pms = mCrypto->reactionDecrypt(msgId, userId, message.keyid, reaction);
+        pms = mCrypto->reactionDecrypt(msgId, message.userid, message.keyid, reaction);
     }
     else
     {
@@ -5335,7 +5335,11 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
                     : CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
             return;
         }
-        pms = mCrypto->reactionDecrypt(msgId, userId, mDbInterface->getMessageKeyId(msgId), reaction);
+
+        uint32_t keyId = 0;
+        Id msgUserId = Id::inval();
+        mDbInterface->getMessageUserKeyId(msgId, msgUserId, keyId);
+        pms = mCrypto->reactionDecrypt(msgId, msgUserId, keyId, reaction);
     }
 
     auto wptr = weakHandle();
@@ -5390,7 +5394,7 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
             CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
             return;
         }
-        pms = mCrypto->reactionDecrypt(msgId, userId, message.keyid, reaction);
+        pms = mCrypto->reactionDecrypt(msgId, message.userid, message.keyid, reaction);
     }
     else
     {
@@ -5401,7 +5405,11 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
                     : CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
             return;
         }
-        pms = mCrypto->reactionDecrypt(msgId, userId, mDbInterface->getMessageKeyId(msgId), reaction);
+
+        uint32_t keyId = 0;
+        Id msgUserId = Id::inval();
+        mDbInterface->getMessageUserKeyId(msgId, msgUserId, keyId);
+        pms = mCrypto->reactionDecrypt(msgId, msgUserId, keyId, reaction);
     }
 
     auto wptr = weakHandle();

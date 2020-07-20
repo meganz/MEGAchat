@@ -1733,7 +1733,7 @@ public:
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
-    virtual uint32_t getMessageKeyId(const karere::Id &msgid) = 0;
+    virtual void getMessageUserKeyId(const karere::Id &msgid, karere::Id &userid, uint32_t &keyid) = 0;
     virtual bool isValidReactedMessage(const karere::Id &msgid, chatd::Idx &idx) = 0;
 
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;
