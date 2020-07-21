@@ -2785,15 +2785,8 @@ void Chat::manageReaction(const Message &message, const std::string &reaction, O
     std::string encReaction(data->buf(), data->bufSize());
     addPendingReaction(reaction, encReaction, message.id(), opcode);
     CALL_DB(addPendingReaction, message.mId, reaction, encReaction, opcode);
-    auto wptr = weakHandle();
-    marshallCall([wptr, this, &message, data, encReaction, opcode]()
-    {
-        if (wptr.deleted())
-            return;
-
-        sendCommand(Command(opcode) + mChatId + client().myHandle() + message.id()
+    sendCommand(Command(opcode) + mChatId + client().myHandle() + message.id()
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
-    }, mChatdClient.mKarereClient->appCtx);
 }
 
 void Chat::sendReactionSn()
