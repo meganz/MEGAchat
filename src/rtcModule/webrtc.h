@@ -349,6 +349,8 @@ public:
     virtual karere::AvFlags muteUnmute(karere::AvFlags av) = 0;
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const = 0;
     virtual std::map<karere::Id, uint8_t> sessionState() const = 0;
+    virtual bool isAudioLevelMonitorEnabled() const = 0;
+    virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void setOnHold(bool setOnHold) = 0;
 };
 struct SdpKey

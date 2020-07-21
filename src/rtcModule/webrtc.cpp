@@ -2933,6 +2933,36 @@ void Call::changeVideoInDevice()
     }
 }
 
+bool Call::isAudioLevelMonitorEnabled() const
+{
+    return mAudioLevelMonitorEnabled;
+}
+
+void Call::enableAudioLevelMonitor(bool enable)
+{
+    if (mAudioLevelMonitorEnabled == enable)
+    {
+        return;
+    }
+
+    mAudioLevelMonitorEnabled = enable;
+
+    for (auto& sessionIt : mSessions)
+    {
+        if (sessionIt.second->mRemotePlayer && sessionIt.second->mRemotePlayer->isAudioAttached())
+        {
+            if (mAudioLevelMonitorEnabled)
+            {
+                sessionIt.second->mRemotePlayer->getAudioTrack()->AddSink(sessionIt.second->mAudioLevelMonitor.get());
+            }
+            else
+            {
+                sessionIt.second->mRemotePlayer->getAudioTrack()->RemoveSink(sessionIt.second->mAudioLevelMonitor.get());
+            }
+        }
+    }
+}
+
 AvFlags Call::sentFlags() const
 {
     if (mLocalFlags.onHold())
@@ -2942,6 +2972,7 @@ AvFlags Call::sentFlags() const
 
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);
 }
+
 /** Protocol flow:
     C(aller): broadcast CALLDATA payloadLen.2 callid.8 callState.1 avflags.1
        => state: CallState.kReqSent
@@ -3377,7 +3408,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
         mRemotePlayer->getVideoTrack()->set_enabled(!mCall.mLocalFlags.onHold());
     }
 
-    if (mRemotePlayer->isAudioAttached())
+    if (mRemotePlayer->isAudioAttached() && mCall.isAudioLevelMonitorEnabled())
     {
         mRemotePlayer->getAudioTrack()->set_enabled(!mCall.mLocalFlags.onHold());
         mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
@@ -3392,7 +3423,7 @@ void Session::onRemoveStream(artc::tspMediaStream stream)
     }
     if(mRemotePlayer)
     {
-        if (mRemotePlayer->isAudioAttached())
+        if (mRemotePlayer->isAudioAttached() && mCall.isAudioLevelMonitorEnabled())
         {
             mRemotePlayer->getAudioTrack()->RemoveSink(mAudioLevelMonitor.get());
         }
@@ -3521,7 +3552,7 @@ void Session::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transc
         mRemotePlayer->attachVideo(transceiver->receiver()->streams()[0]->GetVideoTracks()[0]);
         mRemotePlayer->enableVideo(mPeerAv.video());
     }
-    else if (transceiver->media_type() == cricket::MEDIA_TYPE_AUDIO)
+    else if (transceiver->media_type() == cricket::MEDIA_TYPE_AUDIO && mCall.isAudioLevelMonitorEnabled())
     {
         mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
     }
@@ -4547,8 +4578,6 @@ AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &se
 
 void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
 {
-    assert(bits_per_sample == 16);
-    time_t nowTime = time(NULL);
     if (!mSession.receivedAv().audio())
     {
         if (mAudioDetected)
@@ -4560,6 +4589,8 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
         return;
     }
 
+    assert(bits_per_sample == 16);
+    time_t nowTime = time(NULL);
     if (nowTime - mPreviousTime > 2) // Two seconds between samples
     {
         mPreviousTime = nowTime;
