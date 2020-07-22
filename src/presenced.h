@@ -270,6 +270,9 @@ public:
     time_t autoawayTimeout() const { return mAutoawayTimeout; }
     bool lastGreenVisible() const { return mLastGreenVisible;}
 
+    /** True if the autoaway should be considered to signal user's activity or not */
+    bool autoAwayInEffect() const;
+
     void fromCode(uint16_t code);
     uint16_t toCode() const;
     std::string toString() const;
@@ -301,18 +304,6 @@ public:
     void toString(char* buf, size_t bufsize) const;
     static inline const char* opcodeToStr(uint8_t code);
     virtual ~Command(){}
-};
-
-struct IdRefMap: public std::map<karere::Id, int>
-{
-    typedef std::map<karere::Id, int> Base;
-    int insert(karere::Id id)
-    {
-        auto result = Base::insert(std::make_pair(id, 1));
-        return result.second
-            ? 1 //we just inserted the peer
-            : ++result.first->second; //already have that peer
-    }
 };
 
 class Listener;
@@ -390,18 +381,11 @@ protected:
     /** True if a new configuration (PREFS) has been sent, but not yet acknowledged */
     bool mPrefsAckWait = false;
 
-    /** List of peers that are allowed to see our presence's status
-     * (currently, it includes contacts and any user in our groupchats, except ex-contacts) */
-    IdRefMap mCurrentPeers;
-
     /** Map of userids (key) and presence (value) of any user wich we're allowed to receive it's presence */
     std::map<uint64_t, karere::Presence> mPeersPresence;
 
     /** Map of userids (key) and last green (value) of any contact or any user in our groupchats, except ex-contacts */
     std::map<uint64_t, time_t> mPeersLastGreen;
-
-    /** Map of chatids (key) and the list of peers (value) in every chat (updated only from API) */
-    std::map<uint64_t, karere::SetOfIds> mChatMembers;
 
     /** Map of userid of contacts (key) and their visibility (value) (updated only from API)
      * @note: ex-contacts are included.
@@ -436,14 +420,13 @@ protected:
     void configChanged();
 
     // peers management
-    void addPeer(karere::Id peer);
-    void removePeer(karere::Id peer, bool force=false);
+    void addPeers(const std::vector<karere::Id> &peers);
+    void removePeers(const std::vector<karere::Id> &peers);
     void pushPeers();
     bool isExContact(uint64_t userid);
     bool isContact(uint64_t userid);
 
     // mega::MegaGlobalListener interface, called by worker thread
-    virtual void onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms);
     virtual void onUsersUpdate(::mega::MegaApi*, ::mega::MegaUserList* users);
     virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
     

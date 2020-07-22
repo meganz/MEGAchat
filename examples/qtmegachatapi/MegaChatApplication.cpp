@@ -33,7 +33,7 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     mSid = NULL;
 
     // Initialize the SDK and MEGAchat
-    mMegaApi = new MegaApi("karere-native", mAppDir.c_str(), "MEGAChatQtApp");
+    mMegaApi = new MegaApi("PssTQSqb", mAppDir.c_str(), "MEGAChatQtApp");
     mMegaChatApi = new MegaChatApi(mMegaApi);
 
     // Create delegate listeners
@@ -437,7 +437,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     int error = e->getErrorCode();
     if (error != API_OK
             && (reqType != MegaRequest::TYPE_LOGIN || error != MegaError::API_EMFAREQUIRED)
-            && (reqType != MegaRequest::TYPE_GET_ATTR_USER || error != MegaError::API_ENOENT))
+            && (reqType != MegaRequest::TYPE_GET_ATTR_USER))
     {
         QMessageBox::critical(nullptr, tr("SDK Request failed: ").append(request->getRequestString()), tr("Error: ").append(e->getErrorString()));
     }
@@ -1056,6 +1056,48 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 break;
             }
+            case MegaChatRequest::TYPE_MANAGE_REACTION:
+            {
+                if (error == MegaChatError::ERROR_OK)
+                {
+                    megachat::MegaChatHandle chatId = request->getChatHandle();
+                    ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
+
+                    if (itemController)
+                    {
+                        ChatItemWidget *widget = itemController->getWidget();
+                        if (widget)
+                        {
+                            ChatWindow *chatWin= itemController->showChatWindow();
+                            if(chatWin)
+                            {
+                                megachat::MegaChatHandle msgId = request->getUserHandle();
+                                const char *reaction = request->getText();
+                                ChatMessage *chatMessage = chatWin->findChatMessage(msgId);
+                                if (chatMessage && reaction)
+                                {
+                                    int count = 0;
+                                    const Reaction *r = chatMessage->getLocalReaction(reaction);
+                                    r ? count = request->getFlag() ? r->getCount() + 1 : r->getCount() - 1
+                                      : count = request->getFlag() ? 1 : 0;
+
+                                    //Local update
+                                    chatMessage->updateReaction(reaction, count);
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
+    case MegaChatRequest::TYPE_IMPORT_MESSAGES:
+        if (!error)
+        {
+            if (mMainWin)
+                mMainWin->reorderAppChatList();
+        }
+        break;
     default:
         break;
     }

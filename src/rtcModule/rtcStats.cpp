@@ -55,8 +55,6 @@ void Recorder::resetBwCalculators()
     mVideoTxBwCalc.reset(&(mCurrSample->vstats.s));
     mAudioRxBwCalc.reset(&(mCurrSample->astats.r));
     mAudioTxBwCalc.reset(&(mCurrSample->astats.s));
-    mConnRxBwCalc.reset(&(mCurrSample->cstats.r));
-    mConnTxBwCalc.reset(&(mCurrSample->cstats.s));
 }
 
 int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
@@ -191,7 +189,7 @@ void Recorder::onStats(const webrtc::StatsReports &data)
     long ts = karere::timestampMs() - mStats->mStartTs;
     long period = ts - mCurrSample->ts;
     mCurrSample->ts = ts;
-    mCurrSample->f = mSession.call().sentAv().value();
+    mCurrSample->f = mSession.call().sentFlags().value();
     for (const webrtc::StatsReport* item: data)
     {
         if (item->id()->type() == RPTYPE(Ssrc))
@@ -275,9 +273,6 @@ void Recorder::onStats(const webrtc::StatsReports &data)
 
             auto& cstat = mCurrSample->cstats;
             AVG(Rtt, cstat.rtt);
-            mConnRxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
-            mConnTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
-
         }
         else if (item->id()->type() == RPTYPE(Bwe))
         {
@@ -355,7 +350,9 @@ RtcStats::~RtcStats()
 const char* decToString(float v)
 {
     static char buf[128];
-    snprintf(buf, 127, "%.1f", v);
+    int integerPart = static_cast<int>(v);
+    int decimalPart = static_cast<int>(fabs((v - integerPart)) * 10.0);
+    snprintf(buf, 127, "%d.%d", integerPart, decimalPart);
     return buf;
 }
 

@@ -68,6 +68,10 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->getAudioDetected() : NO;
 }
 
+- (BOOL)isOnHold {
+    return self.megaChatSession ? self.megaChatSession->isOnHold() : NO;
+}
+
 - (NSInteger)termCode {
     return self.megaChatSession ? self.megaChatSession->getTermCode() : 0;
 }
@@ -132,7 +136,12 @@ using namespace megachat;
     if ([self hasChanged:MEGAChatSessionChangeOperative]) {
         changes = [changes stringByAppendingString:@" | OPERATIVE"];
     }
-    return [changes substringFromIndex:3];
+    
+    if (changes.length < 4) {
+        return changes;
+    } else {
+        return [changes substringFromIndex:3];
+    }
 }
 
 @end

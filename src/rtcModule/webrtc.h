@@ -46,6 +46,9 @@ const uint8_t kCallDataRinging = 1;
 
 #define CHATSTATS_PORT 0
 
+#define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
+#define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
+
 namespace chatd
 {
     class Connection;
@@ -170,6 +173,7 @@ public:
      * data is being received.
      */
     virtual void onDataRecv() {}
+    virtual void onOnHold(bool onHold) = 0;
 
     /**
      * @brief Notifies about changes in network quality
@@ -234,6 +238,7 @@ public:
 
     virtual void onReconnectingState(bool start) = 0;
     virtual void setReconnectionFailed() = 0;
+    virtual void onOnHold(bool onHold) = 0;
 };
 class IGlobalHandler
 {
@@ -337,13 +342,16 @@ public:
     bool isJoiner() { return mIsJoiner; }
     bool isInProgress() const;
     ICallHandler *callHandler() { return mHandler; }
-    virtual karere::AvFlags sentAv() const = 0;
+    virtual karere::AvFlags sentFlags() const = 0;
     virtual void hangup(TermCode reason=TermCode::kInvalid) = 0;
     virtual bool answer(karere::AvFlags av) = 0;
     virtual bool changeLocalRenderer(IVideoRenderer* renderer) = 0;
     virtual karere::AvFlags muteUnmute(karere::AvFlags av) = 0;
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const = 0;
     virtual std::map<karere::Id, uint8_t> sessionState() const = 0;
+    virtual bool isAudioLevelMonitorEnabled() const = 0;
+    virtual void enableAudioLevelMonitor(bool enable) = 0;
+    virtual void setOnHold(bool setOnHold) = 0;
 };
 struct SdpKey
 {
@@ -440,6 +448,8 @@ public:
     virtual int numCalls() const = 0;
     virtual std::vector<karere::Id> chatsWithCall() const = 0;
     virtual void abortCallRetry(karere::Id chatid) = 0;
+    virtual void refreshTurnServerIp() = 0;
+    virtual void updateTurnServers() = 0;
 };
 IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
     IRtcCrypto* crypto, const char* iceServers);

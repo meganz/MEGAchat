@@ -196,6 +196,9 @@ public:
 
     bool hasChatHandler() const;
 
+    /** @brief Returns the retention time of the chatroom */
+    uint32_t getRetentionTime() const { return mChat->getRetentionTime();}
+
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
@@ -227,6 +230,7 @@ public:
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
     promise::Promise<void> archiveChat(bool archive);
+    promise::Promise<void> setChatRetentionTime(int period);
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes) = 0;
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node) = 0;
@@ -481,6 +485,7 @@ protected:
     std::string mEmail;
     int64_t mSince;
     std::string mTitleString;
+    // stores fullname of contact in binary layout: "<firstname_len><firstname> <lastname>"
     std::string mName;
     int mVisibility;
     bool mIsInitializing = true;
@@ -538,8 +543,12 @@ public:
     /** @brief Set the title of this contact */
     void updateTitle(const std::string& str);
 
-    /** @brief Returns the full name of this contact */
-    std::string getContactName();
+    /** @brief Returns the full name of this contact
+     * @param binaryLayout When true, the returned string includes the length
+     * of the firstname in the first byte.
+     * @return The fullname of the this contact
+     */
+    std::string getContactName(bool binaryLayout = false);
 };
 
 /** @brief This is the karere contactlist class. It maps user ids
@@ -944,6 +953,7 @@ public:
     const std::string& myEmail() const { return mMyEmail; }
     uint64_t myIdentity() const { return mMyIdentity; }
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
+    bool isUserAttrCacheReady() const { return mUserAttrCache.get(); }
 
     ConnState connState() const { return mConnState; }
     bool connected() const { return mConnState == kConnected; }

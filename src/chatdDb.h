@@ -143,8 +143,8 @@ public:
     }
     virtual int updateSendingItemsContentAndDelta(const chatd::Message& msg)
     {
-        mDb.query("update sending set msg = ?, updated = ? where msgid = ? and chatid = ?",
-                  msg, msg.updated, msg.id(), mChat.chatId());
+        mDb.query("update sending set msg = ? where msgid = ? and chatid = ?",
+                  msg, msg.id(), mChat.chatId());
         return sqlite3_changes(mDb);
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
@@ -172,6 +172,15 @@ public:
         stmt3 << mChat.chatId() << msgid;
         stmt3.stepMustHaveData();
         *updated = stmt3.intCol(0);
+    }
+
+    void getMessageUserKeyId(const karere::Id &msgid, karere::Id &userid, uint32_t &keyid) override
+    {
+        SqliteStmt stmt(mDb, "select userid, keyid from history where msgid = ?");
+        stmt << msgid;
+        stmt.stepMustHaveData("getMessageUserKeyId");
+        userid = stmt.int64Col(0);
+        keyid = stmt.uintCol(1);
     }
 
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
@@ -269,7 +278,7 @@ public:
                 "and (is_encrypted = ?3 or is_encrypted = ?4 or is_encrypted = ?5)"
                 "and (type = ?6 or type = ?7 or type = ?8 or type = ?9 or type = ?10)";
         if (idx != CHATD_IDX_INVALID)
-            sql+=" and (idx > ?)";
+            sql+=" and (idx > ?11)";
 
         SqliteStmt stmt(mDb, sql);
         stmt << mChat.chatId() << mChat.client().myHandle()   // skip own messages
@@ -284,7 +293,34 @@ public:
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
-        return stmt.intCol(0);
+        int32_t unReadCount = stmt.intCol(0);
+
+        sql = "select data from history where (chatid = ?1)"
+                "and (userid != ?2 )"
+                "and (ts > ?3)"
+                "and (type = ?4)";
+        if (idx != CHATD_IDX_INVALID)
+            sql+=" and (idx > ?5)";
+
+        SqliteStmt stmtEndCAll(mDb, sql);
+        stmtEndCAll << mChat.chatId() << mChat.client().myHandle() // skip own messages
+                    << chatd::kTsMissingCallUnread // skip messages older than kTsMissingCallUnread
+                    << chatd::Message::kMsgCallEnd;                // include only End call messages
+        if (idx != CHATD_IDX_INVALID)
+            stmtEndCAll << idx;
+
+        while(stmtEndCAll.step())
+        {
+            Buffer buffer;
+            stmtEndCAll.blobCol(0, buffer);
+            uint8_t termCode = chatd::Message::extractTermCodeEndCall(buffer);
+            if (termCode == chatd::CallDataReason::kNoAnswer || termCode == chatd::CallDataReason::kCancelled)
+            {
+                unReadCount ++;
+            }
+        }
+
+        return unReadCount;
     }
     virtual void saveItemToManualSending(const chatd::Chat::SendingItem& item, int reason)
     {
@@ -338,8 +374,8 @@ public:
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
 
-        // Clean reactions for the truncate message
-        mDb.query("delete from chat_reactions where chatid = ? and msgid = ?", mChat.chatId(), msg.id());
+        cleanReactions(msg.id());
+        cleanPendingReactions(msg.id());
 
 #ifndef NDEBUG
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
@@ -356,6 +392,15 @@ public:
         stmt.stepMustHaveData(__FUNCTION__);
         return stmt.uint64Col(0);
     }
+
+    uint32_t getOldestMsgTs() override
+    {
+        SqliteStmt stmt(mDb, "select min(ts) from history where chatid = ?");
+        stmt << mChat.chatId();
+        stmt.stepMustHaveData(__FUNCTION__);
+        return stmt.uintCol(0);
+    }
+
     virtual void setLastSeen(karere::Id msgid)
     {
         mDb.query("update chats set last_seen=? where chatid=?", msgid, mChat.chatId());
@@ -469,6 +514,22 @@ public:
         assertAffectedRowCount(1, "deleteMsgFromNodeHistory");
     }
 
+    bool isValidReactedMessage(const karere::Id &msgid, chatd::Idx &idx) override
+    {
+        SqliteStmt stmt(mDb, "select type, userid, keyid, idx from history where msgid = ?");
+        stmt << msgid;
+        if (!stmt.step())
+        {
+            idx = CHATD_IDX_INVALID;
+            return false;
+        }
+
+        idx = stmt.intCol(3);
+        return !((stmt.uintCol(0) >= chatd::Message::kMsgManagementLowest
+                    && stmt.uintCol(0) <= chatd::Message::kMsgManagementHighest)
+               || (stmt.uint64Col(1) == karere::Id::COMMANDER() && stmt.uintCol(2) == 0));
+    }
+
     virtual void truncateNodeHistory(karere::Id id)
     {
         auto idx = getIdxOfMsgid(id, "node_history");
@@ -536,7 +597,7 @@ public:
         }
     }
 
-    std::string getReactionSn() override
+    const std::string getReactionSn() const override
     {
         SqliteStmt stmt(mDb, "select rsn from chats where chatid = ?");
         stmt << mChat.chatId();
@@ -555,26 +616,78 @@ public:
         mDb.query("delete from chat_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
-    void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    void cleanPendingReactions(karere::Id msgId) override
     {
-        mDb.query("insert into chat_reactions(chatid, msgid, userid, reaction)"
-            "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
+        mDb.query("delete from chat_pending_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
-    void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) override
+    void addReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) override
+    {
+        mDb.query("insert or replace into chat_reactions(chatid, msgid, userid, reaction)"
+                  "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
+    }
+
+    void addPendingReaction(karere::Id msgId, const std::string &reaction, const std::string &encReaction, uint8_t status) override
+    {
+        mDb.query("insert or replace into chat_pending_reactions(chatid, msgid, reaction, encReaction, status)"
+                  "values(?,?,?,?,?)", mChat.chatId(), msgId, reaction, encReaction, status);
+    }
+
+    void delReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) override
     {
         mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
             mChat.chatId(), msgId, userId, reaction);
     }
 
-    void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) override
+    void delPendingReaction(karere::Id msgId, const std::string &reaction) override
+    {
+        mDb.query("delete from chat_pending_reactions where chatid = ? and msgid = ? and reaction = ?",
+            mChat.chatId(), msgId, reaction);
+    }
+
+    void getReactions(karere::Id msgId, std::multimap<std::string, karere::Id>& reactions) const override
     {
         SqliteStmt stmt(mDb, "select reaction, userid from chat_reactions where chatid = ? and msgid = ?");
         stmt << mChat.chatId();
         stmt << msgId;
         while (stmt.step())
         {
-            reactions.insert(std::pair<std::string, karere::Id>(stmt.stringCol(0), stmt.uint64Col(1)));
+            reactions.insert(std::pair<std::string, karere::Id>(stmt.stringCol(0), karere::Id(stmt.uint64Col(1))));
+        }
+    }
+
+    void getPendingReactions(std::vector<chatd::Chat::PendingReaction>& reactions) const override
+    {
+        SqliteStmt stmt(mDb, "select reaction, encReaction, msgid, status from chat_pending_reactions where chatid = ?");
+        stmt << mChat.chatId();
+        while (stmt.step())
+        {
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(0), stmt.stringCol(1), karere::Id (stmt.uint64Col(2)), stmt.uint64Col(3)));
+        }
+    }
+
+    bool hasPendingReactions() override
+    {
+        SqliteStmt stmt(mDb, "select count(*) from chat_pending_reactions where chatid = ?");
+        stmt << mChat.chatId();
+        stmt.stepMustHaveData(__FUNCTION__);
+        return stmt.intCol(0);
+    }
+
+    chatd::Idx getIdxByRetentionTime(const time_t ts) override
+    {
+        // Find the most recent msg affected by retention time if any
+        SqliteStmt stmt(mDb, "select MAX(ts), MAX(idx) from history where chatid = ? and ts <= ?");
+        stmt << mChat.chatId() << static_cast<uint32_t>(ts);
+        return (stmt.step() && sqlite3_column_type(stmt, 1) != SQLITE_NULL) ? stmt.intCol(1) : CHATD_IDX_INVALID;
+    }
+
+    void retentionHistoryTruncate(const chatd::Idx idx) override
+    {
+        if (idx != CHATD_IDX_INVALID)
+        {
+            // reactions and pending reactions in DB are removed along with messages (FK delete on cascade)
+            mDb.query("delete from history where chatid = ? and idx <= ?", mChat.chatId(), idx);
         }
     }
 };

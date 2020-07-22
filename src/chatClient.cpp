@@ -320,6 +320,21 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "9" && (strcmp(gDbSchemaVersionSuffix, "10") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Create new table for chat pending reactions
+                db.simpleQuery("CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null,"
+                               "    reaction text, encReaction blob, status tinyint default 0,"
+                               "    UNIQUE(chatid, msgid, reaction),"
+                               "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
+
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
             else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
             {
                 // Remove USER_ATTR_RSA_PUBKEY attr from cache
@@ -418,6 +433,21 @@ int Client::importMessages(const char *externalDbPath)
         karere::ChatRoom *chatroom = it.second;
         chatd::Chat &chat = chatroom->chat();
         karere::Id chatid = chatroom->chatid();
+
+        // get id of last message seen from external db
+        Id lastSeenId;
+        SqliteStmt stmtLastSeen(dbExternal, "select last_seen from chats where chatid=?");
+        stmtLastSeen << chatid;
+        if (stmtLastSeen.step())
+        {
+            lastSeenId = stmtLastSeen.uint64Col(0);
+            chat.seenImport(lastSeenId);
+        }
+        else    // no SEEN pointer for this chat on external cache (or chat not found)
+        {
+            KR_LOG_WARNING("importMessages: SEEN not imported becaus chatid not found in external db (chatid: %s)",
+                         chatid.toString().c_str());
+        }
 
         chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
         karere::Id newestAppMsgid(Id::inval());
@@ -652,6 +682,22 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     {
         mChatdClient->retryPendingConnections(disconnect, refreshURL);
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc && disconnect)
+    {
+        int index = 0;
+        while (mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
+        {
+            // invalidate IPs
+            mDnsCache.invalidateIps(TURNSERVER_SHARD - index);
+            index++;
+        }
+
+        rtc->updateTurnServers();
+        rtc->refreshTurnServerIp();
+    }
+#endif
 }
 
 promise::Promise<void> Client::notifyUserStatus(bool background)
@@ -2391,7 +2437,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
       mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)), mRoomGui(nullptr)
 {
     parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived) values (?,?,?,?,?,?,?)",
-        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived());
+        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, mCreationTs, mIsArchived);
 //just in case
     parent.mKarereClient.db.query("delete from chat_peers where chatid = ?", mChatid);
 
@@ -2469,7 +2515,7 @@ void PeerChatRoom::updateChatRoomTitle()
     std::string title = parent.mKarereClient.getUserAlias(mPeer);
     if (title.empty())
     {
-        title = mContact->getContactName();
+        title = mContact ? mContact->getContactName() : "";
         if (title.empty())
         {
             title = mEmail;
@@ -2478,7 +2524,7 @@ void PeerChatRoom::updateChatRoomTitle()
 
     if (mContact)
     {
-        mContact->updateTitle(encodeFirstName(title));
+        mContact->updateTitle(title);
     }
     else
     {
@@ -2488,6 +2534,11 @@ void PeerChatRoom::updateChatRoomTitle()
 
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
 {
+    if (!chat.getPeerList())
+    {
+        KR_LOG_ERROR("1on1 room without peer: %s", Id(chat.getHandle()).toString().c_str());
+        return Id::inval();
+    }
     auto peers = chat.getPeerList();
     assert(peers);
     assert(peers->size() == 1);
@@ -2496,6 +2547,10 @@ uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
 
 chatd::Priv PeerChatRoom::getSdkRoomPeerPriv(const mega::MegaTextChat &chat)
 {
+    if (!chat.getPeerList())
+    {
+        return chatd::PRIV_INVALID;
+    }
     auto peers = chat.getPeerList();
     assert(peers);
     assert(peers->size() == 1);
@@ -2664,6 +2719,11 @@ promise::Promise<void> ChatRoom::archiveChat(bool archive)
             onArchivedChanged(archive);
         }
     });
+}
+
+promise::Promise<void> ChatRoom::setChatRetentionTime(int period)
+{
+    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatRetentionTime, chatid(), period);
 }
 
 void GroupChatRoom::deleteSelf()
@@ -3337,6 +3397,7 @@ void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx 
 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
 {
+    // truncate can be received as NEWMSG when the `msgid` is new for the client (later on the MSGUPD is also received)
     if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
          || (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
     {
@@ -3375,8 +3436,6 @@ void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
     chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
 
-    //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
-    // and, if so, remove the block from `onRecvNewMessage()`
     if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
          || (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
     {
@@ -3386,7 +3445,8 @@ void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status status, const chatd::Message& msg)
 {
-    if (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    if (msg.userid != parent.mKarereClient.myHandle()
+            && status == chatd::Message::kSeen)  // received message from a peer changed to seen
     {
         parent.mKarereClient.app.onChatNotification(mChatid, msg, status, idx);
     }
@@ -3394,11 +3454,10 @@ void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status stat
 
 void ChatRoom::onUnreadChanged()
 {
-    auto count = mChat->unreadMsgCount();
     IApp::IChatListItem *room = roomGui();
     if (room)
     {
-        room->onUnreadCountChanged(count);
+        room->onUnreadCountChanged();
     }
 }
 
@@ -3849,9 +3908,9 @@ void Contact::setContactName(std::string name)
     mName = name;
 }
 
-std::string Contact::getContactName()
+std::string Contact::getContactName(bool binaryLayout)
 {
-    return mName;
+    return (binaryLayout || mName.empty()) ? mName : mName.substr(1);
 }
 
 void ContactList::syncWithApi(mega::MegaUserList &users)
@@ -3936,12 +3995,31 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
             Contact *contact = new Contact(*this, userid, email, newVisibility, ts, nullptr);
             emplace(userid, contact);
 
+            // find if there is a 1on1 room with this contact
+            // (in case on 1on1 with users who canceled and restored their account,
+            // MEGAchat knows about the chatroom but not about the contact)
+            for (auto &it : *client.chats)
+            {
+                if (it.second->isGroup())
+                    continue;
+
+                auto chat = static_cast<PeerChatRoom*>(it.second);
+                if (chat->peer() == userid)
+                {
+                    KR_LOG_WARNING("Contact restored (%s) for a 1on1 room (%s)",
+                                   Id(userid).toString().c_str(),
+                                   Id(chat->chatid()).toString().c_str());
+
+                    chat->initContact(userid);
+                    break;
+                }
+            }
+
             KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
 
             // If the user was part of a group before being added as a contact, we need to update user attributes,
             // currently firstname, lastname and email, in order to ensure that are re-fetched for users
             // with group chats previous to establish contact relationship
-            assert(!changed || userid == client.myHandle());   // new users have no changes (expect own user, who updates some attrs upon login)
             changed = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME | ::mega::MegaUser::CHANGE_TYPE_EMAIL;
             updateCache = true;
         }
@@ -4007,17 +4085,19 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         {
             // Update contact name
             std::string name(data->buf(), data->dataSize());
-            self->setContactName(name.substr(1));
+
+            // Preserve binary layout for contact name
+            self->setContactName(name);
             if (alias.empty())
             {
                 // Update title if there's no alias
-                self->updateTitle(name);
+                self->updateTitle(self->getContactName());
             }
         }
         else if (alias.empty())
         {
             // If there's no alias nor fullname
-            self->updateTitle(encodeFirstName(self->mEmail));
+            self->updateTitle(self->mEmail);
         }
     });
 
@@ -4039,14 +4119,15 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
             std::string contactName = self->getContactName();
             if (alias.empty() && contactName.empty())
             {
-                self->updateTitle(encodeFirstName(self->mEmail));
+                // Set email as title because contact doesn't have alias nor fullname
+                self->updateTitle(self->mEmail);
             }
         }
     });
 
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
-        updateTitle(encodeFirstName(email));
+        updateTitle(email);
         assert(!mTitleString.empty());
     }
 
@@ -4067,7 +4148,7 @@ void Contact::notifyTitleChanged()
     {
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
-            mChatRoom->updateTitle(mTitleString.substr(1));
+            mChatRoom->updateTitle(mTitleString);
     }, mClist.client.appCtx);
 }
 
@@ -4113,7 +4194,7 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    mChatRoom->updateTitle(mTitleString.substr(1));
+    mChatRoom->updateTitle(mTitleString);
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
@@ -4246,13 +4327,13 @@ void Client::updateAliases(Buffer *data)
             std::string title = getUserAlias(userid);
             if (title.empty())
             {
-                title = !contact->getContactName().empty()
-                    ? contact->getContactName()
-                    : contact->email();
+                title = contact->getContactName();
+                if (title.empty())
+                {
+                    title = contact->email();
+                }
             }
-
-            // Contact title has a binary layout
-            contact->updateTitle(encodeFirstName(title));
+            contact->updateTitle(title);
         }
     }
 

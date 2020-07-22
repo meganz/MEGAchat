@@ -6,7 +6,6 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import mega.privacy.android.app.MegaApplication;
 import mega.privacy.android.app.utils.VideoCaptureUtils;
 
 public class MegaChatApiJava {
@@ -2708,6 +2707,21 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Set/unset a call on hold
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CALL_ON_HOLD
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true (set on hold) false (unset on hold)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param setOnHold indicates if call is set or unset on hold
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void setCallOnHold(long chatid, boolean setOnHold,MegaChatRequestListenerInterface listener){
+        megaChatApi.setCallOnHold(chatid, setOnHold,createDelegateRequestListener(listener));
+    }
+    /**
      * Search all audio and video devices at the system at that moment.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
@@ -2840,6 +2854,62 @@ public class MegaChatApiJava {
      */
     public int getMaxVideoCallParticipants() {
         return megaChatApi.getMaxVideoCallParticipants();
+    }
+
+    /**
+     * Returns if audio level monitor is enabled
+     *
+     * It's false by default
+     *
+     * If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor will be always false
+     *
+     * @param chatid MegaChatHandle that identifies the chat room from we want know if audio level monitor is disabled
+     * @return true if audio level monitor is enabled
+     */
+    public boolean isAudioLevelMonitorEnabled(long chatid) {
+        return megaChatApi.isAudioLevelMonitorEnabled(chatid);
+    }
+
+    /**
+     * Enable or disable audio level monitor
+     *
+     * It's false by default and it's app responsability to enable it
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     *
+     * If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor won't be able established
+     *
+     * @param enable True for enable audio level monitor, False to disable
+     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void enableAudioLevelMonitor(boolean enable, long chatid, MegaChatRequestListenerInterface listener) {
+        megaChatApi.enableAudioLevelMonitor(enable, chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Enable or disable audio level monitor
+     *
+     * It's false by default and it's app responsability to enable it
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     *
+     * If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor won't be able established
+     *
+     * @param enable True for enable audio level monitor, False to disable
+     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     */
+    public void enableAudioLevelMonitor(boolean enable, long chatid) {
+        megaChatApi.enableAudioLevelMonitor(enable, chatid);
     }
 
     public static void setCatchException(boolean enable) {
