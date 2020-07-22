@@ -1714,7 +1714,7 @@ uint64_t Client::initMyIdentity()
 promise::Promise<void> Client::loadOwnKeysFromApi()
 {
     return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
-    .then([this](ReqResult result) -> promise::Promise<void>
+    .then([this](ReqResult result) -> ApiPromise
     {
         auto keys = result->getMegaStringMap();
         auto cu25519 = keys->get("prCu255");
@@ -1733,6 +1733,13 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         if (b64len != 43)
             return ::promise::Error("prEd255 base64 key length is not 43 bytes");
         base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
+        return api.call(&mega::MegaApi::getUserData);
+    })
+    .then([this](ReqResult result) -> promise::Promise<void>
+    {
+        // write to db
+        db.query("insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+        db.query("insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
