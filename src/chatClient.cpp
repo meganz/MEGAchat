@@ -330,13 +330,6 @@ bool Client::openDb(const std::string& sid)
                                "    UNIQUE(chatid, msgid, reaction),"
                                "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
 
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
-                db.commit();
-                ok = true;
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
-            }
-            else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
-            {
                 // Remove USER_ATTR_RSA_PUBKEY attr from cache
                 db.query("delete from userattrs where type = 64");
 
