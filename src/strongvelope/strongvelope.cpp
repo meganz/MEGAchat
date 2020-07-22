@@ -634,68 +634,62 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     }
 }
 
-promise::Promise<std::shared_ptr<Buffer>>
+std::shared_ptr<Buffer>
 ProtocolHandler::reactionEncrypt(const Message &msg, const std::string &reaction)
 {
+    std::shared_ptr<SendKey> data;
     promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (isPublicChat())
     {
-        symPms = mUnifiedKeyDecrypted;
+        assert (mUnifiedKeyDecrypted.succeeded());
+        data = mUnifiedKey;
     }
     else
     {
-        symPms = getKey(UserKeyId(msg.userid, msg.keyid));
+        UserKeyId ukid(msg.userid, msg.keyid);
+        auto it = mKeys.find(ukid);
+        assert(it != mKeys.end());
+        data = it->second.key;
     }
 
-    auto wptr = weakHandle();
-    return symPms.then([wptr, &msg, &reaction](const std::shared_ptr<SendKey>& data)
+    // Inside this function str_to_a32 and a32_to_str calls must be done with type <T> = <uint32_t>
+    std::string keyBin(data->buf(), data->dataSize());
+    std::vector<uint32_t> key32 = ::mega::Utils::str_to_a32<uint32_t>(keyBin);
+    size_t key32Len = key32.size();
+
+    std::string msgId(msg.id().toString());
+    std::vector<uint32_t> msgId32 = ::mega::Utils::str_to_a32<uint32_t>(msgId);
+    size_t msgId32Len = msgId32.size();
+
+    // key32 XOR msgId32 --> Cypherkey to encrypt reaction
+    std::vector<uint32_t> cypherKey(key32Len);
+    for (size_t i = 0; i < key32Len; i++)
     {
-        wptr.throwIfDeleted();
+        cypherKey[i] = key32[i] ^ msgId32[i % msgId32Len];
+    }
 
-        // Inside this function str_to_a32 and a32_to_str calls must be done with type <T> = <uint32_t>
-        std::string keyBin(data->buf(), data->dataSize());
-        std::vector<uint32_t> key32 = ::mega::Utils::str_to_a32<uint32_t>(keyBin);
-        size_t key32Len = key32.size();
+    // Add padding to reaction
+    size_t emojiLenWithPadding = ceil(static_cast<float>(reaction.size()) / 4) * 4;
+    size_t paddingSize = emojiLenWithPadding - reaction.size();
 
-        std::string msgId(msg.id().toString());
-        std::vector<uint32_t> msgId32 = ::mega::Utils::str_to_a32<uint32_t>(msgId);
-        size_t msgId32Len = msgId32.size();
+    // Concat msgid[0..3] with emoji and padding
+    std::string buf(msgId.data(), 4);
+    buf.append(paddingSize, '\0');
+    buf.append(reaction);
 
-        // key32 XOR msgId32 --> Cypherkey to encrypt reaction
-        std::vector<uint32_t> cypherKey(key32Len);
-        for (size_t i = 0; i < key32Len; i++)
-        {
-            cypherKey[i] = key32[i] ^ msgId32[i % msgId32Len];
-        }
+    // Convert into a unit32 array --> emoji32
+    std::vector<uint32_t> emoji32 = ::mega::Utils::str_to_a32<uint32_t>(buf);
 
-        // Add padding to reaction
-        size_t emojiLenWithPadding = ceil(static_cast<float>(reaction.size()) / 4) * 4;
-        size_t paddingSize = emojiLenWithPadding - reaction.size();
+    // Encrypt reaction
+    ::mega::xxteaEncrypt(emoji32.data(), emoji32.size(), cypherKey.data(), false);
 
-        // Concat msgid[0..3] with emoji and padding
-        std::string buf(msgId.data(), 4);
-        buf.append(paddingSize, '\0');
-        buf.append(reaction);
-
-        // Convert into a unit32 array --> emoji32
-        std::vector<uint32_t> emoji32 = ::mega::Utils::str_to_a32<uint32_t>(buf);
-
-        // Encrypt reaction
-        ::mega::xxteaEncrypt(emoji32.data(), emoji32.size(), cypherKey.data(), false);
-
-        // Convert encrypted reaction to uint32 array
-        std::string result = ::mega::Utils::a32_to_str<uint32_t>(emoji32);
-
-        return std::make_shared<Buffer>(result.data(), result.size());
-    })
-    .fail([](const ::promise::Error& err)
-    {
-        return err;
-    });
+    // Convert encrypted reaction to uint32 array
+    std::string result = ::mega::Utils::a32_to_str<uint32_t>(emoji32);
+    return std::make_shared<Buffer>(result.data(), result.size());
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::reactionDecrypt(const Message &msg, const std::string &reaction)
+ProtocolHandler::reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const KeyId &keyid, const std::string &reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
     if (isPublicChat())
@@ -704,11 +698,11 @@ ProtocolHandler::reactionDecrypt(const Message &msg, const std::string &reaction
     }
     else
     {
-        symPms = getKey(UserKeyId(msg.userid, msg.keyid));
+        symPms = getKey(UserKeyId(userid, keyid));
     }
 
     auto wptr = weakHandle();
-    return symPms.then([wptr, &msg, &reaction](const std::shared_ptr<SendKey>& data)
+    return symPms.then([wptr, &msgid, &reaction](const std::shared_ptr<SendKey>& data)
     {
         wptr.throwIfDeleted();
 
@@ -717,7 +711,7 @@ ProtocolHandler::reactionDecrypt(const Message &msg, const std::string &reaction
         std::vector<uint32_t> key32 = ::mega::Utils::str_to_a32<uint32_t>(keyBin);
         size_t key32Len = key32.size();
 
-        std::string msgId = msg.id().toString();
+        std::string msgId = msgid.toString();
         std::vector<uint32_t> msgId32 =  ::mega::Utils::str_to_a32<uint32_t>(msgId);
         size_t msgId32Len = msgId32.size();
 

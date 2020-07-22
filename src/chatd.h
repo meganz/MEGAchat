@@ -750,6 +750,16 @@ public:
         ManualSendReason reason;
     };
 
+    struct PendingReaction
+    {
+        PendingReaction(const std::string &aReactionString, const std::string &aReactionStringEnc, uint64_t aMsgId, uint8_t status);
+        std::string mReactionString;
+        std::string mReactionStringEnc;
+        uint64_t mMsgId;
+        uint8_t mStatus;
+    };
+    typedef std::list<PendingReaction> PendingReactions;
+
     Client& mChatdClient;
 
     enum FetchType
@@ -766,6 +776,7 @@ protected:
     std::vector<std::unique_ptr<Message>> mBackwardList;
     std::unique_ptr<FilteredHistory> mAttachmentNodes;
     OutputQueue mSending;
+    PendingReactions mPendingReactions;
     OutputQueue::iterator mNextUnsent;
     bool mIsFirstJoin = true;
     std::map<karere::Id, Idx> mIdToIndexMap;
@@ -917,7 +928,7 @@ protected:
     void requestPendingRichLinks();
     void removePendingRichLinks();
     void removePendingRichLinks(Idx idx);
-    void removeMessageReactions(Idx idx);
+    void removeMessageReactions(Idx idx, bool cleanPrevious = false);
     void manageRichLinkMessage(Message &message);
     void attachmentHistDone();
     friend class Connection;
@@ -1337,13 +1348,45 @@ public:
     uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
-    void addReaction(const Message &message, const std::string &reaction);
-    void delReaction(const Message &message, const std::string &reaction);
+    void manageReaction(const Message &message, const std::string &reaction, Opcode opcode);
+    const PendingReactions &getPendingReactions() const;
+    void addPendingReaction(const std::string &reaction, const std::string &encReaction, karere::Id msgId, uint8_t status);
+    void removePendingReaction(const std::string &reaction, karere::Id msgId);
+    void retryPendingReactions();
     void sendReactionSn();
+
+    /**
+     * @brief Clean pending reactions in a chat for a specific message
+     * @note Reactions in local DB are removed along with messages (FK delete on cascade).
+     * @param msgId Id of message whose pending reactions will be cleaned.
+     */
+    void cleanPendingReactions(const karere::Id &msgId);
+
+    /**
+     * @brief Clean pending reactions in a chat for a specific message or range of messages.
+     *
+     * The function will clean all pending reactions for the messages whose index is previous to idx.
+     *
+     * @note Reactions in local DB are removed along with messages (FK delete on cascade).
+     * @param idx Index of message of the newest message whose pending reactions will be removed
+     */
+    void cleanPendingReactionsOlderThan(Idx idx);
+
+    /** @brief Flush all pending reactions (in RAM and local DB) for a chat.
+     * Upon HISTDONE reception all pending reactions has been applied in chatd,
+     * so we need to update changes in local and flush pending reactions
+     */
+    void flushChatPendingReactions();
+
+    /** @brief Return the status of a reaction:
+     *  - returns OP_ADDREACTION:   If reaction is pending to be added
+     *  - returns OP_DELREACTION:   If reaction is pending to be removed
+     *  - returns -1:               If pending reaction not exists
+     */
+    int getPendingReactionStatus(const std::string& reaction, karere::Id msgId) const;
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;
     bool previewMode();
-    void rejoin();
 
     /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
     void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
@@ -1356,6 +1399,9 @@ public:
 
     /** Returns true when fetch in-flight is a NODEHIST */
     bool isFetchingNodeHistory() const;
+
+    /** Returns true when fetch in-flight is a HIST */
+    bool isFetchingHistory() const;
     void setNodeHistoryHandler(FilteredHistoryHandler *handler);
     void unsetHandlerToNodeHistory();
     uint32_t getRetentionTime() const;
@@ -1687,6 +1733,8 @@ public:
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
+    virtual void getMessageUserKeyId(const karere::Id &msgid, karere::Id &userid, uint32_t &keyid) = 0;
+    virtual bool isValidReactedMessage(const karere::Id &msgid, chatd::Idx &idx) = 0;
 
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;
     virtual void truncateHistory(const chatd::Message& msg) = 0;
@@ -1695,12 +1743,17 @@ public:
     virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
 
     //  <<<--- Reaction methods --->>>
-    virtual std::string getReactionSn() = 0;
+    virtual const std::string getReactionSn() const = 0;
     virtual void setReactionSn(const std::string &rsn) = 0;
     virtual void cleanReactions(karere::Id msgId) = 0;
-    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
-    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
-    virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) = 0;
+    virtual void cleanPendingReactions(karere::Id msgId) = 0;
+    virtual void addReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) = 0;
+    virtual void addPendingReaction(karere::Id msgId, const std::string &reaction, const std::string &encReaction, uint8_t status) = 0;
+    virtual void delReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) = 0;
+    virtual void delPendingReaction(karere::Id msgId, const std::string &reaction) = 0;
+    virtual void getReactions(karere::Id msgId, std::multimap<std::string, karere::Id>& reactions) const = 0;
+    virtual void getPendingReactions(std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
+    virtual bool hasPendingReactions() = 0;
 
     //  <<<--- Retention history methods --->>>
     virtual chatd::Idx getIdxByRetentionTime(time_t) = 0;

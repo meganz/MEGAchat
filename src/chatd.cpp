@@ -506,9 +506,14 @@ void Chat::login()
     else
     {
         if (mOldestKnownMsgId) //if we have local history
+        {
             joinRangeHist(info);
+            retryPendingReactions();
+        }
         else
+        {
             join();
+        }
     }
 }
 
@@ -1911,23 +1916,34 @@ Idx Chat::getHistoryFromDb(unsigned count)
     for (auto msg: messages)
     {
         // Load msg reactions from cache
-        ::mega::multimap<std::string, karere::Id> reactions;
-        CALL_DB(getMessageReactions, msg->id(), reactions);
-        for (auto &it : reactions)
+        std::multimap<std::string, karere::Id> reactions;
+        CALL_DB(getReactions, msg->id(), reactions);
+        for (auto& reaction : reactions)
         {
-            msg->addReaction(it.first, it.second);
+            // Add reaction to confirmed reactions queue in message
+            msg->addReaction(reaction.first, reaction.second);
         }
 
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
     }
     if (mNextHistFetchIdx == CHATD_IDX_INVALID)
     {
-        mNextHistFetchIdx = mForwardStart - 1 - messages.size();
+        mNextHistFetchIdx = mForwardStart - 1 - static_cast<Idx>(messages.size());
     }
     else
     {
-        mNextHistFetchIdx -= messages.size();
+        mNextHistFetchIdx -= static_cast<Idx>(messages.size());
     }
+
+    // Load all pending reactions stored in cache
+    std::vector<PendingReaction> pendingReactions;
+    CALL_DB(getPendingReactions, pendingReactions);
+    for (auto &auxReaction : pendingReactions)
+    {
+        // Add pending reaction to queue in chat
+        addPendingReaction(auxReaction.mReactionString, auxReaction.mReactionStringEnc, auxReaction.mMsgId, auxReaction.mStatus);
+    }
+
     CALL_LISTENER(onHistoryDone, kHistSourceDb);
 
     // If we haven't yet seen the message with the last-seen msgid, then all messages
@@ -2472,6 +2488,7 @@ void Chat::onHistDone()
         {
             onJoinComplete();
         }
+        flushChatPendingReactions();
     }
     else if (fetchType == FetchType::kFetchNodeHistory)
     {
@@ -2667,53 +2684,109 @@ void Chat::sendSync()
     sendCommand(Command(OP_SYNC) + mChatId);
 }
 
-
-void Chat::addReaction(const Message &message, const std::string &reaction)
+const Chat::PendingReactions& Chat::getPendingReactions() const
 {
-    auto wptr = weakHandle();
-    marshallCall([wptr, this, message, reaction]()
-    {
-        if (wptr.deleted())
-            return;
-
-        mCrypto->reactionEncrypt(message, reaction)
-        .then([this, wptr, &message](std::shared_ptr<Buffer> data)
-        {
-            if (wptr.deleted())
-                return;
-
-           std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
-           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
-        })
-        .fail([this](const ::promise::Error& err)
-        {
-            CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
-        });
-    }, mChatdClient.mKarereClient->appCtx);
+    return mPendingReactions;
 }
 
-void Chat::delReaction(const Message &message, const std::string &reaction)
+int Chat::getPendingReactionStatus(const string &reaction, Id msgId) const
 {
-    auto wptr = weakHandle();
-    marshallCall([wptr, this, &message, reaction]()
+    for (auto &auxReaction : mPendingReactions)
     {
-        if (wptr.deleted())
+        if (auxReaction.mMsgId == msgId && auxReaction.mReactionString == reaction)
+        {
+            return auxReaction.mStatus;
+        }
+    }
+    return -1;
+}
+
+void Chat::addPendingReaction(const std::string &reaction, const std::string &encReaction, Id msgId, uint8_t status)
+{
+    for (auto &auxReaction : mPendingReactions)
+    {
+        // If reaction already exists in pending list, only update it's status
+        if (auxReaction.mMsgId == msgId && auxReaction.mReactionString == reaction)
+        {
+            assert(encReaction == auxReaction.mReactionStringEnc);
+            auxReaction.mStatus = status;
             return;
+        }
+    }
 
-        mCrypto->reactionEncrypt(message, reaction)
-        .then([this, wptr, &message](std::shared_ptr<Buffer> data)
-        {
-            if (wptr.deleted())
-                return;
+    mPendingReactions.emplace_back(PendingReaction(reaction, encReaction, msgId, status));
+}
 
-           std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
-           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
-        })
-        .fail([this](const ::promise::Error& err)
+void Chat::removePendingReaction(const string &reaction, Id msgId)
+{
+    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
+    {
+        if (it->mMsgId == msgId
+            && it->mReactionString == reaction)
         {
-            CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
-        });
-    }, mChatdClient.mKarereClient->appCtx);
+            mPendingReactions.erase(it);
+            return;
+        }
+    }
+}
+
+void Chat::retryPendingReactions()
+{
+    for (auto& reaction: mPendingReactions)
+    {
+        assert(!reaction.mReactionStringEnc.empty());
+        sendCommand(Command(reaction.mStatus) + mChatId + client().myHandle() + reaction.mMsgId + (int8_t)reaction.mReactionStringEnc.size() + reaction.mReactionStringEnc);
+    }
+}
+
+void Chat::cleanPendingReactions(const karere::Id &msgId)
+{
+    mPendingReactions.remove_if([msgId](PendingReaction& reaction)
+    {
+        return reaction.mMsgId == msgId;
+    });
+}
+
+void Chat::cleanPendingReactionsOlderThan(Idx idx)
+{
+    mPendingReactions.remove_if([idx, this](PendingReaction& reaction)
+    {
+        return msgIndexFromId(reaction.mMsgId) <= idx;
+    });
+}
+
+void Chat::flushChatPendingReactions()
+{
+    for (auto &reaction : mPendingReactions)
+    {
+        Idx index = msgIndexFromId(reaction.mMsgId);
+        if (index == CHATD_IDX_INVALID)
+        {
+            // couldn't find msg
+            CHATID_LOG_WARNING("flushChatPendingReactions: message with id(%d) not loaded in RAM", reaction.mMsgId);
+        }
+        else
+        {
+            const Message &message = at(index);
+            CALL_LISTENER(onReactionUpdate, message.mId, reaction.mReactionString.c_str(), message.getReactionCount(reaction.mReactionString));
+        }
+        CALL_DB(cleanPendingReactions, reaction.mMsgId);
+    }
+    mPendingReactions.clear();
+
+    // Ensure that all pending reactions are flushed upon HISTDONE reception
+    assert(!mDbInterface->hasPendingReactions());
+}
+
+void Chat::manageReaction(const Message &message, const std::string &reaction, Opcode opcode)
+{
+    assert(opcode == OP_ADDREACTION || opcode == OP_DELREACTION);
+    std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
+    std::string encReaction(data->buf(), data->bufSize());
+    addPendingReaction(reaction, encReaction, message.id(), opcode);
+    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, opcode);
+    sendCommand(Command(opcode) + mChatId + client().myHandle() + message.id()
+                    + static_cast<int8_t>(data->bufSize()) + encReaction);
 }
 
 void Chat::sendReactionSn()
@@ -2729,6 +2802,11 @@ void Chat::sendReactionSn()
 bool Chat::isFetchingNodeHistory() const
 {
     return (!mFetchRequest.empty() && (mFetchRequest.front() == FetchType::kFetchNodeHistory));
+}
+
+bool Chat::isFetchingHistory() const
+{
+    return (!mFetchRequest.empty() && (mFetchRequest.front() == FetchType::kFetchMessages));
 }
 
 void Chat::setNodeHistoryHandler(FilteredHistoryHandler *handler)
@@ -2991,15 +3069,18 @@ void Chat::removePendingRichLinks(Idx idx)
     }
 }
 
-void Chat::removeMessageReactions(Idx idx)
+void Chat::removeMessageReactions(Idx idx, bool cleanPrevious)
 {
     Message *msg = findOrNull(idx);
     if (msg)
     {
         msg->cleanReactions();
-        // reactions in DB are removed along with messages (FK delete on cascade)
+
+        (cleanPrevious)
+                ? cleanPendingReactionsOlderThan(idx)
+                : cleanPendingReactions(msg->id());
     }
-    // TODO: clear any pending reaction in the queue for older messages than `idx` (see removePendingRichLinks(idx))
+    // reactions in DB are removed along with messages (FK delete on cascade)
 }
 
 void Chat::manageRichLinkMessage(Message &message)
@@ -3530,12 +3611,6 @@ uint64_t Chat::getPublicHandle() const
 bool Chat::previewMode()
 {
     return crypto()->previewMode();
-}
-
-void Chat::rejoin()
-{
-    clearHistory();
-    join();
 }
 
 void Chat::onLastSeen(Id msgid, bool resend)
@@ -4319,9 +4394,10 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
                 mAttachmentNodes->deleteMessage(*msg);
             }
 
-            // Clean message reactions
-            msg->cleanReactions();
+            // Clean message reactions and pending reactions for the deleted message
+            removeMessageReactions(msgIndexFromId(msg->mId));
             CALL_DB(cleanReactions, msg->id());
+            CALL_DB(cleanPendingReactions, msg->id());
         }
 
         if (msg->type == Message::kMsgTruncate)
@@ -4388,9 +4464,10 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         //messages older than the one specified
         CALL_LISTENER(onHistoryTruncated, msg, idx);
 
+        // Reactions must be cleared before call deleteMessagesBefore
+        removeMessageReactions(idx, true);
         deleteMessagesBefore(idx);
         removePendingRichLinks(idx);
-        removeMessageReactions(idx);
 
         // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)
@@ -4460,6 +4537,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     // Clean affected messages in db and RAM
     CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
     CALL_DB(retentionHistoryTruncate, idx);
+    cleanPendingReactionsOlderThan(idx); //clean pending reactions, including previous indexes
     truncateByRetentionTime(idx);
 
     removePendingRichLinks(idx);
@@ -5229,38 +5307,67 @@ void Chat::onUserLeave(Id userid)
 
 void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 {
-    Idx messageIdx = msgIndexFromId(msgId);
-    if (messageIdx == CHATD_IDX_INVALID)
-    {
-        CHATID_LOG_WARNING("onAddReaction: message id not found. msgid: %s", ID_CSTR(msgId));
-        return;
-    }
-
     if (reaction.empty())
     {
         CHATID_LOG_ERROR("onAddReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
         return;
     }
 
-    Message &message = at(messageIdx);
-    if (message.isManagementMessage())
+    promise::Promise<std::shared_ptr<Buffer>> pms;
+    Idx messageIdx = msgIndexFromId(msgId);
+    if (messageIdx != CHATD_IDX_INVALID)
     {
-        CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
-        return;
+        // message loaded in RAM
+        Message &message = at(messageIdx);
+        if (message.isManagementMessage())
+        {
+            CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+        pms = mCrypto->reactionDecrypt(msgId, message.userid, message.keyid, reaction);
+    }
+    else
+    {
+        if (!mDbInterface->isValidReactedMessage(msgId, messageIdx))
+        {
+            (messageIdx == CHATD_IDX_INVALID)
+                    ? CHATID_LOG_WARNING("onAddReaction: message id not found. msgid: %s", ID_CSTR(msgId))
+                    : CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+
+        uint32_t keyId = 0;
+        Id msgUserId = Id::inval();
+        mDbInterface->getMessageUserKeyId(msgId, msgUserId, keyId);
+        pms = mCrypto->reactionDecrypt(msgId, msgUserId, keyId, reaction);
     }
 
     auto wptr = weakHandle();
-    mCrypto->reactionDecrypt(message, reaction)
-    .then([this, wptr, &message, userId](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
+    pms.then([this, wptr, &msgId, &messageIdx, userId, reaction](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
     {
         if (wptr.deleted())
             return;
 
         const std::string reaction(data->buf(), data->size());
-        message.addReaction(reaction, userId);
-        CALL_DB(addReaction, message.mId, userId, reaction.c_str());
 
-        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+        // Add reaction to db
+        CALL_DB(addReaction, msgId, userId, reaction);
+
+        if (userId == mChatdClient.myHandle() && !isFetchingHistory())
+        {
+            // If we are not fetching history and reaction is own, remove pending reaction from ram and cache.
+            // In case we are fetching history, pending reactions will be flushed upon HISTDONE receive
+            removePendingReaction(reaction, msgId);
+            CALL_DB(delPendingReaction, msgId, reaction);
+        }
+
+        if (messageIdx != CHATD_IDX_INVALID)
+        {
+            // If reaction is loaded in RAM
+            Message &message = at(messageIdx);
+            message.addReaction(reaction, userId);
+            CALL_LISTENER(onReactionUpdate, msgId, reaction.c_str(), message.getReactionCount(reaction));
+        }
     })
     .fail([this, msgId](const ::promise::Error& err)
     {
@@ -5270,42 +5377,67 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 
 void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 {
-    Idx messageIdx = msgIndexFromId(msgId);
-    if (messageIdx == CHATD_IDX_INVALID)
-    {
-        CHATID_LOG_WARNING("onDelReaction: message id not found. msgid: %s)", ID_CSTR(msgId));
-        return;
-    }
-
     if (reaction.empty())
     {
         CHATID_LOG_ERROR("onDelReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
         return;
     }
 
-    Message &message = at(messageIdx);
-    if (message.isManagementMessage())
+    promise::Promise<std::shared_ptr<Buffer>> pms;
+    Idx messageIdx = msgIndexFromId(msgId);
+    if (messageIdx != CHATD_IDX_INVALID)
     {
-        CHATID_LOG_WARNING("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
-        return;
+        // message loaded in RAM
+        Message &message = at(messageIdx);
+        if (message.isManagementMessage())
+        {
+            CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+        pms = mCrypto->reactionDecrypt(msgId, message.userid, message.keyid, reaction);
+    }
+    else
+    {
+        if (!mDbInterface->isValidReactedMessage(msgId, messageIdx))
+        {
+            (messageIdx == CHATD_IDX_INVALID)
+                    ? CHATID_LOG_WARNING("onDelReaction: message id not found. msgid: %s", ID_CSTR(msgId))
+                    : CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+
+        uint32_t keyId = 0;
+        Id msgUserId = Id::inval();
+        mDbInterface->getMessageUserKeyId(msgId, msgUserId, keyId);
+        pms = mCrypto->reactionDecrypt(msgId, msgUserId, keyId, reaction);
     }
 
     auto wptr = weakHandle();
-    mCrypto->reactionDecrypt(message, reaction)
-    .then([this, wptr, &message, userId](std::shared_ptr<Buffer> data)
+    pms.then([this, wptr, &msgId, &messageIdx, userId, reaction](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
     {
         if (wptr.deleted())
             return;
 
-        const std::string reaction(data->buf(), data->bufSize());
-        message.delReaction(reaction, userId);
+        const std::string reaction(data->buf(), data->size());
 
-        if (!previewMode())
+        // Del reaction from db
+        CALL_DB(delReaction, msgId, userId, reaction);
+
+        if (userId == mChatdClient.myHandle() && !isFetchingHistory())
         {
-            CALL_DB(delReaction, message.mId, userId, reaction.c_str());
+            // If we are not fetching history and reaction is own, remove pending reaction from ram and cache.
+            // In case we are fetching history, pending reactions will be flushed upon HISTDONE receive
+            removePendingReaction(reaction, msgId);
+            CALL_DB(delPendingReaction, msgId, reaction);
         }
 
-        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+        if (messageIdx != CHATD_IDX_INVALID)
+        {
+            // If reaction is loaded in RAM
+            Message &message = at(messageIdx);
+            message.delReaction(reaction, userId);
+            CALL_LISTENER(onReactionUpdate, msgId, reaction.c_str(), message.getReactionCount(reaction));
+        }
     })
     .fail([this, msgId](const ::promise::Error& err)
     {
@@ -5315,8 +5447,11 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 
 void Chat::onReactionSn(Id rsn)
 {
-    mReactionSn = rsn;
-    CALL_DB(setReactionSn, mReactionSn.toString());
+    if (mReactionSn != rsn)
+    {
+        mReactionSn = rsn;
+        CALL_DB(setReactionSn, mReactionSn.toString());
+    }
 }
 
 void Chat::onRetentionTimeUpdated(uint32_t period)
@@ -5779,6 +5914,15 @@ Chat::ManualSendItem::ManualSendItem(Message *aMsg, uint64_t aRowid, uint8_t aOp
 
 Chat::ManualSendItem::ManualSendItem()
     :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason)
+{
+
+}
+
+Chat::PendingReaction::PendingReaction(const std::string &aReactionString, const std::string &aReactionStringEnc, uint64_t aMsgId, uint8_t aStatus)
+    : mReactionString(aReactionString)
+    , mReactionStringEnc(aReactionStringEnc)
+    , mMsgId(aMsgId)
+    , mStatus(aStatus)
 {
 
 }

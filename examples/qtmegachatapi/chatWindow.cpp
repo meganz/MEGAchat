@@ -560,7 +560,12 @@ void ChatWindow::onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *, mega
 void ChatWindow::onReactionUpdate(megachat::MegaChatApi *, megachat::MegaChatHandle msgid, const char *reaction, int count)
 {
    ChatMessage *msg = findChatMessage(msgid);
-   assert(msg);
+   if (!msg)
+   {
+      mLogger->postLog("onReactionUpdate warning - reaction update received for message received but not loaded by app");
+      return;
+   }
+
    msg->updateReaction(reaction, count);
 }
 

@@ -831,7 +831,7 @@ public:
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual int getType() const;
-    virtual bool hasReactions() const;
+    virtual bool hasConfirmedReactions() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
     virtual bool isEdited() const;
@@ -1143,8 +1143,7 @@ public:
 
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
-    MegaChatErrorPrivate *addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
-    MegaChatErrorPrivate *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    void manageReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, bool add, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
