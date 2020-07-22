@@ -24,7 +24,7 @@ const char* gDbSchemaVersionSuffix = "10";
     6 --> +7: update keyid for truncate messages in db
     7 --> +8: modify chats and create a new table chat_reactions
     8 --> +9: create table DNS cache
-    9 --> +10:create table chat_pending_reactions
+    9 --> +10: create table chat_pending_reactions and modify sendkeys table
 */
 
 bool gCatchException = true;

@@ -68,15 +68,9 @@ const char* tlvTypeToString(uint8_t type)
         case TLV_TYPE_INC_PARTICIPANT: return "TLV_INC_PARTICIPANT";
         case TLV_TYPE_EXC_PARTICIPANT: return "TLV_EXC_PARTICIPANT";
         case TLV_TYPE_INVITOR: return "TLV_INVITOR";
-        case TLV_TYPE_OWN_KEY: return "TLV_OWN_KEY";
         case TLV_TYPE_KEYBLOB: return "TLV_TYPE_KEYBLOB";
         default: return "(unknown)";
     }
-}
-
-uint32_t getKeyIdLength(uint32_t protocolVersion)
-{
-    return (protocolVersion == 1) ? 8 : 4;
 }
 
 EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
@@ -190,15 +184,7 @@ void ProtocolHandler::signMessage(const StaticBuffer& signedData,
 bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey)
 {
     assert(pubKey.dataSize() == 32);
-    if (protocolVersion < 2)
-    {
-        //legacy
-        Buffer messageStr(SVCRYPTO_SIG.size()+signedContent.dataSize());
-        messageStr.append(SVCRYPTO_SIG.c_str(), SVCRYPTO_SIG.size())
-        .append(signedContent);
-        return (crypto_sign_verify_detached(signature.ubuf(), messageStr.ubuf(),
-                messageStr.dataSize(), pubKey.ubuf()) == 0);
-    }
+    assert(protocolVersion > 1 && protocolVersion <= SVCRYPTO_PROTOCOL_VERSION);
 
     assert(sendKey.dataSize() == SVCRYPTO_KEY_SIZE);
     Buffer messageStr(SVCRYPTO_SIG.size()+sendKey.dataSize()+signedContent.dataSize()+2);
@@ -209,10 +195,6 @@ bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& s
     .append(sendKey)
     .append(signedContent);
 
-//    STRONGVELOPE_LOG_DEBUG("signature:\n%s", signature.toString().c_str());
-//    STRONGVELOPE_LOG_DEBUG("message:\n%s", messageStr.toString().c_str());
-//    STRONGVELOPE_LOG_DEBUG("pubKey:\n%s", pubKey.toString().c_str());
-    // if crypto_sign_verify_detached does not return 0, it means Incorrect signature!
     return (crypto_sign_verify_detached(signature.ubuf(), messageStr.ubuf(),
             messageStr.dataSize(), pubKey.ubuf()) == 0);
 }
@@ -251,29 +233,24 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
     protocolVersion = binaryMessage.read<uint8_t>(0);
     if (protocolVersion > SVCRYPTO_PROTOCOL_VERSION)
         throw std::runtime_error("Message protocol version "+std::to_string(protocolVersion)+" is newer than the latest supported by this client. Message dump: "+binaryMessage.toString());
+
+    if (protocolVersion < 2)
+        throw std::runtime_error("Message protocol version "+std::to_string(protocolVersion)+" is older than the first supported by this client. Message dump: "+binaryMessage.toString());
+
     sender = binaryMessage.userid;
 
-    size_t offset;
-    bool isLegacy = (protocolVersion < 2);
-    if (isLegacy)
+    size_t offset = 2;
+    type = binaryMessage.read<uint8_t>(1);
+    if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
     {
-        offset = 1;
-        managementInfo = std::unique_ptr<chatd::Message::ManagementInfo>(new chatd::Message::ManagementInfo());
+        managementInfo.reset(new chatd::Message::ManagementInfo());
     }
-    else
+    else if (type == chatd::Message::kMsgCallEnd)
     {
-        offset = 2;
-        type = binaryMessage.read<uint8_t>(1);
-        if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
-        {
-            managementInfo.reset(new chatd::Message::ManagementInfo());
-        }
-        else if (type == chatd::Message::kMsgCallEnd)
-        {
-            callEndedInfo.reset(new chatd::Message::CallEndedInfo());
-        }
+        callEndedInfo.reset(new chatd::Message::CallEndedInfo());
     }
-    TlvParser tlv(binaryMessage, offset, isLegacy);
+
+    TlvParser tlv(binaryMessage, offset);
     TlvRecord record(binaryMessage);
     std::string recordNames;
     while (tlv.getRecord(record))
@@ -384,35 +361,24 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             case TLV_TYPE_KEY_IDS:
             {
 //KEY_IDS, not KEY_ID, because the record may contain the previous keyid appended as well
-                // The key length can change depending on the version
-                uint32_t keyIdLength = getKeyIdLength(protocolVersion);
-                if (record.dataLen != keyIdLength && record.dataLen != keyIdLength*2)
+                if (record.dataLen != SVCRYPTO_KEY_ID_SIZE)
+                {
                     throw std::runtime_error("Key id length is not appropriate for this protocol version "+
                         std::to_string(protocolVersion)+
-                        ": expected "+std::to_string(keyIdLength)+" actual: "+std::to_string(record.dataLen));
+                        ": expected "+std::to_string(SVCRYPTO_KEY_ID_SIZE)+" actual: "+std::to_string(record.dataLen));
+                }
 //we don't do minimal record size checks, as read() does them
 //if we attempt to read past end of buffer, read() will throw
-                if (keyIdLength == 4)
-                {
-                    keyId = ntohl(binaryMessage.read<uint32_t>(record.dataOffset));
-                    prevKeyId = (record.dataLen > 4)
-                        ? ntohl(binaryMessage.read<uint32_t>(record.dataOffset+4))
-                        : 0;
-                }
-                else if (keyIdLength == 8)
-                {
-                    keyId = be64toh(binaryMessage.read<uint64_t>(record.dataOffset));
-                    prevKeyId = (record.dataLen > 8)
-                        ? be64toh(binaryMessage.read<uint64_t>(record.dataOffset+8))
-                        : 0;
-                }
+                keyId = ntohl(binaryMessage.read<uint32_t>(record.dataOffset));
+                prevKeyId = (record.dataLen > SVCRYPTO_KEY_ID_SIZE)
+                    ? ntohl(binaryMessage.read<uint32_t>(record.dataOffset + SVCRYPTO_KEY_ID_SIZE))
+                    : 0;
+
                 break;
             }
             //===
             case TLV_TYPE_PAYLOAD:
             {
-//                if (type != SVCRYPTO_MSGTYPE_KEYED && type != SVCRYPTO_MSGTYPE_FOLLOWUP)
-//                    throw std::runtime_error("Payload record found in a non-regular message");
                 payload.assign(binaryMessage.buf()+record.dataOffset, record.dataLen);
                 break;
             }
@@ -550,22 +516,16 @@ karere::UserAttrCache& ProtocolHandler::userAttrCache()
 
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
-    const StaticBuffer& privRsa,karere::UserAttrCache& userAttrCache,
+    karere::UserAttrCache& userAttrCache,
     SqliteDb &db, Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
     int isUnifiedKeyEncrypted, karere::Id ph, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
-  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa), mUserAttrCache(userAttrCache),
+  myPrivEd25519(privEd25519), mUserAttrCache(userAttrCache),
   mDb(db), chatid(aChatId), mPh(ph)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
     loadUnconfirmedKeysFromDb();
-    auto var = getenv("KRCHAT_FORCE_RSA");
-    if (var)
-    {
-        mForceRsa = true;
-        STRONGVELOPE_LOG_WARNING("KRCHAT_FORCE_RSA env var detected, will force RSA for key encryption");
-    }
 
     if (isPublic)
     {
@@ -756,7 +716,7 @@ void ProtocolHandler::loadKeysFromDb()
         auto key = std::make_shared<SendKey>();
         stmt.blobCol(2, *key);
         Id userid(stmt.uint64Col(0));
-        uint64_t keyid = stmt.uint64Col(1);
+        uint32_t keyid = stmt.uintCol(1);
 
 #ifndef NDEBUG
         auto ret =
@@ -921,9 +881,6 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
     .then([wptr, this, sendKey](const std::shared_ptr<SendKey>& symkey) -> Promise<std::shared_ptr<Buffer>>
     {
         wptr.throwIfDeleted();
-        if (mForceRsa)
-            return ::promise::Error("Test: Forcing RSA");
-
         assert(symkey->dataSize() == SVCRYPTO_KEY_SIZE);
         auto result = std::make_shared<Buffer>((size_t)AES::BLOCKSIZE);
         result->setDataSize(AES::BLOCKSIZE); //dataSize() is used to check available buffer space of StaticBuffers
@@ -933,80 +890,9 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
     .fail([wptr, this, toUser, sendKey](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
-        STRONGVELOPE_LOG_DEBUG("Can't use EC encryption for user %s (error '%s'), falling back to RSA", toUser.toString().c_str(), err.what());
-        return rsaEncryptTo(std::static_pointer_cast<StaticBuffer>(sendKey), toUser);
-    })
-    .fail([toUser, wptr, this](const ::promise::Error& err)
-    {
-        wptr.throwIfDeleted();
-        STRONGVELOPE_LOG_ERROR("No public encryption key (RSA or x25519) available for %s", toUser.toString().c_str());
+        STRONGVELOPE_LOG_DEBUG("Can't use EC encryption for user %s (error '%s')", toUser.toString().c_str(), err.what());
         return err;
     });
-}
-
-promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, Id toUser)
-{
-    assert(data->dataSize() <= 512);
-    return mUserAttrCache.getAttr(toUser, USER_ATTR_RSA_PUBKEY)
-    .then([data, toUser](Buffer* rsapub) -> promise::Promise<std::shared_ptr<Buffer>>
-    {
-        assert(rsapub && !rsapub->empty());
-        ::mega::AsymmCipher key;
-        auto ret = key.setkey(::mega::AsymmCipher::PUBKEY, rsapub->ubuf(), rsapub->dataSize());
-        if (!ret)
-            return ::promise::Error("Error parsing fetched public RSA key of user "+toUser.toString(), EINVAL, SVCRYPTO_ERRTYPE);
-
-        auto output = std::make_shared<Buffer>(512);
-        Buffer input;
-        //prepend 16-bit byte length prefix in network byte order
-        input.write<uint16_t>(0, htons(data->dataSize()));
-        input.append(*data);
-        assert(input.dataSize() == data->dataSize()+2);
-        ::mega::PrnGen rng;
-        auto enclen = key.encrypt(rng, input.ubuf(), input.dataSize(), (unsigned char*)output->writePtr(0, 512), 512);
-        assert(enclen <= 512);
-        output->setDataSize(enclen);
-        return output;
-    });
-}
-
-promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedMsg)
-{
-    // Check if sender key is encrypted using RSA.
-    if (parsedMsg->encryptedKey.dataSize() < SVCRYPTO_RSA_ENCRYPTION_THRESHOLD)
-    {
-        if (parsedMsg->encryptedKey.dataSize() % AES::BLOCKSIZE)
-            throw std::runtime_error("legacyDecryptKeys: invalid aes-encrypted key size");
-        assert(parsedMsg->managementInfo);
-        assert(parsedMsg->managementInfo->target);
-        assert(parsedMsg->sender);
-        Id otherParty = (parsedMsg->sender == mOwnHandle)
-            ? parsedMsg->managementInfo->target
-            : parsedMsg->sender;
-        auto wptr = weakHandle();
-        return computeSymmetricKey(otherParty)
-        .then([this, wptr, parsedMsg](const std::shared_ptr<SendKey>& symKey)
-        {
-            wptr.throwIfDeleted();
-            Key<32> iv;
-            deriveNonceSecret(parsedMsg->nonce, iv, parsedMsg->managementInfo->target);
-            iv.setDataSize(AES::BLOCKSIZE);
-
-            // decrypt key
-            auto result = std::make_shared<Buffer>();
-            aesCBCDecrypt(parsedMsg->encryptedKey, *symKey, iv, *result);
-            return result;
-        });
-    }
-    else
-    {
-        // decrypt key using RSA
-        auto result = std::make_shared<Buffer>();
-        rsaDecrypt(parsedMsg->encryptedKey, *result);
-        return result;
-    }
 }
 
 promise::Promise<std::string>
@@ -1025,36 +911,22 @@ ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver)
 {
-    // Check if sender key is encrypted using Cu25519 keys
-    if (key->dataSize() < SVCRYPTO_RSA_ENCRYPTION_THRESHOLD)
-    {
-        if (key->dataSize() % AES::BLOCKSIZE)
-            throw std::runtime_error("decryptKey: invalid aes-encrypted key size");
+    if (key->dataSize() % AES::BLOCKSIZE)
+        throw std::runtime_error("decryptKey: invalid aes-encrypted key size");
 
-        Id otherParty = (sender == mOwnHandle) ? receiver : sender;
-        auto wptr = weakHandle();
-        return computeSymmetricKey(otherParty)
-        .then([this, wptr, key, receiver](const std::shared_ptr<SendKey>& symmKey)
-        {
-            wptr.throwIfDeleted();
-            // decrypt key
-            auto result = std::make_shared<SendKey>();
-            result->setDataSize(AES::BLOCKSIZE);
-            aesECBDecrypt(*key, *symmKey, *result);
-            return result;
-        });
-    }
-    else    // legacy RSA encryption
+    Id otherParty = (sender == mOwnHandle) ? receiver : sender;
+    auto wptr = weakHandle();
+    return computeSymmetricKey(otherParty)
+    .then([this, wptr, key, receiver](const std::shared_ptr<SendKey>& symmKey)
     {
-        STRONGVELOPE_LOG_DEBUG("Decrypting key from user %s using RSA", sender.toString().c_str());
-        Buffer buf; //TODO: Maybe refine this
-        rsaDecrypt(*key, buf);
-        if (buf.dataSize() != AES::BLOCKSIZE)
-            throw std::runtime_error("decryptKey: Unexpected rsa-decrypted send key length");
+        wptr.throwIfDeleted();
+        // decrypt key
         auto result = std::make_shared<SendKey>();
-        memcpy(result->buf(), buf.buf(), AES::BLOCKSIZE);
+        result->setDataSize(AES::BLOCKSIZE);
+        aesECBDecrypt(*key, *symmKey, *result);
         return result;
-    }
+    });
+
 }
 
 Buffer* ProtocolHandler::createUnifiedKey()
@@ -1078,23 +950,6 @@ promise::Promise<std::shared_ptr<std::string> > ProtocolHandler::getUnifiedKey()
 bool ProtocolHandler::previewMode()
 {
     return mPh.isValid();
-}
-
-void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
-{
-    assert(!myPrivRsaKey.empty());
-    ::mega::AsymmCipher key;
-    auto ret = key.setkey(::mega::AsymmCipher::PRIVKEY, myPrivRsaKey.ubuf(), myPrivRsaKey.dataSize());
-    if (!ret)
-        throw std::runtime_error("Error setting own RSA private key");
-    auto len = data.dataSize();
-    output.reserve(len);
-    output.setDataSize(len);
-    key.decrypt(data.ubuf(), len, output.ubuf(), len);
-    uint16_t actualLen = ntohs(output.read<uint16_t>(0));
-    assert(actualLen <= myPrivRsaKey.dataSize());
-    memmove(output.buf(), output.buf()+2, actualLen);
-    output.setDataSize(actualLen);
 }
 
 
@@ -1182,15 +1037,6 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
     }
 }
 
-Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
-    Message* msg, const SendKey& key)
-{
-    parsedMsg->symmetricDecrypt(key, *msg);
-    msg->setEncrypted(Message::kNotEncrypted);
-    return msg;
-}
-
-
 void ProtocolHandler::onHistoryReload()
 {
     mCacheVersion++;
@@ -1268,15 +1114,13 @@ void ProtocolHandler::fetchUserKeys(karere::Id userid)
     {
         // preload keys for the new participant
         mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
     }
 }
 
 //We should have already received and decrypted the key in advance
 //(which is also async). This will have fetched the public Cu25519 key of
-//the peer (unless the key was encrypted using RSA), but we still need the
-//Ed25519 key for signature verification, which would not be fetched when the key
-//is decrypted.
+//the peer, but we still need the Ed25519 key for signature verification,
+// which would not be fetched when the key is decrypted.
 Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 {
     unsigned int cacheVersion = mCacheVersion;
@@ -1307,17 +1151,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
 
         // Get keyid
-        uint64_t keyid;
-        bool isLegacy = (parsedMsg->protocolVersion <= 1);
-        if (isLegacy)
-        {
-            keyid = parsedMsg->keyId;
-        }
-        else
-        {
-            keyid = message->keyid;
-        }
-
+        uint32_t keyid = message->keyid;
         auto ctx = std::make_shared<Context>();
 
         promise::Promise<std::shared_ptr<SendKey>> symPms;
@@ -1327,7 +1161,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
         else    // message was posted with key-rotation enabled (closed mode)
         {
-            symPms = getKey(UserKeyId(message->userid, keyid), isLegacy);
+            symPms = getKey(UserKeyId(message->userid, keyid));
         }        
         symPms.then([ctx](const std::shared_ptr<SendKey>& key)
         {
@@ -1345,7 +1179,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         // Verify signature and decrypt
         auto wptr = weakHandle();
         return promise::when(symPms, edPms)
-        .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid, cacheVersion]() ->promise::Promise<Message*>
+        .then([this, wptr, message, parsedMsg, ctx, keyid, cacheVersion]() ->promise::Promise<Message*>
         {
             if (wptr.deleted())
             {
@@ -1363,11 +1197,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
                                       message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
             }
 
-            if (isLegacy)
-            {
-                return legacyMsgDecrypt(parsedMsg, message, *ctx->sendKey);
-            }
-
             // Decrypt message payload.
             parsedMsg->symmetricDecrypt(*ctx->sendKey, *message);
 
@@ -1379,44 +1208,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         // ParsedMessage ctor throws if unexpected format, unknown/missing TLVs, etc.
         return ::promise::Error(e.what(), EINVAL, SVCRYPTO_EMALFORMED);
     }
-}
-
-Promise<void>
-ProtocolHandler::legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedMsg)
-{
-    if (parsedMsg->encryptedKey.empty())
-        return ::promise::Error("legacyExtractKeys: No encrypted keys found in parsed message", EPROTO, SVCRYPTO_ERRTYPE);
-
-    auto& key1 = mKeys[UserKeyId(parsedMsg->sender, parsedMsg->keyId)];
-    if (!key1.key)
-    {
-        if (!key1.pms)
-            key1.pms.reset(new Promise<std::shared_ptr<SendKey>>);
-    }
-    if (parsedMsg->prevKeyId)
-    {
-        auto& key2 = mKeys[UserKeyId(parsedMsg->sender, parsedMsg->prevKeyId)];
-        if (!key2.key)
-        {
-            if (!key2.pms)
-                key2.pms.reset(new Promise<std::shared_ptr<SendKey>>);
-        }
-    }
-    auto wptr = weakHandle();
-    return legacyDecryptKeys(parsedMsg)
-    .then([this, wptr, parsedMsg](const std::shared_ptr<Buffer>& keys)
-    {
-        wptr.throwIfDeleted();
-        // Add keys
-        addDecryptedKey(UserKeyId(parsedMsg->sender, parsedMsg->keyId),
-            std::make_shared<SendKey>(keys->buf(), (size_t)AES::BLOCKSIZE));
-        if (parsedMsg->prevKeyId)
-        {
-            assert(keys->dataSize() == AES::BLOCKSIZE*2);
-            addDecryptedKey(UserKeyId(parsedMsg->sender, parsedMsg->prevKeyId),
-            std::make_shared<SendKey>(keys->buf()+AES::BLOCKSIZE, (size_t)AES::BLOCKSIZE));
-        }
-    });
 }
 
 void ProtocolHandler::onKeyReceived(KeyId keyid, Id sender, Id receiver,
@@ -1510,22 +1301,13 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
     }
 }
 promise::Promise<std::shared_ptr<SendKey>>
-ProtocolHandler::getKey(UserKeyId ukid, bool legacy)
+ProtocolHandler::getKey(UserKeyId ukid)
 {
     auto kit = mKeys.find(ukid);
     if (kit == mKeys.end())
     {
-        if (legacy)
-        {
-            auto& key = mKeys[ukid];
-            key.pms.reset(new Promise<std::shared_ptr<SendKey>>);
-            return *key.pms;
-        }
-        else
-        {
-            return ::promise::Error("Key with id "+std::to_string(ukid.keyid)+
-            " from user "+ukid.user.toString()+" not found", EINVAL, SVCRYPTO_ENOKEY);
-        }
+        return ::promise::Error("Key with id "+std::to_string(ukid.keyid)+
+        " from user "+ukid.user.toString()+" not found", EINVAL, SVCRYPTO_ENOKEY);
     }
 
     auto& entry = kit->second;
@@ -1910,29 +1692,6 @@ void ProtocolHandler::setUsers(karere::SetOfIds* users)
     }
 }
 
-bool ProtocolHandler::handleLegacyKeys(chatd::Message& msg)
-{
-    auto protoVer = msg.read<uint8_t>(0);
-    if (protoVer > 1)
-        return false;
-    TlvParser tlv(msg, 1, true);
-    TlvRecord record(msg);
-    while (tlv.getRecord(record))
-    {
-        if (record.type == TLV_TYPE_MESSAGE_TYPE)
-        {
-            if (record.dataLen != 1)
-                throw std::runtime_error("TLV message type record is not 1 byte");
-            uint8_t type = msg.read<uint8_t>(record.dataOffset);
-            if (type != SVCRYPTO_MSGTYPE_KEYED)
-                return false;
-            auto parsed = std::make_shared<ParsedMessage>(msg, *this);
-            legacyExtractKeys(parsed);
-            return true;
-        }
-    }
-    return false;
-}
 void ProtocolHandler::randomBytes(void* buf, size_t bufsize) const
 {
     randombytes_buf(buf, bufsize);
