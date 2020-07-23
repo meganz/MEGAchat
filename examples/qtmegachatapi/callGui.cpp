@@ -120,6 +120,7 @@ void CallGui::onAnswerCallBtn(bool)
 
 void CallGui::onCallOnHoldBtn(bool setOnHold)
 {
+    enableOnHold(mCall->isOnHold(), true);
     mChatWindow->mMegaChatApi->setCallOnHold(mChatWindow->mChatRoom->getChatId(), setOnHold);
 }
 
