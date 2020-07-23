@@ -1526,7 +1526,9 @@ public:
     //  * Add commands ADDREACTION DELREACTION REACTIONSN
     // - Version 7:
     //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
-    static const unsigned chatdVersion = 7;
+    // - Version 8:
+    //  * Solves several bugs related to missing RETENTION time upon re-joins, anonymous previewers and others
+    static const unsigned chatdVersion = 8;
 
     // Minimum retention history check period (in seconds)
     static const unsigned kMinRetentionTimeout = 60;
