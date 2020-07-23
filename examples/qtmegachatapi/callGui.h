@@ -54,7 +54,7 @@ class CallGui: public QWidget
         MegaChatHandle getClientid() const;
         void setVideoPaticipant(unsigned int videoParticipants);
         void setAudioActive(bool active);
-        void setPeerAudioFlagMuted(bool muted);
+        void setPeerAudioVideoFlag(bool audio, bool video);
 
         friend class RemoteCallListener;
         friend class LocalCallListener;

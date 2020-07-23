@@ -84,6 +84,7 @@ class ChatWindow : public QDialog,
 
 #ifndef KARERE_DISABLE_WEBRTC
         std::set<CallGui *> *getCallGui();
+        CallGui* getMyCallGui();
         void setCallGui(CallGui *callGui);
 #endif
         ChatListItemController *getChatItemController();

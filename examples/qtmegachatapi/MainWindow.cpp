@@ -214,6 +214,9 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
                 window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
 
+                CallGui *callGui = window->getMyCallGui();
+                callGui->setPeerAudioVideoFlag(call->hasLocalAudio(), call->hasLocalVideo());
+
                 MegaHandleList* clientids = call->getClientidParticipants();
                 MegaHandleList* peerids = call->getPeeridParticipants();
                 for (unsigned int i = 0; i < peerids->size(); i++)
@@ -272,14 +275,10 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
     {
-        std::set<CallGui *> *setOfCallGui = window->getCallGui();
-        for (auto callGuiIt = setOfCallGui->begin(); callGuiIt != setOfCallGui->end(); callGuiIt++)
+        CallGui* callGui = window->getMyCallGui();
+        if (callGui)
         {
-            if ((*callGuiIt)->getPeerid() == mMegaChatApi->getMyUserHandle() && (*callGuiIt)->getClientid() == mMegaChatApi->getMyClientidHandle(call->getChatid()))
-            {
-                (*callGuiIt)->enableOnHold(call->isOnHold(), true);
-                return;
-            }
+            callGui->enableOnHold(call->isOnHold(), true);
         }
     }
 }
@@ -326,7 +325,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         }
 
         updateVideoParticipants(chatid);
-        callGui->setPeerAudioFlagMuted(!session->hasAudio());
+        callGui->setPeerAudioVideoFlag(session->hasAudio(), session->hasVideo());
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD) &&
@@ -346,7 +345,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
            {
                window->connectPeerCallGui(session->getPeerid(), session->getClientid());
                updateVideoParticipants(chatid);
-               callGui->setPeerAudioFlagMuted(!session->hasAudio());
+               callGui->setPeerAudioVideoFlag(session->hasAudio(), session->hasVideo());
                break;
            }
        }
@@ -372,13 +371,10 @@ void MainWindow::updateVideoParticipants(MegaChatHandle chatid)
     std::unique_ptr<MegaChatCall> call;
     call.reset(mMegaChatApi->getChatCall(chatid));
 
-    std::set<CallGui *>* callGuis = window->getCallGui();
-    for (auto callGui : *callGuis)
+    CallGui* callGui = window->getMyCallGui();
+    if (callGui)
     {
-        if (callGui->getPeerid() == mMegaChatApi->getMyUserHandle() && callGui->getClientid() == mMegaChatApi->getMyClientidHandle(call->getChatid()))
-        {
-            callGui->setVideoPaticipant(call->getNumParticipants(MegaChatCall::VIDEO));
-        }
+        callGui->setVideoPaticipant(call->getNumParticipants(MegaChatCall::VIDEO));
     }
 }
 

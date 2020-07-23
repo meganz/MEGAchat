@@ -102,9 +102,15 @@ void CallGui::setAudioActive(bool active)
     ui->mSpeaking->setVisible(active);
 }
 
-void CallGui::setPeerAudioFlagMuted(bool muted)
+void CallGui::setPeerAudioVideoFlag(bool audio, bool video)
 {
-    ui->mMuteMicChk->setChecked(muted);
+    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
+            mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
+    {
+        ui->mMuteCamChk->setChecked(!video);
+    }
+
+    ui->mMuteMicChk->setChecked(!audio);
 }
 
 void CallGui::onAnswerCallBtn(bool)

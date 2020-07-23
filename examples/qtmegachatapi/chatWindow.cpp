@@ -438,6 +438,19 @@ std::set<CallGui *> *ChatWindow::getCallGui()
     return &callParticipantsGui;
 }
 
+CallGui *ChatWindow::getMyCallGui()
+{
+    for (auto callGuiIt = callParticipantsGui.begin(); callGuiIt != callParticipantsGui.end(); callGuiIt++)
+    {
+        if ((*callGuiIt)->getPeerid() == mMegaChatApi->getMyUserHandle() && (*callGuiIt)->getClientid() == mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()))
+        {
+            return *callGuiIt;
+        }
+    }
+
+    return nullptr;
+}
+
 void ChatWindow::setCallGui(CallGui *callGui)
 {
     mCallGui = callGui;
