@@ -29,6 +29,11 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
     setAvatar();
     ui->videoRenderer->enableStaticImage();
 
+    QPalette palette;
+    palette.setBrush(QPalette::ColorGroup::All, QPalette::ColorRole::WindowText, QBrush(Qt::white));
+    palette.setBrush(QPalette::ColorGroup::All, QPalette::ColorRole::Window, QBrush(Qt::white));
+    palette.setBrush(QPalette::ColorGroup::All, QPalette::ColorRole::Text, QBrush(Qt::white));
+
     if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
             mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
     {
@@ -41,6 +46,9 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
         }
 
         connect(ui->mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onAudioMonitor(bool)));
+        ui->mVideo->setPalette(palette);
+        ui->mVideoParticipants->setPalette(palette);
+        ui->mAudioMonitor->setPalette(palette);
     }
     else
     {
@@ -57,6 +65,7 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
     }
 
     ui->mSpeaking->hide();
+    ui->mSpeaking->setPalette(palette);
 }
 
 void CallGui::connectPeerCallGui()
