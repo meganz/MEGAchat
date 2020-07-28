@@ -3460,10 +3460,10 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
 
 void MegaChatApiImpl::closeChatPreview(MegaChatHandle chatid)
 {
-    SdkMutexGuard g(sdkMutex);
-
     if (!mClient)
         return;
+        
+    SdkMutexGuard g(sdkMutex);
 
    mClient->chats->removeRoomPreview(chatid);
 }
