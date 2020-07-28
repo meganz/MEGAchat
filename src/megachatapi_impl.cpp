@@ -3460,9 +3460,12 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
 
 void MegaChatApiImpl::closeChatPreview(MegaChatHandle chatid)
 {
-    sdkMutex.lock();
-    mClient->chats->removeRoomPreview(chatid);
-    sdkMutex.unlock();
+    if (!mClient)
+        return;
+        
+    SdkMutexGuard g(sdkMutex);
+
+   mClient->chats->removeRoomPreview(chatid);
 }
 
 int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
