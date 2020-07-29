@@ -1267,7 +1267,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
        << " | " << ch_s(msg->getMsgId())
        << " | " << ch_s(msg->getHandleOfAction())
        << " | " << ch_s(msg->getUserHandle())
-       << " | " << (msg->hasReactions() ? "reacted to" : "not reacted to")
+       << " | " << (msg->hasConfirmedReactions() ? "reacted to" : "not reacted to")
        << " | " << (msg->isEdited() ? "edited" : "not edited")
        << " | " << (msg->isDeleted() ? "deleted" : "not deleted")
        << " | " << nodeinfo(msg->getMegaNodeList())

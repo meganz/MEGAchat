@@ -148,14 +148,6 @@ UserAttrDescMap gUserAttrDescsMap =
       },
 
     // VIRTUAL ATTRIBUTES
-
-    //RSA Public key
-      {
-        USER_ATTR_RSA_PUBKEY,
-        UserAttrDesc(
-            &getDataNotImpl,
-            ::mega::MegaUser::CHANGE_TYPE_SIG_PUBKEY_RSA)
-      },
     //email
       {
         USER_ATTR_EMAIL,
@@ -227,7 +219,6 @@ const char* attrName(uint8_t type)
     case ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS: return "RICH_LINKS";
     case ::mega::MegaApi::USER_ATTR_ALIAS: return "ALIAS";
     case USER_ATTR_EMAIL: return "EMAIL";
-    case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
     case USER_ATTR_FULLNAME: return "FULLNAME";
     default: return "(invalid)";
     }
@@ -454,9 +445,6 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
         case USER_ATTR_FULLNAME:
             fetchUserFullName(key, item);
             break;
-        case USER_ATTR_RSA_PUBKEY:
-            fetchRsaPubkey(key, item);
-            break;
         case USER_ATTR_EMAIL:
             fetchEmail(key, item);
             break;
@@ -572,35 +560,6 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         wptr.throwIfDeleted();
         item->errorNoDb(err.code());
         return err;
-    });
-}
-
-void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
-{
-    auto wptr = weakHandle();
-    mClient.api.call(&::mega::MegaApi::getUserData, key.user.toString().c_str())
-    .fail([wptr, this, key, item](const ::promise::Error& err)
-    {
-        wptr.throwIfDeleted();
-        item->error(key, err.code());
-        return err;
-    })
-    .then([wptr, this, key, item](ReqResult result) -> ::promise::Promise<void>
-    {
-        wptr.throwIfDeleted();
-        auto rsakey = result->getPassword();
-        size_t keylen;
-        if (!rsakey || ((keylen = strlen(rsakey)) < 1))
-        {
-            KR_LOG_WARNING("Public RSA key returned by API for user %s is null or empty", key.user.toString().c_str());
-            item->error(key, ::mega::API_ENOENT);
-            return ::promise::Error("No key", ::mega::API_ENOENT, ERRTYPE_MEGASDK);
-        }
-        item->data.reset(new Buffer(keylen+1));
-        int binlen = base64urldecode(rsakey, keylen, item->data->buf(), keylen);
-        item->data->setDataSize(binlen);
-        item->resolve(key);
-        return ::promise::_Void();
     });
 }
 

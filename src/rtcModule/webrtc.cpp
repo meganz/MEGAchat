@@ -1020,13 +1020,13 @@ void RtcModule::refreshTurnServerIp()
 
             if (mKarereClient.isTerminated())
             {
-                RTCM_LOG_ERROR("DNS resolution completed but karere client was terminated.");
+                RTCM_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
                 return;
             }
 
             if (dnsRequestId != mDnsRequestId)
             {
-                RTCM_LOG_ERROR("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                RTCM_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
                                dnsRequestId, mDnsRequestId);
                 return;
             }
@@ -1040,10 +1040,12 @@ void RtcModule::refreshTurnServerIp()
 
             if (statusDNS >= 0 && (ipsv4.size() || ipsv6.size()))
             {
-                RTCM_LOG_ERROR("New IP for TURN servers: ipv4 - %s     ipv6 - %s",
-                             ipsv4.size() ? ipsv4[0].c_str() : "",
-                             ipsv6.size() ? ipsv6[0].c_str() : "");
-                mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6);
+                if (mKarereClient.mDnsCache.setIp(shard, ipsv4, ipsv6))
+                {
+                    RTCM_LOG_WARNING("New IP for TURN servers: ipv4 - %s     ipv6 - %s",
+                                 ipsv4.size() ? ipsv4[0].c_str() : "(empty)",
+                                 ipsv6.size() ? ipsv6[0].c_str() : "(empty)");
+                }
 
             }
             else

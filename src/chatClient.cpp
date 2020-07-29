@@ -320,6 +320,40 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "9" && (strcmp(gDbSchemaVersionSuffix, "10") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Create new table for chat pending reactions
+                db.simpleQuery("CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null,"
+                               "    reaction text, encReaction blob, status tinyint default 0,"
+                               "    UNIQUE(chatid, msgid, reaction),"
+                               "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
+
+                // Remove USER_ATTR_RSA_PUBKEY attr from cache
+                db.query("delete from userattrs where type = 64");
+
+                // Create temporary table and copy sendkeys content
+                db.query("CREATE TABLE tempkeys(chatid int64 not null, userid int64 not null, keyid int32 not null, key blob not null,ts int not null, UNIQUE(chatid, userid, keyid));");
+                db.query("INSERT INTO tempkeys(chatid, userid, keyid, key, ts) SELECT chatid, userid, keyid, key, ts FROM sendkeys");
+
+                // Close and re-open db again to avoid SQLITE_LOCKED
+                db.close();
+                if (db.open(path.c_str(), false))
+                {
+                    // drop sendkeys table
+                    db.query("DROP TABLE sendkeys");
+
+                    // rename temp to sendkeys
+                    db.query("ALTER TABLE tempkeys RENAME TO sendkeys");
+
+                    // update cache schema version
+                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                    db.commit();
+                    ok = true;
+                    KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                }
+            }
         }
     }
 
@@ -1703,19 +1737,9 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
     })
     .then([this](ReqResult result) -> promise::Promise<void>
     {
-        auto pubrsa = result->getPassword();
-        if (!pubrsa)
-            return ::promise::Error("No public RSA key in getUserData API response");
-        mMyPubRsaLen = base64urldecode(pubrsa, strlen(pubrsa), mMyPubRsa, sizeof(mMyPubRsa));
-        auto privrsa = result->getPrivateKey();
-        if (!privrsa)
-            return ::promise::Error("No private RSA key in getUserData API response");
-        mMyPrivRsaLen = base64urldecode(privrsa, strlen(privrsa), mMyPrivRsa, sizeof(mMyPrivRsa));
         // write to db
         db.query("insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
         db.query("insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
-        db.query("insert or replace into vars(name, value) values('pub_rsa', ?)", StaticBuffer(mMyPubRsa, mMyPubRsaLen));
-        db.query("insert or replace into vars(name, value) values('pr_rsa', ?)", StaticBuffer(mMyPrivRsa, mMyPrivRsaLen));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
@@ -1724,15 +1748,6 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
 void Client::loadOwnKeysFromDb()
 {
     SqliteStmt stmt(db, "select value from vars where name=?");
-
-    stmt << "pr_rsa";
-    stmt.stepMustHaveData();
-    mMyPrivRsaLen = stmt.blobCol(0, mMyPrivRsa, sizeof(mMyPrivRsa));
-    stmt.reset().clearBind();
-    stmt << "pub_rsa";
-    stmt.stepMustHaveData();
-    mMyPubRsaLen = stmt.blobCol(0, mMyPubRsa, sizeof(mMyPubRsa));
-
     stmt.reset().clearBind();
     stmt << "pr_cu25519";
     stmt.stepMustHaveData();
@@ -1936,7 +1951,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     {
         crypto = std::make_shared<strongvelope::ProtocolHandler>(mMyHandle,
                 StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-                StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), publicchat,
+                *mUserAttrCache, db, karere::Id::inval(), publicchat,
                 unifiedKey, false, Id::inval(), appCtx);
         crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
     }
@@ -2093,8 +2108,8 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid, bool i
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
          StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-         StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid,
-         isPublic, unifiedKey, isUnifiedKeyEncrypted, ph, appCtx);
+         *mUserAttrCache, db, chatid, isPublic, unifiedKey,
+         isUnifiedKeyEncrypted, ph, appCtx);
 }
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic,

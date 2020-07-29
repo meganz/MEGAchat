@@ -29,6 +29,11 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
     setAvatar();
     ui->videoRenderer->enableStaticImage();
 
+    QPalette palette;
+    palette.setBrush(QPalette::ColorGroup::All, QPalette::ColorRole::WindowText, QBrush(Qt::white));
+    palette.setBrush(QPalette::ColorGroup::All, QPalette::ColorRole::Window, QBrush(Qt::white));
+    palette.setBrush(QPalette::ColorGroup::All, QPalette::ColorRole::Text, QBrush(Qt::white));
+
     if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
             mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
     {
@@ -39,6 +44,11 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
         {
             ui->mMuteCamChk->setChecked(true);
         }
+
+        connect(ui->mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onAudioMonitor(bool)));
+        ui->mVideo->setPalette(palette);
+        ui->mVideoParticipants->setPalette(palette);
+        ui->mAudioMonitor->setPalette(palette);
     }
     else
     {
@@ -46,10 +56,16 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
         ui->mFullScreenChk->hide();
         ui->mHupBtn->hide();
         ui->mMuteCamChk->hide();
-        ui->mMuteMicChk->hide();
+        ui->mMuteMicChk->setDisabled(true);
         ui->mShowChatBtn->hide();
         ui->mCallOnHoldBtn->hide();
+        ui->mVideoParticipants->hide();
+        ui->mVideo->hide();
+        ui->mAudioMonitor->hide();
     }
+
+    ui->mSpeaking->hide();
+    ui->mSpeaking->setPalette(palette);
 }
 
 void CallGui::connectPeerCallGui()
@@ -85,6 +101,27 @@ MegaChatHandle CallGui::getClientid() const
     return mClientid;
 }
 
+void CallGui::setVideoPaticipant(unsigned int videoParticipants)
+{
+    ui->mVideoParticipants->setText(QString(std::to_string(videoParticipants).c_str()));
+}
+
+void CallGui::setAudioActive(bool active)
+{
+    ui->mSpeaking->setVisible(active);
+}
+
+void CallGui::setPeerAudioVideoFlag(bool audio, bool video)
+{
+    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
+            mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
+    {
+        ui->mMuteCamChk->setChecked(!video);
+    }
+
+    ui->mMuteMicChk->setChecked(!audio);
+}
+
 void CallGui::onAnswerCallBtn(bool)
 {
     mChatWindow->mMegaChatApi->answerChatCall(mChatWindow->mChatRoom->getChatId(), mVideo);
@@ -92,7 +129,13 @@ void CallGui::onAnswerCallBtn(bool)
 
 void CallGui::onCallOnHoldBtn(bool setOnHold)
 {
+    enableOnHold(mCall->isOnHold(), true);
     mChatWindow->mMegaChatApi->setCallOnHold(mChatWindow->mChatRoom->getChatId(), setOnHold);
+}
+
+void CallGui::onAudioMonitor(bool audioMonitorEnable)
+{
+    mChatWindow->mMegaChatApi->enableAudioLevelMonitor(audioMonitorEnable, mChatWindow->mChatRoom->getChatId());
 }
 
 void CallGui::drawPeerAvatar(QImage &image)

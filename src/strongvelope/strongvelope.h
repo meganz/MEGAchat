@@ -94,11 +94,7 @@ enum
 
 /** Contains a 64 bit user handle of a user that was excluded from chat */
     TLV_TYPE_EXC_PARTICIPANT    = 0x09,
-
-/** In case we encrypt keys using RSA, we can't reverse-decrypt them like with
- * EC, so we need to encrypt our own keys yo ourself so we can read our own
- * history messages. (legacy only) */
-    TLV_TYPE_OWN_KEY            = 0x0a,
+    // TLV_TYPE_OWN_KEY         = 0x0a, deprecated (used for legacy encryption)
     TLV_TYPE_INVITOR            = 0x0b,
     TLV_TYPE_PRIVILEGE          = 0x0c,
     TLV_TYPE_KEYBLOB            = 0x0f,
@@ -109,9 +105,8 @@ enum
 /** Message types used for the chat message transport. */
 enum: unsigned char
 {
-    ///Legacy message containing a sender key (initial, key rotation, key re-send).
-    SVCRYPTO_MSGTYPE_KEYED                     = 0x00,
     ///Message using an existing sender key for encryption.
+    //SVCRYPTO_MSGTYPE_KEYED                   = 0x00, deprecated (used for legacy encryption)
     SVCRYPTO_MSGTYPE_FOLLOWUP                  = 0x01,
     SVCRYPTO_MSGTYPES_COUNT
 };
@@ -159,7 +154,6 @@ public:
 };
 typedef Key<16> SendKey;
 typedef Key<32> EcKey;
-typedef Key<768> RsaKey;
 typedef Key<16> UnifiedKey;
 typedef Key<64> Signature;
 
@@ -180,9 +174,8 @@ struct ParsedMessage: public karere::DeleteTrackable
      * messages related to topic changes, which must use unified-key instead of embedded key in `ct` */
     bool openmode = false;
 
-    //legacy key stuff
-    uint64_t keyId;
-    uint64_t prevKeyId;
+    uint32_t keyId;
+    uint32_t prevKeyId;
     Buffer encryptedKey; //may contain also the prev key, concatenated
 
     std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
@@ -203,13 +196,7 @@ enum
     SVCRYPTO_KEY_SIZE = 16,
     SVCRYPTO_IV_SIZE = 16,
     /** Size in bytes of a key ID. */
-    SVCRYPTO_KEY_ID_SIZE = 8,
-    /** Size in bytes of a key ID in version 0 */
-    SVCRYPTO_KEY_ID_SIZE_V0 = 4,
-    /** Size threshold for RSA encrypted sender keys (greater than ... bytes).
-     * (1024 bit RSA key --> 128 byte + 2 byte cipher text).
-     */
-    SVCRYPTO_RSA_ENCRYPTION_THRESHOLD = 128,
+    SVCRYPTO_KEY_ID_SIZE = 4,
     /** Version 0 of the protocol implemented. */
     SVCRYPTO_PROTOCOL_VERSION = 0x03,
     /** Size (in bytes) of the symmetric send key */
@@ -247,8 +234,8 @@ struct EncryptedMessage
 struct UserKeyId
 {
     karere::Id user;
-    uint64_t keyid; // 64 bits for backwards compatibility with stronvelope v1 (legacy RSA)
-    explicit UserKeyId(karere::Id aUser, uint64_t aKeyid): user(aUser), keyid(aKeyid){}
+    uint32_t keyid;
+    explicit UserKeyId(karere::Id aUser, uint32_t aKeyid): user(aUser), keyid(aKeyid){}
     bool operator<(UserKeyId other) const
     {
         if (user != other.user)
@@ -290,7 +277,6 @@ protected:
     EcKey myPrivCu25519;
     EcKey myPrivEd25519;
     EcKey myPubEd25519;
-    RsaKey myPrivRsaKey;
 
     karere::UserAttrCache& mUserAttrCache;
     SqliteDb& mDb;
@@ -317,8 +303,6 @@ protected:
     // in-fligth new-keys
     std::vector<NewKeyEntry> mUnconfirmedKeys;
 
-    bool mForceRsa = false; // for testing of legacy-mode
-
     // received and confirmed keys (doesn't include unconfirmed keys)
     std::map<UserKeyId, KeyEntry> mKeys;
 
@@ -341,7 +325,7 @@ public:
 
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
         const StaticBuffer& privEd25519,
-        const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
+        karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
         int isUnifiedKeyEncrypted, karere::Id ph, void *ctx);
 
@@ -362,7 +346,7 @@ protected:
      */
     void loadUnconfirmedKeysFromDb();
 
-    promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);
+    promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid);
     void addDecryptedKey(UserKeyId ukid, const std::shared_ptr<SendKey>& key);
     /**
      * Updates our own sender key. Done when a message is sent and users
@@ -406,21 +390,7 @@ protected:
     promise::Promise<chatd::Message*> handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);
 
-    chatd::Message* legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
-        chatd::Message* msg, const SendKey& key);
-
-// legacy RSA encryption methods
-    promise::Promise<std::shared_ptr<Buffer>>
-        rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, karere::Id toUser);
-
-    void rsaDecrypt(const StaticBuffer& data, Buffer& output);
-
-    promise::Promise<std::shared_ptr<Buffer>>
-        legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedMsg);
-
-    /** @brief Extract keys from a legacy message */
-    promise::Promise<void>
-        legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedMsg);
+    void fetchUserKeys(karere::Id userid);
 
 public:
 //chatd::ICrypto interface
@@ -435,7 +405,6 @@ public:
     void onUserJoin(karere::Id userid) override;
     void onUserLeave(karere::Id userid) override;
     void resetSendKey() override;
-    bool handleLegacyKeys(chatd::Message& msg) override;
     void randomBytes(void* buf, size_t bufsize) const override;
     promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser = 0, bool encryptAsPrivate = false) override;
     promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0) override;
@@ -454,10 +423,9 @@ public:
     void setPublicHandle(const uint64_t ph) override;
     karere::UserAttrCache& userAttrCache() override;
 
-    promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const chatd::Message &msg, const std::string &reaction) override;
-    promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const chatd::Message &msg, const std::string &reaction) override;
-
     void fetchUserKeys(karere::Id userid) override;
+    std::shared_ptr<Buffer> reactionEncrypt(const chatd::Message &msg, const std::string &reaction) override;
+    promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const chatd::KeyId &keyid, const std::string &reaction) override;
 };
 }
 namespace chatd
