@@ -824,6 +824,10 @@ void ChatWindow::createMembersMenu(QMenu& menu)
                 std::unique_ptr<const char []> email(mMegaChatApi->getUserEmailFromCache(peerHandle));
                 memberName = (email && strlen(email.get())) ? email.get() : tr("Yet unknown");
             }
+            else
+            {
+                memberName = name.get();
+            }
 
             privilege = mChatRoom->getPeerPrivilege(i);
             userhandle = QVariant((qulonglong)peerHandle);
