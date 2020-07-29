@@ -702,18 +702,6 @@ ProtocolHandler::reactionDecrypt(const karere::Id &msgid, const karere::Id &user
     });
 }
 
-void ProtocolHandler::fetchUserKeys(karere::Id userid)
-{
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mPh);
-
-    if (!previewMode())
-    {
-        // preload keys for the new participant
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY);
-        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY);
-    }
-}
-
 unsigned int ProtocolHandler::getCacheVersion() const
 {
     return mCacheVersion;

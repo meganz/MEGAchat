@@ -390,8 +390,6 @@ protected:
     promise::Promise<chatd::Message*> handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);
 
-    void fetchUserKeys(karere::Id userid);
-
 public:
 //chatd::ICrypto interface
     promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
