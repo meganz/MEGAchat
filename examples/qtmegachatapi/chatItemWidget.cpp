@@ -521,6 +521,12 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actCopy = menu.addAction(tr("Copy chatid to clipboard"));
     connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
 
+    if (chatRoom->isPublic())
+    {
+        auto actRequestMember = menu.addAction(tr("Request Member Info"));
+        connect(actRequestMember, SIGNAL(triggered()), this, SLOT(onResquestMemberInfo()));
+    }
+
     delete chatRoom;
     menu.exec(event->globalPos());
     menu.deleteLater();
@@ -548,4 +554,20 @@ void ChatItemWidget::onCopyHandle()
     QClipboard *clipboard = QApplication::clipboard();
     clipboard->setText(chatid_64);
     delete []chatid_64;
+}
+
+void ChatItemWidget::onResquestMemberInfo()
+{
+    mega::MegaHandleList* userList;
+    userList = mega::MegaHandleList::createInstance();
+    MegaChatRoom* room = mMegaChatApi->getChatRoom(mChatId);
+    int i = 0;
+    for (i = mIndexMemberRequested; i < (mIndexMemberRequested + 20) && i < room->getPeerCount(); i++)
+    {
+        userList->addMegaHandle(room->getPeerHandle(i));
+    }
+
+    mIndexMemberRequested = i;
+    mMegaChatApi->loadUserAttributes(mChatId, userList);
+    delete userList;
 }
