@@ -1364,6 +1364,12 @@ public:
     void cleanPendingReactions(const karere::Id &msgId);
 
     /**
+     * @brief Remove pending reactions in a chat for a specific message upon ADD/DELREACTION REJECT
+     * @param msgId Id of message whose pending reactions will be cleaned.
+     */
+    void onReactionReject(const karere::Id &msgId);
+
+    /**
      * @brief Clean pending reactions in a chat for a specific message or range of messages.
      *
      * The function will clean all pending reactions for the messages whose index is previous to idx.

@@ -2165,6 +2165,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATDS_LOG_WARNING("%s: recv REJECT of %s: id='%s', reason: %hu",
                     ID_CSTR(chatid), Command::opcodeToStr(op), ID_CSTR(id), reason);
                 auto& chat = mChatdClient.chats(chatid);
+                if (op == OP_ADDREACTION || op == OP_DELREACTION)
+                {
+                    chat.onReactionReject(id);
+                    break;
+                }
+
                 if (op == OP_NEWMSG || op == OP_NEWNODEMSG) // the message was rejected
                 {
                     chat.msgConfirm(id, Id::null());
@@ -2778,6 +2784,27 @@ void Chat::retryPendingReactions()
         assert(!reaction.mReactionStringEnc.empty());
         sendCommand(Command(reaction.mStatus) + mChatId + client().myHandle() + reaction.mMsgId + (int8_t)reaction.mReactionStringEnc.size() + reaction.mReactionStringEnc);
     }
+}
+
+void Chat::onReactionReject(const karere::Id &msgId)
+{
+    Idx idx = msgIndexFromId(msgId);
+    assert(idx != CHATD_IDX_INVALID);
+    const Message *message = findOrNull(idx);
+    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end();)
+    {
+        auto auxit = it++;
+        PendingReaction reaction = (*auxit);
+        if (reaction.mMsgId == msgId)
+        {
+            mPendingReactions.erase(auxit);
+            if (message)
+            {
+                CALL_LISTENER(onReactionUpdate, msgId, reaction.mReactionString.c_str(), message->getReactionCount(reaction.mReactionString));
+            }
+        }
+    }
+    CALL_DB(cleanPendingReactions, msgId);
 }
 
 void Chat::cleanPendingReactions(const karere::Id &msgId)
