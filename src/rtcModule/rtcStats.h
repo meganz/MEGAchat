@@ -88,7 +88,6 @@ protected:
         {
             assert(aBwInfo);
             mBwInfo = aBwInfo;
-            mBwInfo->bt = 0;
         }
         void calculate(uint64_t periodMs, uint64_t newTotalBytes);
     };
@@ -104,8 +103,6 @@ protected:
     BwCalculator mVideoTxBwCalc;
     BwCalculator mAudioRxBwCalc;
     BwCalculator mAudioTxBwCalc;
-    BwCalculator mConnRxBwCalc;
-    BwCalculator mConnTxBwCalc;
     void addSample();
     void resetBwCalculators();
     int64_t getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);

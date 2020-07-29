@@ -33,7 +33,7 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     mSid = NULL;
 
     // Initialize the SDK and MEGAchat
-    mMegaApi = new MegaApi("karere-native", mAppDir.c_str(), "MEGAChatQtApp");
+    mMegaApi = new MegaApi("PssTQSqb", mAppDir.c_str(), "MEGAChatQtApp");
     mMegaChatApi = new MegaChatApi(mMegaApi);
 
     // Create delegate listeners
