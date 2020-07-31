@@ -1131,6 +1131,7 @@ void Client::initWithDbSession(const char* sid)
                 return;
             auto& name = static_cast<Client*>(userp)->mMyName;
             name.assign(buf->buf(), buf->dataSize());
+            KR_LOG_DEBUG("\n<fullname debug>initWithDb: Own screen name is: '%s'", name.c_str()+1);
         });
 
         loadOwnKeysFromDb();
@@ -1577,7 +1578,7 @@ promise::Promise<void> Client::doConnect()
             return;
         auto& name = static_cast<Client*>(userp)->mMyName;
         name.assign(buf->buf(), buf->dataSize());
-        KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
+        KR_LOG_DEBUG("\n<fullname debug>Do connect: Own screen name is: '%s'", name.c_str()+1);
     });
 
 #ifndef KARERE_DISABLE_WEBRTC

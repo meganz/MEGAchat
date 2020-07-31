@@ -484,6 +484,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
     {
         wptr.throwIfDeleted();
         item->data.reset(new Buffer(ctx->firstname.size()+ctx->lastname.size()+1));
+        UACACHE_LOG_DEBUG("\n<fullname debug>:fetchUserFullName FirstName: %s LastName: %s", ctx->firstname.c_str(), ctx->lastname.c_str());
         auto& data = *item->data;
         auto& fn = ctx->firstname;
         if (fn.size() > 255)
