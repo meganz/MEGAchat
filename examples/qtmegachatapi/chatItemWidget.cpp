@@ -6,6 +6,8 @@
 #include <QMessageBox>
 #include <QClipboard>
 
+#define MEMBERS_REQUESTED 20
+
 ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatListItem *item)
     : QWidget(mainWindow),
       ui(new Ui::ChatItem),
@@ -562,7 +564,7 @@ void ChatItemWidget::onResquestMemberInfo()
     userList = mega::MegaHandleList::createInstance();
     MegaChatRoom* room = mMegaChatApi->getChatRoom(mChatId);
     int i = 0;
-    for (i = mIndexMemberRequested; i < (mIndexMemberRequested + 20) && i < room->getPeerCount(); i++)
+    for (i = mIndexMemberRequested; i < (mIndexMemberRequested + MEMBERS_REQUESTED) && i < room->getPeerCount(); i++)
     {
         userList->addMegaHandle(room->getPeerHandle(i));
     }

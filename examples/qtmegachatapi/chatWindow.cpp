@@ -794,6 +794,7 @@ void ChatWindow::createMembersMenu(QMenu& menu)
     }
     delete userList;
 
+    menu.setStyleSheet("QMenu { menu-scrollable: 1; }");
     // list of peers with presence and privilege-related actions
     for (unsigned int i = 0; i < mChatRoom->getPeerCount() + 1; i++)
     {
