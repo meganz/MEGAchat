@@ -44,6 +44,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeSetRetentionTime,
     MEGAChatRequestTypeSetCallOnHold,
     MEGAChatRequestTypeEnableAudioLevelMonitor,
+    MEGAChatRequestTypeManageReaction,
     MEGAChatRequestTypeGetPeerAttributes,
 };
 
