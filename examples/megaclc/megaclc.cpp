@@ -1157,16 +1157,12 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
     const std::string room_title = room ? room->getTitle() : "<No Title>";
 
-    auto firstname = [chatid,room](const c::MegaChatHandle handle)
+    auto firstname = [chatid,room](const c::MegaChatHandle handle) -> std::string
     {
-        const char* firstname_ptr = nullptr;
-        if (room)
+        std::unique_ptr<const char []> firstnamePtr(room ? g_chatApi->getUserFirstnameFromCache(handle) : nullptr);
+        if (firstnamePtr)
         {
-            firstname_ptr = room->getPeerFirstnameByHandle(handle);
-        }
-        if (firstname_ptr && *firstname_ptr != '\0')
-        {
-            return std::string{firstname_ptr};
+            return firstnamePtr.get();
         }
         else if (g_reviewingPublicChat)
         {
@@ -1183,16 +1179,12 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         return std::string{"<No Firstname>"};
     };
 
-    auto lastname = [chatid,room](const c::MegaChatHandle handle)
+    auto lastname = [chatid,room](const c::MegaChatHandle handle) -> std::string
     {
-        const char* lastname_ptr = nullptr;
-        if (room)
+        std::unique_ptr<const char []> lastnamePtr(room ? g_chatApi->getUserLastnameFromCache(handle) : nullptr);
+        if (lastnamePtr)
         {
-            lastname_ptr = room->getPeerLastnameByHandle(handle);
-        }
-        if (lastname_ptr && *lastname_ptr != '\0')
-        {
-            return std::string{lastname_ptr};
+            return lastnamePtr.get();
         }
         else if (g_reviewingPublicChat)
         {
@@ -1209,17 +1201,12 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         return std::string{"<No Lastname>"};
     };
 
-    auto email = [chatid,room](const c::MegaChatHandle handle)
+    auto email = [chatid,room](const c::MegaChatHandle handle) -> std::string
     {
-        const char* email_ptr = nullptr;
-        if (room)
+        std::unique_ptr<const char []> emailPtr(room ? g_chatApi->getUserEmailFromCache(handle) : nullptr);
+        if (emailPtr)
         {
-            email_ptr = room->getPeerEmailByHandle(handle);
-        }
-
-        if (email_ptr && *email_ptr != '\0')
-        {
-            return std::string{email_ptr};
+            return emailPtr.get();
         }
         else if (g_reviewingPublicChat)
         {

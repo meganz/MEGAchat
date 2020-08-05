@@ -176,8 +176,16 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)userLastnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)userLastnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken;
 
+- (NSString *)userEmailFromCacheByUserHandle:(uint64_t)userHandle;
+- (NSString *)userFirstnameFromCacheByUserHandle:(uint64_t)userHandle;
+- (NSString *)userLastnameFromCacheByUserHandle:(uint64_t)userHandle;
+- (NSString *)userFullnameFromCacheByUserHandle:(uint64_t)userHandle;
+
 - (NSString *)contacEmailByHandle:(uint64_t)userHandle;
 - (uint64_t)userHandleByEmail:(NSString *)email;
+
+- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles;
 
 #pragma mark - Chat management
 

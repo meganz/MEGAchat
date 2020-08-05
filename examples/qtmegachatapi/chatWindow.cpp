@@ -794,6 +794,7 @@ void ChatWindow::createMembersMenu(QMenu& menu)
     }
     delete userList;
 
+    menu.setStyleSheet("QMenu { menu-scrollable: 1; }");
     // list of peers with presence and privilege-related actions
     for (unsigned int i = 0; i < mChatRoom->getPeerCount() + 1; i++)
     {
@@ -816,24 +817,25 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         }
         else
         {
-            const char *memberName = mChatRoom->getPeerFirstname(i);
-            if (!memberName)
+            QString memberName;
+            MegaChatHandle peerHandle = mChatRoom->getPeerHandle(i);
+            std::unique_ptr<const char[]> name(mMegaChatApi->getUserFirstnameFromCache(peerHandle));
+            if (!name || !strlen(name.get()))
             {
-                memberName = mChatRoom->getPeerEmail(i);
+                std::unique_ptr<const char []> email(mMegaChatApi->getUserEmailFromCache(peerHandle));
+                memberName = (email && strlen(email.get())) ? email.get() : tr("Yet unknown");
             }
             else
             {
-                if ((strlen(memberName)) == 0)
-                {
-                    memberName = mChatRoom->getPeerEmail(i);
-                }
+                memberName = name.get();
             }
+
             privilege = mChatRoom->getPeerPrivilege(i);
-            userhandle = QVariant((qulonglong)mChatRoom->getPeerHandle(i));
+            userhandle = QVariant((qulonglong)peerHandle);
             title.append(" ")
-                    .append(QString::fromStdString(memberName))
+                    .append(memberName)
                     .append(" [")
-                    .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(mChatRoom->getPeerHandle(i)))))
+                    .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(peerHandle))))
                     .append("]");
         }
 

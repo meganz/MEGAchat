@@ -390,8 +390,6 @@ protected:
     promise::Promise<chatd::Message*> handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);
 
-    void fetchUserKeys(karere::Id userid);
-
 public:
 //chatd::ICrypto interface
     promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
@@ -423,6 +421,7 @@ public:
     void setPublicHandle(const uint64_t ph) override;
     karere::UserAttrCache& userAttrCache() override;
 
+    void fetchUserKeys(karere::Id userid) override;
     std::shared_ptr<Buffer> reactionEncrypt(const chatd::Message &msg, const std::string &reaction) override;
     promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const chatd::KeyId &keyid, const std::string &reaction) override;
 };

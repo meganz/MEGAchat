@@ -6,6 +6,9 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import mega.privacy.android.app.MegaApplication;
+import mega.privacy.android.app.R;
+import mega.privacy.android.app.utils.TextUtil;
 import mega.privacy.android.app.utils.VideoCaptureUtils;
 
 public class MegaChatApiJava {
@@ -1279,6 +1282,20 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Returns the current firstname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose first name is requested.
+     * @return The first name from user
+     */
+    public String getUserFirstnameFromCache(long userhandle) {
+        return megaChatApi.getUserFirstnameFromCache(userhandle);
+    }
+
+    /**
      * Returns the current lastname of the user
      *
      * This function is useful to get the lastname of users who participated in a groupchat with
@@ -1298,6 +1315,20 @@ public class MegaChatApiJava {
      */
     public void getUserLastname(long userhandle, String cauth, MegaChatRequestListenerInterface listener){
         megaChatApi.getUserLastname(userhandle, cauth, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the current lastname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose last name is requested.
+     * @return The last name from user
+     */
+    public String getUserLastnameFromCache(long userhandle){
+        return megaChatApi.getUserLastnameFromCache(userhandle);
     }
 
     /**
@@ -1324,6 +1355,83 @@ public class MegaChatApiJava {
      */
     public void getUserEmail(long userhandle, MegaChatRequestListenerInterface listener){
         megaChatApi.getUserEmail(userhandle, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the current email address of the user
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose email is requested.
+     * @return The email from user
+     */
+    public String getUserEmailFromCache(long userhandle){
+        return megaChatApi.getUserEmailFromCache(userhandle);
+    }
+
+    /**
+     * Returns the current fullname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose fullname is requested.
+     * @return The full name from user
+     */
+    public String getUserFullnameFromCache(long userhandle){
+        return megaChatApi.getUserFullnameFromCache(userhandle);
+    }
+
+    /**
+     * Request to server user attributes
+     *
+     * This function is useful to get the email address, first name, last name and full name
+     * from chat link participants that they are not loaded
+     *
+     * After request is finished, you can call to MegaChatRoom::getPeerFirstnameByHandle,
+     * MegaChatRoom::getPeerLastnameByHandle, MegaChatRoom::getPeerFullnameByHandle,
+     * MegaChatRoom::getPeerEmailByHandle
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of chat
+     * - MegaChatRequest::getMegaHandleList - Returns the handles of user that attributes have been requested
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
+     *
+     * @param chatid Handle of the chat whose member attributes requested
+     * @param userList List of user whose attributes has been requested
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void loadUserAttributes(long chatid, MegaHandleList userList, MegaChatRequestListenerInterface listener) {
+        megaChatApi.loadUserAttributes(chatid, userList, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Request to server user attributes
+     *
+     * This function is useful to get the email address, first name, last name and full name
+     * from chat link participants that they are not loaded
+     *
+     * After request is finished, you can call to MegaChatRoom::getPeerFirstnameByHandle,
+     * MegaChatRoom::getPeerLastnameByHandle, MegaChatRoom::getPeerFullnameByHandle,
+     * MegaChatRoom::getPeerEmailByHandle
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of chat
+     * - MegaChatRequest::getMegaHandleList - Returns the handles of user that attributes have been requested
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
+     *
+     * @param chatid Handle of the chat whose member attributes requested
+     * @param userList List of user whose attributes has been requested
+     */
+    public void loadUserAttributes(long chatid, MegaHandleList userList) {
+        megaChatApi.loadUserAttributes(chatid, userList);
     }
 
     /**
@@ -1775,6 +1883,7 @@ public class MegaChatApiJava {
      * - MegaChatError::ERROR_ARGS   - If the chatroom is not groupal or public.
      * - MegaChatError::ERROR_NOENT  - If the chat room does not exists or the chatid is invalid.
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_TOOMANY - If the chat is public and there are too many participants.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -1922,6 +2031,17 @@ public class MegaChatApiJava {
      */
     public int loadMessages(long chatid, int count){
         return megaChatApi.loadMessages(chatid, count);
+    }
+
+    /**
+     * Checks whether the app has already loaded the full history of the chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return True the whole history is already loaded (including old messages from server).
+     */
+    public boolean isFullHistoryLoaded(long chatid) {
+        return megaChatApi.isFullHistoryLoaded(chatid);
     }
 
     /**
@@ -2580,6 +2700,13 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd ot when the chatroom is in preview mode.
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it, or when the chat is public and there are too many
+     * participants to start the call.
+     *
      * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
@@ -2607,6 +2734,13 @@ public class MegaChatApiJava {
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd.
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
      *
      * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.

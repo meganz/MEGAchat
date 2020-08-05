@@ -106,6 +106,8 @@ protected:
     time_t mMaxIceDisconnectedTime = 0;
     megaHandle mStreamRenegotiationTimer = 0;
     time_t mTsSdpHandshakeCompleted = 0;
+    bool mFechingPeerKeys = false;
+    std::vector<RtMessage> mPacketQueue;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
     void sendAv(karere::AvFlags av);
@@ -135,6 +137,8 @@ protected:
     void handleIceConnectionRecovered();
     void handleIceDisconnected();
     void cancelIceDisconnectionTimer();
+    promise::Promise<void> getPeerKeey();
+    void processPackets();
 
 public:
     RtcModule& mManager;
@@ -287,6 +291,7 @@ protected:
     void enableAudio(bool enable);
     void enableVideo(bool enable);
     bool hasSessionWithUser(karere::Id userId);
+    promise::Promise<Buffer *> loadCryptoPeerKey(karere::Id peerid);
     void sendAVFlags();
     friend class RtcModule;
     friend class Session;

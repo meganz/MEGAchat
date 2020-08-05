@@ -61,12 +61,10 @@ struct UserAttrPair
 {
     Id user;
     uint8_t attrType;
-    Id mPh; // only valid in anonymous preview mode to retrieve user-attributes without valid session
+    Id mPh; // only valid in preview mode to retrieve user-attributes
     bool operator<(const UserAttrPair& other) const
     {
-        if (user == other.user && attrType == other.attrType)
-            return mPh < other.mPh;
-        else if (user == other.user)
+        if (user == other.user)
             return attrType < other.attrType;
         else
             return user < other.user;
@@ -102,7 +100,7 @@ struct UserAttrReqCb: public karere::WeakReferenceable<UserAttrReqCb>
     : WeakReferenceable(this), owner(aOwner), cb(aCb), userp(aUserp), oneShot(aOneShot){}
 };
 
-enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2};
+enum { kCacheFetchNotPending=0, kCacheFetchUpdatePending=1, kCacheFetchNewPending=2, kCacheNotFetchUntilUse=3};
 
 class UserAttrCache;
 struct UserAttrCacheItem
@@ -133,10 +131,12 @@ protected:
     void dbWriteNull(UserAttrPair key);
     void dbInvalidateItem(UserAttrPair item);
     void fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
+
 //actual attrib fetch backend functions
     void fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
+    bool fetchIsRequired(uint64_t userHandle, uint8_t type, uint64_t ph = Id::inval());
 //==
     void onUserAttrChange(uint64_t userid, int changed);
     void onUserAttrChange(::mega::MegaUser& user);
@@ -166,14 +166,19 @@ public:
      * is successfully obtained, the callback \c will be called with a Buffer object, containing
      * the attribute data. If there is an error obraining the attribute, the callback
      * will be called with a \c null Buffer object.
+     * @param user User from attribute is request
+     * @param attrType Attriute type
      * @param userp An arbitrary user-supplied pointer that will be passed to the
      * callback
+     * @param cb Callback called when attribute is available
      * @param oneShot If \true, the callback will be called only once, and will
+     * @param fetch If attribute doesn't exist, the callback is resgitered but the attribute is not fetched
+     * @param ph Public handle for previews
      * be unregistered immediately after that. If \false, the callback will be called
      * every time the attribute changes on the server and the new value is fetched.
      */
     Handle getAttr(uint64_t user, unsigned attrType, void* userp,
-                             UserAttrReqCbFunc cb, bool oneShot=false, uint64_t ph = Id::inval());
+                             UserAttrReqCbFunc cb, bool oneShot=false, bool fetch = true, uint64_t ph = Id::inval());
     /** @brief A promise-based version of \c getAttr. The request
      * is implicitly one-shot, as a promise can be resolved only once.
      */
@@ -185,6 +190,10 @@ public:
      * request is currently registered (expired one-shot for example).
      */
     bool removeCb(Handle handle);
+
+    promise::Promise<void> getAttributes(uint64_t user, uint64_t ph = Id::inval());
+
+    const Buffer *getDataFromCache(uint64_t user, unsigned attrType);
 };
 
 }

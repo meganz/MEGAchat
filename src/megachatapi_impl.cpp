@@ -60,6 +60,9 @@
 namespace rtcModule {void globalCleanup(); }
 #endif
 
+#define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
+#define MAX_PUBLICCHAT_MEMBERS_FOR_CALL 20
+
 using namespace std;
 using namespace megachat;
 using namespace mega;
@@ -952,6 +955,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (room->numMembers() > MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE)
+            {
+                errorCode = MegaChatError::ERROR_TOOMANY;
+                break;
+            }
+
             if (room->ownPriv() != chatd::PRIV_OPER)
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
@@ -1458,6 +1467,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (chatroom->publicChat() && chatroom->numMembers() > MAX_PUBLICCHAT_MEMBERS_FOR_CALL)
+            {
+                API_LOG_ERROR("Start call - the public chat has too many participants");
+                errorCode = MegaChatError::ERROR_TOOMANY;
+                break;
+            }
+
             if (!chatroom->isGroup())
             {
                 uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
@@ -1563,6 +1579,13 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Answer call - Chatroom has not been found");
                 errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            if (chatroom->publicChat() && chatroom->numMembers() > MAX_PUBLICCHAT_MEMBERS_FOR_CALL)
+            {
+                API_LOG_ERROR("Answer call - the public chat has too many participants");
+                errorCode = MegaChatError::ERROR_TOOMANY;
                 break;
             }
 
@@ -1844,7 +1867,66 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES:
+        {
+            // if the app requested user attributes too early (ie. init with sid but without cache),
+            // the cache will not be ready yet. It needs to wait for fetchnodes to complete.
+            if (!mClient->isUserAttrCacheReady())
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
 
+            handle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            MegaHandleList *handleList = request->getMegaHandleList();
+            if (!handleList)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+            for (unsigned int i = 0; i < handleList->size(); i++)
+            {
+                MegaChatHandle peerid = handleList->get(i);
+                if (!chatroom->isMember(peerid))
+                {
+                    API_LOG_ERROR("Error %s is not a chat member of chatroom (%s)", Id(peerid).toString().c_str(), Id(chatid).toString().c_str());
+                    errorCode = MegaChatError::ERROR_ARGS;
+                    break;
+                }
+            }
+
+            std::vector<::promise::Promise<void>> promises;
+            for (unsigned int i = 0; i < handleList->size(); i++)
+            {
+                promises.push_back(chatroom->chat().requestUserAttributes(handleList->get(i)));
+            }
+
+            ::promise::when(promises)
+            .then([this, request]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const ::promise::Error& e)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
         case MegaChatRequest::TYPE_SET_RETENTION_TIME:
         {
             MegaChatHandle chatid = request->getChatHandle();
@@ -1890,7 +1972,6 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-
         case MegaChatRequest::TYPE_MANAGE_REACTION:
         {
             const char *reaction = request->getText();
@@ -1967,7 +2048,6 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
-
         case MegaChatRequest::TYPE_IMPORT_MESSAGES:
         {
             if (mClient->initState() != karere::Client::kInitHasOfflineSession
@@ -2026,7 +2106,6 @@ void MegaChatApiImpl::sendPendingRequests()
             errorCode = MegaChatError::ERROR_UNKNOWN;
         }
         }   // end of switch(request->getType())
-
 
         if(errorCode)
         {
@@ -2869,6 +2948,19 @@ void MegaChatApiImpl::getUserFirstname(MegaChatHandle userhandle, const char *au
     waiter->notify();
 }
 
+const char *MegaChatApiImpl::getUserFirstnameFromCache(MegaChatHandle userhandle)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(userhandle, ::mega::MegaApi::USER_ATTR_FIRSTNAME);
+        return buffer ? buffer->c_str() : nullptr;
+
+    }
+
+    return nullptr;
+}
+
 void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_LASTNAME, listener);
@@ -2878,12 +2970,66 @@ void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, const char *aut
     waiter->notify();
 }
 
+const char *MegaChatApiImpl::getUserLastnameFromCache(MegaChatHandle userhandle)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(userhandle, ::mega::MegaApi::USER_ATTR_LASTNAME);
+        return buffer ? buffer->c_str() : nullptr;
+    }
+
+    return nullptr;
+}
+
+const char *MegaChatApiImpl::getUserFullnameFromCache(MegaChatHandle userhandle)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(userhandle, USER_ATTR_FULLNAME);
+        if (buffer != nullptr)
+        {
+            std::string fullname(buffer->buf()+1, buffer->dataSize()-1);
+            return MegaApi::strdup(fullname.c_str());
+        }
+    }
+
+    return nullptr;
+}
+
 void MegaChatApiImpl::getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_EMAIL, listener);
     request->setUserHandle(userhandle);
     requestQueue.push(request);
     waiter->notify();
+}
+
+const char *MegaChatApiImpl::getUserEmailFromCache(MegaChatHandle userhandle)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(userhandle, USER_ATTR_EMAIL);
+        return buffer ? buffer->c_str() : nullptr;
+    }
+
+    return nullptr;
+}
+
+void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList *userList, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES, listener);
+    request->setChatHandle(chatid);
+    request->setMegaHandleList(userList);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+unsigned int MegaChatApiImpl::getMaxParticipantsWithAttributes()
+{
+    return PRELOAD_CHATLINK_PARTICIPANTS;
 }
 
 char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)
@@ -5151,6 +5297,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "LAST_GREEN";
         case TYPE_CHANGE_VIDEO_STREAM: return "CHANGE_VIDEO_STREAM";
+        case TYPE_GET_PEER_ATTRIBUTES: return "GET_PEER_ATTRIBUTES";
         case TYPE_IMPORT_MESSAGES: return "IMPORT_MESSAGES";
         case TYPE_SET_RETENTION_TIME: return "SET_RETENTION_TIME";
         case TYPE_SET_CALL_ON_HOLD: return "SET_CALL_ON_HOLD";
@@ -6366,10 +6513,10 @@ std::set<MegaChatHandle> *MegaChatRoomHandler::handleNewMessage(MegaChatMessage 
     return msgToUpdate;
 }
 
-void MegaChatRoomHandler::onMemberNameChanged(uint64_t /*userid*/, const std::string &/*newName*/)
+void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &/*newName*/)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
-    chat->setMembersUpdated();
+    chat->setMembersUpdated(userid);
 
     fireOnChatRoomUpdate(chat);
 }
@@ -6601,8 +6748,24 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
 {
     if (mRoom)
     {
+        const GroupChatRoom* groupChatRoom = dynamic_cast<const GroupChatRoom *>(mRoom);
+        if (groupChatRoom)
+        {
+            auto it = groupChatRoom->peers().find(userid);
+            if (it != groupChatRoom->peers().end() && it->second->priv() == privilege)
+            {
+                return;
+            }
+        }
+
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserJoin(userid, privilege);
+
+        // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
+        if (mRoom->publicChat() && (mRoom->chat().onlineState() != kChatStateOnline || mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
+        {
+            return;
+        }
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
         if (userid.val == chatApiImpl->getMyUserHandle())
@@ -6611,7 +6774,7 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
         }
         else
         {
-            chatroom->setMembersUpdated();
+            chatroom->setMembersUpdated(userid);
         }
         fireOnChatRoomUpdate(chatroom);
     }
@@ -6624,8 +6787,13 @@ void MegaChatRoomHandler::onUserLeave(Id userid)
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserLeave(userid);
 
+        if (mRoom->publicChat() && mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT)
+        {
+            return;
+        }
+
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-        chatroom->setMembersUpdated();
+        chatroom->setMembersUpdated(userid);
         fireOnChatRoomUpdate(chatroom);
     }
 }
@@ -6816,9 +6984,16 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     {
         MegaChatHandle uh = chat->getPeerHandle(i);
         peers.push_back(userpriv_pair(uh, (privilege_t) chat->getPeerPrivilege(i)));
-        peerFirstnames.push_back(chat->getPeerFirstname(i));
-        peerLastnames.push_back(chat->getPeerLastname(i));
-        peerEmails.push_back(chat->getPeerEmail(i));
+        if (chat->getPeerFirstname(i) && chat->getPeerLastname(i) && chat->getPeerEmail(i))
+        {
+            peerFirstnames.push_back(chat->getPeerFirstname(i));
+            peerLastnames.push_back(chat->getPeerLastname(i));
+            peerEmails.push_back(chat->getPeerEmail(i));
+        }
+        else
+        {
+            assert(!chat->getPeerEmail(i) && !chat->getPeerLastname(i) && !chat->getPeerEmail(i));
+        }
     }
     this->group = chat->isGroup();
     this->mPublicChat = chat->isPublic();
@@ -6857,22 +7032,25 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     if (group)
     {
         GroupChatRoom &groupchat = (GroupChatRoom&) chat;
-        GroupChatRoom::MemberMap peers = groupchat.peers();
+        const GroupChatRoom::MemberMap& peers = groupchat.peers();
 
-        GroupChatRoom::MemberMap::iterator it;
+        GroupChatRoom::MemberMap::const_iterator it;
         for (it = peers.begin(); it != peers.end(); it++)
         {
             this->peers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
 
-            const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(it->second->name());
-            this->peerFirstnames.push_back(buffer ? buffer : "");
-            delete [] buffer;
+            if (!chat.publicChat() || chat.numMembers() < PRELOAD_CHATLINK_PARTICIPANTS)
+            {
+                const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(it->second->name());
+                this->peerFirstnames.push_back(buffer ? buffer : "");
+                delete [] buffer;
 
-            buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
-            this->peerLastnames.push_back(buffer ? buffer : "");
-            delete [] buffer;
+                buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
+                this->peerLastnames.push_back(buffer ? buffer : "");
+                delete [] buffer;
 
-            this->peerEmails.push_back(it->second->email());
+                this->peerEmails.push_back(it->second->email());
+            }
         }
     }
     else
@@ -6941,34 +7119,37 @@ int MegaChatRoomPrivate::getPeerPrivilegeByHandle(MegaChatHandle userhandle) con
 
 const char *MegaChatRoomPrivate::getPeerFirstnameByHandle(MegaChatHandle userhandle) const
 {
-    for (unsigned int i = 0; i < peers.size(); i++)
+    for (unsigned int i = 0; i < peerFirstnames.size(); i++)
     {
+        assert(i < peers.size());
         if (peers.at(i).first == userhandle)
         {
-            return peerFirstnames.at(i).c_str();
+            return (!peerFirstnames.at(i).empty()) ? peerFirstnames.at(i).c_str() : nullptr;
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhandle) const
 {
-    for (unsigned int i = 0; i < peers.size(); i++)
+    for (unsigned int i = 0; i < peerLastnames.size(); i++)
     {
+        assert(i < peers.size());
         if (peers.at(i).first == userhandle)
         {
-            return peerLastnames.at(i).c_str();
+            return (!peerLastnames.at(i).empty()) ? peerLastnames.at(i).c_str() : nullptr;
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhandle) const
 {
-    for (unsigned int i = 0; i < peers.size(); i++)
+    for (unsigned int i = 0; i < peerFirstnames.size(); i++)
     {
+        assert(i < peers.size());
         if (peers.at(i).first == userhandle)
         {
             string ret = peerFirstnames.at(i);
@@ -6978,24 +7159,25 @@ const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhand
             }
             ret.append(peerLastnames.at(i));
 
-            return MegaApi::strdup(ret.c_str());
+            return (!ret.empty()) ? MegaApi::strdup(ret.c_str()) : nullptr;
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 const char *MegaChatRoomPrivate::getPeerEmailByHandle(MegaChatHandle userhandle) const
 {
     for (unsigned int i = 0; i < peerEmails.size(); i++)
     {
+        assert(i < peers.size());
         if (peers.at(i).first == userhandle)
         {
-            return peerEmails.at(i).c_str();
+            return (!peerEmails.at(i).empty()) ? peerEmails.at(i).c_str() : nullptr;
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
@@ -7135,6 +7317,11 @@ int MegaChatRoomPrivate::getUnreadCount() const
     return unreadCount;
 }
 
+MegaChatHandle MegaChatRoomPrivate::getUserHandle() const
+{
+    return uh;
+}
+
 MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
 {
     return uh;
@@ -7163,8 +7350,9 @@ void MegaChatRoomPrivate::setNumPreviewers(unsigned int numPrev)
     this->changed |= MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS;
 }
 
-void MegaChatRoomPrivate::setMembersUpdated()
+void MegaChatRoomPrivate::setMembersUpdated(MegaChatHandle uh)
 {
+    this->uh = uh;
     this->changed |= MegaChatRoom::CHANGE_TYPE_PARTICIPANTS;
 }
 
@@ -7682,6 +7870,12 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
+    // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
+    if (mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
+    {
+        return;
+    }
+
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     if (userid == chatApi.getMyUserHandle())
     {
@@ -7697,6 +7891,11 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 {
+    if (mRoom.publicChat() && mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT)
+    {
+        return;
+    }
+
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setMembersUpdated();
     chatApi.fireOnChatListItemUpdate(item);

@@ -452,14 +452,44 @@ void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, const char *author
     pImpl->getUserFirstname(userhandle, authorizationToken, listener);
 }
 
+const char *MegaChatApi::getUserFirstnameFromCache(MegaChatHandle userhandle)
+{
+    return pImpl->getUserFirstnameFromCache(userhandle);
+}
+
 void MegaChatApi::getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener)
 {
     pImpl->getUserLastname(userhandle, authorizationToken, listener);
 }
 
+const char *MegaChatApi::getUserLastnameFromCache(MegaChatHandle userhandle)
+{
+    return pImpl->getUserLastnameFromCache(userhandle);
+}
+
+const char *MegaChatApi::getUserFullnameFromCache(MegaChatHandle userhandle)
+{
+    return pImpl->getUserFullnameFromCache(userhandle);
+}
+
 void MegaChatApi::getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener)
 {
     pImpl->getUserEmail(userhandle, listener);
+}
+
+const char *MegaChatApi::getUserEmailFromCache(MegaChatHandle userhandle)
+{
+    return pImpl->getUserEmailFromCache(userhandle);
+}
+
+void MegaChatApi::loadUserAttributes(MegaChatHandle chatid, MegaHandleList* userList, MegaChatRequestListener *listener)
+{
+    pImpl->loadUserAttributes(chatid, userList, listener);
+}
+
+unsigned int MegaChatApi::getMaxParticipantsWithAttributes()
+{
+    return pImpl->getMaxParticipantsWithAttributes();
 }
 
 char *MegaChatApi::getContactEmail(MegaChatHandle userhandle)
@@ -1365,6 +1395,11 @@ int MegaChatRoom::getUnreadCount() const
 }
 
 MegaChatHandle MegaChatRoom::getUserTyping() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+MegaChatHandle MegaChatRoom::getUserHandle() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }

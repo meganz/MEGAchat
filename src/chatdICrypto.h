@@ -170,6 +170,8 @@ public:
      */
     virtual promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const KeyId &keyid, const std::string &reaction) = 0;
 
+    virtual void fetchUserKeys(karere::Id userid) = 0;
+
     /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
      */

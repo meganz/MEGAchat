@@ -3153,6 +3153,11 @@ void Chat::attachmentHistDone()
     mAttachmentNodes->finishFetchingFromServer();
 }
 
+promise::Promise<void> Chat::requestUserAttributes(Id sender)
+{
+    return mChatdClient.mKarereClient->userAttrCache().getAttributes(sender, getPublicHandle());
+}
+
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
     if (msglen > kMaxMsgSize)
@@ -5088,6 +5093,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
     }
 
+    if (isPublic() && msg.userid != mChatdClient.mMyHandle)
+    {
+        requestUserAttributes(msg.userid);
+    }
+
     auto status = getMsgStatus(msg, idx);
     if (isNew)
     {
@@ -5280,7 +5290,11 @@ void Chat::onUserJoin(Id userid, Priv priv)
     }
 
     mUsers.insert(userid);
-    CALL_CRYPTO(onUserJoin, userid);
+    if (!isPublic())
+    {
+        CALL_CRYPTO(onUserJoin, userid);
+    }
+
     CALL_LISTENER(onUserJoin, userid, priv);
 }
 
@@ -5300,12 +5314,15 @@ void Chat::onUserLeave(Id userid)
         // JOIN -1 for own user, but API response might have cleared the peer list already. In that case,
         // chatd's removal needs to clear the peer list again, since remaining peers would have been
         // added as moderators
+        bool commitEach = mChatdClient.mKarereClient->commitEach();
+        mChatdClient.mKarereClient->setCommitMode(false);
         for (auto &it: mUsers)
         {
             CALL_CRYPTO(onUserLeave, it);
             CALL_LISTENER(onUserLeave, it);
         }
         mUsers.clear();
+            mChatdClient.mKarereClient->setCommitMode(commitEach);
 
         if (mChatdClient.mRtcHandler && !previewMode())
         {
@@ -5728,6 +5745,11 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
     {
         CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserTyping");
         CALL_LISTENER(onUserTyping, from);
+
+        if (isPublic() && from != mChatdClient.mMyHandle)
+        {
+            requestUserAttributes(from);
+        }
     }
     else if (type == Command::kBroadcastUserStopTyping)
     {
@@ -5743,6 +5765,11 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
 uint32_t Chat::getRetentionTime() const
 {
     return mRetentionTime;
+}
+
+Priv Chat::getOwnprivilege() const
+{
+    return mOwnPrivilege;
 }
 
 void Client::leave(Id chatid)

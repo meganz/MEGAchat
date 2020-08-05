@@ -1449,9 +1449,30 @@ void Call::msgSdpOffer(RtMessage& packet)
     std::shared_ptr<Session> sess(new Session(*this, packet, &sessionsInfoIt->second));
     mSessions[sessionsInfoIt->second.mSessionId] = sess;
     notifyCallStarting(*sess);
-    sess->createRtcConn();
-    sess->processSdpOfferSendAnswer();
+    auto wptr = weakHandle();
+    sess->getPeerKeey().then([wptr, sess]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        sess->createRtcConn();
+        sess->processSdpOfferSendAnswer();
+        sess->processPackets();
+    })
+    .fail([wptr, this](const ::promise::Error& err)
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        SUB_LOG_WARNING("Session destroyed: %s", err.msg().c_str());
+    });
+
     mSessionsInfo.erase(endPoint);
+
 }
 
 void Call::handleReject(RtMessage& packet)
@@ -1578,10 +1599,31 @@ void Call::msgSession(RtMessage& packet)
 
     std::shared_ptr<Session> sess(new Session(*this, packet));
     mSessions[sess->sessionId()] = sess;
-    notifyCallStarting(*sess);
-    sess->createRtcConnSendOffer();
-
     cancelSessionRetryTimer(sess->mPeer, sess->mPeerClient);
+    notifyCallStarting(*sess);
+    SdpKey encKey;
+    packet.payload.read(24, encKey);
+    auto wptr = weakHandle();
+    sess->getPeerKeey().then([wptr, this, sess, encKey]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        mManager.crypto().decryptKeyFrom(sess->mPeer, encKey, sess->mPeerHashKey);
+        sess->createRtcConnSendOffer();
+        sess->processPackets();
+    })
+    .fail([wptr, this](const ::promise::Error& err)
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        SUB_LOG_WARNING("Session destroyed: %s", err.msg().c_str());
+    });
 }
 
 void Call::notifyCallStarting(Session &/*sess*/)
@@ -1673,31 +1715,41 @@ void Call::msgJoin(RtMessage& packet)
             mHandler->onReconnectingState(false);
         }
 
-        Id newSid = mManager.random<uint64_t>();
         EndpointId endPointId(packet.userid, packet.clientid);
-        SdpKey encKey;
-        SdpKey ownHashKey;
-        mManager.random(ownHashKey);
-        mManager.crypto().encryptKeyTo(packet.userid, ownHashKey, encKey);
-        uint8_t flags = kSupportsStreamReneg;   // no need to send the A/V flags again, already sent in CALLDATA
-        // SESSION callid.8 sid.8 anonId.8 encHashKey.32 mId.8 flags.1
-        mManager.cmdEndpoint(RTCMD_SESSION, packet,
-            packet.callid,
-            newSid,
-            mManager.mOwnAnonId,
-            encKey,
-            mId,
-            flags);
+        mSessionsInfo.erase(endPointId);
+        auto wptr = weakHandle();
+        loadCryptoPeerKey(packet.userid).then([wptr, this, packet, endPointId](Buffer *)
+        {
+            if (wptr.deleted())
+            {
+                return;
+            }
 
-        // read received flags in JOIN:
-        bool supportRenegotiation = ((packet.payload.buf()[kOffsetFlagsJoin] & kSupportsStreamReneg) != 0);
+            Id newSid = mManager.random<uint64_t>();
+            SdpKey encKey;
+            SdpKey ownHashKey;
+            mManager.random(ownHashKey);
+            mManager.crypto().encryptKeyTo(packet.userid, ownHashKey, encKey);
+            uint8_t flags = kSupportsStreamReneg;   // no need to send the A/V flags again, already sent in CALLDATA
+            // SESSION callid.8 sid.8 anonId.8 encHashKey.32 mId.8 flags.1
+            mManager.cmdEndpoint(RTCMD_SESSION, packet,
+                packet.callid,
+                newSid,
+                mManager.mOwnAnonId,
+                encKey,
+                mId,
+                flags);
 
-        // A/V flags are also included, but not used, since flags in CALLDATA prevails here and later on
-        // the SDP_OFFER & SDP_ANSWER will include update value of A/V flags anyway
-//        bool audio = ((packet.payload.buf()[kRenegotationPositionJoin] & AvFlags::kAudio) != 0);
-//        bool video = ((packet.payload.buf()[kRenegotationPositionJoin] & AvFlags::kVideo) != 0);
+            // read received flags in JOIN:
+            bool supportRenegotiation = ((packet.payload.buf()[kOffsetFlagsJoin] & kSupportsStreamReneg) != 0);
 
-        mSessionsInfo[endPointId] = Session::SessionInfo(newSid, ownHashKey, supportRenegotiation);
+            // A/V flags are also included, but not used, since flags in CALLDATA prevails here and later on
+            // the SDP_OFFER & SDP_ANSWER will include update value of A/V flags anyway
+            // bool audio = ((packet.payload.buf()[kRenegotationPositionJoin] & AvFlags::kAudio) != 0);
+            // bool video = ((packet.payload.buf()[kRenegotationPositionJoin] & AvFlags::kVideo) != 0);
+            mSessionsInfo[endPointId] = Session::SessionInfo(newSid, ownHashKey, supportRenegotiation);
+        });
+
         cancelSessionRetryTimer(endPointId.userid, endPointId.clientid);
     }
     else
@@ -1706,6 +1758,7 @@ void Call::msgJoin(RtMessage& packet)
         return;
     }
 }
+
 ::promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
 {
     SUB_LOG_DEBUG("gracefully term all sessions");
@@ -2569,7 +2622,11 @@ void Call::sendAVFlags()
     {
         item.second->sendAv(av);
     }
+}
 
+promise::Promise<Buffer*> Call::loadCryptoPeerKey(Id peerid)
+{
+    return mManager.mKarereClient.userAttrCache().getAttr(peerid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY);
 }
 
 bool Call::answer(AvFlags av)
@@ -3141,9 +3198,6 @@ Session::Session(Call& call, RtMessage& packet, const SessionInfo *sessionParame
         assert(packet.payload.dataSize() >= 56);
         call.mManager.random(mOwnHashKey);
         mPeerAnonId = packet.payload.read<uint64_t>(16);
-        SdpKey encKey;
-        packet.payload.read(24, encKey);
-        call.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerHashKey);
         mPeerSupportRenegotiation = ((packet.payload.buf()[Call::kOffsetFlagsSession] & Call::kSupportsStreamReneg) != 0);
     }
     else
@@ -3198,6 +3252,13 @@ void Session::setState(uint8_t newState)
 
 void Session::handleMessage(RtMessage& packet)
 {
+    if (mFechingPeerKeys)
+    {
+        SUB_LOG_DEBUG("Waiting for peer key queue packet");
+        mPacketQueue.push_back(packet);
+        return;
+    }
+
     switch (packet.type)
     {
         case RTCMD_SDP_ANSWER:
@@ -3642,28 +3703,38 @@ Promise<void> Session::sendOffer()
         SdpKey hash;
         mCall.mManager.crypto().mac(mOwnSdpOffer, mPeerHashKey, hash);
 
-        SdpKey encKey;
-        uint8_t opcode = 0;
+        // SDP_OFFER/RTCMD_SDP_OFFER_RENEGOTIATE sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
         if (isRenegotiation)
         {
-            opcode = RTCMD_SDP_OFFER_RENEGOTIATE;
+            SdpKey encKey;
             memset(encKey.data, 0, sizeof(encKey.data));
+            cmd(RTCMD_SDP_OFFER_RENEGOTIATE,
+                mCall.mManager.mOwnAnonId,
+                encKey,
+                hash,
+                mCall.mLocalStream->effectiveAv().value(),
+                static_cast<uint16_t>(mOwnSdpOffer.size()),
+                mOwnSdpOffer
+            );
         }
         else
         {
-            opcode = RTCMD_SDP_OFFER;
-            mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
-        }
+            mManager.mKarereClient.userAttrCache().getAttr(mPeer, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
+            .then([wptr, this, hash](Buffer*)
+            {
+                SdpKey encKey;
+                mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
+                cmd(RTCMD_SDP_OFFER,
+                    mCall.mManager.mOwnAnonId,
+                    encKey,
+                    hash,
+                    mCall.mLocalStream->effectiveAv().value(),
+                    static_cast<uint16_t>(mOwnSdpOffer.size()),
+                    mOwnSdpOffer
+                );
+            });
 
-        // SDP_OFFER/RTCMD_SDP_OFFER_RENEGOTIATE sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
-        cmd(opcode,
-            mCall.mManager.mOwnAnonId,
-            encKey,
-            hash,
-            mCall.sentFlags().value(),
-            static_cast<uint16_t>(mOwnSdpOffer.size()),
-            mOwnSdpOffer
-        );
+        }
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -3887,9 +3958,12 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.reconnections = sessionReconnectionIt->second.getReconnections();
     }
 
+    if (mStatRecorder)
+    {
+        std::string stats = mStatRecorder->terminate(info);
+        mCall.mManager.mKarereClient.api.sdk.sendChatStats(stats.c_str(), CHATSTATS_PORT);
+    }
 
-    std::string stats = mStatRecorder->terminate(info);
-    mCall.mManager.mKarereClient.api.sdk.sendChatStats(stats.c_str(), CHATSTATS_PORT);
     return;
 }
 
@@ -4570,6 +4644,37 @@ void Session::cancelIceDisconnectionTimer()
     {
         cancelTimeout(mMediaRecoveryTimer, mManager.mKarereClient.appCtx);
         mMediaRecoveryTimer = 0;
+    }
+}
+
+promise::Promise<void> Session::getPeerKeey()
+{
+    mFechingPeerKeys = true;
+    auto wptr = weakHandle();
+    return mCall.loadCryptoPeerKey(mPeer).then([wptr, this](Buffer *) -> promise::Promise<void>
+    {
+        if (wptr.deleted())
+        {
+            promise::Promise<void> promise;
+            promise.reject("Destroyed while waiting for peer key");
+            return promise;
+        }
+
+        mFechingPeerKeys = false;
+        return promise::_Void();
+    });
+}
+
+void Session::processPackets()
+{
+    for (RtMessage packet : mPacketQueue)
+    {
+        if (mFechingPeerKeys)
+        {
+            return;
+        }
+
+        handleMessage(packet);
     }
 }
 
