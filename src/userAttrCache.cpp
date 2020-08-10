@@ -256,8 +256,9 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
                 key.toString().c_str());
             continue;
         }
-        if (item->pending)
+        if (item->pending && ((type & USER_ATTR_FLAG_COMPOSITE) == 0))
         {
+            // Composed attributes must be re-fetched, if any of the attrs that synthesize it has changed
             //TODO: Shouldn't we schedule a re-fetch?
             UACACHE_LOG_DEBUG("Attr %s change received, but already fetch in progress, ignoring",
                 key.toString().c_str());
