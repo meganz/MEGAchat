@@ -552,6 +552,12 @@ bool Client::isContact(uint64_t userid)
 
 void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpdated)
 {
+    if (!mLastScsn.isValid())
+    {
+        PRESENCED_LOG_DEBUG("onUsersUpdate: still catching-up with actionpackets");
+        return;
+    }
+
     const char *buf = api->getSequenceNumber();
     Id scsn(buf, strlen(buf));
     delete [] buf;
@@ -573,7 +579,7 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
 
         if (!mLastScsn.isValid())
         {
-            PRESENCED_LOG_DEBUG("onUsersUpdate: still catching-up with actionpackets");
+            PRESENCED_LOG_DEBUG("onUsersUpdate (marshall): still catching-up with actionpackets");
             return;
         }
 
