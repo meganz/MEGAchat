@@ -217,6 +217,20 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
     {
        updatePreviewers(chat->getNumPreviewers());
     }
+
+//    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_RETENTION_TIME))
+//    {
+//        QMessageBox *msgBox = new QMessageBox(this);
+//        QString text("onRetentionTimeUpdated: ");
+//        text.append(std::to_string(chat->getRetentionTime()).c_str());
+//        msgBox->setAttribute(Qt::WA_DeleteOnClose, true);
+//        msgBox->setIcon( QMessageBox::Information );
+//        msgBox->setStandardButtons(QMessageBox::Ok);
+//        msgBox->setWindowTitle(tr("RETENTION HISTORY"));
+//        msgBox->setText(text);
+//        msgBox->setModal(false);
+//        msgBox->show();
+//    }
 }
 
 void ChatWindow::previewUpdate(MegaChatRoom *auxRoom)
@@ -358,12 +372,12 @@ void ChatWindow::truncateChatUI()
     std::map<megachat::MegaChatHandle, ChatMessage*>::iterator itMessages;
     for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end(); itMessages++)
     {
-        ChatMessage *auxMessage = itMessages->second;
+        ChatMessage *auxMessage(itMessages->second);
         auxMessage->clearReactions();
         int row = ui->mMessageList->row(auxMessage->getWidgetItem());
-        QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
+        ::mega::unique_ptr<QListWidgetItem> auxItem(ui->mMessageList->takeItem(row));
         mMsgsWidgetsMap.erase(itMessages);
-        delete auxItem;
+        auxMessage->deleteLater();
     }
 }
 
@@ -381,11 +395,11 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*tempora
         }
     }
 
-    ChatMessage *auxMessage = itMessages->second;
+    ChatMessage *auxMessage(itMessages->second);
     int row = ui->mMessageList->row(auxMessage->getWidgetItem());
-    QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
+    ::mega::unique_ptr<QListWidgetItem> auxItem(ui->mMessageList->takeItem(row));
     mMsgsWidgetsMap.erase(itMessages);
-    delete auxItem;
+    auxMessage->deleteLater();
     return true;
 }
 
@@ -422,6 +436,19 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
 std::set<CallGui *> *ChatWindow::getCallGui()
 {
     return &callParticipantsGui;
+}
+
+CallGui *ChatWindow::getMyCallGui()
+{
+    for (auto callGuiIt = callParticipantsGui.begin(); callGuiIt != callParticipantsGui.end(); callGuiIt++)
+    {
+        if ((*callGuiIt)->getPeerid() == mMegaChatApi->getMyUserHandle() && (*callGuiIt)->getClientid() == mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()))
+        {
+            return *callGuiIt;
+        }
+    }
+
+    return nullptr;
 }
 
 void ChatWindow::setCallGui(CallGui *callGui)
@@ -509,10 +536,49 @@ void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRo
     truncateChatUI();
 }
 
+void ChatWindow::onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
+{
+//    QString date = QDateTime::fromTime_t(msg->getTimestamp()).toString("hh:mm:ss - dd.MM.yy");
+//    QMessageBox *msgBox = new QMessageBox(this);
+//    msgBox->setIcon( QMessageBox::Information );
+//    msgBox->setAttribute(Qt::WA_DeleteOnClose);
+//    msgBox->setStandardButtons(QMessageBox::Ok);
+//    msgBox->setWindowTitle(tr("onHistoryTruncatedByRetentionTime"));
+//    msgBox->setText("Messages previous to (" + date+ "), will be cleared");
+//    msgBox->setModal(false);
+//    msgBox->show();
+
+    ChatListItemController *itemController = getChatItemController();
+    if (itemController)
+    {
+        std::map<megachat::MegaChatHandle, ChatMessage*>::iterator itMessages;
+        for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end();)
+        {
+            auto auxIt = itMessages++;
+            ChatMessage *auxMessage(auxIt->second);
+            if (auxMessage->mMessage->getTimestamp() <= msg->getTimestamp()
+                    && auxMessage->mMessage->getStatus() != megachat::MegaChatMessage::STATUS_SENDING
+                    && auxMessage->mMessage->getStatus() != megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
+            {
+                auxMessage->clearReactions();
+                int row = ui->mMessageList->row(auxMessage->getWidgetItem());
+                ::mega::unique_ptr <QListWidgetItem> auxItem(ui->mMessageList->takeItem(row));
+                mMsgsWidgetsMap.erase(auxIt);
+                auxMessage->deleteLater();
+            }
+        }
+    }
+}
+
 void ChatWindow::onReactionUpdate(megachat::MegaChatApi *, megachat::MegaChatHandle msgid, const char *reaction, int count)
 {
    ChatMessage *msg = findChatMessage(msgid);
-   assert(msg);
+   if (!msg)
+   {
+      mLogger->postLog("onReactionUpdate warning - reaction update received for message received but not loaded by app");
+      return;
+   }
+
    msg->updateReaction(reaction, count);
 }
 
@@ -728,6 +794,7 @@ void ChatWindow::createMembersMenu(QMenu& menu)
     }
     delete userList;
 
+    menu.setStyleSheet("QMenu { menu-scrollable: 1; }");
     // list of peers with presence and privilege-related actions
     for (unsigned int i = 0; i < mChatRoom->getPeerCount() + 1; i++)
     {
@@ -750,24 +817,25 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         }
         else
         {
-            const char *memberName = mChatRoom->getPeerFirstname(i);
-            if (!memberName)
+            QString memberName;
+            MegaChatHandle peerHandle = mChatRoom->getPeerHandle(i);
+            std::unique_ptr<const char[]> name(mMegaChatApi->getUserFirstnameFromCache(peerHandle));
+            if (!name || !strlen(name.get()))
             {
-                memberName = mChatRoom->getPeerEmail(i);
+                std::unique_ptr<const char []> email(mMegaChatApi->getUserEmailFromCache(peerHandle));
+                memberName = (email && strlen(email.get())) ? email.get() : tr("Yet unknown");
             }
             else
             {
-                if ((strlen(memberName)) == 0)
-                {
-                    memberName = mChatRoom->getPeerEmail(i);
-                }
+                memberName = name.get();
             }
+
             privilege = mChatRoom->getPeerPrivilege(i);
-            userhandle = QVariant((qulonglong)mChatRoom->getPeerHandle(i));
+            userhandle = QVariant((qulonglong)peerHandle);
             title.append(" ")
-                    .append(QString::fromStdString(memberName))
+                    .append(memberName)
                     .append(" [")
-                    .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(mChatRoom->getPeerHandle(i)))))
+                    .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(peerHandle))))
                     .append("]");
         }
 
@@ -836,6 +904,14 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto truncate = roomMenu->addAction("Truncate chat");
     connect(truncate, SIGNAL(triggered()), getChatItemController(), SLOT(truncateChat()));
 
+    //Get retention time
+    auto actGetRetentionTime = roomMenu->addAction(tr("Get retention time"));
+    connect(actGetRetentionTime, SIGNAL(triggered()), getChatItemController(), SLOT(onGetRetentionTime()));
+
+    //Set retention time
+    auto actSetRetentionTimeSec = roomMenu->addAction(tr("Set retention time (in seconds)"));
+    connect(actSetRetentionTimeSec, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetRetentionTime();});
+
     //Set topic
     auto title = roomMenu->addAction("Set title");
     connect(title, SIGNAL(triggered()), getChatItemController(), SLOT(setTitle()));
@@ -844,7 +920,6 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     connect(actArchive, SIGNAL(toggled(bool)), getChatItemController(), SLOT(archiveChat(bool)));
     actArchive->setCheckable(true);
     actArchive->setChecked(mChatRoom->isArchived());
-
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
@@ -917,7 +992,6 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     actSetDND->setEnabled(bool(notificationSettings));
 
     menu.addSeparator();
-
     // Attachments
     auto actAttachments = menu.addAction("Show attachments");
     connect(actAttachments, SIGNAL(triggered(bool)), this, SLOT(onShowAttachments(bool)));
@@ -994,7 +1068,7 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle clientid)
+void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle clientid, bool onHold)
 {
     int row = 0;
     int col = 0;
@@ -1028,6 +1102,10 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle
     layout->addWidget(callGui,row,col);
     ui->mTitlebar->hide();
     ui->mTextChatWidget->hide();
+    if (onHold)
+    {
+        callGui->enableOnHold(onHold, true);
+    }
 }
 
 void ChatWindow::destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid)

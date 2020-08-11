@@ -125,6 +125,17 @@ public:
     virtual void onHistoryDone(HistSource /*source*/) {}
 
     /**
+     * @brief Chat history have been truncated as result of reception of OP_RETENTION command.
+     * All messages that exceed retention time must be cleared, so we need to inform app
+     * to free all resources associated to these messages.
+     *
+     * @param msg Most recent message affected by retention time
+     * @param idx Index of the message
+     * @param status Status of the message
+     */
+    virtual void onHistoryTruncatedByRetentionTime(const Message &msg, const Idx &idx, const Message::Status &status) {}
+
+    /**
      * @brief An unsent message was loaded from local db. The app should normally
      * display it at the end of the message history, indicating that it has not been
      * sent. This callback is called for all unsent messages, in order in which
@@ -322,6 +333,9 @@ public:
      * @brief Called when the number of previewers in a public chat has changed
      */
     virtual void onPreviewersUpdate(){}
+
+    /** @brief Retention time period has changed */
+    virtual void onRetentionTimeUpdated(unsigned int /*period*/) {}
 };
 
 class FilteredHistoryHandler
@@ -736,6 +750,16 @@ public:
         ManualSendReason reason;
     };
 
+    struct PendingReaction
+    {
+        PendingReaction(const std::string &aReactionString, const std::string &aReactionStringEnc, uint64_t aMsgId, uint8_t status);
+        std::string mReactionString;
+        std::string mReactionStringEnc;
+        uint64_t mMsgId;
+        uint8_t mStatus;
+    };
+    typedef std::list<PendingReaction> PendingReactions;
+
     Client& mChatdClient;
 
     enum FetchType
@@ -752,6 +776,7 @@ protected:
     std::vector<std::unique_ptr<Message>> mBackwardList;
     std::unique_ptr<FilteredHistory> mAttachmentNodes;
     OutputQueue mSending;
+    PendingReactions mPendingReactions;
     OutputQueue::iterator mNextUnsent;
     bool mIsFirstJoin = true;
     std::map<karere::Id, Idx> mIdToIndexMap;
@@ -759,9 +784,7 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     karere::Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
-    Idx mLastSeenInFlightIdx = CHATD_IDX_INVALID;
     Idx mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
-    karere::Id mLastIdReceivedFromServer;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;
@@ -786,11 +809,13 @@ protected:
     bool mHaveAllHistory = false;
     bool mIsDisabled = false;
     Idx mNextHistFetchIdx = CHATD_IDX_INVALID;
+    Idx mOldestIdxInDb = CHATD_IDX_INVALID;
     DbInterface* mDbInterface = nullptr;
     // last text message stuff
     LastTextMsgState mLastTextMsg;
     // crypto stuff
     ICrypto* mCrypto = NULL;
+    int mUnreadCount = 0;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
      * path of further messages to be sent is written to db, without calling encrypt().
      * Once encryption is finished, this flag is cleared, and all queued unencrypted
@@ -839,6 +864,8 @@ protected:
     bool mTruncateAttachment = false;
     /** Indicates the reaction sequence number for this chatroom */
     karere::Id mReactionSn = karere::Id::inval();
+    /** Indicates the retention time for this chat room, after which the previous messages are automatically deleted */
+    uint32_t mRetentionTime = 0;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -866,6 +893,7 @@ protected:
     void onReactionSn(karere::Id rsn);
     void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
+    void onRetentionTimeUpdated(uint32_t period);
     void loadAndProcessUnsent();
     void initialFetchHistory(karere::Id serverNewest);
     void requestHistoryFromServer(int32_t count);
@@ -901,7 +929,7 @@ protected:
     void requestPendingRichLinks();
     void removePendingRichLinks();
     void removePendingRichLinks(Idx idx);
-    void removeMessageReactions(Idx idx);
+    void removeMessageReactions(Idx idx, bool cleanPrevious = false);
     void manageRichLinkMessage(Message &message);
     void attachmentHistDone();
     friend class Connection;
@@ -1316,19 +1344,50 @@ public:
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
     Idx lastIdxReceivedFromServer() const;
-    karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
     bool isPublic() const;
     uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
-    void addReaction(const Message &message, const std::string &reaction);
-    void delReaction(const Message &message, const std::string &reaction);
+    void manageReaction(const Message &message, const std::string &reaction, Opcode opcode);
+    const PendingReactions &getPendingReactions() const;
+    void addPendingReaction(const std::string &reaction, const std::string &encReaction, karere::Id msgId, uint8_t status);
+    void removePendingReaction(const std::string &reaction, karere::Id msgId);
+    void retryPendingReactions();
     void sendReactionSn();
+
+    /**
+     * @brief Clean pending reactions in a chat for a specific message
+     * @note Reactions in local DB are removed along with messages (FK delete on cascade).
+     * @param msgId Id of message whose pending reactions will be cleaned.
+     */
+    void cleanPendingReactions(const karere::Id &msgId);
+
+    /**
+     * @brief Clean pending reactions in a chat for a specific message or range of messages.
+     *
+     * The function will clean all pending reactions for the messages whose index is previous to idx.
+     *
+     * @note Reactions in local DB are removed along with messages (FK delete on cascade).
+     * @param idx Index of message of the newest message whose pending reactions will be removed
+     */
+    void cleanPendingReactionsOlderThan(Idx idx);
+
+    /** @brief Flush all pending reactions (in RAM and local DB) for a chat.
+     * Upon HISTDONE reception all pending reactions has been applied in chatd,
+     * so we need to update changes in local and flush pending reactions
+     */
+    void flushChatPendingReactions();
+
+    /** @brief Return the status of a reaction:
+     *  - returns OP_ADDREACTION:   If reaction is pending to be added
+     *  - returns OP_DELREACTION:   If reaction is pending to be removed
+     *  - returns -1:               If pending reaction not exists
+     */
+    int getPendingReactionStatus(const std::string& reaction, karere::Id msgId) const;
     void setPublicHandle(uint64_t ph);
     uint64_t getPublicHandle() const;
     bool previewMode();
-    void rejoin();
 
     /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
     void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
@@ -1341,8 +1400,14 @@ public:
 
     /** Returns true when fetch in-flight is a NODEHIST */
     bool isFetchingNodeHistory() const;
+
+    /** Returns true when fetch in-flight is a HIST */
+    bool isFetchingHistory() const;
     void setNodeHistoryHandler(FilteredHistoryHandler *handler);
     void unsetHandlerToNodeHistory();
+    promise::Promise<void> requestUserAttributes(karere::Id sender);
+    uint32_t getRetentionTime() const;
+    Priv getOwnprivilege() const;
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
@@ -1362,6 +1427,28 @@ protected:
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
+    void truncateByRetentionTime(Idx idx);
+    void truncateAttachmentHistory();
+
+    /**
+     * @brief Remove those messages that exceed the retention time frame for this chat.
+     * @param updateTimer - if false, it ensures that updateRetentionCheckPeriod won't be called.
+     * This param is needed, to avoid infitite loops, when this method is called upon timeout expiration.
+     *
+     * @return the timestamp when the next retention history check must be done for this chat.
+     */
+    time_t handleRetentionTime(bool updateTimer = true);
+
+    /** Return the Idx corresponding to the most recent msg affected by retention history (in RAM or Db)
+     *  or CHATD_IDX_INVALID if none */
+    Idx getIdxByRetentionTime();
+
+    /**
+     * @brief Returns the timestamp, when the next retention history check must be done for this chat
+     * @param updateTimer - if false, it ensures that updateRetentionCheckPeriod won't be called.
+     * @return the timestamp, when the next retention history check must be done for this chat.
+     */
+    time_t nextRetentionHistCheck(bool updateTimer = true);
 
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
@@ -1375,6 +1462,8 @@ protected:
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
     void loadManualSending();
+
+    void calculateUnreadCount();
 public:
 //realtime messaging
 
@@ -1419,6 +1508,12 @@ protected:
     promise::Promise<void> sendKeepalive();
     void sendEcho();
 
+    /** Handler of the timeout for retention history checks */
+    megaHandle mRetentionTimer;
+
+    /** Timestamp of the next check of retention history for all chats, or zero (disabled) */
+    uint32_t mRetentionCheckTs;
+
 public:
     // Chatd Version:
     // - Version 0: initial version
@@ -1436,7 +1531,12 @@ public:
     //  * Add commands ADDREACTION DELREACTION REACTIONSN
     // - Version 7:
     //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
-    static const unsigned chatdVersion = 7;
+    // - Version 8:
+    //  * Solves several bugs related to missing RETENTION time upon re-joins, anonymous previewers and others
+    static const unsigned chatdVersion = 8;
+
+    // Minimum retention history check period (in seconds)
+    static const unsigned kMinRetentionTimeout = 60;
 
     Client(karere::Client *aKarereClient);
     ~Client();
@@ -1485,6 +1585,41 @@ public:
     // The timestamps of the most recent message from userid
     mega::m_time_t getLastMsgTs(karere::Id userid) const;
     void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
+
+    // Update mRetentionCheckTs if force is true or nextCheck is smaller than current value
+    /**
+     * @brief Update mRetentionCheckTs and set a new timer if required.
+     * mRetentionCheckTs will be updated in the following cases:
+     * - force is true
+     * - nextCheck != 0 and current value is 0
+     * - nextCheck != 0 and nextCheck < current value
+     *
+     * A new timer will be set, if mRetentionCheckTs has been modified and is not zero
+     *
+     * @param nextCheckTs - timestamp when next retention history check must be done for all chats
+     * @param force - if true force to update mRetentionCheckTs
+     */
+    void updateRetentionCheckTs(time_t nextCheckTs, bool force);
+
+    /**
+     * @brief Cancel retention history timer if active, and reset mRetentionTimer to zero.
+     * If resetTs is true, also reset mRetentionCheckTs.
+     *
+     * @param resetTs - if true, reset mRetentionCheckTs to zero.
+     */
+    void cancelRetentionTimer(bool resetTs = true);
+
+    /**
+     * @brief Sets a new retention history timer.
+     * When timer expires, this method will iterate through all chats,
+     * calling to handleRetentionTime (with false to avoid an infinite loop),
+     * and will get the smaller timestamp when the next retention history check must be done.
+     *
+     * Once next retention history check timestamp is obtained, this method will call to
+     * updateRetentionCheckPeriod (with true) that ensures that mRetentionCheckTs
+     * will be modified, and a new timer will be set if mRetentionCheckTs > 0
+     */
+    void setRetentionTimer();
 
     friend class Connection;
     friend class Chat;
@@ -1600,10 +1735,13 @@ public:
     virtual bool removeChatVar (const char *name) = 0;
 
     virtual Idx getOldestIdx() = 0;
+    virtual uint32_t getOldestMsgTs() = 0;
     virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
+    virtual void getMessageUserKeyId(const karere::Id &msgid, karere::Id &userid, uint32_t &keyid) = 0;
+    virtual bool isValidReactedMessage(const karere::Id &msgid, chatd::Idx &idx) = 0;
 
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;
     virtual void truncateHistory(const chatd::Message& msg) = 0;
@@ -1612,12 +1750,21 @@ public:
     virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
 
     //  <<<--- Reaction methods --->>>
-    virtual std::string getReactionSn() = 0;
+    virtual const std::string getReactionSn() const = 0;
     virtual void setReactionSn(const std::string &rsn) = 0;
     virtual void cleanReactions(karere::Id msgId) = 0;
-    virtual void addReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
-    virtual void delReaction(karere::Id msgId, karere::Id userId, const char *reaction) = 0;
-    virtual void getMessageReactions(karere::Id msgId, ::mega::multimap<std::string, karere::Id>& reactions) = 0;
+    virtual void cleanPendingReactions(karere::Id msgId) = 0;
+    virtual void addReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) = 0;
+    virtual void addPendingReaction(karere::Id msgId, const std::string &reaction, const std::string &encReaction, uint8_t status) = 0;
+    virtual void delReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) = 0;
+    virtual void delPendingReaction(karere::Id msgId, const std::string &reaction) = 0;
+    virtual void getReactions(karere::Id msgId, std::multimap<std::string, karere::Id>& reactions) const = 0;
+    virtual void getPendingReactions(std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
+    virtual bool hasPendingReactions() = 0;
+
+    //  <<<--- Retention history methods --->>>
+    virtual chatd::Idx getIdxByRetentionTime(time_t) = 0;
+    virtual void retentionHistoryTruncate(const chatd::Idx idx) = 0;
 };
 
 }

@@ -120,12 +120,6 @@ public:
      */
     virtual void resetSendKey() = 0;
 
-    /** @brief Extract keys from legacy messages.
-     * Must be called for every received message, even if decryption of a previous
-     * message is not completed yet, as it may depend on this key.
-     */
-    virtual bool handleLegacyKeys(chatd::Message& msg) = 0;
-
     virtual void randomBytes(void* buf, size_t bufsize) const = 0;
 
     virtual promise::Promise<std::shared_ptr<Buffer>>
@@ -165,14 +159,18 @@ public:
      * @param msg The message associated to the reaction.
      * @param reaction An UTF-8 string.
      */
-    virtual promise::Promise<std::shared_ptr<Buffer>> reactionEncrypt(const Message &msg, const std::string &reaction) = 0;
+    virtual std::shared_ptr<Buffer> reactionEncrypt(const Message &msg, const std::string &reaction) = 0;
 
     /**
      * @brief Decrypts a reaction with xxtea.
-     * @param msg The message associated to the reaction.
+     * @param msgid The msgId associated to the reaction.
+     * @param userid The userId associated to the reaction.
+     * @param keyid The keyId associated to the message.
      * @param reaction The encrypted reaction.
      */
-    virtual promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const Message &msg,const std::string &reaction) = 0;
+    virtual promise::Promise<std::shared_ptr<Buffer>> reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const KeyId &keyid, const std::string &reaction) = 0;
+
+    virtual void fetchUserKeys(karere::Id userid) = 0;
 
     /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed

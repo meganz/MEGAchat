@@ -68,6 +68,10 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->getAudioDetected() : NO;
 }
 
+- (BOOL)isOnHold {
+    return self.megaChatSession ? self.megaChatSession->isOnHold() : NO;
+}
+
 - (NSInteger)termCode {
     return self.megaChatSession ? self.megaChatSession->getTermCode() : 0;
 }

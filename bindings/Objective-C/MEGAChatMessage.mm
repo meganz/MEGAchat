@@ -88,8 +88,8 @@ using namespace megachat;
     return (MEGAChatMessageType) (self.megaChatMessage ? self.megaChatMessage->getType() : 0);
 }
 
-- (BOOL)hasReactions {
-    return self.megaChatMessage ? self.megaChatMessage->hasReactions() : NO;
+- (BOOL)hasConfirmedReactions {
+    return self.megaChatMessage ? self.megaChatMessage->hasConfirmedReactions() : NO;
 }
 
 - (NSDate *)timestamp {

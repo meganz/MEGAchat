@@ -114,6 +114,8 @@ namespace chatd
 
 Client::Client(karere::Client *aKarereClient) :
     mMyHandle(aKarereClient->myHandle()),
+    mRetentionTimer(0),
+    mRetentionCheckTs(0),
     mApi(&aKarereClient->api),
     mKarereClient(aKarereClient)
 {
@@ -362,6 +364,73 @@ void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
     mLastMsgTs[userid] = lastMsgTs;
 }
 
+void Client::updateRetentionCheckTs(time_t nextCheckTs, bool force)
+{
+    bool setTimer = false;
+    if (force || (nextCheckTs && (!mRetentionCheckTs || nextCheckTs < mRetentionCheckTs)))
+    {
+        setTimer = true;
+        mRetentionCheckTs = static_cast<uint32_t>(nextCheckTs);
+        CHATD_LOG_DEBUG("set retention history check ts: %d", nextCheckTs);
+    }
+
+    if (mRetentionCheckTs && setTimer)
+    {
+        setRetentionTimer();
+    }
+}
+
+void Client::cancelRetentionTimer(bool resetTs)
+{
+    if (mRetentionTimer)
+    {
+        cancelTimeout(mRetentionTimer, mKarereClient->appCtx);
+        mRetentionTimer = 0;
+    }
+
+    if (resetTs)
+    {
+        mRetentionCheckTs = 0;
+        CHATD_LOG_DEBUG("retention history check period reset");
+    }
+}
+
+void Client::setRetentionTimer()
+{
+    time_t retentionPeriod = mRetentionCheckTs - time(nullptr);
+    assert(retentionPeriod > 0); // next timer period (in seconds) must be a valid
+
+    // Avoid set timer with a smaller period than kMinRetentionTimeout, upon previous timer expiration.
+    // If there's an active timer, it's licit to set a timer with a smaller period than kMinRetentionTimeout.
+    retentionPeriod = (!mRetentionTimer && retentionPeriod > 0 && retentionPeriod < kMinRetentionTimeout)
+            ? kMinRetentionTimeout
+            : retentionPeriod;
+
+    cancelRetentionTimer(false); // cancel timer if any, but keep mRetentionCheckTs
+    CHATD_LOG_DEBUG("set timer for next retention history check to %d (seconds):", retentionPeriod);
+    auto wptr = weakHandle();
+    mRetentionTimer = karere::setTimeout([this, wptr]()
+    {
+        if (wptr.deleted())
+          return;
+
+        mRetentionTimer = 0; // it's important to reset here
+
+        // Get the min check period
+        time_t minTs = 0;
+        for (auto& chat: mChatForChatId)
+        {
+            // Call with false, to avoid infinite loop by calling setRetentionTimer
+            time_t nextRetentionTs = chat.second->handleRetentionTime(false);
+            if (nextRetentionTs && (nextRetentionTs < minTs || !minTs))
+            {
+                minTs = nextRetentionTs;
+            }
+        }
+        updateRetentionCheckTs(minTs, true);
+    }, retentionPeriod * 1000 , mKarereClient->appCtx);
+}
+
 uint8_t Client::richLinkState() const
 {
     return mRichLinkState;
@@ -437,9 +506,14 @@ void Chat::login()
     else
     {
         if (mOldestKnownMsgId) //if we have local history
+        {
             joinRangeHist(info);
+            retryPendingReactions();
+        }
         else
+        {
             join();
+        }
     }
 }
 
@@ -1040,7 +1114,7 @@ void Connection::heartbeat()
     if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
     {
         CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
-
+        mChatdClient.cancelRetentionTimer(); // Cancel retention timer
         setState(kStateDisconnected);
         abortRetryController();
         reconnect();
@@ -1805,6 +1879,8 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
         loadAndProcessUnsent();
         getHistoryFromDb(initialHistoryFetchCount); // ensure we have a minimum set of messages loaded and ready
     }
+
+    calculateUnreadCount();
 }
 Chat::~Chat()
 {
@@ -1842,23 +1918,34 @@ Idx Chat::getHistoryFromDb(unsigned count)
     for (auto msg: messages)
     {
         // Load msg reactions from cache
-        ::mega::multimap<std::string, karere::Id> reactions;
-        CALL_DB(getMessageReactions, msg->id(), reactions);
-        for (auto &it : reactions)
+        std::multimap<std::string, karere::Id> reactions;
+        CALL_DB(getReactions, msg->id(), reactions);
+        for (auto& reaction : reactions)
         {
-            msg->addReaction(it.first, it.second);
+            // Add reaction to confirmed reactions queue in message
+            msg->addReaction(reaction.first, reaction.second);
         }
 
         msgIncoming(false, msg, true); //increments mLastHistFetch/DecryptCount, may reset mHasMoreHistoryInDb if this msgid == mLastKnownMsgid
     }
     if (mNextHistFetchIdx == CHATD_IDX_INVALID)
     {
-        mNextHistFetchIdx = mForwardStart - 1 - messages.size();
+        mNextHistFetchIdx = mForwardStart - 1 - static_cast<Idx>(messages.size());
     }
     else
     {
-        mNextHistFetchIdx -= messages.size();
+        mNextHistFetchIdx -= static_cast<Idx>(messages.size());
     }
+
+    // Load all pending reactions stored in cache
+    std::vector<PendingReaction> pendingReactions;
+    CALL_DB(getPendingReactions, pendingReactions);
+    for (auto &auxReaction : pendingReactions)
+    {
+        // Add pending reaction to queue in chat
+        addPendingReaction(auxReaction.mReactionString, auxReaction.mReactionStringEnc, auxReaction.mMsgId, auxReaction.mStatus);
+    }
+
     CALL_LISTENER(onHistoryDone, kHistSourceDb);
 
     // If we haven't yet seen the message with the last-seen msgid, then all messages
@@ -2013,6 +2100,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(period, 16);
                 CHATDS_LOG_DEBUG("%s: recv RETENTION by user '%s' to %u second(s)",
                                 ID_CSTR(chatid), ID_CSTR(userid), period);
+
+                auto &chat = mChatdClient.chats(chatid);
+                chat.onRetentionTimeUpdated(period);
                 break;
             }
             case OP_MSGID:
@@ -2394,11 +2484,13 @@ void Chat::onHistDone()
         if (isFetchingFromServer()) //HISTDONE is received for new history or after JOINRANGEHIST
         {
             onFetchHistDone();
+            handleRetentionTime();
         }
         if (isJoining())
         {
             onJoinComplete();
         }
+        flushChatPendingReactions();
     }
     else if (fetchType == FetchType::kFetchNodeHistory)
     {
@@ -2553,6 +2645,45 @@ void Chat::loadManualSending()
     }
 }
 
+void Chat::calculateUnreadCount()
+{
+    int count = 0;
+    if (mLastSeenIdx == CHATD_IDX_INVALID)
+    {
+        if (mHaveAllHistory)
+        {
+            count = mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
+        }
+        else
+        {
+            count = -mDbInterface->getUnreadMsgCountAfterIdx(CHATD_IDX_INVALID);
+        }
+    }
+    else if (mLastSeenIdx < lownum())
+    {
+        count = mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
+    }
+    else
+    {
+        Idx first = mLastSeenIdx+1;
+        auto last = highnum();
+        for (Idx i=first; i<=last; i++)
+        {
+            auto& msg = at(i);
+            if (msg.isValidUnread(mChatdClient.myHandle()))
+            {
+                count++;
+            }
+        }
+    }
+
+    if (count != mUnreadCount)
+    {
+        mUnreadCount = count;
+        CALL_LISTENER(onUnreadChanged);
+    }
+}
+
 Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
 {
     ManualSendItem item;
@@ -2564,11 +2695,6 @@ Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
 Idx Chat::lastIdxReceivedFromServer() const
 {
     return mLastIdxReceivedFromServer;
-}
-
-Id Chat::lastIdReceivedFromServer() const
-{
-    return mLastIdReceivedFromServer;
 }
 
 bool Chat::isGroup() const
@@ -2599,53 +2725,109 @@ void Chat::sendSync()
     sendCommand(Command(OP_SYNC) + mChatId);
 }
 
-
-void Chat::addReaction(const Message &message, const std::string &reaction)
+const Chat::PendingReactions& Chat::getPendingReactions() const
 {
-    auto wptr = weakHandle();
-    marshallCall([wptr, this, message, reaction]()
-    {
-        if (wptr.deleted())
-            return;
-
-        mCrypto->reactionEncrypt(message, reaction)
-        .then([this, wptr, &message](std::shared_ptr<Buffer> data)
-        {
-            if (wptr.deleted())
-                return;
-
-           std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
-           sendCommand(Command(OP_ADDREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
-        })
-        .fail([this](const ::promise::Error& err)
-        {
-            CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
-        });
-    }, mChatdClient.mKarereClient->appCtx);
+    return mPendingReactions;
 }
 
-void Chat::delReaction(const Message &message, const std::string &reaction)
+int Chat::getPendingReactionStatus(const string &reaction, Id msgId) const
 {
-    auto wptr = weakHandle();
-    marshallCall([wptr, this, &message, reaction]()
+    for (auto &auxReaction : mPendingReactions)
     {
-        if (wptr.deleted())
+        if (auxReaction.mMsgId == msgId && auxReaction.mReactionString == reaction)
+        {
+            return auxReaction.mStatus;
+        }
+    }
+    return -1;
+}
+
+void Chat::addPendingReaction(const std::string &reaction, const std::string &encReaction, Id msgId, uint8_t status)
+{
+    for (auto &auxReaction : mPendingReactions)
+    {
+        // If reaction already exists in pending list, only update it's status
+        if (auxReaction.mMsgId == msgId && auxReaction.mReactionString == reaction)
+        {
+            assert(encReaction == auxReaction.mReactionStringEnc);
+            auxReaction.mStatus = status;
             return;
+        }
+    }
 
-        mCrypto->reactionEncrypt(message, reaction)
-        .then([this, wptr, &message](std::shared_ptr<Buffer> data)
-        {
-            if (wptr.deleted())
-                return;
+    mPendingReactions.emplace_back(PendingReaction(reaction, encReaction, msgId, status));
+}
 
-           std::string encReaction (data->buf(), data->bufSize());  // lenght must be only 1 byte. passing the buffer uses 4 bytes for size
-           sendCommand(Command(OP_DELREACTION) + mChatId + client().myHandle() + message.id() + (int8_t)data->bufSize() + encReaction);
-        })
-        .fail([this](const ::promise::Error& err)
+void Chat::removePendingReaction(const string &reaction, Id msgId)
+{
+    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
+    {
+        if (it->mMsgId == msgId
+            && it->mReactionString == reaction)
         {
-            CHATID_LOG_DEBUG("Error encrypting reaction: %s", err.what());
-        });
-    }, mChatdClient.mKarereClient->appCtx);
+            mPendingReactions.erase(it);
+            return;
+        }
+    }
+}
+
+void Chat::retryPendingReactions()
+{
+    for (auto& reaction: mPendingReactions)
+    {
+        assert(!reaction.mReactionStringEnc.empty());
+        sendCommand(Command(reaction.mStatus) + mChatId + client().myHandle() + reaction.mMsgId + (int8_t)reaction.mReactionStringEnc.size() + reaction.mReactionStringEnc);
+    }
+}
+
+void Chat::cleanPendingReactions(const karere::Id &msgId)
+{
+    mPendingReactions.remove_if([msgId](PendingReaction& reaction)
+    {
+        return reaction.mMsgId == msgId;
+    });
+}
+
+void Chat::cleanPendingReactionsOlderThan(Idx idx)
+{
+    mPendingReactions.remove_if([idx, this](PendingReaction& reaction)
+    {
+        return msgIndexFromId(reaction.mMsgId) <= idx;
+    });
+}
+
+void Chat::flushChatPendingReactions()
+{
+    for (auto &reaction : mPendingReactions)
+    {
+        Idx index = msgIndexFromId(reaction.mMsgId);
+        if (index == CHATD_IDX_INVALID)
+        {
+            // couldn't find msg
+            CHATID_LOG_WARNING("flushChatPendingReactions: message with id(%d) not loaded in RAM", reaction.mMsgId);
+        }
+        else
+        {
+            const Message &message = at(index);
+            CALL_LISTENER(onReactionUpdate, message.mId, reaction.mReactionString.c_str(), message.getReactionCount(reaction.mReactionString));
+        }
+        CALL_DB(cleanPendingReactions, reaction.mMsgId);
+    }
+    mPendingReactions.clear();
+
+    // Ensure that all pending reactions are flushed upon HISTDONE reception
+    assert(!mDbInterface->hasPendingReactions());
+}
+
+void Chat::manageReaction(const Message &message, const std::string &reaction, Opcode opcode)
+{
+    assert(opcode == OP_ADDREACTION || opcode == OP_DELREACTION);
+    std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
+    std::string encReaction(data->buf(), data->bufSize());
+    addPendingReaction(reaction, encReaction, message.id(), opcode);
+    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, opcode);
+    sendCommand(Command(opcode) + mChatId + client().myHandle() + message.id()
+                    + static_cast<int8_t>(data->bufSize()) + encReaction);
 }
 
 void Chat::sendReactionSn()
@@ -2661,6 +2843,11 @@ void Chat::sendReactionSn()
 bool Chat::isFetchingNodeHistory() const
 {
     return (!mFetchRequest.empty() && (mFetchRequest.front() == FetchType::kFetchNodeHistory));
+}
+
+bool Chat::isFetchingHistory() const
+{
+    return (!mFetchRequest.empty() && (mFetchRequest.front() == FetchType::kFetchMessages));
 }
 
 void Chat::setNodeHistoryHandler(FilteredHistoryHandler *handler)
@@ -2731,10 +2918,11 @@ void Chat::initChat()
     mLastSeenIdx = CHATD_IDX_INVALID;
     mLastReceivedIdx = CHATD_IDX_INVALID;
     mNextHistFetchIdx = CHATD_IDX_INVALID;
-    mLastIdReceivedFromServer = 0;
+    mOldestIdxInDb = CHATD_IDX_INVALID;
     mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
     mLastServerHistFetchCount = 0;
     mLastHistDecryptCount = 0;
+    mRetentionTime = 0;
 
     mLastTextMsg.clear();
     mEncryptionHalted = false;
@@ -2922,15 +3110,18 @@ void Chat::removePendingRichLinks(Idx idx)
     }
 }
 
-void Chat::removeMessageReactions(Idx idx)
+void Chat::removeMessageReactions(Idx idx, bool cleanPrevious)
 {
     Message *msg = findOrNull(idx);
     if (msg)
     {
         msg->cleanReactions();
-        // reactions in DB are removed along with messages (FK delete on cascade)
+
+        (cleanPrevious)
+                ? cleanPendingReactionsOlderThan(idx)
+                : cleanPendingReactions(msg->id());
     }
-    // TODO: clear any pending reaction in the queue for older messages than `idx` (see removePendingRichLinks(idx))
+    // reactions in DB are removed along with messages (FK delete on cascade)
 }
 
 void Chat::manageRichLinkMessage(Message &message)
@@ -2960,6 +3151,11 @@ void Chat::attachmentHistDone()
     mAttachNodesReceived = 0;
     mAttachNodesRequestedToServer = 0;
     mAttachmentNodes->finishFetchingFromServer();
+}
+
+promise::Promise<void> Chat::requestUserAttributes(Id sender)
+{
+    return mChatdClient.mKarereClient->userAttrCache().getAttributes(sender, getPublicHandle());
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
@@ -3463,12 +3659,6 @@ bool Chat::previewMode()
     return crypto()->previewMode();
 }
 
-void Chat::rejoin()
-{
-    clearHistory();
-    join();
-}
-
 void Chat::onLastSeen(Id msgid, bool resend)
 {
     Idx idx = CHATD_IDX_INVALID;
@@ -3496,6 +3686,7 @@ void Chat::onLastSeen(Id msgid, bool resend)
             mLastSeenId = msgid;
             CALL_DB(setLastSeen, msgid);
 
+            calculateUnreadCount();
             return;
         }
     }
@@ -3505,6 +3696,12 @@ void Chat::onLastSeen(Id msgid, bool resend)
         if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx)
         {
             CHATID_LOG_WARNING("onLastSeen: ignoring attempt to set last seen msgid backwards. Current: %s Attempt: %s", ID_CSTR(mLastSeenId), ID_CSTR(msgid));
+            if (resend)
+            {
+                // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
+                CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
+                sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
+            }
             return; // `mLastSeenId` is newer than the received `msgid`
         }
     }
@@ -3514,14 +3711,6 @@ void Chat::onLastSeen(Id msgid, bool resend)
     if (idx == mLastSeenIdx)
     {
         return; // we are up to date
-    }
-
-    if (resend && mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) // msgid is older than the locally seen pointer --> update chatd
-    {
-        // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
-        CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
-        sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
-        return;
     }
 
     CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
@@ -3551,7 +3740,7 @@ void Chat::onLastSeen(Id msgid, bool resend)
         }
     }
 
-    CALL_LISTENER(onUnreadChanged);
+    calculateUnreadCount();
 }
 
 bool Chat::setMessageSeen(Idx idx)
@@ -3606,7 +3795,7 @@ bool Chat::setMessageSeen(Idx idx)
         }
         mLastSeenId = id;
         CALL_DB(setLastSeen, mLastSeenId);
-        CALL_LISTENER(onUnreadChanged);
+        calculateUnreadCount();
     }, kSeenTimeout, mChatdClient.mKarereClient->appCtx);
 
     mChatdClient.mSeenTimers.insert(seenTimer);
@@ -3627,35 +3816,7 @@ bool Chat::setMessageSeen(Id msgid)
 
 int Chat::unreadMsgCount() const
 {
-    if (mLastSeenIdx == CHATD_IDX_INVALID)
-    {
-        if (mHaveAllHistory)
-        {
-            return mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
-        }
-        else
-        {
-            return -mDbInterface->getUnreadMsgCountAfterIdx(CHATD_IDX_INVALID);
-        }
-    }
-    else if (mLastSeenIdx < lownum())
-    {
-        return mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
-    }
-
-    Idx first = mLastSeenIdx+1;
-    unsigned count = 0;
-    auto last = highnum();
-    for (Idx i=first; i<=last; i++)
-    {
-        auto& msg = at(i);
-        if (msg.isValidUnread(mChatdClient.myHandle()))
-        {
-            count++;
-        }
-    }
-
-    return count;
+    return mUnreadCount;
 }
 
 void Chat::flushOutputQueue(bool fromStart)
@@ -3734,6 +3895,7 @@ void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
 Client::~Client()
 {
     cancelSeenTimers();
+    cancelRetentionTimer();
     mKarereClient->userAttrCache().removeCb(mRichPrevAttrCbHandle);
 }
 
@@ -3867,6 +4029,11 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
     }
 
     CALL_DB(addMsgToHistory, *msg, idx);
+    if (mOldestIdxInDb == CHATD_IDX_INVALID)
+    {
+        mOldestIdxInDb = idx;
+        handleRetentionTime();
+    }
 
     assert(msg->backRefId);
     if (!mRefidToIdxMap.emplace(msg->backRefId, idx).second)
@@ -4236,7 +4403,7 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
         {
             if (!msg->isOwnMessage(client().myHandle()))
             {
-                CALL_LISTENER(onUnreadChanged);
+                calculateUnreadCount();
             }
 
             if (histType == Message::kMsgAttachment)
@@ -4244,9 +4411,10 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
                 mAttachmentNodes->deleteMessage(*msg);
             }
 
-            // Clean message reactions
-            msg->cleanReactions();
+            // Clean message reactions and pending reactions for the deleted message
+            removeMessageReactions(msgIndexFromId(msg->mId));
             CALL_DB(cleanReactions, msg->id());
+            CALL_DB(cleanPendingReactions, msg->id());
         }
 
         if (msg->type == Message::kMsgTruncate)
@@ -4306,15 +4474,17 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
     CALL_CRYPTO(resetSendKey);      // discard current key, if any
     CALL_DB(truncateHistory, msg);
+    mOldestIdxInDb = idx;
     if (idx != CHATD_IDX_INVALID)   // message is loaded in RAM
     {
         //GUI must detach and free any resources associated with
         //messages older than the one specified
         CALL_LISTENER(onHistoryTruncated, msg, idx);
 
+        // Reactions must be cleared before call deleteMessagesBefore
+        removeMessageReactions(idx, true);
         deleteMessagesBefore(idx);
         removePendingRichLinks(idx);
-        removeMessageReactions(idx);
 
         // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)
@@ -4343,8 +4513,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         if (mChatdClient.isMessageReceivedConfirmationActive() && mLastIdxReceivedFromServer <= idx)
         {
             mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
-            mLastIdReceivedFromServer = karere::Id::null();
-            // TODO: the update of those variables should be persisted
+            // TODO: the update of this variable should be persisted
         }
     }
 
@@ -4356,7 +4525,134 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
     mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
+    truncateAttachmentHistory();
+    calculateUnreadCount();
+}
 
+time_t Chat::handleRetentionTime(bool updateTimer)
+{
+    if (!mRetentionTime || mOldestIdxInDb == CHATD_IDX_INVALID)
+    {
+        // If retentionTime is disabled or there's no messages to truncate
+        return 0;
+    }
+
+    // Get idx of the most recent msg affected by retention time, if any
+    chatd::Idx idx = getIdxByRetentionTime();
+    if (idx == CHATD_IDX_INVALID)
+    {
+        // If there are no messages to remove
+        return nextRetentionHistCheck(updateTimer);
+    }
+
+    bool notifyUnreadChanged = (idx >= mLastSeenIdx) || (mLastSeenIdx == CHATD_IDX_INVALID);
+    Message *msg = findOrNull(idx);
+    if (msg)
+    {
+       CALL_LISTENER(onHistoryTruncatedByRetentionTime, *msg, idx, getMsgStatus(*msg, idx));
+    }
+
+    // Clean affected messages in db and RAM
+    CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
+    CALL_DB(retentionHistoryTruncate, idx);
+    cleanPendingReactionsOlderThan(idx); //clean pending reactions, including previous indexes
+    truncateByRetentionTime(idx);
+
+    removePendingRichLinks(idx);
+
+    // update oldest index in db
+    mOldestIdxInDb = (idx + 1 <= highnum()) ? idx + 1 : CHATD_IDX_INVALID;
+
+    if (mOldestIdxInDb == CHATD_IDX_INVALID) // If there's no messages in db
+    {
+        mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+        mHaveAllHistory = true;
+        mHasMoreHistoryInDb = false;
+        CALL_DB(setHaveAllHistory, true);
+    }
+
+    if (empty()) // There's no messages loaded in RAM
+    {
+        mForwardStart = CHATD_IDX_RANGE_MIDDLE;
+
+        mLastSeenIdx = CHATD_IDX_INVALID;
+        mLastSeenId = 0;
+        CALL_DB(setLastSeen, 0);
+
+        mLastReceivedIdx = CHATD_IDX_INVALID;
+        mLastReceivedId = 0;
+        CALL_DB(setLastReceived, 0);
+
+        mAttachmentNodes->truncateHistory(Id::inval());
+
+        mOldestKnownMsgId = 0;
+        mNextHistFetchIdx = CHATD_IDX_INVALID;
+    }
+    else
+    {
+        // Find oldest msg id in loaded messages in RAM
+        if (!mBackwardList.empty())
+        {
+            mOldestKnownMsgId =  mBackwardList.back()->id();
+        }
+        else if (!mForwardList.empty())
+        {
+            mOldestKnownMsgId = mForwardList.front()->id();
+        }
+
+        truncateAttachmentHistory();
+    }
+
+    if (notifyUnreadChanged)
+    {
+        calculateUnreadCount();
+    }
+    return nextRetentionHistCheck(updateTimer);
+}
+
+Idx Chat::getIdxByRetentionTime()
+{
+    time_t expireRetentionTs = time(nullptr) - mRetentionTime;
+    for (Idx i = highnum(); i >= lownum(); i--)
+    {
+        if (at(i).ts <= expireRetentionTs)
+        {
+            return i;
+        }
+    }
+
+    if (lownum() == mOldestIdxInDb)
+    {
+        assert(!mHasMoreHistoryInDb);
+        return CHATD_IDX_INVALID;
+    }
+
+    return mDbInterface->getIdxByRetentionTime(expireRetentionTs);
+}
+
+time_t Chat::nextRetentionHistCheck(bool updateTimer)
+{
+    if (!mRetentionTime || mOldestIdxInDb == CHATD_IDX_INVALID)
+    {
+        return 0;
+    }
+
+    Message *auxmsg = findOrNull(mOldestIdxInDb);
+    uint32_t oldestMsgTs = auxmsg
+            ? auxmsg->ts                        // Oldest msg is loaded in Ram
+            : mDbInterface->getOldestMsgTs();   // Oldest msg is loaded in Db
+
+    // Ensure that the oldest msg has not exceeded retention time yet, and nextCheck ts it's valid
+    time_t nextCheck = oldestMsgTs + mRetentionTime;
+    if (updateTimer)
+    {
+        mChatdClient.updateRetentionCheckTs(nextCheck, false);
+    }
+    return nextCheck;
+}
+
+void Chat::truncateAttachmentHistory()
+{
     // Find an attachment newer than truncate (lownum) in order to truncate node-history
     // (if no more attachments in history buffer, node-history will be fully cleared)
     Id attachmentTruncateFromId = Id::inval();
@@ -4368,6 +4664,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
             break;
         }
     }
+
     mAttachmentNodes->truncateHistory(attachmentTruncateFromId);
     if (mDecryptionAttachmentsHalted)
     {
@@ -4399,6 +4696,23 @@ void Chat::deleteMessagesBefore(Idx idx)
     else
     {
         mBackwardList.erase(mBackwardList.begin()+mForwardStart-idx, mBackwardList.end());
+    }
+}
+
+void Chat::truncateByRetentionTime(Idx idx)
+{
+    if (idx >= mForwardStart)
+    {
+        mBackwardList.clear();
+        assert(static_cast<size_t>(idx - mForwardStart + 1) <= mForwardList.size());
+        auto delCount = idx - mForwardStart;
+        auto end = mForwardList.begin() + delCount;
+        mForwardList.erase(mForwardList.begin(), end + 1);
+        mForwardStart += delCount + 1;
+    }
+    else
+    {
+        mBackwardList.erase(mBackwardList.begin() + mForwardStart - idx - 1, mBackwardList.end());
     }
 }
 
@@ -4567,19 +4881,6 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         assert(msg.isPendingToDecrypt()); //no decrypt attempt was made
     }
 
-    try
-    {
-        mCrypto->handleLegacyKeys(msg);
-    }
-    catch(std::exception& e)
-    {
-        CHATID_LOG_WARNING("handleLegacyKeys threw error: %s\n"
-            "Queued messages for decrypt: %d - %d. Ignoring", e.what(),
-            mDecryptOldHaltedAt, idx);
-        msg.setEncrypted(Message::kEncryptedNoKey);
-        return true;
-    }
-
     if (!msg.isPendingToDecrypt() && msg.isEncrypted() != Message::kEncryptedNoType)
     {
         CHATID_LOG_DEBUG("Message already decrypted or undecryptable: %s, bailing out", ID_CSTR(msg.id()));
@@ -4744,6 +5045,14 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     {
         mLastHistDecryptCount++;
     }
+
+    bool checkRetentionHist = mOldestIdxInDb == CHATD_IDX_INVALID;
+    if (mOldestIdxInDb == CHATD_IDX_INVALID || idx < mOldestIdxInDb)
+    {
+        // If mOldestIdxInDb is not set, or idx is oldest that current value update it
+        mOldestIdxInDb = idx;
+    }
+
     auto msgid = msg.id();
     if (!isLocal)
     {
@@ -4762,6 +5071,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             mAttachmentNodes->addMessage(msg, isNew, false);
         }
         CALL_DB(addMsgToHistory, msg, idx);
+        if (checkRetentionHist)
+        {
+            // Call after add message to history
+            handleRetentionTime();
+        }
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mChatdClient.mMyHandle) && // message is not ours
@@ -4769,8 +5083,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
                  (idx > mLastIdxReceivedFromServer)))   // newer message than last received
         {
             mLastIdxReceivedFromServer = idx;
-            mLastIdReceivedFromServer = msgid;
-            // TODO: the update of those variables should be persisted
+            // TODO: the update of this variable should be persisted
 
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
@@ -4778,6 +5091,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
     {
         CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
+    }
+
+    if (isPublic() && msg.userid != mChatdClient.mMyHandle)
+    {
+        requestUserAttributes(msg.userid);
     }
 
     auto status = getMsgStatus(msg, idx);
@@ -4811,8 +5129,34 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
     }
 
-    if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
-        CALL_LISTENER(onUnreadChanged);
+    if (isNew)
+    {
+        if (msg.isValidUnread(mChatdClient.myHandle()))
+        {
+            mUnreadCount++;
+            CALL_LISTENER(onUnreadChanged);
+        }
+    }
+    else
+    {
+        if (mLastSeenIdx == CHATD_IDX_INVALID)
+        {
+            assert(mUnreadCount <= 0);
+            if (msg.isValidUnread(mChatdClient.myHandle()))
+            {
+                if (mLastSeenId == msg.id())
+                {
+                    mUnreadCount = -mUnreadCount;
+                }
+                else
+                {
+                    mUnreadCount--;
+                }
+
+                CALL_LISTENER(onUnreadChanged);
+            }
+        }
+    }
 
     //handle last text message
     if (msg.isValidLastMessage())
@@ -4946,7 +5290,11 @@ void Chat::onUserJoin(Id userid, Priv priv)
     }
 
     mUsers.insert(userid);
-    CALL_CRYPTO(onUserJoin, userid);
+    if (!isPublic())
+    {
+        CALL_CRYPTO(onUserJoin, userid);
+    }
+
     CALL_LISTENER(onUserJoin, userid, priv);
 }
 
@@ -4966,12 +5314,15 @@ void Chat::onUserLeave(Id userid)
         // JOIN -1 for own user, but API response might have cleared the peer list already. In that case,
         // chatd's removal needs to clear the peer list again, since remaining peers would have been
         // added as moderators
+        bool commitEach = mChatdClient.mKarereClient->commitEach();
+        mChatdClient.mKarereClient->setCommitMode(false);
         for (auto &it: mUsers)
         {
             CALL_CRYPTO(onUserLeave, it);
             CALL_LISTENER(onUserLeave, it);
         }
         mUsers.clear();
+            mChatdClient.mKarereClient->setCommitMode(commitEach);
 
         if (mChatdClient.mRtcHandler && !previewMode())
         {
@@ -4999,38 +5350,67 @@ void Chat::onUserLeave(Id userid)
 
 void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 {
-    Idx messageIdx = msgIndexFromId(msgId);
-    if (messageIdx == CHATD_IDX_INVALID)
-    {
-        CHATID_LOG_WARNING("onAddReaction: message id not found. msgid: %s", ID_CSTR(msgId));
-        return;
-    }
-
     if (reaction.empty())
     {
         CHATID_LOG_ERROR("onAddReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
         return;
     }
 
-    Message &message = at(messageIdx);
-    if (message.isManagementMessage())
+    promise::Promise<std::shared_ptr<Buffer>> pms;
+    Idx messageIdx = msgIndexFromId(msgId);
+    if (messageIdx != CHATD_IDX_INVALID)
     {
-        CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
-        return;
+        // message loaded in RAM
+        Message &message = at(messageIdx);
+        if (message.isManagementMessage())
+        {
+            CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+        pms = mCrypto->reactionDecrypt(msgId, message.userid, message.keyid, reaction);
+    }
+    else
+    {
+        if (!mDbInterface->isValidReactedMessage(msgId, messageIdx))
+        {
+            (messageIdx == CHATD_IDX_INVALID)
+                    ? CHATID_LOG_WARNING("onAddReaction: message id not found. msgid: %s", ID_CSTR(msgId))
+                    : CHATID_LOG_ERROR("onAddReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+
+        uint32_t keyId = 0;
+        Id msgUserId = Id::inval();
+        mDbInterface->getMessageUserKeyId(msgId, msgUserId, keyId);
+        pms = mCrypto->reactionDecrypt(msgId, msgUserId, keyId, reaction);
     }
 
     auto wptr = weakHandle();
-    mCrypto->reactionDecrypt(message, reaction)
-    .then([this, wptr, &message, userId](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
+    pms.then([this, wptr, &msgId, &messageIdx, userId, reaction](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
     {
         if (wptr.deleted())
             return;
 
         const std::string reaction(data->buf(), data->size());
-        message.addReaction(reaction, userId);
-        CALL_DB(addReaction, message.mId, userId, reaction.c_str());
 
-        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+        // Add reaction to db
+        CALL_DB(addReaction, msgId, userId, reaction);
+
+        if (userId == mChatdClient.myHandle() && !isFetchingHistory())
+        {
+            // If we are not fetching history and reaction is own, remove pending reaction from ram and cache.
+            // In case we are fetching history, pending reactions will be flushed upon HISTDONE receive
+            removePendingReaction(reaction, msgId);
+            CALL_DB(delPendingReaction, msgId, reaction);
+        }
+
+        if (messageIdx != CHATD_IDX_INVALID)
+        {
+            // If reaction is loaded in RAM
+            Message &message = at(messageIdx);
+            message.addReaction(reaction, userId);
+            CALL_LISTENER(onReactionUpdate, msgId, reaction.c_str(), message.getReactionCount(reaction));
+        }
     })
     .fail([this, msgId](const ::promise::Error& err)
     {
@@ -5040,42 +5420,67 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
 
 void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 {
-    Idx messageIdx = msgIndexFromId(msgId);
-    if (messageIdx == CHATD_IDX_INVALID)
-    {
-        CHATID_LOG_WARNING("onDelReaction: message id not found. msgid: %s)", ID_CSTR(msgId));
-        return;
-    }
-
     if (reaction.empty())
     {
         CHATID_LOG_ERROR("onDelReaction: reaction received is empty. msgid: %s", ID_CSTR(msgId));
         return;
     }
 
-    Message &message = at(messageIdx);
-    if (message.isManagementMessage())
+    promise::Promise<std::shared_ptr<Buffer>> pms;
+    Idx messageIdx = msgIndexFromId(msgId);
+    if (messageIdx != CHATD_IDX_INVALID)
     {
-        CHATID_LOG_WARNING("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
-        return;
+        // message loaded in RAM
+        Message &message = at(messageIdx);
+        if (message.isManagementMessage())
+        {
+            CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+        pms = mCrypto->reactionDecrypt(msgId, message.userid, message.keyid, reaction);
+    }
+    else
+    {
+        if (!mDbInterface->isValidReactedMessage(msgId, messageIdx))
+        {
+            (messageIdx == CHATD_IDX_INVALID)
+                    ? CHATID_LOG_WARNING("onDelReaction: message id not found. msgid: %s", ID_CSTR(msgId))
+                    : CHATID_LOG_ERROR("onDelReaction: reaction received for a management message with msgid: %s", ID_CSTR(msgId));
+            return;
+        }
+
+        uint32_t keyId = 0;
+        Id msgUserId = Id::inval();
+        mDbInterface->getMessageUserKeyId(msgId, msgUserId, keyId);
+        pms = mCrypto->reactionDecrypt(msgId, msgUserId, keyId, reaction);
     }
 
     auto wptr = weakHandle();
-    mCrypto->reactionDecrypt(message, reaction)
-    .then([this, wptr, &message, userId](std::shared_ptr<Buffer> data)
+    pms.then([this, wptr, &msgId, &messageIdx, userId, reaction](std::shared_ptr<Buffer> data)   // data is the UTF-8 string (the emoji)
     {
         if (wptr.deleted())
             return;
 
-        const std::string reaction(data->buf(), data->bufSize());
-        message.delReaction(reaction, userId);
+        const std::string reaction(data->buf(), data->size());
 
-        if (!previewMode())
+        // Del reaction from db
+        CALL_DB(delReaction, msgId, userId, reaction);
+
+        if (userId == mChatdClient.myHandle() && !isFetchingHistory())
         {
-            CALL_DB(delReaction, message.mId, userId, reaction.c_str());
+            // If we are not fetching history and reaction is own, remove pending reaction from ram and cache.
+            // In case we are fetching history, pending reactions will be flushed upon HISTDONE receive
+            removePendingReaction(reaction, msgId);
+            CALL_DB(delPendingReaction, msgId, reaction);
         }
 
-        CALL_LISTENER(onReactionUpdate, message.mId, reaction.c_str(), message.getReactionCount(reaction));
+        if (messageIdx != CHATD_IDX_INVALID)
+        {
+            // If reaction is loaded in RAM
+            Message &message = at(messageIdx);
+            message.delReaction(reaction, userId);
+            CALL_LISTENER(onReactionUpdate, msgId, reaction.c_str(), message.getReactionCount(reaction));
+        }
     })
     .fail([this, msgId](const ::promise::Error& err)
     {
@@ -5085,8 +5490,22 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
 
 void Chat::onReactionSn(Id rsn)
 {
-    mReactionSn = rsn;
-    CALL_DB(setReactionSn, mReactionSn.toString());
+    if (mReactionSn != rsn)
+    {
+        mReactionSn = rsn;
+        CALL_DB(setReactionSn, mReactionSn.toString());
+    }
+}
+
+void Chat::onRetentionTimeUpdated(uint32_t period)
+{
+    if (mRetentionTime != period)
+    {
+        mRetentionTime = period;
+        CALL_LISTENER(onRetentionTimeUpdated, period);
+    }
+
+    handleRetentionTime();
 }
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)
@@ -5326,6 +5745,11 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
     {
         CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserTyping");
         CALL_LISTENER(onUserTyping, from);
+
+        if (isPublic() && from != mChatdClient.mMyHandle)
+        {
+            requestUserAttributes(from);
+        }
     }
     else if (type == Command::kBroadcastUserStopTyping)
     {
@@ -5336,6 +5760,16 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
     {
         CHATID_LOG_WARNING("recv BROADCAST <unknown_type>");
     }
+}
+
+uint32_t Chat::getRetentionTime() const
+{
+    return mRetentionTime;
+}
+
+Priv Chat::getOwnprivilege() const
+{
+    return mOwnPrivilege;
 }
 
 void Client::leave(Id chatid)
@@ -5533,6 +5967,15 @@ Chat::ManualSendItem::ManualSendItem(Message *aMsg, uint64_t aRowid, uint8_t aOp
 
 Chat::ManualSendItem::ManualSendItem()
     :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason)
+{
+
+}
+
+Chat::PendingReaction::PendingReaction(const std::string &aReactionString, const std::string &aReactionStringEnc, uint64_t aMsgId, uint8_t aStatus)
+    : mReactionString(aReactionString)
+    , mReactionStringEnc(aReactionStringEnc)
+    , mMsgId(aMsgId)
+    , mStatus(aStatus)
 {
 
 }

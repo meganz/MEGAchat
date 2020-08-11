@@ -176,6 +176,16 @@ public:
     char* buf() { return mBuf;}
     const char* buf() const { return mBuf;}
     size_t bufSize() const { return mBufSize;}
+    const char* c_str() const
+    {
+        if (empty())
+            return nullptr;
+
+        char *ret = new char[size() + 1];
+        memcpy(ret, buf(), size());
+        ret[size()] = '\0';
+        return ret;
+    }
     Buffer(size_t size=kMinBufSize, size_t dataSize=0)
     {
         assert(dataSize <= size);

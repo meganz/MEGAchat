@@ -8,9 +8,8 @@ import java.util.Set;
 
 import mega.privacy.android.app.MegaApplication;
 import mega.privacy.android.app.R;
+import mega.privacy.android.app.utils.TextUtil;
 import mega.privacy.android.app.utils.VideoCaptureUtils;
-
-import static nz.mega.sdk.MegaChatError.*;
 
 public class MegaChatApiJava {
     MegaChatApi megaChatApi;
@@ -66,25 +65,31 @@ public class MegaChatApiJava {
      * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
      * is MegaChatRoomListener::onReactionUpdate.
      *
-     * You take the ownership of the returned value.
+     * Note that receiving an onRequestFinish with the error code MegaChatError::ERROR_OK, does not ensure
+     * that add reaction has been applied in chatd. As we've mentioned above, reactions updates will
+     * be notified through callback MegaChatRoomListener::onReactionUpdate.
      *
-     * Possible error codes associated to MegaChatError can be:
-     * - MegaChatError::ERROR_OK: if no errors occurred.
-     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
-     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists
-     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
-     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
-     * - MegaChatError::API_EEXIST: if our own user has reacted previously with this reaction
-     * for this message
+     * The associated request type with this request is MegaChatRequest::TYPE_MANAGE_REACTION
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatid that identifies the chatroom
+     * - MegaChatRequest::getUserHandle - Returns the msgid that identifies the message
+     * - MegaChatRequest::getText - Returns a UTF-8 NULL-terminated string that represents the reaction
+     * - MegaChatRequest::getFlag - Returns true indicating that requested action is add reaction
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT - if the chatroom/message doesn't exists
+     * - MegaChatError::ERROR_ACCESS - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD
+     * or MegaChatPeerList::PRIV_MODERATOR.
+     * - MegaChatError::ERROR_EXIST - if our own user has reacted previously with this reaction for this message
      *
      * @param chatid MegaChatHandle that identifies the chatroom
      * @param msgid MegaChatHandle that identifies the message
      * @param reaction UTF-8 NULL-terminated string that represents the reaction
-     *
-     * @return returns MegaChatError with an error code associated.
+     * @param listener MegaChatRequestListener to track this request
      */
-    public MegaChatError addReaction(long chatid, long msgid, String reaction) {
-        return megaChatApi.addReaction(chatid, msgid, reaction);
+    public void addReaction(long chatid, long msgid, String reaction, MegaChatRequestListenerInterface listener) {
+        megaChatApi.addReaction(chatid, msgid, reaction, createDelegateRequestListener(listener));
     }
 
     /**
@@ -95,24 +100,31 @@ public class MegaChatApiJava {
      * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
      * is MegaChatRoomListener::onReactionUpdate.
      *
-     * You take the ownership of the returned value.
+     * Note that receiving an onRequestFinish with the error code MegaChatError::ERROR_OK, does not ensure
+     * that remove reaction has been applied in chatd. As we've mentioned above, reactions updates will
+     * be notified through callback MegaChatRoomListener::onReactionUpdate.
      *
-     * Possible error codes associated to MegaChatError can be:
-     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * The associated request type with this request is MegaChatRequest::TYPE_MANAGE_REACTION
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatid that identifies the chatroom
+     * - MegaChatRequest::getUserHandle - Returns the msgid that identifies the message
+     * - MegaChatRequest::getText - Returns a UTF-8 NULL-terminated string that represents the reaction
+     * - MegaChatRequest::getFlag - Returns false indicating that requested action is remove reaction
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
-     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists, or if your own user has
-     * not reacted to the message with the specified reaction.
-     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
-     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than MegaChatPeerList::PRIV_STANDARD
+     * or MegaChatPeerList::PRIV_MODERATOR
+     * - MegaChatError::ERROR_EXIST - if your own user has not reacted to the message with the specified reaction.
      *
      * @param chatid MegaChatHandle that identifies the chatroom
      * @param msgid MegaChatHandle that identifies the message
      * @param reaction UTF-8 NULL-terminated string that represents the reaction
-     *
-     * @return returns MegaChatError with an error code associated.
+     * @param listener MegaChatRequestListener to track this request
      */
-    public MegaChatError delReaction(long chatid, long msgid, String reaction) {
-        return megaChatApi.delReaction(chatid, msgid, reaction);
+    public void delReaction(long chatid, long msgid, String reaction, MegaChatRequestListenerInterface listener) {
+        megaChatApi.delReaction(chatid, msgid, reaction, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1270,6 +1282,20 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Returns the current firstname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose first name is requested.
+     * @return The first name from user
+     */
+    public String getUserFirstnameFromCache(long userhandle) {
+        return megaChatApi.getUserFirstnameFromCache(userhandle);
+    }
+
+    /**
      * Returns the current lastname of the user
      *
      * This function is useful to get the lastname of users who participated in a groupchat with
@@ -1289,6 +1315,20 @@ public class MegaChatApiJava {
      */
     public void getUserLastname(long userhandle, String cauth, MegaChatRequestListenerInterface listener){
         megaChatApi.getUserLastname(userhandle, cauth, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the current lastname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose last name is requested.
+     * @return The last name from user
+     */
+    public String getUserLastnameFromCache(long userhandle){
+        return megaChatApi.getUserLastnameFromCache(userhandle);
     }
 
     /**
@@ -1315,6 +1355,83 @@ public class MegaChatApiJava {
      */
     public void getUserEmail(long userhandle, MegaChatRequestListenerInterface listener){
         megaChatApi.getUserEmail(userhandle, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the current email address of the user
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose email is requested.
+     * @return The email from user
+     */
+    public String getUserEmailFromCache(long userhandle){
+        return megaChatApi.getUserEmailFromCache(userhandle);
+    }
+
+    /**
+     * Returns the current fullname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose fullname is requested.
+     * @return The full name from user
+     */
+    public String getUserFullnameFromCache(long userhandle){
+        return megaChatApi.getUserFullnameFromCache(userhandle);
+    }
+
+    /**
+     * Request to server user attributes
+     *
+     * This function is useful to get the email address, first name, last name and full name
+     * from chat link participants that they are not loaded
+     *
+     * After request is finished, you can call to MegaChatRoom::getPeerFirstnameByHandle,
+     * MegaChatRoom::getPeerLastnameByHandle, MegaChatRoom::getPeerFullnameByHandle,
+     * MegaChatRoom::getPeerEmailByHandle
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of chat
+     * - MegaChatRequest::getMegaHandleList - Returns the handles of user that attributes have been requested
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
+     *
+     * @param chatid Handle of the chat whose member attributes requested
+     * @param userList List of user whose attributes has been requested
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void loadUserAttributes(long chatid, MegaHandleList userList, MegaChatRequestListenerInterface listener) {
+        megaChatApi.loadUserAttributes(chatid, userList, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Request to server user attributes
+     *
+     * This function is useful to get the email address, first name, last name and full name
+     * from chat link participants that they are not loaded
+     *
+     * After request is finished, you can call to MegaChatRoom::getPeerFirstnameByHandle,
+     * MegaChatRoom::getPeerLastnameByHandle, MegaChatRoom::getPeerFullnameByHandle,
+     * MegaChatRoom::getPeerEmailByHandle
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of chat
+     * - MegaChatRequest::getMegaHandleList - Returns the handles of user that attributes have been requested
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
+     *
+     * @param chatid Handle of the chat whose member attributes requested
+     * @param userList List of user whose attributes has been requested
+     */
+    public void loadUserAttributes(long chatid, MegaHandleList userList) {
+        megaChatApi.loadUserAttributes(chatid, userList);
     }
 
     /**
@@ -1766,6 +1883,7 @@ public class MegaChatApiJava {
      * - MegaChatError::ERROR_ARGS   - If the chatroom is not groupal or public.
      * - MegaChatError::ERROR_NOENT  - If the chat room does not exists or the chatid is invalid.
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_TOOMANY - If the chat is public and there are too many participants.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -1913,6 +2031,17 @@ public class MegaChatApiJava {
      */
     public int loadMessages(long chatid, int count){
         return megaChatApi.loadMessages(chatid, count);
+    }
+
+    /**
+     * Checks whether the app has already loaded the full history of the chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return True the whole history is already loaded (including old messages from server).
+     */
+    public boolean isFullHistoryLoaded(long chatid) {
+        return megaChatApi.isFullHistoryLoaded(chatid);
     }
 
     /**
@@ -2571,6 +2700,13 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd ot when the chatroom is in preview mode.
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it, or when the chat is public and there are too many
+     * participants to start the call.
+     *
      * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
@@ -2598,6 +2734,13 @@ public class MegaChatApiJava {
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd.
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
      *
      * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
@@ -2710,6 +2853,21 @@ public class MegaChatApiJava {
         megaChatApi.disableVideo(chatid, createDelegateRequestListener(listener));
     }
 
+    /**
+     * Set/unset a call on hold
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CALL_ON_HOLD
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true (set on hold) false (unset on hold)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param setOnHold indicates if call is set or unset on hold
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void setCallOnHold(long chatid, boolean setOnHold,MegaChatRequestListenerInterface listener){
+        megaChatApi.setCallOnHold(chatid, setOnHold,createDelegateRequestListener(listener));
+    }
     /**
      * Search all audio and video devices at the system at that moment.
      *
@@ -2843,6 +3001,62 @@ public class MegaChatApiJava {
      */
     public int getMaxVideoCallParticipants() {
         return megaChatApi.getMaxVideoCallParticipants();
+    }
+
+    /**
+     * Returns if audio level monitor is enabled
+     *
+     * It's false by default
+     *
+     * If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor will be always false
+     *
+     * @param chatid MegaChatHandle that identifies the chat room from we want know if audio level monitor is disabled
+     * @return true if audio level monitor is enabled
+     */
+    public boolean isAudioLevelMonitorEnabled(long chatid) {
+        return megaChatApi.isAudioLevelMonitorEnabled(chatid);
+    }
+
+    /**
+     * Enable or disable audio level monitor
+     *
+     * It's false by default and it's app responsability to enable it
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     *
+     * If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor won't be able established
+     *
+     * @param enable True for enable audio level monitor, False to disable
+     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void enableAudioLevelMonitor(boolean enable, long chatid, MegaChatRequestListenerInterface listener) {
+        megaChatApi.enableAudioLevelMonitor(enable, chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Enable or disable audio level monitor
+     *
+     * It's false by default and it's app responsability to enable it
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     *
+     * If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor won't be able established
+     *
+     * @param enable True for enable audio level monitor, False to disable
+     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     */
+    public void enableAudioLevelMonitor(boolean enable, long chatid) {
+        megaChatApi.enableAudioLevelMonitor(enable, chatid);
     }
 
     public static void setCatchException(boolean enable) {
@@ -3076,36 +3290,5 @@ public class MegaChatApiJava {
         }
 
         return result;
-    }
-
-    /**
-     * Gets the translated string of an error received in a request.
-     *
-     * @param error MegaChatError received in the request
-     * @return The translated string
-     */
-    public static String getTranslatedErrorString(MegaChatError error) {
-        MegaApplication app = MegaApplication.getInstance();
-        if (app == null) {
-            return error.getErrorString();
-        }
-
-        switch (error.getErrorCode()) {
-            case ERROR_OK:
-                return app.getString(R.string.error_ok);
-            case ERROR_ARGS:
-                return app.getString(R.string.error_args);
-            case ERROR_ACCESS:
-                return app.getString(R.string.error_access);
-            case ERROR_NOENT:
-                return app.getString(R.string.error_noent);
-            case ERROR_EXIST:
-                return app.getString(R.string.error_exist);
-            case ERROR_TOOMANY:
-                return app.getString(R.string.error_toomany);
-            case ERROR_UNKNOWN:
-            default:
-                return app.getString(R.string.error_unknown);
-        }
     }
 };

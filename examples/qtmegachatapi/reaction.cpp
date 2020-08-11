@@ -7,14 +7,11 @@ Reaction::Reaction(ChatMessage *parent, const char *reactionString, int count) :
     QWidget(static_cast<QWidget *>(parent)),
     ui(new Ui::Reaction)
 {        
+    assert(reactionString);
     mChatMessage = parent;
     ui->setupUi(this);
     mCount = count;
-    if (reactionString)
-    {
-        mReactionString = reactionString;
-    }
-
+    mReactionString = reactionString;
     ui->mReaction->setText((mReactionString + " " + std::to_string(count)).c_str());
     setAttribute(::Qt::WA_Hover, true);
 }
@@ -38,7 +35,6 @@ void Reaction::contextMenuEvent(QContextMenuEvent *event)
     pos.setX(pos.x() + ui->mReaction->width());
     pos.setY(pos.y() + ui->mReaction->height());
     menu.exec(mapToGlobal(pos));
-    menu.deleteLater();
 }
 
 std::string Reaction::getReactionString() const
@@ -81,4 +77,9 @@ void Reaction::enterEvent(QEvent *event)
         text.append("(").append(b64handle.get()).append(")\n");
     }
     ui->mReaction->setToolTip(text);
+}
+
+int Reaction::getCount() const
+{
+    return mCount;
 }

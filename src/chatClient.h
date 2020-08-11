@@ -38,6 +38,9 @@ class Buffer;
 
 #define ID_CSTR(id) Id(id).toString().c_str()
 
+#define PRELOAD_CHATLINK_PARTICIPANTS 20
+#define MAX_NAMES_CHAT_WITHOUT_TITLE 5
+
 namespace karere
 {
 namespace rh { class IRetryController; }
@@ -103,6 +106,7 @@ public:
     virtual unsigned int getNumPreviewers() const { return 0; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
+    virtual bool isMember(karere::Id peerid) const = 0;
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
@@ -196,6 +200,11 @@ public:
 
     bool hasChatHandler() const;
 
+    virtual unsigned long numMembers() const = 0;
+
+    /** @brief Returns the retention time of the chatroom */
+    uint32_t getRetentionTime() const { return mChat->getRetentionTime();}
+
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
@@ -227,6 +236,7 @@ public:
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
     promise::Promise<void> archiveChat(bool archive);
+    promise::Promise<void> setChatRetentionTime(int period);
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes) = 0;
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node) = 0;
@@ -245,12 +255,12 @@ protected:
     IApp::IPeerChatListItem* mRoomGui;
     friend class ContactList;
     IApp::IPeerChatListItem* addAppItem();
-    virtual bool syncWithApi(const mega::MegaTextChat& chat);
+    bool syncWithApi(const mega::MegaTextChat& chat) override;
     bool syncPeerPriv(chatd::Priv priv);
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
-    virtual void connect();
+    void connect() override;
     UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
@@ -266,7 +276,7 @@ protected:
     ~PeerChatRoom();
 
 public:
-    virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
+    IApp::IChatListItem* roomGui() override { return mRoomGui; }
     /** @brief The userid of the other person in the 1on1 chat */
     uint64_t peer() const { return mPeer; }
     chatd::Priv peerPrivilege() const { return mPeerPriv; }
@@ -278,19 +288,23 @@ public:
     Contact *contact() const { return mContact; }
 
     /** @brief The screen email address of the peer */
-    virtual const std::string& email() const { return mEmail; }
+    const std::string& email() const { return mEmail; }
 
     void initContact(const uint64_t& peer);
     void updateChatRoomTitle();
 
+    bool isMember(karere::Id peerid) const override;
+
+    unsigned long numMembers() const override;
+
 /** @cond PRIVATE */
     //chatd::Listener interface
-    virtual void onUserJoin(Id userid, chatd::Priv priv);
-    virtual void onUserLeave(Id userid);
+    void onUserJoin(Id userid, chatd::Priv priv) override;
+    void onUserLeave(Id userid) override;
 /** @endcond */
 
-    virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
-    virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
+    promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes) override;
+    promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node) override;
 };
 
 /** @brief Represents a chatd chatroom that is a groupchat */
@@ -311,7 +325,7 @@ public:
         promise::Promise<void> mNameResolved;
 
     public:
-        Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
+        Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv, bool isPublicChat);
         ~Member();
 
         /** @brief The current display name of the member */
@@ -338,24 +352,25 @@ protected:
     std::string mEncryptedTitle; //holds the last encrypted title (the "ct" from API)
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
+    bool mAutoJoining = false;
 
     void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
-    promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
+    promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv);
     bool removeMember(uint64_t userid);
-    virtual bool syncWithApi(const mega::MegaTextChat &chat);
+    bool syncWithApi(const mega::MegaTextChat &chat) override;
     IApp::IGroupChatListItem* addAppItem();
-    virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
+    IApp::IChatListItem* roomGui() override { return mRoomGui; }
     void deleteSelf(); ///< Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
     void updateTitleInDb(const std::string &title, int isEncrypted);
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void notifyPreviewClosed();
     void setRemoved();
-    virtual void connect();
+    void connect() override;
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
 
@@ -381,8 +396,8 @@ protected:
 
 public:
 //chatd::Listener
-    virtual void onUserJoin(Id userid, chatd::Priv priv);
-    virtual void onUserLeave(Id userid);
+    void onUserJoin(Id userid, chatd::Priv priv) override;
+    void onUserLeave(Id userid) override;
 //====
     /** @endcond PRIVATE */
 
@@ -432,18 +447,21 @@ public:
      */
     promise::Promise<void> autojoinPublicChat(uint64_t ph);
 
-    virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
-    virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
+    promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes) override;
+    promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node) override;
     virtual void enablePreview(uint64_t ph);
-    virtual bool publicChat() const;
-    virtual uint64_t getPublicHandle() const;
-    virtual unsigned int getNumPreviewers() const;
+    bool publicChat() const override;
+    uint64_t getPublicHandle() const override;
+    unsigned int getNumPreviewers() const override;
 
-    virtual bool previewMode() const;
+    bool previewMode() const override;
 
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
     void handleTitleChange(const std::string &title, bool saveToDb = false);
+    bool isMember(karere::Id peerid) const override;
+
+    unsigned long numMembers() const override;
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -879,10 +897,6 @@ public:
 
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
-    char mMyPrivRsa[1024] = {0};
-    unsigned short mMyPrivRsaLen = 0;
-    char mMyPubRsa[512] = {0};
-    unsigned short mMyPubRsaLen = 0;
 
     /** @brief The contact list of the client */
     std::unique_ptr<ContactList> mContactList;

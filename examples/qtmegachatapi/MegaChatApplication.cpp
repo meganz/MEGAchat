@@ -1056,6 +1056,41 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 break;
             }
+            case MegaChatRequest::TYPE_MANAGE_REACTION:
+            {
+                if (error == MegaChatError::ERROR_OK)
+                {
+                    megachat::MegaChatHandle chatId = request->getChatHandle();
+                    ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
+
+                    if (itemController)
+                    {
+                        ChatItemWidget *widget = itemController->getWidget();
+                        if (widget)
+                        {
+                            ChatWindow *chatWin= itemController->showChatWindow();
+                            if(chatWin)
+                            {
+                                megachat::MegaChatHandle msgId = request->getUserHandle();
+                                const char *reaction = request->getText();
+                                ChatMessage *chatMessage = chatWin->findChatMessage(msgId);
+                                if (chatMessage && reaction)
+                                {
+                                    int count = 0;
+                                    const Reaction *r = chatMessage->getLocalReaction(reaction);
+                                    r ? count = request->getFlag() ? r->getCount() + 1 : r->getCount() - 1
+                                      : count = request->getFlag() ? 1 : 0;
+
+                                    //Local update
+                                    chatMessage->updateReaction(reaction, count);
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
     case MegaChatRequest::TYPE_IMPORT_MESSAGES:
         if (!error)
         {
@@ -1063,6 +1098,14 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 mMainWin->reorderAppChatList();
         }
         break;
+
+    case MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES:
+    {
+        ChatListItemController* itemController = mMainWin->getChatControllerById(request->getChatHandle());
+        ChatItemWidget *chatWidget = itemController->getWidget();
+        chatWidget->onUpdateTooltip();
+        break;
+    }
     default:
         break;
     }

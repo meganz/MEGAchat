@@ -6,6 +6,8 @@
 #include <QMessageBox>
 #include <QClipboard>
 
+#define MEMBERS_REQUESTED 20
+
 ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatListItem *item)
     : QWidget(mainWindow),
       ui(new Ui::ChatItem),
@@ -188,6 +190,11 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             lastMessage = "Truncate";
             break;
 
+        case megachat::MegaChatMessage::TYPE_SET_RETENTION_TIME:
+            lastMessage.append("User ").append(senderHandle)
+                   .append(" set retention time to ").append(item->getLastMessage()).append(" seconds");
+            break;
+
         case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
             lastMessage.append("User ").append(senderHandle)
                        .append(" attached a contact: ").append(item->getLastMessage());
@@ -249,14 +256,14 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
 
     if(!item->isGroup())
     {
-        const char *peerEmail = chatRoom->getPeerEmail(0);
+        const char *peerEmail = mMegaChatApi->getUserEmailFromCache(item->getPeerHandle());
         const char *peerHandle_64 = mMainWin->mMegaApi->userHandleToBase64(item->getPeerHandle());
         text.append(tr("1on1 Chat room handle B64:"))
             .append(QString::fromStdString(chatId_64))
             .append(tr("\n1on1 Chat room handle Bin:"))
             .append(QString::fromStdString(chatId_Bin))
             .append(tr("\nEmail: "))
-            .append(QString::fromStdString(peerEmail))
+            .append(peerEmail ? QString::fromStdString(peerEmail) : tr("(email unknown)"))
             .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle_64))
             .append(tr("\n\n"))
             .append(tr("\nLast message Id: ")).append(lastMessageId_64)
@@ -264,6 +271,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage))
             .append(tr("\nLast ts: ")).append(lastTs);
         delete [] peerHandle_64;
+        delete [] peerEmail;
     }
     else
     {
@@ -286,17 +294,23 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             text.append("\n");
             for(int i=0; i<participantsCount; i++)
             {
-                const char *peerName = chatRoom->getPeerFullname(i);
-                const char *peerEmail = chatRoom->getPeerEmail(i);
+                const char* firstname = mMegaChatApi->getUserFirstnameFromCache(chatRoom->getPeerHandle(i));
+                const char* lastname = mMegaChatApi->getUserLastnameFromCache(chatRoom->getPeerHandle(i));
+                QString peerName = QString(firstname ? firstname : tr("firstname unknown"))
+                        + QString(" ") + QString(lastname ? lastname : tr("lastname unknown"));
+
+                const char *peerEmail = mMegaChatApi->getUserEmailFromCache(chatRoom->getPeerHandle(i));
                 const char *peerId_64 = mMainWin->mMegaApi->userHandleToBase64(chatRoom->getPeerHandle(i));
                 int peerPriv = chatRoom->getPeerPrivilege(i);
                 auto line = QString(" %1 (%2, %3): priv %4\n")
-                        .arg(QString(peerName))
+                        .arg(peerName)
                         .arg(peerEmail ? QString::fromStdString(peerEmail) : tr("(email unknown)"))
                         .arg(QString::fromStdString(peerId_64))
                         .arg(QString(chatRoom->privToString(peerPriv)));
                 text.append(line);
-                delete [] peerName;
+                delete [] firstname;
+                delete [] lastname;
+                delete [] peerEmail;
                 delete [] peerId_64;
             }
             text.resize(text.size()-1);
@@ -326,13 +340,14 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
         megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
         if (chatRoom)
         {
-            const char *msg = chatRoom->getPeerFirstnameByHandle(msgUserId);
+            const char *msg =  mMegaChatApi->getUserFirstnameFromCache(msgUserId);
             size_t len = msg ? strlen(msg) : 0;
             if (len)
             {
                 msgAuthor = new char[len + 1];
                 strncpy(msgAuthor, msg, len);
                 msgAuthor[len] = '\0';
+                delete [] msg;
             }
             delete chatRoom;
         }
@@ -419,6 +434,12 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actTruncate = roomMenu->addAction(tr("Truncate chat"));
     connect(actTruncate, SIGNAL(triggered()), mController, SLOT(truncateChat()));
 
+    auto actGetRetentionTime = roomMenu->addAction(tr("Get retention time"));
+    connect(actGetRetentionTime, SIGNAL(triggered()), mController, SLOT(onGetRetentionTime()));
+
+    auto actSetRetentionTimeSec = roomMenu->addAction(tr("Set retention time (in seconds)"));
+    connect(actSetRetentionTimeSec, &QAction::triggered, mController, [=](){mController->onSetRetentionTime();});
+
     auto actTopic = roomMenu->addAction(tr("Set title"));
     connect(actTopic, SIGNAL(triggered()), mController, SLOT(setTitle()));
 
@@ -426,7 +447,6 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     connect(actArchive, SIGNAL(toggled(bool)), mController, SLOT(archiveChat(bool)));
     actArchive->setCheckable(true);
     actArchive->setChecked(chatRoom->isArchived());
-
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
@@ -494,7 +514,6 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     actSetDND->setEnabled(bool(notificationSettings));
 
     clMenu->addSeparator();
-
     auto actPrintChat = menu.addAction(tr("Print chat info"));
     connect(actPrintChat, SIGNAL(triggered()), this, SLOT(onPrintChatInfo()));
 
@@ -503,6 +522,12 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     auto actCopy = menu.addAction(tr("Copy chatid to clipboard"));
     connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
+
+    if (chatRoom->isPublic())
+    {
+        auto actRequestMember = menu.addAction(tr("Request Member Info"));
+        connect(actRequestMember, SIGNAL(triggered()), this, SLOT(onResquestMemberInfo()));
+    }
 
     delete chatRoom;
     menu.exec(event->globalPos());
@@ -533,3 +558,18 @@ void ChatItemWidget::onCopyHandle()
     delete []chatid_64;
 }
 
+void ChatItemWidget::onResquestMemberInfo()
+{
+    mega::MegaHandleList* userList;
+    userList = mega::MegaHandleList::createInstance();
+    MegaChatRoom* room = mMegaChatApi->getChatRoom(mChatId);
+    int i = 0;
+    for (i = mIndexMemberRequested; i < (mIndexMemberRequested + MEMBERS_REQUESTED) && i < room->getPeerCount(); i++)
+    {
+        userList->addMegaHandle(room->getPeerHandle(i));
+    }
+
+    mIndexMemberRequested = i;
+    mMegaChatApi->loadUserAttributes(mChatId, userList);
+    delete userList;
+}

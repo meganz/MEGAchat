@@ -92,6 +92,7 @@ public:
         CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04, /// Session network quality has changed
         CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08,     /// Session audio level has changed
         CHANGE_TYPE_SESSION_OPERATIVE = 0x10,       /// Session is fully operative (A/V stream is received)
+        CHANGE_TYPE_SESSION_ON_HOLD = 0x20,      /// Session is on hold
     };
 
 
@@ -196,9 +197,19 @@ public:
     /**
      * @brief Returns if audio is detected for this session
      *
+     * @note The returned value is always false when audio level monitor is disabled
+     * @see MegaChatApi::enableAudioLevelMonitor or audio flag is disabled
+     *
      * @return true if audio is detected for this session, false in other case
      */
     virtual bool getAudioDetected() const;
+
+    /**
+     * @brief Returns if session is on hold
+     *
+     * @return true if session is on hold
+     */
+    virtual bool isOnHold() const;
 
     /**
      * @brief Returns a bit field with the changes of the session
@@ -306,6 +317,7 @@ public:
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,           /// Local audio/video flags has changed
         CHANGE_TYPE_RINGING_STATUS = 0x04,          /// Peer has changed its ringing state
         CHANGE_TYPE_CALL_COMPOSITION = 0x08,        /// Call composition has changed (User added or removed from call)
+        CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
     };
 
     enum
@@ -690,6 +702,13 @@ public:
      * @return user handle of caller
      */
     virtual MegaChatHandle getCaller() const;
+
+    /**
+     * @brief Returns if call is on hold
+     *
+     * @return true if call is on hold
+     */
+    virtual bool isOnHold() const;
 };
 
 /**
@@ -1182,7 +1201,8 @@ public:
         TYPE_PUBLIC_HANDLE_CREATE   = 8,    /// Management message indicating a public handle has been created
         TYPE_PUBLIC_HANDLE_DELETE   = 9,    /// Management message indicating a public handle has been removed
         TYPE_SET_PRIVATE_MODE       = 10,   /// Management message indicating the chat mode has been set to private
-        TYPE_HIGHEST_MANAGEMENT     = 10,
+        TYPE_SET_RETENTION_TIME     = 11,   /// Management message indicating the retention time has changed
+        TYPE_HIGHEST_MANAGEMENT     = 11,
         TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
@@ -1323,11 +1343,11 @@ public:
     virtual int getType() const;
 
     /**
-     * @brief Returns if the message has any reaction.
+     * @brief Returns if the message has any confirmed reaction.
      *
-     * @return Returns true if the message has any reaction, otherwise returns false.
+     * @return Returns true if the message has any confirmed reaction, otherwise returns false.
      */
-    bool hasReactions() const;
+    virtual bool hasConfirmedReactions() const;
 
     /**
      * @brief Returns the timestamp of the message.
@@ -1517,6 +1537,16 @@ public:
     virtual int getDuration() const;
 
     /**
+     * @brief Return retention time in seconds
+     *
+     * This function only returns a valid value for messages of type:
+     *  - MegaChatMessage::TYPE_SET_RETENTION_TIME
+     *
+     * @return Retention time (in seconds)
+     */
+    virtual int getRetentionTime() const;
+
+    /**
      * @brief Return the termination code of the call
      *
      * This funcion returns a valid value for:
@@ -1650,7 +1680,10 @@ public:
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
-        TYPE_IMPORT_MESSAGES, TOTAL_OF_REQUEST_TYPES
+        TYPE_IMPORT_MESSAGES,  TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD,
+        TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TYPE_MANAGE_REACTION,
+        TYPE_GET_PEER_ATTRIBUTES,
+        TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -2830,6 +2863,18 @@ public:
     void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Returns the current firstname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose first name is requested.
+     * @return The first name from user
+     */
+    const char* getUserFirstnameFromCache(MegaChatHandle userhandle);
+
+    /**
      * @brief Returns the current lastname of the user
      *
      * This function is useful to get the lastname of users who participated in a groupchat with
@@ -2850,6 +2895,30 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the current lastname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose last name is requested.
+     * @return The last name from user
+     */
+    const char* getUserLastnameFromCache(MegaChatHandle userhandle);
+
+    /**
+     * @brief Returns the current fullname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose fullname is requested.
+     * @return The full name from user
+     */
+    const char* getUserFullnameFromCache(MegaChatHandle userhandle);
 
     /**
      * @brief Returns the current email address of the contact
@@ -2874,6 +2943,50 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the current email address of the user
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose email is requested.
+     * @return The email from user
+     */
+    const char* getUserEmailFromCache(MegaChatHandle userhandle);
+
+    /**
+     * @brief request to server user attributes
+     *
+     * This function is useful to get the email address, first name, last name and full name
+     * from chat link participants that they are not loaded
+     *
+     * After request is finished, you can call to MegaChatApi::getUserFirstnameFromCache,
+     * MegaChatApi::getUserLastnameFromCache, MegaChatApi::getUserFullnameFromCache,
+     * MegaChatApi::getUserEmailFromCache (email will not available in anonymous mode)
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of chat
+     * - MegaChatRequest::getMegaHandleList - Returns the handles of user that attributes have been requested
+     *
+     * @param chatid Handle of the chat whose member attributes requested
+     * @param userList List of user whose attributes has been requested
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList *userList, MegaChatRequestListener *listener = nullptr);
+
+    /**
+     * @brief Maximum number of participants in a chat whose attributes are automatically fetched
+     *
+     * For very large chatrooms, the user attributes that are usually pre-loaded automatically by MEGAchat
+     * are not loaded. Instead, the app needs to call MegaChatApi::loadUserAttributes in order to request them.
+     * Once the request finishes, attributes like the firstname or the email will be available through the getters,
+     * like MegaChatApi::getUserFirstnameFromCache and alike.
+     * @return Maximun number of member in public chat which attributes are requested automatically
+     */
+    unsigned int getMaxParticipantsWithAttributes();
 
     /**
      * @brief Returns the current email address of the contact
@@ -3617,6 +3730,7 @@ public:
      * - MegaChatError::ERROR_ARGS   - If the chatroom is not groupal or public.
      * - MegaChatError::ERROR_NOENT  - If the chat room does not exists or the chatid is invalid.
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_TOOMANY - If the chat is public and there are too many participants.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -3670,6 +3784,27 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief This function allows a logged in operator/moderator to specify a message retention
+     * timeframe in seconds, after which older messages in the chat are automatically deleted.
+     * In order to disable the feature, the period of time can be set to zero (infinite).
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_RETENTION_TIME
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getParamType - Returns the retention timeframe in seconds
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have operator privileges
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param period retention timeframe in seconds, after which older messages in the chat are automatically deleted
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened
@@ -4404,7 +4539,8 @@ public:
      *  - if the chatroom is in preview mode.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it.
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
      *
      * @note In case of group calls, if there is already too many peers sending video and there are no
      * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
@@ -4433,7 +4569,8 @@ public:
      * called without being already connected to chatd.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it.
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
      *
      * @note In case of group calls, if there is already too many peers sending video and there are no
      * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
@@ -4528,6 +4665,20 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Set/unset a call on hold
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CALL_ON_HOLD
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true (set on hold) false (unset on hold)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param setOnHold indicates if call is set or unset on hold
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Search all audio and video devices available at that moment.
@@ -4655,6 +4806,38 @@ public:
      */
     int getMaxVideoCallParticipants();
 
+    /**
+     * @brief Returns if audio level monitor is enabled
+     *
+     * It's false by default
+     *
+     * @note If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor will be always false
+     *
+     * @param chatid MegaChatHandle that identifies the chat room from we want know if audio level monitor is disabled
+     * @return true if audio level monitor is enabled
+     */
+    bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
+
+    /**
+     * @brief Enable or disable audio level monitor
+     *
+     * It's false by default and it's app responsability to enable it
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     *
+     * @note If there isn't a call in that chatroom in which user is participating,
+     * audio Level monitor won't be able established
+     *
+     * @param enable True for enable audio level monitor, False to disable
+     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
 #endif
 
     // Listeners
@@ -4743,24 +4926,30 @@ public:
      * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
      * is MegaChatRoomListener::onReactionUpdate.
      *
-     * You take the ownership of the returned value.
+     * Note that receiving an onRequestFinish with the error code MegaChatError::ERROR_OK, does not ensure
+     * that add reaction has been applied in chatd. As we've mentioned above, reactions updates will
+     * be notified through callback MegaChatRoomListener::onReactionUpdate.
      *
-     * Possible error codes associated to MegaChatError can be:
-     * - MegaChatError::ERROR_OK: if no errors occurred.
-     * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
-     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists
-     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
-     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
-     * - MegaChatError::API_EEXIST: if our own user has reacted previously with this reaction
-     * for this message
+     * The associated request type with this request is MegaChatRequest::TYPE_MANAGE_REACTION
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatid that identifies the chatroom
+     * - MegaChatRequest::getUserHandle - Returns the msgid that identifies the message
+     * - MegaChatRequest::getText - Returns a UTF-8 NULL-terminated string that represents the reaction
+     * - MegaChatRequest::getFlag - Returns true indicating that requested action is add reaction
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - if reaction is NULL or the msgid references a management message.
+     * - MegaChatError::ERROR_NOENT - if the chatroom/message doesn't exists
+     * - MegaChatError::ERROR_ACCESS - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD
+     * or MegaChatPeerList::PRIV_MODERATOR.
+     * - MegaChatError::ERROR_EXIST - if our own user has reacted previously with this reaction for this message
      *
      * @param chatid MegaChatHandle that identifies the chatroom
      * @param msgid MegaChatHandle that identifies the message
      * @param reaction UTF-8 NULL-terminated string that represents the reaction
-     *
-     * @return returns MegaChatError with an error code associated.
+     * @param listener MegaChatRequestListener to track this request
      */
-    MegaChatError *addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    void addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Removes a reaction for a message in a chatroom
@@ -4770,23 +4959,30 @@ public:
      * registered by calling MegaChatApi::addChatRoomListener). The corresponding callback
      * is MegaChatRoomListener::onReactionUpdate.
      *
-     * You take the ownership of the returned value.
+     * Note that receiving an onRequestFinish with the error code MegaChatError::ERROR_OK, does not ensure
+     * that remove reaction has been applied in chatd. As we've mentioned above, reactions updates will
+     * be notified through callback MegaChatRoomListener::onReactionUpdate.
      *
-     * Possible error codes associated to MegaChatError can be:
-     * - MegaChatError::ERROR_OK: if no errors occurred.
+     * The associated request type with this request is MegaChatRequest::TYPE_MANAGE_REACTION
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatid that identifies the chatroom
+     * - MegaChatRequest::getUserHandle - Returns the msgid that identifies the message
+     * - MegaChatRequest::getText - Returns a UTF-8 NULL-terminated string that represents the reaction
+     * - MegaChatRequest::getFlag - Returns false indicating that requested action is remove reaction
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS: if reaction is NULL or the msgid references a management message.
-     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists, or if your own user has
-     * not reacted to the message with the specified reaction.
-     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than
-     * MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR
+     * - MegaChatError::ERROR_NOENT: if the chatroom/message doesn't exists
+     * - MegaChatError::ERROR_ACCESS: if our own privilege is different than MegaChatPeerList::PRIV_STANDARD
+     * or MegaChatPeerList::PRIV_MODERATOR
+     * - MegaChatError::ERROR_EXIST - if your own user has not reacted to the message with the specified reaction.
      *
      * @param chatid MegaChatHandle that identifies the chatroom
      * @param msgid MegaChatHandle that identifies the message
      * @param reaction UTF-8 NULL-terminated string that represents the reaction
-     *
-     * @return returns MegaChatError with an error code associated.
+     * @param listener MegaChatRequestListener to track this request
      */
-    MegaChatError *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    void delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Returns the number of users that reacted to a message with a specific reaction
@@ -5245,7 +5441,8 @@ public:
         CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_ARCHIVE             = 0X100, /// Archived or unarchived
         CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
-        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800  /// The number of previewers has changed
+        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800,  /// The number of previewers has changed
+        CHANGE_TYPE_RETENTION_TIME      = 0x1000, /// The retention time has changed
     };
 
     enum {
@@ -5299,7 +5496,14 @@ public:
     /**
      * @brief Returns the current firstname of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the firstname with
+     * MegaChatApi::getUserFirstnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserFirstnameFromCache
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Firstname of the chat peer with the handle specified.
@@ -5309,7 +5513,14 @@ public:
     /**
      * @brief Returns the current lastname of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the lastname with
+     * MegaChatApi::getUserLastnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserLastnameFromCache
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Lastname of the chat peer with the handle specified.
@@ -5319,9 +5530,16 @@ public:
     /**
      * @brief Returns the current fullname of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the full name  with
+     * MegaChatApi::getUserFullnameFromCache
      *
      * You take the ownership of the returned value. Use delete [] value
+     *
+     * @deprecated Use MegaChatApi::getUserFullnameFromCache
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Fullname of the chat peer with the handle specified.
@@ -5331,7 +5549,14 @@ public:
     /**
      * @brief Returns the email address of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the email with
+     * MegaChatApi::getUserEmailFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserEmailFromCache
      *
      * @param userhandle Handle of the peer whose email is requested.
      * @return Email address of the chat peer with the handle specified.
@@ -5378,6 +5603,15 @@ public:
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
      *
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the firstname with
+     * MegaChatApi::getUserFirstnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserFirstnameFromCache
+     *
      * @param i Position of the peer whose name is requested
      * @return Firstname of the peer in the position \c i.
      */
@@ -5388,6 +5622,15 @@ public:
      *
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
+     *
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the lastname with
+     * MegaChatApi::getUserLastnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserLastnameFromCache
      *
      * @param i Position of the peer whose name is requested
      * @return Lastname of the peer in the position \c i.
@@ -5400,7 +5643,16 @@ public:
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
      *
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the fullname with
+     * MegaChatApi::getUserFullnameFromCache.
+     *
      * You take the ownership of the returned value. Use delete [] value
+     *
+     * @deprecated Use MegaChatApi::getUserFullnameFromCache
      *
      * @param i Position of the peer whose name is requested
      * @return Fullname of the peer in the position \c i.
@@ -5412,6 +5664,15 @@ public:
      *
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
+     *
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the email with
+     * MegaChatApi::getUserEmailFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserEmailFromCache
      *
      * @param i Position of the peer whose email is requested
      * @return Email address of the peer in the position \c i.
@@ -5491,6 +5752,15 @@ public:
     virtual MegaChatHandle getUserTyping() const;
 
     /**
+     * @brief Returns the handle of the user who has been Joined/Removed/change its name
+     *
+     * This method return a valid value when hasChanged(CHANGE_TYPE_PARTICIPANTS) true
+     *
+     * @return The user that has changed
+     */
+    virtual MegaChatHandle getUserHandle() const;
+
+    /**
      * @brief Returns whether the user is member of the chatroom (for groupchats),
      * or the user is contact with the peer (for 1on1 chats).
      *
@@ -5503,6 +5773,12 @@ public:
      * @return True if the chat is archived, false otherwise.
      */
     virtual bool isArchived() const;
+
+    /**
+     * @brief Returns the retention time for this chat
+     * @return The retention time for this chat
+     */
+    virtual unsigned int getRetentionTime() const;
 
     /**
      * @brief Returns the creation timestamp of the chat.
@@ -5549,6 +5825,9 @@ public:
      * The SDK retains the ownership of the MegaChatListItem in the second parameter.
      * The MegaChatListItem object will be valid until this function returns. If you
      * want to save the MegaChatListItem, use MegaChatListItem::copy
+     *
+     * @note changes about participants in chat link won't be notified until chat
+     *  is logged in
      *
      * @param api MegaChatApi connected to the account
      * @param item MegaChatListItem representing a 1on1 or groupchat in the list.
@@ -5653,6 +5932,9 @@ public:
      * or a call has finished, the chat has been changed into private mode, the number of
      * previewers has changed, the user has started/stopped typing.
      *
+     * @note changes about participants in chat link won't be notified until chat
+     * is logged in
+     *
      * @param api MegaChatApi connected to the account
      * @param chat MegaChatRoom that contains the updates relatives to the chat
      */
@@ -5744,6 +6026,15 @@ public:
      * @param count Number of users who have reacted to this message with the same reaction
      */
     virtual void onReactionUpdate(MegaChatApi* api, MegaChatHandle msgid, const char* reaction, int count);
+
+    /**
+     * @brief This function is called when we need to clear messages previous to retention time,
+     * all messages previous to received msg as parameter must be cleared.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msg Most recent message whose timestamp has exceeded retention time
+     */
+    virtual void onHistoryTruncatedByRetentionTime(MegaChatApi* /*api*/, MegaChatMessage* /*msg*/);
 };
 
 /**

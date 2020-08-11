@@ -553,6 +553,46 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->getUserLastname(userHandle, authorizationToken.UTF8String);
 }
 
+- (NSString *)userEmailFromCacheByUserHandle:(uint64_t)userHandle {
+    const char *val = self.megaChatApi->getUserEmailFromCache(userHandle);
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
+}
+
+- (NSString *)userFirstnameFromCacheByUserHandle:(uint64_t)userHandle {
+    const char *val = self.megaChatApi->getUserFirstnameFromCache(userHandle);
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
+}
+
+- (NSString *)userLastnameFromCacheByUserHandle:(uint64_t)userHandle {
+    const char *val = self.megaChatApi->getUserLastnameFromCache(userHandle);
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
+}
+
+- (NSString *)userFullnameFromCacheByUserHandle:(uint64_t)userHandle {
+    const char *val = self.megaChatApi->getUserFullnameFromCache(userHandle);
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
+}
+
 - (NSString *)contacEmailByHandle:(uint64_t)userHandle {
     const char *val = self.megaChatApi->getContactEmail(userHandle);
     if (!val) return nil;
@@ -565,6 +605,26 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (uint64_t)userHandleByEmail:(NSString *)email {
     return self.megaChatApi->getUserHandleByEmail([email UTF8String]);
+}
+
+- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    MEGAHandleList *handleList = MEGAHandleList.alloc.init;
+    
+    for (NSNumber *handle in usersHandles) {
+        [handleList addMegaHandle:handle.unsignedLongLongValue];
+    }
+    
+    self.megaChatApi->loadUserAttributes(chatId, handleList.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    MEGAHandleList *handleList = MEGAHandleList.alloc.init;
+    
+    for (NSNumber *handle in usersHandles) {
+        [handleList addMegaHandle:handle.unsignedLongLongValue];
+    }
+    
+    self.megaChatApi->loadUserAttributes(chatId, handleList.getCPtr);
 }
 
 #pragma mark - Chat management
@@ -990,6 +1050,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->disableVideo(chatId);
 }
 
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setCallOnHold(chatId, onHold, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold {
+    self.megaChatApi->setCallOnHold(chatId, onHold);
+}
+
 - (void)loadAudioVideoDeviceListWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->loadAudioVideoDeviceList([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
@@ -1034,6 +1102,18 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (uint64_t)myClientIdHandleForChatId:(uint64_t)chatId {
     return self.megaChatApi->getMyClientidHandle(chatId);
+}
+
+- (BOOL)isAudioLevelMonitorEnabledForChatId:(uint64_t)chatId {
+    return self.megaChatApi->isAudioLevelMonitorEnabled(chatId);
+}
+
+- (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->enableAudioLevelMonitor(enable, chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId {
+    self.megaChatApi->enableAudioLevelMonitor(enable, chatId);
 }
 
 #endif
