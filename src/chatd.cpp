@@ -530,11 +530,17 @@ void Connection::wsConnectCb()
     setState(kStateConnected);
 }
 
-void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
+void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len, bool disconnectByServer)
 {
     string reason;
     if (preason)
         reason.assign(preason, reason_len);
+
+    if (disconnectByServer)
+    {
+        CHATDS_LOG_WARNING("Socket was closed by server, forcing to re-fetch a fresh URL");
+        retryPendingConnection(true, true);
+    }
 
     onSocketClose(errcode, errtype, reason);
 }
@@ -575,7 +581,6 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     else // (mState < kStateConnected) --> tell retry controller that the connect attempt failed
     {
         CHATDS_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
-
         assert(mRetryCtrl);
         assert(!mConnectPromise.succeeded());
         if (!mConnectPromise.done())

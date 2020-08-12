@@ -480,7 +480,7 @@ protected:
 
     // ---- callbacks called from libwebsocketsIO ----
     virtual void wsConnectCb();
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len, bool disconnectByServer);
     virtual void wsHandleMsgCb(char *data, size_t len);
     virtual void wsSendMsgCb(const char *data, size_t len);
 

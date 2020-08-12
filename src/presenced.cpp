@@ -120,8 +120,13 @@ void Client::wsConnectCb()
     setConnState(kConnected);
 }
 
-void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/)
+void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/, bool disconnectByServer)
 {
+    if (disconnectByServer)
+    {
+       PRESENCED_LOG_WARNING("Socket was closed by server, forcing to re-fetch a fresh URL");
+       retryPendingConnection(true, true);
+    }
     onSocketClose(errcode, errtype, preason);
 }
     
