@@ -2168,10 +2168,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 if (op == OP_ADDREACTION || op == OP_DELREACTION)
                 {
                     chat.onReactionReject(id);
-                    break;
                 }
-
-                if (op == OP_NEWMSG || op == OP_NEWNODEMSG) // the message was rejected
+                else if (op == OP_NEWMSG || op == OP_NEWNODEMSG) // the message was rejected
                 {
                     chat.msgConfirm(id, Id::null());
                 }
