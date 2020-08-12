@@ -395,7 +395,10 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             }
             else
             {
-                disconnectByServer = true;
+                if (reason == LWS_CALLBACK_CLIENT_CONNECTION_ERROR)
+                {
+                    disconnectByServer = true;
+                }
                 WEBSOCKETS_LOG_DEBUG("Disconnect done by server");
             }
 
