@@ -122,7 +122,7 @@ void Client::wsConnectCb()
 
 void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/, bool disconnectByServer)
 {
-    if (disconnectByServer)
+    if (disconnectByServer && mConnState == kConnecting)
     {
        PRESENCED_LOG_WARNING("Socket was closed by server, forcing to re-fetch a fresh URL");
        retryPendingConnection(true, true);

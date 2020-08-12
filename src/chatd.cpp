@@ -536,7 +536,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     if (preason)
         reason.assign(preason, reason_len);
 
-    if (disconnectByServer)
+    if (disconnectByServer && mState == kStateConnecting)
     {
         CHATDS_LOG_WARNING("Socket was closed by server, forcing to re-fetch a fresh URL");
         retryPendingConnection(true, true);
