@@ -426,6 +426,13 @@ Client::reconnect()
                     return;
                 }
 
+                if (!mRetryCtrl && mConnState == kFetchingUrl)
+                {
+                     assert(!mRetryCtrl);
+                     PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: URL is outdated and is being re-fetched");
+                     return;
+                }
+
                 if (!mRetryCtrl)
                 {
                     PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");

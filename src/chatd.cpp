@@ -848,6 +848,13 @@ Promise<void> Connection::reconnect()
                     return;
                 }
 
+                if (!mRetryCtrl && mState == kStateFetchingUrl)
+                {
+                    assert(!mRetryCtrl);
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: URL is outdated and is being re-fetched");
+                    return;
+                }
+
                 if (!mRetryCtrl)
                 {
                     CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
