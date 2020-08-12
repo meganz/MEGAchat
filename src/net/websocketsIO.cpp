@@ -30,7 +30,7 @@ void WebsocketsClientImpl::wsConnectCb()
     client->wsConnectCb();
 }
 
-void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
+void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len, bool disconnectByServer)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
 
@@ -43,7 +43,7 @@ void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preas
         WEBSOCKETS_LOG_DEBUG("Connection closed by server");
     }
 
-    client->wsCloseCbPrivate(errcode, errtype, preason, reason_len);
+    client->wsCloseCbPrivate(errcode, errtype, preason, reason_len, disconnectByServer);
 }
 
 void WebsocketsClientImpl::wsHandleMsgCb(char *data, size_t len)
@@ -175,19 +175,17 @@ bool WebsocketsClient::wsIsConnected()
     return ctx->wsIsConnected();
 }
 
-void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len)
+void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len, bool disconnectByServer)
 {
     if (!ctx)   // immediate disconnect ocurred before the marshall is executed (only applies to libws)
     {
+        // If client has lost connectivity ctx is NULL, so we don't re-fetch URL
         return;
     }
 
     delete ctx;
     ctx = NULL;
-
-    WEBSOCKETS_LOG_DEBUG("Socket was closed gracefully or by server");
-
-    wsCloseCb(errcode, errtype, preason, reason_len);
+    wsCloseCb(errcode, errtype, preason, reason_len, disconnectByServer);
 }
 
 DNScache::DNScache(SqliteDb &db, int chatdVersion)

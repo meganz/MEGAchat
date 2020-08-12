@@ -337,7 +337,7 @@ public:
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len) = delete;
 
     void wsConnectCb() override {}
-    void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/) override {}
+    void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/, bool disconnectByServer) override {}
     void wsHandleMsgCb(char *data, size_t len) override {}
     void wsSendMsgCb(const char *, size_t) override {}
 };

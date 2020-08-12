@@ -124,10 +124,10 @@ public:
     bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error
     void wsDisconnect(bool immediate);
     bool wsIsConnected();
-    void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
+    void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len, bool disconnectByServer);
 
     virtual void wsConnectCb() = 0;
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len, bool disconnectByServer) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
     virtual void wsSendMsgCb(const char *data, size_t len) = 0;
 };
@@ -144,7 +144,7 @@ public:
     WebsocketsClientImpl(WebsocketsIO::Mutex &mutex, WebsocketsClient *client);
     virtual ~WebsocketsClientImpl();
     void wsConnectCb();
-    void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len, bool disconnectByServer);
     void wsHandleMsgCb(char *data, size_t len);
     void wsSendMsgCb(const char *data, size_t len);
     
