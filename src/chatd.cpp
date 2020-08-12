@@ -850,7 +850,6 @@ Promise<void> Connection::reconnect()
 
                 if (!mRetryCtrl && mState == kStateFetchingUrl)
                 {
-                    assert(!mRetryCtrl);
                     CHATDS_LOG_DEBUG("DNS resolution completed but ignored: URL is outdated and is being re-fetched");
                     return;
                 }

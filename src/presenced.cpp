@@ -428,7 +428,6 @@ Client::reconnect()
 
                 if (!mRetryCtrl && mConnState == kFetchingUrl)
                 {
-                     assert(!mRetryCtrl);
                      PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: URL is outdated and is being re-fetched");
                      return;
                 }
