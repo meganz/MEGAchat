@@ -5712,7 +5712,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
 
 MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration)
 {
-    status = CALL_STATUS_USER_NO_PRESENT;
+    status = CALL_STATUS_INITIAL;
     this->chatid = chatid;
     this->callid = callid;
     // localAVFlags are invalid until state change to rtcModule::ICall::KStateHasLocalStream
