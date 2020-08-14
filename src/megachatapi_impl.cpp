@@ -8479,6 +8479,10 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
 void MegaChatCallHandler::onStateChange(uint8_t newState)
 {
     assert(chatCall);
+    if (chatCall->getStatus() == newState) // Avoid notify same state
+    {
+        return;
+    }
     if (chatCall)
     {
         API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
