@@ -203,6 +203,23 @@ public:
     }
 };
 
+class OneShotTransferListener : public m::MegaTransferListener
+{
+public:
+    std::function<void(m::MegaApi* api, m::MegaTransfer *request, m::MegaError* e)> onTransferFinishFunc;
+
+    explicit OneShotTransferListener(std::function<void(m::MegaApi* api, m::MegaTransfer* transfer, m::MegaError* e)> f = {})
+        :onTransferFinishFunc(f)
+    {
+    }
+
+    void onTransferFinish(m::MegaApi* api, m::MegaTransfer *request, m::MegaError* e) override
+    {
+        if (onTransferFinishFunc) onTransferFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+};
+
 class OneShotChatRequestListener : public c::MegaChatRequestListener
 {
 public:
@@ -3459,7 +3476,18 @@ void exec_renamenode(ac::ACState& s)
     {
         g_megaApi->renameNode(node.get(), s.words[2].s.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
         {
-            check_err("renamenode", e);
+            check_err("renamenode", e, ReportResult);
+        }));
+    }
+}
+
+void exec_startupload(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[2].s))
+    {
+        g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+        {
+            check_err("startUpload", e, ReportResult);
         }));
     }
 }
@@ -3890,6 +3918,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
     p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-order"), param("order")), sequence(flag("-refilter"), param("regex")))), param("path")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
+    p->Add(exec_startupload, sequence(text("startupload"), param("localpath"), param("remotepath")));
 
     p->Add(exec_pushreceived, sequence(text("pushreceived"), opt(flag("-beep")), opt(param("chatid"))));
     p->Add(exec_getcloudstorageused, sequence(text("getcloudstorageused")));

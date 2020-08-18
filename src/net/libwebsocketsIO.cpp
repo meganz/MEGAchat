@@ -282,6 +282,7 @@ void LibwebsocketsClient::resetOutputBuffer()
 #define EVP_PKEY_get0_RSA(_pkey_) ((_pkey_)->pkey.rsa)
 #endif
 
+#ifdef USE_WEBRTC
 const BIGNUM *RSA_get0_n(const RSA *rsa)
 {
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
@@ -314,6 +315,7 @@ const BIGNUM *RSA_get0_d(const RSA *rsa)
     return result;
 #endif
 }
+#endif
 
 static bool check_public_key(X509_STORE_CTX* ctx)
 {
