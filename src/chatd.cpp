@@ -991,7 +991,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         mDnsCache.removeRecord(mShardNo);
 
         fetchUrl()
-        .then([this, wptr]
+        .then([this, wptr](std::string url)
         {
             if (wptr.deleted())
             {
@@ -999,6 +999,8 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
                 return;
             }
 
+            // Add record to db to store new URL
+            mDnsCache.addRecord(mShardNo, url);
             retryPendingConnection(true);
         });
     }
@@ -1054,9 +1056,19 @@ int Connection::shardNo() const
 
 promise::Promise<void> Connection::connect()
 {
+    auto wptr = getDelTracker();
     return fetchUrl()
-    .then([this]
+    .then([this, wptr](std::string url)
     {
+        if (wptr.deleted())
+        {
+            CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
+            return Promise<void>();
+        }
+
+        // Add record to db to store new URL
+        mDnsCache.addRecord(mShardNo, url);
+
         return reconnect()
         .fail([this](const ::promise::Error& err)
         {
@@ -1065,40 +1077,33 @@ promise::Promise<void> Connection::connect()
     });
 }
 
-promise::Promise<void> Connection::fetchUrl()
+promise::Promise<std::string> Connection::fetchUrl()
 {
     assert(!mChatIds.empty());
-    if (mChatdClient.mKarereClient->anonymousMode()
-        || mDnsCache.isValidUrl(mShardNo))
+    if (mChatdClient.mKarereClient->anonymousMode())
     {
-       return promise::_Void();
+       return Promise<std::string>();
     }
 
     setState(kStateFetchingUrl);
     auto wptr = getDelTracker();
     return mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
-    .then([wptr, this](ReqResult result)
+    .then([wptr, this](ReqResult result) -> Promise<std::string>
     {
         if (wptr.deleted())
         {
             CHATD_LOG_DEBUG("Chatd URL request completed, but chatd connection was deleted");
-            return;
-        }
-
-        if (!result->getLink())
-        {
-            CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, *mChatIds.begin());
-            return;
+            return std::string();
         }
 
         const char *url = result->getLink();
         if (!url || !url[0])
         {
-            return;
+            CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, *mChatIds.begin());
+            return std::string();
         }
 
-        // Add record to db to store new URL
-        mDnsCache.addRecord(mShardNo, url);
+        return std::string(url);
     });
 }
 
