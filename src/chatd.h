@@ -518,7 +518,7 @@ public:
     promise::Promise<void> sendSync();
 
     promise::Promise<void> connect();
-    promise::Promise<void> fetchUrl();
+    promise::Promise<std::string> fetchUrl();
 };
 
 enum ServerHistFetchState
