@@ -2069,6 +2069,7 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+#ifndef KARERE_DISABLE_WEBRTC
         case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
         {
             handle chatid = request->getChatHandle();
@@ -2079,7 +2080,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
-
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
             if (!handler)
             {
@@ -2101,6 +2101,7 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+#endif
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;

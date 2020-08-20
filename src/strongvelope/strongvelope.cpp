@@ -1248,12 +1248,12 @@ void ProtocolHandler::onKeyReceived(KeyId keyid, Id sender, Id receiver,
     auto& entry = mKeys[ukid];
     if (entry.pms)
     {
-        STRONGVELOPE_LOG_WARNING("Key %d from user %s is already being decrypted", keyid, sender.toString().c_str());
+        STRONGVELOPE_LOG_WARNING("Key %u from user %s is already being decrypted", keyid, sender.toString().c_str());
         return;
     }
 
     // if it was not being decrypted yet, associate a promise
-    STRONGVELOPE_LOG_DEBUG("onKeyReceived: Created a key entry with promise for key %d of user %s", keyid, sender.toString().c_str());
+    STRONGVELOPE_LOG_DEBUG("onKeyReceived: Created a key entry with promise for key %u of user %s", keyid, sender.toString().c_str());
     auto wptr = weakHandle();
     entry.pms.reset(new Promise<std::shared_ptr<SendKey>>);
     pms.then([this, wptr, ukid](const std::shared_ptr<SendKey>& key)
@@ -1280,7 +1280,7 @@ void ProtocolHandler::onKeyReceived(KeyId keyid, Id sender, Id receiver,
 void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<SendKey>& key)
 {
     assert(key->dataSize() == SVCRYPTO_KEY_SIZE);
-    STRONGVELOPE_LOG_DEBUG("Adding key %lld of user %s", ukid.keyid, ukid.user.toString().c_str());
+    STRONGVELOPE_LOG_DEBUG("Adding key %u of user %s", ukid.keyid, ukid.user.toString().c_str());
 
     auto& entry = mKeys[ukid];
     if (entry.key)  // if KeyEntry already had a decrypted key assigned to it...
@@ -1288,7 +1288,7 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
         if (memcmp(entry.key->buf(), key->buf(), SVCRYPTO_KEY_SIZE))
             throw std::runtime_error("addDecryptedKey: Key with id "+std::to_string(ukid.keyid)+" from user '"+ukid.user.toString()+"' already known but different");
 
-        STRONGVELOPE_LOG_DEBUG("addDecryptedKey: Key %lld from user %s already known and is same", ukid.keyid, ukid.user.toString().c_str());
+        STRONGVELOPE_LOG_DEBUG("addDecryptedKey: Key %u from user %s already known and is same", ukid.keyid, ukid.user.toString().c_str());
     }
     else    // new key was confirmed or received key wast not decrypted yet...
     {
