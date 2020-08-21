@@ -4,6 +4,12 @@
 cmake_minimum_required(VERSION 2.8)
 project(karere)
 
+# Qt settings
+if (USE_QT)
+    set (MEGA_QT_REQUIRED_COMPONENTS Core Gui)
+    set (MEGA_QT_LINK_LIBRARIES Qt5::Core Qt5::Gui)
+endif()
+
 if (WIN32)
     if("${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
         SET(build_64_bit 1)
