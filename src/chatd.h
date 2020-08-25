@@ -464,6 +464,9 @@ protected:
     /** This promise is resolved when output data is written to the sockets */
     promise::Promise<void> mSendPromise;
 
+    /** Flag to indicate if a fresh URL is being fetched */
+    bool mFetchingUrl = false;
+
     // ---- callbacks called from libwebsocketsIO ----
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
@@ -504,7 +507,7 @@ public:
     promise::Promise<void> sendSync();
 
     promise::Promise<void> connect();
-    promise::Promise<std::string> fetchUrl();
+    promise::Promise<std::string> fetchUrl(bool force = false);
 };
 
 enum ServerHistFetchState
