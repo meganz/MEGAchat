@@ -262,7 +262,7 @@ public:
         std::string query = "select idx from " + table + " where chatid = ? and msgid = ?";
         SqliteStmt stmt(mDb, query.c_str());
         stmt << mChat.chatId() << msgid;
-        return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
+        return (stmt.step()) ? stmt.intCol(0) : CHATD_IDX_INVALID;
     }
 
     virtual chatd::Idx getIdxOfMsgidFromHistory(karere::Id msgid)
