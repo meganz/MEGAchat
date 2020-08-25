@@ -536,6 +536,12 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     if (preason)
         reason.assign(preason, reason_len);
 
+    if (mFetchingUrl)
+    {
+        CHATDS_LOG_WARNING("wsCloseCb: previous fetch of a fresh URL is still in progress");
+        return onSocketClose(errcode, errtype, reason);
+    }
+
     auto wptr = getDelTracker();
     fetchUrl(true) // force to fetch a fresh URL
     .then([this, wptr](std::string urlStr)
@@ -1076,7 +1082,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 
     if (refreshURL || !mDnsCache.isValidUrl(mShardNo))
     {
-        if (mState == kStateFetchingUrl)
+        if (mFetchingUrl)
         {
             CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
@@ -1177,6 +1183,7 @@ promise::Promise<void> Connection::connect()
         }
 
         // If fetchUrl returns an empty URL, we have an URL in cache or we are in anonymous mode
+        assert(!mFetchingUrl);
         if (!url.empty())
         {
             mDnsCache.addOrUpdateRecord(mShardNo, url);
