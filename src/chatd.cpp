@@ -491,6 +491,12 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
         });
     }
 
+    })
+    .fail([this](const ::promise::Error& err)
+    {
+        CHATDS_LOG_DEBUG("Connection::connect: ",err.what());
+        throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
+    });
     onSocketClose(errcode, errtype, reason);
 }
 
@@ -1032,6 +1038,11 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
             // Add record to db to store new URL
             mDnsCache.addOrUpdateRecord(mShardNo, url);
             retryPendingConnection(true);
+        })
+        .fail([this](const ::promise::Error& err)
+        {
+            CHATDS_LOG_DEBUG("Connection::connect: ",err.what());
+            throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
         });
     }
     else if (disconnect)
@@ -1108,6 +1119,11 @@ promise::Promise<void> Connection::connect()
         {
             CHATDS_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
         });
+    })
+    .fail([this](const ::promise::Error& err)
+    {
+        CHATDS_LOG_DEBUG("Connection::connect: ",err.what());
+        throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
     });
 }
 
