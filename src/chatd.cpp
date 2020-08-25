@@ -536,35 +536,30 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     if (preason)
         reason.assign(preason, reason_len);
 
-    if (!mFetchingUrl)
+    auto wptr = getDelTracker();
+    fetchUrl(true) // force to fetch a fresh URL
+    .then([this, wptr](std::string urlStr)
     {
-        auto wptr = getDelTracker();
-        fetchUrl(true) // force to fetch a fresh URL
-        .then([this, wptr](std::string urlStr)
+        if (wptr.deleted())
         {
-            if (wptr.deleted())
-            {
-                CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
-                return;
-            }
+            CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
+            return;
+        }
 
-            karere::Url freshUrl (urlStr);
-            if (freshUrl.host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
-            {
-                // abort and prevent any further reconnection attempt
-                setState(kStateDisconnected);
-                abortRetryController();
-                cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
-                mConnectTimer = 0;
+        karere::Url freshUrl (urlStr);
+        if (freshUrl.host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
+        {
+            // abort and prevent any further reconnection attempt
+            setState(kStateDisconnected);
+            abortRetryController();
+            cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+            mConnectTimer = 0;
 
-                // Update record with new URL
-                CHATDS_LOG_DEBUG("update URL in cache, and start a new retry attempt");
-                mDnsCache.addOrUpdateRecord(mShardNo, urlStr, true, true);
-                retryPendingConnection(true);
-            }
-        });
-    }
-
+            // Update record with new URL
+            CHATDS_LOG_DEBUG("update URL in cache, and start a new retry attempt");
+            mDnsCache.addOrUpdateRecord(mShardNo, urlStr, true, true);
+            retryPendingConnection(true);
+        }
     })
     .fail([this](const ::promise::Error& err)
     {
