@@ -695,7 +695,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
     if (!mDnsCache.hasRecord(shard))
     {
         // If DNS cache doesn't contains a record for this shard, addRecord otherwise skip.
-        mDnsCache.addRecord(shard, url);    // the URL has been already pre-fetched
+        mDnsCache.addOrUpdateRecord(shard, url);    // the URL has been already pre-fetched
     }
 
     room->connect();

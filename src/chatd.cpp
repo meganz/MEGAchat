@@ -1000,7 +1000,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
             }
 
             // Add record to db to store new URL
-            mDnsCache.addRecord(mShardNo, url);
+            mDnsCache.addOrUpdateRecord(mShardNo, url);
             retryPendingConnection(true);
         });
     }
@@ -1066,8 +1066,11 @@ promise::Promise<void> Connection::connect()
             return Promise<void>();
         }
 
-        // Add record to db to store new URL
-        mDnsCache.addRecord(mShardNo, url);
+        if (!url.empty())
+        {
+            // Add record to db to store new URL
+            mDnsCache.addOrUpdateRecord(mShardNo, url);
+        }
 
         return reconnect()
         .fail([this](const ::promise::Error& err)
