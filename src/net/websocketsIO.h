@@ -28,7 +28,7 @@ public:
 
     DNScache(SqliteDb &db, int chatdVersion);
     void loadFromDb();
-    void addRecord(int shard, const std::string &url, bool saveToDb = true);
+    void addOrUpdateRecord(int shard, const std::string &url, bool saveToDb = true, bool update = false);
     void removeRecord(int shard);
     bool hasRecord(int shard);
     bool isValidUrl(int shard);

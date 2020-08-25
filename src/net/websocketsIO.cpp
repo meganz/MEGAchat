@@ -197,10 +197,11 @@ DNScache::DNScache(SqliteDb &db, int chatdVersion)
 
 }
 
-void DNScache::addRecord(int shard, const std::string &url, bool saveToDb)
+void DNScache::addOrUpdateRecord(int shard, const std::string &url, bool saveToDb, bool update)
 {    
-    if (hasRecord(shard))
+    if (hasRecord(shard) && !update)
     {
+        // If update is false, this method souldn't be called if another record exists for the shard
         assert(false);
         return;
     }
@@ -258,7 +259,7 @@ void DNScache::loadFromDb()
         if (url.size())
         {
             // if the record is for chatd, need to add the protocol version to the URL
-            addRecord(shard, url, false);
+            addOrUpdateRecord(shard, url, false);
             setIp(shard, stmt.stringCol(2), stmt.stringCol(3));
         }
         else

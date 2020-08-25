@@ -127,7 +127,7 @@ void RtcModule::init()
                         mKarereClient.mDnsCache.removeRecord(shard);
                     }
 
-                    mKarereClient.mDnsCache.addRecord(shard, urlString);
+                    mKarereClient.mDnsCache.addOrUpdateRecord(shard, urlString);
                 }
 
                 shard--;
