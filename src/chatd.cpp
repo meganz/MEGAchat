@@ -1188,10 +1188,22 @@ promise::Promise<void> Connection::connect()
 promise::Promise<std::string> Connection::fetchUrl(bool force)
 {
     assert(!mChatIds.empty());
-    if (mChatdClient.mKarereClient->anonymousMode()
-            || (mDnsCache.isValidUrl(mShardNo) && !force))
+    if (mChatdClient.mKarereClient->anonymousMode())
     {
+       CHATDS_LOG_DEBUG("skipping URL fetch in anonymous mode");
        return std::string();
+    }
+
+    if (mFetchingUrl)
+    {
+        CHATDS_LOG_DEBUG("skipping URL fetch because there's another fetch in progress");
+        return std::string();
+    }
+
+    if (mDnsCache.isValidUrl(mShardNo) && !force)
+    {
+        CHATDS_LOG_DEBUG("skipping URL fetch because there's a valid URL in cache");
+        return std::string();
     }
 
     CHATDS_LOG_DEBUG("fetching a fresh URL");
@@ -1210,8 +1222,8 @@ promise::Promise<std::string> Connection::fetchUrl(bool force)
         const char *url = result->getLink();
         if (!url || !url[0])
         {
-            CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, *mChatIds.begin());
-            return std::string();
+            CHATDS_LOG_DEBUG("No chatd URL received from API");
+            return ::promise::Error("Url fetching error");
         }
 
         return std::string(url);
