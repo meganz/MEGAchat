@@ -199,6 +199,11 @@ DNScache::DNScache(SqliteDb &db, int chatdVersion)
 
 void DNScache::addOrUpdateRecord(int shard, const std::string &url, bool saveToDb, bool update)
 {    
+    if (url.empty())
+    {
+        return;
+    }
+
     if (hasRecord(shard) && !update)
     {
         // If update is false, this method souldn't be called if another record exists for the shard
