@@ -1064,6 +1064,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         // Remove DnsCache record
         mDnsCache.removeRecord(mShardNo);
 
+        setState(kStateFetchingUrl);
         fetchUrl()
         .then([this, wptr](std::string url)
         {
@@ -1131,6 +1132,7 @@ int Connection::shardNo() const
 promise::Promise<void> Connection::connect()
 {
     auto wptr = getDelTracker();
+    setState(kStateFetchingUrl);
     return fetchUrl()
     .then([this, wptr](std::string url)
     {
@@ -1154,15 +1156,16 @@ promise::Promise<void> Connection::connect()
     });
 }
 
-promise::Promise<std::string> Connection::fetchUrl()
+promise::Promise<std::string> Connection::fetchUrl(bool force)
 {
     assert(!mChatIds.empty());
-    if (mChatdClient.mKarereClient->anonymousMode())
+    if (mChatdClient.mKarereClient->anonymousMode()
+            || (mDnsCache.isValidUrl(mShardNo) && !force))
     {
-       return Promise<std::string>();
+       return std::string();
     }
 
-    setState(kStateFetchingUrl);
+    mFetchingUrl = true;
     auto wptr = getDelTracker();
     return mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
     .then([wptr, this](ReqResult result) -> Promise<std::string>
@@ -1173,6 +1176,7 @@ promise::Promise<std::string> Connection::fetchUrl()
             return std::string();
         }
 
+        mFetchingUrl = false;
         const char *url = result->getLink();
         if (!url || !url[0])
         {
