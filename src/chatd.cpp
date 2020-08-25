@@ -552,8 +552,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
             return;
         }
 
-        karere::Url freshUrl (urlStr);
-        if (freshUrl.host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
+        if (!urlStr.empty() && (karere::Url(urlStr)).host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
         {
             // abort and prevent any further reconnection attempt
             setState(kStateDisconnected);
@@ -1184,11 +1183,7 @@ promise::Promise<void> Connection::connect()
 
         // If fetchUrl returns an empty URL, we have an URL in cache or we are in anonymous mode
         assert(!mFetchingUrl);
-        if (!url.empty())
-        {
-            mDnsCache.addOrUpdateRecord(mShardNo, url);
-        }
-
+        mDnsCache.addOrUpdateRecord(mShardNo, url);
         return reconnect()
         .fail([this](const ::promise::Error& err)
         {
