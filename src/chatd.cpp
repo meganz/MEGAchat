@@ -5154,33 +5154,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
     }
 
-    if (isNew)
+    if (msg.isValidUnread(mChatdClient.myHandle())
+            && (isNew || mLastSeenIdx == CHATD_IDX_INVALID))
     {
-        if (msg.isValidUnread(mChatdClient.myHandle()))
-        {
-            mUnreadCount++;
-            CALL_LISTENER(onUnreadChanged);
-        }
-    }
-    else
-    {
-        if (mLastSeenIdx == CHATD_IDX_INVALID)
-        {
-            assert(mUnreadCount <= 0);
-            if (msg.isValidUnread(mChatdClient.myHandle()))
-            {
-                if (mLastSeenId == msg.id())
-                {
-                    mUnreadCount = -mUnreadCount;
-                }
-                else
-                {
-                    mUnreadCount--;
-                }
-
-                CALL_LISTENER(onUnreadChanged);
-            }
-        }
+        calculateUnreadCount();
     }
 
     //handle last text message
