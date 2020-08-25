@@ -1007,20 +1007,19 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
             CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
         }
+        // URL is invalid, abort and prevent any further reconnection attempt
         CHATDS_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
-
-        // abort and prevent any further reconnection attempt
         setState(kStateDisconnected);
         abortRetryController();
         cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
         mConnectTimer = 0;
 
-        auto wptr = getDelTracker();
-
         // Remove DnsCache record
         mDnsCache.removeRecord(mShardNo);
 
+        // Set state kStateFetchingUrl
         setState(kStateFetchingUrl);
+        auto wptr = getDelTracker();
         fetchUrl()
         .then([this, wptr](std::string url)
         {
@@ -1103,9 +1102,9 @@ promise::Promise<void> Connection::connect()
             return Promise<void>();
         }
 
+        // If fetchUrl returns an empty URL, we have an URL in cache or we are in anonymous mode
         if (!url.empty())
         {
-            // Add record to db to store new URL
             mDnsCache.addOrUpdateRecord(mShardNo, url);
         }
 
