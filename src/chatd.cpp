@@ -464,7 +464,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
 
     if (mFetchingUrl)
     {
-        CHATDS_LOG_WARNING("wsCloseCb: previous fetch of a fresh URL is still in progress");
+        CHATDS_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
         return onSocketClose(errcode, errtype, reason);
     }
 
@@ -474,7 +474,6 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     {
         if (wptr.deleted())
         {
-            CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
             return;
         }
 
@@ -492,10 +491,9 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
             retryPendingConnection(true);
         }
     })
-    .fail([this](const ::promise::Error& err)
+    .fail([](const ::promise::Error& err)
     {
-        CHATDS_LOG_DEBUG("Connection::connect: ",err.what());
-        throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
+        throw std::runtime_error(err.what());
     });
     onSocketClose(errcode, errtype, reason);
 }
@@ -1009,11 +1007,11 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
     {
         if (mFetchingUrl)
         {
-            CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
+            CHATDS_LOG_DEBUG("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
         }
         // URL is invalid, abort and prevent any further reconnection attempt
-        CHATDS_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
+        CHATDS_LOG_DEBUG("retryPendingConnection: fetch a fresh URL for reconnection!");
         setState(kStateDisconnected);
         abortRetryController();
         cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
@@ -1030,7 +1028,6 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         {
             if (wptr.deleted())
             {
-                CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
                 return;
             }
 
@@ -1038,10 +1035,9 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
             mDnsCache.addOrUpdateRecord(mShardNo, url);
             retryPendingConnection(true);
         })
-        .fail([this](const ::promise::Error& err)
+        .fail([](const ::promise::Error& err)
         {
-            CHATDS_LOG_DEBUG("Connection::connect: ",err.what());
-            throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
+            throw std::runtime_error(err.what());
         });
     }
     else if (disconnect)
@@ -1103,7 +1099,6 @@ promise::Promise<void> Connection::connect()
     {
         if (wptr.deleted())
         {
-            CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
             return Promise<void>();
         }
 
@@ -1116,10 +1111,9 @@ promise::Promise<void> Connection::connect()
             CHATDS_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
         });
     })
-    .fail([this](const ::promise::Error& err)
+    .fail([](const ::promise::Error& err)
     {
-        CHATDS_LOG_DEBUG("Connection::connect: ",err.what());
-        throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
+        throw std::runtime_error(err.what());
     });
 }
 
@@ -1152,7 +1146,7 @@ promise::Promise<std::string> Connection::fetchUrl(bool force)
     {
         if (wptr.deleted())
         {
-            CHATD_LOG_DEBUG("Chatd URL request completed, but chatd connection was deleted");
+            CHATD_LOG_ERROR("Chatd URL request completed, but chatd connection was deleted");
             return std::string();
         }
 
@@ -1160,8 +1154,7 @@ promise::Promise<std::string> Connection::fetchUrl(bool force)
         const char *url = result->getLink();
         if (!url || !url[0])
         {
-            CHATDS_LOG_DEBUG("No chatd URL received from API");
-            return ::promise::Error("Url fetching error");
+            return ::promise::Error("No chatd URL received from API for shard: "+std::to_string(mShardNo));
         }
 
         return std::string(url);
