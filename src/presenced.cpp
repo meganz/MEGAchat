@@ -42,54 +42,74 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-Promise<void> Client::fetchUrl()
+promise::Promise<std::string> Client::fetchUrl(bool force)
 {
-    if (mKarereClient->anonymousMode() || mDnsCache.isValidUrl(kPresencedShard))
+    if (mKarereClient->anonymousMode())
     {
-       return promise::_Void();
+       PRESENCED_LOG_DEBUG("skipping URL fetch in anonymous mode");
+       return std::string();
     }
 
-    setConnState(kFetchingUrl);
+    if (mFetchingUrl)
+    {
+        PRESENCED_LOG_DEBUG("skipping URL fetch because there's another fetch in progress");
+        return std::string();
+    }
+
+    if (mDnsCache.isValidUrl(kPresencedShard) && !force)
+    {
+        PRESENCED_LOG_DEBUG("skipping URL fetch because there's a valid URL in cache");
+        return std::string();
+    }
+
+    PRESENCED_LOG_DEBUG("fetching a fresh URL");
+    mFetchingUrl = true;
     auto wptr = getDelTracker();
     return mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
-    .then([this, wptr](ReqResult result) -> Promise<void>
+    .then([this, wptr](ReqResult result) -> Promise<std::string>
     {
         if (wptr.deleted())
         {
-            PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
-            return ::promise::_Void();
+            PRESENCED_LOG_ERROR("Presenced URL request completed, but presenced client was deleted");
+            return std::string();
         }
 
-        if (!result->getLink())
-        {
-            PRESENCED_LOG_DEBUG("No Presenced URL received from API");
-            return ::promise::_Void();
-        }
-
-        // Update presenced url in ram and db
+        mFetchingUrl = false;
         const char *url = result->getLink();
         if (!url || !url[0])
         {
-           return promise::_Void();
+            return ::promise::Error("No presenced URL received from API");
         }
 
-        // Add new record to DNS cache
-        mDnsCache.addOrUpdateRecord(kPresencedShard, url);
-        return promise::_Void();
+        return std::string(url);
     });
 }
 
 Promise<void> Client::connect()
 {
     assert (mConnState == kConnNew);
+    auto wptr = getDelTracker();
+    setConnState(kFetchingUrl);
     return fetchUrl()
-    .then([this]
+    .then([this, wptr](std::string url)
     {
-        return reconnect()
-        .fail([](const ::promise::Error& err)
+        if (wptr.deleted())
         {
-            PRESENCED_LOG_DEBUG("Presenced::connect(): Error connecting to server after getting URL: %s", err.what());
+            return Promise<void>();
+        }
+
+        // If fetchUrl returns an empty URL, we have an URL in cache or we are in anonymous mode
+        assert(!mFetchingUrl);
+        mDnsCache.addOrUpdateRecord(kPresencedShard, url);
+        return reconnect()
+        .fail([this](const ::promise::Error& err)
+        {
+            PRESENCED_LOG_ERROR("Presenced::connect(): Error connecting to server after getting URL: %s", err.what());
         });
+    })
+    .fail([](const ::promise::Error& err)
+    {
+        throw std::runtime_error(err.what());
     });
 }
 
@@ -120,9 +140,46 @@ void Client::wsConnectCb()
     setConnState(kConnected);
 }
 
-void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/)
+void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    onSocketClose(errcode, errtype, preason);
+    string reason;
+    if (preason)
+        reason.assign(preason, reason_len);
+
+    if (mFetchingUrl)
+    {
+        PRESENCED_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
+        return onSocketClose(errcode, errtype, reason);
+    }
+
+    auto wptr = getDelTracker();
+    fetchUrl(true) // force to fetch a fresh URL
+    .then([this, wptr](std::string urlStr)
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        if (!urlStr.empty() && (karere::Url(urlStr)).host != mDnsCache.getUrl(kPresencedShard).host) // hosts do not match
+        {
+            // abort and prevent any further reconnection attempt
+            setConnState(kDisconnected);
+            abortRetryController();
+            cancelTimeout(mConnectTimer, mKarereClient->appCtx);
+            mConnectTimer = 0;
+
+            // Update record with new URL
+            PRESENCED_LOG_DEBUG("update URL in cache, and start a new retry attempt");
+            mDnsCache.addOrUpdateRecord(kPresencedShard, urlStr, true, true);
+            retryPendingConnection(true);
+        }
+    })
+    .fail([](const ::promise::Error& err)
+    {
+        throw std::runtime_error(err.what());
+    });
+    onSocketClose(errcode, errtype, reason);
 }
     
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
@@ -809,15 +866,14 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 
     if (refreshURL || !mDnsCache.isValidUrl(kPresencedShard))
     {
-        if (mConnState == kFetchingUrl)
+        if (mFetchingUrl)
         {
-            PRESENCED_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
+            PRESENCED_LOG_DEBUG("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
         }
 
-        PRESENCED_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
-
-        // abort and prevent any further reconnection attempt
+        // URL is invalid, abort and prevent any further reconnection attempt
+        PRESENCED_LOG_DEBUG("retryPendingConnection: fetch a fresh URL for reconnection!");
         setConnState(kDisconnected);
         abortRetryController();
         if (mConnectTimer)
@@ -829,17 +885,25 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
         // Remove DnsCache record
         mDnsCache.removeRecord(kPresencedShard);
 
+        // Set state kStateFetchingUrl
+        setConnState(kFetchingUrl);
+
         auto wptr = getDelTracker();
         fetchUrl()
-        .then([this, wptr]
+        .then([this, wptr](std::string url)
         {
             if (wptr.deleted())
             {
-                PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
                 return;
             }
 
+            // Add record to db to store new URL
+            mDnsCache.addOrUpdateRecord(kPresencedShard, url);
             retryPendingConnection(true);
+        })
+        .fail([](const ::promise::Error& err)
+        {
+           throw std::runtime_error(err.what());
         });
     }
     else if (disconnect)
