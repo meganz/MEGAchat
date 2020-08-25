@@ -536,6 +536,35 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     if (preason)
         reason.assign(preason, reason_len);
 
+    if (!mFetchingUrl)
+    {
+        auto wptr = getDelTracker();
+        fetchUrl(true) // force to fetch a fresh URL
+        .then([this, wptr](std::string urlStr)
+        {
+            if (wptr.deleted())
+            {
+                CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
+                return;
+            }
+
+            karere::Url freshUrl (urlStr);
+            if (freshUrl.host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
+            {
+                // abort and prevent any further reconnection attempt
+                setState(kStateDisconnected);
+                abortRetryController();
+                cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+                mConnectTimer = 0;
+
+                // Update record with new URL
+                CHATDS_LOG_DEBUG("update URL in cache, and start a new retry attempt");
+                mDnsCache.addOrUpdateRecord(mShardNo, urlStr, true, true);
+                retryPendingConnection(true);
+            }
+        });
+    }
+
     onSocketClose(errcode, errtype, reason);
 }
 
@@ -1165,6 +1194,7 @@ promise::Promise<std::string> Connection::fetchUrl(bool force)
        return std::string();
     }
 
+    CHATDS_LOG_DEBUG("fetching a fresh URL");
     mFetchingUrl = true;
     auto wptr = getDelTracker();
     return mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
