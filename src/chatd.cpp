@@ -491,9 +491,9 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
             retryPendingConnection(true);
         }
     })
-    .fail([](const ::promise::Error& err)
+    .fail([this](const ::promise::Error& err)
     {
-        throw std::runtime_error(err.what());
+        CHATDS_LOG_ERROR("wsCloseCb: %s",err.what());
     });
     onSocketClose(errcode, errtype, reason);
 }
@@ -745,10 +745,10 @@ Promise<void> Connection::reconnect()
     try
     {
         if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
-            throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
+            return ::promise::Error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
 
         if (!mDnsCache.isValidUrl(mShardNo))
-            throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
+            return ::promise::Error("Current URL is not valid for shard "+std::to_string(mShardNo));
 
         setState(kStateResolving);
 
@@ -1035,9 +1035,9 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
             mDnsCache.addOrUpdateRecord(mShardNo, url);
             retryPendingConnection(true);
         })
-        .fail([](const ::promise::Error& err)
+        .fail([this](const ::promise::Error& err)
         {
-            throw std::runtime_error(err.what());
+            CHATDS_LOG_ERROR("retryPendingConnection: %s",err.what());
         });
     }
     else if (disconnect)
@@ -1111,9 +1111,9 @@ promise::Promise<void> Connection::connect()
             CHATDS_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
         });
     })
-    .fail([](const ::promise::Error& err)
+    .fail([this](const ::promise::Error& err)
     {
-        throw std::runtime_error(err.what());
+        CHATDS_LOG_ERROR("connect: %s",err.what());
     });
 }
 

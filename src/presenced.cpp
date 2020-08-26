@@ -109,7 +109,7 @@ Promise<void> Client::connect()
     })
     .fail([](const ::promise::Error& err)
     {
-        throw std::runtime_error(err.what());
+        PRESENCED_LOG_ERROR("connect: %s",err.what());
     });
 }
 
@@ -177,7 +177,7 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
     })
     .fail([](const ::promise::Error& err)
     {
-        throw std::runtime_error(err.what());
+        PRESENCED_LOG_ERROR("wsCloseCb: %s",err.what());
     });
     onSocketClose(errcode, errtype, reason);
 }
@@ -903,7 +903,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
         })
         .fail([](const ::promise::Error& err)
         {
-           throw std::runtime_error(err.what());
+           PRESENCED_LOG_ERROR("retryPendingConnection: %s",err.what());
         });
     }
     else if (disconnect)
