@@ -120,9 +120,49 @@ void Client::wsConnectCb()
     setConnState(kConnected);
 }
 
-void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/)
+void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    onSocketClose(errcode, errtype, preason);
+    string reason;
+    if (preason)
+        reason.assign(preason, reason_len);
+
+    if (mConnState == kFetchingUrl)
+    {
+        PRESENCED_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
+        return onSocketClose(errcode, errtype, reason);
+    }
+
+    PRESENCED_LOG_DEBUG("fetching a fresh URL");
+    auto wptr = getDelTracker();
+    mApi->call(&::mega::MegaApi::getChatPresenceURL)
+    .then([wptr, this](ReqResult result)
+    {
+        if (wptr.deleted())
+        {
+            CHATD_LOG_ERROR("Presenced URL request completed, but presenced client was deleted");
+            return;
+        }
+
+        const char *url = result->getLink();
+        if (url && url[0] && (karere::Url(url)).host != mDnsCache.getUrl(kPresencedShard).host) // hosts do not match
+        {
+            // abort and prevent any further reconnection attempt
+            setConnState(kDisconnected);
+            abortRetryController();
+            if (mConnectTimer)
+            {
+                cancelTimeout(mConnectTimer, mKarereClient->appCtx);
+                mConnectTimer = 0;
+            }
+
+            // Update DNSCache record with new URL
+            PRESENCED_LOG_DEBUG("update URL in cache, and start a new retry attempt");
+            mDnsCache.updateRecord(kPresencedShard, url, true);
+            retryPendingConnection(true);
+        }
+    });
+
+    return onSocketClose(errcode, errtype, reason);
 }
     
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
