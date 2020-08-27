@@ -485,15 +485,6 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
         const char *url = result->getLink();
         if (url && url[0] && (karere::Url(url)).host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
         {
-            // abort and prevent any further reconnection attempt
-            setState(kStateDisconnected);
-            abortRetryController();
-            if (mConnectTimer)
-            {
-                cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
-                mConnectTimer = 0;
-            }
-
             // Update DNSCache record with new URL
             CHATDS_LOG_DEBUG("Update URL in cache, and start a new retry attempt");
             mDnsCache.updateRecord(mShardNo, url, true);
@@ -1021,11 +1012,6 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         // abort and prevent any further reconnection attempt
         setState(kStateDisconnected);
         abortRetryController();
-        if (mConnectTimer)
-        {
-            cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
-            mConnectTimer = 0;
-        }
 
         // Remove DnsCache record
         mDnsCache.removeRecord(mShardNo);
