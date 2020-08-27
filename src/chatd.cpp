@@ -1056,8 +1056,11 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         // abort and prevent any further reconnection attempt
         setState(kStateDisconnected);
         abortRetryController();
-        cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
-        mConnectTimer = 0;
+        if (mConnectTimer)
+        {
+            cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+            mConnectTimer = 0;
+        }
 
         auto wptr = getDelTracker();
 
