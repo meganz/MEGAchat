@@ -543,7 +543,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
         return;
     }
 
-    CHATDS_LOG_DEBUG("fetching a fresh URL" ,mShardNo);
+    CHATDS_LOG_DEBUG("Fetching a fresh URL" ,mShardNo);
     mFetchingUrl = true;
     auto wptr = getDelTracker();
     mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
@@ -551,7 +551,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     {
         if (wptr.deleted())
         {
-            CHATD_LOG_ERROR("Chatd URL request completed, but chatd connection was deleted");
+            CHATDS_LOG_ERROR("Chatd URL request completed, but chatd connection was deleted");
             return;
         }
 
@@ -569,13 +569,13 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
             }
 
             // Update DNSCache record with new URL
-            CHATDS_LOG_DEBUG("update URL in cache, and start a new retry attempt");
+            CHATDS_LOG_DEBUG("Update URL in cache, and start a new retry attempt");
             mDnsCache.updateRecord(mShardNo, url, true);
             retryPendingConnection(true);
         }
     });
 
-    return onSocketClose(errcode, errtype, reason);
+    onSocketClose(errcode, errtype, reason);
 }
 
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
@@ -1101,11 +1101,10 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
             mConnectTimer = 0;
         }
 
-        auto wptr = getDelTracker();
-
         // Remove DnsCache record
         mDnsCache.removeRecord(mShardNo);
 
+        auto wptr = getDelTracker();
         fetchUrl()
         .then([this, wptr]
         {
