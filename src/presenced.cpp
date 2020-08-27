@@ -133,7 +133,7 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
         return;
     }
 
-    PRESENCED_LOG_DEBUG("fetching a fresh URL");
+    PRESENCED_LOG_DEBUG("Fetching a fresh URL");
     mFetchingUrl = true;
     auto wptr = getDelTracker();
     mApi->call(&::mega::MegaApi::getChatPresenceURL)
@@ -141,7 +141,7 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
     {
         if (wptr.deleted())
         {
-            CHATD_LOG_ERROR("Presenced URL request completed, but presenced client was deleted");
+            PRESENCED_LOG_ERROR("Presenced URL request completed, but presenced client was deleted");
             return;
         }
 
@@ -159,13 +159,13 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
             }
 
             // Update DNSCache record with new URL
-            PRESENCED_LOG_DEBUG("update URL in cache, and start a new retry attempt");
+            PRESENCED_LOG_DEBUG("Update URL in cache, and start a new retry attempt");
             mDnsCache.updateRecord(kPresencedShard, url, true);
             retryPendingConnection(true);
         }
     });
 
-    return onSocketClose(errcode, errtype, reason);
+    onSocketClose(errcode, errtype, reason);
 }
     
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
