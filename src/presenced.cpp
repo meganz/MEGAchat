@@ -129,7 +129,8 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
     if (mConnState == kFetchingUrl)
     {
         PRESENCED_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
-        return onSocketClose(errcode, errtype, reason);
+        onSocketClose(errcode, errtype, reason);
+        return;
     }
 
     PRESENCED_LOG_DEBUG("fetching a fresh URL");
