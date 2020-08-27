@@ -228,14 +228,15 @@ void DNScache::removeRecord(int shard)
 
 void DNScache::updateRecord(int shard, const std::string &url, bool saveToDb)
 {
+    assert(hasRecord(shard));   // The record for this shard should already exist
     assert(!url.empty());
-    DNSrecord record;
+
+    DNSrecord &record = mRecords[shard];
     record.mUrl.parse(url);
     if (shard >= 0) // only chatd needs to append the protocol version
     {
         record.mUrl.path.append("/").append(std::to_string(mChatdVersion));
     }
-    mRecords[shard] = record;
 
     if (saveToDb)
     {
