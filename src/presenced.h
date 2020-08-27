@@ -360,6 +360,9 @@ protected:
     /** Handler of the timeout for the connection establishment */
     megaHandle mConnectTimer = 0;
 
+    /** Flag to indicate if a fresh URL is being fetched */
+    bool mFetchingUrl = false;
+
     /** True if last USERACTIVE was 1 (active), false if it was 0 (idle) */
     bool mLastSentUserActive = false;
 

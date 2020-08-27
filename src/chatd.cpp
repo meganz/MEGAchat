@@ -462,7 +462,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     if (preason)
         reason.assign(preason, reason_len);
 
-    if (mState == kStateFetchingUrl)
+    if (mState == kStateFetchingUrl || mFetchingUrl)
     {
         CHATDS_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
         onSocketClose(errcode, errtype, reason);
@@ -470,6 +470,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     }
 
     CHATDS_LOG_DEBUG("fetching a fresh URL" ,mShardNo);
+    mFetchingUrl = true;
     auto wptr = getDelTracker();
     mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
     .then([wptr, this](ReqResult result)
@@ -480,6 +481,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
             return;
         }
 
+        mFetchingUrl = false;
         const char *url = result->getLink();
         if (url && url[0] && (karere::Url(url)).host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
         {
@@ -1009,7 +1011,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 
     if (refreshURL || !mDnsCache.isValidUrl(mShardNo))
     {
-        if (mState == kStateFetchingUrl)
+        if (mState == kStateFetchingUrl || mFetchingUrl)
         {
             CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
