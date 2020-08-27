@@ -536,7 +536,43 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     if (preason)
         reason.assign(preason, reason_len);
 
-    onSocketClose(errcode, errtype, reason);
+    if (mState == kStateFetchingUrl)
+    {
+        CHATDS_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
+        return onSocketClose(errcode, errtype, reason);
+    }
+
+    CHATDS_LOG_DEBUG("fetching a fresh URL" ,mShardNo);
+    auto wptr = getDelTracker();
+    mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
+    .then([wptr, this](ReqResult result)
+    {
+        if (wptr.deleted())
+        {
+            CHATD_LOG_ERROR("Chatd URL request completed, but chatd connection was deleted");
+            return;
+        }
+
+        const char *url = result->getLink();
+        if (url && url[0] && (karere::Url(url)).host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
+        {
+            // abort and prevent any further reconnection attempt
+            setState(kStateDisconnected);
+            abortRetryController();
+            if (mConnectTimer)
+            {
+                cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+                mConnectTimer = 0;
+            }
+
+            // Update DNSCache record with new URL
+            CHATDS_LOG_DEBUG("update URL in cache, and start a new retry attempt");
+            mDnsCache.updateRecord(mShardNo, url, true);
+            retryPendingConnection(true);
+        }
+    });
+
+    return onSocketClose(errcode, errtype, reason);
 }
 
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
