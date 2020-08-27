@@ -205,6 +205,7 @@ void DNScache::addRecord(int shard, const std::string &url, bool saveToDb)
         return;
     }
 
+    assert(!url.empty());
     DNSrecord record;
     record.mUrl.parse(url);
     if (shard >= 0) // only chatd needs to append the protocol version
@@ -223,6 +224,23 @@ void DNScache::removeRecord(int shard)
 {
     mRecords.erase(shard);
     mDb.query("delete from dns_cache where shard=?", shard);
+}
+
+void DNScache::updateRecord(int shard, const std::string &url, bool saveToDb)
+{
+    assert(!url.empty());
+    DNSrecord record;
+    record.mUrl.parse(url);
+    if (shard >= 0) // only chatd needs to append the protocol version
+    {
+        record.mUrl.path.append("/").append(std::to_string(mChatdVersion));
+    }
+    mRecords[shard] = record;
+
+    if (saveToDb)
+    {
+        mDb.query("insert or replace into dns_cache(shard, url) values(?,?)", shard, url);
+    }
 }
 
 bool DNScache::hasRecord(int shard)
