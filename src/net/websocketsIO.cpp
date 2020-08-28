@@ -237,10 +237,13 @@ void DNScache::updateRecord(int shard, const std::string &url, bool saveToDb)
     {
         record.mUrl.path.append("/").append(std::to_string(mChatdVersion));
     }
+    record.ipv4.clear();
+    record.ipv6.clear();
 
     if (saveToDb)
     {
-        mDb.query("insert or replace into dns_cache(shard, url) values(?,?)", shard, url);
+        mDb.query("update dns_cache set url=?, ipv4=?, ipv6=? where shard=?",
+                  url, record.ipv4, record.ipv6, shard);
     }
 }
 
