@@ -536,6 +536,36 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     if (preason)
         reason.assign(preason, reason_len);
 
+    if (mState == kStateFetchingUrl || mFetchingUrl)
+    {
+        CHATDS_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
+        onSocketClose(errcode, errtype, reason);
+        return;
+    }
+
+    CHATDS_LOG_DEBUG("Fetching a fresh URL" ,mShardNo);
+    mFetchingUrl = true;
+    auto wptr = getDelTracker();
+    mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
+    .then([wptr, this](ReqResult result)
+    {
+        if (wptr.deleted())
+        {
+            CHATDS_LOG_ERROR("Chatd URL request completed, but chatd connection was deleted");
+            return;
+        }
+
+        mFetchingUrl = false;
+        const char *url = result->getLink();
+        if (url && url[0] && (karere::Url(url)).host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
+        {
+            // Update DNSCache record with new URL
+            CHATDS_LOG_DEBUG("Update URL in cache, and start a new retry attempt");
+            mDnsCache.updateRecord(mShardNo, url, true);
+            retryPendingConnection(true);
+        }
+    });
+
     onSocketClose(errcode, errtype, reason);
 }
 
@@ -1046,7 +1076,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 
     if (refreshURL || !mDnsCache.isValidUrl(mShardNo))
     {
-        if (mState == kStateFetchingUrl)
+        if (mState == kStateFetchingUrl || mFetchingUrl)
         {
             CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
@@ -1056,14 +1086,11 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         // abort and prevent any further reconnection attempt
         setState(kStateDisconnected);
         abortRetryController();
-        cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
-        mConnectTimer = 0;
-
-        auto wptr = getDelTracker();
 
         // Remove DnsCache record
         mDnsCache.removeRecord(mShardNo);
 
+        auto wptr = getDelTracker();
         fetchUrl()
         .then([this, wptr]
         {

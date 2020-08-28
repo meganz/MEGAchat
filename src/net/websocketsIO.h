@@ -30,6 +30,7 @@ public:
     void loadFromDb();
     void addRecord(int shard, const std::string &url, bool saveToDb = true);
     void removeRecord(int shard);
+    void updateRecord(int shard, const std::string &url, bool saveToDb);
     bool hasRecord(int shard);
     bool isValidUrl(int shard);
     // the record for the given shard must exist
