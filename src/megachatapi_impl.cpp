@@ -1897,16 +1897,23 @@ void MegaChatApiImpl::sendPendingRequests()
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
+            bool isMember = true;
             for (unsigned int i = 0; i < handleList->size(); i++)
             {
                 MegaChatHandle peerid = handleList->get(i);
                 if (!chatroom->isMember(peerid))
                 {
                     API_LOG_ERROR("Error %s is not a chat member of chatroom (%s)", Id(peerid).toString().c_str(), Id(chatid).toString().c_str());
-                    errorCode = MegaChatError::ERROR_ARGS;
+                    isMember = false;
                     break;
                 }
             }
+            if (!isMember)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
 
             std::vector<::promise::Promise<void>> promises;
             for (unsigned int i = 0; i < handleList->size(); i++)
