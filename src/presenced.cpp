@@ -120,9 +120,43 @@ void Client::wsConnectCb()
     setConnState(kConnected);
 }
 
-void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/)
+void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    onSocketClose(errcode, errtype, preason);
+    string reason;
+    if (preason)
+        reason.assign(preason, reason_len);
+
+    if (mConnState == kFetchingUrl || mFetchingUrl)
+    {
+        PRESENCED_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
+        onSocketClose(errcode, errtype, reason);
+        return;
+    }
+
+    PRESENCED_LOG_DEBUG("Fetching a fresh URL");
+    mFetchingUrl = true;
+    auto wptr = getDelTracker();
+    mApi->call(&::mega::MegaApi::getChatPresenceURL)
+    .then([wptr, this](ReqResult result)
+    {
+        if (wptr.deleted())
+        {
+            PRESENCED_LOG_ERROR("Presenced URL request completed, but presenced client was deleted");
+            return;
+        }
+
+        mFetchingUrl = false;
+        const char *url = result->getLink();
+        if (url && url[0] && (karere::Url(url)).host != mDnsCache.getUrl(kPresencedShard).host) // hosts do not match
+        {
+            // Update DNSCache record with new URL
+            PRESENCED_LOG_DEBUG("Update URL in cache, and start a new retry attempt");
+            mDnsCache.updateRecord(kPresencedShard, url, true);
+            retryPendingConnection(true);
+        }
+    });
+
+    onSocketClose(errcode, errtype, reason);
 }
     
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
@@ -552,6 +586,12 @@ bool Client::isContact(uint64_t userid)
 
 void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpdated)
 {
+    if (!mLastScsn.isValid())
+    {
+        PRESENCED_LOG_DEBUG("onUsersUpdate: still catching-up with actionpackets");
+        return;
+    }
+
     const char *buf = api->getSequenceNumber();
     Id scsn(buf, strlen(buf));
     delete [] buf;
@@ -573,7 +613,7 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
 
         if (!mLastScsn.isValid())
         {
-            PRESENCED_LOG_DEBUG("onUsersUpdate: still catching-up with actionpackets");
+            PRESENCED_LOG_DEBUG("onUsersUpdate (marshall): still catching-up with actionpackets");
             return;
         }
 
@@ -809,7 +849,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 
     if (refreshURL || !mDnsCache.isValidUrl(kPresencedShard))
     {
-        if (mConnState == kFetchingUrl)
+        if (mConnState == kFetchingUrl || mFetchingUrl)
         {
             PRESENCED_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
@@ -820,11 +860,6 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
         // abort and prevent any further reconnection attempt
         setConnState(kDisconnected);
         abortRetryController();
-        if (mConnectTimer)
-        {
-            cancelTimeout(mConnectTimer, mKarereClient->appCtx);
-            mConnectTimer = 0;
-        }
 
         // Remove DnsCache record
         mDnsCache.removeRecord(kPresencedShard);

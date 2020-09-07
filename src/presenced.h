@@ -360,6 +360,9 @@ protected:
     /** Handler of the timeout for the connection establishment */
     megaHandle mConnectTimer = 0;
 
+    /** Flag to indicate if a fresh URL is being fetched */
+    bool mFetchingUrl = false;
+
     /** True if last USERACTIVE was 1 (active), false if it was 0 (idle) */
     bool mLastSentUserActive = false;
 
@@ -398,7 +401,7 @@ protected:
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/);
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t preason_len);
     virtual void wsHandleMsgCb(char *data, size_t len);
     virtual void wsSendMsgCb(const char *, size_t) {}
     

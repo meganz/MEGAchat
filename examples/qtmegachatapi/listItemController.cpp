@@ -118,6 +118,32 @@ void ChatListItemController::truncateChat()
     this->mMegaChatApi->clearChatHistory(mItemId);
 }
 
+void ChatListItemController::onGetRetentionTime()
+{
+    ::mega::unique_ptr <megachat::MegaChatRoom> chatRoom(mMegaChatApi->getChatRoom(mItemId));
+    if (!chatRoom)
+    {
+        return;
+    }
+
+    QMessageBox::information(mMainWindow, tr("Retention time: "), tr("Retention time: ")
+                             .append(std::to_string(chatRoom->getRetentionTime()).c_str())
+                             .append(" seconds"));
+}
+
+void ChatListItemController::onSetRetentionTime()
+{
+    QString text = QInputDialog::getText(mMainWindow, tr("Set retention time"),
+         tr("Specify retention time")
+         .append(" <b>in seconds</b>")
+         .append(" (0 to disable)"));
+
+    if (!text.isNull() && !text.isEmpty())
+    {
+        mMegaChatApi->setChatRetentionTime(mItemId, text.toInt());
+    }
+}
+
 void ChatListItemController::queryChatLink()
 {
     if (mItemId != MEGACHAT_INVALID_HANDLE)

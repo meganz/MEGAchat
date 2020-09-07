@@ -178,6 +178,7 @@ public:
     virtual bool isLocalTermCode() const override;
     virtual int getNetworkQuality() const override;
     virtual bool getAudioDetected() const override;
+    virtual bool isOnHold() const override;
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
     static uint8_t convertSessionState(uint8_t state);
@@ -187,6 +188,7 @@ public:
     void setNetworkQuality(int quality);
     void setAudioDetected(bool audioDetected);
     void setSessionFullyOperative();
+    void setOnHold(bool onHold);
     void setTermCode(int termCode);
     void removeChanges();
 
@@ -244,6 +246,7 @@ public:
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
     virtual MegaChatHandle getCaller() const override;
+    virtual bool isOnHold() const override;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -264,11 +267,12 @@ public:
     bool isParticipating(karere::Id userid);
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
+    void setOnHold(bool onHold);
     static void convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local);
 
 protected:
     MegaChatHandle chatid;
-    int status;
+    int status = MegaChatCall::CALL_STATUS_INITIAL;
     MegaChatHandle callid;
     karere::AvFlags localAVFlags;
     karere::AvFlags initialAVFlags;
@@ -461,6 +465,7 @@ public:
     void fireOnChatRoomUpdate(MegaChatRoom *chat);
     void fireOnMessageLoaded(MegaChatMessage *msg);
     void fireOnMessageReceived(MegaChatMessage *msg);
+    void fireOnHistoryTruncatedByRetentionTime(MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
     void fireOnHistoryReloaded(MegaChatRoom *chat);
     void fireOnReactionUpdate(MegaChatHandle msgid, const char *reaction, int count);
@@ -497,6 +502,7 @@ public:
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
     virtual void onUnreadChanged();
+    void onRetentionTimeUpdated(unsigned int period) override;
     void onPreviewersUpdate();
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
@@ -508,6 +514,7 @@ public:
     virtual void onHistoryReloaded();
     virtual void onChatModeChanged(bool mode);
     virtual void onReactionUpdate(karere::Id msgid, const char *reaction, int count);
+    void onHistoryTruncatedByRetentionTime(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -603,6 +610,7 @@ public:
     virtual void onReconnectingState(bool start) override;
     virtual void setReconnectionFailed() override;
     virtual rtcModule::ICall *getCall() override;
+    virtual void onOnHold(bool onHold) override;
 
     MegaChatCallPrivate *getMegaChatCall();
     void setCallNotPresent(karere::Id chatid, karere::Id callid, uint32_t duration);
@@ -629,6 +637,7 @@ public:
     virtual void onDataRecv();
     virtual void onSessionNetworkQualityChange(int currentQuality);
     virtual void onSessionAudioDetected(bool audioDetected);
+    virtual void onOnHold(bool onHold);
 
 private:
     MegaChatApiImpl *megaChatApi;
@@ -740,7 +749,9 @@ public:
 
     virtual int getUnreadCount() const;
     virtual MegaChatHandle getUserTyping() const;
+    unsigned int getRetentionTime() const override;
 
+    void setRetentionTime(unsigned int period);
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void changeUnreadCount();
@@ -773,6 +784,7 @@ private:
     int unreadCount;
     unsigned int mNumPreviewers;
     MegaChatHandle uh;
+    uint32_t mRetentionTime;
 
 public:
     // you take the ownership of return value
@@ -819,7 +831,7 @@ public:
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual int getType() const;
-    virtual bool hasReactions() const;
+    virtual bool hasConfirmedReactions() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
     virtual bool isEdited() const;
@@ -839,6 +851,7 @@ public:
     virtual const MegaChatContainsMeta *getContainsMeta() const;
     virtual mega::MegaHandleList *getMegaHandleList() const;
     virtual int getDuration() const;
+    int getRetentionTime() const override;
     virtual int getTermCode() const;
 
     virtual int getChanges() const;
@@ -1122,6 +1135,7 @@ public:
     void setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
+    void setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener = NULL);
 
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
@@ -1129,8 +1143,7 @@ public:
 
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
-    MegaChatErrorPrivate *addReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
-    MegaChatErrorPrivate *delReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    void manageReaction(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction, bool add, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
@@ -1170,6 +1183,7 @@ public:
     void hangAllChatCalls(MegaChatRequestListener *listener);
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
+    void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     void setIgnoredCall(MegaChatHandle chatId);
@@ -1180,6 +1194,8 @@ public:
     bool hasCallInChatRoom(MegaChatHandle chatid);
     int getMaxCallParticipants();
     int getMaxVideoCallParticipants();
+    bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
+    void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);

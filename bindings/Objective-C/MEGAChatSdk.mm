@@ -970,6 +970,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->disableVideo(chatId);
 }
 
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setCallOnHold(chatId, onHold, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold {
+    self.megaChatApi->setCallOnHold(chatId, onHold);
+}
+
 - (void)loadAudioVideoDeviceListWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->loadAudioVideoDeviceList([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
@@ -1014,6 +1022,18 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (uint64_t)myClientIdHandleForChatId:(uint64_t)chatId {
     return self.megaChatApi->getMyClientidHandle(chatId);
+}
+
+- (BOOL)isAudioLevelMonitorEnabledForChatId:(uint64_t)chatId {
+    return self.megaChatApi->isAudioLevelMonitorEnabled(chatId);
+}
+
+- (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->enableAudioLevelMonitor(enable, chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId {
+    self.megaChatApi->enableAudioLevelMonitor(enable, chatId);
 }
 
 #endif

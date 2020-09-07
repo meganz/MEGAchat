@@ -122,8 +122,9 @@ enum Opcode
     OP_RECEIVED = 6,
 
     /**
-      * @brief Currently not implemented.
-      * <chatid><timestamp>
+      * @brief
+      * (S->C): Indicate the retention timeframe (in seconds) for this chat, or zero if disabled.
+      * Receive: <chatid.8> <userid.8> <timestamp.4>
       */
     OP_RETENTION = 7,
 
@@ -497,7 +498,8 @@ public:
         kMsgPublicHandleCreate  = 0x08,
         kMsgPublicHandleDelete  = 0x09,
         kMsgSetPrivateMode      = 0x0A,
-        kMsgManagementHighest   = 0x0A,
+        kMsgSetRetentionTime    = 0x0B,
+        kMsgManagementHighest   = 0x0B,
         kMsgOffset              = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst           = 0x65,
         kMsgAttachment          = 0x65,   // kMsgNormal's subtype = 0x10
@@ -849,14 +851,9 @@ public:
     }
 
     /** @brief Returns a vector with all the reactions of the message **/
-    std::vector<std::string> getReactions() const
+    const std::vector<Reaction> getReactions() const
     {
-        std::vector<std::string> reactions;
-        for (auto &it : mReactions)
-        {
-            reactions.push_back(it.mReaction);
-        }
-        return reactions;
+        return mReactions;
     }
 
     /** @brief Returns true if the user has reacted to this message with the specified reaction **/
@@ -873,16 +870,16 @@ public:
     }
 
     /** @brief Returns a vector with the userid's associated to an specific reaction **/
-    const std::vector<karere::Id>* getReactionUsers(std::string reaction) const
+    const std::vector<karere::Id> getReactionUsers(std::string reaction) const
     {
         for (auto &it : mReactions)
         {
             if (it.mReaction == reaction)
             {
-                return &(it.mUsers);
+                return it.mUsers;
             }
         }
-        return nullptr;
+        return std::vector<karere::Id>();
     }
 
     /** @brief Returns the number of users for an specific reaction **/
@@ -918,7 +915,9 @@ public:
     {
         mReactions.clear();
     }
-    bool hasReactions() const
+
+    /** @brief Returns true if the message has confirmed reactions, otherwise returns false */
+    bool hasConfirmedReactions() const
     {
         return !mReactions.empty();
     }
