@@ -813,19 +813,19 @@ void ProtocolHandler::msgEncryptWithKey(const Message& src, MsgCommand& dest,
     tlv.addRecord(TLV_TYPE_NONCE, encryptedMessage.nonce);
     tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(encryptedMessage.ciphertext, false));
 
-    // prepare TLV for signature: <signature>
     Signature signature;
     signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, SVCRYPTO_MSGTYPE_FOLLOWUP,
                 encryptedMessage.key, signature);
+
     TlvWriter sigTlv;
     sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
-
     // finally, prepare the MsgCommand: <protVer><msgType><sigTLV><contentTLV>
     dest.reserve(tlv.dataSize()+sigTlv.dataSize()+2);
     dest.append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION)
         .append<uint8_t>(SVCRYPTO_MSGTYPE_FOLLOWUP)
         .append(sigTlv)
         .append(tlv.buf(), tlv.dataSize()); //tlv must always be last, and the payload must always be last within the tlv, because the payload may span till end of message, (len code = 0xffff)
+
     dest.updateMsgSize();
 }
 
@@ -1169,12 +1169,21 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         });
 
         // Get signing key
-        promise::Promise<void> edPms = mUserAttrCache.getAttr(parsedMsg->sender,
-            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mPh)
-        .then([ctx](Buffer* key)
+
+        promise::Promise<void> edPms;
+        if (isPublicChat())
         {
-            ctx->edKey.assign(key->buf(), key->dataSize());
-        });
+            edPms = promise::_Void();
+        }
+        else
+        {
+            edPms = mUserAttrCache.getAttr(parsedMsg->sender,
+                ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mPh)
+            .then([ctx](Buffer* key)
+            {
+                ctx->edKey.assign(key->buf(), key->dataSize());
+            });
+        }
 
         // Verify signature and decrypt
         auto wptr = weakHandle();
@@ -1191,10 +1200,13 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
                 return ::promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
             }
 
-            if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
+            if (!isPublicChat())
             {
-                return ::promise::Error("Signature invalid for message "+
-                                      message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
+                if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
+                {
+                    return ::promise::Error("Signature invalid for message "+
+                                          message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
+                }
             }
 
             // Decrypt message payload.
@@ -1627,12 +1639,20 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
     });
 
     // Get signing key
-    promise::Promise<void> edPms = mProtoHandler.userAttrCache().getAttr(sender,
-        ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mProtoHandler.getPublicHandle())
-    .then([ctx](Buffer *key)
+    promise::Promise<void> edPms;
+    if (openmode)
     {
-        ctx->edKey.assign(key->buf(), key->dataSize());
-    });
+        edPms = promise::_Void();
+    }
+    else
+    {
+        edPms = mProtoHandler.userAttrCache().getAttr(sender,
+            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mProtoHandler.getPublicHandle())
+        .then([ctx](Buffer *key)
+        {
+            ctx->edKey.assign(key->buf(), key->dataSize());
+        });
+    }
 
     auto wptr = weakHandle();
     unsigned int cacheVersion = mProtoHandler.getCacheVersion();
@@ -1647,10 +1667,13 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
             throw ::promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
         }
 
-        if (!verifySignature(ctx->edKey, *ctx->sendKey))
+        if (!openmode)
         {
-            return ::promise::Error("Signature invalid for message "+
-                                  msg->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
+            if (!verifySignature(ctx->edKey, *ctx->sendKey))
+            {
+                return ::promise::Error("Signature invalid for message "+
+                                      msg->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
+            }
         }
 
         symmetricDecrypt(*ctx->sendKey, *msg);
@@ -1686,9 +1709,12 @@ void ProtocolHandler::setUsers(karere::SetOfIds* users)
     assert(users);
     mParticipants = users;
 
-    for (auto userid: *users)
+    if (!isPublicChat())
     {
-        fetchUserKeys(userid);
+        for (auto userid: *users)
+        {
+            fetchUserKeys(userid);
+        }
     }
 }
 

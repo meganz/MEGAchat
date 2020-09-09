@@ -2254,16 +2254,20 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 {
     // Initialize list of peers and fetch their names
     auto peers = aChat.getPeerList();
+    bool isPublicChat = aChat.isPublicChat();
     std::vector<promise::Promise<void>> promises;
     if (peers)
     {
         int numPeers = peers->size();
         for (int i = 0; i < numPeers; i++)
         {
-            auto handle = peers->getPeerHandle(i);
-            assert(handle != parent.mKarereClient.myHandle());
-            mPeers[handle] = new Member(*this, handle, (chatd::Priv)peers->getPeerPrivilege(i)); //may try to access mContactGui, but we have set it to nullptr, so it's ok
-            promises.push_back(mPeers[handle]->nameResolved());
+            auto userid = peers->getPeerHandle(i);
+            assert(userid != parent.mKarereClient.myHandle());
+            mPeers.emplace(userid, new Member(*this, userid, (chatd::Priv)peers->getPeerPrivilege(i), isPublicChat));
+            if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
+            {
+                promises.push_back(mPeers[userid]->nameResolved());
+            }
         }
     }
     // If there is not any promise at vector promise, promise::when is resolved directly
@@ -2271,7 +2275,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
-    bool isPublicChat = aChat.isPublicChat();
     db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
              "own_priv, ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
              mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
@@ -2327,8 +2330,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
     const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted)
-    :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived),
-    mRoomGui(nullptr)
+    : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived)
+    , mRoomGui(nullptr)
 {
     // Initialize list of peers
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
@@ -2336,8 +2339,14 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     std::vector<promise::Promise<void> > promises;
     while(stmt.step())
     {
-        promises.push_back(addMember(stmt.uint64Col(0), (chatd::Priv)stmt.intCol(1), false));
+        auto userid = stmt.uint64Col(0);
+        mPeers.emplace(userid, new Member(*this, userid, (chatd::Priv)stmt.intCol(1), publicChat));
+        if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
+        {
+            promises.push_back(mPeers[userid]->nameResolved());
+        }
     }
+
     mMemberNamesResolved = promise::when(promises);
 
     // Initialize chatd::Client (and strongvelope)
@@ -2354,12 +2363,13 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
     const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey)
-:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
-  mRoomGui(nullptr)
+  : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title)
+  , mRoomGui(nullptr)
 {
     Buffer unifiedKeyBuf;
     unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
     unifiedKeyBuf.append(unifiedKey->data(), unifiedKey->size());
+    parent.mKarereClient.setCommitMode(false);
 
     //save to db
     auto db = parent.mKarereClient.db;
@@ -2532,6 +2542,16 @@ void PeerChatRoom::updateChatRoomTitle()
     }
 }
 
+bool PeerChatRoom::isMember(Id peerid) const
+{
+    return peerid == mPeer;
+}
+
+unsigned long PeerChatRoom::numMembers() const
+{
+    return 2;
+}
+
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
 {
     if (!chat.getPeerList())
@@ -2621,10 +2641,11 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     return changed;
 }
 
-promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool saveToDb)
+promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv)
 {
     assert(userid != parent.mKarereClient.myHandle());
 
+    bool saveToDb = true;
     auto it = mPeers.find(userid);
     if (it != mPeers.end())
     {
@@ -2639,7 +2660,7 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
     }
     else
     {
-        mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
+        mPeers.emplace(userid, new Member(*this, userid, priv, publicChat())); //usernames will be updated when the Member object gets the username attribute
     }
     if (saveToDb)
     {
@@ -3037,6 +3058,7 @@ void GroupChatRoom::makeTitleFromMemberNames()
     }
     else
     {
+        unsigned int numMemberNames = 0;
         for (auto& m: mPeers)
         {
             Id userid = m.first;
@@ -3078,7 +3100,14 @@ void GroupChatRoom::makeTitleFromMemberNames()
                         newTitle.append("..., ");
                 }
             }
+
+            numMemberNames++;
+            if (numMemberNames == MAX_NAMES_CHAT_WITHOUT_TITLE)
+            {
+                break;
+            }
         }
+
         newTitle.resize(newTitle.size()-2); //truncate last ", "
     }
     assert(!newTitle.empty());
@@ -3213,7 +3242,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
         .then([this, wptr, userid, priv](ReqResult)
         {
             wptr.throwIfDeleted();
-            addMember(userid, priv, true)
+            addMember(userid, priv)
             .then([wptr, this]()
             {
                 wptr.throwIfDeleted();
@@ -3229,6 +3258,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
 {
     Id myHandle(parent.mKarereClient.myHandle());
+    mAutoJoining = true;
 
     return chat().crypto()->encryptUnifiedKeyToUser(myHandle)
     .then([this, myHandle, ph](std::string key) -> ApiPromise
@@ -3241,11 +3271,16 @@ promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
         std::string uKeyB64;
         mega::Base64::btoa(uKeyBin, uKeyB64);
 
+        parent.mKarereClient.setCommitMode(false);
         return parent.mKarereClient.api.call(&mega::MegaApi::chatLinkJoin, ph, uKeyB64.c_str());
     })
     .then([this, myHandle](ReqResult)
     {
         onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_FULL);
+    })
+    .fail([this](const ::promise::Error& err)
+    {
+        mAutoJoining = false;
     });
  }
 
@@ -3302,7 +3337,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
     else
     {
         auto wptr = weakHandle();
-        addMember(userid, privilege, true)
+        addMember(userid, privilege)
         .then([wptr, this]()
         {
             wptr.throwIfDeleted();
@@ -3312,6 +3347,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
             }
         });
     }
+
     if (mRoomGui)
     {
         mRoomGui->onUserJoin(userid, privilege);
@@ -3432,6 +3468,16 @@ void GroupChatRoom::handleTitleChange(const std::string &title, bool saveToDB)
     notifyTitleChanged();
 }
 
+bool GroupChatRoom::isMember(Id peerid) const
+{
+    return mPeers.find(peerid.val) != mPeers.end();
+}
+
+unsigned long GroupChatRoom::numMembers() const
+{
+    return mPeers.size() + 1;
+}
+
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
     chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
@@ -3536,12 +3582,27 @@ void GroupChatRoom::enablePreview(uint64_t ph)
 
 bool GroupChatRoom::publicChat() const
 {
-    return (mChat->crypto()->isPublicChat());
+    assert(mChat);
+    if (mChat)
+    {
+        return (mChat->crypto()->isPublicChat());
+    }
+
+    parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99011, "GroupChatRoom::publicChat(), chatd::Chat isn't yet created");
+
+    return false;
 }
 
 uint64_t GroupChatRoom::getPublicHandle() const
 {
-    return (mChat->getPublicHandle());
+    assert(mChat);
+    if (mChat)
+    {
+        return (mChat->getPublicHandle());
+    }
+
+    parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99011, "GroupChatRoom::getPublicHandle(), chatd::Chat isn't yet created");
+    return karere::Id::inval();
 }
 
 unsigned int GroupChatRoom::getNumPreviewers() const
@@ -3591,6 +3652,8 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 
     auto db = parent.mKarereClient.db;
     bool peersChanged = false;
+    bool commitEach = parent.mKarereClient.commitEach() || mAutoJoining;
+    parent.mKarereClient.setCommitMode(false);
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
         auto userid = ourIt->first;
@@ -3617,13 +3680,20 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
         }
     }
 
+    parent.mKarereClient.setCommitMode(commitEach);
+
+
     std::vector<promise::Promise<void> > promises;
     for (auto& user: users)
     {
         if (mPeers.find(user.first) == mPeers.end())
         {
             peersChanged = true;
-            promises.push_back(addMember(user.first, user.second, true));
+            promise::Promise<void> promise = addMember(user.first, user.second);
+            if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
+            {
+                promises.push_back(promise);
+            }
         }
     }
 
@@ -3755,6 +3825,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 
     // Peer list changes
     bool membersChanged = syncMembers(chat);
+    mAutoJoining = false;
 
     // Title changes
     const char *title = chat.getTitle();
@@ -3801,11 +3872,19 @@ void GroupChatRoom::setChatPrivateMode()
     parent.mKarereClient.db.query("update chats set mode = '0' where chatid = ?", mChatid);
 
     notifyChatModeChanged();
+
+    for (auto member : mPeers)
+    {
+        chat().requestUserAttributes(member.first);
+        chat().crypto()->fetchUserKeys(member.first);
+    }
 }
 
-GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
+GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv, bool isPublicChat)
 : mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0", 1)
 {
+    bool fetch = !isPublicChat || aRoom.mPeers.size() <= PRELOAD_CHATLINK_PARTICIPANTS;
+
     mNameAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
         user, USER_ATTR_FULLNAME, this, [](Buffer* buf, void* userp)
     {
@@ -3820,7 +3899,10 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         }
         if (self->mRoom.mAppChatHandler)
         {
-            self->mRoom.mAppChatHandler->onMemberNameChanged(self->mHandle, self->mName);
+            if (!self->mRoom.publicChat() || self->mRoom.mPeers.size() <= PRELOAD_CHATLINK_PARTICIPANTS)
+            {
+                self->mRoom.mAppChatHandler->onMemberNameChanged(self->mHandle, self->mName);
+            }
         }
 
         if (!self->mNameResolved.done())
@@ -3831,7 +3913,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mRoom.makeTitleFromMemberNames();
         }
-    }, false, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
+    }, false, fetch, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
 
     if (!mRoom.parent.mKarereClient.anonymousMode())
     {
@@ -3847,7 +3929,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
                     self->mRoom.makeTitleFromMemberNames();
                 }
             }
-        });
+        }, false, fetch, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
     }
 }
 

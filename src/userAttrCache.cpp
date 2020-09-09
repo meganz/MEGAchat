@@ -256,8 +256,9 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
                 key.toString().c_str());
             continue;
         }
-        if (item->pending)
+        if (item->pending && ((type & USER_ATTR_FLAG_COMPOSITE) == 0))
         {
+            // Composed attributes must be re-fetched, if any of the attrs that synthesize it has changed
             //TODO: Shouldn't we schedule a re-fetch?
             UACACHE_LOG_DEBUG("Attr %s change received, but already fetch in progress, ignoring",
                 key.toString().c_str());
@@ -345,8 +346,41 @@ bool UserAttrCache::removeCb(Handle h)
     return true;
 }
 
+promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
+{
+    std::vector<::promise::Promise<Buffer*>> promises;
+    if (fetchIsRequired(user, USER_ATTR_EMAIL) && mClient.initState() != Client::InitState::kInitAnonymousMode)
+    {
+        // email is accessible to users as long as they provide the userhandle, but it
+        // requires a valid user to request it (anonymous previews don't have a session,
+        // so the API refuses the `uge` command with `ENOENT` for privacy reasons)
+        promises.push_back(getAttr(user, USER_ATTR_EMAIL, ph));
+        // the `ph` is passed here only to decide whether the email should be persisted
+        // in DB or not (previews/valid-ph should not persist cached data)
+    }
+
+    if (fetchIsRequired(user, USER_ATTR_FULLNAME, ph))
+    {
+        promises.push_back(getAttr(user, USER_ATTR_FULLNAME, ph));
+    }
+
+    return ::promise::when(promises);
+}
+
+const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
+{
+    UserAttrPair key(user, attrType);
+    auto it = find(key);
+    if (it == end())
+    {
+        return nullptr;
+    }
+
+    return it->second->data.get();
+}
+
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
-            void* userp, UserAttrReqCbFunc cb, bool oneShot, uint64_t ph)
+            void* userp, UserAttrReqCbFunc cb, bool oneShot, bool fetch, uint64_t ph)
 {
     UserAttrPair key(userHandle, type, ph);
     auto it = find(key);
@@ -358,10 +392,24 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
             // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
             if (item.pending != kCacheFetchNewPending)
             {
-                // we have something in the cache, call the cb
-                auto handle = oneShot ? Handle::invalid() : item.addCb(cb, userp, false);
-                cb(item.data.get(), userp);
-                return handle;
+                if (item.pending != kCacheNotFetchUntilUse)
+                {
+                    // we have something in the cache, call the cb
+                    auto handle = oneShot ? Handle::invalid() : item.addCb(cb, userp, false);
+                    cb(item.data.get(), userp);
+                    return handle;
+                }
+                else
+                {
+                    Handle handle = cb ? item.addCb(cb, userp, oneShot) : Handle::invalid();
+                    if (fetch)
+                    {
+                        it->second->pending = kCacheFetchNewPending;
+                        fetchAttr(key, it->second);
+                    }
+
+                    return handle;
+                }
             }
             else //nothing in cache, must always add a callback, even if one shot
             {
@@ -378,10 +426,14 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
 
     //we don't have the attrib item, create it
     UACACHE_LOG_DEBUG("Attibute %s not found in cache, fetching", key.toString().c_str());
-    auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, kCacheFetchNewPending);
+    auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, fetch ? kCacheFetchNewPending : kCacheNotFetchUntilUse);
     it = emplace(key, item).first;
     Handle handle = cb ? item->addCb(cb, userp, oneShot) : Handle::invalid();
-    fetchAttr(key, item);
+    if (fetch)
+    {
+        fetchAttr(key, item);
+    }
+
     return handle;
 }
 
@@ -526,7 +578,7 @@ void UserAttrCache::onLogin()
     mIsLoggedIn = true;
     for (auto& item: *this)
     {
-        if (item.second->pending != kCacheFetchNotPending)
+        if (item.second->pending != kCacheFetchNotPending && item.second->pending != kCacheNotFetchUntilUse)
             fetchAttr(item.first, item.second);
     }
 }
@@ -549,8 +601,20 @@ UserAttrCache::getAttr(uint64_t user, unsigned attrType, uint64_t ph)
         else
             p->reject("User attribute fetch failed");
         delete p;
-    }, true, ph);
+    }, true, true, ph);
     return ret;
+}
+
+bool UserAttrCache::fetchIsRequired(uint64_t userHandle, uint8_t type, uint64_t ph)
+{
+    UserAttrPair key(userHandle, type, ph);
+    auto it = find(key);
+    if (it != end() && it->second->pending != kCacheNotFetchUntilUse)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 }

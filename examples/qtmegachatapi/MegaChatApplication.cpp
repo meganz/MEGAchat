@@ -1098,6 +1098,14 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 mMainWin->reorderAppChatList();
         }
         break;
+
+    case MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES:
+    {
+        ChatListItemController* itemController = mMainWin->getChatControllerById(request->getChatHandle());
+        ChatItemWidget *chatWidget = itemController->getWidget();
+        chatWidget->onUpdateTooltip();
+        break;
+    }
     default:
         break;
     }

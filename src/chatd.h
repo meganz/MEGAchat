@@ -818,6 +818,7 @@ protected:
     LastTextMsgState mLastTextMsg;
     // crypto stuff
     ICrypto* mCrypto = NULL;
+    int mUnreadCount = 0;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
      * path of further messages to be sent is written to db, without calling encrypt().
      * Once encryption is finished, this flag is cleared, and all queued unencrypted
@@ -1366,6 +1367,12 @@ public:
     void cleanPendingReactions(const karere::Id &msgId);
 
     /**
+     * @brief Remove pending reactions in a chat for a specific message upon ADD/DELREACTION REJECT
+     * @param msgId Id of message whose pending reactions will be cleaned.
+     */
+    void onReactionReject(const karere::Id &msgId);
+
+    /**
      * @brief Clean pending reactions in a chat for a specific message or range of messages.
      *
      * The function will clean all pending reactions for the messages whose index is previous to idx.
@@ -1407,7 +1414,9 @@ public:
     bool isFetchingHistory() const;
     void setNodeHistoryHandler(FilteredHistoryHandler *handler);
     void unsetHandlerToNodeHistory();
+    promise::Promise<void> requestUserAttributes(karere::Id sender);
     uint32_t getRetentionTime() const;
+    Priv getOwnprivilege() const;
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
@@ -1462,6 +1471,8 @@ protected:
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
     void loadManualSending();
+
+    void calculateUnreadCount();
 public:
 //realtime messaging
 
@@ -1529,7 +1540,9 @@ public:
     //  * Add commands ADDREACTION DELREACTION REACTIONSN
     // - Version 7:
     //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
-    static const unsigned chatdVersion = 7;
+    // - Version 8:
+    //  * Solves several bugs related to missing RETENTION time upon re-joins, anonymous previewers and others
+    static const unsigned chatdVersion = 8;
 
     // Minimum retention history check period (in seconds)
     static const unsigned kMinRetentionTimeout = 60;

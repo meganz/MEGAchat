@@ -38,11 +38,13 @@ class ChatItemWidget : public QWidget
         std::string mLastMsgAuthor;
         int mLastOverlayCount;
         QListWidgetItem *mListWidgetItem = NULL;
+        int mIndexMemberRequested = 0;
 
     public slots:
         void onPrintChatInfo();
         void onUpdateTooltip();
         void onCopyHandle();
+        void onResquestMemberInfo();
 
     friend class MainWindow;
     friend class ContactItemWidget;

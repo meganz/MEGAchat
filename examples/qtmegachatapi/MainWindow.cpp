@@ -214,6 +214,9 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
                 window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
 
+                CallGui *callGui = window->getMyCallGui();
+                callGui->setPeerAudioVideoFlag(call->hasLocalAudio(), call->hasLocalVideo());
+
                 MegaHandleList* clientids = call->getClientidParticipants();
                 MegaHandleList* peerids = call->getPeeridParticipants();
                 for (unsigned int i = 0; i < peerids->size(); i++)
@@ -246,6 +249,13 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 break;
             }
         }
+
+        updateVideoParticipants(call->getChatid());
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
+    {
+        updateVideoParticipants(call->getChatid());
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION) &&
@@ -259,18 +269,16 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         {
             window->destroyCallGui(call->getPeeridCallCompositionChange(), call->getClientidCallCompositionChange());
         }
+
+        updateVideoParticipants(call->getChatid());
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
     {
-        std::set<CallGui *> *setOfCallGui = window->getCallGui();
-        for (auto callGuiIt = setOfCallGui->begin(); callGuiIt != setOfCallGui->end(); callGuiIt++)
+        CallGui* callGui = window->getMyCallGui();
+        if (callGui)
         {
-            if ((*callGuiIt)->getPeerid() == mMegaChatApi->getMyUserHandle() && (*callGuiIt)->getClientid() == mMegaChatApi->getMyClientidHandle(call->getChatid()))
-            {
-                (*callGuiIt)->enableOnHold(call->isOnHold(), true);
-                return;
-            }
+            callGui->enableOnHold(call->isOnHold(), true);
         }
     }
 }
@@ -315,12 +323,16 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
             callGui->setAvatar();
             callGui->ui->videoRenderer->enableStaticImage();
         }
+
+        updateVideoParticipants(chatid);
+        callGui->setPeerAudioVideoFlag(session->hasAudio(), session->hasVideo());
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD) &&
             session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
     {
         callGui->enableOnHold(session->isOnHold());
+        updateVideoParticipants(chatid);
     }
 
     //NEW SESSIONS
@@ -332,16 +344,38 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
            case MegaChatSession::SESSION_STATUS_IN_PROGRESS:
            {
                window->connectPeerCallGui(session->getPeerid(), session->getClientid());
+               updateVideoParticipants(chatid);
+               callGui->setPeerAudioVideoFlag(session->hasAudio(), session->hasVideo());
                break;
            }
        }
     }
 
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_AUDIO_LEVEL))
+    {
+        callGui->setAudioActive(session->getAudioDetected());
+    }
 }
 
 MegaChatApplication* MainWindow::getApp() const
 {
     return mApp;
+}
+
+void MainWindow::updateVideoParticipants(MegaChatHandle chatid)
+{
+    ChatListItemController *itemController = getChatControllerById(chatid);
+    ChatWindow *window = itemController->showChatWindow();
+    assert(window);
+
+    std::unique_ptr<MegaChatCall> call;
+    call.reset(mMegaChatApi->getChatCall(chatid));
+
+    CallGui* callGui = window->getMyCallGui();
+    if (callGui)
+    {
+        callGui->setVideoPaticipant(call->getNumParticipants(MegaChatCall::VIDEO));
+    }
 }
 
 #endif

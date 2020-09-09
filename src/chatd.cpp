@@ -1906,6 +1906,8 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
         loadAndProcessUnsent();
         getHistoryFromDb(initialHistoryFetchCount); // ensure we have a minimum set of messages loaded and ready
     }
+
+    calculateUnreadCount();
 }
 Chat::~Chat()
 {
@@ -2190,7 +2192,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATDS_LOG_WARNING("%s: recv REJECT of %s: id='%s', reason: %hu",
                     ID_CSTR(chatid), Command::opcodeToStr(op), ID_CSTR(id), reason);
                 auto& chat = mChatdClient.chats(chatid);
-                if (op == OP_NEWMSG || op == OP_NEWNODEMSG) // the message was rejected
+                if (op == OP_ADDREACTION || op == OP_DELREACTION)
+                {
+                    chat.onReactionReject(id);
+                }
+                else if (op == OP_NEWMSG || op == OP_NEWNODEMSG) // the message was rejected
                 {
                     chat.msgConfirm(id, Id::null());
                 }
@@ -2670,6 +2676,45 @@ void Chat::loadManualSending()
     }
 }
 
+void Chat::calculateUnreadCount()
+{
+    int count = 0;
+    if (mLastSeenIdx == CHATD_IDX_INVALID)
+    {
+        if (mHaveAllHistory)
+        {
+            count = mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
+        }
+        else
+        {
+            count = -mDbInterface->getUnreadMsgCountAfterIdx(CHATD_IDX_INVALID);
+        }
+    }
+    else if (mLastSeenIdx < lownum())
+    {
+        count = mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
+    }
+    else
+    {
+        Idx first = mLastSeenIdx+1;
+        auto last = highnum();
+        for (Idx i=first; i<=last; i++)
+        {
+            auto& msg = at(i);
+            if (msg.isValidUnread(mChatdClient.myHandle()))
+            {
+                count++;
+            }
+        }
+    }
+
+    if (count != mUnreadCount)
+    {
+        mUnreadCount = count;
+        CALL_LISTENER(onUnreadChanged);
+    }
+}
+
 Message* Chat::getManualSending(uint64_t rowid, ManualSendReason& reason)
 {
     ManualSendItem item;
@@ -2764,6 +2809,27 @@ void Chat::retryPendingReactions()
         assert(!reaction.mReactionStringEnc.empty());
         sendCommand(Command(reaction.mStatus) + mChatId + client().myHandle() + reaction.mMsgId + (int8_t)reaction.mReactionStringEnc.size() + reaction.mReactionStringEnc);
     }
+}
+
+void Chat::onReactionReject(const karere::Id &msgId)
+{
+    Idx idx = msgIndexFromId(msgId);
+    assert(idx != CHATD_IDX_INVALID);
+    const Message *message = findOrNull(idx);
+    for (auto it = mPendingReactions.begin(); it != mPendingReactions.end();)
+    {
+        auto auxit = it++;
+        PendingReaction reaction = (*auxit);
+        if (reaction.mMsgId == msgId)
+        {
+            mPendingReactions.erase(auxit);
+            if (message)
+            {
+                CALL_LISTENER(onReactionUpdate, msgId, reaction.mReactionString.c_str(), message->getReactionCount(reaction.mReactionString));
+            }
+        }
+    }
+    CALL_DB(cleanPendingReactions, msgId);
 }
 
 void Chat::cleanPendingReactions(const karere::Id &msgId)
@@ -3137,6 +3203,11 @@ void Chat::attachmentHistDone()
     mAttachNodesReceived = 0;
     mAttachNodesRequestedToServer = 0;
     mAttachmentNodes->finishFetchingFromServer();
+}
+
+promise::Promise<void> Chat::requestUserAttributes(Id sender)
+{
+    return mChatdClient.mKarereClient->userAttrCache().getAttributes(sender, getPublicHandle());
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
@@ -3667,6 +3738,7 @@ void Chat::onLastSeen(Id msgid, bool resend)
             mLastSeenId = msgid;
             CALL_DB(setLastSeen, msgid);
 
+            calculateUnreadCount();
             return;
         }
     }
@@ -3676,6 +3748,12 @@ void Chat::onLastSeen(Id msgid, bool resend)
         if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx)
         {
             CHATID_LOG_WARNING("onLastSeen: ignoring attempt to set last seen msgid backwards. Current: %s Attempt: %s", ID_CSTR(mLastSeenId), ID_CSTR(msgid));
+            if (resend)
+            {
+                // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
+                CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
+                sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
+            }
             return; // `mLastSeenId` is newer than the received `msgid`
         }
     }
@@ -3685,14 +3763,6 @@ void Chat::onLastSeen(Id msgid, bool resend)
     if (idx == mLastSeenIdx)
     {
         return; // we are up to date
-    }
-
-    if (resend && mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) // msgid is older than the locally seen pointer --> update chatd
-    {
-        // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
-        CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
-        sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
-        return;
     }
 
     CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
@@ -3722,7 +3792,7 @@ void Chat::onLastSeen(Id msgid, bool resend)
         }
     }
 
-    CALL_LISTENER(onUnreadChanged);
+    calculateUnreadCount();
 }
 
 bool Chat::setMessageSeen(Idx idx)
@@ -3777,7 +3847,7 @@ bool Chat::setMessageSeen(Idx idx)
         }
         mLastSeenId = id;
         CALL_DB(setLastSeen, mLastSeenId);
-        CALL_LISTENER(onUnreadChanged);
+        calculateUnreadCount();
     }, kSeenTimeout, mChatdClient.mKarereClient->appCtx);
 
     mChatdClient.mSeenTimers.insert(seenTimer);
@@ -3798,35 +3868,7 @@ bool Chat::setMessageSeen(Id msgid)
 
 int Chat::unreadMsgCount() const
 {
-    if (mLastSeenIdx == CHATD_IDX_INVALID)
-    {
-        if (mHaveAllHistory)
-        {
-            return mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
-        }
-        else
-        {
-            return -mDbInterface->getUnreadMsgCountAfterIdx(CHATD_IDX_INVALID);
-        }
-    }
-    else if (mLastSeenIdx < lownum())
-    {
-        return mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
-    }
-
-    Idx first = mLastSeenIdx+1;
-    unsigned count = 0;
-    auto last = highnum();
-    for (Idx i=first; i<=last; i++)
-    {
-        auto& msg = at(i);
-        if (msg.isValidUnread(mChatdClient.myHandle()))
-        {
-            count++;
-        }
-    }
-
-    return count;
+    return mUnreadCount;
 }
 
 void Chat::flushOutputQueue(bool fromStart)
@@ -4413,7 +4455,7 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
         {
             if (!msg->isOwnMessage(client().myHandle()))
             {
-                CALL_LISTENER(onUnreadChanged);
+                calculateUnreadCount();
             }
 
             if (histType == Message::kMsgAttachment)
@@ -4536,6 +4578,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
     mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
     truncateAttachmentHistory();
+    calculateUnreadCount();
 }
 
 time_t Chat::handleRetentionTime(bool updateTimer)
@@ -4614,7 +4657,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
 
     if (notifyUnreadChanged)
     {
-        CALL_LISTENER(onUnreadChanged);
+        calculateUnreadCount();
     }
     return nextRetentionHistCheck(updateTimer);
 }
@@ -5102,6 +5145,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
     }
 
+    if (isPublic() && msg.userid != mChatdClient.mMyHandle)
+    {
+        requestUserAttributes(msg.userid);
+    }
+
     auto status = getMsgStatus(msg, idx);
     if (isNew)
     {
@@ -5133,8 +5181,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
     }
 
-    if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
-        CALL_LISTENER(onUnreadChanged);
+    if (msg.isValidUnread(mChatdClient.myHandle())
+            && (isNew || mLastSeenIdx == CHATD_IDX_INVALID))
+    {
+        calculateUnreadCount();
+    }
 
     //handle last text message
     if (msg.isValidLastMessage())
@@ -5268,7 +5319,11 @@ void Chat::onUserJoin(Id userid, Priv priv)
     }
 
     mUsers.insert(userid);
-    CALL_CRYPTO(onUserJoin, userid);
+    if (!isPublic())
+    {
+        CALL_CRYPTO(onUserJoin, userid);
+    }
+
     CALL_LISTENER(onUserJoin, userid, priv);
 }
 
@@ -5288,12 +5343,15 @@ void Chat::onUserLeave(Id userid)
         // JOIN -1 for own user, but API response might have cleared the peer list already. In that case,
         // chatd's removal needs to clear the peer list again, since remaining peers would have been
         // added as moderators
+        bool commitEach = mChatdClient.mKarereClient->commitEach();
+        mChatdClient.mKarereClient->setCommitMode(false);
         for (auto &it: mUsers)
         {
             CALL_CRYPTO(onUserLeave, it);
             CALL_LISTENER(onUserLeave, it);
         }
         mUsers.clear();
+            mChatdClient.mKarereClient->setCommitMode(commitEach);
 
         if (mChatdClient.mRtcHandler && !previewMode())
         {
@@ -5716,6 +5774,11 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
     {
         CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserTyping");
         CALL_LISTENER(onUserTyping, from);
+
+        if (isPublic() && from != mChatdClient.mMyHandle)
+        {
+            requestUserAttributes(from);
+        }
     }
     else if (type == Command::kBroadcastUserStopTyping)
     {
@@ -5731,6 +5794,11 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
 uint32_t Chat::getRetentionTime() const
 {
     return mRetentionTime;
+}
+
+Priv Chat::getOwnprivilege() const
+{
+    return mOwnPrivilege;
 }
 
 void Client::leave(Id chatid)

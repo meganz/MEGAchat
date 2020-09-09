@@ -1682,6 +1682,7 @@ public:
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
         TYPE_IMPORT_MESSAGES,  TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD,
         TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TYPE_MANAGE_REACTION,
+        TYPE_GET_PEER_ATTRIBUTES,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2862,6 +2863,18 @@ public:
     void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Returns the current firstname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose first name is requested.
+     * @return The first name from user
+     */
+    const char* getUserFirstnameFromCache(MegaChatHandle userhandle);
+
+    /**
      * @brief Returns the current lastname of the user
      *
      * This function is useful to get the lastname of users who participated in a groupchat with
@@ -2882,6 +2895,30 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the current lastname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose last name is requested.
+     * @return The last name from user
+     */
+    const char* getUserLastnameFromCache(MegaChatHandle userhandle);
+
+    /**
+     * @brief Returns the current fullname of the user
+     *
+     * Returns NULL if data is not cached yet.
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose fullname is requested.
+     * @return The full name from user
+     */
+    const char* getUserFullnameFromCache(MegaChatHandle userhandle);
 
     /**
      * @brief Returns the current email address of the contact
@@ -2906,6 +2943,50 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the current email address of the user
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose email is requested.
+     * @return The email from user
+     */
+    const char* getUserEmailFromCache(MegaChatHandle userhandle);
+
+    /**
+     * @brief request to server user attributes
+     *
+     * This function is useful to get the email address, first name, last name and full name
+     * from chat link participants that they are not loaded
+     *
+     * After request is finished, you can call to MegaChatApi::getUserFirstnameFromCache,
+     * MegaChatApi::getUserLastnameFromCache, MegaChatApi::getUserFullnameFromCache,
+     * MegaChatApi::getUserEmailFromCache (email will not available in anonymous mode)
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of chat
+     * - MegaChatRequest::getMegaHandleList - Returns the handles of user that attributes have been requested
+     *
+     * @param chatid Handle of the chat whose member attributes requested
+     * @param userList List of user whose attributes has been requested
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList *userList, MegaChatRequestListener *listener = nullptr);
+
+    /**
+     * @brief Maximum number of participants in a chat whose attributes are automatically fetched
+     *
+     * For very large chatrooms, the user attributes that are usually pre-loaded automatically by MEGAchat
+     * are not loaded. Instead, the app needs to call MegaChatApi::loadUserAttributes in order to request them.
+     * Once the request finishes, attributes like the firstname or the email will be available through the getters,
+     * like MegaChatApi::getUserFirstnameFromCache and alike.
+     * @return Maximun number of member in public chat which attributes are requested automatically
+     */
+    unsigned int getMaxParticipantsWithAttributes();
 
     /**
      * @brief Returns the current email address of the contact
@@ -3649,6 +3730,7 @@ public:
      * - MegaChatError::ERROR_ARGS   - If the chatroom is not groupal or public.
      * - MegaChatError::ERROR_NOENT  - If the chat room does not exists or the chatid is invalid.
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_TOOMANY - If the chat is public and there are too many participants.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -4457,7 +4539,8 @@ public:
      *  - if the chatroom is in preview mode.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it.
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
      *
      * @note In case of group calls, if there is already too many peers sending video and there are no
      * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
@@ -4486,7 +4569,8 @@ public:
      * called without being already connected to chatd.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it.
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
      *
      * @note In case of group calls, if there is already too many peers sending video and there are no
      * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
@@ -5412,7 +5496,14 @@ public:
     /**
      * @brief Returns the current firstname of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the firstname with
+     * MegaChatApi::getUserFirstnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserFirstnameFromCache
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Firstname of the chat peer with the handle specified.
@@ -5422,7 +5513,14 @@ public:
     /**
      * @brief Returns the current lastname of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the lastname with
+     * MegaChatApi::getUserLastnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserLastnameFromCache
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Lastname of the chat peer with the handle specified.
@@ -5432,9 +5530,16 @@ public:
     /**
      * @brief Returns the current fullname of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the full name  with
+     * MegaChatApi::getUserFullnameFromCache
      *
      * You take the ownership of the returned value. Use delete [] value
+     *
+     * @deprecated Use MegaChatApi::getUserFullnameFromCache
      *
      * @param userhandle Handle of the peer whose name is requested.
      * @return Fullname of the chat peer with the handle specified.
@@ -5444,7 +5549,14 @@ public:
     /**
      * @brief Returns the email address of the peer
      *
-     * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the email with
+     * MegaChatApi::getUserEmailFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserEmailFromCache
      *
      * @param userhandle Handle of the peer whose email is requested.
      * @return Email address of the chat peer with the handle specified.
@@ -5491,6 +5603,15 @@ public:
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
      *
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the firstname with
+     * MegaChatApi::getUserFirstnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserFirstnameFromCache
+     *
      * @param i Position of the peer whose name is requested
      * @return Firstname of the peer in the position \c i.
      */
@@ -5501,6 +5622,15 @@ public:
      *
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
+     *
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the lastname with
+     * MegaChatApi::getUserLastnameFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserLastnameFromCache
      *
      * @param i Position of the peer whose name is requested
      * @return Lastname of the peer in the position \c i.
@@ -5513,7 +5643,16 @@ public:
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
      *
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the fullname with
+     * MegaChatApi::getUserFullnameFromCache.
+     *
      * You take the ownership of the returned value. Use delete [] value
+     *
+     * @deprecated Use MegaChatApi::getUserFullnameFromCache
      *
      * @param i Position of the peer whose name is requested
      * @return Fullname of the peer in the position \c i.
@@ -5525,6 +5664,15 @@ public:
      *
      * If the index is >= the number of participants in this chat, this function
      * will return NULL.
+     *
+     * NULL can be returned in public link if number of particpants is greater
+     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
+     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
+     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
+     * with a package of users. When request is finished you can get the email with
+     * MegaChatApi::getUserEmailFromCache.
+     *
+     * @deprecated Use MegaChatApi::getUserEmailFromCache
      *
      * @param i Position of the peer whose email is requested
      * @return Email address of the peer in the position \c i.
@@ -5604,6 +5752,15 @@ public:
     virtual MegaChatHandle getUserTyping() const;
 
     /**
+     * @brief Returns the handle of the user who has been Joined/Removed/change its name
+     *
+     * This method return a valid value when hasChanged(CHANGE_TYPE_PARTICIPANTS) true
+     *
+     * @return The user that has changed
+     */
+    virtual MegaChatHandle getUserHandle() const;
+
+    /**
      * @brief Returns whether the user is member of the chatroom (for groupchats),
      * or the user is contact with the peer (for 1on1 chats).
      *
@@ -5668,6 +5825,9 @@ public:
      * The SDK retains the ownership of the MegaChatListItem in the second parameter.
      * The MegaChatListItem object will be valid until this function returns. If you
      * want to save the MegaChatListItem, use MegaChatListItem::copy
+     *
+     * @note changes about participants in chat link won't be notified until chat
+     *  is logged in
      *
      * @param api MegaChatApi connected to the account
      * @param item MegaChatListItem representing a 1on1 or groupchat in the list.
@@ -5771,6 +5931,9 @@ public:
      * chat server has changed, the chat becomes archived/unarchived, there is a new call
      * or a call has finished, the chat has been changed into private mode, the number of
      * previewers has changed, the user has started/stopped typing.
+     *
+     * @note changes about participants in chat link won't be notified until chat
+     * is logged in
      *
      * @param api MegaChatApi connected to the account
      * @param chat MegaChatRoom that contains the updates relatives to the chat
