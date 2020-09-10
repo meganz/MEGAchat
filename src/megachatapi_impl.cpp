@@ -1897,16 +1897,23 @@ void MegaChatApiImpl::sendPendingRequests()
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
+            bool isMember = true;
             for (unsigned int i = 0; i < handleList->size(); i++)
             {
                 MegaChatHandle peerid = handleList->get(i);
                 if (!chatroom->isMember(peerid))
                 {
                     API_LOG_ERROR("Error %s is not a chat member of chatroom (%s)", Id(peerid).toString().c_str(), Id(chatid).toString().c_str());
-                    errorCode = MegaChatError::ERROR_ARGS;
+                    isMember = false;
                     break;
                 }
             }
+            if (!isMember)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
 
             std::vector<::promise::Promise<void>> promises;
             for (unsigned int i = 0; i < handleList->size(); i++)
@@ -5713,7 +5720,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
 
 MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration)
 {
-    status = CALL_STATUS_USER_NO_PRESENT;
+    status = CALL_STATUS_INITIAL;
     this->chatid = chatid;
     this->callid = callid;
     // localAVFlags are invalid until state change to rtcModule::ICall::KStateHasLocalStream
@@ -8471,7 +8478,16 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
     }
     else
     {
-        chatCall->setStatus(call->state());
+        if (chatCall->getStatus() != call->state()) // Notify state only if it has changed
+        {
+            API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
+                                 karere::Id(chatCall->getChatid()).toString().c_str(),
+                                 karere::Id(chatCall->getId()).toString().c_str(),
+                                 rtcModule::ICall::stateToStr(chatCall->getStatus()),
+                                 rtcModule::ICall::stateToStr(call->state()));
+            chatCall->setStatus(call->state());
+            megaChatApi->fireOnChatCallUpdate(chatCall);
+        }
         chatCall->setLocalAudioVideoFlags(call->sentFlags());
         assert(chatCall->getId() == call->id());
     }
@@ -8480,6 +8496,11 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
 void MegaChatCallHandler::onStateChange(uint8_t newState)
 {
     assert(chatCall);
+    if (chatCall->getStatus() == newState) // Avoid notify same state
+    {
+        return;
+    }
+
     if (chatCall)
     {
         API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
