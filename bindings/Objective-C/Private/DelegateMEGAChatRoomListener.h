@@ -14,6 +14,7 @@ public:
     void onMessageReceived(megachat::MegaChatApi *api, megachat::MegaChatMessage *message);
     void onMessageUpdate(megachat::MegaChatApi *api, megachat::MegaChatMessage *message);
     void onHistoryReloaded(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
+    void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count);
     
 private:
     __weak MEGAChatSdk *megaChatSDK;

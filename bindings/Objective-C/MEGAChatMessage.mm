@@ -88,6 +88,10 @@ using namespace megachat;
     return (MEGAChatMessageType) (self.megaChatMessage ? self.megaChatMessage->getType() : 0);
 }
 
+- (BOOL)hasConfirmedReactions {
+    return self.megaChatMessage ? self.megaChatMessage->hasConfirmedReactions() : NO;
+}
+
 - (NSDate *)timestamp {
     return self.megaChatMessage ? [[NSDate alloc] initWithTimeIntervalSince1970:self.megaChatMessage->getTimestamp()] : nil;
 }
