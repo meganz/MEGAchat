@@ -280,9 +280,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)addReactionForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction;
 - (void)deleteReactionForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction;
-- (NSInteger)getMessageReactionCountForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction;
-- (MEGAStringList *)getMessageReactionsForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
-- (MEGAHandleList *)getReactionUsersForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction;
+- (NSInteger)messageReactionCountForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction;
+- (MEGAStringList *)messageReactionsForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
+- (MEGAHandleList *)reactionUsersForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction;
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
 - (void)sendStopTypingNotificationForChat:(uint64_t)chatId;
