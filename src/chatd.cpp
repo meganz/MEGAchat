@@ -3566,7 +3566,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
                 findAndNotifyLastTextMsg();
                 if (!mLastTextMsg.isValid() && mHaveAllHistory)
                 {
-                    CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
+                    CHATID_LOG_DEBUG("msgModify: lastTextMessage not found, no text message in whole history");
                 }
             }
         }
@@ -4463,7 +4463,7 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
                 findAndNotifyLastTextMsg();
                 if (!mLastTextMsg.isValid() && mHaveAllHistory)
                 {
-                    CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
+                    CHATID_LOG_DEBUG("onMsgUpdatedAfterDecrypt: lastTextMessage not found, no text message in whole history");
                 }
             }
         }
@@ -5545,7 +5545,7 @@ void Chat::onJoinComplete()
             findAndNotifyLastTextMsg();
             if (!mLastTextMsg.isValid() && mHaveAllHistory)
             {
-                CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
+                CHATID_LOG_DEBUG("onJoinComplete: lastTextMessage not found, no text message in whole history");
             }
         }
     }
