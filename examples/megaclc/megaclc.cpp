@@ -2187,7 +2187,7 @@ bool initFile(std::unique_ptr<std::ofstream>& file, const std::string& filename)
 #else
     const auto outputFilename = getExeDirectory() / filename;
 #endif
-    file.reset(new std::ofstream{outputFilename});
+    file.reset( new std::ofstream{outputFilename});
     if (!file->is_open())
     {
         conlock(cout) << "Error: Unable to open output file: " << outputFilename << endl;
