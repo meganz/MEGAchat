@@ -16,6 +16,7 @@ using namespace megachat;
 int main(int argc, char **argv)
 {
     //test
+    //test2
     MegaChatApplication app(argc, argv);
     app.init();
     return app.exec();
