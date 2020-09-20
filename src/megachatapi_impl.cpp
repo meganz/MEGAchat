@@ -3916,6 +3916,23 @@ MegaChatMessage * MegaChatApiImpl::sendGeolocation(MegaChatHandle chatid, float 
     return megaMsg;
 }
 
+MegaChatMessage* MegaChatApiImpl::sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title)
+{
+    if (!srcMp4 || !srcWebp)
+    {
+        return nullptr;
+    }
+
+    if (!sizeMp4 || !sizeWebp)
+    {
+        return nullptr;
+    }
+
+    string buf = JSonUtils::generateGiphyJSon(srcMp4, srcWebp, sizeMp4, sizeWebp, width, height, title);
+    MegaChatMessage* megaMsg = sendMessage(chatid, buf.c_str(), buf.size(), Message::kMsgContainsMeta);
+    return megaMsg;
+}
+
 MegaChatMessage *MegaChatApiImpl::editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img)
 {
     string buf = JSonUtils::generateGeolocationJSon(longitude, latitude, img);
@@ -9129,6 +9146,11 @@ const MegaChatGeolocation *MegaChatContainsMetaPrivate::getGeolocation() const
     return mGeolocation;
 }
 
+const MegaChatGiphy* MegaChatContainsMetaPrivate::getGiphy() const
+{
+    return mGiphy;
+}
+
 void MegaChatContainsMetaPrivate::setRichPreview(MegaChatRichPreview *richPreview)
 {
     if (mRichPreview)
@@ -9170,6 +9192,25 @@ void MegaChatContainsMetaPrivate::setGeolocation(MegaChatGeolocation *geolocatio
 void MegaChatContainsMetaPrivate::setTextMessage(const string &text)
 {
     mText = text;
+}
+
+void MegaChatContainsMetaPrivate::setGiphy(MegaChatGiphy* giphy)
+{
+    if (mGiphy)
+    {
+        delete mGiphy;
+    }
+
+    if (giphy)
+    {
+        mType = MegaChatContainsMeta::CONTAINS_META_GIPHY;
+        mGiphy = giphy;
+    }
+    else
+    {
+        mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
+        mGiphy = nullptr;
+    }
 }
 
 MegaChatContainsMetaPrivate::MegaChatContainsMetaPrivate(const MegaChatContainsMeta *containsMeta)
@@ -9698,6 +9739,75 @@ std::string JSonUtils::generateGeolocationJSon(float longitude, float latitude, 
     return message;
 }
 
+std::string JSonUtils::generateGiphyJSon(const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title)
+{
+    std::string ret;
+    if (!srcMp4 || sizeMp4 == 0 || !srcWebp || sizeWebp == 0 || !title)
+    {
+        API_LOG_ERROR("generateGiphyJSon: Insufficient information");
+        return ret;
+    }
+
+    rapidjson::Document jsonContainsMeta(rapidjson::kObjectType);
+
+    // Add generic `textMessage`
+    rapidjson::Value jsonTextMessage(rapidjson::kStringType);
+    std::string textMessage(title);
+    jsonTextMessage.SetString(textMessage.c_str(), textMessage.length(), jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("textMessage"), jsonTextMessage, jsonContainsMeta.GetAllocator());
+
+    // prepare giphy object: mp4, webp, mp4 size, webp size, giphy width and giphy height
+    rapidjson::Value jsonGiphy(rapidjson::kObjectType);
+    
+    // srcMp4
+    rapidjson::Value jsonMp4(rapidjson::kStringType);
+    std::string mp4String(srcMp4);
+    jsonMp4.SetString(mp4String.c_str(), mp4String.length());
+    jsonGiphy.AddMember(rapidjson::Value("src"), jsonMp4, jsonContainsMeta.GetAllocator());
+    
+    // srcWebp
+    rapidjson::Value jsonWebp(rapidjson::kStringType);
+    std::string webpString(srcWebp);
+    jsonWebp.SetString(webpString.c_str(), webpString.length());
+    jsonGiphy.AddMember(rapidjson::Value("src_webp"), jsonWebp, jsonContainsMeta.GetAllocator());
+
+    // mp4 size
+    rapidjson::Value jsonMp4Size(rapidjson::kStringType);
+    std::string mp4sizeString = std::to_string(sizeMp4);
+    jsonMp4Size.SetString(mp4sizeString.c_str(), mp4sizeString.length());
+    jsonGiphy.AddMember(rapidjson::Value("s"), jsonMp4Size, jsonContainsMeta.GetAllocator());
+
+    // webp size
+    rapidjson::Value jsonWebpSize(rapidjson::kStringType);
+    std::string webpsizeString = std::to_string(sizeWebp);
+    jsonWebpSize.SetString(webpsizeString.c_str(), webpsizeString.length());
+    jsonGiphy.AddMember(rapidjson::Value("s_webp"), jsonWebpSize, jsonContainsMeta.GetAllocator());
+
+    // width
+    rapidjson::Value jsonGiphyWidth(rapidjson::kStringType);
+    std::string giphyWidthString = std::to_string(width);
+    jsonGiphyWidth.SetString(giphyWidthString.c_str(), giphyWidthString.length());
+    jsonGiphy.AddMember(rapidjson::Value("w"), jsonGiphyWidth, jsonContainsMeta.GetAllocator());
+
+    // height
+    rapidjson::Value jsonGiphyHeight(rapidjson::kStringType);
+    std::string giphyHeightString = std::to_string(height);
+    jsonGiphyHeight.SetString(giphyHeightString.c_str(), giphyHeightString.length());
+    jsonGiphy.AddMember(rapidjson::Value("w"), jsonGiphyHeight, jsonContainsMeta.GetAllocator());
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    jsonContainsMeta.Accept(writer);
+
+    // assemble final message with the type (contains-meta) and subtype (giphy)
+    std::string message(buffer.GetString(), buffer.GetSize());
+    message.insert(message.begin(), Message::ContainsMetaSubType::kGiphy);
+    message.insert(message.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
+    message.insert(message.begin(), 0x0);
+
+    return message;
+}
+
 string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
 {
     std::string messageContents;
@@ -9813,6 +9923,12 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
             {
                 MegaChatGeolocation *geolocation = parseGeolocation(document);
                 containsMeta->setGeolocation(geolocation);
+                break;
+            }
+            case MegaChatContainsMeta::CONTAINS_META_GIPHY:
+            {
+                MegaChatGiphy* giphy = parseGiphy(document);
+                containsMeta->setGiphy(giphy);
                 break;
             }
             default:
@@ -9933,6 +10049,98 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
     return new MegaChatGeolocationPrivate(longitude, latitude, image);
 }
 
+MegaChatGiphy* JSonUtils::parseGiphy(rapidjson::Document& document)
+{
+    auto textMessageIterator = document.FindMember("textMessage");
+    string giphyTitle;
+    if (textMessageIterator != document.MemberEnd() && textMessageIterator->value.IsString())
+    {
+        giphyTitle.assign(textMessageIterator->value.GetString(), textMessageIterator->value.GetStringLength());
+    }
+    else
+    {
+        API_LOG_ERROR("parseGiphy: invalid JSON struct - \"textMessage\" field not found");
+        return nullptr;
+    }
+
+    auto mp4srcIterator = document.FindMember("src");
+    string mp4srcString;
+    if (mp4srcIterator != document.MemberEnd() && mp4srcIterator->value.IsString())
+    {
+        mp4srcString.assign(mp4srcIterator->value.GetString(), mp4srcIterator->value.GetStringLength());
+    }
+    else
+    {
+        API_LOG_ERROR("parseGiphy: invalid JSON struct - \"src\" field not found");
+        return nullptr;
+    }
+
+    auto webpIterator = document.FindMember("src_webp");
+    string webpsrcString;
+    if (webpIterator != document.MemberEnd() && webpIterator->value.IsString())
+    {
+        webpsrcString.assign(webpIterator->value.GetString(), webpIterator->value.GetStringLength());
+    }
+    else
+    {
+        API_LOG_ERROR("parseGiphy: invalid JSON struct - \"src_webp\" field not found");
+        return nullptr;
+    }
+
+    auto mp4sizeIterator = document.FindMember("s");
+    long mp4Size = 0;
+    if (mp4sizeIterator != document.MemberEnd() && mp4sizeIterator->value.IsString())
+    {
+        auto mp4sizeString = mp4sizeIterator->value.GetString();
+        mp4Size = atol(mp4sizeString);
+    }
+    else
+    {
+        API_LOG_ERROR("parseGiphy: invalid JSON struct - \"s\" field not found");
+        return nullptr;
+    }
+    
+    auto webpsizeIterator = document.FindMember("s_webp");
+    long webpSize = 0;
+    if (webpsizeIterator != document.MemberEnd() && webpsizeIterator->value.IsString())
+    {
+        auto webpsizeString = webpsizeIterator->value.GetString();
+        webpSize = atol(webpsizeString);
+    }
+    else
+    {
+        API_LOG_ERROR("parseGiphy: invalid JSON struct - \"s_webp\" field not found");
+        return nullptr;
+    }
+
+    auto giphywidthIterator = document.FindMember("w");
+    int giphyWidth = 0;
+    if (giphywidthIterator != document.MemberEnd() && giphywidthIterator->value.IsString())
+    {
+        auto giphywidthString = giphywidthIterator->value.GetString();
+        giphyWidth = atoi(giphywidthString);
+    }
+    else
+    {
+        API_LOG_ERROR("parseGiphy: invalid JSON struct - \"w\" field not found");
+        return nullptr;
+    }
+
+    auto giphyheightIterator = document.FindMember("h");
+    int giphyHeight = 0;
+    if (giphyheightIterator != document.MemberEnd() && giphyheightIterator->value.IsString())
+    {
+        auto giphyheightString = giphyheightIterator->value.GetString();
+        giphyHeight = atoi(giphyheightString);
+    }
+    else
+    {
+        API_LOG_ERROR("parseGiphy: invalid JSON struct - \"h\" field not found");
+        return nullptr;
+    }
+    return new MegaChatGiphyPrivate(mp4srcString, webpsrcString, mp4Size, webpSize, giphyWidth, giphyHeight, giphyTitle);
+}
+
 string JSonUtils::getImageFormat(const char *imagen)
 {
     std::string format;
@@ -10019,6 +10227,62 @@ float MegaChatGeolocationPrivate::getLatitude() const
 const char *MegaChatGeolocationPrivate::getImage() const
 {
     return mImage.size() ? mImage.c_str() : NULL;
+}
+
+MegaChatGiphyPrivate::MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long sizeMp4, long sizeWebp, int width, int height, const std::string& title)
+    :mMp4Src(srcMp4), mWebpSrc(srcWebp), mTitle(title), mMp4Size(sizeMp4), mWebpSize(sizeWebp), mWidth(width), mHeight(height)
+{
+}
+
+MegaChatGiphyPrivate::MegaChatGiphyPrivate(const MegaChatGiphyPrivate* giphy)
+{
+    mMp4Src = giphy->mMp4Src;
+    mWebpSrc = giphy->mWebpSrc;
+    mTitle = giphy->mTitle;
+    mMp4Size = giphy->mMp4Size;
+    mWebpSize = giphy->mWebpSize;
+    mWidth = giphy->mWidth;
+    mHeight = giphy->mHeight;
+}
+
+MegaChatGiphy* MegaChatGiphyPrivate::copy() const
+{
+    return new MegaChatGiphyPrivate(this);
+}
+
+const char* MegaChatGiphyPrivate::getMp4Src() const
+{
+    return mMp4Src.c_str();
+}
+
+const char* MegaChatGiphyPrivate::getWebpSrc() const
+{
+    return mWebpSrc.c_str();
+}
+
+int MegaChatGiphyPrivate::getWidth() const
+{
+    return mWidth;
+}
+
+int MegaChatGiphyPrivate::getHeight() const
+{
+    return mHeight;
+}
+
+const char* MegaChatGiphyPrivate::getTitle() const
+{
+    return mTitle.size() ? mTitle.c_str() : nullptr;
+}
+
+long MegaChatGiphyPrivate::getMp4Size() const
+{
+    return mMp4Size;
+}
+
+long MegaChatGiphyPrivate::getWebpSize() const
+{
+    return mWebpSize;
 }
 
 MegaChatNodeHistoryHandler::MegaChatNodeHistoryHandler(MegaChatApi *api)

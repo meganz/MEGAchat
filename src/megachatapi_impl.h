@@ -1161,6 +1161,7 @@ public:
     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
     MegaChatMessage *editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img = NULL);
+    MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title);
     void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
@@ -1310,6 +1311,32 @@ protected:
     std::string mImage;
 };
 
+class MegaChatGiphyPrivate : public MegaChatGiphy
+{
+public:
+    MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long sizeMp4, long sizeWebp, int width, int height, const std::string& title);
+    MegaChatGiphyPrivate(const MegaChatGiphyPrivate* giphy);
+    virtual ~MegaChatGiphyPrivate() {}
+    virtual MegaChatGiphy* copy() const;
+
+    virtual const char* getMp4Src() const;
+    virtual const char* getWebpSrc() const;
+    virtual const char* getTitle() const;
+    virtual long getMp4Size() const;
+    virtual long getWebpSize() const;
+    virtual int getWidth() const;
+    virtual int getHeight() const;
+
+protected:
+    std::string mMp4Src;
+    std::string mWebpSrc;
+    std::string mTitle;
+    long mMp4Size   = 0;
+    long mWebpSize  = 0;
+    int mWidth      = 0;
+    int mHeight     = 0;
+};
+
 class MegaChatContainsMetaPrivate : public MegaChatContainsMeta
 {
 public:
@@ -1322,17 +1349,20 @@ public:
     virtual const char *getTextMessage() const;
     virtual const MegaChatRichPreview *getRichPreview() const;
     virtual const MegaChatGeolocation *getGeolocation() const;
+    virtual const MegaChatGiphy *getGiphy() const;
 
     // This function take the property from memory that it receives as parameter
     void setRichPreview(MegaChatRichPreview *richPreview);
     void setGeolocation(MegaChatGeolocation *geolocation);
     void setTextMessage(const std::string &text);
+    void setGiphy(MegaChatGiphy *giphy);
 
 protected:
     int mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
     std::string mText;
     MegaChatRichPreview *mRichPreview = NULL;
     MegaChatGeolocation *mGeolocation = NULL;
+    MegaChatGiphy *mGiphy = nullptr;
 };
 
 class JSonUtils
@@ -1340,7 +1370,8 @@ class JSonUtils
 public:
     static std::string generateAttachNodeJSon(mega::MegaNodeList* nodes, uint8_t type);
     static std::string generateAttachContactJSon(mega::MegaHandleList *contacts, karere::ContactList *contactList);
-    static std::string generateGeolocationJSon(float longitude, float latitude, const char *img);
+    static std::string generateGeolocationJSon(float longitude, float latitude, const char* img);
+    static std::string generateGiphyJSon(const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title);
 
     // you take the ownership of returned value. NULL if error
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
@@ -1366,6 +1397,7 @@ private:
     static void getRichLinckImageFromJson(const std::string& field, const rapidjson::Value& richPreviewValue, std::string& image, std::string& format);
     static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document, std::string &textMessage);
     static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
+    static MegaChatGiphy *parseGiphy(rapidjson::Document& document);
 };
 
 }

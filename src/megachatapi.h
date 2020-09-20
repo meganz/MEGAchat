@@ -1090,6 +1090,43 @@ public:
 };
 
 /**
+ * @brief This class stores giphy data
+ *
+ * This class contains the data for giphy.
+ */
+class MegaChatGiphy
+{
+public:
+    virtual ~MegaChatGiphy() {}
+    virtual MegaChatGiphy* copy() const;
+
+    /**
+      * @brief Returns width of the giphy
+      *
+      * @return giphy width value
+      */
+    virtual int getWidth() const;
+
+    /**
+      * @brief Returns height of the giphy
+      *
+      * @return giphy height value
+      */
+    virtual int getHeight() const;
+
+    /**
+      * @brief Returns title of the giphy
+      *
+      * The MegaChatGiphy retains the ownership of the returned string. It will
+      * be only valid until the MegaChatGiphy is deleted.
+      * It can be nullptr
+      *
+      * @return title of the giphy or nullptr if not available.
+      */
+    virtual const char* getTitle() const;
+};
+
+/**
  * @brief This class represents meta contained
  *
  * This class includes pointer to differents kind of meta contained, like MegaChatRichPreview.
@@ -1104,6 +1141,7 @@ public:
       CONTAINS_META_INVALID         = -1,   /// Unknown type of meta contained
       CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
       CONTAINS_META_GEOLOCATION     = 1,    /// Geolocation type for meta contained
+      CONTAINS_META_GIPHY           = 2,    /// Giphy type for meta contained
     };
 
     virtual ~MegaChatContainsMeta() {}
@@ -1122,6 +1160,8 @@ public:
      *  - MegaChatContainsMeta::CONTAINS_META_GEOLOCATION  = 1
      * Meta contained is from geolocation type
      *
+     *  - MegaChatContainsMeta::CONTAINS_META_GIPHY  = 2
+     * Meta contained is from giphy type  
      * @return Type from meta contained of the message
      */
     virtual int getType() const;
@@ -1167,6 +1207,20 @@ public:
      * @return MegaChatGeolocation with details about geolocation.
      */
     virtual const MegaChatGeolocation *getGeolocation() const;
+    
+    /**
+     * @brief Returns data about giphy
+     *
+     * @note This function only returns a valid object in case the function
+     * \c MegaChatContainsMeta::getType returns MegaChatContainsMeta::CONTAINS_META_GIPHY.
+     * Otherwise, it returns nullptr.
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatContainsMeta object is deleted.
+     *
+     * @return MegaChatGiphy with details about geolocation.
+     */
+    virtual const MegaChatGiphy* getGiphy() const;
 };
 
 class MegaChatMessage
@@ -1208,6 +1262,7 @@ public:
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
         TYPE_CONTAINS_META          = 104,   /// User message including additional metadata (ie. rich-preview for links)
         TYPE_VOICE_CLIP             = 105,   /// User message including info about shared voice clip
+        TYPE_GIPHY                  = 106,   /// User message including info about shared giphy
     };
 
     enum
@@ -3960,6 +4015,39 @@ public:
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
+
+    /**
+     * @brief Initiates fetching more node history of the specified chatroom.
+     *
+     * The loaded messages will be notified one by one through the MegaChatNodeHistoryListener
+     * specified at MegaChatApi::openNodeHistory (and through any other listener you may have
+     * registered by calling MegaChatApi::addNodeHistoryListener).
+     *
+     * The corresponding callback is MegaChatNodeHistoryListener::onAttachmentLoaded.
+     *
+     * Messages are always loaded and notified in strict order, from newest to oldest.
+     *
+     * @note The actual number of messages loaded can be less than \c count. Because
+     * the history being shorter than requested. Additionally, if the fetch is local
+     * and there's no more history locally available, the number of messages could be
+     * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
+     *
+     * When there are no more history available from the reported source of messages
+     * (local / remote), or when the requested \c count has been already loaded,
+     * the callback  MegaChatNodeHistoryListener::onAttachmentLoaded will be called with a NULL message.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param count The number of requested messages to load.
+     *
+     * @return Return the source of the messages that is going to be fetched. The possible values are:
+     *   - MegaChatApi::SOURCE_ERROR = -1: we are not logged in yet
+     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even in the server)
+     *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
+     *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
+     *
+     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when network operation occurs.
+    */
+    MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title);
 
     /**
      * @brief Sends a contact or a group of contacts to the specified chatroom

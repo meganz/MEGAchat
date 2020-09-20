@@ -513,7 +513,8 @@ public:
     {
         kInvalid              = 0xff,
         kRichLink             = 0x00,
-        kGeoLocation          = 0x01
+        kGeoLocation          = 0x01,
+        kGiphy                = 0x03
     };
 
     enum Status
