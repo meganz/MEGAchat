@@ -9793,7 +9793,7 @@ std::string JSonUtils::generateGiphyJSon(const char* srcMp4, const char* srcWebp
     rapidjson::Value jsonGiphyHeight(rapidjson::kStringType);
     std::string giphyHeightString = std::to_string(height);
     jsonGiphyHeight.SetString(giphyHeightString.c_str(), giphyHeightString.length());
-    jsonGiphy.AddMember(rapidjson::Value("w"), jsonGiphyHeight, jsonContainsMeta.GetAllocator());
+    jsonGiphy.AddMember(rapidjson::Value("h"), jsonGiphyHeight, jsonContainsMeta.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
