@@ -1317,15 +1317,15 @@ public:
     MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long sizeMp4, long sizeWebp, int width, int height, const std::string& title);
     MegaChatGiphyPrivate(const MegaChatGiphyPrivate* giphy);
     virtual ~MegaChatGiphyPrivate() {}
-    virtual MegaChatGiphy* copy() const;
+    virtual MegaChatGiphy* copy() const override;
 
-    virtual const char* getMp4Src() const;
-    virtual const char* getWebpSrc() const;
-    virtual const char* getTitle() const;
-    virtual long getMp4Size() const;
-    virtual long getWebpSize() const;
-    virtual int getWidth() const;
-    virtual int getHeight() const;
+    virtual const char* getMp4Src() const override;
+    virtual const char* getWebpSrc() const override;
+    virtual const char* getTitle() const override;
+    virtual long getMp4Size() const override;
+    virtual long getWebpSize() const override;
+    virtual int getWidth() const override;
+    virtual int getHeight() const override;
 
 protected:
     std::string mMp4Src;

@@ -1101,6 +1101,53 @@ public:
     virtual MegaChatGiphy* copy() const;
 
     /**
+      * @brief Returns source of the mp4
+      *
+      * The MegaChatGiphy retains the ownership of the returned string. It will
+      * be only valid until the MegaChatGiphy is deleted.
+      * It can be nullptr
+      *
+      * @return mp4 source of the giphy or nullptr if not available.
+      */
+    virtual const char* getMp4Src() const;
+
+    /**
+      * @brief Returns source of the webp
+      *
+      * The MegaChatGiphy retains the ownership of the returned string. It will
+      * be only valid until the MegaChatGiphy is deleted.
+      * It can be nullptr
+      *
+      * @return webp source of the giphy or nullptr if not available.
+      */
+    virtual const char* getWebpSrc() const;
+
+    /**
+      * @brief Returns title of the giphy
+      *
+      * The MegaChatGiphy retains the ownership of the returned string. It will
+      * be only valid until the MegaChatGiphy is deleted.
+      * It can be nullptr
+      *
+      * @return title of the giphy or nullptr if not available.
+      */
+    virtual const char* getTitle() const;
+
+    /**
+      * @brief Returns size of the mp4
+      *
+      * @return mp4 size value
+      */
+    virtual long getMp4Size() const;
+
+    /**
+      * @brief Returns size of the webp
+      *
+      * @return webp size value
+      */
+    virtual long getWebpSize() const;
+
+    /**
       * @brief Returns width of the giphy
       *
       * @return giphy width value
@@ -1113,17 +1160,6 @@ public:
       * @return giphy height value
       */
     virtual int getHeight() const;
-
-    /**
-      * @brief Returns title of the giphy
-      *
-      * The MegaChatGiphy retains the ownership of the returned string. It will
-      * be only valid until the MegaChatGiphy is deleted.
-      * It can be nullptr
-      *
-      * @return title of the giphy or nullptr if not available.
-      */
-    virtual const char* getTitle() const;
 };
 
 /**

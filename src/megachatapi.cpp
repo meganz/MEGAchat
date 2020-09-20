@@ -1981,6 +1981,16 @@ MegaChatGiphy* MegaChatGiphy::copy() const
     return nullptr;
 }
 
+const char* MegaChatGiphy::getMp4Src() const
+{
+    return nullptr;
+}
+
+const char* MegaChatGiphy::getWebpSrc() const
+{
+    return nullptr;
+}
+
 int megachat::MegaChatGiphy::getWidth() const
 {
     return 0;
@@ -1994,6 +2004,16 @@ int megachat::MegaChatGiphy::getHeight() const
 const char* megachat::MegaChatGiphy::getTitle() const
 {
     return nullptr;
+}
+
+long MegaChatGiphy::getMp4Size() const
+{
+    return 0;
+}
+
+long MegaChatGiphy::getWebpSize() const
+{
+    return 0;
 }
 
 void MegaChatNodeHistoryListener::onAttachmentLoaded(MegaChatApi */*api*/, MegaChatMessage */*msg*/)
