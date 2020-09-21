@@ -4053,35 +4053,33 @@ public:
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
 
     /**
-     * @brief Initiates fetching more node history of the specified chatroom.
+     * @brief Sends a new giphy to the specified chatroom
      *
-     * The loaded messages will be notified one by one through the MegaChatNodeHistoryListener
-     * specified at MegaChatApi::openNodeHistory (and through any other listener you may have
-     * registered by calling MegaChatApi::addNodeHistoryListener).
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId
      *
-     * The corresponding callback is MegaChatNodeHistoryListener::onAttachmentLoaded.
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
      *
-     * Messages are always loaded and notified in strict order, from newest to oldest.
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
      *
-     * @note The actual number of messages loaded can be less than \c count. Because
-     * the history being shorter than requested. Additionally, if the fetch is local
-     * and there's no more history locally available, the number of messages could be
-     * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
-     *
-     * When there are no more history available from the reported source of messages
-     * (local / remote), or when the requested \c count has been already loaded,
-     * the callback  MegaChatNodeHistoryListener::onAttachmentLoaded will be called with a NULL message.
+     * You take the ownership of the returned value.
+     *     
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param count The number of requested messages to load.
+     * @param srcMp4 Source location of the mp4
+     * @param srcWebp Source location of the webp
+     * @param sizeMp4 Size in bytes of the mp4
+     * @param sizeWebp Size in bytes of the webp
+     * @param width Width of the giphy
+     * @param height Height of the giphy
+     * @param title Title of the giphy
      *
-     * @return Return the source of the messages that is going to be fetched. The possible values are:
-     *   - MegaChatApi::SOURCE_ERROR = -1: we are not logged in yet
-     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even in the server)
-     *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
-     *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
-     *
-     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when network operation occurs.
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
     */
     MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title);
 
