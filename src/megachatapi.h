@@ -1254,7 +1254,7 @@ public:
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatContainsMeta object is deleted.
      *
-     * @return MegaChatGiphy with details about geolocation.
+     * @return MegaChatGiphy with details about giphy.
      */
     virtual const MegaChatGiphy* getGiphy() const;
 };
