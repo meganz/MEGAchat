@@ -658,11 +658,11 @@ public:
 
     void getPendingReactions(std::vector<chatd::Chat::PendingReaction>& reactions) const override
     {
-        SqliteStmt stmt(mDb, "select reaction, encReaction, msgid, status from chat_pending_reactions where chatid = ?");
+        SqliteStmt stmt(mDb, "select _rowid_, reaction, encReaction, msgid, status from chat_pending_reactions where chatid = ? ORDER BY `_rowid_` ASC");
         stmt << mChat.chatId();
         while (stmt.step())
         {
-            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(0), stmt.stringCol(1), karere::Id (stmt.uint64Col(2)), stmt.uint64Col(3)));
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), karere::Id (stmt.uint64Col(3)), stmt.uint64Col(4)));
         }
     }
 
