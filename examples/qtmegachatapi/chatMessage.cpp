@@ -21,8 +21,16 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     mMessage = msg;
     setAuthor(NULL);
     setTimestamp(mMessage->getTimestamp());
-    megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(chatId);
+    mReactWidget = new QWidget();
+    ui->mReactions->setWidget(mReactWidget);
+    mReactLayout = new QHBoxLayout();
+    mReactWidget->setLayout(mReactLayout);
+    mReactWidget->setStyleSheet("text-align:left");
+    mReactWidget->setSizePolicy(QSizePolicy ::Expanding , QSizePolicy ::Expanding);
+    mReactLayout->setAlignment(Qt::AlignLeft);
+    ui->mReactions->setFrameShape(QFrame::NoFrame);
 
+    megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(chatId);
     assert (chatRoom);
     if (chatRoom->isGroup() && mMessage->getStatus() == megachat::MegaChatMessage::STATUS_DELIVERED)
     {
@@ -41,7 +49,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     {
         int count = megaChatApi->getMessageReactionCount(mChatId, mMessage->getMsgId(), reactions->get(i));
         Reaction *reaction = new Reaction(this, reactions->get(i), count);
-        ui->mReactions->layout()->addWidget(reaction);  // takes ownership
+        mReactWidget->layout()->addWidget(reaction); // takes ownership
     }
 
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
@@ -52,6 +60,8 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
 ChatMessage::~ChatMessage()
 {
     clearReactions();
+    mReactLayout->deleteLater();
+    mReactWidget->deleteLater();
     delete mMessage;
     delete ui;
 }
@@ -59,9 +69,9 @@ ChatMessage::~ChatMessage()
 const Reaction *ChatMessage::getLocalReaction(const char *reactionStr) const
 {
     assert(reactionStr);
-    for (int i = 0; i < ui->mReactions->layout()->count(); i++)
+    for (int i = 0; i < mReactWidget->layout()->count(); i++)
     {
-        QLayoutItem *item = ui->mReactions->layout()->itemAt(i);
+        QLayoutItem *item = mReactWidget->layout()->itemAt(i);
         Reaction *reaction = static_cast<Reaction*>(item->widget());
         if (reaction->getReactionString() == reactionStr)
         {
@@ -75,10 +85,10 @@ void ChatMessage::updateReaction(const char *reactionStr, int count)
 {
     assert(reactionStr);
     bool found = false;
-    int size = ui->mReactions->layout()->count();
+    int size = mReactWidget->layout()->count();
     for (int i = 0; i < size; i++)
     {
-        QLayoutItem *item = ui->mReactions->layout()->itemAt(i);
+        QLayoutItem *item = mReactWidget->layout()->itemAt(i);
         Reaction *reaction = static_cast<Reaction*>(item->widget());
         if (reaction->getReactionString() == reactionStr)
         {
@@ -86,7 +96,7 @@ void ChatMessage::updateReaction(const char *reactionStr, int count)
             if (count == 0)
             {
                 item->widget()->deleteLater();
-                delete ui->mReactions->layout()->takeAt(i);
+                delete mReactWidget->layout()->takeAt(i);
             }
             else
             {
@@ -99,7 +109,7 @@ void ChatMessage::updateReaction(const char *reactionStr, int count)
     if (!found && count)
     {
         Reaction *reaction = new Reaction(this, reactionStr, count);
-        ui->mReactions->layout()->addWidget(reaction);
+        mReactWidget->layout()->addWidget(reaction);
     }
 }
 
@@ -273,7 +283,7 @@ ChatWindow *ChatMessage::getChatWindow() const
 void ChatMessage::clearReactions()
 {
     QLayoutItem *item;
-    while ((item = ui->mReactions->layout()->takeAt(0)))
+    while ((item = mReactWidget->layout()->takeAt(0)))
     {
         item->widget()->deleteLater();
         delete item;

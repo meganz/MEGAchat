@@ -28,6 +28,8 @@ protected:
         megachat::MegaChatMessage *mMessage = NULL;
         megachat::MegaChatApi *megaChatApi;
         QListWidgetItem *mListWidgetItem;
+        QWidget *mReactWidget;
+        QHBoxLayout *mReactLayout;
         ChatWindow *mChatWindow;
         friend class ChatWindow;
 
