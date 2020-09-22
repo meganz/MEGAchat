@@ -1088,6 +1088,17 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         }
                     }
                 }
+                else if (error == MegaChatError::ERROR_NOENT && request->getFlag() )
+                {
+                    if (request->getNumber() == -1)
+                    {
+                        QMessageBox::critical(nullptr, tr("Add reaction"), tr("This message reached the maximum limit of 50 reactions"));
+                    }
+                    else if (request->getNumber() == 1)
+                    {
+                        QMessageBox::critical(nullptr, tr("Add reaction"), tr("Our own user has reached the maximum limit of 24 reactions"));
+                    }
+                }
                 break;
             }
 
