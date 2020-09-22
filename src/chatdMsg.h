@@ -541,6 +541,9 @@ public:
         // even if the library adds support to the new type (unless the message is reloaded from server)
     };
 
+    static const int maxMessageReactions = 50;
+    static const int maxOwnReactions = 24;
+
     /** @brief Info recorder in a management message.
      * When a message is a management message, _and_ it needs to carry additional
      * info besides the standard fields (such as sender), the additional data
@@ -848,6 +851,38 @@ public:
         //special messages have a 2-byte binary prefix
         assert(dataSize() > 2);
         return std::string(buf()+2, dataSize()-2);
+    }
+
+    /** @brief Check if reactions restrictions for this message have been reached.
+        + returns -1, if this message reached the maximum limit of maxMessageReactions reactions
+        + returns 1, if our own user has reached the maximum limit of maxOwnReactions reactions
+        + returns 0, if our own user can add a new reaction
+    **/
+    int allowReact(karere::Id myHandle) const
+    {
+        if (mReactions.size() >= maxMessageReactions)
+        {
+            return -1;
+        }
+
+        int ownReacts = 0;
+        for (auto &it : mReactions)
+        {
+            for (auto &user: it.mUsers)
+            {
+                if (user == myHandle)
+                {
+                    ownReacts++;
+                    break;
+                }
+            }
+
+            if (ownReacts >= maxOwnReactions)
+            {
+                return 1;
+            }
+        }
+        return 0;
     }
 
     /** @brief Returns a vector with all the reactions of the message **/
