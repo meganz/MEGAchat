@@ -589,6 +589,9 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
     QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
 
+    auto actReactCount = menu->addAction(tr("Get reactions count"));
+    connect(actReactCount, &QAction::triggered, this, [=](){onReactCount();});
+
     QMenu *addReactMenu = menu->addMenu("React to this message");
     for (int i = 0; i < utf8reactionsList.size(); i++)
     {
@@ -649,6 +652,15 @@ void ChatMessage::onMessageDelAction()
 void ChatMessage::onMessageEditAction()
 {
     startEditingMsgWidget();
+}
+
+void ChatMessage::onReactCount()
+{
+    mega::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(std::to_string(reactions->size()).c_str());
+    msg.exec();
 }
 
 void ChatMessage::onManageReaction(bool del, const char *reactionStr)

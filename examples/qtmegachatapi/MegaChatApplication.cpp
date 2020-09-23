@@ -1092,11 +1092,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 {
                     if (request->getNumber() == -1)
                     {
-                        QMessageBox::critical(nullptr, tr("Add reaction"), tr("This message reached the maximum limit of 50 reactions"));
+                        QMessageBox::warning(nullptr, tr("Add reaction"), tr("This message reached the maximum limit of 50 reactions"));
                     }
                     else if (request->getNumber() == 1)
                     {
-                        QMessageBox::critical(nullptr, tr("Add reaction"), tr("Our own user has reached the maximum limit of 24 reactions"));
+                        QMessageBox::warning(nullptr, tr("Add reaction"), tr("Our own user has reached the maximum limit of 24 reactions"));
                     }
                 }
                 break;
