@@ -49,6 +49,7 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
     EXECUTE_TEST(t.TEST_RichLinkUserAttribute(0), "TEST Rich link user attributes");
     EXECUTE_TEST(t.TEST_SendRichLink(0, 1), "TEST Send Rich link");
+    EXECUTE_TEST(t.TEST_SendGiphy(0, 1), "TEST Send Giphy");
 
 #ifndef KARERE_DISABLE_WEBRTC
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
@@ -3596,7 +3597,93 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     secondarySession = NULL;
 }
 
+/**
+ * @brief TEST_SendGiphy
+ *
+ * This test does the following:
+ *
+ * - Send a message with a giphy
+ * - Check if the receiver can get get the message correctly
+ * - Check if the json can be parsed correctly
+ */
+void MegaChatApiTest::TEST_SendGiphy(unsigned int a1, unsigned int a2)
+{
+    TestChatRoomListener* chatroomListener = nullptr;
+    MegaUser* user = nullptr;
+    MegaChatHandle chatid = 0;
+    char* primarySession = nullptr;
+    char* secondarySession = nullptr;
 
+    initChat(a1, a2, user, chatid, primarySession, secondarySession, chatroomListener);
+
+    bool* flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
+    bool* flagReceived = &chatroomListener->msgContactReceived[a2]; *flagReceived = false;
+    bool* flagDelivered = &chatroomListener->msgDelivered[a1]; *flagDelivered = false;
+    chatroomListener->clearMessages(a1);
+    chatroomListener->clearMessages(a2);
+
+    //giphy data
+    const char* srcMp4 = "giphy://media/Wm9XlKG2xIMiVcH4CP/200.mp4?cid=a2a900dl&rid=200.mp4&dom=bWVkaWEyLmdpcGh5LmNvbQ%3D%3D";
+    const char* srcWebp = "giphy://media/Wm9XlKG2xIMiVcH4CP/200.webp?cid=a2a900dl&rid=200.webp&dom=bWVkaWEyLmdpcGh5LmNvbQ%3D%3D";
+    long sizeMp4 = 59970;
+    long sizeWebp = 159970;
+    int giphyWidth = 200;
+    int giphyHeight = 200;
+    const char* giphyTitle = "TEST_SendGiphy";
+
+    MegaChatMessage* msgSent = megaChatApi[a1]->sendGiphy(chatid, srcMp4, srcWebp, sizeMp4, sizeWebp, giphyWidth, giphyHeight, giphyTitle);
+
+    // Wait for update
+    ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server. Timeout: " +  std::to_string(maxTimeout) + " seconds");
+
+    // Check if message has been received correctly
+    MegaChatHandle msgId0 = chatroomListener->mConfirmedMessageHandle[a1];
+    MegaChatMessage* msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);
+    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_CONTAINS_META, "Invalid Message Type: " + std::to_string(msgReceived->getType()) + "(account " + std::to_string(a1+1)+ ")");
+    auto meta = msgReceived->getContainsMeta();
+    ASSERT_CHAT_TEST(meta && meta->getGiphy(), "Giphy information has not been established (account " + std::to_string(a1+1)+ ")");
+    auto giphy = meta->getGiphy();
+    ASSERT_CHAT_TEST(!strcmp(giphy->getMp4Src(), srcMp4), "giphy mp4 src of message received doesn't match that of the message sent");
+    ASSERT_CHAT_TEST(!strcmp(giphy->getWebpSrc(), srcWebp), "giphy webp src of message received doesn't match that of the message sent");
+    ASSERT_CHAT_TEST(giphy->getMp4Size() == sizeMp4, "giphy mp4 size of message received doesn't match that of the message sent");
+    ASSERT_CHAT_TEST(giphy->getWebpSize() == sizeWebp, "giphy webp size of message received doesn't match that of the message sent");
+    ASSERT_CHAT_TEST(giphy->getWidth() == giphyWidth, "giphy width of message received doesn't match that of the message sent");
+    ASSERT_CHAT_TEST(giphy->getHeight() == giphyHeight, "giphy height size of message received doesn't match that of the message sent");
+    ASSERT_CHAT_TEST(!strcmp(giphy->getTitle(), giphyTitle), "giphy title of message received doesn't match that of the message sent");
+
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
+    delete user;
+    delete msgReceived;
+    delete msgSent;
+    delete[] primarySession;
+    delete[] secondarySession;
+}
+
+void MegaChatApiTest::initChat(unsigned int a1, unsigned int a2, MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener)
+{
+    primarySession = login(a1);
+    secondarySession = login(a2);
+
+    user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
+    {
+        makeContact(a1, a2);
+    }
+
+    chatid = getPeerToPeerChatRoom(a1, a2);
+
+    // 1. A sends a message to B while B has the chat opened.
+    // --> check the confirmed in A, the received message in B, the delivered in A
+
+    chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 2");
+
+    loadHistory(a1, chatid, chatroomListener);
+    loadHistory(a2, chatid, chatroomListener);
+}
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
