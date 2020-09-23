@@ -854,20 +854,22 @@ public:
     }
 
     /** @brief Check if reactions restrictions for this message have been reached.
-        + returns -1, if this message reached the maximum limit of maxMessageReactions reactions
-        + returns 1, if our own user has reached the maximum limit of maxOwnReactions reactions
-        + returns 0, if our own user can add a new reaction
+        - returns -1, if this message reached the maximum limit of maxMessageReactions reactions, and
+        we want to add a reaction that haven't beed added yet
+        - returns 1, if our own user has reached the maximum limit of maxOwnReactions reactions
+        - returns 0, if we can add the reaction
     **/
-    int allowReact(karere::Id myHandle) const
+    int allowReact(karere::Id myHandle, const char *reaction) const
     {
-        if (mReactions.size() >= maxMessageReactions)
-        {
-            return -1;
-        }
-
+        bool foundReaction = false;
         int ownReacts = 0;
         for (auto &it : mReactions)
         {
+            if (!it.mReaction.compare(reaction))
+            {
+                foundReaction = true;
+            }
+
             for (auto &user: it.mUsers)
             {
                 if (user == myHandle)
@@ -882,6 +884,13 @@ public:
                 return 1;
             }
         }
+
+        if (mReactions.size() >= maxMessageReactions && !foundReaction)
+        {
+            // Add +1 to existing reaction is allowed, if we haven't reached our own limit (maxOwnReactions)
+            return -1;
+        }
+
         return 0;
     }
 

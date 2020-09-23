@@ -2023,7 +2023,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (request->getFlag())
             {
                 // check if max number of reactions has been reached
-                int res = msg.allowReact(mClient->myHandle());
+                int res = msg.allowReact(mClient->myHandle(), reaction);
                 if (res != 0)
                 {
                     request->setNumber(res);
