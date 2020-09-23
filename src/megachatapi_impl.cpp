@@ -9758,42 +9758,42 @@ std::string JSonUtils::generateGiphyJSon(const char* srcMp4, const char* srcWebp
 
     // prepare giphy object: mp4, webp, mp4 size, webp size, giphy width and giphy height
     rapidjson::Value jsonGiphy(rapidjson::kObjectType);
-    
+
     // srcMp4
     rapidjson::Value jsonMp4(rapidjson::kStringType);
     std::string mp4String(srcMp4);
     jsonMp4.SetString(mp4String.c_str(), mp4String.length());
-    jsonGiphy.AddMember(rapidjson::Value("src"), jsonMp4, jsonContainsMeta.GetAllocator());
-    
+    jsonContainsMeta.AddMember(rapidjson::Value("src"), jsonMp4, jsonContainsMeta.GetAllocator());
+
     // srcWebp
     rapidjson::Value jsonWebp(rapidjson::kStringType);
     std::string webpString(srcWebp);
     jsonWebp.SetString(webpString.c_str(), webpString.length());
-    jsonGiphy.AddMember(rapidjson::Value("src_webp"), jsonWebp, jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("src_webp"), jsonWebp, jsonContainsMeta.GetAllocator());
 
     // mp4 size
     rapidjson::Value jsonMp4Size(rapidjson::kStringType);
     std::string mp4sizeString = std::to_string(sizeMp4);
     jsonMp4Size.SetString(mp4sizeString.c_str(), mp4sizeString.length());
-    jsonGiphy.AddMember(rapidjson::Value("s"), jsonMp4Size, jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("s"), jsonMp4Size, jsonContainsMeta.GetAllocator());
 
     // webp size
     rapidjson::Value jsonWebpSize(rapidjson::kStringType);
     std::string webpsizeString = std::to_string(sizeWebp);
     jsonWebpSize.SetString(webpsizeString.c_str(), webpsizeString.length());
-    jsonGiphy.AddMember(rapidjson::Value("s_webp"), jsonWebpSize, jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("s_webp"), jsonWebpSize, jsonContainsMeta.GetAllocator());
 
     // width
     rapidjson::Value jsonGiphyWidth(rapidjson::kStringType);
     std::string giphyWidthString = std::to_string(width);
     jsonGiphyWidth.SetString(giphyWidthString.c_str(), giphyWidthString.length());
-    jsonGiphy.AddMember(rapidjson::Value("w"), jsonGiphyWidth, jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("w"), jsonGiphyWidth, jsonContainsMeta.GetAllocator());
 
     // height
     rapidjson::Value jsonGiphyHeight(rapidjson::kStringType);
     std::string giphyHeightString = std::to_string(height);
     jsonGiphyHeight.SetString(giphyHeightString.c_str(), giphyHeightString.length());
-    jsonGiphy.AddMember(rapidjson::Value("h"), jsonGiphyHeight, jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("h"), jsonGiphyHeight, jsonContainsMeta.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);

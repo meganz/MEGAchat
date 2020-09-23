@@ -1349,7 +1349,7 @@ public:
     virtual const char *getTextMessage() const;
     virtual const MegaChatRichPreview *getRichPreview() const;
     virtual const MegaChatGeolocation *getGeolocation() const;
-    virtual const MegaChatGiphy *getGiphy() const;
+    virtual const MegaChatGiphy *getGiphy() const override;
 
     // This function take the property from memory that it receives as parameter
     void setRichPreview(MegaChatRichPreview *richPreview);
