@@ -1355,14 +1355,14 @@ public:
     void setRichPreview(MegaChatRichPreview *richPreview);
     void setGeolocation(MegaChatGeolocation *geolocation);
     void setTextMessage(const std::string &text);
-    void setGiphy(MegaChatGiphy *giphy);
+    void setGiphy(std::unique_ptr<MegaChatGiphy>& giphy);
 
 protected:
     int mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
     std::string mText;
     MegaChatRichPreview *mRichPreview = NULL;
     MegaChatGeolocation *mGeolocation = NULL;
-    MegaChatGiphy *mGiphy = nullptr;
+    std::unique_ptr<MegaChatGiphy> mGiphy;
 };
 
 class JSonUtils
@@ -1397,7 +1397,7 @@ private:
     static void getRichLinckImageFromJson(const std::string& field, const rapidjson::Value& richPreviewValue, std::string& image, std::string& format);
     static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document, std::string &textMessage);
     static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
-    static MegaChatGiphy *parseGiphy(rapidjson::Document& document);
+    static std::unique_ptr<MegaChatGiphy> parseGiphy(rapidjson::Document& document);
 };
 
 }

@@ -9148,7 +9148,7 @@ const MegaChatGeolocation *MegaChatContainsMetaPrivate::getGeolocation() const
 
 const MegaChatGiphy* MegaChatContainsMetaPrivate::getGiphy() const
 {
-    return mGiphy;
+    return mGiphy ? mGiphy.get() : nullptr;
 }
 
 void MegaChatContainsMetaPrivate::setRichPreview(MegaChatRichPreview *richPreview)
@@ -9194,22 +9194,17 @@ void MegaChatContainsMetaPrivate::setTextMessage(const string &text)
     mText = text;
 }
 
-void MegaChatContainsMetaPrivate::setGiphy(MegaChatGiphy* giphy)
+void MegaChatContainsMetaPrivate::setGiphy(std::unique_ptr<MegaChatGiphy>& giphy)
 {
-    if (mGiphy)
-    {
-        delete mGiphy;
-    }
-
     if (giphy)
     {
         mType = MegaChatContainsMeta::CONTAINS_META_GIPHY;
-        mGiphy = giphy;
+        mGiphy = std::move(giphy);
     }
     else
     {
         mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
-        mGiphy = nullptr;
+        mGiphy = std::unique_ptr<MegaChatGiphy>(nullptr);
     }
 }
 
@@ -9927,7 +9922,7 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
             }
             case MegaChatContainsMeta::CONTAINS_META_GIPHY:
             {
-                MegaChatGiphy* giphy = parseGiphy(document);
+                auto giphy = parseGiphy(document);
                 containsMeta->setGiphy(giphy);
                 break;
             }
@@ -10049,7 +10044,7 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
     return new MegaChatGeolocationPrivate(longitude, latitude, image);
 }
 
-MegaChatGiphy* JSonUtils::parseGiphy(rapidjson::Document& document)
+std::unique_ptr<MegaChatGiphy> JSonUtils::parseGiphy(rapidjson::Document& document)
 {
     auto textMessageIterator = document.FindMember("textMessage");
     string giphyTitle;
@@ -10060,7 +10055,7 @@ MegaChatGiphy* JSonUtils::parseGiphy(rapidjson::Document& document)
     else
     {
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"textMessage\" field not found");
-        return nullptr;
+        return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
 
     auto mp4srcIterator = document.FindMember("src");
@@ -10072,7 +10067,7 @@ MegaChatGiphy* JSonUtils::parseGiphy(rapidjson::Document& document)
     else
     {
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"src\" field not found");
-        return nullptr;
+        return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
 
     auto webpIterator = document.FindMember("src_webp");
@@ -10084,7 +10079,7 @@ MegaChatGiphy* JSonUtils::parseGiphy(rapidjson::Document& document)
     else
     {
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"src_webp\" field not found");
-        return nullptr;
+        return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
 
     auto mp4sizeIterator = document.FindMember("s");
@@ -10097,7 +10092,7 @@ MegaChatGiphy* JSonUtils::parseGiphy(rapidjson::Document& document)
     else
     {
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"s\" field not found");
-        return nullptr;
+        return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
     
     auto webpsizeIterator = document.FindMember("s_webp");
@@ -10110,7 +10105,7 @@ MegaChatGiphy* JSonUtils::parseGiphy(rapidjson::Document& document)
     else
     {
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"s_webp\" field not found");
-        return nullptr;
+        return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
 
     auto giphywidthIterator = document.FindMember("w");
@@ -10123,7 +10118,7 @@ MegaChatGiphy* JSonUtils::parseGiphy(rapidjson::Document& document)
     else
     {
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"w\" field not found");
-        return nullptr;
+        return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
 
     auto giphyheightIterator = document.FindMember("h");
@@ -10136,9 +10131,9 @@ MegaChatGiphy* JSonUtils::parseGiphy(rapidjson::Document& document)
     else
     {
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"h\" field not found");
-        return nullptr;
+        return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
-    return new MegaChatGiphyPrivate(mp4srcString, webpsrcString, mp4Size, webpSize, giphyWidth, giphyHeight, giphyTitle);
+    return std::unique_ptr<MegaChatGiphyPrivate> (new MegaChatGiphyPrivate(mp4srcString, webpsrcString, mp4Size, webpSize, giphyWidth, giphyHeight, giphyTitle));
 }
 
 string JSonUtils::getImageFormat(const char *imagen)
