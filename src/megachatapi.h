@@ -1177,7 +1177,7 @@ public:
       CONTAINS_META_INVALID         = -1,   /// Unknown type of meta contained
       CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
       CONTAINS_META_GEOLOCATION     = 1,    /// Geolocation type for meta contained
-      CONTAINS_META_GIPHY           = 2,    /// Giphy type for meta contained
+      CONTAINS_META_GIPHY           = 3,    /// Giphy type for meta contained
     };
 
     virtual ~MegaChatContainsMeta() {}
@@ -1298,7 +1298,6 @@ public:
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
         TYPE_CONTAINS_META          = 104,   /// User message including additional metadata (ie. rich-preview for links)
         TYPE_VOICE_CLIP             = 105,   /// User message including info about shared voice clip
-        TYPE_GIPHY                  = 106,   /// User message including info about shared giphy
     };
 
     enum
