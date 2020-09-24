@@ -3820,6 +3820,27 @@ void exec_isGeolocOn(ac::ACState& s)
 }
 
 
+void exec_setGeolocOn(ac::ACState& s)
+{
+    if (!g_megaApi->isLoggedIn())
+    {
+        conlock(cout) << "Invalid operation, needs successful login." << endl;
+        return;
+    }
+
+    auto listener = new OneShotRequestListener;
+    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    {
+        const char* on = e->getErrorCode() ? "false" : "true";
+        conlock(cout) << "Enable Geolocation Result: " << on << endl;
+    };
+
+    // send the request
+    conlock(cout) << "  Command `" << s.words[0].s << "` is executing in the background..." << endl;
+    g_megaApi->enableGeolocation(listener);
+}
+
+
 
 ac::ACN autocompleteSyntax()
 {
@@ -3984,6 +4005,7 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_getDefaultTZ, sequence(text("getdefaulttz")));
     p->Add(exec_isGeolocOn, sequence(text("isgeolocationenabled")));
+    p->Add(exec_setGeolocOn, sequence(text("enablegeolocation")));
 
     return p;
 }
