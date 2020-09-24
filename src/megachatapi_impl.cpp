@@ -9218,6 +9218,8 @@ MegaChatContainsMetaPrivate::MegaChatContainsMetaPrivate(const MegaChatContainsM
     this->mType = containsMeta->getType();
     this->mRichPreview = containsMeta->getRichPreview() ? containsMeta->getRichPreview()->copy() : NULL;
     this->mGeolocation = containsMeta->getGeolocation() ? containsMeta->getGeolocation()->copy() : NULL;
+    this->mGiphy = std::unique_ptr<MegaChatGiphy>(containsMeta->getGiphy() ? containsMeta->getGiphy()->copy() : nullptr);
+
     this->mText = containsMeta->getTextMessage();
 }
 
