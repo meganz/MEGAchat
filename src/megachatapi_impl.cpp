@@ -3916,7 +3916,7 @@ MegaChatMessage * MegaChatApiImpl::sendGeolocation(MegaChatHandle chatid, float 
     return megaMsg;
 }
 
-MegaChatMessage* MegaChatApiImpl::sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title)
+MegaChatMessage* MegaChatApiImpl::sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title)
 {
     if (!srcMp4 || !srcWebp)
     {
@@ -9736,7 +9736,7 @@ std::string JSonUtils::generateGeolocationJSon(float longitude, float latitude, 
     return message;
 }
 
-std::string JSonUtils::generateGiphyJSon(const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title)
+std::string JSonUtils::generateGiphyJSon(const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title)
 {
     std::string ret;
     if (!srcMp4 || sizeMp4 == 0 || !srcWebp || sizeWebp == 0 || !title)
@@ -10226,7 +10226,7 @@ const char *MegaChatGeolocationPrivate::getImage() const
     return mImage.size() ? mImage.c_str() : NULL;
 }
 
-MegaChatGiphyPrivate::MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long sizeMp4, long sizeWebp, int width, int height, const std::string& title)
+MegaChatGiphyPrivate::MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const std::string& title)
     :mMp4Src(srcMp4), mWebpSrc(srcWebp), mTitle(title), mMp4Size(sizeMp4), mWebpSize(sizeWebp), mWidth(width), mHeight(height)
 {
 }
