@@ -3916,7 +3916,7 @@ MegaChatMessage * MegaChatApiImpl::sendGeolocation(MegaChatHandle chatid, float 
     return megaMsg;
 }
 
-MegaChatMessage* MegaChatApiImpl::sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title)
+MegaChatMessage* MegaChatApiImpl::sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title)
 {
     if (!srcMp4 || !srcWebp)
     {
@@ -9148,7 +9148,7 @@ const MegaChatGeolocation *MegaChatContainsMetaPrivate::getGeolocation() const
 
 const MegaChatGiphy* MegaChatContainsMetaPrivate::getGiphy() const
 {
-    return mGiphy ? mGiphy.get() : nullptr;
+    return mGiphy.get();
 }
 
 void MegaChatContainsMetaPrivate::setRichPreview(MegaChatRichPreview *richPreview)
@@ -9194,7 +9194,7 @@ void MegaChatContainsMetaPrivate::setTextMessage(const string &text)
     mText = text;
 }
 
-void MegaChatContainsMetaPrivate::setGiphy(std::unique_ptr<MegaChatGiphy>& giphy)
+void MegaChatContainsMetaPrivate::setGiphy(std::unique_ptr<MegaChatGiphy> giphy)
 {
     if (giphy)
     {
@@ -9204,7 +9204,7 @@ void MegaChatContainsMetaPrivate::setGiphy(std::unique_ptr<MegaChatGiphy>& giphy
     else
     {
         mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
-        mGiphy = std::unique_ptr<MegaChatGiphy>(nullptr);
+        mGiphy.reset(nullptr);
     }
 }
 
@@ -9218,6 +9218,8 @@ MegaChatContainsMetaPrivate::MegaChatContainsMetaPrivate(const MegaChatContainsM
     this->mType = containsMeta->getType();
     this->mRichPreview = containsMeta->getRichPreview() ? containsMeta->getRichPreview()->copy() : NULL;
     this->mGeolocation = containsMeta->getGeolocation() ? containsMeta->getGeolocation()->copy() : NULL;
+    this->mGiphy = std::unique_ptr<MegaChatGiphy>(containsMeta->getGiphy() ? containsMeta->getGiphy()->copy() : nullptr);
+
     this->mText = containsMeta->getTextMessage();
 }
 
@@ -9734,7 +9736,7 @@ std::string JSonUtils::generateGeolocationJSon(float longitude, float latitude, 
     return message;
 }
 
-std::string JSonUtils::generateGiphyJSon(const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title)
+std::string JSonUtils::generateGiphyJSon(const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title)
 {
     std::string ret;
     if (!srcMp4 || sizeMp4 == 0 || !srcWebp || sizeWebp == 0 || !title)
@@ -9923,7 +9925,7 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
             case MegaChatContainsMeta::CONTAINS_META_GIPHY:
             {
                 auto giphy = parseGiphy(document);
-                containsMeta->setGiphy(giphy);
+                containsMeta->setGiphy(move(giphy));
                 break;
             }
             default:
@@ -10133,7 +10135,7 @@ std::unique_ptr<MegaChatGiphy> JSonUtils::parseGiphy(rapidjson::Document& docume
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"h\" field not found");
         return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
-    return std::unique_ptr<MegaChatGiphyPrivate> (new MegaChatGiphyPrivate(mp4srcString, webpsrcString, mp4Size, webpSize, giphyWidth, giphyHeight, giphyTitle));
+    return ::mega::make_unique<MegaChatGiphyPrivate>(mp4srcString, webpsrcString, mp4Size, webpSize, giphyWidth, giphyHeight, giphyTitle);
 }
 
 string JSonUtils::getImageFormat(const char *imagen)
@@ -10224,7 +10226,7 @@ const char *MegaChatGeolocationPrivate::getImage() const
     return mImage.size() ? mImage.c_str() : NULL;
 }
 
-MegaChatGiphyPrivate::MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long sizeMp4, long sizeWebp, int width, int height, const std::string& title)
+MegaChatGiphyPrivate::MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const std::string& title)
     :mMp4Src(srcMp4), mWebpSrc(srcWebp), mTitle(title), mMp4Size(sizeMp4), mWebpSize(sizeWebp), mWidth(width), mHeight(height)
 {
 }

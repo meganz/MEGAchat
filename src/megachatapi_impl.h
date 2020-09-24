@@ -1161,7 +1161,7 @@ public:
     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
     MegaChatMessage *editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img = NULL);
-    MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title);
+    MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title);
     void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
@@ -1314,7 +1314,7 @@ protected:
 class MegaChatGiphyPrivate : public MegaChatGiphy
 {
 public:
-    MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long sizeMp4, long sizeWebp, int width, int height, const std::string& title);
+    MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const std::string& title);
     MegaChatGiphyPrivate(const MegaChatGiphyPrivate* giphy);
     virtual ~MegaChatGiphyPrivate() {}
     virtual MegaChatGiphy* copy() const override;
@@ -1355,7 +1355,7 @@ public:
     void setRichPreview(MegaChatRichPreview *richPreview);
     void setGeolocation(MegaChatGeolocation *geolocation);
     void setTextMessage(const std::string &text);
-    void setGiphy(std::unique_ptr<MegaChatGiphy>& giphy);
+    void setGiphy(std::unique_ptr<MegaChatGiphy> giphy);
 
 protected:
     int mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
@@ -1371,7 +1371,7 @@ public:
     static std::string generateAttachNodeJSon(mega::MegaNodeList* nodes, uint8_t type);
     static std::string generateAttachContactJSon(mega::MegaHandleList *contacts, karere::ContactList *contactList);
     static std::string generateGeolocationJSon(float longitude, float latitude, const char* img);
-    static std::string generateGiphyJSon(const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title);
+    static std::string generateGiphyJSon(const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title);
 
     // you take the ownership of returned value. NULL if error
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json);

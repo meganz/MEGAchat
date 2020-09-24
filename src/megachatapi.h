@@ -4080,7 +4080,7 @@ public:
      *
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
     */
-    MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long sizeMp4, long sizeWebp, int width, int height, const char* title);
+    MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title);
 
     /**
      * @brief Sends a contact or a group of contacts to the specified chatroom
