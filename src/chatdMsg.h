@@ -931,7 +931,7 @@ public:
         {
             r =  &mReactions.at(reactIndex);
         }
-        else    // not found, add
+        else    // not found, add reaction at last position, to preserve the order in which reactions were received
         {
             mReactions.emplace_back(reaction);
             r = &mReactions.back();
