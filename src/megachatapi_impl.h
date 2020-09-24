@@ -1355,7 +1355,7 @@ public:
     void setRichPreview(MegaChatRichPreview *richPreview);
     void setGeolocation(MegaChatGeolocation *geolocation);
     void setTextMessage(const std::string &text);
-    void setGiphy(std::unique_ptr<MegaChatGiphy>& giphy);
+    void setGiphy(std::unique_ptr<MegaChatGiphy> giphy);
 
 protected:
     int mType = MegaChatContainsMeta::CONTAINS_META_INVALID;

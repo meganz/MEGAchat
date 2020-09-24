@@ -9148,7 +9148,7 @@ const MegaChatGeolocation *MegaChatContainsMetaPrivate::getGeolocation() const
 
 const MegaChatGiphy* MegaChatContainsMetaPrivate::getGiphy() const
 {
-    return mGiphy ? mGiphy.get() : nullptr;
+    return mGiphy.get();
 }
 
 void MegaChatContainsMetaPrivate::setRichPreview(MegaChatRichPreview *richPreview)
@@ -9194,7 +9194,7 @@ void MegaChatContainsMetaPrivate::setTextMessage(const string &text)
     mText = text;
 }
 
-void MegaChatContainsMetaPrivate::setGiphy(std::unique_ptr<MegaChatGiphy>& giphy)
+void MegaChatContainsMetaPrivate::setGiphy(std::unique_ptr<MegaChatGiphy> giphy)
 {
     if (giphy)
     {
@@ -9204,7 +9204,7 @@ void MegaChatContainsMetaPrivate::setGiphy(std::unique_ptr<MegaChatGiphy>& giphy
     else
     {
         mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
-        mGiphy = std::unique_ptr<MegaChatGiphy>(nullptr);
+        mGiphy.reset(nullptr);
     }
 }
 
@@ -9923,7 +9923,7 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
             case MegaChatContainsMeta::CONTAINS_META_GIPHY:
             {
                 auto giphy = parseGiphy(document);
-                containsMeta->setGiphy(giphy);
+                containsMeta->setGiphy(move(giphy));
                 break;
             }
             default:
@@ -10133,7 +10133,7 @@ std::unique_ptr<MegaChatGiphy> JSonUtils::parseGiphy(rapidjson::Document& docume
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"h\" field not found");
         return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
-    return std::unique_ptr<MegaChatGiphyPrivate> (new MegaChatGiphyPrivate(mp4srcString, webpsrcString, mp4Size, webpSize, giphyWidth, giphyHeight, giphyTitle));
+    return ::mega::make_unique<MegaChatGiphyPrivate>(mp4srcString, webpsrcString, mp4Size, webpSize, giphyWidth, giphyHeight, giphyTitle);
 }
 
 string JSonUtils::getImageFormat(const char *imagen)
