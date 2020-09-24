@@ -7,7 +7,8 @@
 typedef NS_ENUM(NSInteger, MEGAChatContainsMetaType) {
     MEGAChatContainsMetaTypeInvalid     = -1,
     MEGAChatContainsMetaTypeRichPreview = 0,
-    MEGAChatContainsMetaTypeGeolocation = 1
+    MEGAChatContainsMetaTypeGeolocation = 1,
+    MEGAChatContainsMetaTypeGiphy = 3
 };
 
 @interface MEGAChatContainsMeta : NSObject
