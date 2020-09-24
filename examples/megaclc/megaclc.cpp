@@ -3771,6 +3771,34 @@ void exec_getContact(ac::ACState& s)
 }
 
 
+void exec_getDefaultTZ(ac::ACState& s)
+{
+    auto listener = new OneShotRequestListener;
+    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    {
+        auto cl = conlock(cout);
+        cl << "Get Default Time Zone Result: " << e->getErrorString() << endl;
+
+        if (!e->getErrorCode())
+        {
+            ::mega::MegaTimeZoneDetails* tz = request->getMegaTimeZoneDetails();
+            assert(tz);
+
+            int defaulttz = tz->getDefault();
+            assert(defaulttz < tz->getNumTimeZones());
+
+            // print relevant info
+            cl << "Default Time Zone: " << tz->getTimeZone(defaulttz) << endl
+               << "Time offset: " << tz->getTimeOffset(defaulttz) << endl;
+        }
+    };
+
+    // send the request
+    conlock(cout) << "  Command `" << s.words[0].s << "` is executing in the background..." << endl;
+    g_megaApi->fetchTimeZone(listener);
+}
+
+
 
 ac::ACN autocompleteSyntax()
 {
@@ -3932,6 +3960,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getCameraUploadsFolderSecondary, sequence(text("getcamerauploadsfoldersecondary")));
 
     p->Add(exec_getContact, sequence(text("getcontact"), param("email")));
+
+    p->Add(exec_getDefaultTZ, sequence(text("getdefaulttz")));
 
     return p;
 }
