@@ -3625,8 +3625,8 @@ void MegaChatApiTest::TEST_SendGiphy(unsigned int a1, unsigned int a2)
     //giphy data
     const char* srcMp4 = "giphy://media/Wm9XlKG2xIMiVcH4CP/200.mp4?cid=a2a900dl&rid=200.mp4&dom=bWVkaWEyLmdpcGh5LmNvbQ%3D%3D";
     const char* srcWebp = "giphy://media/Wm9XlKG2xIMiVcH4CP/200.webp?cid=a2a900dl&rid=200.webp&dom=bWVkaWEyLmdpcGh5LmNvbQ%3D%3D";
-    long sizeMp4 = 59970;
-    long sizeWebp = 159970;
+    long long sizeMp4 = 59970;
+    long long sizeWebp = 159970;
     int giphyWidth = 200;
     int giphyHeight = 200;
     const char* giphyTitle = "TEST_SendGiphy";
