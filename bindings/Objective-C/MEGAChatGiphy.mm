@@ -1,12 +1,4 @@
 
-//#import "MEGAChatGiphy.h"
-//
-//@implementation MEGAChatGiphy
-//
-//@end
-
-
-
 #import "MEGAChatGiphy.h"
 
 #import "megachatapi.h"
@@ -33,23 +25,41 @@ using namespace megachat;
     return self;
 }
 
+- (NSString *)mp4Src {
+    if (!self.megaChatGiphy) return nil;
+    return self.megaChatGiphy->getMp4Src() ? [[NSString alloc] initWithUTF8String:self.megaChatGiphy->getMp4Src()] : nil;
+}
+
+- (NSString *)webpSrc {
+    if (!self.megaChatGiphy) return nil;
+    return self.megaChatGiphy->getWebpSrc() ? [[NSString alloc] initWithUTF8String:self.megaChatGiphy->getWebpSrc()] : nil;
+}
+
+- (NSString *)title {
+    if (!self.megaChatGiphy) return nil;
+    return self.megaChatGiphy->getTitle() ? [[NSString alloc] initWithUTF8String:self.megaChatGiphy->getTitle()] : nil;
+}
+
+- (long)mp4Size {
+    return self.megaChatGiphy->getMp4Size();
+}
+
+- (long)webpSize {
+    return self.megaChatGiphy->getWebpSize();
+}
+
+- (int)width {
+    return self.megaChatGiphy->getWidth();
+}
+
+- (int)height {
+    return self.megaChatGiphy->getHeight();
+}
+
 - (void)dealloc {
     if (self.cMemoryOwn) {
         delete _megaChatGiphy;
     }
 }
-
-//- (float)longitude {
-//    return self.megaChatGiphy->getLongitude();
-//}
-//
-//- (float)latitude {
-//    return self.megaChatGeolocation->getLatitude();
-//}
-//
-//- (NSString *)image {
-//    if (!self.megaChatGeolocation) return nil;
-//    return self.megaChatGeolocation->getImage() ? [[NSString alloc] initWithUTF8String:self.megaChatGeolocation->getImage()] : nil;
-//}
 
 @end

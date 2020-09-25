@@ -855,6 +855,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->attachNodes(chatId, (nodeList != nil) ? [nodeList getCPtr] : NULL);
 }
 
+- (MEGAChatMessage *)sendGiphyToChat:(uint64_t)chatId srcMp4:(NSString *)srcMp4 srcWebp:(NSString *)srcWebp sizeMp4:(uint64_t)sizeMp4 sizeWebp:(uint64_t)sizeWebp  width:(int)width height:(int)height title:(NSString *)title {
+    MegaChatMessage *message = self.megaChatApi->sendGiphy(chatId, srcMp4 ? [srcMp4 UTF8String] : NULL, srcWebp ? [srcWebp UTF8String] : NULL, sizeMp4, sizeWebp, width, height, title ? [title UTF8String] : NULL);
+        return message ? [[MEGAChatMessage alloc] initWithMegaChatMessage:message cMemoryOwn:YES] : nil;
+}
+
 - (MEGAChatMessage *)sendGeolocationToChat:(uint64_t)chatId longitude:(float)longitude latitude:(float)latitude image:(NSString *)image {
     MegaChatMessage *message = self.megaChatApi->sendGeolocation(chatId, longitude, latitude, image ? [image UTF8String] : NULL);
     return message ? [[MEGAChatMessage alloc] initWithMegaChatMessage:message cMemoryOwn:YES] : nil;
