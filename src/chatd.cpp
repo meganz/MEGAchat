@@ -1945,7 +1945,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
     for (auto msg: messages)
     {
         // Load msg reactions from cache
-        std::multimap<std::string, karere::Id> reactions;
+        std::vector<std::pair<std::string, karere::Id>> reactions;
         CALL_DB(getReactions, msg->id(), reactions);
         for (auto& reaction : reactions)
         {

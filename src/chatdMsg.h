@@ -542,6 +542,9 @@ public:
         // even if the library adds support to the new type (unless the message is reloaded from server)
     };
 
+    static const int maxMessageReactions = 50;
+    static const int maxOwnReactions = 24;
+
     /** @brief Info recorder in a management message.
      * When a message is a management message, _and_ it needs to carry additional
      * info besides the standard fields (such as sender), the additional data
@@ -851,6 +854,47 @@ public:
         return std::string(buf()+2, dataSize()-2);
     }
 
+    /** @brief Check if reactions restrictions for this message have been reached.
+        - returns -1, if this message reached the maximum limit of maxMessageReactions reactions, and
+        we want to add a reaction that haven't beed added yet
+        - returns 1, if our own user has reached the maximum limit of maxOwnReactions reactions
+        - returns 0, if we can add the reaction
+    **/
+    int allowReact(karere::Id myHandle, const char *reaction) const
+    {
+        bool foundReaction = false;
+        int ownReacts = 0;
+        for (auto &it : mReactions)
+        {
+            if (!it.mReaction.compare(reaction))
+            {
+                foundReaction = true;
+            }
+
+            for (auto &user: it.mUsers)
+            {
+                if (user == myHandle)
+                {
+                    ownReacts++;
+                    break;
+                }
+            }
+
+            if (ownReacts >= maxOwnReactions)
+            {
+                return 1;
+            }
+        }
+
+        if (mReactions.size() >= maxMessageReactions && !foundReaction)
+        {
+            // Add +1 to existing reaction is allowed, if we haven't reached our own limit (maxOwnReactions)
+            return -1;
+        }
+
+        return 0;
+    }
+
     /** @brief Returns a vector with all the reactions of the message **/
     const std::vector<Reaction> getReactions() const
     {
@@ -932,7 +976,7 @@ public:
         {
             r =  &mReactions.at(reactIndex);
         }
-        else    // not found, add
+        else    // not found, add reaction at last position, to preserve the order in which reactions were received
         {
             mReactions.emplace_back(reaction);
             r = &mReactions.back();

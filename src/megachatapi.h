@@ -5061,6 +5061,10 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - if reaction is NULL or the msgid references a management message.
      * - MegaChatError::ERROR_NOENT - if the chatroom/message doesn't exists
+     * - MegaChatError::ERROR_NOENT - if the message has reached the maximum limit of reactions,
+     * and reaction has not been added yet. MegaChatRequest::getNumber() will return -1
+     * - MegaChatError::ERROR_NOENT - if our own user has reached the maximum limit of reactions
+     * MegaChatRequest::getNumber() will return 1
      * - MegaChatError::ERROR_ACCESS - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD
      * or MegaChatPeerList::PRIV_MODERATOR.
      * - MegaChatError::ERROR_EXIST - if our own user has reacted previously with this reaction for this message
