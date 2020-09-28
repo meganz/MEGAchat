@@ -25,7 +25,9 @@ protected:
 public:
     SdkString(const char* aBuf): mBuf(aBuf), mSize((size_t)-1){}
     ~SdkString() {if (mBuf) delete[] mBuf;}
+    
     const char* c_str() const {return mBuf;}
+    
     size_t size() const
     {
         if (mSize != (size_t)-1)
