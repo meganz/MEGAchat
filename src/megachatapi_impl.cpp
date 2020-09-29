@@ -2022,14 +2022,15 @@ void MegaChatApiImpl::sendPendingRequests()
             bool hasReacted = msg.hasReacted(reaction, mClient->myHandle());
             if (request->getFlag())
             {
-                // check if max number of reactions has been reached
-                int res = msg.allowReact(mClient->myHandle(), reaction);
-                if (res != 0)
-                {
-                    request->setNumber(res);
-                    errorCode = MegaChatError::ERROR_NOENT;
-                    break;
-                }
+//                Uncomment this block upon release of reaction limitations
+//                // check if max number of reactions has been reached
+//                int res = msg.allowReact(mClient->myHandle(), reaction);
+//                if (res != 0)
+//                {
+//                    request->setNumber(res);
+//                    errorCode = MegaChatError::ERROR_NOENT;
+//                    break;
+//                }
 
                 if ((hasReacted && pendingStatus != OP_DELREACTION)
                     || (!hasReacted && pendingStatus == OP_ADDREACTION))
@@ -6038,6 +6039,11 @@ void MegaChatCallPrivate::setStatus(int status)
 
 void MegaChatCallPrivate::setLocalAudioVideoFlags(AvFlags localAVFlags)
 {
+    if (this->localAVFlags == localAVFlags)
+    {
+        return;
+    }
+
     this->localAVFlags = localAVFlags;
     changed |= MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS;
 }
@@ -8503,9 +8509,10 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
                                  rtcModule::ICall::stateToStr(chatCall->getStatus()),
                                  rtcModule::ICall::stateToStr(call->state()));
             chatCall->setStatus(call->state());
-            megaChatApi->fireOnChatCallUpdate(chatCall);
         }
+
         chatCall->setLocalAudioVideoFlags(call->sentFlags());
+        megaChatApi->fireOnChatCallUpdate(chatCall);
         assert(chatCall->getId() == call->id());
     }
 }
