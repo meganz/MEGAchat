@@ -6038,6 +6038,11 @@ void MegaChatCallPrivate::setStatus(int status)
 
 void MegaChatCallPrivate::setLocalAudioVideoFlags(AvFlags localAVFlags)
 {
+    if (this->localAVFlags == localAVFlags)
+    {
+        return;
+    }
+
     this->localAVFlags = localAVFlags;
     changed |= MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS;
 }
@@ -8503,9 +8508,10 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
                                  rtcModule::ICall::stateToStr(chatCall->getStatus()),
                                  rtcModule::ICall::stateToStr(call->state()));
             chatCall->setStatus(call->state());
-            megaChatApi->fireOnChatCallUpdate(chatCall);
         }
+
         chatCall->setLocalAudioVideoFlags(call->sentFlags());
+        megaChatApi->fireOnChatCallUpdate(chatCall);
         assert(chatCall->getId() == call->id());
     }
 }
