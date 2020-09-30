@@ -2027,7 +2027,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 if (res != 0)
                 {
                     request->setNumber(res);
-                    errorCode = MegaChatError::ERROR_NOENT;
+                    errorCode = MegaChatError::ERROR_TOOMANY;
                     break;
                 }
 
