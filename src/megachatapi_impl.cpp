@@ -4788,7 +4788,8 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
 
     SdkMutexGuard g(sdkMutex);
     Message *msg = findMessage(chatid, msgid);
-    if (!msg)
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (!msg || !chatroom)
     {
         API_LOG_ERROR("Chatroom or message not found");
         return userList;
@@ -4796,6 +4797,7 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
 
     bool reacted = false;
     string reactionStr(reaction);
+    int pendingReactionStatus = chatroom->chat().getPendingReactionStatus(reactionStr, msgid);
     const std::vector<karere::Id> &users = msg->getReactionUsers(reactionStr);
     for (auto user: users)
     {
@@ -4805,18 +4807,21 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
         }
         else
         {
-            reacted = true;
+            if (pendingReactionStatus != OP_DELREACTION)
+            {
+                // if we have reacted and there's no a pending DELREACTION
+                reacted = true;
+                userList->addMegaHandle(mClient->myHandle());
+            }
         }
     }
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-    int pendingReactionStatus = chatroom->chat().getPendingReactionStatus(reactionStr, msgid);
-    if ((reacted && pendingReactionStatus != OP_DELREACTION)
-        || (!reacted && pendingReactionStatus == OP_ADDREACTION))
+    if (!reacted && pendingReactionStatus == OP_ADDREACTION)
     {
-        // Own user only must be added to userlist after check pending reactions
+        // if we don't have reacted and there's a pending ADDREACTION
         userList->addMegaHandle(mClient->myHandle());
     }
+
     return userList;
 }
 
