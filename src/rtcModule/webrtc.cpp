@@ -4063,7 +4063,7 @@ void Session::msgSdpAnswerRenegotiate(RtMessage &packet)
 
     if (mState != kStateInProgress)
     {
-         SUB_LOG_IFNO("Ignoring SDP_ANSWER_RENEGOTIATE received for a session not in kSessInProgress state");
+         SUB_LOG_INFO("Ignoring SDP_ANSWER_RENEGOTIATE received for a session not in kSessInProgress state");
          return;
     }
 
