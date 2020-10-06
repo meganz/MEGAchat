@@ -113,4 +113,14 @@ class DelegateMegaChatRoomListener extends MegaChatRoomListener {
             });
         }
     }
+
+    @Override
+    public void onReactionUpdate(MegaChatApi api, long msgid, String reaction, int count){
+        if (listener != null) {
+            megaChatApi.runCallback((Runnable) () -> {
+                if (listener != null)
+                    listener.onReactionUpdate(megaChatApi, msgid, reaction, count);
+            });
+        }
+    }
 }

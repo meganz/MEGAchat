@@ -28,6 +28,8 @@ protected:
         megachat::MegaChatMessage *mMessage = NULL;
         megachat::MegaChatApi *megaChatApi;
         QListWidgetItem *mListWidgetItem;
+        QWidget *mReactWidget;
+        QHBoxLayout *mReactLayout;
         ChatWindow *mChatWindow;
         friend class ChatWindow;
 
@@ -66,6 +68,7 @@ protected:
         void onMessageCtxMenu(const QPoint& point);
         void onMessageDelAction();
         void onMessageEditAction();
+        void onReactCount();
         void onManageReaction(bool del, const char *reactionStr = nullptr);
         void onMessageRemoveLinkAction();
         void onNodeDownloadOrImport(mega::MegaNode *node, bool import);

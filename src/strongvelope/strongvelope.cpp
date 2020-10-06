@@ -599,7 +599,7 @@ ProtocolHandler::reactionEncrypt(const Message &msg, const std::string &reaction
 {
     std::shared_ptr<SendKey> data;
     promise::Promise<std::shared_ptr<SendKey>> symPms;
-    if (isPublicChat())
+    if (msg.keyid == 0) // msg was ciphered with EKR off (public mode)
     {
         assert (mUnifiedKeyDecrypted.succeeded());
         data = mUnifiedKey;
@@ -652,7 +652,7 @@ promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const KeyId &keyid, const std::string &reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
-    if (isPublicChat())
+    if (keyid == 0) // message posted in EKR off (public mode)
     {
         symPms = mUnifiedKeyDecrypted;
     }
