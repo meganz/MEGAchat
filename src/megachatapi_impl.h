@@ -869,6 +869,8 @@ public:
     static int convertEndCallTermCodeToUI(const chatd::Message::CallEndedInfo &callEndInfo);
 
 private:
+    bool isGiphy() const;
+
     int changed;
 
     int type;

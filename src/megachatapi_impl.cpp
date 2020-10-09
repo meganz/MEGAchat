@@ -8239,7 +8239,7 @@ bool MegaChatMessagePrivate::isDeleted() const
 
 bool MegaChatMessagePrivate::isEditable() const
 {
-    return ((type == TYPE_NORMAL || type == TYPE_CONTAINS_META) && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
+    return ((type == TYPE_NORMAL || type == TYPE_CONTAINS_META) && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE) && !isGiphy());
 }
 
 bool MegaChatMessagePrivate::isDeletable() const
@@ -8413,6 +8413,15 @@ int MegaChatMessagePrivate::getRetentionTime() const
 int MegaChatMessagePrivate::getTermCode() const
 {
     return code;
+}
+
+bool MegaChatMessagePrivate::isGiphy() const
+{
+    if (auto metaType = getContainsMeta())
+    {
+        return metaType->getType() == MegaChatContainsMeta::CONTAINS_META_GIPHY;
+    }
+    return false;
 }
 
 LoggerHandler::LoggerHandler()
