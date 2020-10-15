@@ -44,6 +44,7 @@ MainWindow::~MainWindow()
     clearChatControllers();
     clearContactControllersMap();
     delete ui;
+    delete mConfirmAccount;
 }
 
 void MainWindow::removeListeners()
@@ -362,6 +363,15 @@ MegaChatApplication* MainWindow::getApp() const
     return mApp;
 }
 
+void MainWindow::confirmAccount(const std::string &password)
+{
+    QString url = QInputDialog::getText(this, tr("Insert url confirmation"), tr("Url"));
+    if (url.size())
+    {
+        mMegaApi->confirmAccount(url.toStdString().c_str(), password.c_str());
+    }
+}
+
 void MainWindow::updateVideoParticipants(MegaChatHandle chatid)
 {
     ChatListItemController *itemController = getChatControllerById(chatid);
@@ -663,6 +673,14 @@ void MainWindow::on_bSettings_clicked()
     connect(actBackground, SIGNAL(toggled(bool)), this, SLOT(onBackgroundStatusClicked(bool)));
     actBackground->setCheckable(true);
     actBackground->setChecked(mMegaChatApi->getBackgroundStatus());
+
+    if (mMegaApi->getSessionType() == 4)
+    {
+        menu.addSeparator();
+        auto confirmAccount = menu.addAction("Confirm account");
+        connect(confirmAccount, SIGNAL(triggered()), this, SLOT(onConfirmAccountClicked()));
+
+    }
 
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -1421,6 +1439,19 @@ void MainWindow::onBackgroundStatusClicked(bool status)
     mMegaChatApi->setBackgroundStatus(status);
 }
 
+void MainWindow::onConfirmAccountClicked()
+{
+    if (!mConfirmAccount)
+    {
+        mConfirmAccount = new ConfirmAccount();
+        connect(mConfirmAccount, SIGNAL(onConfirmAccount(const std::string&, const std::string&)), this, SLOT(onAccountConfirmation(const std::string&, const std::string&)));
+        connect(mConfirmAccount, SIGNAL(onCancel()), this, SLOT(onCancel()));
+    }
+
+    mConfirmAccount->show();
+    mConfirmAccount->setModal(true);
+}
+
 void MainWindow::onImportMessages()
 {
     QString text = QInputDialog::getText(this, tr("Import messages from NSE"), tr("Enter the path of the NSE cache: "));
@@ -1428,4 +1459,18 @@ void MainWindow::onImportMessages()
         return;
 
     mMegaChatApi->importMessages(text.toStdString().c_str());
+}
+
+void MainWindow::onAccountConfirmation(const std::string &email, const std::string &password)
+{
+    unique_ptr<char[]> name = unique_ptr<char[]>(mMegaChatApi->getMyFirstname());
+    mMegaApi->sendSignupLink(email.c_str(), name.get(), password.c_str());
+    mConfirmAccount->deleteLater();
+    mConfirmAccount = nullptr;
+}
+
+void MainWindow::onCancelAccountConfirmation()
+{
+    mConfirmAccount->deleteLater();
+    mConfirmAccount = nullptr;
 }

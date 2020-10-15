@@ -104,6 +104,7 @@ void MegaChatApplication::login()
    mLoginDialog = new LoginDialog();
    connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
    connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
+   connect(mLoginDialog, SIGNAL(onEphemeralv2()), this, SLOT(onEphemeral()));
    mLoginDialog->show();
 }
 
@@ -142,6 +143,16 @@ void MegaChatApplication::onPreviewClicked()
     if (!initAnonymous(chatLink))
     {
         mLoginDialog->setState(LoginDialog::LoginStage::badCredentials);
+    }
+}
+
+void MegaChatApplication::onEphemeral()
+{
+    QString name = QInputDialog::getText(mLoginDialog, tr("Insert ephemeral account name"), tr("Name"));
+    if (name.size())
+    {
+        mMegaApi->createEphemeralAccountPlusPlus(name.toStdString().c_str(), "");
+        mMegaChatApi->init(nullptr);
     }
 }
 
@@ -634,8 +645,43 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         break;
         case MegaRequest::TYPE_SET_ATTR_USER:
         {
+            break;
         }
-        break;
+        case MegaRequest::TYPE_CREATE_EPHEMERAL_ACCOUNT_PLUSPLUS:
+        {
+            mSid = mMegaApi->dumpSession();
+            saveSid(mSid);
+            std::shared_ptr<::mega::MegaUserList> contactList(mMegaApi->getContacts());
+            std::shared_ptr<::mega::MegaTextChatList> chatList(mMegaApi->getChatList());
+            char* pscsn = mMegaApi->getSequenceNumber();
+            std::string scsn;
+            if (pscsn)
+            {
+                scsn = pscsn;
+                delete[] pscsn;
+            }
+
+            std::unique_ptr<char[]> sid(mMegaApi->dumpSession());
+            mMegaApi->fetchNodes();
+            break;
+
+        }
+
+        case MegaRequest::TYPE_SEND_SIGNUP_LINK:
+        {
+            if (error == API_OK)
+            {
+                mMainWin->confirmAccount(request->getPassword());
+            }
+
+            break;
+        }
+
+        case MegaRequest::TYPE_CONFIRM_ACCOUNT:
+        {
+            mMegaApi->login(request->getEmail(), request->getPassword());
+            break;
+        }
 
         default:
             break;

@@ -15,6 +15,7 @@
 #include "listItemController.h"
 #include "chatWindow.h"
 #include "SettingWindow.h"
+#include "confirmAccount.h"
 
 const int chatNotArchivedStatus = 0;
 const int chatArchivedStatus = 1;
@@ -167,6 +168,8 @@ class MainWindow :
 #endif
         MegaChatApplication* getApp() const;
 
+        void confirmAccount(const std::string& password);
+
     protected:
         MegaLoggerApplication *mLogger;
         Ui::MainWindow *ui;
@@ -192,6 +195,7 @@ class MainWindow :
         std::map<mega::MegaHandle, ContactListItemController *> mContactControllers;
 
         SettingWindow *mSettings = NULL;
+        ConfirmAccount* mConfirmAccount = nullptr;
 
         void updateVideoParticipants(megachat::MegaChatHandle chatid);
 
@@ -216,7 +220,10 @@ class MainWindow :
         void onPushReceived(unsigned int type);
         void onUseApiStagingClicked(bool);
         void onBackgroundStatusClicked(bool status);
+        void onConfirmAccountClicked();
         void onImportMessages();
+        void onAccountConfirmation(const std::string& email, const std::string& password);
+        void onCancelAccountConfirmation();
 
     signals:
         void esidLogout();

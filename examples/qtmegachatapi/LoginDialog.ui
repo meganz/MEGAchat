@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>428</width>
-    <height>234</height>
+    <height>302</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -16,7 +16,7 @@
   <property name="windowTitle">
    <string>Login to MEGA</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0">
    <item>
     <widget class="QLabel" name="label_3">
      <property name="sizePolicy">
@@ -59,9 +59,6 @@
       <property name="spacing">
        <number>0</number>
       </property>
-      <item row="0" column="2">
-       <widget class="QLineEdit" name="eEmail"/>
-      </item>
       <item row="0" column="0">
        <widget class="QLabel" name="label">
         <property name="text">
@@ -94,6 +91,9 @@
          <bool>false</bool>
         </property>
        </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLineEdit" name="eEmail"/>
       </item>
      </layout>
     </widget>
@@ -168,6 +168,17 @@
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="bEphimeralAccount">
+       <property name="text">
+        <string>Ephimeral account ++</string>
        </property>
       </widget>
      </item>

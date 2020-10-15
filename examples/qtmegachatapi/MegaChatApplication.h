@@ -79,6 +79,7 @@ protected:
         void onAnonymousLogout();
         void onLoginClicked();
         void onPreviewClicked();
+        void onEphemeral();
 
 };
 #endif // MEGACHATAPPLICATION_H
