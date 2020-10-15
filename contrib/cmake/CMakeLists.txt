@@ -1,8 +1,14 @@
 # At this stage, this file is intended for building MEGAChat library directly on windows with Visual Studio (just for chat so far), and/or exploring the chat API with example app MEGAclc
 # Build chat and the SDK with CURL and OPENSSL
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.15)
 project(karere)
+
+# Qt settings
+if (USE_QT)
+    set (MEGA_QT_REQUIRED_COMPONENTS Core Gui)
+    set (MEGA_QT_LINK_LIBRARIES Qt5::Core Qt5::Gui)
+endif()
 
 if (WIN32)
     if("${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")

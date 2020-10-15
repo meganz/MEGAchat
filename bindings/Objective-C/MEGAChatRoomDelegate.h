@@ -13,5 +13,6 @@
 - (void)onMessageReceived:(MEGAChatSdk *)api message:(MEGAChatMessage *)message;
 - (void)onMessageUpdate:(MEGAChatSdk *)api message:(MEGAChatMessage *)message;
 - (void)onHistoryReloaded:(MEGAChatSdk *)api chat:(MEGAChatRoom *)chat;
+- (void)onReactionUpdate:(MEGAChatSdk *)api messageId:(uint64_t)messageId reaction:(NSString *)reaction count:(NSInteger)count;
 
 @end

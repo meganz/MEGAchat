@@ -2022,6 +2022,16 @@ void MegaChatApiImpl::sendPendingRequests()
             bool hasReacted = msg.hasReacted(reaction, mClient->myHandle());
             if (request->getFlag())
             {
+//                Uncomment this block upon release of reaction limitations
+//                // check if max number of reactions has been reached
+//                int res = msg.allowReact(mClient->myHandle(), reaction);
+//                if (res != 0)
+//                {
+//                    request->setNumber(res);
+//                    errorCode = MegaChatError::ERROR_NOENT;
+//                    break;
+//                }
+
                 if ((hasReacted && pendingStatus != OP_DELREACTION)
                     || (!hasReacted && pendingStatus == OP_ADDREACTION))
                 {
@@ -2076,6 +2086,7 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+#ifndef KARERE_DISABLE_WEBRTC
         case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
         {
             handle chatid = request->getChatHandle();
@@ -2086,7 +2097,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
-
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
             if (!handler)
             {
@@ -2108,6 +2118,7 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+#endif
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -4724,39 +4735,47 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
         return new MegaStringListPrivate();
     }
 
-    // Insert confirmed reactions
-    std::map<std::string, size_t> auxReactMap;
-    const std::vector<Message::Reaction> &reactions = msg->getReactions();
-    for (auto &auxReact : reactions)
+    vector<char *> reactList;
+    const std::vector<Message::Reaction> &confirmedReactions = msg->getReactions();
+    const Chat::PendingReactions& pendingReactions = (findChatRoom(chatid))->chat().getPendingReactions();
+
+    // iterate through confirmed reactions list
+    for (auto &auxReact : confirmedReactions)
     {
-       auxReactMap[auxReact.mReaction] = auxReact.mUsers.size();
+         int reactUsers = static_cast<int>(auxReact.mUsers.size());
+         for (auto &pendingReact : pendingReactions)
+         {
+             if (pendingReact.mMsgId == msgid
+                     && !pendingReact.mReactionString.compare(auxReact.mReaction))
+             {
+                // increment or decrement reactUsers, for the confirmed reaction we are checking
+                (pendingReact.mStatus == OP_ADDREACTION)
+                        ? reactUsers++
+                        : reactUsers--;
+
+                // a confirmed reaction only can have one pending reaction
+                break;
+             }
+         }
+
+         if (reactUsers > 0)
+         {
+             reactList.emplace_back(MegaApi::strdup(auxReact.mReaction.c_str()));
+         }
     }
 
-    // Update confirmed reactions with pending reactions
-    ChatRoom *chatroom = findChatRoom(chatid);
-    auto pendingReactions = chatroom->chat().getPendingReactions();
-    for (auto &auxReact : pendingReactions)
+    // add pending reactions that are not on confirmed list
+    for (auto &pendingReact : pendingReactions)
     {
-        if (auxReact.mMsgId == msgid)
+        if (pendingReact.mMsgId == msgid
+                && !msg->getReactionCount(pendingReact.mReactionString)
+                && pendingReact.mStatus == OP_ADDREACTION)
         {
-            (auxReact.mStatus == OP_ADDREACTION)
-                ? auxReactMap[auxReact.mReactionString]++
-                : auxReactMap[auxReact.mReactionString]--;
-
-            if (auxReactMap[auxReact.mReactionString] <= 0)
-            {
-                auxReactMap.erase(auxReact.mReactionString);
-            }
+            reactList.emplace_back (MegaApi::strdup(pendingReact.mReactionString.c_str()));
         }
     }
 
-    vector<char *> reactArray;
-    for (auto &auxReact: auxReactMap)
-    {
-        reactArray.push_back(MegaApi::strdup(auxReact.first.c_str()));
-    }
-
-    return new MegaStringListPrivate(reactArray.data(), static_cast<int>(reactArray.size()));
+    return new MegaStringListPrivate(reactList.data(), static_cast<int>(reactList.size()));
 }
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
@@ -4769,7 +4788,8 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
 
     SdkMutexGuard g(sdkMutex);
     Message *msg = findMessage(chatid, msgid);
-    if (!msg)
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (!msg || !chatroom)
     {
         API_LOG_ERROR("Chatroom or message not found");
         return userList;
@@ -4777,6 +4797,7 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
 
     bool reacted = false;
     string reactionStr(reaction);
+    int pendingReactionStatus = chatroom->chat().getPendingReactionStatus(reactionStr, msgid);
     const std::vector<karere::Id> &users = msg->getReactionUsers(reactionStr);
     for (auto user: users)
     {
@@ -4786,18 +4807,21 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
         }
         else
         {
-            reacted = true;
+            if (pendingReactionStatus != OP_DELREACTION)
+            {
+                // if we have reacted and there's no a pending DELREACTION
+                reacted = true;
+                userList->addMegaHandle(mClient->myHandle());
+            }
         }
     }
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-    int pendingReactionStatus = chatroom->chat().getPendingReactionStatus(reactionStr, msgid);
-    if ((reacted && pendingReactionStatus != OP_DELREACTION)
-        || (!reacted && pendingReactionStatus == OP_ADDREACTION))
+    if (!reacted && pendingReactionStatus == OP_ADDREACTION)
     {
-        // Own user only must be added to userlist after check pending reactions
+        // if we don't have reacted and there's a pending ADDREACTION
         userList->addMegaHandle(mClient->myHandle());
     }
+
     return userList;
 }
 
@@ -5719,7 +5743,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
 
 MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration)
 {
-    status = CALL_STATUS_USER_NO_PRESENT;
+    status = CALL_STATUS_INITIAL;
     this->chatid = chatid;
     this->callid = callid;
     // localAVFlags are invalid until state change to rtcModule::ICall::KStateHasLocalStream
@@ -6020,6 +6044,11 @@ void MegaChatCallPrivate::setStatus(int status)
 
 void MegaChatCallPrivate::setLocalAudioVideoFlags(AvFlags localAVFlags)
 {
+    if (this->localAVFlags == localAVFlags)
+    {
+        return;
+    }
+
     this->localAVFlags = localAVFlags;
     changed |= MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS;
 }
@@ -8477,8 +8506,18 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
     }
     else
     {
-        chatCall->setStatus(call->state());
+        if (chatCall->getStatus() != call->state()) // Notify state only if it has changed
+        {
+            API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
+                                 karere::Id(chatCall->getChatid()).toString().c_str(),
+                                 karere::Id(chatCall->getId()).toString().c_str(),
+                                 rtcModule::ICall::stateToStr(chatCall->getStatus()),
+                                 rtcModule::ICall::stateToStr(call->state()));
+            chatCall->setStatus(call->state());
+        }
+
         chatCall->setLocalAudioVideoFlags(call->sentFlags());
+        megaChatApi->fireOnChatCallUpdate(chatCall);
         assert(chatCall->getId() == call->id());
     }
 }
@@ -8486,6 +8525,11 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
 void MegaChatCallHandler::onStateChange(uint8_t newState)
 {
     assert(chatCall);
+    if (chatCall->getStatus() == newState) // Avoid notify same state
+    {
+        return;
+    }
+
     if (chatCall)
     {
         API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
