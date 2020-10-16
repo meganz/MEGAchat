@@ -104,7 +104,7 @@ void MegaChatApplication::login()
    mLoginDialog = new LoginDialog();
    connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
    connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
-   connect(mLoginDialog, SIGNAL(onEphemeralv2()), this, SLOT(onEphemeral()));
+   connect(mLoginDialog, SIGNAL(onEphemeralAccountPlusPlus()), this, SLOT(onEphemeral()));
    mLoginDialog->show();
 }
 
