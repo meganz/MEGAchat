@@ -1657,7 +1657,15 @@ std::string Client::getMyEmailFromSdk()
 {
     SdkString myEmail = api.sdk.getMyEmail();
     if (!myEmail.c_str() || !myEmail.c_str()[0])
+    {
+        if (api.sdk.getSessionType() == ::mega::MegaApi::SESSION_TYPE_EPHEMERALACCOUNTPLUSPLUS)
+        {
+
+            return std::string("Ephemeral account plus plus");
+        }
+
         throw std::runtime_error("Could not get our own email from API");
+    }
     KR_LOG_INFO("Our email address is %s", myEmail.c_str());
     return myEmail.c_str();
 }
