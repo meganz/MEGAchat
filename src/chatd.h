@@ -431,6 +431,8 @@ public:
         kConnectTimeout = 30    // (in seconds) timeout reconnection to succeeed
     };
 
+    enum {kMaxConnSuceeded = 16,};
+
 protected:
     Connection(Client& chatdClient, int shardNo);
 
@@ -468,6 +470,12 @@ protected:
 
     /** Timestamp of the last received data from chatd */
     time_t mTsLastRecv = 0;
+
+    /** Timestamp of the first successful connection attempt, in the last kConnectTimeout seconds */
+    time_t mTsConnSuceeded = 0;
+
+    /** Number of successful connections attempts */
+    time_t mConnSuceeded = 0;
 
     /** Handler of the timeout for the ECHO command */
     megaHandle mEchoTimer = 0;

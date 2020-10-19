@@ -527,6 +527,20 @@ Connection::Connection(Client& chatdClient, int shardNo)
 
 void Connection::wsConnectCb()
 {
+    mConnSuceeded++; // increment the number of successful attempts
+    if (time(nullptr) - mTsConnSuceeded > kConnectTimeout)
+    {
+        bool refreshUrl = mConnSuceeded > kMaxConnSuceeded;
+        mTsConnSuceeded = time(nullptr);
+        mConnSuceeded = 0;
+
+        if (refreshUrl)
+        {
+            CHATDS_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in %d seconds:", kMaxConnSuceeded, kConnectTimeout);
+            retryPendingConnection(true, true); // cancel all retries and fetch new URL
+            return;
+        }
+    }
     setState(kStateConnected);
 }
 

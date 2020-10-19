@@ -322,6 +322,9 @@ public:
         kConnected,
         kLoggedIn
     };
+
+    enum {kMaxConnSuceeded = 16,};
+
     enum: uint16_t { kProtoVersion = 0x0001 };
 
     /* We need to save presenced url in cache in order to improve app performance,
@@ -377,6 +380,12 @@ protected:
 
     /** Timestamp of the last sent data to presenced */
     time_t mTsLastSend = 0;
+
+    /** Timestamp of the first successful connection attempt, in the last kConnectTimeout seconds */
+    time_t mTsConnSuceeded = 0;
+
+    /** Number of successful connections attempts */
+    time_t mConnSuceeded = 0;
 
     /** Configuration of presence for the user */
     Config mConfig;
