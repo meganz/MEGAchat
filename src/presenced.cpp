@@ -37,7 +37,8 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
       mKarereClient(client),
       mDnsCache(client->mDnsCache),
       mListener(&listener),
-      mCapabilities(caps)
+      mCapabilities(caps),
+      mTsConnSuceeded(time(nullptr))
 {
     mApi->sdk.addGlobalListener(this);
 }
