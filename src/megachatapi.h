@@ -1090,6 +1090,79 @@ public:
 };
 
 /**
+ * @brief This class stores giphy data
+ *
+ * This class contains the data for giphy.
+ */
+class MegaChatGiphy
+{
+public:
+    virtual ~MegaChatGiphy() {}
+    virtual MegaChatGiphy* copy() const;
+
+    /**
+      * @brief Returns source of the mp4
+      *
+      * The MegaChatGiphy retains the ownership of the returned string. It will
+      * be only valid until the MegaChatGiphy is deleted.
+      * It can be nullptr
+      *
+      * @return mp4 source of the giphy or nullptr if not available.
+      */
+    virtual const char* getMp4Src() const;
+
+    /**
+      * @brief Returns source of the webp
+      *
+      * The MegaChatGiphy retains the ownership of the returned string. It will
+      * be only valid until the MegaChatGiphy is deleted.
+      * It can be nullptr
+      *
+      * @return webp source of the giphy or nullptr if not available.
+      */
+    virtual const char* getWebpSrc() const;
+
+    /**
+      * @brief Returns title of the giphy
+      *
+      * The MegaChatGiphy retains the ownership of the returned string. It will
+      * be only valid until the MegaChatGiphy is deleted.
+      * It can be nullptr
+      *
+      * @return title of the giphy or nullptr if not available.
+      */
+    virtual const char* getTitle() const;
+
+    /**
+      * @brief Returns size of the mp4
+      *
+      * @return mp4 size value
+      */
+    virtual long getMp4Size() const;
+
+    /**
+      * @brief Returns size of the webp
+      *
+      * @return webp size value
+      */
+    virtual long getWebpSize() const;
+
+    /**
+      * @brief Returns width of the giphy
+      *
+      * @return giphy width value
+      */
+    virtual int getWidth() const;
+
+    /**
+      * @brief Returns height of the giphy
+      *
+      * @return giphy height value
+      */
+    virtual int getHeight() const;
+};
+
+/**
  * @brief This class represents meta contained
  *
  * This class includes pointer to differents kind of meta contained, like MegaChatRichPreview.
@@ -1104,6 +1177,7 @@ public:
       CONTAINS_META_INVALID         = -1,   /// Unknown type of meta contained
       CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
       CONTAINS_META_GEOLOCATION     = 1,    /// Geolocation type for meta contained
+      CONTAINS_META_GIPHY           = 3,    /// Giphy type for meta contained
     };
 
     virtual ~MegaChatContainsMeta() {}
@@ -1122,6 +1196,8 @@ public:
      *  - MegaChatContainsMeta::CONTAINS_META_GEOLOCATION  = 1
      * Meta contained is from geolocation type
      *
+     *  - MegaChatContainsMeta::CONTAINS_META_GIPHY  = 2
+     * Meta contained is from giphy type  
      * @return Type from meta contained of the message
      */
     virtual int getType() const;
@@ -1167,6 +1243,20 @@ public:
      * @return MegaChatGeolocation with details about geolocation.
      */
     virtual const MegaChatGeolocation *getGeolocation() const;
+    
+    /**
+     * @brief Returns data about giphy
+     *
+     * @note This function only returns a valid object in case the function
+     * \c MegaChatContainsMeta::getType returns MegaChatContainsMeta::CONTAINS_META_GIPHY.
+     * Otherwise, it returns nullptr.
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatContainsMeta object is deleted.
+     *
+     * @return MegaChatGiphy with details about giphy.
+     */
+    virtual const MegaChatGiphy* getGiphy() const;
 };
 
 class MegaChatMessage
@@ -3960,6 +4050,37 @@ public:
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
+
+    /**
+     * @brief Sends a new giphy to the specified chatroom
+     *
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * You take the ownership of the returned value.
+     *     
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param srcMp4 Source location of the mp4
+     * @param srcWebp Source location of the webp
+     * @param sizeMp4 Size in bytes of the mp4
+     * @param sizeWebp Size in bytes of the webp
+     * @param width Width of the giphy
+     * @param height Height of the giphy
+     * @param title Title of the giphy
+     *
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+    */
+    MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title);
 
     /**
      * @brief Sends a contact or a group of contacts to the specified chatroom

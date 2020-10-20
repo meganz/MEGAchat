@@ -1302,11 +1302,28 @@ void ChatWindow::createAttachMenu(QMenu& menu)
     //Attach geolocation
     auto actLocation = menu.addAction("Attach location");
     connect(actLocation, &QAction::triggered, this, [=](){onAttachLocation();});
+
+    //Attach giphy
+    auto actGiphy = menu.addAction("Attach giphy");
+    connect(actGiphy, &QAction::triggered, this, [=](){onAttachGiphy();});
 }
 
 void ChatWindow::onAttachLocation()
 {
     mMegaChatApi->sendGeolocation(mChatRoom->getChatId(), -122.3316393, 47.5951518, NULL);
+}
+
+void ChatWindow::onAttachGiphy()
+{
+    //giphy data
+    const char* srcMp4 = "giphy://media/Wm9XlKG2xIMiVcH4CP/200.mp4?cid=a2a900dl&rid=200.mp4&dom=bWVkaWEyLmdpcGh5LmNvbQ%3D%3D";
+    const char* srcWebp = "giphy://media/Wm9XlKG2xIMiVcH4CP/200.webp?cid=a2a900dl&rid=200.webp&dom=bWVkaWEyLmdpcGh5LmNvbQ%3D%3D";
+    long long sizeMp4 = 59970;
+    long long sizeWebp = 159970;
+    int giphyWidth = 200;
+    int giphyHeight = 200;
+    const char* giphyTitle = "TEST_SendGiphy";
+    mMegaChatApi->sendGiphy(mChatRoom->getChatId(), srcMp4, srcWebp, sizeMp4, sizeWebp, giphyWidth, giphyHeight, giphyTitle);
 }
 
 void ChatWindow::enableCallReconnect(bool enable)
