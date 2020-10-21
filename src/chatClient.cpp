@@ -1286,7 +1286,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         break;
     }
-
+    case ::mega::MegaRequest::TYPE_CREATE_EPHEMERAL_ACCOUNT_PLUSPLUS:
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();

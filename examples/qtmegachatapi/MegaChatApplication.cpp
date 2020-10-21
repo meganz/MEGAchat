@@ -649,22 +649,23 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         }
         case MegaRequest::TYPE_CREATE_EPHEMERAL_ACCOUNT_PLUSPLUS:
         {
-            mSid = mMegaApi->dumpSession();
-            saveSid(mSid);
-            std::shared_ptr<::mega::MegaUserList> contactList(mMegaApi->getContacts());
-            std::shared_ptr<::mega::MegaTextChatList> chatList(mMegaApi->getChatList());
-            char* pscsn = mMegaApi->getSequenceNumber();
-            std::string scsn;
-            if (pscsn)
+
+            if (error == MegaError::API_OK)
             {
-                scsn = pscsn;
-                delete[] pscsn;
+                /// TODO Similar to MegaRequest::TYPE_FETCH_NODE
+                if (!mSid)
+                {
+                    mSid = mMegaApi->dumpSession();
+                    saveSid(mSid);
+                }
+
+                if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
+                {
+                    mMegaChatApi->connect();
+                }
             }
 
-            std::unique_ptr<char[]> sid(mMegaApi->dumpSession());
-            mMegaApi->fetchNodes();
             break;
-
         }
 
         case MegaRequest::TYPE_SEND_SIGNUP_LINK:
