@@ -1384,12 +1384,12 @@ void Call::msgCallReqDecline(RtMessage& packet)
         }
         else
         {
-            SUB_LOG_WARNING("Ingoring CALL_REQ_DECLINE (kErrNotSupported) group Chat or same user");
+            SUB_LOG_INFO("Ingoring CALL_REQ_DECLINE (kErrNotSupported) group Chat or same user");
         }
     }
     else
     {
-        SUB_LOG_WARNING("Ingoring CALL_REQ_DECLINE with unexpected termnation code %s", termCodeToStr(code));
+        SUB_LOG_INFO("Ingoring CALL_REQ_DECLINE with unexpected termnation code %s", termCodeToStr(code));
     }
 }
 
@@ -1405,7 +1405,7 @@ void Call::msgCallReqCancel(RtMessage& packet)
     auto callid = packet.payload.read<uint64_t>(0);
     if (callid != mId)
     {
-        SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL for an unknown request id");
+        SUB_LOG_INFO("Ignoring CALL_REQ_CANCEL for an unknown request id");
         return;
     }
 
@@ -1414,7 +1414,7 @@ void Call::msgCallReqCancel(RtMessage& packet)
     // CALL_REQ_CANCEL callid.8 reason.1
     if (mCallerUser != packet.userid || mCallerClient != packet.clientid)
     {
-        SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL from a client that did not send the call request");
+        SUB_LOG_INFO("Ignoring CALL_REQ_CANCEL from a client that did not send the call request");
         return;
     }
 
@@ -1493,7 +1493,7 @@ void Call::handleReject(RtMessage& packet)
         if (mIsGroup)
         {
             // in groupcalls, a peer declining a call should not finish the call
-            SUB_LOG_WARNING("Ignoring CALL_REQ_DECLINE. A peer of the group call has declined the request");
+            SUB_LOG_INFO("Ignoring CALL_REQ_DECLINE. A peer of the group call has declined the request");
             return;
         }
         if (!mSessions.empty())
@@ -1501,7 +1501,7 @@ void Call::handleReject(RtMessage& packet)
             // in both 1on1 calls and groupcalls, receiving a request-decline should not destroy the call
             // if there's already a session (in 1on1, it may happen when the answerer declined from a 3rd client, but
             // already answered)
-            SUB_LOG_WARNING("Ignoring CALL_REQ_DECLINE. There are active sessions already, so the call is in progress.");
+            SUB_LOG_INFO("Ignoring CALL_REQ_DECLINE. There are active sessions already, so the call is in progress.");
             return;
         }
         destroy(static_cast<TermCode>(TermCode::kCallRejected | TermCode::kPeer), false, "Call request has been rejected");
@@ -1524,7 +1524,7 @@ void Call::msgRinging(RtMessage& packet)
 {
     if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
     {
-        SUB_LOG_WARNING("Ignoring unexpected RINGING");
+        SUB_LOG_INFO("Ignoring unexpected RINGING");
         return;
     }
 
@@ -1585,11 +1585,11 @@ void Call::msgSession(RtMessage& packet)
     EndpointId peerEndPointId(packet.userid, packet.clientid);
     if (mSessionsInfo.find(peerEndPointId) != mSessionsInfo.end())
     {
-        SUB_LOG_WARNING("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
+        SUB_LOG_INFO("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
         EndpointId ourEndPointId(mManager.mKarereClient.myHandle(), mChat.connection().clientId());
         if (EndpointId::greaterThanForJs(ourEndPointId, peerEndPointId))
         {
-            SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
+            SUB_LOG_INFO("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
                             "Our endpoint is greater (userid %s, clientid 0x%x), ignoring received SESSION"
                             , ourEndPointId.userid.toString().c_str(), ourEndPointId.clientid );
 
@@ -1654,7 +1654,7 @@ void Call::msgJoin(RtMessage& packet)
     }
     else if (packet.userid == mManager.mKarereClient.myHandle() && !packet.chat.isGroup())
     {
-        SUB_LOG_WARNING("Ignore a JOIN from our own user in 1to1 chatroom");
+        SUB_LOG_INFO("Ignore a JOIN from our own user in 1to1 chatroom");
         return;
     }
     else if (mState == Call::kStateJoining || mState == Call::kStateInProgress || mState == Call::kStateReqSent)
@@ -1674,7 +1674,7 @@ void Call::msgJoin(RtMessage& packet)
 
                 if (!itSession->second->mTerminatePromise.done())
                 {
-                    SUB_LOG_WARNING("Force to finish session with User: %s (client: 0x%x)",
+                    SUB_LOG_INFO("Force to finish session with User: %s (client: 0x%x)",
                                     itSession->second->peer().toString().c_str(), itSession->second->peerClient());
 
                     assert(itSession->second->getState() == Session::kStateTerminating);
@@ -1700,7 +1700,7 @@ void Call::msgJoin(RtMessage& packet)
                 mIsRingingOut = false;
                 if (!sendCallData(CallDataState::kCallDataNotRinging))
                 {
-                    SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: 0x%x) because cannot send CALLDATA (offline)", packet.userid.toString().c_str(), packet.clientid);
+                    SUB_LOG_INFO("Ignoring JOIN from User: %s (client: 0x%x) because cannot send CALLDATA (offline)", packet.userid.toString().c_str(), packet.clientid);
                     return;
                 }
             }
@@ -1805,7 +1805,7 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
         {
             cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
             mDestroySessionTimer = 0;
-            SUB_LOG_WARNING("Timed out waiting for all sessions to terminate, force closing them");
+            SUB_LOG_INFO("Timed out waiting for all sessions to terminate, force closing them");
             for (auto itSessions = mSessions.begin(); itSessions != mSessions.end();)
             {
                 auto session = itSessions->second;
@@ -1951,7 +1951,7 @@ bool Call::broadcastCallReq()
 {
     if (mState >= Call::kStateTerminating)
     {
-        SUB_LOG_WARNING("broadcastCallReq: Call terminating/destroyed");
+        SUB_LOG_INFO("broadcastCallReq: Call terminating/destroyed");
         return false;
     }
     assert(mState == Call::kStateHasLocalStream);
@@ -2442,7 +2442,7 @@ void Call::monitorCallSetupTimeout()
 
         if (mState != kStateInProgress)
         {
-            RTCM_LOG_WARNING("Timeout expired to setup a call, but state is %s", stateStr());
+            RTCM_LOG_INFO("Timeout expired to setup a call, but state is %s", stateStr());
             return;
         }
 
@@ -2640,7 +2640,7 @@ bool Call::answer(AvFlags av)
     assert(mHandler);
     if (mHandler->callParticipants() >= RtcModule::kMaxCallReceivers)
     {
-        SUB_LOG_WARNING("answer: It's not possible join to the call, there are too many participants");
+        SUB_LOG_INFO("answer: It's not possible join to the call, there are too many participants");
         return false;
     }
 
@@ -3215,7 +3215,7 @@ Session::Session(Call& call, RtMessage& packet, const SessionInfo *sessionParame
         if (wptr.deleted())
             return;
 
-        SUB_LOG_WARNING("Timeout expired to setup a session");
+        SUB_LOG_INFO("Timeout expired to setup a session");
 
         mSetupTimer = 0;
 
@@ -3223,7 +3223,7 @@ Session::Session(Call& call, RtMessage& packet, const SessionInfo *sessionParame
         if ((time(nullptr) - mTsSdpHandshakeCompleted) > RtcModule::kIceTimeout)
         {
             terminationCode = TermCode::kErrIceTimeout;
-            SUB_LOG_WARNING("ICE connect timed out. Terminating session with kErrIceTimeout");
+            SUB_LOG_INFO("ICE connect timed out. Terminating session with kErrIceTimeout");
         }
 
         terminateAndDestroy(terminationCode);
@@ -3630,7 +3630,7 @@ void Session::onRenegotiationNeeded()
 
     if (mRenegotiationInProgress)
     {
-        SUB_LOG_WARNING("Ignoring multiple calls of onRenegotiationNeeded");
+        SUB_LOG_INFO("Ignoring multiple calls of onRenegotiationNeeded");
         return;
     }
 
@@ -3748,7 +3748,7 @@ void Session::msgSdpAnswer(RtMessage& packet)
 {
     if (mState != Session::kStateWaitSdpAnswer)
     {
-        SUB_LOG_WARNING("Ingoring unexpected SDP_ANSWER");
+        SUB_LOG_INFO("Ingoring unexpected SDP_ANSWER");
         return;
     }
 
@@ -3822,7 +3822,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
 
         if (!mTerminatePromise.done())
         {
-            SUB_LOG_WARNING("Terminate ack didn't arrive withing timeout, destroying session anyway");
+            SUB_LOG_INFO("Terminate ack didn't arrive withing timeout, destroying session anyway");
             auto pms = mTerminatePromise;
             pms.resolve();
         }
@@ -3883,7 +3883,7 @@ void Session::msgSessTerminate(RtMessage& packet)
     }
     else if (mState == kStateDestroyed)
     {
-        SUB_LOG_WARNING("Ignoring SESS_TERMINATE for a dead session");
+        SUB_LOG_INFO("Ignoring SESS_TERMINATE for a dead session");
         return;
     }
     else
@@ -4057,13 +4057,13 @@ void Session::msgSdpAnswerRenegotiate(RtMessage &packet)
 {
     if (!mStreamRenegotiationTimer)
     {
-        SUB_LOG_WARNING("Ingoring SDP_ANSWER_RENEGOTIATE - not in renegotiation state");
+        SUB_LOG_INFO("Ingoring SDP_ANSWER_RENEGOTIATE - not in renegotiation state");
         return;
     }
 
     if (mState != kStateInProgress)
     {
-         SUB_LOG_WARNING("Ignoring SDP_ANSWER_RENEGOTIATE received for a session not in kSessInProgress state");
+         SUB_LOG_INFO("Ignoring SDP_ANSWER_RENEGOTIATE received for a session not in kSessInProgress state");
          return;
     }
 
@@ -4369,7 +4369,7 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
     if (audioPacketLostAverage > 2)
     {
         // We have lost audio packets since the last sample, that's the worst network quality
-        SUB_LOG_WARNING("Audio packets lost, returning 0 link quality");
+        SUB_LOG_INFO("Audio packets lost, returning 0 link quality");
         return 0;
     }
 
@@ -4459,7 +4459,7 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
         }
     }
 
-    SUB_LOG_WARNING("Don't have any key stat param to estimate network quality from");
+    SUB_LOG_INFO("Don't have any key stat param to estimate network quality from");
     return kNetworkQualityDefault;
 }
 
@@ -4481,7 +4481,7 @@ void Session::setStreamRenegotiationTimeout()
 {
     if (mStreamRenegotiationTimer)
     {
-        SUB_LOG_WARNING("New renegotation started, while another in-progress");
+        SUB_LOG_INFO("New renegotation started, while another in-progress");
         cancelTimeout(mStreamRenegotiationTimer, mManager.mKarereClient.appCtx);
     }
 
@@ -4633,7 +4633,7 @@ void Session::handleIceDisconnected()
             return;
         }
 
-        SUB_LOG_WARNING("Timed out waiting for media connection to recover, terminating session");
+        SUB_LOG_INFO("Timed out waiting for media connection to recover, terminating session");
         terminateAndDestroy(TermCode::kErrIceDisconn);
     }, RtcModule::kMediaConnRecoveryTimeout, mManager.mKarereClient.appCtx);
 }

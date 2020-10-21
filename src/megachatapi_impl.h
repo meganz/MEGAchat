@@ -869,6 +869,8 @@ public:
     static int convertEndCallTermCodeToUI(const chatd::Message::CallEndedInfo &callEndInfo);
 
 private:
+    bool isGiphy() const;
+
     int changed;
 
     int type;
@@ -1161,6 +1163,7 @@ public:
     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
     MegaChatMessage *editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img = NULL);
+    MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title);
     void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
@@ -1310,6 +1313,32 @@ protected:
     std::string mImage;
 };
 
+class MegaChatGiphyPrivate : public MegaChatGiphy
+{
+public:
+    MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const std::string& title);
+    MegaChatGiphyPrivate(const MegaChatGiphyPrivate* giphy);
+    virtual ~MegaChatGiphyPrivate() {}
+    virtual MegaChatGiphy* copy() const override;
+
+    virtual const char* getMp4Src() const override;
+    virtual const char* getWebpSrc() const override;
+    virtual const char* getTitle() const override;
+    virtual long getMp4Size() const override;
+    virtual long getWebpSize() const override;
+    virtual int getWidth() const override;
+    virtual int getHeight() const override;
+
+protected:
+    std::string mMp4Src;
+    std::string mWebpSrc;
+    std::string mTitle;
+    long mMp4Size   = 0;
+    long mWebpSize  = 0;
+    int mWidth      = 0;
+    int mHeight     = 0;
+};
+
 class MegaChatContainsMetaPrivate : public MegaChatContainsMeta
 {
 public:
@@ -1322,17 +1351,20 @@ public:
     virtual const char *getTextMessage() const;
     virtual const MegaChatRichPreview *getRichPreview() const;
     virtual const MegaChatGeolocation *getGeolocation() const;
+    virtual const MegaChatGiphy *getGiphy() const override;
 
     // This function take the property from memory that it receives as parameter
     void setRichPreview(MegaChatRichPreview *richPreview);
     void setGeolocation(MegaChatGeolocation *geolocation);
     void setTextMessage(const std::string &text);
+    void setGiphy(std::unique_ptr<MegaChatGiphy> giphy);
 
 protected:
     int mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
     std::string mText;
     MegaChatRichPreview *mRichPreview = NULL;
     MegaChatGeolocation *mGeolocation = NULL;
+    std::unique_ptr<MegaChatGiphy> mGiphy;
 };
 
 class JSonUtils
@@ -1340,7 +1372,8 @@ class JSonUtils
 public:
     static std::string generateAttachNodeJSon(mega::MegaNodeList* nodes, uint8_t type);
     static std::string generateAttachContactJSon(mega::MegaHandleList *contacts, karere::ContactList *contactList);
-    static std::string generateGeolocationJSon(float longitude, float latitude, const char *img);
+    static std::string generateGeolocationJSon(float longitude, float latitude, const char* img);
+    static std::string generateGiphyJSon(const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title);
 
     // you take the ownership of returned value. NULL if error
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
@@ -1366,6 +1399,7 @@ private:
     static void getRichLinckImageFromJson(const std::string& field, const rapidjson::Value& richPreviewValue, std::string& image, std::string& format);
     static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document, std::string &textMessage);
     static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
+    static std::unique_ptr<MegaChatGiphy> parseGiphy(rapidjson::Document& document);
 };
 
 }

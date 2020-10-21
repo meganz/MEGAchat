@@ -248,12 +248,14 @@ public:
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
     void TEST_SendRichLink(unsigned int a1, unsigned int a2);
+    void TEST_SendGiphy(unsigned int a1, unsigned int a2);
 
     unsigned mOKTests = 0;
     unsigned mFailedTests = 0;
     bool testHasFailed = false;
 
 private:
+    void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
