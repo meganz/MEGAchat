@@ -1329,6 +1329,7 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
 
             g_reviewingPublicChat = false;
             g_reviewPublicChatMsgCountRemaining = 0;
+            g_reviewPublicChatMsgCount = 0;
             g_startedPublicChatReview = false;
             g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
             g_chatApi->closeChatRoom(chatid, g_roomListeners[chatid].listener.get());
@@ -2105,6 +2106,7 @@ void exec_reviewpublicchat(ac::ACState& s)
 
     g_reviewingPublicChat = true;
     g_reviewPublicChatMsgCountRemaining = 0;
+    g_reviewPublicChatMsgCount = 0;
     g_startedPublicChatReview = false;
     g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
 
