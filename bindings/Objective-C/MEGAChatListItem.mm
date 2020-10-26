@@ -21,6 +21,7 @@ using namespace megachat;
     if (self != nil) {
         _megaChatListItem = megaChatListItem;
         _cMemoryOwn = cMemoryOwn;
+        _searchString = @"";
     }
     
     return self;
