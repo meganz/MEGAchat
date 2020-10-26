@@ -1354,7 +1354,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(flagChatArchived), "Timeout expired for archiving chat");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to archive chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(chatArchiveChanged), "Timeout expired for receiving chat list item update about archive");
-    ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update about archive");
+    ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update about archive (This time out is usually produced by missing api notification)");
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatroom->isArchived(), "Chatroom is not archived when it should");
     delete chatroom; chatroom = NULL;
