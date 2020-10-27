@@ -118,16 +118,20 @@ void Client::pushPeers()
 
 void Client::wsConnectCb()
 {
-    mConnSuceeded++; // increment the number of successful attempts
     if (time(nullptr) - mTsConnSuceeded > kConnectTimeout)
     {
-        bool refreshUrl = mConnSuceeded > kMaxConnSuceeded;
+        // reset if last check happened more than kConnectTimeout seconds ago
         mTsConnSuceeded = time(nullptr);
         mConnSuceeded = 0;
-
-        if (refreshUrl)
+    }
+    else
+    {
+        if (++mConnSuceeded > kMaxConnSuceeded)
         {
-            PRESENCED_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in %d seconds:", kMaxConnSuceeded, kConnectTimeout);
+            // We need to refresh URL because we have reached max successful attempts, in kConnectTimeout period
+            PRESENCED_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in a period of %d seconds:", kMaxConnSuceeded, kConnectTimeout);
+            mConnSuceeded = 0;
+            mTsConnSuceeded = time(nullptr);
             retryPendingConnection(true, true); // cancel all retries and fetch new URL
             return;
         }
