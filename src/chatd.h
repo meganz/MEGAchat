@@ -475,7 +475,7 @@ protected:
     time_t mTsConnSuceeded = 0;
 
     /** Number of successful connections attempts */
-    time_t mConnSuceeded = 0;
+    unsigned int mConnSuceeded = 0;
 
     /** Handler of the timeout for the ECHO command */
     megaHandle mEchoTimer = 0;
