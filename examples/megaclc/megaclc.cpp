@@ -1331,10 +1331,6 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
             g_reviewPublicChatMsgCountRemaining = 0;
             g_reviewPublicChatMsgCount = 0;
             g_startedPublicChatReview = false;
-            g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
-            g_chatApi->closeChatRoom(chatid, g_roomListeners[chatid].listener.get());
-            g_roomListeners.erase(chatid);
-            g_chatApi->closeChatPreview(chatid);
             return;
         }
         default: return;
@@ -2102,6 +2098,13 @@ void exec_reviewpublicchat(ac::ACState& s)
     {
         conlock(cout) << "Error: Not logged in" << endl;
         return;
+    }
+
+    if (g_reviewPublicChatid != c::MEGACHAT_INVALID_HANDLE)
+    {
+        g_chatApi->closeChatRoom(g_reviewPublicChatid, g_roomListeners[g_reviewPublicChatid].listener.get());
+        g_roomListeners.erase(g_reviewPublicChatid);
+        g_chatApi->closeChatPreview(g_reviewPublicChatid);
     }
 
     g_reviewingPublicChat = true;
