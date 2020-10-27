@@ -6376,9 +6376,11 @@ void MegaChatRoomHandler::fireOnChatRoomUpdate(MegaChatRoom *chat)
 
 void MegaChatRoomHandler::fireOnMessageLoaded(MegaChatMessage *msg)
 {
-    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end();)
     {
-        (*it)->onMessageLoaded(chatApi, msg);
+        auto itAux = it;
+        ++it;
+        (*itAux)->onMessageLoaded(chatApi, msg);
     }
 
     delete msg;
