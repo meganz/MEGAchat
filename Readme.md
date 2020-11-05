@@ -1,4 +1,4 @@
-#  Building MEGAchat #
+#  Building MEGAchat # 
 
 The following steps will guide you to build MEGAchat library (including tests and QtApp). In summary, you need to:  
 
