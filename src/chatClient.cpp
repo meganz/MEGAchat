@@ -2252,9 +2252,16 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
   mRoomGui(nullptr)
 {
+    bool isPublicChat = aChat.isPublicChat();
+    // Save Chatroom into DB
+    auto db = parent.mKarereClient.db;
+    db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
+             "own_priv, ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
+             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
+    db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
+
     // Initialize list of peers and fetch their names
     auto peers = aChat.getPeerList();
-    bool isPublicChat = aChat.isPublicChat();
     std::vector<promise::Promise<void>> promises;
     if (peers)
     {
@@ -2262,30 +2269,15 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         for (int i = 0; i < numPeers; i++)
         {
             auto userid = peers->getPeerHandle(i);
-            assert(userid != parent.mKarereClient.myHandle());
-            mPeers.emplace(userid, new Member(*this, userid, (chatd::Priv)peers->getPeerPrivilege(i), isPublicChat));
+            promise::Promise<void> nameResolvedPromise = addMember(userid, (chatd::Priv)peers->getPeerPrivilege(i), isPublicChat);
             if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
             {
-                promises.push_back(mPeers[userid]->nameResolved());
+                promises.push_back(nameResolvedPromise);
             }
         }
     }
     // If there is not any promise at vector promise, promise::when is resolved directly
     mMemberNamesResolved = promise::when(promises);
-
-    // Save Chatroom into DB
-    auto db = parent.mKarereClient.db;
-    db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
-             "own_priv, ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
-             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
-    db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
-    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
-    for (auto& m: mPeers)
-    {
-        stmt << mChatid << m.first << m.second->mPriv;
-        stmt.step();
-        stmt.reset().clearBind();
-    }
 
     // Initialize unified-key, if any (note private chats may also have unfied-key if user participated while chat was public)
     const char *unifiedKeyPtr = aChat.getUnifiedKey();
@@ -2340,10 +2332,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     while(stmt.step())
     {
         auto userid = stmt.uint64Col(0);
-        mPeers.emplace(userid, new Member(*this, userid, (chatd::Priv)stmt.intCol(1), publicChat));
+        promise::Promise<void> nameResolvedPromise = addMember(userid, (chatd::Priv)stmt.intCol(1), publicChat, false);
         if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
         {
-            promises.push_back(mPeers[userid]->nameResolved());
+            promises.push_back(nameResolvedPromise);
         }
     }
 
@@ -2641,11 +2633,10 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     return changed;
 }
 
-promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv)
+promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool isPublicChat, bool saveToDb)
 {
     assert(userid != parent.mKarereClient.myHandle());
 
-    bool saveToDb = true;
     auto it = mPeers.find(userid);
     if (it != mPeers.end())
     {
@@ -2660,8 +2651,12 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
     }
     else
     {
-        mPeers.emplace(userid, new Member(*this, userid, priv, publicChat())); //usernames will be updated when the Member object gets the username attribute
+        Member *member = new Member(*this, userid, priv);
+        mPeers.emplace(userid, member); //usernames will be updated when the Member object gets the username attribute
+        bool fetchIsRequired = !isPublicChat || mPeers.size() <= PRELOAD_CHATLINK_PARTICIPANTS;
+        member->registerCallBacks(fetchIsRequired);
     }
+
     if (saveToDb)
     {
         parent.mKarereClient.db.query("insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
@@ -3242,7 +3237,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
         .then([this, wptr, userid, priv](ReqResult)
         {
             wptr.throwIfDeleted();
-            addMember(userid, priv)
+            addMember(userid, priv, publicChat())
             .then([wptr, this]()
             {
                 wptr.throwIfDeleted();
@@ -3337,7 +3332,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
     else
     {
         auto wptr = weakHandle();
-        addMember(userid, privilege)
+        addMember(userid, privilege, publicChat())
         .then([wptr, this]()
         {
             wptr.throwIfDeleted();
@@ -3689,7 +3684,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
         if (mPeers.find(user.first) == mPeers.end())
         {
             peersChanged = true;
-            promise::Promise<void> promise = addMember(user.first, user.second);
+            promise::Promise<void> promise = addMember(user.first, user.second, publicChat());
             if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
             {
                 promises.push_back(promise);
@@ -3880,13 +3875,26 @@ void GroupChatRoom::setChatPrivateMode()
     }
 }
 
-GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv, bool isPublicChat)
+GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
 : mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0", 1)
 {
-    bool fetch = !isPublicChat || aRoom.mPeers.size() <= PRELOAD_CHATLINK_PARTICIPANTS;
+}
 
+GroupChatRoom::Member::~Member()
+{
+    mRoom.parent.mKarereClient.userAttrCache().removeCb(mNameAttrCbHandle);
+    mRoom.parent.mKarereClient.userAttrCache().removeCb(mEmailAttrCbHandle);
+}
+
+promise::Promise<void> GroupChatRoom::Member::nameResolved() const
+{
+    return mNameResolved;
+}
+
+void GroupChatRoom::Member::registerCallBacks(bool fetchIsRequired)
+{
     mNameAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
-        user, USER_ATTR_FULLNAME, this, [](Buffer* buf, void* userp)
+        mHandle, USER_ATTR_FULLNAME, this, [](Buffer* buf, void* userp)
     {
         auto self = static_cast<Member*>(userp);
         if (buf && !buf->empty())
@@ -3913,12 +3921,12 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mRoom.makeTitleFromMemberNames();
         }
-    }, false, fetch, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
+    }, false, fetchIsRequired, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
 
     if (!mRoom.parent.mKarereClient.anonymousMode())
     {
         mEmailAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
-            user, USER_ATTR_EMAIL, this, [](Buffer* buf, void* userp)
+            mHandle, USER_ATTR_EMAIL, this, [](Buffer* buf, void* userp)
         {
             auto self = static_cast<Member*>(userp);
             if (buf && !buf->empty())
@@ -3929,19 +3937,8 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
                     self->mRoom.makeTitleFromMemberNames();
                 }
             }
-        }, false, fetch, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
+        }, false, fetchIsRequired, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
     }
-}
-
-GroupChatRoom::Member::~Member()
-{
-    mRoom.parent.mKarereClient.userAttrCache().removeCb(mNameAttrCbHandle);
-    mRoom.parent.mKarereClient.userAttrCache().removeCb(mEmailAttrCbHandle);
-}
-
-promise::Promise<void> GroupChatRoom::Member::nameResolved() const
-{
-    return mNameResolved;
 }
 
 void Client::connectToChatd()
