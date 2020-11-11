@@ -37,6 +37,7 @@
 #include "base64url.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sfu.h>
 
 #ifdef __ANDROID__
     #include <sys/system_properties.h>
@@ -83,6 +84,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
           chats(new ChatRoomList(*this)),
           mPresencedClient(&api, this, *this, caps)
 {
+    mSfuClient = mega::make_unique<sfu::SfuClient>(*this);
 }
 
 KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)

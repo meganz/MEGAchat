@@ -33,6 +33,8 @@ namespace mega { class MegaTextChat; class MegaTextChatList; }
 
 namespace strongvelope { class ProtocolHandler; }
 
+namespace sfu { class SfuClient; }
+
 struct sqlite3;
 class Buffer;
 
@@ -935,6 +937,8 @@ protected:
 
     presenced::Client mPresencedClient;
     std::string mPresencedUrl;
+
+    std::unique_ptr<sfu::SfuClient> mSfuClient;
 
     megaHandle mHeartbeatTimer = 0;
     InitStats mInitStats;
