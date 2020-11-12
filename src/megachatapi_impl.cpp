@@ -6376,7 +6376,7 @@ void MegaChatRoomHandler::fireOnChatRoomUpdate(MegaChatRoom *chat)
 
 void MegaChatRoomHandler::fireOnMessageLoaded(MegaChatMessage *msg)
 {
-    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end(); it++)
     {
         (*it)->onMessageLoaded(chatApi, msg);
     }
