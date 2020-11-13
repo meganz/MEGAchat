@@ -3894,7 +3894,7 @@ public:
      * @param period retention timeframe in seconds, after which older messages in the chat are automatically deleted
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatRetentionTime(MegaChatHandle chatid, unsigned int period, MegaChatRequestListener *listener = NULL);
+    void setChatRetentionTime(MegaChatHandle chatid, unsigned period, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened

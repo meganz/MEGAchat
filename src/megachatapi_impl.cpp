@@ -1937,7 +1937,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_SET_RETENTION_TIME:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            unsigned int period = static_cast <unsigned int>(request->getNumber());
+            unsigned period = static_cast <unsigned>(request->getNumber());
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
@@ -3567,7 +3567,7 @@ void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatR
     waiter->notify();
 }
 
-void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, unsigned int period, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, unsigned period, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_RETENTION_TIME, listener);
     request->setChatHandle(chatid);
