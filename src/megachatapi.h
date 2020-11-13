@@ -1634,7 +1634,7 @@ public:
      *
      * @return Retention time (in seconds)
      */
-    virtual int getRetentionTime() const;
+    virtual unsigned getRetentionTime() const;
 
     /**
      * @brief Return the termination code of the call
@@ -5903,7 +5903,7 @@ public:
      * @brief Returns the retention time for this chat
      * @return The retention time for this chat
      */
-    virtual unsigned int getRetentionTime() const;
+    virtual unsigned getRetentionTime() const;
 
     /**
      * @brief Returns the creation timestamp of the chat.

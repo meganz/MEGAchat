@@ -7479,7 +7479,7 @@ char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
     return ret;
 }
 
-unsigned int MegaChatRoomPrivate::getRetentionTime() const
+unsigned MegaChatRoomPrivate::getRetentionTime() const
 {
     return mRetentionTime;
 }
@@ -8399,9 +8399,9 @@ int MegaChatMessagePrivate::getDuration() const
     return priv;
 }
 
-int MegaChatMessagePrivate::getRetentionTime() const
+unsigned MegaChatMessagePrivate::getRetentionTime() const
 {
-    return priv;
+    return static_cast<unsigned>(priv);
 }
 
 int MegaChatMessagePrivate::getTermCode() const

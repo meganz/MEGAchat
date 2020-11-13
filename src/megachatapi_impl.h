@@ -750,7 +750,7 @@ public:
     virtual int getUnreadCount() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual MegaChatHandle getUserTyping() const;
-    unsigned int getRetentionTime() const override;
+    unsigned getRetentionTime() const override;
 
     void setRetentionTime(unsigned int period);
     void setOwnPriv(int ownPriv);
@@ -852,7 +852,7 @@ public:
     virtual const MegaChatContainsMeta *getContainsMeta() const;
     virtual mega::MegaHandleList *getMegaHandleList() const;
     virtual int getDuration() const;
-    int getRetentionTime() const override;
+    unsigned getRetentionTime() const override;
     virtual int getTermCode() const;
 
     virtual int getChanges() const;
