@@ -3883,7 +3883,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_SET_RETENTION_TIME
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getParamType - Returns the retention timeframe in seconds
+     * - MegaChatRequest::getNumber - Returns the retention timeframe in seconds
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If the chatid is invalid
