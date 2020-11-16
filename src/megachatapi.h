@@ -1634,7 +1634,7 @@ public:
      *
      * @return Retention time (in seconds)
      */
-    virtual unsigned getRetentionTime() const;
+    virtual unsigned int getRetentionTime() const;
 
     /**
      * @brief Return the termination code of the call
@@ -3894,7 +3894,7 @@ public:
      * @param period retention timeframe in seconds, after which older messages in the chat are automatically deleted
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatRetentionTime(MegaChatHandle chatid, unsigned period, MegaChatRequestListener *listener = NULL);
+    void setChatRetentionTime(MegaChatHandle chatid, unsigned int period, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened
@@ -5903,7 +5903,7 @@ public:
      * @brief Returns the retention time for this chat
      * @return The retention time for this chat
      */
-    virtual unsigned getRetentionTime() const;
+    virtual unsigned int getRetentionTime() const;
 
     /**
      * @brief Returns the creation timestamp of the chat.
