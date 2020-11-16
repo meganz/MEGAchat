@@ -236,7 +236,7 @@ public:
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
     promise::Promise<void> archiveChat(bool archive);
-    promise::Promise<void> setChatRetentionTime(int period);
+    promise::Promise<void> setChatRetentionTime(unsigned period);
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes) = 0;
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node) = 0;

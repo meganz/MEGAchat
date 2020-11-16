@@ -1634,7 +1634,7 @@ public:
      *
      * @return Retention time (in seconds)
      */
-    virtual int getRetentionTime() const;
+    virtual unsigned getRetentionTime() const;
 
     /**
      * @brief Return the termination code of the call
@@ -3883,7 +3883,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_SET_RETENTION_TIME
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getParamType - Returns the retention timeframe in seconds
+     * - MegaChatRequest::getNumber - Returns the retention timeframe in seconds
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If the chatid is invalid
@@ -3894,7 +3894,7 @@ public:
      * @param period retention timeframe in seconds, after which older messages in the chat are automatically deleted
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener = NULL);
+    void setChatRetentionTime(MegaChatHandle chatid, unsigned period, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened
@@ -5903,7 +5903,7 @@ public:
      * @brief Returns the retention time for this chat
      * @return The retention time for this chat
      */
-    virtual unsigned int getRetentionTime() const;
+    virtual unsigned getRetentionTime() const;
 
     /**
      * @brief Returns the creation timestamp of the chat.

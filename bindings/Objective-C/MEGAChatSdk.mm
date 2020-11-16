@@ -781,6 +781,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->archiveChat(chatId, archive);
 }
 
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setChatRetentionTime(chatID, (unsigned)period, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period {
+    self.megaChatApi->setChatRetentionTime(chatID, (unsigned)period);
+}
+
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
     return self.megaChatApi->openChatRoom(chatId, [self createDelegateMEGAChatRoomListener:delegate singleListener:YES]);
 }

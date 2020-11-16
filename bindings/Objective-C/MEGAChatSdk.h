@@ -245,6 +245,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive;
 
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period;
+
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
 
 - (void)closeChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;

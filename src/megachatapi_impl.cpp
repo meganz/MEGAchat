@@ -1937,12 +1937,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_SET_RETENTION_TIME:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            int period = request->getParamType();
-            if (period < 0)
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
+            unsigned period = static_cast <unsigned>(request->getNumber());
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
@@ -3572,11 +3567,11 @@ void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatR
     waiter->notify();
 }
 
-void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, unsigned period, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_RETENTION_TIME, listener);
     request->setChatHandle(chatid);
-    request->setParamType(period);
+    request->setNumber(period);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -7484,7 +7479,7 @@ char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
     return ret;
 }
 
-unsigned int MegaChatRoomPrivate::getRetentionTime() const
+unsigned MegaChatRoomPrivate::getRetentionTime() const
 {
     return mRetentionTime;
 }
@@ -8404,9 +8399,9 @@ int MegaChatMessagePrivate::getDuration() const
     return priv;
 }
 
-int MegaChatMessagePrivate::getRetentionTime() const
+unsigned MegaChatMessagePrivate::getRetentionTime() const
 {
-    return priv;
+    return static_cast<unsigned>(priv);
 }
 
 int MegaChatMessagePrivate::getTermCode() const
