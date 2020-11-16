@@ -84,6 +84,7 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
 @property (readonly, nonatomic) MEGANodeList *nodeList;
 @property (readonly, nonatomic) MEGAHandleList *handleList;
 @property (readonly, nonatomic) NSInteger duration;
+@property (readonly, nonatomic) NSUInteger retentionTime;
 @property (readonly, nonatomic) MEGAChatMessageEndCallReason termCode;
 @property (readonly, nonatomic) uint64_t rowId;
 @property (readonly, nonatomic) MEGAChatContainsMeta *containsMeta;

@@ -14,7 +14,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomChangeType) {
     MEGAChatRoomChangeTypeArchive          = 0x100,
     MEGAChatRoomChangeTypeCall             = 0x200,
     MEGAChatRoomChangeTypeChatMode         = 0x400,
-    MEGAChatRoomChangeTypeUpdatePreviewers = 0x800
+    MEGAChatRoomChangeTypeUpdatePreviewers = 0x800,
+    MEGAChatRoomChangeTypeRetentionTime    = 0x1000
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
