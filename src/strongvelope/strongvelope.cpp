@@ -1312,6 +1312,20 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
         entry.pms.reset();
     }
 }
+
+bool ProtocolHandler::hasSubsequentKeys(karere::Id userid, uint32_t ukid)
+{
+    for (unsigned i = 0; i < KEYSEARCHLIMIT; i++)
+    {
+        auto kit = mKeys.find(UserKeyId(userid, ++ukid));
+        if (kit != mKeys.end() && (kit->second.key || kit->second.pms))
+        {
+            return true; // if there's a subsequent KeyEntry (decrypted, or pending to be decrypted)
+        }
+    }
+    return false;
+}
+
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::getKey(UserKeyId ukid)
 {

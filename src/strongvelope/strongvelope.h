@@ -111,6 +111,9 @@ enum: unsigned char
     SVCRYPTO_MSGTYPES_COUNT
 };
 
+/** Max number of subsequent keys to search, if current key is not found */
+const unsigned KEYSEARCHLIMIT = 3;
+
 template <size_t Size>
 class Key: public StaticBuffer
 {
@@ -346,6 +349,8 @@ protected:
      */
     void loadUnconfirmedKeysFromDb();
 
+    /** @brief Search for subsequent keys given a userId and a keyId */
+    bool hasSubsequentKeys(karere::Id userid, uint32_t ukid) override;
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid);
     void addDecryptedKey(UserKeyId ukid, const std::shared_ptr<SendKey>& key);
     /**
