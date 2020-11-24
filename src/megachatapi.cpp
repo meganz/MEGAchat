@@ -1056,6 +1056,11 @@ int MegaChatApi::loadAttachments(MegaChatHandle chatid, int count)
     return pImpl->loadAttachments(chatid, count);
 }
 
+MegaChatMessage* megachat::MegaChatApi::sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title)
+{
+    return pImpl->sendGiphy(chatid, srcMp4, srcWebp, sizeMp4, sizeWebp, width, height, title);
+}
+
 void MegaChatApi::addChatListener(MegaChatListener *listener)
 {
     pImpl->addChatListener(listener);
@@ -1941,6 +1946,11 @@ const MegaChatGeolocation *MegaChatContainsMeta::getGeolocation() const
     return NULL;
 }
 
+const MegaChatGiphy* MegaChatContainsMeta::getGiphy() const
+{
+    return nullptr;
+}
+
 const char *MegaChatRichPreview::getDomainName() const
 {
     return NULL;
@@ -1964,6 +1974,46 @@ float MegaChatGeolocation::getLatitude() const
 const char *MegaChatGeolocation::getImage() const
 {
     return NULL;
+}
+
+MegaChatGiphy* MegaChatGiphy::copy() const
+{
+    return nullptr;
+}
+
+const char* MegaChatGiphy::getMp4Src() const
+{
+    return nullptr;
+}
+
+const char* MegaChatGiphy::getWebpSrc() const
+{
+    return nullptr;
+}
+
+int megachat::MegaChatGiphy::getWidth() const
+{
+    return 0;
+}
+
+int megachat::MegaChatGiphy::getHeight() const
+{
+    return 0;
+}
+
+const char* megachat::MegaChatGiphy::getTitle() const
+{
+    return nullptr;
+}
+
+long MegaChatGiphy::getMp4Size() const
+{
+    return 0;
+}
+
+long MegaChatGiphy::getWebpSize() const
+{
+    return 0;
 }
 
 void MegaChatNodeHistoryListener::onAttachmentLoaded(MegaChatApi */*api*/, MegaChatMessage */*msg*/)

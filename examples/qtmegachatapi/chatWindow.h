@@ -80,6 +80,7 @@ class ChatWindow : public QDialog,
 
         megachat::MegaChatApi *getMegaChatApi();
         void onAttachLocation();
+        void onAttachGiphy();
         void enableCallReconnect(bool enable);
 
 #ifndef KARERE_DISABLE_WEBRTC

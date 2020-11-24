@@ -193,6 +193,28 @@ void ChatMessage::showContainsMetaData()
                     .append(geolocation->getImage() ? "yes" : "no");
                 break;
             }
+        case  megachat::MegaChatContainsMeta::CONTAINS_META_GIPHY:
+            {
+                const MegaChatGiphy *giphy = containsMeta->getGiphy();
+                text.append(tr("\nSubtype: Giphy"))
+                    .append(tr("\nText content: "))
+                    .append(containsMeta->getTextMessage())
+                    .append(tr("\nTitle: "))
+                    .append(giphy->getTitle())
+                    .append(tr("\nMp4 source: "))
+                    .append(giphy->getMp4Src())
+                    .append(tr("\nWebp source: "))
+                    .append(giphy->getWebpSrc())
+                    .append(tr("\nMp4 Size: "))
+                    .append(QString::number(giphy->getMp4Size()))
+                    .append(tr("\nWebp Size: "))
+                    .append(QString::number(giphy->getWebpSize()))
+                    .append(tr("\ngiphy width: "))
+                    .append(QString::number(giphy->getWidth()))
+                    .append(tr("\ngiphy height: "))
+                    .append(QString::number(giphy->getHeight()));
+                break;
+            }
             default:
             {
                 text.append(tr("\nSubtype: unkown"))
