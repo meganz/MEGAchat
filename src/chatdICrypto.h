@@ -172,8 +172,6 @@ public:
 
     virtual void fetchUserKeys(karere::Id userid) = 0;
 
-    virtual bool hasSubsequentKeys(karere::Id userid, uint32_t ukid) = 0;
-
     /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
      */
