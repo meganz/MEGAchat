@@ -1967,7 +1967,7 @@ public class MegaChatApiJava {
      * @param period retention timeframe in seconds, after which older messages in the chat are automatically deleted
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatRetentionTime(long chatid, long period, MegaChatRequestListenerInterface listener) {
+    public void setChatRetentionTime(long chatid, long period, MegaChatRequestListenerInterface listener) {
         megaChatApi.setChatRetentionTime(chatid, period, createDelegateRequestListener(listener));
     }
 
@@ -1989,7 +1989,7 @@ public class MegaChatApiJava {
      * @param chatid MegaChatHandle that identifies the chat room
      * @param period retention timeframe in seconds, after which older messages in the chat are automatically deleted
      */
-    void setChatRetentionTime(long chatid, long period) {
+    public void setChatRetentionTime(long chatid, long period) {
         megaChatApi.setChatRetentionTime(chatid, period);
     }
 
