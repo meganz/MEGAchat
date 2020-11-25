@@ -234,6 +234,11 @@ public:
         webrtc::PeerConnectionInterface::RTCConfiguration config;
         config.servers = servers;
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
+
+        // I think it's not necessary
+        webrtc::CryptoOptions cryptoOptions;
+        cryptoOptions.sframe.require_frame_encryption = true;
+        config.crypto_options = cryptoOptions;
         Base::operator=(gWebrtcContext->CreatePeerConnection(config, NULL, NULL /*DTLS stuff*/, mObserver.get()));
         if (!get())
             throw std::runtime_error("Failed to create a PeerConnection object");
@@ -272,6 +277,37 @@ public:
       get()->SetRemoteDescription(observer, desc);
       return promise;
   }
+};
+
+class MegaEncryptor : public rtc::RefCountedObject<webrtc::FrameEncryptorInterface>
+{
+public:
+    MegaEncryptor();
+    ~MegaEncryptor();
+
+    int Encrypt(cricket::MediaType media_type,
+                        uint32_t ssrc,
+                        rtc::ArrayView<const uint8_t> additional_data,
+                        rtc::ArrayView<const uint8_t> frame,
+                        rtc::ArrayView<uint8_t> encrypted_frame,
+                        size_t* bytes_written) override;
+
+    size_t GetMaxCiphertextByteSize(cricket::MediaType media_type, size_t frame_size) override;
+};
+
+class MegaDecryptor : public rtc::RefCountedObject<webrtc::FrameDecryptorInterface>
+{
+public:
+    MegaDecryptor();
+    ~MegaDecryptor();
+
+    Result Decrypt(cricket::MediaType media_type,
+                   const std::vector<uint32_t>& csrcs,
+                   rtc::ArrayView<const uint8_t> additional_data,
+                   rtc::ArrayView<const uint8_t> encrypted_frame,
+                   rtc::ArrayView<uint8_t> frame) override;
+
+    size_t GetMaxPlaintextByteSize(cricket::MediaType media_type, size_t encrypted_frame_size) override;
 };
 
 class LocalStreamHandle
@@ -381,7 +417,7 @@ public:
 
     void RegisterObserver(webrtc::ObserverInterface* observer) override;
     void UnregisterObserver(webrtc::ObserverInterface* observer) override;
-    
+
 private:
     bool mRunning = false;
     AVCaptureDevice *mCaptureDevice = nullptr;

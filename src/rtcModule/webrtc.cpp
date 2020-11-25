@@ -2547,6 +2547,7 @@ void Call::enableVideo(bool enable)
                     }
 
                     session.second->mVideoSender = error.MoveValue();
+                    session.second->mVideoSender->SetFrameEncryptor(new artc::MegaEncryptor());
                 }
 
                 if (session.second->mRemotePlayer)
@@ -3301,6 +3302,7 @@ void Session::createRtcConn()
     }
 
     mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers, *this);
+
     RTCM_LOG_INFO("Create RTC connection ICE server: %s", mCall.mManager.mIceServers[0].uri.c_str());
     if (mCall.mLocalStream)
     {
@@ -3321,6 +3323,7 @@ void Session::createRtcConn()
             }
 
             mVideoSender = error.MoveValue();
+            mVideoSender->SetFrameEncryptor(new artc::MegaEncryptor());
         }
 
         rtc::scoped_refptr<webrtc::AudioTrackInterface> audioInterface =
@@ -3332,6 +3335,7 @@ void Session::createRtcConn()
         }
 
         mAudioSender = error.MoveValue();
+        mAudioSender->SetFrameEncryptor(new artc::MegaEncryptor());
 
         if (!mCall.sentFlags().audio())
         {
@@ -3475,6 +3479,12 @@ void Session::onAddStream(artc::tspMediaStream stream)
     {
         mRemotePlayer->getAudioTrack()->set_enabled(!mCall.mLocalFlags.onHold());
         mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
+    }
+
+    std::vector<rtc::scoped_refptr<webrtc::RtpReceiverInterface>> receivers = mRtcConn->GetReceivers();
+    for (auto receiver : receivers)
+    {
+            receiver->SetFrameDecryptor(new artc::MegaDecryptor());
     }
 }
 void Session::onRemoveStream(artc::tspMediaStream stream)
