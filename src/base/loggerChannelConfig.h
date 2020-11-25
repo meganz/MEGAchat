@@ -57,6 +57,7 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(uacache, "uacache", Warn, 2)
     KR_LOGCHANNEL(megachatapi, "megachatapi", Debug, 3)
     KR_LOGCHANNEL(presenced, "pres", Debug, 14)
+    KR_LOGCHANNEL(sfu, "sfu", Debug, 15)
 
     KR_LOGGER_CONFIG(setFlags(krLogNoLevel))
     KR_LOGGER_CONFIG(logToConsole())
