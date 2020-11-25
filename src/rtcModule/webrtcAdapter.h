@@ -95,12 +95,13 @@ public:
     {
         RTCM_DO_CALLBACK(mPromise.resolve(desc); Release(), this, desc);
     }
-    virtual void OnFailure(const std::string& error)
+    void OnFailure(webrtc::RTCError error) override
     {
         RTCM_DO_CALLBACK(
-           mPromise.reject(::promise::Error(error, kCreateSdpFailed, ERRTYPE_RTC));
+           mPromise.reject(::promise::Error(error.message(), kCreateSdpFailed, ERRTYPE_RTC));
            Release();
         , this, error);
+
     }
 
 protected:
@@ -326,6 +327,9 @@ public:
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
 
+    bool SupportsEncodedOutput() const override {}
+    void GenerateKeyFrame() override {}
+
     bool GetStats(webrtc::VideoTrackSourceInterface::Stats* stats) override;
 
     webrtc::MediaSourceInterface::SourceState state() const override;
@@ -333,6 +337,10 @@ public:
 
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
+
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
+
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
