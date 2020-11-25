@@ -245,6 +245,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive;
 
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period;
+
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
 
 - (void)closeChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
@@ -261,6 +264,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAChatMessage *)forwardContactFromChat:(uint64_t)sourceChatId messageId:(uint64_t)messageId targetChatId:(uint64_t)targetChatId;
 - (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray;
+- (MEGAChatMessage *)sendGiphyToChat:(uint64_t)chatId srcMp4:(NSString *)srcMp4 srcWebp:(NSString *)srcWebp sizeMp4:(uint64_t)sizeMp4 sizeWebp:(uint64_t)sizeWebp  width:(int)width height:(int)height title:(NSString *)title;
 - (MEGAChatMessage *)sendGeolocationToChat:(uint64_t)chatId longitude:(float)longitude latitude:(float)latitude image:(NSString *)image;
 - (MEGAChatMessage *)editGeolocationForChat:(uint64_t)chatId messageId:(uint64_t)messageId longitude:(float)longitude latitude:(float)latitude image:(NSString *)image;
 - (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
