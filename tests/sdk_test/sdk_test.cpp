@@ -67,6 +67,7 @@ int main(int argc, char **argv)
     MegaChatApiUnitaryTest unitaryTest;
     std::cout << "[========] Unitary tests " << std::endl;
     unitaryTest.UNITARYTEST_ParseUrl();
+    unitaryTest.UNITARYTEST_SfuDataReception();
     std::cout << "[========] End Unitary tests " << std::endl;
 
     return t.mFailedTests + unitaryTest.mFailedTests;
@@ -5069,6 +5070,48 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
     return succesful;
 }
 
+bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
+{
+    MockupIApp app;
+    mOKTests ++;
+    ::mega::MegaApi megaApi(nullptr);
+    std::unique_ptr<karere::Client> karereClient = ::mega::make_unique<karere::Client>(megaApi, nullptr, app, "Test", 0);
+    MockupSfuConnection sfuConnection(*karereClient.get());
+
+    int failedTest = 0;
+    int executedTests = 0;
+    bool succesful = true;
+
+    std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
+    std::map<std::string, bool> checkCommands;
+    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"] = true;
+    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"] = false;
+    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"] = true;
+
+
+    for (auto testCase : checkCommands)
+    {
+        executedTests ++;
+        if (sfuConnection.handleIncomingData(testCase.first.c_str(), testCase.first.length()) != testCase.second)
+        {
+            failedTest++;
+            std::cout << "         [" << " FAILED Parse" << "] " << testCase.first << std::endl;
+            LOG_debug << "Failed to parse: " << testCase.first;
+        }
+    }
+
+    if (failedTest > 0)
+    {
+        mFailedTests ++;
+        succesful = false;
+    }
+
+    karereClient->terminate();
+
+     std::cout << "          TEST - Message::parseUrl() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
+    return succesful;
+}
+
 TestMegaRequestListener::TestMegaRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)
     : RequestListener(megaApi, megaChatApi)
 {
@@ -5178,4 +5221,19 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
     , mMegaChatApi(megaChatApi)
 {
 
+}
+
+MockupSfuConnection::MockupSfuConnection(karere::Client &karereClient)
+    : SfuConnection("SFU", karereClient, karere::Id::inval())
+{
+}
+
+bool MockupSfuConnection::handleAvCommand(karere::Id cid, karere::Id peer, int av)
+{
+    return true;
+}
+
+bool MockupSfuConnection::handleAnswerCommand(karere::Id, int, std::vector<karere::Id>, const string &, std::vector<karere::Id>)
+{
+    return true;
 }
