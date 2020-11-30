@@ -10,6 +10,7 @@
 #define SFU_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 namespace sfu
 {
+    class Command;
     class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     {
     public:
@@ -29,6 +30,9 @@ namespace sfu
         void disconnect();
         void doConnect();
         void retryPendingConnection(bool disconnect);
+        bool handleIncomingData(const char* data, size_t len);
+        virtual bool handleAvCommand(karere::Id cid, karere::Id peer, int av);
+        virtual bool handleAnswerCommand(karere::Id, int, std::vector<karere::Id>, const std::string&, std::vector<karere::Id>);
 
     protected:
         std::string mSfuUrl;
@@ -64,6 +68,7 @@ namespace sfu
         promise::Promise<void> reconnect();
         void abortRetryController();
 
+        std::map<std::string, std::unique_ptr<Command>> mCommands;
     };
 
     class SfuClient
@@ -91,6 +96,35 @@ namespace sfu
         default: return "(invalid)";
         }
     }
+
+    class Command
+    {
+    public:
+        virtual bool processCommand(const rapidjson::Document& command) = 0;
+        static std::string COMMAND_IDENTIFIER;
+    protected:
+        Command();
+    };
+
+    typedef std::function<bool(karere::Id, karere::Id, int)> AvCompleteFunction;
+    class AVCommand : public Command
+    {
+    public:
+        AVCommand(const AvCompleteFunction& complete);
+        bool processCommand(const rapidjson::Document& command) override;
+        static std::string COMMAND_NAME;
+        AvCompleteFunction mComplete;
+    };
+
+    typedef std::function<bool(karere::Id, int, std::vector<karere::Id>, const std::string&, std::vector<karere::Id>)> AnswerCompleteFunction;
+    class AnswerCommand : public Command
+    {
+    public:
+        AnswerCommand(const AnswerCompleteFunction& complete);
+        bool processCommand(const rapidjson::Document& command) override;
+        static std::string COMMAND_NAME;
+        AnswerCompleteFunction mComplete;
+    };
 
 }
 

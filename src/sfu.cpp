@@ -1,13 +1,20 @@
 #include "sfu.h"
 #include <base/promise.h>
+#include <megaapi.h>
 
 namespace sfu
 {
 SfuConnection::SfuConnection(const std::string &sfuUrl, karere::Client& karereClient)
+
+std::string Command::COMMAND_IDENTIFIER = "cmd";
+std::string AVCommand::COMMAND_NAME = "AV";
+std::string AnswerCommand::COMMAND_NAME = "ANSWER";
     : mSfuUrl(sfuUrl)
     , mKarereClient(karereClient)
 {
 
+    mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&SfuConnection::handleAvCommand, this,  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&SfuConnection::handleAnswerCommand, this,  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 }
 
 promise::Promise<void> SfuConnection::connect()
@@ -111,6 +118,62 @@ void SfuConnection::retryPendingConnection(bool disconnect)
     }
 }
 
+bool SfuConnection::handleIncomingData(const char* data, size_t len)
+{
+    std::string receivedData(data, len);
+    size_t bracketPosition = receivedData.find('}');
+    std::string commandString = receivedData;
+    if (bracketPosition < len)
+    {
+        commandString = commandString.substr(0, bracketPosition + 1);
+    }
+
+    rapidjson::StringStream stringStream(commandString.c_str());
+    rapidjson::Document document;
+    document.ParseStream(stringStream);
+
+    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+    {
+        SFU_LOG_ERROR("Failure at: Parser json error");
+        return false;
+    }
+
+    rapidjson::Value::ConstMemberIterator jsonIterator = document.FindMember(Command::COMMAND_IDENTIFIER.c_str());
+    if (jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'cmd' field");
+        return false;
+    }
+
+    std::string command = jsonIterator->value.GetString();
+    auto commandIterator = mCommands.find(command);
+    if (commandIterator == mCommands.end())
+    {
+        SFU_LOG_ERROR("Command is not defined yet");
+        return false;
+    }
+
+    bool processCommandResult = mCommands[command]->processCommand(document);
+
+    if (commandString.length() < len)
+    {
+        size_t previousCommandSize = commandString.length();
+        processCommandResult = handleIncomingData(&data[previousCommandSize], len - previousCommandSize);
+    }
+
+    return processCommandResult;
+}
+
+bool SfuConnection::handleAvCommand(karere::Id cid, karere::Id peer, int av)
+{
+    return true;
+}
+
+bool SfuConnection::handleAnswerCommand(karere::Id, int, std::vector<karere::Id>, const std::string &, std::vector<karere::Id>)
+{
+    return true;
+}
+
 void SfuConnection::setConnState(SfuConnection::ConnState newState)
 {
     if (newState == mConnState)
@@ -159,7 +222,7 @@ void SfuConnection::wsCloseCb(int errcode, int errtype, const char *preason, siz
 
 void SfuConnection::wsHandleMsgCb(char *data, size_t len)
 {
-    // TODO receive data
+    handleIncomingData(data, len);
 }
 
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
@@ -384,4 +447,132 @@ void SfuClient::endCall(karere::Id chatid)
     mConnections.erase(chatid);
 }
 
+Command::Command()
+{
+
+}
+
+AVCommand::AVCommand(const AvCompleteFunction &complete)
+    : mComplete(complete)
+{
+}
+
+bool AVCommand::processCommand(const rapidjson::Document &command)
+{
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'cid' field");
+        return false;
+    }
+
+    std::string cidString = cidIterator->value.GetString();
+    ::mega::MegaHandle cid = ::mega::MegaApi::base64ToUserHandle(cidString.c_str());
+
+    rapidjson::Value::ConstMemberIterator peerIterator = command.FindMember("peer");
+    if (peerIterator == command.MemberEnd() || !peerIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'peer' field");
+        return false;
+    }
+
+    std::string peerString = peerIterator->value.GetString();
+    ::mega::MegaHandle peer = ::mega::MegaApi::base64ToUserHandle(peerString.c_str());
+
+    rapidjson::Value::ConstMemberIterator avIterator = command.FindMember("av");
+    if (avIterator == command.MemberEnd() || !avIterator->value.IsInt())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'av' field");
+        return false;
+    }
+
+    int av = avIterator->value.GetInt();
+    return mComplete(cid, peer, av);;
+}
+
+AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete)
+    : mComplete(complete)
+{
+}
+
+bool AnswerCommand::processCommand(const rapidjson::Document &command)
+{
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'cid' field");
+        return false;
+    }
+
+    std::string cidString = cidIterator->value.GetString();
+    ::mega::MegaHandle cid = ::mega::MegaApi::base64ToUserHandle(cidString.c_str());
+
+    rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
+    if (modIterator == command.MemberEnd() || !modIterator->value.IsInt())
+    {
+        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'mod' field");
+        return false;
+    }
+
+    int isModerator = modIterator->value.GetInt();
+
+    rapidjson::Value::ConstMemberIterator sdpIterator = command.FindMember("cid");
+    if (sdpIterator == command.MemberEnd() || !sdpIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'sdp' field");
+        return false;
+    }
+
+    std::string sdpString = sdpIterator->value.GetString();
+
+    rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
+    if (peersIterator == command.MemberEnd() || !peersIterator->value.IsArray())
+    {
+        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'peers' field");
+        return false;
+    }
+
+    std::vector<karere::Id> peers;
+    for (unsigned int j = 0; j < peersIterator->value.Capacity(); ++j)
+    {
+        if (peersIterator->value[j].IsString())
+        {
+            std::string peerString = peersIterator->value[j].GetString();
+            ::mega::MegaHandle peer = ::mega::MegaApi::base64ToUserHandle(peerString.c_str());
+            peers.push_back(peer);
+        }
+        else
+        {
+            SFU_LOG_ERROR("AnswerCommand::processCommand: invalid value at array 'peers'");
+            return false;
+        }
+    }
+
+    rapidjson::Value::ConstMemberIterator speakersIterator = command.FindMember("speakers");
+    if (speakersIterator == command.MemberEnd() || !speakersIterator->value.IsArray())
+    {
+        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'speakers' field");
+        return false;
+    }
+
+    std::vector<karere::Id> speakers;
+    for (unsigned int j = 0; j < speakersIterator->value.Capacity(); ++j)
+    {
+        if (speakersIterator->value[j].IsString())
+        {
+            std::string speakerString = speakersIterator->value[j].GetString();
+            ::mega::MegaHandle speaker = ::mega::MegaApi::base64ToUserHandle(speakerString.c_str());
+            peers.push_back(speaker);
+        }
+        else
+        {
+            SFU_LOG_ERROR("AnswerCommand::processCommand: invalid value at array 'speakers'");
+            return false;
+        }
+    }
+
+    //TODO: vthumbs
+
+    return mComplete(cid, isModerator, peers, sdpString, speakers);
+}
 }
