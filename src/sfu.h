@@ -3,7 +3,6 @@
 
 #include <chatClient.h>
 
-
 #define SFU_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
@@ -24,12 +23,13 @@ namespace sfu
             kLoggedIn
         };
 
-        SfuConnection(const std::string& sfuUrl, karere::Client& karereClient);
+        SfuConnection(const std::string& sfuUrl, karere::Client& karereClient, karere::Id cid);
         bool isOnline() const { return (mConnState >= kConnected); }
         promise::Promise<void> connect();
         void disconnect();
         void doConnect();
         void retryPendingConnection(bool disconnect);
+        karere::Id getCid() const;
         bool handleIncomingData(const char* data, size_t len);
         virtual bool handleAvCommand(karere::Id cid, karere::Id peer, int av);
         virtual bool handleAnswerCommand(karere::Id, int, std::vector<karere::Id>, const std::string&, std::vector<karere::Id>);
@@ -69,13 +69,14 @@ namespace sfu
         void abortRetryController();
 
         std::map<std::string, std::unique_ptr<Command>> mCommands;
+        karere::Id mCid;
     };
 
     class SfuClient
     {
     public:
         SfuClient(karere::Client& karereClient);
-        promise::Promise<void> startCall(karere::Id chatid, const std::string& sfuUrl);
+        promise::Promise<void> startCall(karere::Id chatid, const std::string& sfuUrl, karere::Id cid);
         void endCall(karere::Id chatid);
 
     private:

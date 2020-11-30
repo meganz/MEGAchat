@@ -4,15 +4,16 @@
 
 namespace sfu
 {
-SfuConnection::SfuConnection(const std::string &sfuUrl, karere::Client& karereClient)
 
 std::string Command::COMMAND_IDENTIFIER = "cmd";
 std::string AVCommand::COMMAND_NAME = "AV";
 std::string AnswerCommand::COMMAND_NAME = "ANSWER";
+
+SfuConnection::SfuConnection(const std::string &sfuUrl, karere::Client& karereClient, karere::Id cid)
     : mSfuUrl(sfuUrl)
     , mKarereClient(karereClient)
+    , mCid(cid)
 {
-
     mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&SfuConnection::handleAvCommand, this,  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&SfuConnection::handleAnswerCommand, this,  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 }
@@ -116,6 +117,11 @@ void SfuConnection::retryPendingConnection(bool disconnect)
     {
         SFU_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
     }
+}
+
+karere::Id SfuConnection::getCid() const
+{
+    return mCid;
 }
 
 bool SfuConnection::handleIncomingData(const char* data, size_t len)
@@ -434,10 +440,10 @@ SfuClient::SfuClient(karere::Client &karereClient)
 
 }
 
-promise::Promise<void> SfuClient::startCall(karere::Id chatid, const std::string &sfuUrl)
+promise::Promise<void> SfuClient::startCall(karere::Id chatid, const std::string &sfuUrl, karere::Id cid)
 {
     assert(mConnections.find(chatid) == mConnections.end());
-    mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mKarereClient);
+    mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mKarereClient, cid);
     return mConnections[chatid]->connect();
 }
 
