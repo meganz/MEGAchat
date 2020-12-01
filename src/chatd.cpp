@@ -1524,6 +1524,47 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(ID_CSTR(rsn));
             return tmpString;
         }
+
+
+        case OP_JOINEDCALL:
+        case OP_LEFTCALL:
+        {
+            string tmpString = opcode == OP_JOINEDCALL ? "JOINEDCALL" : "LEFTCALL";
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id callid = data.read<uint64_t>(9);
+            uint16_t userListCount = data.read<uint16_t>(17);
+            tmpString.append(" chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", callid: ");
+            tmpString.append(ID_CSTR(callid));
+            tmpString.append(", number of users: ");
+            tmpString.append(std::to_string(userListCount));
+            int begin = 17 + sizeof(uint16_t);
+            for (uint16_t i = 0; i < userListCount; i++)
+            {
+                tmpString.append(", User");
+                tmpString.append(std::to_string(i));
+                tmpString.append(": ");
+                karere::Id userid = data.read<uint64_t>(begin + i * 8);
+                tmpString.append(ID_CSTR(userid));
+            }
+
+            return tmpString;
+        }
+        case OP_CALLEND:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id callid = data.read<uint64_t>(9);
+            uint8_t reason = data.read<uint8_t>(17);
+            tmpString.append("CALLEND chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", callid: ");
+            tmpString.append(ID_CSTR(callid));
+            tmpString.append(", Reason: ");
+            tmpString.append(std::to_string(reason));
+            return tmpString;
+        }
         default:
             return opcodeToStr(opcode);
     }
@@ -2458,6 +2499,50 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(timestamp, 16);
                 CHATDS_LOG_DEBUG("recv NEWMSGIDTIMESTAMP: '%s' -> '%s'   %d", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
                 mChatdClient.msgConfirm(msgxid, msgid, timestamp);
+                break;
+            }
+            case OP_JOINEDCALL:
+            case OP_LEFTCALL:
+            {
+                READ_ID(chatid, 0);
+                READ_ID(callid, 8);
+                READ_16(userListCount, 16);
+                std::vector<karere::Id> users;
+                for (unsigned int i = 0; i < userListCount; i++)
+                {
+                    READ_ID(user, 18 + i * 8);
+                    users.push_back(user);
+                }
+
+#ifndef KARERE_DISABLE_WEBRTC
+                Chat &chat = mChatdClient.chats(chatid);
+                if (mChatdClient.mRtcHandler && !chat.previewMode())
+                {
+                    if (opcode == OP_JOINEDCALL)
+                    {
+                        mChatdClient.mRtcHandler->handleJoinedCall(chat, callid, users);
+                    }
+                    else
+                    {
+                        mChatdClient.mRtcHandler->handleLefCall(chat, callid, users);
+                    }
+                }
+#endif
+                break;
+            }
+            case OP_CALLEND:
+            {
+                READ_ID(chatid, 0);
+                READ_ID(callid, 8);
+                READ_8(reason, 16);
+#ifndef KARERE_DISABLE_WEBRTC
+                Chat &chat = mChatdClient.chats(chatid);
+                if (mChatdClient.mRtcHandler && !chat.previewMode())
+                {
+                    mChatdClient.mRtcHandler->handleCallEnd(chat, callid, reason);
+                }
+#endif
+
                 break;
             }
             default:

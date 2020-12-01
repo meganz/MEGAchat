@@ -377,6 +377,12 @@ public:
 // IRtcHandler - interface to chatd
     virtual void handleMessage(chatd::Chat& chat, const StaticBuffer& msg);
     virtual void handleCallData(chatd::Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg);
+
+
+    void handleJoinedCall(chatd::Chat& chat, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
+    void handleLefCall(chatd::Chat& chat, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
+    void handleCallEnd(chatd::Chat& chat, karere::Id callid, uint8_t reason) override;
+
     virtual void onShutdown();
     virtual void onClientLeftCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
     virtual void stopCallsTimers(int shard);

@@ -466,7 +466,31 @@ enum Opcode
       */
     OP_NEWMSGIDTIMESTAMP = 50,
 
-    OP_LAST = OP_NEWMSGIDTIMESTAMP,
+    /**
+      * @brief
+      * S->C: Add user list to current in call user set
+      *
+      * Receive: <chatid.8> <callid.8> <userListCount.2> <user1.8> <user2.8> ...
+      */
+    OP_JOINEDCALL = 51,
+
+    /**
+      * @brief
+      * S->C: Remove user list from current in call user set
+      *
+      * Receive: <chatid.8> <callid.8> <userListCount.2> <user1.8> <user2.8> ...
+      */
+    OP_LEFTCALL = 52,
+
+    /**
+      * @brief
+      * S->C: Notify the call is finished
+      *
+      * Receive: <chatid.8> <callid.8> <reason.1>
+      */
+    OP_CALLEND = 54,
+
+    OP_LAST = OP_CALLEND,
     OP_INVALIDCODE = 0xFF
 };
 

@@ -508,6 +508,21 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
 }
 
+void RtcModule::handleJoinedCall(Chat &chat, Id callid, const std::vector<Id>& usersJoined)
+{
+
+}
+
+void RtcModule::handleLefCall(Chat &chat, Id callid, const std::vector<karere::Id>& usersLeft)
+{
+
+}
+
+void RtcModule::handleCallEnd(Chat &chat, Id callid, uint8_t reason)
+{
+
+}
+
 template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
 {

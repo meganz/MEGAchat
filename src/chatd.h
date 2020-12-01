@@ -357,6 +357,10 @@ public:
     virtual void onShutdown() {}
     virtual void onClientLeftCall(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
 
+    virtual void handleJoinedCall(Chat& /*chat*/, karere::Id /*callid*/, const std::vector<karere::Id>& /*usesrJoined*/) = 0;
+    virtual void handleLefCall(Chat& /*chat*/, karere::Id /*callid*/, const std::vector<karere::Id>& /*usesrLeft*/) = 0;
+    virtual void handleCallEnd(Chat& /*chat*/, karere::Id /*callid*/, uint8_t /*reason*/) = 0;
+
     /**
      * @brief This function is used to stop incall timer call during reconnection process
      * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
