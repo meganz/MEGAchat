@@ -80,7 +80,8 @@ namespace presenced
 enum {
     kKeepaliveSendInterval = 25,
     kKeepaliveReplyTimeout = 15,
-    kConnectTimeout = 30
+    kConnectTimeout = 30,
+    kMaxConnSucceededTimeframe = 30 // (in seconds) timeout after we will re-fetch a fresh URL if successful connections has exceeded kMaxConnSuceeded
 };
 enum: uint8_t
 {
@@ -323,7 +324,9 @@ public:
         kLoggedIn
     };
 
-    enum {kMaxConnSuceeded = 16,};
+    /* Limit of successful connections established during the last kMaxConnSucceededTimeframe seconds
+     * If we exceed this limit we will re-fetch a fresh URL */
+    const unsigned int kMaxConnSuceeded = 16;
 
     enum: uint16_t { kProtoVersion = 0x0001 };
 
@@ -381,7 +384,7 @@ protected:
     /** Timestamp of the last sent data to presenced */
     time_t mTsLastSend = 0;
 
-    /** Timestamp of the first successful connection attempt, in the last kConnectTimeout seconds */
+    /** Timestamp of the first successful connection attempt, in the last kMaxConnSucceededTimeframe seconds */
     time_t mTsConnSuceeded = 0;
 
     /** Number of successful connections attempts */

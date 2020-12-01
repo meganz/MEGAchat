@@ -528,20 +528,21 @@ Connection::Connection(Client& chatdClient, int shardNo)
 
 void Connection::wsConnectCb()
 {
-    if (time(nullptr) - mTsConnSuceeded > kConnectTimeout)
+    time_t now = time(nullptr);
+    if (now - mTsConnSuceeded > kMaxConnSucceededTimeframe)
     {
-        // reset if last check happened more than kConnectTimeout seconds ago
-        mTsConnSuceeded = time(nullptr);
+        // reset if last check happened more than kMaxConnSucceededTimeframe seconds ago
+        mTsConnSuceeded = now;
         mConnSuceeded = 0;
     }
     else
     {
         if (++mConnSuceeded > kMaxConnSuceeded)
         {
-            // We need to refresh URL because we have reached max successful attempts, in kConnectTimeout period
-            CHATDS_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in a period of %d seconds:", kMaxConnSuceeded, kConnectTimeout);
+            // We need to refresh URL because we have reached max successful attempts, in kMaxConnSucceededTimeframe period
+            CHATDS_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
             mConnSuceeded = 0;
-            mTsConnSuceeded = time(nullptr);
+            mTsConnSuceeded = now;
             retryPendingConnection(true, true); // cancel all retries and fetch new URL
             return;
         }
