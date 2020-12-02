@@ -499,6 +499,9 @@ public:
     bool updateLastGreen(karere::Id userid, time_t lastGreen);
     time_t getLastGreen(karere::Id userid);
 
+    /** @brief reset number of succeeded connection attempts and update ts for last check **/
+    void resetConnSuceededAttempts(const time_t &t);
+
     ~Client();
 };
 

@@ -532,8 +532,7 @@ void Connection::wsConnectCb()
     if (now - mTsConnSuceeded > kMaxConnSucceededTimeframe)
     {
         // reset if last check happened more than kMaxConnSucceededTimeframe seconds ago
-        mTsConnSuceeded = now;
-        mConnSuceeded = 0;
+        resetConnSuceededAttempts(now);
     }
     else
     {
@@ -541,8 +540,7 @@ void Connection::wsConnectCb()
         {
             // We need to refresh URL because we have reached max successful attempts, in kMaxConnSucceededTimeframe period
             CHATDS_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
-            mConnSuceeded = 0;
-            mTsConnSuceeded = now;
+            resetConnSuceededAttempts(now);
             retryPendingConnection(true, true); // cancel all retries and fetch new URL
             return;
         }
@@ -696,6 +694,12 @@ void Connection::sendCallReqDeclineNoSupport(Id chatid, Id callid)
     msg.write<uint8_t>(32, rtcModule::kErrNotSupported);         // Termination code kErrNotSupported = 37
     auto& chat = mChatdClient.chats(chatid);
     chat.sendCommand(std::move(msg));
+}
+
+void Connection::resetConnSuceededAttempts(const time_t &t)
+{
+    mTsConnSuceeded = t;
+    mConnSuceeded = 0;
 }
 
 void Connection::setState(State state)

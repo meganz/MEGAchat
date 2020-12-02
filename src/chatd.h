@@ -514,6 +514,9 @@ protected:
     promise::Promise<void> sendKeepalive();
     void sendEcho();
     void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
+
+    /** @brief reset number of succeeded connection attempts and update ts for last check **/
+    void resetConnSuceededAttempts(const time_t &t);
     friend class Client;
     friend class Chat;
 

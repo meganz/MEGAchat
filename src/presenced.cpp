@@ -122,8 +122,7 @@ void Client::wsConnectCb()
     if (now - mTsConnSuceeded > kMaxConnSucceededTimeframe)
     {
         // reset if last check happened more than kMaxConnSucceededTimeframe seconds ago
-        mTsConnSuceeded = now;
-        mConnSuceeded = 0;
+        resetConnSuceededAttempts(now);
     }
     else
     {
@@ -131,8 +130,7 @@ void Client::wsConnectCb()
         {
             // We need to refresh URL because we have reached max successful attempts, in kMaxConnSucceededTimeframe period
             PRESENCED_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
-            mConnSuceeded = 0;
-            mTsConnSuceeded = now;
+            resetConnSuceededAttempts(now);
             retryPendingConnection(true, true); // cancel all retries and fetch new URL
             return;
         }
@@ -301,6 +299,12 @@ bool Client::updateLastGreen(Id userid, time_t lastGreen)
         return true;
     }
     return false;
+}
+
+void Client::resetConnSuceededAttempts(const time_t &t)
+{
+    mTsConnSuceeded = t;
+    mConnSuceeded = 0;
 }
 
 bool Client::setAutoaway(bool enable, time_t timeout)
