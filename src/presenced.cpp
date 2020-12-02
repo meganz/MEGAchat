@@ -167,6 +167,9 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
         const char *url = result->getLink();
         if (url && url[0] && (karere::Url(url)).host != mDnsCache.getUrl(kPresencedShard).host) // hosts do not match
         {
+            // reset mConnSuceeded, to avoid a further succeeded connection attempt, can trigger another URL re-fetch
+            resetConnSuceededAttempts(time(nullptr));
+
             // Update DNSCache record with new URL
             PRESENCED_LOG_DEBUG("Update URL in cache, and start a new retry attempt");
             mDnsCache.updateRecord(kPresencedShard, url, true);
@@ -898,6 +901,8 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
                 return;
             }
 
+            // reset mConnSuceeded, to avoid a further succeeded connection attempt, can trigger another URL re-fetch
+            resetConnSuceededAttempts(time(nullptr));
             retryPendingConnection(true);
         });
     }
