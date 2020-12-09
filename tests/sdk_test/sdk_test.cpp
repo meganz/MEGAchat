@@ -5228,12 +5228,12 @@ MockupSfuConnection::MockupSfuConnection(karere::Client &karereClient)
 {
 }
 
-bool MockupSfuConnection::handleAvCommand(karere::Id cid, karere::Id peer, int av)
+bool MockupSfuConnection::handleAvCommand(karere::Id cid, int avFlags)
 {
     return true;
 }
 
-bool MockupSfuConnection::handleAnswerCommand(karere::Id, int, std::vector<karere::Id>, const string &, std::vector<karere::Id>)
+bool MockupSfuConnection::handleAnswerCommand(karere::Id, const string &, int, const std::vector<sfu::AnswerCommand::Peer> &, const std::map<karere::Id, string> &, const std::map<karere::Id, sfu::AnswerCommand::TrackDescriptor> &)
 {
     return true;
 }

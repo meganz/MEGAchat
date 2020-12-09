@@ -480,8 +480,8 @@ class MockupSfuConnection : public sfu::SfuConnection
 {
 public:
     MockupSfuConnection(karere::Client& karereClient);
-    bool handleAvCommand(karere::Id cid, karere::Id peer, int av) override;
-    bool handleAnswerCommand(karere::Id, int, std::vector<karere::Id>, const std::string&, std::vector<karere::Id>) override;
+    bool handleAvCommand(karere::Id cid, int avFlags) override;
+    bool handleAnswerCommand(karere::Id, const std::string &, int, const std::vector<sfu::AnswerCommand::Peer>&, const std::map<karere::Id, std::string>&, const std::map<karere::Id, sfu::AnswerCommand::TrackDescriptor>&) override;
 };
 
 class MockupIApp : public karere::IApp
