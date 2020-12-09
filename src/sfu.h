@@ -199,6 +199,7 @@ namespace sfu
         void doConnect();
         void retryPendingConnection(bool disconnect);
         karere::Id getCid() const;
+        bool sendCommand(const std::string& command);
         bool handleIncomingData(const char* data, size_t len);
         virtual bool handleAvCommand(karere::Id cid, int av);
         virtual bool handleAnswerCommand(karere::Id, const std::string&, int, const std::vector<AnswerCommand::Peer>&, const std::map<karere::Id, std::string>&, const std::map<karere::Id, AnswerCommand::TrackDescriptor>&);
@@ -213,6 +214,19 @@ namespace sfu
         virtual bool handleSpeakReqDelCommand(karere::Id);
         virtual bool handleSpeakOnCommand();
         virtual bool handleSpeakOffCommand();
+
+        bool joinCall(const std::string& sdp, const std::map<std::string, std::string>& ivs, int avFlags, int speaker, int vthumbs);
+        bool sendKey(uint64_t id, const std::string& data);
+        bool sendAv(int av);
+        bool sendGetVtumbs(const std::vector<karere::Id>& cids);
+        bool sendDelVthumbs(const std::vector<karere::Id>& cids);
+        bool sendGetHiRes(karere::Id cid, int r, int lo = -1);
+        bool sendDelHiRes(karere::Id cid);
+        bool sendHiResSetLo(karere::Id cid, int lo = -1);
+        bool sendLayer(int spt, int tmp, int stmp);
+        bool sendSpeakReq(karere::Id cid = karere::Id::inval());
+        bool sendSpeakReqDel(karere::Id cid = karere::Id::inval());
+        bool sendSpeakDel(karere::Id cid = karere::Id::inval());
 
     protected:
         std::string mSfuUrl;
@@ -242,7 +256,8 @@ namespace sfu
         void wsConnectCb() override;
         void wsCloseCb(int errcode, int errtype, const char *preason, size_t preason_len) override;
         void wsHandleMsgCb(char *data, size_t len) override;
-        void wsSendMsgCb(const char *, size_t) override {}
+        void wsSendMsgCb(const char *, size_t) override;
+        promise::Promise<void> mSendPromise;
 
         void onSocketClose(int errcode, int errtype, const std::string& reason);
         promise::Promise<void> reconnect();
