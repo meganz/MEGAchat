@@ -26,6 +26,9 @@
 #include <megaapi.h>
 #include "megachatapi.h"
 
+#include <chatClient.h>
+#include <sfu.h>
+
 #include <iostream>
 #include <fstream>
 
@@ -461,15 +464,38 @@ private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
 
-
-
 class MegaChatApiUnitaryTest
 {
 public:
     bool UNITARYTEST_ParseUrl();
+    bool UNITARYTEST_SfuDataReception();
 
     unsigned mOKTests = 0;
     unsigned mFailedTests = 0;
+
+    friend sfu::SfuConnection;
+};
+
+class MockupSfuConnection : public sfu::SfuConnection
+{
+public:
+    MockupSfuConnection(karere::Client& karereClient);
+    bool handleAvCommand(karere::Id cid, int avFlags) override;
+    bool handleAnswerCommand(karere::Id, const std::string &, int, const std::vector<sfu::AnswerCommand::Peer>&, const std::map<karere::Id, std::string>&, const std::map<karere::Id, sfu::AnswerCommand::TrackDescriptor>&) override;
+};
+
+class MockupIApp : public karere::IApp
+{
+public:
+    IChatListHandler* chatListHandler() override {}
+    void onPresenceConfigChanged(const presenced::Config&, bool) override {}
+    void onPresenceLastGreenUpdated(karere::Id, uint16_t) override {}
+#ifndef KARERE_DISABLE_WEBRTC
+    rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall&, karere::AvFlags) override {}
+#endif
+
+    //rtcModule::ICallHandler* onIncomingCall(ICall& call, karere::AvFlags av) override {};
+    rtcModule::ICallHandler* onGroupCallActive(karere::Id, karere::Id, uint32_t) override {}
 };
 
 #endif // CHATTEST_H

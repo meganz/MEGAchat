@@ -70,6 +70,7 @@ SOURCES += megachatapi.cpp \
             url.cpp \
             karereCommon.cpp \
             userAttrCache.cpp \
+            sfu.cpp \
             base/logger.cpp \
             base/cservices.cpp \
             net/websocketsIO.cpp \
@@ -104,6 +105,7 @@ HEADERS  += asyncTest-framework.h \
             megachatapi_impl.h \
             sdkApi.h \
             userAttrCache.h \
+            sfu.h \
             ../bindings/qt/QTMegaChatEvent.h \
             ../bindings/qt/QTMegaChatListener.h \
             ../bindings/qt/QTMegaChatRoomListener.h \
