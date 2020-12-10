@@ -2,6 +2,7 @@
 #define _KARERE_DB_H
 
 #include <sqlite3.h>
+#include "karereCommon.h"
 
 struct SqliteString
 {
@@ -49,7 +50,7 @@ protected:
             else
             {
                 // mHasOpenTransaction is true, but there's not an opened transaction in db
-                perror("db error: trying to commit a transaction, but there's not an opened transaction in db");
+                KR_LOG_ERROR("db error: trying to commit a transaction, but there's not an opened transaction in db");
                 assert(false);
             }
         }
