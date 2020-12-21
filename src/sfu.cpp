@@ -1,6 +1,8 @@
 #include "sfu.h"
-#include <base/promise.h>
-#include <megaapi.h>
+#include "base/promise.h"
+#include "megaapi.h"
+
+#include<rapidjson/writer.h>
 
 namespace sfu
 {
@@ -20,9 +22,105 @@ std::string SpeakReqDelCommand::COMMAND_NAME = "SPEAK_RQ_DEL";
 std::string SpeakOnCommand::COMMAND_NAME = "SPEAK_ON";
 std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OfF";
 
-Command::Command()
+Peer::Peer(uint32_t cid, karere::Id peerid, int avFlags, int mod)
+    : mCid(cid), mPeerid(peerid), mAvFlags(avFlags), mModerator(mod)
+{
+}
+
+Peer::Peer(const Peer &peer)
+    : mCid(peer.mCid)
+    , mPeerid(peer.mPeerid)
+    , mAvFlags(peer.mAvFlags)
+    , mModerator(peer.mModerator)
 {
 
+}
+
+uint32_t Peer::getCid() const
+{
+    return mCid;
+}
+
+karere::Id Peer::getPeerid() const
+{
+    return mPeerid;
+}
+
+int Peer::getAvFlags() const
+{
+    return mAvFlags;
+}
+
+int Peer::getModerator() const
+{
+    return mModerator;
+}
+
+
+std::string Peer::getKey(uint64_t keyid) const
+{
+    return mKeyMap.at(keyid);
+}
+
+void Peer::addKey(uint64_t keyid, const std::string &key)
+{
+    assert(mKeyMap.find(keyid) == mKeyMap.end());
+    mKeyMap[keyid] = key;
+}
+
+void Peer::setAvFlags(karere::AvFlags flags)
+{
+    mAvFlags = flags;
+}
+
+SpeakersDescriptor::SpeakersDescriptor()
+{
+}
+
+SpeakersDescriptor::SpeakersDescriptor(const std::string &audioDescriptor, const std::string &videoDescriptor)
+    : mAudioDescriptor(audioDescriptor), mVideoDescriptor(videoDescriptor)
+{
+}
+
+std::string SpeakersDescriptor::getAudioDescriptor() const
+{
+    return mAudioDescriptor;
+}
+
+std::string SpeakersDescriptor::getVideoDescriptor() const
+{
+    return mVideoDescriptor;
+}
+
+void SpeakersDescriptor::setDescriptors(const std::string &audioDescriptor, const std::string &videoDescriptor)
+{
+    mAudioDescriptor = audioDescriptor;
+    mVideoDescriptor = videoDescriptor;
+}
+
+Command::Command()
+{
+}
+
+void Command::parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator &it) const
+{
+    rapidjson::Value::ConstMemberIterator audioIterator = it->value.FindMember("audio");
+    if (audioIterator == it->value.MemberEnd() || !audioIterator->value.IsString())
+    {
+         SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid 'audio' value");
+         return;
+    }
+
+    std::string audio = audioIterator->value.GetString();
+
+    std::string video;
+    rapidjson::Value::ConstMemberIterator videoIterator = it->value.FindMember("video");
+    if (videoIterator != it->value.MemberEnd() || videoIterator->value.IsString())
+    {
+         video = videoIterator->value.GetString();
+    }
+
+    speaker.setDescriptors(audio, video);
 }
 
 AVCommand::AVCommand(const AvCompleteFunction &complete)
@@ -67,8 +165,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::string cidString = cidIterator->value.GetString();
-    ::mega::MegaHandle cid = ::mega::MegaApi::base64ToUserHandle(cidString.c_str());
+    uint32_t cid = cidIterator->value.GetUint();
 
     rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
     if (modIterator == command.MemberEnd() || !modIterator->value.IsInt())
@@ -95,7 +192,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::vector<AnswerCommand::Peer> peers;
+    std::vector<Peer> peers;
     parsePeerObject(peers, peersIterator);
 
     rapidjson::Value::ConstMemberIterator speakersIterator = command.FindMember("speakers");
@@ -105,8 +202,8 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::map<karere::Id, AnswerCommand::TrackDescriptor> speakers;
-    parseSpeakerObject(speakers, peersIterator);
+    std::map<uint32_t, SpeakersDescriptor> speakers;
+    parseSpeakersObject(speakers, speakersIterator);
 
     rapidjson::Value::ConstMemberIterator vthumbsIterator = command.FindMember("vthumbs");
     if (vthumbsIterator == command.MemberEnd() || !vthumbsIterator->value.IsArray())
@@ -115,7 +212,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::map<karere::Id, std::string> vthumbs;
+    std::map<uint32_t, VideoTrackDescriptor> vthumbs;
     parseVthumsObject(vthumbs, vthumbsIterator);
 
     return mComplete(cid, sdpString, isModerator, peers, vthumbs, speakers);
@@ -167,7 +264,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
             int mod = modIterator->value.GetInt();
 
 
-            peers.push_back(AnswerCommand::Peer(cid, userId, av, mod));
+            peers.push_back(Peer(cid, userId, av, mod));
         }
         else
         {
@@ -177,84 +274,38 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
     }
 }
 
-void AnswerCommand::parseSpeakerObject(std::map<karere::Id, AnswerCommand::TrackDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parseSpeakersObject(std::map<uint32_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
     for (unsigned int j = 0; j < it->value.Capacity(); ++j)
     {
-        if (it->value[j].IsObject())
+        uint32_t cid;
+        rapidjson::Value::ConstMemberIterator cidIterator = it->value[j].FindMember("cid");
+        if (cidIterator == it->value.MemberEnd() || !cidIterator->value.IsUint())
         {
-            karere::Id cid;
-            rapidjson::Value::ConstMemberIterator audioIterator = it->value[j].FindMember("audio");
-            if (audioIterator == it->value.MemberEnd() || !audioIterator->value.IsString())
-            {
-                 SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid 'audio' value");
-                 return;
-            }
-
-            std::string audio = audioIterator->value.GetString();
-
-            std::string video;
-            rapidjson::Value::ConstMemberIterator videoIterator = it->value[j].FindMember("video");
-            if (videoIterator != it->value.MemberEnd() || videoIterator->value.IsString())
-            {
-                 video = videoIterator->value.GetString();
-            }
-
-            speakers.insert(std::pair<karere::Id, AnswerCommand::TrackDescriptor>(cid, AnswerCommand::TrackDescriptor(audio, video)));
+             SFU_LOG_ERROR("parseSpeakersObject: invalid 'cid' value");
+             return;
         }
-        else
+
+        rapidjson::Value::ConstMemberIterator speakerIterator = it->value[j].FindMember("speaker");
+        if (speakerIterator == it->value[j].MemberEnd() || !speakerIterator->value.IsArray())
         {
-            SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid value at array 'peers'");
+            SFU_LOG_ERROR("parseSpeakersObject: Received data doesn't have 'speaker' field");
             return;
         }
+
+        SpeakersDescriptor speakerDescriptor;
+        parseSpeakerObject(speakerDescriptor, speakerIterator);
+
+        speakers.insert(std::pair<karere::Id, SpeakersDescriptor>(cid, speakerDescriptor));
+
     }
 }
 
-void AnswerCommand::parseVthumsObject(std::map<karere::Id, std::string> &vthumbs, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parseVthumsObject(std::map<uint32_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
 
-}
-
-AnswerCommand::Peer::Peer(karere::Id cid, karere::Id peerid, int avFlags, int mod)
-    : mCid(cid), mPeerid(peerid), mAvFlags(avFlags), mMod(mod)
-{
-}
-
-karere::Id AnswerCommand::Peer::getCid() const
-{
-    return mCid;
-}
-
-karere::Id AnswerCommand::Peer::getPeerid() const
-{
-    return mPeerid;
-}
-
-int AnswerCommand::Peer::getAvFlags() const
-{
-    return mAvFlags;
-}
-
-int AnswerCommand::Peer::getMod() const
-{
-    return mMod;
-}
-
-AnswerCommand::TrackDescriptor::TrackDescriptor(const std::string &audioDescriptor, const std::string &videoDescriptor)
-    : mAudioDescriptor(audioDescriptor), mVideoDescriptor(videoDescriptor)
-{
-}
-
-std::string AnswerCommand::TrackDescriptor::getAudioDescriptor() const
-{
-    return mAudioDescriptor;
-}
-
-std::string AnswerCommand::TrackDescriptor::getVideoDescriptor() const
-{
-    return mVideoDescriptor;
 }
 
 KeyCommand::KeyCommand(const KeyCompleteFunction &complete)
@@ -281,8 +332,7 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::string cidString = cidIterator->value.GetString();
-    ::mega::MegaHandle cid = ::mega::MegaApi::base64ToUserHandle(cidString.c_str());
+    uint32_t cid = cidIterator->value.GetUint();
 
     rapidjson::Value::ConstMemberIterator keyIterator = command.FindMember("key");
     if (keyIterator == command.MemberEnd() || !keyIterator->value.IsString())
@@ -303,8 +353,9 @@ VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete)
 
 bool VthumbsCommand::processCommand(const rapidjson::Document &command)
 {
-    ///TODO
-    return false;
+    std::map<uint32_t, VideoTrackDescriptor> tracks;
+
+    return mComplete(tracks);
 }
 
 VthumbsStartCommand::VthumbsStartCommand(const VtumbsStartCompleteFunction &complete)
@@ -348,7 +399,7 @@ HiResCommand::HiResCommand(const HiresCompleteFunction &complete)
 
 bool HiResCommand::processCommand(const rapidjson::Document &command)
 {
-    std::map<karere::Id, std::string> tracks;
+    std::map<uint32_t, VideoTrackDescriptor> tracks;
 
     return mComplete(tracks);
 }
@@ -400,13 +451,12 @@ bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::vector<karere::Id> speakRequest;
+    std::vector<uint32_t> speakRequest;
     for (unsigned int j = 0; j < command.Capacity(); ++j)
     {
         if (command[j].IsString())
         {
-            std::string cidString = command[j].GetString();
-            ::mega::MegaHandle cid = ::mega::MegaApi::base64ToUserHandle(cidString.c_str());
+            uint32_t cid = command[j].GetUint();
             speakRequest.push_back(cid);
         }
         else
@@ -433,8 +483,7 @@ bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::string cidString = cidIterator->value.GetString();
-    ::mega::MegaHandle cid = ::mega::MegaApi::base64ToUserHandle(cidString.c_str());
+    uint32_t cid = cidIterator->value.GetUint();
 
     return mComplete(cid);
 }
@@ -446,14 +495,26 @@ SpeakOnCommand::SpeakOnCommand(const SpeakOnCompleteFunction &complete)
 }
 
 bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
-{
-    if (!command.Empty())
+{    
+    uint32_t cid = 0;
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
     {
-        SFU_LOG_ERROR("SpeakOnCommand::processCommand - it isn't empty");
-        return false;
+        cid = cidIterator->value.GetUint();
+
+        rapidjson::Value::ConstMemberIterator speakerIterator = command.FindMember("speaker");
+        if (speakerIterator == command.MemberEnd() || !speakerIterator->value.IsArray())
+        {
+            SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'speakers' field");
+            return false;
+        }
+
+        SpeakersDescriptor speaker;
+        parseSpeakerObject(speaker, speakerIterator);
+        return mComplete(cid, speaker);
     }
 
-    return mComplete();
+    return false;
 }
 
 SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete)
@@ -463,35 +524,42 @@ SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete)
 }
 
 bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
-{
-    if (!command.Empty())
+{    
+    uint32_t cid = 0;
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
     {
-        SFU_LOG_ERROR("SpeakOffCommand::processCommand - it isn't empty");
-        return false;
+        cid = cidIterator->value.GetUint();
     }
 
-    return mComplete();
+    return mComplete(cid);
 }
 
-SfuConnection::SfuConnection(const std::string &sfuUrl, karere::Client& karereClient, karere::Id cid)
+SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface &call)
     : mSfuUrl(sfuUrl)
-    , mKarereClient(karereClient)
-    , mCid(cid)
+    , mWebsocketIO(websocketIO)
+    , mAppCtx(appCtx)
+    , mCall(call)
 {
-    mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&SfuConnection::handleAvCommand, this,  std::placeholders::_1, std::placeholders::_2));
-    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&SfuConnection::handleAnswerCommand, this,  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
-    mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&SfuConnection::handleKeyCommand, this,  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&SfuConnection::handleVThumbsCommand, this,  std::placeholders::_1));
-    mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&SfuConnection::handleVThumbsStartCommand, this));
-    mCommands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&SfuConnection::handleVThumbsStopCommand, this));
-    mCommands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&SfuConnection::handleHiResCommand, this, std::placeholders::_1));
-    mCommands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&SfuConnection::handleHiResStartCommand, this));
-    mCommands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&SfuConnection::handleHiResStopCommand, this));
-    mCommands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&SfuConnection::handleSpeakReqsCommand, this,  std::placeholders::_1));
-    mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&SfuConnection::handleSpeakReqDelCommand, this,  std::placeholders::_1));
-    mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&SfuConnection::handleSpeakOnCommand, this));
-    mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&SfuConnection::handleSpeakOffCommand, this));
+    mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2));
+    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
+    mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1));
+    mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call));
+    mCommands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call));
+    mCommands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1));
+    mCommands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call));
+    mCommands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call));
+    mCommands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1));
+    mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1));
+    mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2));
+    mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1));
 
+}
+
+bool SfuConnection::isOnline() const
+{
+    return (mConnState >= kConnected);
 }
 
 promise::Promise<void> SfuConnection::connect()
@@ -520,7 +588,7 @@ void SfuConnection::doConnect()
     setConnState(kConnecting);
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
 
-    bool rt = wsConnect(mKarereClient.websocketIO, mTargetIp.c_str(),
+    bool rt = wsConnect(&mWebsocketIO, mTargetIp.c_str(),
           url.host.c_str(),
           url.port,
           url.path.c_str(),
@@ -544,7 +612,7 @@ void SfuConnection::doConnect()
         if (mTargetIp.size())
         {
             SFU_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
-            if (wsConnect(mKarereClient.websocketIO, mTargetIp.c_str(),
+            if (wsConnect(&mWebsocketIO, mTargetIp.c_str(),
                           url.host.c_str(),
                           url.port,
                           url.path.c_str(),
@@ -595,7 +663,7 @@ void SfuConnection::retryPendingConnection(bool disconnect)
     }
 }
 
-karere::Id SfuConnection::getCid() const
+uint32_t SfuConnection::getCid() const
 {
     return mCid;
 }
@@ -666,6 +734,10 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
     }
 
     bool processCommandResult = mCommands[command]->processCommand(document);
+    if (processCommandResult && command == AnswerCommand::COMMAND_NAME)
+    {
+        setConnState(SfuConnection::kJoined);
+    }
 
     if (commandString.length() < len)
     {
@@ -676,72 +748,12 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
     return processCommandResult;
 }
 
-bool SfuConnection::handleAvCommand(karere::Id cid, int av)
+promise::Promise<void> SfuConnection::getPromiseConnection()
 {
-    return true;
+    return mConnectPromise;
 }
 
-bool SfuConnection::handleAnswerCommand(karere::Id, const std::string &, int, const std::vector<AnswerCommand::Peer>&, const std::map<karere::Id, std::string>&, const std::map<karere::Id, AnswerCommand::TrackDescriptor>&)
-{
-    return true;
-}
-
-bool SfuConnection::handleKeyCommand(uint64_t, karere::Id, const std::string &)
-{
-    return true;
-}
-
-bool SfuConnection::handleVThumbsCommand(const std::map<karere::Id, std::string> &)
-{
-    return true;
-}
-
-bool SfuConnection::handleVThumbsStartCommand()
-{
-    return true;
-}
-
-bool SfuConnection::handleVThumbsStopCommand()
-{
-    return true;
-}
-
-bool SfuConnection::handleHiResCommand(const std::map<karere::Id, std::string>&)
-{
-    return true;
-}
-
-bool SfuConnection::handleHiResStartCommand()
-{
-    return true;
-}
-
-bool SfuConnection::handleHiResStopCommand()
-{
-    return true;
-}
-
-bool SfuConnection::handleSpeakReqsCommand(const std::vector<karere::Id>&)
-{
-    return true;
-}
-
-bool SfuConnection::handleSpeakReqDelCommand(karere::Id)
-{
-    return true;
-}
-
-bool SfuConnection::handleSpeakOnCommand()
-{
-    return true;
-}
-
-bool SfuConnection::handleSpeakOffCommand()
-{
-    return true;
-}
-
-bool SfuConnection::joinCall(const std::string &sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker, int vthumbs)
+bool SfuConnection::joinSfu(const std::string &sdp, const std::map<int, std::string> &ivs, int avFlags, int speaker, int vthumbs)
 {
     rapidjson::Document json(rapidjson::kObjectType);
 
@@ -777,6 +789,9 @@ bool SfuConnection::joinCall(const std::string &sdp, const std::map<std::string,
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
     std::string command(buffer.GetString(), buffer.GetSize());
+
+    setConnState(SfuConnection::kJoining);
+
     return sendCommand(command);
 }
 
@@ -794,6 +809,24 @@ bool SfuConnection::sendKey(uint64_t id, const std::string &data)
     rapidjson::Value dataValue(rapidjson::kStringType);
     dataValue.SetString(data.data(), data.size(), json.GetAllocator());
     json.AddMember(rapidjson::Value("data"), dataValue, json.GetAllocator());
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string command(buffer.GetString(), buffer.GetSize());
+    return sendCommand(command);
+}
+
+bool SfuConnection::sendAv(int av)
+{
+    rapidjson::Document json(rapidjson::kObjectType);
+    rapidjson::Value cmdValue(rapidjson::kStringType);
+    cmdValue.SetString("AV", json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+
+    rapidjson::Value idValue(rapidjson::kNumberType);
+    idValue.SetInt(av);
+    json.AddMember(rapidjson::Value("id"), idValue, json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -977,6 +1010,11 @@ bool SfuConnection::sendSpeakDel(karere::Id cid)
     return sendCommand(command);
 }
 
+bool SfuConnection::sendModeratorRequested(karere::Id cid)
+{
+    assert(false);
+}
+
 void SfuConnection::setConnState(SfuConnection::ConnState newState)
 {
     if (newState == mConnState)
@@ -1036,11 +1074,11 @@ void SfuConnection::wsSendMsgCb(const char *, size_t)
 
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
 {
-    if (mKarereClient.isTerminated())
-    {
-        SFU_LOG_WARNING("Socket close but karere client was terminated.");
-        return;
-    }
+//    if (mKarereClient.isTerminated())
+//    {
+//        SFU_LOG_WARNING("Socket close but karere client was terminated.");
+//        return;
+//    }
 
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
@@ -1104,7 +1142,7 @@ promise::Promise<void> SfuConnection::reconnect()
             SFU_LOG_DEBUG("Resolving hostname %s...", url.host.c_str());
 
             auto retryCtrl = mRetryCtrl.get();
-            int statusDNS = wsResolveDNS(mKarereClient.websocketIO, url.host.c_str(),
+            int statusDNS = wsResolveDNS(&mWebsocketIO, url.host.c_str(),
                          [wptr, this, retryCtrl, attemptNo](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
@@ -1113,11 +1151,11 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
                 }
 
-                if (mKarereClient.isTerminated())
-                {
-                    SFU_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
-                    return;
-                }
+//                if (mKarereClient.isTerminated())
+//                {
+//                    SFU_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
+//                    return;
+//                }
 
                 if (!mRetryCtrl)
                 {
@@ -1156,7 +1194,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     }
 
                     assert(!isOnline());
-                    if (statusDNS == wsGetNoNameErrorCode(mKarereClient.websocketIO))
+                    if (statusDNS == wsGetNoNameErrorCode(&mWebsocketIO))
                     {
                         retryPendingConnection(true);
                     }
@@ -1216,7 +1254,7 @@ promise::Promise<void> SfuConnection::reconnect()
                 assert(isOnline());
             });
 
-        }, wptr, mKarereClient.appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+        }, wptr, mAppCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
 
         return static_cast<promise::Promise<void>&>(mRetryCtrl->start());
     }
@@ -1237,20 +1275,23 @@ void SfuConnection::abortRetryController()
     mRetryCtrl.reset();
 }
 
-SfuClient::SfuClient(karere::Client &karereClient)
-    : mKarereClient(karereClient)
+SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx)
+    : mWebsocketIO(websocketIO)
+    , mAppCtx(appCtx)
 {
 
 }
 
-promise::Promise<void> SfuClient::startCall(karere::Id chatid, const std::string &sfuUrl, karere::Id cid)
+SfuConnection* SfuClient::generateSfuConnection(karere::Id chatid, const std::string &sfuUrl, SfuInterface &call)
 {
     assert(mConnections.find(chatid) == mConnections.end());
-    mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mKarereClient, cid);
-    return mConnections[chatid]->connect();
+    mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mWebsocketIO, mAppCtx, call);
+    SfuConnection* sfuConnection = mConnections[chatid].get();
+    sfuConnection->connect();
+    return sfuConnection;
 }
 
-void SfuClient::endCall(karere::Id chatid)
+void SfuClient::closeManagerProtocol(karere::Id chatid)
 {
     mConnections[chatid]->disconnect();
     mConnections.erase(chatid);

@@ -476,26 +476,22 @@ public:
     friend sfu::SfuConnection;
 };
 
-class MockupSfuConnection : public sfu::SfuConnection
+class MockupCall : public sfu::SfuInterface
 {
 public:
-    MockupSfuConnection(karere::Client& karereClient);
-    bool handleAvCommand(karere::Id cid, int avFlags) override;
-    bool handleAnswerCommand(karere::Id, const std::string &, int, const std::vector<sfu::AnswerCommand::Peer>&, const std::map<karere::Id, std::string>&, const std::map<karere::Id, sfu::AnswerCommand::TrackDescriptor>&) override;
-};
-
-class MockupIApp : public karere::IApp
-{
-public:
-    IChatListHandler* chatListHandler() override {}
-    void onPresenceConfigChanged(const presenced::Config&, bool) override {}
-    void onPresenceLastGreenUpdated(karere::Id, uint16_t) override {}
-#ifndef KARERE_DISABLE_WEBRTC
-    rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall&, karere::AvFlags) override {}
-#endif
-
-    //rtcModule::ICallHandler* onIncomingCall(ICall& call, karere::AvFlags av) override {};
-    rtcModule::ICallHandler* onGroupCallActive(karere::Id, karere::Id, uint32_t) override {}
+    bool handleAvCommand(uint32_t cid, int av) override;
+    bool handleAnswerCommand(uint32_t cid, const std::string&sdp, int mod, const std::vector<sfu::Peer>&peers, const std::map<uint32_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<uint32_t, sfu::SpeakersDescriptor>&speakers) override;
+    bool handleKeyCommand(uint64_t, uint32_t, const std::string&) override;
+    bool handleVThumbsCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor> &) override;
+    bool handleVThumbsStartCommand() override;
+    bool handleVThumbsStopCommand() override;
+    bool handleHiResCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor> &) override;
+    bool handleHiResStartCommand() override;
+    bool handleHiResStopCommand() override;
+    bool handleSpeakReqsCommand(const std::vector<uint32_t>&) override;
+    bool handleSpeakReqDelCommand(uint32_t cid) override;
+    bool handleSpeakOnCommand(uint32_t cid, sfu::SpeakersDescriptor speaker) override;
+    bool handleSpeakOffCommand(uint32_t cid) override;
 };
 
 #endif // CHATTEST_H

@@ -1,7 +1,10 @@
 #ifndef SFU_H
 #define SFU_H
 
-#include <chatClient.h>
+#include <base/retryHandler.h>
+#include <net/websocketsIO.h>
+#include <karereId.h>
+#include <rapidjson/document.h>
 
 #define SFU_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
@@ -9,6 +12,70 @@
 #define SFU_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 namespace sfu
 {
+
+class Peer
+{
+public:
+    Peer(uint32_t cid, karere::Id peerid, int avFlags, int mod);
+    Peer(const Peer& peer);
+    uint32_t getCid() const;
+    karere::Id getPeerid() const;
+    int getAvFlags() const;
+    int getModerator() const;
+    std::string getKey(uint64_t keyid) const;
+    void addKey(uint64_t keyid, const std::string& key);
+    void setAvFlags(karere::AvFlags flags);
+protected:
+    uint32_t mCid;
+    karere::Id mPeerid;
+    int mAvFlags;
+    int mModerator;
+    std::map<uint64_t, std::string> mKeyMap;
+
+};
+
+class VideoTrackDescriptor
+{
+public:
+    std::vector<uint8_t> mIv;
+    std::string mMid;
+};
+
+class SpeakersDescriptor
+{
+public:
+    SpeakersDescriptor();
+    SpeakersDescriptor(const std::string& audioDescriptor, const std::string& videoDescriptor);
+    std::string getAudioDescriptor() const;
+    std::string getVideoDescriptor() const;
+    void setDescriptors(const std::string& audioDescriptor, const std::string& videoDescriptor);
+    std::vector<uint8_t> mIv;
+    std::string mMid;
+
+protected:
+    std::string mAudioDescriptor;
+    std::string mVideoDescriptor;
+};
+
+class SfuInterface
+{
+public:
+    // SFU -> Client
+    virtual bool handleAvCommand(uint32_t cid, int av) = 0;
+    virtual bool handleAnswerCommand(uint32_t cid, const std::string&sdp, int mod, const std::vector<Peer>&peers, const std::map<uint32_t, VideoTrackDescriptor>&vthumbs, const std::map<uint32_t, SpeakersDescriptor>&speakers) = 0;
+    virtual bool handleKeyCommand(uint64_t keyid, uint32_t cid, const std::string& key) = 0;
+    virtual bool handleVThumbsCommand(const std::map<uint32_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
+    virtual bool handleVThumbsStartCommand() = 0;
+    virtual bool handleVThumbsStopCommand() = 0;
+    virtual bool handleHiResCommand(const std::map<uint32_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
+    virtual bool handleHiResStartCommand() = 0;
+    virtual bool handleHiResStopCommand() = 0;
+    virtual bool handleSpeakReqsCommand(const std::vector<uint32_t>&) = 0;
+    virtual bool handleSpeakReqDelCommand(uint32_t cid) = 0;
+    virtual bool handleSpeakOnCommand(uint32_t cid, SpeakersDescriptor speaker) = 0;
+    virtual bool handleSpeakOffCommand(uint32_t cid) = 0;
+};
+
     class Command
     {
     public:
@@ -16,6 +83,7 @@ namespace sfu
         static std::string COMMAND_IDENTIFIER;
     protected:
         Command();
+        void parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator& it) const;
     };
 
     typedef std::function<bool(karere::Id, int)> AvCompleteFunction;
@@ -31,45 +99,19 @@ namespace sfu
     class AnswerCommand : public Command
     {
     public:
-        class Peer
-        {
-        public:
-            Peer(karere::Id cid, karere::Id peerid, int avFlags, int mod);
-            karere::Id getCid() const;
-            karere::Id getPeerid() const;
-            int getAvFlags() const;
-            int getMod() const;
-        protected:
-            karere::Id mCid;
-            karere::Id mPeerid;
-            int mAvFlags;
-            int mMod;
-        };
-
-        class TrackDescriptor
-        {
-        public:
-            TrackDescriptor(const std::string& audioDescriptor, const std::string& videoDescriptor);
-            std::string getAudioDescriptor() const;
-            std::string getVideoDescriptor() const;
-        protected:
-            std::string mAudioDescriptor;
-            std::string mVideoDescriptor;
-        };
-
-        typedef std::function<bool(karere::Id, const std::string&, int, std::vector<AnswerCommand::Peer>, std::map<karere::Id, std::string>, std::map<karere::Id, AnswerCommand::TrackDescriptor>)> AnswerCompleteFunction;
+        typedef std::function<bool(uint32_t, const std::string&, int, std::vector<Peer>, std::map<uint32_t, VideoTrackDescriptor>, std::map<uint32_t, SpeakersDescriptor>)> AnswerCompleteFunction;
         AnswerCommand(const AnswerCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
         static std::string COMMAND_NAME;
         AnswerCompleteFunction mComplete;
 
     private:
-        void parsePeerObject(std::vector<AnswerCommand::Peer>&peers, rapidjson::Value::ConstMemberIterator& it) const;
-        void parseSpeakerObject(std::map<karere::Id, TrackDescriptor> &speakers, rapidjson::Value::ConstMemberIterator& it) const;
-        void parseVthumsObject(std::map<karere::Id, std::string> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
+        void parsePeerObject(std::vector<Peer>&peers, rapidjson::Value::ConstMemberIterator& it) const;
+        void parseSpeakersObject(std::map<uint32_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator& it) const;
+        void parseVthumsObject(std::map<uint32_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
     };
 
-    typedef std::function<bool(uint64_t, karere::Id, const std::string&)> KeyCompleteFunction;
+    typedef std::function<bool(uint64_t, uint32_t, const std::string&)> KeyCompleteFunction;
     class KeyCommand : public Command
     {
     public:
@@ -79,7 +121,7 @@ namespace sfu
         KeyCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(const std::map<karere::Id, std::string>&)> VtumbsCompleteFunction;
+    typedef std::function<bool(const std::map<uint32_t, VideoTrackDescriptor>&)> VtumbsCompleteFunction;
     class VthumbsCommand : public Command
     {
     public:
@@ -109,7 +151,7 @@ namespace sfu
         VtumbsStopCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(const std::map<karere::Id, std::string>&)> HiresCompleteFunction;
+    typedef std::function<bool(const std::map<uint32_t, VideoTrackDescriptor>&)> HiresCompleteFunction;
     class HiResCommand : public Command
     {
     public:
@@ -139,7 +181,7 @@ namespace sfu
         HiResStopCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(const std::vector<karere::Id>&)> SpeakReqsCompleteFunction;
+    typedef std::function<bool(const std::vector<uint32_t>&)> SpeakReqsCompleteFunction;
     class SpeakReqsCommand : public Command
     {
     public:
@@ -159,7 +201,7 @@ namespace sfu
         SpeakReqDelCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(void)> SpeakOnCompleteFunction;
+    typedef std::function<bool(uint32_t cid, SpeakersDescriptor speaker)> SpeakOnCompleteFunction;
     class SpeakOnCommand : public Command
     {
     public:
@@ -169,7 +211,7 @@ namespace sfu
         SpeakOnCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(void)> SpeakOffCompleteFunction;
+    typedef std::function<bool(uint32_t cid)> SpeakOffCompleteFunction;
     class SpeakOffCommand : public Command
     {
     public:
@@ -189,33 +231,22 @@ namespace sfu
             kResolving,
             kConnecting,
             kConnected,
-            kLoggedIn
+            kJoining,
+            kJoined,
         };
 
-        SfuConnection(const std::string& sfuUrl, karere::Client& karereClient, karere::Id cid);
-        bool isOnline() const { return (mConnState >= kConnected); }
+        SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call);
+        bool isOnline() const;
         promise::Promise<void> connect();
         void disconnect();
         void doConnect();
         void retryPendingConnection(bool disconnect);
-        karere::Id getCid() const;
+        uint32_t getCid() const;
         bool sendCommand(const std::string& command);
         bool handleIncomingData(const char* data, size_t len);
-        virtual bool handleAvCommand(karere::Id cid, int av);
-        virtual bool handleAnswerCommand(karere::Id, const std::string&, int, const std::vector<AnswerCommand::Peer>&, const std::map<karere::Id, std::string>&, const std::map<karere::Id, AnswerCommand::TrackDescriptor>&);
-        virtual bool handleKeyCommand(uint64_t, karere::Id, const std::string&);
-        virtual bool handleVThumbsCommand(const std::map<karere::Id, std::string>&);
-        virtual bool handleVThumbsStartCommand();
-        virtual bool handleVThumbsStopCommand();
-        virtual bool handleHiResCommand(const std::map<karere::Id, std::string> &);
-        virtual bool handleHiResStartCommand();
-        virtual bool handleHiResStopCommand();
-        virtual bool handleSpeakReqsCommand(const std::vector<karere::Id>&);
-        virtual bool handleSpeakReqDelCommand(karere::Id);
-        virtual bool handleSpeakOnCommand();
-        virtual bool handleSpeakOffCommand();
 
-        bool joinCall(const std::string& sdp, const std::map<std::string, std::string>& ivs, int avFlags, int speaker, int vthumbs);
+        promise::Promise<void> getPromiseConnection();
+        bool joinSfu(const std::string& sdp, const std::map<int, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
         bool sendKey(uint64_t id, const std::string& data);
         bool sendAv(int av);
         bool sendGetVtumbs(const std::vector<karere::Id>& cids);
@@ -227,10 +258,14 @@ namespace sfu
         bool sendSpeakReq(karere::Id cid = karere::Id::inval());
         bool sendSpeakReqDel(karere::Id cid = karere::Id::inval());
         bool sendSpeakDel(karere::Id cid = karere::Id::inval());
+        bool sendModeratorRequested(karere::Id cid = karere::Id::inval());
 
     protected:
         std::string mSfuUrl;
-        karere::Client& mKarereClient;
+        //karere::Client& mKarereClient;
+        WebsocketsIO& mWebsocketIO;
+        void* mAppCtx;
+
 
         /** Current state of the connection */
         ConnState mConnState = kConnNew;
@@ -264,19 +299,21 @@ namespace sfu
         void abortRetryController();
 
         std::map<std::string, std::unique_ptr<Command>> mCommands;
-        karere::Id mCid;
+        uint32_t mCid;
+        SfuInterface& mCall;
     };
 
     class SfuClient
     {
     public:
-        SfuClient(karere::Client& karereClient);
-        promise::Promise<void> startCall(karere::Id chatid, const std::string& sfuUrl, karere::Id cid);
-        void endCall(karere::Id chatid);
+        SfuClient(WebsocketsIO& websocketIO, void* appCtx);
+        SfuConnection *generateSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
+        void closeManagerProtocol(karere::Id chatid);
 
     private:
         std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
-        karere::Client& mKarereClient;
+        WebsocketsIO& mWebsocketIO;
+        void* mAppCtx;
     };
 
     static inline const char* connStateToStr(SfuConnection::ConnState state)
@@ -287,7 +324,8 @@ namespace sfu
         case SfuConnection::kResolving: return "Resolving";
         case SfuConnection::kConnecting: return "Connecting";
         case SfuConnection::kConnected: return "Connected";
-        case SfuConnection::kLoggedIn: return "Logged-in";
+        case SfuConnection::kJoining: return "Joining";
+        case SfuConnection::kJoined: return "Joined";
         case SfuConnection::kConnNew: return "New";
         default: return "(invalid)";
         }
