@@ -349,29 +349,6 @@ public:
 
 class Connection;
 
-class IRtcHandler
-{
-public:
-    virtual void handleMessage(Chat& /*chat*/, const StaticBuffer& /*msg*/) {}
-    virtual void handleCallData(Chat& /*chat*/, karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/, const StaticBuffer& /*msg*/) {}
-    virtual void onShutdown() {}
-    virtual void onClientLeftCall(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
-
-    virtual void handleJoinedCall(Chat& /*chat*/, karere::Id /*callid*/, const std::vector<karere::Id>& /*usesrJoined*/) = 0;
-    virtual void handleLefCall(Chat& /*chat*/, karere::Id /*callid*/, const std::vector<karere::Id>& /*usesrLeft*/) = 0;
-    virtual void handleCallEnd(Chat& /*chat*/, karere::Id /*callid*/, uint8_t /*reason*/) = 0;
-
-    /**
-     * @brief This function is used to stop incall timer call during reconnection process
-     * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
-     */
-    virtual void stopCallsTimers(int shard) = 0;
-    virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
-    virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
-    virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
-    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid) = 0;
-    virtual void retryCalls(int shard) = 0;
-};
 /** @brief userid + clientid map key class */
 struct EndpointId
 {
@@ -1558,7 +1535,6 @@ public:
 
     MyMegaApi *mApi;
     karere::Client *mKarereClient;
-    IRtcHandler *mRtcHandler = nullptr;
 
     /* --- getters --- */
     const karere::Id myHandle() const;
@@ -1585,9 +1561,6 @@ public:
     void heartbeat();
 
     promise::Promise<void> notifyUserStatus();
-
-    /** Changes the Rtc handler, returning the old one */
-    IRtcHandler* setRtcHandler(IRtcHandler* handler);
 
     /** Clean the timers set */
     void cancelSeenTimers();

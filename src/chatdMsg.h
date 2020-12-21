@@ -266,7 +266,7 @@ enum Opcode
     OP_CLIENTID = 24,
 
     /**
-      * @brief  <chatid> <userid> <clientid> <payload-len> <payload>
+      * @brief  <chatid> <userid> <clientid> <payload-len> <payload> (deprecated)
       *
       * C->S: send to specified recipient(s)
       * S->C: delivery from specified sender
@@ -274,7 +274,7 @@ enum Opcode
     OP_RTMSG_BROADCAST = 25,
 
     /**
-      * @brief  <chatid> <userid> <clientid> <payload-len> <payload>
+      * @brief  <chatid> <userid> <clientid> <payload-len> <payload> (deprecated)
       *
       * C->S: send to specified recipient(s)
       * S->C: delivery from specified sender
@@ -282,7 +282,7 @@ enum Opcode
     OP_RTMSG_USER = 26,
 
     /**
-      * @brief  <chatid> <userid> <clientid> <payload-len> <payload>
+      * @brief  <chatid> <userid> <clientid> <payload-len> <payload> (deprecated)
       *
       * C->S: send to specified recipient(s)
       * S->C: delivery from specified sender
