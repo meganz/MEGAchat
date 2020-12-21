@@ -7,7 +7,10 @@
 
 namespace rtcModule
 {
-struct SdpKey;
+struct SdpKey
+{
+    uint8_t data[32];
+};
 /** @brief Interface for implementing the SRTP fingerprint verification
  *
  * The fingerprint verification resembles the ZRTP verification, but uses
