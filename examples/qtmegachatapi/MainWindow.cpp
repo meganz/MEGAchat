@@ -261,15 +261,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION) &&
             call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
     {
-        if (call->getCallCompositionChange() == MegaChatCall::PEER_ADDED)
-        {
-            window->createCallGui(false, call->getPeeridCallCompositionChange(), call->getClientidCallCompositionChange());
-        }
-        else if (call->getCallCompositionChange() == MegaChatCall::PEER_REMOVED)
-        {
-            window->destroyCallGui(call->getPeeridCallCompositionChange(), call->getClientidCallCompositionChange());
-        }
-
         updateVideoParticipants(call->getChatid());
     }
 
@@ -328,13 +319,6 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         callGui->setPeerAudioVideoFlag(session->hasAudio(), session->hasVideo());
     }
 
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD) &&
-            session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
-    {
-        callGui->enableOnHold(session->isOnHold());
-        updateVideoParticipants(chatid);
-    }
-
     //NEW SESSIONS
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
     {
@@ -349,11 +333,6 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
                break;
            }
        }
-    }
-
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_AUDIO_LEVEL))
-    {
-        callGui->setAudioActive(session->getAudioDetected());
     }
 }
 

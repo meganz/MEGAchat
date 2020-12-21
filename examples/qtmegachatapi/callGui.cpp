@@ -75,7 +75,7 @@ void CallGui::connectPeerCallGui()
     if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
             mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
     {
-        localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
+        localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this, false);
         ui->mAnswBtn->hide();
         if (!mVideo)
         {
