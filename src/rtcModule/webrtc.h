@@ -120,13 +120,16 @@ public:
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual bool isRinging() const = 0;
+
     virtual bool isModerator() const = 0;
     virtual void requestModerator() = 0;
     virtual void requestSpeaker(bool add = true) = 0;
     virtual bool isSpeakAllow() = 0;
-
-    virtual void allowSpeak(uint32_t cid, bool allow) = 0;
+    virtual void approveSpeakRequest(uint32_t cid, bool allow) = 0;
     virtual void stopSpeak(uint32_t cid = 0) = 0;
+    virtual std::vector<uint32_t> getSpeakerRequested() = 0;
+    virtual void requestHighResolutionVideo(uint32_t cid) = 0;
+    virtual void stopHighResolutionVideo(uint32_t cid) = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;

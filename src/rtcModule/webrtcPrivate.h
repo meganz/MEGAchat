@@ -72,6 +72,7 @@ public:
     VideoSlot* betHiResSlot();
 
     void setSpeakRequested(bool requested);
+    bool hasRequestedSpeaker() const;
 
 private:
     sfu::Peer mPeer;
@@ -98,13 +99,16 @@ public:
     void enableAudioLevelMonitor(bool enable) override;
     void ignoreCall() override;
     bool isRinging() const override;
+
     bool isModerator() const override;
     void requestModerator() override;
     void requestSpeaker(bool add = true) override;
     bool isSpeakAllow() override;
-
-    void allowSpeak(uint32_t cid, bool allow) override;
+    void approveSpeakRequest(uint32_t cid, bool allow) override;
     void stopSpeak(uint32_t cid = 0) override;
+    std::vector<uint32_t> getSpeakerRequested() override;
+    void requestHighResolutionVideo(uint32_t cid) override;
+    void stopHighResolutionVideo(uint32_t cid) override;
 
     void setCallHandler(CallHandler* callHanlder) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
@@ -205,7 +209,7 @@ public:
     void handleNewCall(karere::Id chatid, karere::Id callid) override;
 
 private:
-    std::map<karere::Id, std::unique_ptr<Call>> mCallNews;
+    std::map<karere::Id, std::unique_ptr<Call>> mCalls;
     IGlobalCallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     std::unique_ptr<sfu::SfuClient> mSfuClient;

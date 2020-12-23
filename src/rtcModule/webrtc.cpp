@@ -159,7 +159,7 @@ bool Call::isSpeakAllow()
     assert(false);
 }
 
-void Call::allowSpeak(uint32_t cid, bool allow)
+void Call::approveSpeakRequest(uint32_t cid, bool allow)
 {
     assert(mModerator);
     if (allow)
@@ -183,6 +183,41 @@ void Call::stopSpeak(uint32_t cid)
     }
 
     mSfuConnection->sendSpeakDel();
+}
+
+std::vector<uint32_t> Call::getSpeakerRequested()
+{
+    std::vector<uint32_t> speakerRequested;
+
+    for (const auto& session : mSessions)
+    {
+        if (session.second->hasRequestedSpeaker())
+        {
+            speakerRequested.push_back(session.first);
+        }
+    }
+
+    return speakerRequested;
+}
+
+void Call::requestHighResolutionVideo(uint32_t cid)
+{
+    bool hasVthumb = false;
+    for (const auto& session : mSessions)
+    {
+        if (session.second->getVthumSlot()->getCid() == cid)
+        {
+            hasVthumb = true;
+            break;
+        }
+    }
+
+    mSfuConnection->sendGetHiRes(cid, hasVthumb);
+}
+
+void Call::stopHighResolutionVideo(uint32_t cid)
+{
+    mSfuConnection->sendDelHiRes(cid);
 }
 
 void Call::connectSfu(const std::string &sfuUrl)
@@ -663,8 +698,8 @@ void RtcModuleSfu::hangupAll()
 
 ICall *RtcModuleSfu::findCall(karere::Id callid)
 {
-    auto it = mCallNews.find(callid);
-    if (it != mCallNews.end())
+    auto it = mCalls.find(callid);
+    if (it != mCalls.end())
     {
         return it->second.get();
     }
@@ -674,7 +709,7 @@ ICall *RtcModuleSfu::findCall(karere::Id callid)
 
 ICall *RtcModuleSfu::findCallByChatid(karere::Id chatid)
 {
-    for (const auto& call : mCallNews)
+    for (const auto& call : mCalls)
     {
         if (call.second->getChatid() == chatid)
         {
@@ -708,17 +743,19 @@ std::string RtcModuleSfu::getVideoDeviceSelected()
 promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid)
 {
     auto wptr = weakHandle();
-    mCallNews[chatid] = ::mega::make_unique<Call>(chatid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
+    mCalls[chatid] = ::mega::make_unique<Call>(chatid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
+    mCalls[chatid]->connectSfu("");
+    return promise::Void();
 
-    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-    .then([wptr, this, chatid](ReqResult result)
-    {
-        wptr.throwIfDeleted();
-        karere::Id callid = result->getParentHandle();
-        std::string sfuUrl = result->getText();
-        mCallNews[callid] = ::mega::make_unique<Call>(callid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
-        mCallNews[callid]->connectSfu(sfuUrl);
-    });
+//    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
+//    .then([wptr, this, chatid](ReqResult result)
+//    {
+//        wptr.throwIfDeleted();
+//        karere::Id callid = result->getParentHandle();
+//        std::string sfuUrl = result->getText();
+//        mCallNews[callid] = ::mega::make_unique<Call>(callid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
+//        mCallNews[callid]->connectSfu(sfuUrl);
+//    });
 }
 
 std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
@@ -738,7 +775,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
     if (call)
     {
         call->disconnect(termCode);
-        mCallNews.erase(call->getCallid());
+        mCalls.erase(call->getCallid());
     }
 }
 
@@ -746,7 +783,7 @@ void RtcModuleSfu::handleJoinedCall(karere::Id chatid, karere::Id callid, const 
 {
     for (karere::Id peer : usersJoined)
     {
-        mCallNews[callid]->addParticipant(peer);
+        mCalls[callid]->addParticipant(peer);
     }
 }
 
@@ -754,18 +791,18 @@ void RtcModuleSfu::handleLefCall(karere::Id chatid, karere::Id callid, const std
 {
     for (karere::Id peer : usersLeft)
     {
-        mCallNews[callid]->removeParticipant(peer);
+        mCalls[callid]->removeParticipant(peer);
     }
 }
 
 void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason)
 {
-    mCallNews.erase(callid);
+    mCalls.erase(callid);
 }
 
 void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callid)
 {
-    mCallNews[callid] = ::mega::make_unique<Call>(callid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
 }
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers)
@@ -931,6 +968,11 @@ VideoSlot *Session::betHiResSlot()
 void Session::setSpeakRequested(bool requested)
 {
     mSpeakRequest = requested;
+}
+
+bool Session::hasRequestedSpeaker() const
+{
+    return mSpeakRequest;
 }
 
 }
