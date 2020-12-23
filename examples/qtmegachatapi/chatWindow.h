@@ -8,6 +8,7 @@
 #include "chatMessage.h"
 #include "megaLoggerApplication.h"
 #include "MainWindow.h"
+#include "meetingView.h"
 #include <QMessageBox>
 #include "QTMegaTransferListener.h"
 
@@ -94,6 +95,7 @@ class ChatWindow : public QDialog,
     protected:
         Ui::ChatWindowUi *ui;
 #ifndef KARERE_DISABLE_WEBRTC
+        MeetingView *mMeetingView = nullptr;
         CallGui *mCallGui;
         std::set<CallGui *> callParticipantsGui;
 #endif

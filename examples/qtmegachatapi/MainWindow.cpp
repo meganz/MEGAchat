@@ -166,84 +166,92 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         switch (call->getStatus())
         {
-            case megachat::MegaChatCall::CALL_STATUS_RECONNECTING:
+            case megachat::MegaChatCall::CALL_STATUS_INITIAL:
             {
-                window->hangCall();
-                window->enableCallReconnect(true);
-                break;
-            }
-            case megachat::MegaChatCall::CALL_STATUS_REQUEST_SENT:
-            {
-                std::set<CallGui *> *setCallGui = window->getCallGui();
-
-                if (setCallGui->size() == 0)
-                {
-                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
-                }
+                window->ui->mTitlebar->hide();
+                window->ui->mTextChatWidget->hide();
+                window->createCallGui(call->hasVideoInitialCall(), 0, 0);
 
                 break;
             }
-            case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
-            {
-                window->hangCall();
-                return;
-            }
-            case megachat::MegaChatCall::CALL_STATUS_RING_IN:
-            {
-                std::set<CallGui *> *setCallGui = window->getCallGui();
+//            case megachat::MegaChatCall::CALL_STATUS_RECONNECTING:
+//            {
+//                window->hangCall();
+//                window->enableCallReconnect(true);
+//                break;
+//            }
+//            case megachat::MegaChatCall::CALL_STATUS_REQUEST_SENT:
+//            {
+//                std::set<CallGui *> *setCallGui = window->getCallGui();
 
-                if (setCallGui->size() == 0)
-                {
-                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()), call->isOnHold());
-                }
-                break;
-            }
-            case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
-            {
-                window->enableCallReconnect(false);
-                std::set<CallGui *> *setOfCallGui = window->getCallGui();
+//                if (setCallGui->size() == 0)
+//                {
+//                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
+//                }
 
-                if (setOfCallGui->size() == 0)
-                {
-                    window->createCallGui(call->hasVideoInitialCall(),
-                                          mMegaChatApi->getMyUserHandle(),
-                                          mMegaChatApi->getMyClientidHandle(call->getChatid()), call->isOnHold());
+//                break;
+//            }
+//            case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
+//            {
+//                window->hangCall();
+//                return;
+//            }
+//            case megachat::MegaChatCall::CALL_STATUS_RING_IN:
+//            {
+//                std::set<CallGui *> *setCallGui = window->getCallGui();
+
+//                if (setCallGui->size() == 0)
+//                {
+//                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()), call->isOnHold());
+//                }
+//                break;
+//            }
+//            case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
+//            {
+//                window->enableCallReconnect(false);
+//                std::set<CallGui *> *setOfCallGui = window->getCallGui();
+
+//                if (setOfCallGui->size() == 0)
+//                {
+//                    window->createCallGui(call->hasVideoInitialCall(),
+//                                          mMegaChatApi->getMyUserHandle(),
+//                                          mMegaChatApi->getMyClientidHandle(call->getChatid()), call->isOnHold());
 
 
-                }
+//                }
 
-                window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
+//                window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
 
-                CallGui *callGui = window->getMyCallGui();
-                callGui->setPeerAudioVideoFlag(call->hasLocalAudio(), call->hasLocalVideo());
+//                CallGui *callGui = window->getMyCallGui();
+//                callGui->setPeerAudioVideoFlag(call->hasLocalAudio(), call->hasLocalVideo());
 
-                MegaHandleList* clientids = call->getClientidParticipants();
-                MegaHandleList* peerids = call->getPeeridParticipants();
-                for (unsigned int i = 0; i < peerids->size(); i++)
-                {
-                    if (peerids->get(i) != mMegaChatApi->getMyUserHandle() || mMegaChatApi->getMyClientidHandle(call->getChatid()) != clientids->get(i))
-                    {
-                        window->createCallGui(false, peerids->get(i), clientids->get(i));
-                    }
-                }
+//                MegaHandleList* clientids = call->getClientidParticipants();
+//                MegaHandleList* peerids = call->getPeeridParticipants();
+//                for (unsigned int i = 0; i < peerids->size(); i++)
+//                {
+//                    if (peerids->get(i) != mMegaChatApi->getMyUserHandle() || mMegaChatApi->getMyClientidHandle(call->getChatid()) != clientids->get(i))
+//                    {
+//                        window->createCallGui(false, peerids->get(i), clientids->get(i));
+//                    }
+//                }
 
-                delete clientids;
-                delete peerids;
+//                delete clientids;
+//                delete peerids;
 
-                break;
-            }
-            case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
-            {
-                window->hangCall();
-                window->enableCallReconnect(false);
-                break;
-            }
-            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
-            {
-                window->hangCall();
-                window->enableCallReconnect(false);
-                break;
-            }
+//                break;
+//            }
+//            case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
+//            {
+//                window->hangCall();
+//                window->enableCallReconnect(false);
+//                break;
+//            }
+//            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
+//            {
+//                window->hangCall();
+//                window->enableCallReconnect(false);
+//                break;
+//            }
             default:
             {
                 break;
