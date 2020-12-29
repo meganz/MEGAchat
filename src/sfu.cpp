@@ -6,14 +6,14 @@
 
 namespace sfu
 {
-
+// sfu->client commands
 std::string Command::COMMAND_IDENTIFIER = "cmd";
 std::string AVCommand::COMMAND_NAME = "AV";
 std::string AnswerCommand::COMMAND_NAME = "ANSWER";
 std::string KeyCommand::COMMAND_NAME = "KEY";
-std::string VthumbsCommand::COMMAND_NAME = "VTHUMS";
-std::string VthumbsStartCommand::COMMAND_NAME = "VTHUMS_START";
-std::string VthumbsStopCommand::COMMAND_NAME = "VTHUMS_STOP";
+std::string VthumbsCommand::COMMAND_NAME = "VTHUMBS";
+std::string VthumbsStartCommand::COMMAND_NAME = "VTHUMB_START";
+std::string VthumbsStopCommand::COMMAND_NAME = "VTHUMB_STOP";
 std::string HiResCommand::COMMAND_NAME = "HIRES";
 std::string HiResStartCommand::COMMAND_NAME = "HIRES_START";
 std::string HiResStopCommand::COMMAND_NAME = "HIRES_STOP";
