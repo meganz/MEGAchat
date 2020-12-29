@@ -223,6 +223,20 @@ public:
 
     class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     {
+        // client->sfu commands
+        const std::string CSFU_JOIN = "JOIN";
+        const std::string CSFU_SENDKEY = "KEY";
+        const std::string CSFU_AV = "AV";
+        const std::string CSFU_GET_VTHUMBS = "GET_VTHUMBS";
+        const std::string CSFU_DEL_VTHUMBS = "DEL_VTHUMBS";
+        const std::string CSFU_GET_HIRES = "GET_HIRES";
+        const std::string CSFU_DEL_HIRES = "DEL_HIRES";
+        const std::string CSFU_HIRES_SET_LO = "HIRES_SET_LO";
+        const std::string CSFU_LAYER = "LAYER";
+        const std::string CSFU_SPEAK_RQ = "SPEAK_RQ";
+        const std::string CSFU_SPEAK_RQ_DEL = "SPEAK_RQ_DEL";
+        const std::string CSFU_SPEAK_DEL = "SPEAK_DEL";
+
     public:
         enum ConnState
         {

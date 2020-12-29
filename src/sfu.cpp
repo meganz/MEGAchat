@@ -758,7 +758,7 @@ bool SfuConnection::joinSfu(const std::string &sdp, const std::map<int, std::str
     rapidjson::Document json(rapidjson::kObjectType);
 
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("JOIN", json.GetAllocator());
+    cmdValue.SetString(CSFU_JOIN.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
 
@@ -799,7 +799,7 @@ bool SfuConnection::sendKey(uint64_t id, const std::string &data)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("KEY", json.GetAllocator());
+    cmdValue.SetString(CSFU_SENDKEY.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value idValue(rapidjson::kNumberType);
@@ -839,7 +839,7 @@ bool SfuConnection::sendGetVtumbs(const std::vector<karere::Id> &cids)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("GET_VTHUMBS", json.GetAllocator());
+    cmdValue.SetString(CSFU_GET_VTHUMBS.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
@@ -862,7 +862,7 @@ bool SfuConnection::sendDelVthumbs(const std::vector<karere::Id> &cids)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("DEL_VTHUMBS", json.GetAllocator());
+    cmdValue.SetString(CSFU_DEL_VTHUMBS.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
@@ -885,7 +885,7 @@ bool SfuConnection::sendGetHiRes(karere::Id cid, int r, int lo)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("GET_HIRES", json.GetAllocator());
+    cmdValue.SetString(CSFU_GET_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
@@ -904,7 +904,7 @@ bool SfuConnection::sendDelHiRes(karere::Id cid)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("DEL_HIRES", json.GetAllocator());
+    cmdValue.SetString(CSFU_DEL_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
@@ -920,7 +920,7 @@ bool SfuConnection::sendHiResSetLo(karere::Id cid, int lo)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("HIRES_SET_LO", json.GetAllocator());
+    cmdValue.SetString(CSFU_HIRES_SET_LO.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
@@ -938,7 +938,7 @@ bool SfuConnection::sendLayer(int spt, int tmp, int stmp)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("LAYER", json.GetAllocator());
+    cmdValue.SetString(CSFU_LAYER.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
     json.AddMember("spt", rapidjson::Value(spt), json.GetAllocator());
     json.AddMember("tmp", rapidjson::Value(tmp), json.GetAllocator());
@@ -954,7 +954,7 @@ bool SfuConnection::sendSpeakReq(karere::Id cid)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("SPEAK_RQ", json.GetAllocator());
+    cmdValue.SetString(CSFU_SPEAK_RQ.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     if (cid.isValid())
@@ -974,7 +974,7 @@ bool SfuConnection::sendSpeakReqDel(karere::Id cid)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("SPEAK_RQ_DEL", json.GetAllocator());
+    cmdValue.SetString(CSFU_SPEAK_RQ_DEL.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     if (cid.isValid())
@@ -994,7 +994,7 @@ bool SfuConnection::sendSpeakDel(karere::Id cid)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("SPEAK_DEL", json.GetAllocator());
+    cmdValue.SetString(CSFU_SPEAK_DEL.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     if (cid.isValid())
