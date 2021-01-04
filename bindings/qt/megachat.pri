@@ -105,7 +105,6 @@ HEADERS  += asyncTest-framework.h \
             megachatapi_impl.h \
             sdkApi.h \
             userAttrCache.h \
-            sfu.h \
             ../bindings/qt/QTMegaChatEvent.h \
             ../bindings/qt/QTMegaChatListener.h \
             ../bindings/qt/QTMegaChatRoomListener.h \
@@ -131,18 +130,16 @@ HEADERS  += asyncTest-framework.h \
             net/websocketsIO.h \
             rtcModule/IDeviceListImpl.h \
             rtcModule/IRtcCrypto.h \
-            rtcModule/IRtcStats.h \
             rtcModule/ITypes.h \
             rtcModule/ITypesImpl.h \
             rtcModule/IVideoRenderer.h \
             rtcModule/messages.h \
             rtcModule/rtcmPrivate.h \
-            rtcModule/rtcStats.h \
-            rtcModule/streamPlayer.h \
             rtcModule/webrtc.h \
             rtcModule/webrtcAdapter.h \
             rtcModule/webrtcAsyncWaiter.h \
             rtcModule/webrtcPrivate.h \
+            sfu.h \
             strongvelope/tlvstore.h \
             strongvelope/strongvelope.h \
             strongvelope/cryptofunctions.h \
@@ -163,7 +160,6 @@ CONFIG(USE_WEBRTC) {
     SOURCES += rtcCrypto.cpp \
              rtcModule/webrtc.cpp \
              rtcModule/webrtcAdapter.cpp \
-             rtcModule/rtcStats.cpp
 
 }
 else {

@@ -4,6 +4,8 @@
 #include "../../src/chatd.h"
 #include "../../src/megachatapi.h"
 #include "../../src/karereCommon.h" // for logging with karere facility
+#include "../../src/net/libwebsocketsIO.h"
+#include "waiter/libuvWaiter.h"
 
 #include <signal.h>
 #include <stdio.h>
@@ -2999,8 +3001,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     mLocalVideoListener[a1] = new TestChatVideoListener();
     mLocalVideoListener[a2] = new TestChatVideoListener();
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
-    megaChatApi[a2]->addChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, mLocalVideoListener[a1]);
+    megaChatApi[a2]->addChatLocalVideoListener(chatid, false, mLocalVideoListener[a2]);
     // Remote video listener aren't necessary because call is never ging to be answered at tests
 
     // A calls B and B hangs up the call
@@ -3169,8 +3171,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
-    megaChatApi[a2]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, mLocalVideoListener[a1]);
+    megaChatApi[a2]->removeChatLocalVideoListener(chatid, false, mLocalVideoListener[a2]);
 
     delete chatroomListener;
     chatroomListener = NULL;
@@ -3253,7 +3255,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
 
     TestChatVideoListener localVideoListener;
 
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, &localVideoListener);
 
     // Manual Test
     // Emit call
@@ -3292,7 +3294,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     std::cout << "Call finished." << std::endl;
 
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
 
     // Receive call
     std::cout << "Ready to receive calls..." << std::endl;
@@ -3301,7 +3303,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
     megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, &localVideoListener);
 
     sleep(5);
     std::cerr << "Mute Call" << std::endl;
@@ -3323,7 +3325,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     std::cout << "Call finished." << std::endl;
     sleep(5);
 
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
@@ -3450,7 +3452,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
     TestChatVideoListener localVideoListener;
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, &localVideoListener);
 
     // ---- MANUAL TEST ----
 
@@ -3481,7 +3483,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call must be already finished and it is not");
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
 
     // Receive call
 
@@ -3494,12 +3496,12 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
     megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, &localVideoListener);
 
     sleep(40);  // wait to receive some traffic
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
@@ -5072,11 +5074,13 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
 
 bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 {
-    MockupIApp app;
+    ::mega::LibuvWaiter waiter;
+    LibwebsocketsIO::Mutex mutex;
+    LibwebsocketsIO webSocket(mutex, &waiter, nullptr, nullptr);
     mOKTests ++;
     ::mega::MegaApi megaApi(nullptr);
-    std::unique_ptr<karere::Client> karereClient = ::mega::make_unique<karere::Client>(megaApi, nullptr, app, "Test", 0);
-    MockupSfuConnection sfuConnection(*karereClient.get());
+    MockupCall call;
+    sfu::SfuConnection sfuConnection("SFU-URL", webSocket, nullptr, call);
 
     int failedTest = 0;
     int executedTests = 0;
@@ -5106,10 +5110,10 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
         succesful = false;
     }
 
-    karereClient->terminate();
-
-     std::cout << "          TEST - Message::parseUrl() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
+    std::cout << "          TEST - Message::parseUrl() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
     return succesful;
+
+    return true;
 }
 
 TestMegaRequestListener::TestMegaRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)
@@ -5223,17 +5227,67 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 
 }
 
-MockupSfuConnection::MockupSfuConnection(karere::Client &karereClient)
-    : SfuConnection("SFU", karereClient, karere::Id::inval())
+bool MockupCall::handleAvCommand(uint32_t cid, int av)
 {
+
 }
 
-bool MockupSfuConnection::handleAvCommand(karere::Id cid, int avFlags)
+bool MockupCall::handleAnswerCommand(uint32_t cid, const string &sdp, int mod, const std::vector<sfu::Peer> &peers, const std::map<uint32_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<uint32_t, sfu::SpeakersDescriptor> &speakers)
 {
-    return true;
+
 }
 
-bool MockupSfuConnection::handleAnswerCommand(karere::Id, const string &, int, const std::vector<sfu::AnswerCommand::Peer> &, const std::map<karere::Id, string> &, const std::map<karere::Id, sfu::AnswerCommand::TrackDescriptor> &)
+bool MockupCall::handleKeyCommand(uint64_t, uint32_t, const string &)
 {
-    return true;
+
+}
+
+bool MockupCall::handleVThumbsCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor> &)
+{
+
+}
+
+bool MockupCall::handleVThumbsStartCommand()
+{
+
+}
+
+bool MockupCall::handleVThumbsStopCommand()
+{
+
+}
+
+bool MockupCall::handleHiResCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor> &)
+{
+
+}
+
+bool MockupCall::handleHiResStartCommand()
+{
+
+}
+
+bool MockupCall::handleHiResStopCommand()
+{
+
+}
+
+bool MockupCall::handleSpeakReqsCommand(const std::vector<uint32_t> &)
+{
+
+}
+
+bool MockupCall::handleSpeakReqDelCommand(uint32_t cid)
+{
+
+}
+
+bool MockupCall::handleSpeakOnCommand(uint32_t cid, sfu::SpeakersDescriptor speaker)
+{
+
+}
+
+bool MockupCall::handleSpeakOffCommand(uint32_t cid)
+{
+
 }

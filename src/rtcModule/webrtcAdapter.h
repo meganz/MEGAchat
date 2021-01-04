@@ -37,18 +37,6 @@ namespace artc
 extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
 extern AsyncWaiter* gAsyncWaiter;
 
-struct Identity
-{
-    std::string derCert;
-    std::string derPrivateKey;
-    inline void clear()
-    {
-        derCert.clear();
-        derPrivateKey.clear();
-    }
-    inline bool isValid() {return !derCert.empty();}
-};
-
 /** Globally initializes the library */
 bool init(void *appCtx);
 /** De-initializes and cleans up the library and webrtc stack */
@@ -57,8 +45,6 @@ bool isInitialized();
 unsigned long generateId();
 
 typedef rtc::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
-typedef rtc::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
-typedef std::unique_ptr<webrtc::SessionDescriptionInterface> supSdp;
 
 /** The error type code that will be set when promises returned by this lib are rejected */
 enum: uint32_t { ERRTYPE_RTC = 0x3e9a57c0 }; //promise error type

@@ -281,7 +281,7 @@ VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabil
 #endif
 }
 
-std::set<std::pair<std::string, std::string> > VideoManager::getVideoDevices()
+std::set<std::pair<std::string, std::string>> VideoManager::getVideoDevices()
 {
     #ifdef __APPLE__
         return OBJCCaptureModule::getVideoDevices();

@@ -666,16 +666,7 @@ void Connection::sendEcho()
 
 void Connection::sendCallReqDeclineNoSupport(Id chatid, Id callid)
 {
-    Command msg(OP_RTMSG_BROADCAST);
-    msg.write<uint64_t>(1, chatid.val);
-    msg.write<uint64_t>(9, 0);
-    msg.write<uint32_t>(17, 0);
-    msg.write<uint16_t>(21, 10);        // Payload length -> opCode(1) + callid(8) + termCode(1)
-    msg.write<uint8_t>(23, rtcModule::RTCMD_CALL_REQ_DECLINE);          // RTCMD_CALL_REQ_DECLINE
-    msg.write<uint64_t>(24, callid.val);
-    msg.write<uint8_t>(32, rtcModule::kErrNotSupported);         // Termination code kErrNotSupported = 37
-    auto& chat = mChatdClient.chats(chatid);
-    chat.sendCommand(std::move(msg));
+
 }
 
 void Connection::setState(State state)
@@ -742,22 +733,8 @@ void Connection::setState(State state)
         {
             auto& chat = mChatdClient.chats(chatid);
             chat.onDisconnect();
+        }
 
-            // remove calls (if any)
-#ifndef KARERE_DISABLE_WEBRTC
-            if (mChatdClient.mKarereClient->rtc  && !chat.previewMode())
-            {
-                mChatdClient.mKarereClient->rtc->removeCall(chatid, true);
-            }
-#endif
-        }
-        // and stop call-timers in this shard
-#ifndef KARERE_DISABLE_WEBRTC
-        if (mChatdClient.mRtcHandler)
-        {
-            mChatdClient.mRtcHandler->stopCallsTimers(mShardNo);
-        }
-#endif
         if (!mSendPromise.done())
         {
             mSendPromise.reject("Failed to send. Socket was closed");
@@ -1285,10 +1262,6 @@ bool Chat::sendCommand(const Command& cmd)
     return result;
 }
 
-#ifndef KARERE_DISABLE_WEBRTC
-namespace rtcModule { std::string rtmsgCommandToString(const StaticBuffer&); }
-#endif
-
 string Command::toString(const StaticBuffer& data)
 {
     auto opcode = data.read<uint8_t>(0);
@@ -1453,12 +1426,6 @@ string Command::toString(const StaticBuffer& data)
             return tmpString;
         }
 
-#ifndef KARERE_DISABLE_WEBRTC
-        case OP_RTMSG_ENDPOINT:
-        case OP_RTMSG_USER:
-        case OP_RTMSG_BROADCAST:
-            return ::rtcModule::rtmsgCommandToString(data);
-#endif
         case OP_NODEHIST:
         {
             string tmpString;
@@ -1522,6 +1489,47 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(ID_CSTR(chatid));
             tmpString.append(", rsn: ");
             tmpString.append(ID_CSTR(rsn));
+            return tmpString;
+        }
+
+
+        case OP_JOINEDCALL:
+        case OP_LEFTCALL:
+        {
+            string tmpString = opcode == OP_JOINEDCALL ? "JOINEDCALL" : "LEFTCALL";
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id callid = data.read<uint64_t>(9);
+            uint16_t userListCount = data.read<uint16_t>(17);
+            tmpString.append(" chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", callid: ");
+            tmpString.append(ID_CSTR(callid));
+            tmpString.append(", number of users: ");
+            tmpString.append(std::to_string(userListCount));
+            int begin = 17 + sizeof(uint16_t);
+            for (uint16_t i = 0; i < userListCount; i++)
+            {
+                tmpString.append(", User");
+                tmpString.append(std::to_string(i));
+                tmpString.append(": ");
+                karere::Id userid = data.read<uint64_t>(begin + i * 8);
+                tmpString.append(ID_CSTR(userid));
+            }
+
+            return tmpString;
+        }
+        case OP_CALLEND:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id callid = data.read<uint64_t>(9);
+            uint8_t reason = data.read<uint8_t>(17);
+            tmpString.append("CALLEND chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", callid: ");
+            tmpString.append(ID_CSTR(callid));
+            tmpString.append(", Reason: ");
+            tmpString.append(std::to_string(reason));
             return tmpString;
         }
         default:
@@ -2264,13 +2272,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
-#ifndef KARERE_DISABLE_WEBRTC
-                Chat& chat = mChatdClient.chats(chatid);
-                if (mChatdClient.mRtcHandler && !chat.previewMode())
-                {
-                    mChatdClient.mRtcHandler->handleInCall(chatid, userid, clientid);
-                }
-#endif
                 break;
             }
             case OP_ENDCALL:
@@ -2280,13 +2281,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
-#ifndef KARERE_DISABLE_WEBRTC
-                Chat& chat = mChatdClient.chats(chatid);
-                if (mChatdClient.mRtcHandler && !chat.previewMode())
-                {
-                    mChatdClient.mRtcHandler->onClientLeftCall(chatid, userid, clientid);
-                }
-#endif
                 break;
             }
             case OP_CALLDATA:
@@ -2297,26 +2291,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_16(payloadLen, 20);
                 CHATDS_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
                 pos += payloadLen; // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
-
-#ifndef KARERE_DISABLE_WEBRTC
-                Chat &chat = mChatdClient.chats(chatid);
-                if (mChatdClient.mRtcHandler && !chat.previewMode())
-                {
-                    StaticBuffer cmd(buf.buf() + 23, payloadLen);
-                    auto& chat = mChatdClient.chats(chatid);
-                    mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
-                }
-#else
-                READ_ID(callid, 22);
-                READ_8(state, 30);
-                if (state == rtcModule::kCallDataRinging) // Ringing state
-                {
-                    sendCallReqDeclineNoSupport(chatid, callid);
-                }
-
-                pos += payloadLen - 9;  // 9 -> callid(8) + state(1)
-#endif
-
                 break;
             }
             case OP_RTMSG_ENDPOINT:
@@ -2332,17 +2306,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 (void)clientid; //disable unused var warning if webrtc is enabled
                 READ_16(payloadLen, 20);
                 pos += payloadLen; //skip the payload
-#ifndef KARERE_DISABLE_WEBRTC
-                Chat& chat = mChatdClient.chats(chatid);
-                StaticBuffer cmd(buf.buf() + cmdstart, 23 + payloadLen);
-                CHATDS_LOG_DEBUG("%s: recv %s", ID_CSTR(chatid), ::rtcModule::rtmsgCommandToString(cmd).c_str());
-                if (mChatdClient.mRtcHandler && !chat.previewMode())
-                {
-                    mChatdClient.mRtcHandler->handleMessage(chat, cmd);
-                }
-#else
-                CHATDS_LOG_DEBUG("%s: recv %s userid: %s, clientid: %x", ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(userid), clientid);
-#endif
+                CHATDS_LOG_WARNING("(Deprecated) %s: recv %s userid: %s, clientid: %x", ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(userid), clientid);
                 break;
             }
             case OP_CLIENTID:
@@ -2351,10 +2315,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 0);
                 mClientId = clientid;
                 CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
-                if (mChatdClient.mRtcHandler)
-                {
-                    mChatdClient.mRtcHandler->retryCalls(mShardNo);
-                }
                 break;
             }
             case OP_ECHO:
@@ -2423,13 +2383,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_32(duration, 8);
                 CHATDS_LOG_DEBUG("%s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
-#ifndef KARERE_DISABLE_WEBRTC
-                Chat &chat = mChatdClient.chats(chatid);
-                if (mChatdClient.mRtcHandler  && !chat.previewMode())
-                {
-                    mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
-                }
-#endif
                 break;
             }
             case OP_NUMBYHANDLE:
@@ -2458,6 +2411,27 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(timestamp, 16);
                 CHATDS_LOG_DEBUG("recv NEWMSGIDTIMESTAMP: '%s' -> '%s'   %d", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
                 mChatdClient.msgConfirm(msgxid, msgid, timestamp);
+                break;
+            }
+            case OP_JOINEDCALL:
+            case OP_LEFTCALL:
+            {
+                READ_ID(chatid, 0);
+                READ_ID(callid, 8);
+                READ_16(userListCount, 16);
+                std::vector<karere::Id> users;
+                for (unsigned int i = 0; i < userListCount; i++)
+                {
+                    READ_ID(user, 18 + i * 8);
+                    users.push_back(user);
+                }
+                break;
+            }
+            case OP_CALLEND:
+            {
+                READ_ID(chatid, 0);
+                READ_ID(callid, 8);
+                READ_8(reason, 16);
                 break;
             }
             default:
@@ -5361,9 +5335,9 @@ void Chat::onUserLeave(Id userid)
         mUsers.clear();
             mChatdClient.mKarereClient->setCommitMode(commitEach);
 
-        if (mChatdClient.mRtcHandler && !previewMode())
+        if (mChatdClient.mKarereClient->rtc && !previewMode())
         {
-            mChatdClient.mRtcHandler->onKickedFromChatRoom(mChatId);
+            mChatdClient.mKarereClient->rtc->removeCall(mChatId);
         }
     }
     else
@@ -5372,14 +5346,15 @@ void Chat::onUserLeave(Id userid)
         CALL_CRYPTO(onUserLeave, userid);
         CALL_LISTENER(onUserLeave, userid);
 
-        if (mChatdClient.mRtcHandler && !previewMode())
+        if (mChatdClient.mKarereClient->rtc && !previewMode())
         {
             // the call will usually be terminated by the kicked user, but just in case
             // the client doesn't do it properly, we notify the user left the call
-            uint32_t clientid = mChatdClient.mRtcHandler->clientidFromPeer(mChatId, userid);
-            if (clientid)
+            std::vector<karere::Id> users = {userid};
+            ::rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatId());
+            if (call)
             {
-                mChatdClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
+                mChatdClient.mKarereClient->rtc->handleLefCall(chatId(), call->getCallid(), users);
             }
         }
     }
@@ -5576,13 +5551,6 @@ void Chat::onJoinComplete()
             }
         }
     }
-
-#ifndef KARERE_DISABLE_WEBRTC
-    if (mChatdClient.mKarereClient->rtc)
-    {
-        mChatdClient.mKarereClient->rtc->removeCallWithoutParticipants(mChatId);
-    }
-#endif
 }
 
 void Chat::resetGetHistory()
@@ -5831,13 +5799,6 @@ void Client::leave(Id chatid)
         }
         mChatForChatId.erase(it);
     }
-}
-
-IRtcHandler* Client::setRtcHandler(IRtcHandler *handler)
-{
-    auto old = mRtcHandler;
-    mRtcHandler = handler;
-    return old;
 }
 
 #define RET_ENUM_NAME(name) case OP_##name: return #name

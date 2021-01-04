@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rtcModule/webrtc.h"
 #ifndef KARERE_DISABLE_WEBRTC
     #include "rtcCrypto.h"
     #include "dummyCrypto.h" //for makeRandomString
@@ -37,7 +36,6 @@
 #include "base64url.h"
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sfu.h>
 
 #ifdef __ANDROID__
     #include <sys/system_properties.h>
@@ -50,6 +48,7 @@
 
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
+
 
 namespace karere
 {
@@ -68,7 +67,22 @@ bool Client::isInBackground() const
 {
     return mIsInBackground;
 }
+#ifndef KARERE_DISABLE_WEBRTC
+Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp, rtcModule::IGlobalCallHandler&globalCallHandler, const std::string &appDir, uint8_t caps, void *ctx)
+    : mAppDir(appDir),
+          websocketIO(websocketsIO),
+          appCtx(ctx),
+          api(sdk, ctx),
+          app(aApp),
+          mDnsCache(db, chatd::Client::chatdVersion),
+          mGlobalCallHandler(globalCallHandler),
+          mContactList(new ContactList(*this)),
+          chats(new ChatRoomList(*this)),
+          mPresencedClient(&api, this, *this, caps)
+{
+}
 
+#else
 /* Warning - the database is not initialzed at construction, but only after
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
@@ -86,6 +100,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
 {
     mSfuClient = mega::make_unique<sfu::SfuClient>(*this);
 }
+#endif
 
 KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)
 {
@@ -688,9 +703,6 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
             mDnsCache.invalidateIps(TURNSERVER_SHARD - index);
             index++;
         }
-
-        rtc->updateTurnServers();
-        rtc->refreshTurnServerIp();
     }
 #endif
 }
@@ -1584,8 +1596,8 @@ promise::Promise<void> Client::doConnect()
 
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::create(*this, app, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
-    rtc->init();
+    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc->init(*websocketIO, appCtx);
 #endif
 
     auto pms = mPresencedClient.connect()
@@ -1820,7 +1832,7 @@ void Client::terminate(bool deleteDb)
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-            rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+            rtc->hangupAll();
     }
 #endif
 
@@ -2029,7 +2041,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 //Add entry to map
                 userKeyMap->set(mMyHandle.toString().c_str(), oKeyB64.c_str());
                 return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap,
-                                !enctitleB64.empty() ? enctitleB64.c_str() : nullptr);
+                                !enctitleB64.empty() ? enctitleB64.c_str() : nullptr, true);
             });
         }
         else
@@ -2149,18 +2161,6 @@ void PeerChatRoom::connect()
 {
     mChat->connect();
 }
-
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
-{
-    return parent.mKarereClient.rtc->startCall(chatid(), av, handler);
-}
-
-rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler, karere::Id callid)
-{
-    return parent.mKarereClient.rtc->joinCall(chatid(), av, handler, callid);
-}
-#endif
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
@@ -4328,7 +4328,11 @@ bool Client::isCallActive(Id chatid) const
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callActive = rtc->isCallActive(chatid);
+        rtcModule::ICall* call = rtc->findCallByChatid(chatid);
+        if (call)
+        {
+            callActive = call->participate();
+        }
     }
 #endif
 
@@ -4342,7 +4346,11 @@ bool Client::isCallInProgress(karere::Id chatid) const
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        participantingInCall = rtc->isCallInProgress(chatid);
+        rtcModule::ICall* call = rtc->findCallByChatid(chatid);
+        if (call)
+        {
+            participantingInCall = (call->getState() == rtcModule::CallState::kStateInProgress);
+        }
     }
 #endif
 
