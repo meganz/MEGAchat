@@ -112,7 +112,9 @@ protected:
     uint8_t mFlags;
 public:
     //Bit 3 (value 4) is occupied by kFlagRinging = 0x04
-    enum: uint8_t { kAudio = 1, kVideo = 2, kScreen = 8, kOnHold = 16, kMask = 27};
+    enum: uint8_t { kAudio = 1, kCameraLowRes = 2, kCameraHiRes = 4, kCamera = 6,
+                    kScreenLowRes = 8, kScreenHiRes = 16, kScreen = 24,
+                  kLowResVideo = 10, kHiResVideo = 20, kVideo = 30};
     AvFlags(uint8_t flags): mFlags(flags){}
     AvFlags(bool audio, bool video)
     : mFlags((audio ? kAudio : 0) | (video ? kVideo : 0)){}
@@ -121,7 +123,8 @@ public:
     void set(uint8_t val) { mFlags = val; }
     bool audio() const { return mFlags & kAudio; }
     bool video() const { return mFlags & kVideo; }
-    bool onHold() const { return mFlags & kOnHold; }
+    bool videoLowRes() const { return mFlags & kLowResVideo; }
+    bool videoHiRes() const { return mFlags & kHiResVideo; }
     bool operator==(AvFlags other) { return (mFlags == other.mFlags); }
     bool operator!=(AvFlags other) { return (mFlags != other.mFlags); }
     bool any() const { return mFlags != 0; }
@@ -131,27 +134,17 @@ public:
         std::string result;
         if (mFlags & kAudio)
             result+='a';
-        if (mFlags & kVideo)
-            result+='v';
-        if (mFlags & kScreen)
-            result+='s';
-        if (mFlags & kOnHold)
-            result+='h';
+        if (mFlags & kCameraLowRes)
+            result+= "cL";
+        if (mFlags & kCameraHiRes)
+            result+= "cH";
+        if (mFlags & kScreenLowRes)
+            result+= "sL";
+        if (mFlags & kScreenHiRes)
+            result+= "sH";
         if (result.empty())
             result='-';
         return result;
-    }
-    void setAudio(bool enable)
-    {
-        mFlags = ((enable ? kAudio : 0) | (video() ? kVideo : 0) | (onHold() ? kOnHold : 0));
-    }
-    void setVideo(bool enable)
-    {
-        mFlags = ((audio() ? kAudio : 0) | (enable ? kVideo : 0) | (onHold() ? kOnHold : 0));
-    }
-    void setOnHold(bool enable)
-    {
-        mFlags = ((audio() ? kAudio : 0) | (video() ? kVideo : 0) | (enable ? kOnHold : 0));
     }
 };
 

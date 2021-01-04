@@ -1,6 +1,5 @@
 #ifndef IAPP_H
 #define IAPP_H
-#include "rtcModule/webrtc.h"
 #include <chatd.h>
 #include <presenced.h>
 #include <autoHandle.h>
@@ -16,7 +15,7 @@ class Contact;
  * @brief The karere chat application class that the app needs to
  * implement in order to receive (mostly GUI) events.
  */
-class IApp : public rtcModule::IGlobalHandler
+class IApp
 {
 public:
 
@@ -58,15 +57,6 @@ public:
     public:
 
         virtual ~IChatHandler() {}
-
-#ifndef KARERE_DISABLE_WEBRTC
-        /**
-         * @brief Returns the ICallHandler instance associated with that chat, in
-         * case there is an ongoing call. If there is no call,
-         * NULL should be returned
-         */
-        virtual rtcModule::ICallHandler* callHandler() = 0;
-#endif
 
         /** @brief Called when the name of a member changes
          * @param userid The member user handle
@@ -248,18 +238,6 @@ public:
      * @param lastGreen Time elapsed (minutes) since the last time user was green
      */
     virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) = 0;
-
-#ifndef KARERE_DISABLE_WEBRTC
-    /**
-     * @brief Called by karere when there is an incoming call.
-     *
-     * The app must create a rtcModule::ICallHandler to handle events related to
-     * that call.
-     * @param call The \c rtcModule::ICall instance that represents the call. To
-     * answer, do `call.answer()`, to reject, do `call.hangup()`
-     */
-    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av) = 0;
-#endif
 
     /** @brief Called when the karere::Client changes its initialization or termination state.
      * Look at karere::Client::InitState for the possible values of the client init

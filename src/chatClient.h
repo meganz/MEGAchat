@@ -205,18 +205,6 @@ public:
     /** @brief Returns the retention time of the chatroom */
     uint32_t getRetentionTime() const { return mChat->getRetentionTime();}
 
-#ifndef KARERE_DISABLE_WEBRTC
-    /** @brief Initiates a webrtc call in the chatroom
-     *  @param av Whether to initially send video and/or audio
-     */
-    virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
-
-    /** @brief Joins a webrtc call in the chatroom
-     *  @param av Whether to initially send video and/or audio
-     */
-    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler, Id callid);
-#endif
-
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
@@ -892,7 +880,8 @@ public:
     std::unique_ptr<chatd::Client> mChatdClient;
 
 #ifndef KARERE_DISABLE_WEBRTC
-    std::unique_ptr<rtcModule::IRtcModule> rtc;
+    rtcModule::IGlobalCallHandler& mGlobalCallHandler; // interface for global events in calls
+    std::unique_ptr<rtcModule::RtcModule> rtc;
 #endif
 
     char mMyPrivCu25519[32] = {0};
@@ -957,8 +946,13 @@ public:
      * inconsistent, karere will behave as if \c false was specified - will
      * delete the karere.db file and re-create it from scratch.
      */
+#ifndef KARERE_DISABLE_WEBRTC
+    Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& app, rtcModule::IGlobalCallHandler& globalCallHandler, const std::string& appDir,
+           uint8_t caps, void *ctx = NULL);
+#else
     Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& app, const std::string& appDir,
            uint8_t caps, void *ctx = NULL);
+#endif
 
     virtual ~Client();
 
