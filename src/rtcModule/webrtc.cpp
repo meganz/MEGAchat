@@ -542,7 +542,6 @@ void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 
 void Call::onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
-
 }
 
 void Call::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)

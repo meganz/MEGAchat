@@ -8,6 +8,7 @@
 #include <api/video_codecs/builtin_video_decoder_factory.h>
 #include <modules/video_capture/video_capture_factory.h>
 #include <rtc_base/ssl_adapter.h>
+#include <system_wrappers/include/field_trial.h>
 
 #ifdef __ANDROID__
 extern JavaVM *MEGAjvm;
@@ -53,6 +54,7 @@ bool init(void *appCtx)
 
     if (gWebrtcContext == nullptr)
     {
+        webrtc::field_trial::InitFieldTrialsFromString("WebRTC-GenericDescriptorAdvertised/Enabled/");
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
                     nullptr /* network_thread */, thread /* worker_thread */,
                     thread, nullptr /* default_adm */,
@@ -61,6 +63,7 @@ bool init(void *appCtx)
                     webrtc::CreateBuiltinVideoEncoderFactory(),
                     webrtc::CreateBuiltinVideoDecoderFactory(),
                     nullptr /* audio_mixer */, nullptr /* audio_processing */);
+
     }
 
     if (!gWebrtcContext)
@@ -306,6 +309,59 @@ rtc::RefCountReleaseStatus VideoManager::Release() const
     }
 
     return status;
+}
+
+MegaEncryptor::MegaEncryptor()
+{
+
+}
+
+MegaEncryptor::~MegaEncryptor()
+{
+
+}
+
+int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::ArrayView<const uint8_t> additional_data, rtc::ArrayView<const uint8_t> frame, rtc::ArrayView<uint8_t> encrypted_frame, size_t *bytes_written)
+{
+    for (size_t i = 0; i < frame.size(); i++)
+    {
+      encrypted_frame[i] = frame[i];
+    }
+
+    *bytes_written = frame.size();
+
+    return 0;
+}
+
+size_t MegaEncryptor::GetMaxCiphertextByteSize(cricket::MediaType media_type, size_t frame_size)
+{
+    return frame_size;
+}
+
+MegaDecryptor::MegaDecryptor()
+{
+
+}
+
+MegaDecryptor::~MegaDecryptor()
+{
+
+}
+
+webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaType media_type, const std::vector<uint32_t> &csrcs, rtc::ArrayView<const uint8_t> additional_data, rtc::ArrayView<const uint8_t> encrypted_frame, rtc::ArrayView<uint8_t> frame)
+{
+    size_t frameSize = encrypted_frame.size();
+    for (unsigned int i = 0; i < frameSize; i++)
+    {
+        frame[i] = encrypted_frame.data()[i];
+    }
+
+    return Result(Status::kOk, frameSize);
+}
+
+size_t MegaDecryptor::GetMaxPlaintextByteSize(cricket::MediaType media_type, size_t encrypted_frame_size)
+{
+    return encrypted_frame_size;
 }
 
 #ifdef __ANDROID__

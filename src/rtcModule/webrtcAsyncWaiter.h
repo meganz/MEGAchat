@@ -7,6 +7,7 @@
 #endif
 
 #include <base/trackDelete.h>
+#include <rtc_base/socket_server.h>
 
 #ifdef RTCM_DEBUG_ASYNC_WAITER
     #define ASYNCWAITER_LOG_DEBUG(fmtString,...) KR_LOG_DEBUG("AsyncWaiter: " fmtString, ##__VA_ARGS__)
@@ -32,7 +33,6 @@ protected:
     std::condition_variable mCondVar;
     volatile bool mSignalled = false;
     rtc::Thread* mThread = nullptr;
-    rtc::MessageQueue* mMessageQueue = nullptr;
 public:
     AsyncWaiter(void *ctx) : appCtx(ctx) { }
     rtc::Thread* guiThread() const { return mThread; }
@@ -44,7 +44,7 @@ virtual rtc::Socket* CreateSocket(int family, int type) { return nullptr; }
 virtual rtc::AsyncSocket* CreateAsyncSocket(int type) { return nullptr; }
 virtual rtc::AsyncSocket* CreateAsyncSocket(int family, int type) {return nullptr; }
 //rtc::SocketServer interface
-virtual void SetMessageQueue(rtc::MessageQueue* queue) { mMessageQueue = queue; }
+virtual void SetMessageQueue(rtc::Thread* queue) { mThread = queue; }
 virtual bool Wait(int waitTimeout, bool process_io) //return false means error, this causes MessageQueue::Get() to bail out
 {
 // In the current webrtc implementation, Wait() on the GUI thread can be called in 2 cases:
@@ -89,7 +89,7 @@ virtual bool Wait(int waitTimeout, bool process_io) //return false means error, 
 virtual void WakeUp()
 {
     ASYNCWAITER_LOG_DEBUG("WakeUp(): Called by %s thread", (rtc::Thread::Current() == mThread)?"the GUI":"a worker");
-    if (!mMessageQueue->empty()) //process messages and wake up waiters again
+    if (!mThread->empty()) //process messages and wake up waiters again
     {
         ASYNCWAITER_LOG_DEBUG("  WakeUp(): Message queue not empty, posting ProcessMessages(0) call on GUI thread");
 
