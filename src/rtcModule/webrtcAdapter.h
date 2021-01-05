@@ -10,6 +10,7 @@
 #include "webrtcAsyncWaiter.h"
 #include "rtcmPrivate.h"
 #include <rtc_base/ref_counter.h>
+#include "rtcCrypto.h"
 
 #ifdef __OBJC__
 @class AVCaptureDevice;
@@ -23,7 +24,7 @@ typedef struct objc_object RTCCameraVideoCapturer;
 #include <sdk/android/native_api/video/video_source.h>
 #endif
 
-
+using namespace CryptoPP;
 namespace std
 {
     template< bool B, class T = void >
@@ -51,6 +52,16 @@ enum: uint32_t { ERRTYPE_RTC = 0x3e9a57c0 }; //promise error type
 /** The specific error codes of rejected promises */
 enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
 
+// meetings WebRTC frame structure lengths (in Bytes)
+const uint8_t FRAME_KEYID_LENGTH = 1;
+const uint8_t FRAME_CID_LENGTH = 3;
+const uint8_t FRAME_CTR_LENGTH = 4;
+const uint8_t FRAME_GCM_TAG_LENGTH = 4;
+const uint8_t FRAME_HEADER_LENGTH = 8;
+const uint8_t FRAME_IV_LENGTH = 12;
+
+// max number of tracks
+const static uint8_t MAX_MEDIA_TYPES = 3;
 // Old webrtc versions called user callbacks directly from internal webrtc threads,
 // so we needed to marshall these callbacks to our GUI thread. New webrtc relies
 // on the main thread to process internal webrtc messages (as any other webrtc thread),
