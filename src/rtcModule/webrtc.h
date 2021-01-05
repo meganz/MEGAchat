@@ -11,6 +11,8 @@
 #define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
 #define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
 
+// 24-bit client id (CID) for meetings.
+typedef uint32_t Cid_t;
 
 namespace rtcModule
 {
@@ -125,11 +127,11 @@ public:
     virtual void requestModerator() = 0;
     virtual void requestSpeaker(bool add = true) = 0;
     virtual bool isSpeakAllow() = 0;
-    virtual void approveSpeakRequest(uint32_t cid, bool allow) = 0;
-    virtual void stopSpeak(uint32_t cid = 0) = 0;
-    virtual std::vector<uint32_t> getSpeakerRequested() = 0;
-    virtual void requestHighResolutionVideo(uint32_t cid) = 0;
-    virtual void stopHighResolutionVideo(uint32_t cid) = 0;
+    virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
+    virtual void stopSpeak(Cid_t cid = 0) = 0;
+    virtual std::vector<Cid_t> getSpeakerRequested() = 0;
+    virtual void requestHighResolutionVideo(Cid_t cid) = 0;
+    virtual void stopHighResolutionVideo(Cid_t cid) = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;

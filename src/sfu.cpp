@@ -22,7 +22,7 @@ std::string SpeakReqDelCommand::COMMAND_NAME = "SPEAK_RQ_DEL";
 std::string SpeakOnCommand::COMMAND_NAME = "SPEAK_ON";
 std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OfF";
 
-Peer::Peer(uint32_t cid, karere::Id peerid, int avFlags, int mod)
+Peer::Peer(Cid_t cid, karere::Id peerid, int avFlags, int mod)
     : mCid(cid), mPeerid(peerid), mAvFlags(avFlags), mModerator(mod)
 {
 }
@@ -36,7 +36,7 @@ Peer::Peer(const Peer &peer)
 
 }
 
-uint32_t Peer::getCid() const
+Cid_t Peer::getCid() const
 {
     return mCid;
 }
@@ -165,7 +165,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    uint32_t cid = cidIterator->value.GetUint();
+    Cid_t cid = cidIterator->value.GetUint();
 
     rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
     if (modIterator == command.MemberEnd() || !modIterator->value.IsInt())
@@ -202,7 +202,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::map<uint32_t, SpeakersDescriptor> speakers;
+    std::map<Cid_t, SpeakersDescriptor> speakers;
     parseSpeakersObject(speakers, speakersIterator);
 
     rapidjson::Value::ConstMemberIterator vthumbsIterator = command.FindMember("vthumbs");
@@ -212,7 +212,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::map<uint32_t, VideoTrackDescriptor> vthumbs;
+    std::map<Cid_t, VideoTrackDescriptor> vthumbs;
     parseVthumsObject(vthumbs, vthumbsIterator);
 
     return mComplete(cid, sdpString, isModerator, peers, vthumbs, speakers);
@@ -274,12 +274,12 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
     }
 }
 
-void AnswerCommand::parseSpeakersObject(std::map<uint32_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
     for (unsigned int j = 0; j < it->value.Capacity(); ++j)
     {
-        uint32_t cid;
+        Cid_t cid;
         rapidjson::Value::ConstMemberIterator cidIterator = it->value[j].FindMember("cid");
         if (cidIterator == it->value.MemberEnd() || !cidIterator->value.IsUint())
         {
@@ -302,7 +302,7 @@ void AnswerCommand::parseSpeakersObject(std::map<uint32_t, SpeakersDescriptor> &
     }
 }
 
-void AnswerCommand::parseVthumsObject(std::map<uint32_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parseVthumsObject(std::map<Cid_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
 
@@ -332,7 +332,7 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    uint32_t cid = cidIterator->value.GetUint();
+    Cid_t cid = cidIterator->value.GetUint();
 
     rapidjson::Value::ConstMemberIterator keyIterator = command.FindMember("key");
     if (keyIterator == command.MemberEnd() || !keyIterator->value.IsString())
@@ -353,7 +353,7 @@ VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete)
 
 bool VthumbsCommand::processCommand(const rapidjson::Document &command)
 {
-    std::map<uint32_t, VideoTrackDescriptor> tracks;
+    std::map<Cid_t, VideoTrackDescriptor> tracks;
 
     return mComplete(tracks);
 }
@@ -399,7 +399,7 @@ HiResCommand::HiResCommand(const HiresCompleteFunction &complete)
 
 bool HiResCommand::processCommand(const rapidjson::Document &command)
 {
-    std::map<uint32_t, VideoTrackDescriptor> tracks;
+    std::map<Cid_t, VideoTrackDescriptor> tracks;
 
     return mComplete(tracks);
 }
@@ -451,12 +451,12 @@ bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::vector<uint32_t> speakRequest;
+    std::vector<Cid_t> speakRequest;
     for (unsigned int j = 0; j < command.Capacity(); ++j)
     {
         if (command[j].IsString())
         {
-            uint32_t cid = command[j].GetUint();
+            Cid_t cid = command[j].GetUint();
             speakRequest.push_back(cid);
         }
         else
@@ -483,7 +483,7 @@ bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    uint32_t cid = cidIterator->value.GetUint();
+    Cid_t cid = cidIterator->value.GetUint();
 
     return mComplete(cid);
 }
@@ -496,7 +496,7 @@ SpeakOnCommand::SpeakOnCommand(const SpeakOnCompleteFunction &complete)
 
 bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
 {    
-    uint32_t cid = 0;
+    Cid_t cid = 0;
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
     {
@@ -525,7 +525,7 @@ SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete)
 
 bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
 {    
-    uint32_t cid = 0;
+    Cid_t cid = 0;
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
     {
@@ -663,7 +663,7 @@ void SfuConnection::retryPendingConnection(bool disconnect)
     }
 }
 
-uint32_t SfuConnection::getCid() const
+Cid_t SfuConnection::getCid() const
 {
     return mCid;
 }

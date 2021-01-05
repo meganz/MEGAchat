@@ -5,6 +5,7 @@
 #include <net/websocketsIO.h>
 #include <karereId.h>
 #include <rapidjson/document.h>
+#include <webrtc.h>
 
 #define SFU_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
@@ -16,9 +17,9 @@ namespace sfu
 class Peer
 {
 public:
-    Peer(uint32_t cid, karere::Id peerid, int avFlags, int mod);
+    Peer(Cid_t cid, karere::Id peerid, int avFlags, int mod);
     Peer(const Peer& peer);
-    uint32_t getCid() const;
+    Cid_t getCid() const;
     karere::Id getPeerid() const;
     int getAvFlags() const;
     int getModerator() const;
@@ -26,7 +27,7 @@ public:
     void addKey(uint64_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
 protected:
-    uint32_t mCid;
+    Cid_t mCid;
     karere::Id mPeerid;
     int mAvFlags;
     int mModerator;
@@ -61,19 +62,19 @@ class SfuInterface
 {
 public:
     // SFU -> Client
-    virtual bool handleAvCommand(uint32_t cid, int av) = 0;
-    virtual bool handleAnswerCommand(uint32_t cid, const std::string&sdp, int mod, const std::vector<Peer>&peers, const std::map<uint32_t, VideoTrackDescriptor>&vthumbs, const std::map<uint32_t, SpeakersDescriptor>&speakers) = 0;
-    virtual bool handleKeyCommand(uint64_t keyid, uint32_t cid, const std::string& key) = 0;
-    virtual bool handleVThumbsCommand(const std::map<uint32_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
+    virtual bool handleAvCommand(Cid_t cid, int av) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, const std::string&sdp, int mod, const std::vector<Peer>&peers, const std::map<Cid_t, VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, SpeakersDescriptor>&speakers) = 0;
+    virtual bool handleKeyCommand(uint64_t keyid, Cid_t cid, const std::string& key) = 0;
+    virtual bool handleVThumbsCommand(const std::map<Cid_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
     virtual bool handleVThumbsStopCommand() = 0;
-    virtual bool handleHiResCommand(const std::map<uint32_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
+    virtual bool handleHiResCommand(const std::map<Cid_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleHiResStartCommand() = 0;
     virtual bool handleHiResStopCommand() = 0;
-    virtual bool handleSpeakReqsCommand(const std::vector<uint32_t>&) = 0;
-    virtual bool handleSpeakReqDelCommand(uint32_t cid) = 0;
-    virtual bool handleSpeakOnCommand(uint32_t cid, SpeakersDescriptor speaker) = 0;
-    virtual bool handleSpeakOffCommand(uint32_t cid) = 0;
+    virtual bool handleSpeakReqsCommand(const std::vector<Cid_t>&) = 0;
+    virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
+    virtual bool handleSpeakOnCommand(Cid_t cid, SpeakersDescriptor speaker) = 0;
+    virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
 };
 
     class Command
@@ -99,7 +100,7 @@ public:
     class AnswerCommand : public Command
     {
     public:
-        typedef std::function<bool(uint32_t, const std::string&, int, std::vector<Peer>, std::map<uint32_t, VideoTrackDescriptor>, std::map<uint32_t, SpeakersDescriptor>)> AnswerCompleteFunction;
+        typedef std::function<bool(Cid_t, const std::string&, int, std::vector<Peer>, std::map<Cid_t, VideoTrackDescriptor>, std::map<Cid_t, SpeakersDescriptor>)> AnswerCompleteFunction;
         AnswerCommand(const AnswerCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
         static std::string COMMAND_NAME;
@@ -107,11 +108,11 @@ public:
 
     private:
         void parsePeerObject(std::vector<Peer>&peers, rapidjson::Value::ConstMemberIterator& it) const;
-        void parseSpeakersObject(std::map<uint32_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator& it) const;
-        void parseVthumsObject(std::map<uint32_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
+        void parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator& it) const;
+        void parseVthumsObject(std::map<Cid_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
     };
 
-    typedef std::function<bool(uint64_t, uint32_t, const std::string&)> KeyCompleteFunction;
+    typedef std::function<bool(uint64_t, Cid_t, const std::string&)> KeyCompleteFunction;
     class KeyCommand : public Command
     {
     public:
@@ -121,7 +122,7 @@ public:
         KeyCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(const std::map<uint32_t, VideoTrackDescriptor>&)> VtumbsCompleteFunction;
+    typedef std::function<bool(const std::map<Cid_t, VideoTrackDescriptor>&)> VtumbsCompleteFunction;
     class VthumbsCommand : public Command
     {
     public:
@@ -151,7 +152,7 @@ public:
         VtumbsStopCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(const std::map<uint32_t, VideoTrackDescriptor>&)> HiresCompleteFunction;
+    typedef std::function<bool(const std::map<Cid_t, VideoTrackDescriptor>&)> HiresCompleteFunction;
     class HiResCommand : public Command
     {
     public:
@@ -181,7 +182,7 @@ public:
         HiResStopCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(const std::vector<uint32_t>&)> SpeakReqsCompleteFunction;
+    typedef std::function<bool(const std::vector<Cid_t>&)> SpeakReqsCompleteFunction;
     class SpeakReqsCommand : public Command
     {
     public:
@@ -201,7 +202,7 @@ public:
         SpeakReqDelCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(uint32_t cid, SpeakersDescriptor speaker)> SpeakOnCompleteFunction;
+    typedef std::function<bool(Cid_t cid, SpeakersDescriptor speaker)> SpeakOnCompleteFunction;
     class SpeakOnCommand : public Command
     {
     public:
@@ -211,7 +212,7 @@ public:
         SpeakOnCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(uint32_t cid)> SpeakOffCompleteFunction;
+    typedef std::function<bool(Cid_t cid)> SpeakOffCompleteFunction;
     class SpeakOffCommand : public Command
     {
     public:
@@ -255,7 +256,7 @@ public:
         void disconnect();
         void doConnect();
         void retryPendingConnection(bool disconnect);
-        uint32_t getCid() const;
+        Cid_t getCid() const;
         bool sendCommand(const std::string& command);
         bool handleIncomingData(const char* data, size_t len);
 
@@ -313,7 +314,7 @@ public:
         void abortRetryController();
 
         std::map<std::string, std::unique_ptr<Command>> mCommands;
-        uint32_t mCid;
+        Cid_t mCid;
         SfuInterface& mCall;
     };
 

@@ -479,19 +479,19 @@ public:
 class MockupCall : public sfu::SfuInterface
 {
 public:
-    bool handleAvCommand(uint32_t cid, int av) override;
-    bool handleAnswerCommand(uint32_t cid, const std::string&sdp, int mod, const std::vector<sfu::Peer>&peers, const std::map<uint32_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<uint32_t, sfu::SpeakersDescriptor>&speakers) override;
-    bool handleKeyCommand(uint64_t, uint32_t, const std::string&) override;
-    bool handleVThumbsCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor> &) override;
+    bool handleAvCommand(Cid_t cid, int av) override;
+    bool handleAnswerCommand(Cid_t cid, const std::string&sdp, int mod, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor>&speakers) override;
+    bool handleKeyCommand(uint64_t keyid, Cid_t cid, const std::string&key) override;
+    bool handleVThumbsCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
     bool handleVThumbsStopCommand() override;
-    bool handleHiResCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor> &) override;
+    bool handleHiResCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &) override;
     bool handleHiResStartCommand() override;
     bool handleHiResStopCommand() override;
-    bool handleSpeakReqsCommand(const std::vector<uint32_t>&) override;
-    bool handleSpeakReqDelCommand(uint32_t cid) override;
-    bool handleSpeakOnCommand(uint32_t cid, sfu::SpeakersDescriptor speaker) override;
-    bool handleSpeakOffCommand(uint32_t cid) override;
+    bool handleSpeakReqsCommand(const std::vector<Cid_t>&) override;
+    bool handleSpeakReqDelCommand(Cid_t cid) override;
+    bool handleSpeakOnCommand(Cid_t cid, sfu::SpeakersDescriptor speaker) override;
+    bool handleSpeakOffCommand(Cid_t cid) override;
 };
 
 #endif // CHATTEST_H

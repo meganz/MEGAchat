@@ -159,7 +159,7 @@ bool Call::isSpeakAllow()
     assert(false);
 }
 
-void Call::approveSpeakRequest(uint32_t cid, bool allow)
+void Call::approveSpeakRequest(Cid_t cid, bool allow)
 {
     assert(mModerator);
     if (allow)
@@ -172,7 +172,7 @@ void Call::approveSpeakRequest(uint32_t cid, bool allow)
     }
 }
 
-void Call::stopSpeak(uint32_t cid)
+void Call::stopSpeak(Cid_t cid)
 {
     if (cid)
     {
@@ -185,9 +185,9 @@ void Call::stopSpeak(uint32_t cid)
     mSfuConnection->sendSpeakDel();
 }
 
-std::vector<uint32_t> Call::getSpeakerRequested()
+std::vector<Cid_t> Call::getSpeakerRequested()
 {
-    std::vector<uint32_t> speakerRequested;
+    std::vector<Cid_t> speakerRequested;
 
     for (const auto& session : mSessions)
     {
@@ -200,7 +200,7 @@ std::vector<uint32_t> Call::getSpeakerRequested()
     return speakerRequested;
 }
 
-void Call::requestHighResolutionVideo(uint32_t cid)
+void Call::requestHighResolutionVideo(Cid_t cid)
 {
     bool hasVthumb = false;
     for (const auto& session : mSessions)
@@ -215,7 +215,7 @@ void Call::requestHighResolutionVideo(uint32_t cid)
     mSfuConnection->sendGetHiRes(cid, hasVthumb);
 }
 
-void Call::stopHighResolutionVideo(uint32_t cid)
+void Call::stopHighResolutionVideo(Cid_t cid)
 {
     mSfuConnection->sendDelHiRes(cid);
 }
@@ -356,18 +356,18 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
     setState(CallState::kStateTerminatingUserParticipation);
 }
 
-std::string Call::getKeyFromPeer(uint32_t cid, uint64_t keyid)
+std::string Call::getKeyFromPeer(Cid_t cid, uint64_t keyid)
 {
     return mSessions[cid]->getPeer().getKey(keyid);
 }
 
-bool Call::handleAvCommand(uint32_t cid, int av)
+bool Call::handleAvCommand(Cid_t cid, int av)
 {
     mSessions[cid]->setAvFlags(av);
     return true;
 }
 
-bool Call::handleAnswerCommand(uint32_t cid, const std::string& spdString, int mod,  const std::vector<sfu::Peer>&peers, const std::map<uint32_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<uint32_t, sfu::SpeakersDescriptor>&speakers)
+bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor>&speakers)
 {
     mCid = cid;
     mModerator = mod;
@@ -406,7 +406,7 @@ bool Call::handleAnswerCommand(uint32_t cid, const std::string& spdString, int m
 
         for(auto speak : speakers)
         {
-            uint32_t cid = speak.first;
+            Cid_t cid = speak.first;
             const sfu::SpeakersDescriptor& speakerDecriptor = speak.second;
             addSpeaker(cid, speakerDecriptor);
         }
@@ -425,13 +425,13 @@ bool Call::handleAnswerCommand(uint32_t cid, const std::string& spdString, int m
     return true;
 }
 
-bool Call::handleKeyCommand(uint64_t keyid, uint32_t cid, const std::string &key)
+bool Call::handleKeyCommand(uint64_t keyid, Cid_t cid, const std::string &key)
 {
     mSessions[cid]->addKey(keyid, key);
     return true;
 }
 
-bool Call::handleVThumbsCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor> &videoTrackDescriptors)
+bool Call::handleVThumbsCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videoTrackDescriptors)
 {
     handleIncomingVideo(videoTrackDescriptors);
     return true;
@@ -449,7 +449,7 @@ bool Call::handleVThumbsStopCommand()
     return true;
 }
 
-bool Call::handleHiResCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor>& videoTrackDescriptors)
+bool Call::handleHiResCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor>& videoTrackDescriptors)
 {
     handleIncomingVideo(videoTrackDescriptors, true);
     return true;
@@ -467,9 +467,9 @@ bool Call::handleHiResStopCommand()
     return true;
 }
 
-bool Call::handleSpeakReqsCommand(const std::vector<uint32_t> &speakRequests)
+bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 {
-    for (uint32_t cid : speakRequests)
+    for (Cid_t cid : speakRequests)
     {
         mSessions[cid]->setSpeakRequested(true);
     }
@@ -477,7 +477,7 @@ bool Call::handleSpeakReqsCommand(const std::vector<uint32_t> &speakRequests)
     return true;
 }
 
-bool Call::handleSpeakReqDelCommand(uint32_t cid)
+bool Call::handleSpeakReqDelCommand(Cid_t cid)
 {
     if (cid)
     {
@@ -492,7 +492,7 @@ bool Call::handleSpeakReqDelCommand(uint32_t cid)
     return true;
 }
 
-bool Call::handleSpeakOnCommand(uint32_t cid, sfu::SpeakersDescriptor speaker)
+bool Call::handleSpeakOnCommand(Cid_t cid, sfu::SpeakersDescriptor speaker)
 {
     if (cid)
     {
@@ -507,7 +507,7 @@ bool Call::handleSpeakOnCommand(uint32_t cid, sfu::SpeakersDescriptor speaker)
     return true;
 }
 
-bool Call::handleSpeakOffCommand(uint32_t cid)
+bool Call::handleSpeakOffCommand(Cid_t cid)
 {
     if (cid)
     {
@@ -606,7 +606,7 @@ void Call::generateAndSendNewkey()
     mSfuConnection->sendKey(id, dataKey);
 }
 
-void Call::handleIncomingVideo(const std::map<uint32_t, sfu::VideoTrackDescriptor> &videotrackDescriptors, bool hiRes)
+void Call::handleIncomingVideo(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videotrackDescriptors, bool hiRes)
 {
     for (auto trackDescriptor : videotrackDescriptors)
     {
@@ -622,7 +622,7 @@ void Call::handleIncomingVideo(const std::map<uint32_t, sfu::VideoTrackDescripto
 
         rtc::VideoSinkWants opts;
         VideoSlot* slot = static_cast<VideoSlot*>(it->second.get());
-        uint32_t cid = trackDescriptor.first;
+        Cid_t cid = trackDescriptor.first;
         slot->setParams(cid, trackDescriptor.second.mIv);
         slot->createDecryptor();
 
@@ -637,7 +637,7 @@ void Call::handleIncomingVideo(const std::map<uint32_t, sfu::VideoTrackDescripto
     }
 }
 
-void Call::addSpeaker(uint32_t cid, const sfu::SpeakersDescriptor &speaker)
+void Call::addSpeaker(Cid_t cid, const sfu::SpeakersDescriptor &speaker)
 {
     if (mSessions.find(cid) == mSessions.end())
     {
@@ -660,7 +660,7 @@ void Call::addSpeaker(uint32_t cid, const sfu::SpeakersDescriptor &speaker)
     mSessions[cid]->setAudioSlot(slot);
 }
 
-void Call::removeSpeaker(uint32_t cid)
+void Call::removeSpeaker(Cid_t cid)
 {
     auto it = mSessions.find(cid);
     if (it == mSessions.end())
@@ -836,16 +836,15 @@ webrtc::RtpTransceiverInterface *Slot::getTransceiver()
     return mTransceiver.get();
 }
 
-uint32_t Slot::getCid() const
+Cid_t Slot::getCid() const
 {
     return mCid;
 }
 
-void Slot::setParams(uint32_t cid, const std::vector<uint8_t> &iv)
+void Slot::setParams(Cid_t cid, const std::vector<uint8_t> &iv)
 {
     mCid = cid;
     mIv = iv;
-
 }
 
 void Slot::enableTrack(bool enable)
