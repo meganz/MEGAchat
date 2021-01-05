@@ -821,12 +821,12 @@ bool SfuConnection::sendAv(int av)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString("AV", json.GetAllocator());
+    cmdValue.SetString(CSFU_AV.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
-    rapidjson::Value idValue(rapidjson::kNumberType);
-    idValue.SetInt(av);
-    json.AddMember(rapidjson::Value("id"), idValue, json.GetAllocator());
+    rapidjson::Value avValue(rapidjson::kNumberType);
+    avValue.SetInt(av);
+    json.AddMember(rapidjson::Value("av"), avValue, json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
