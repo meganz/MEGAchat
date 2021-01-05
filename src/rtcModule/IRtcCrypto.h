@@ -4,6 +4,7 @@
 #include <string>
 #include <promise.h>
 #include <karereId.h>
+#include "strongvelope.h"
 
 namespace rtcModule
 {
@@ -53,6 +54,16 @@ public:
     virtual void random(char* buf, size_t len) = 0;
 
     virtual ~IRtcCrypto(){}
+};
+
+class IRtcCryptoMeetings
+{
+public:
+    virtual void decryptKeyFrom(const karere::Id &peer, const strongvelope::SendKey &data, strongvelope::SendKey &output) = 0;
+    virtual void encryptKeyTo(const karere::Id &peer, const strongvelope::SendKey &data, strongvelope::SendKey &output) = 0;
+    virtual void xorWithCallKey(const strongvelope::SendKey &callKey, strongvelope::SendKey &sendKey) = 0;
+    virtual std::shared_ptr<strongvelope::SendKey> generateSendKey() = 0;
+    virtual ~IRtcCryptoMeetings(){}
 };
 }
 
