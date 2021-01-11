@@ -64,7 +64,7 @@ extern "C" {
 #endif
 
 /** This is the type of the function that posts a megaMessage to the GUI thread */
-typedef void (*GcmPostFunc)(void*, void*);
+typedef void (*GcmPostFunc)(struct megaMessage*, void*);
 
 /** This function posts an opaque \c void* to the application's (GUI) message loop.
 * That message is then received by the application's main (GUI) thread and
@@ -82,9 +82,9 @@ extern MEGA_GCM_IMPEXP GcmPostFunc megaPostMessageToGui;
  * called by a handler in the app's (GUI) event/message loop (or equivalent).
 * \warning Must be called only from the GUI thread
 */
-static inline void megaProcessMessage(void* vptr)
+static inline void megaProcessMessage(struct megaMessage* vptr)
 {
-    struct megaMessage* msg = (struct megaMessage*)vptr;
+    struct megaMessage* msg = static_cast<struct megaMessage*>(vptr);
     msg->func(vptr);
 }
 
