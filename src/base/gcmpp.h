@@ -64,7 +64,7 @@ static inline void marshallCall(F&& func, void *appCtx)
             }
         }
     });
-    megaPostMessageToGui(static_cast<void*>(msg), appCtx);
+    megaPostMessageToGui(msg, appCtx);
 }
 
 }

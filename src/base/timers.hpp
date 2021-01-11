@@ -110,11 +110,8 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
         uv_timer_start(pMsg->timerEvent,
                        [](uv_timer_t* handle)
                        {
-                            ///TODO investigate this change, without this change any timer produce a crash
-                            /// when it finishes
-                           //megaPostMessageToGui(handle->data, ((Msg*)handle->data)->appCtx);
-                            Msg* msg = (Msg*)handle->data;
-                            msg->cb();
+                           Msg* message = static_cast<Msg*>(handle->data);
+                           megaPostMessageToGui(message, message->appCtx);
                        }, pMsg->time, pMsg->loop ? pMsg->time : 0);
     }, ctx);
     return pMsg->handle;

@@ -912,13 +912,13 @@ class ChatRequestQueue
 class EventQueue
 {
 protected:
-    std::deque<void *> events;
+    std::deque<struct megaMessage*> events;
     std::mutex mutex;
 
 public:
-    void push(void* event);
-    void push_front(void *event);
-    void* pop();
+    void push(struct megaMessage* event);
+    void push_front(megaMessage* event);
+    struct megaMessage *pop();
     bool isEmpty();
     size_t size();
 };
@@ -980,8 +980,8 @@ private:
     static int convertInitState(int state);
 
 public:
-    static void megaApiPostMessage(void* msg, void* ctx);
-    void postMessage(void *msg);
+    static void megaApiPostMessage(megaMessage *msg, void* ctx);
+    void postMessage(megaMessage *msg);
 
     void sendPendingRequests();
     void sendPendingEvents();
