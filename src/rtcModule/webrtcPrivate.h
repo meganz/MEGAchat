@@ -188,7 +188,7 @@ public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers);
 
 
-    void init(WebsocketsIO& websocketIO, void *appCtx) override;
+    void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     void hangupAll() override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;

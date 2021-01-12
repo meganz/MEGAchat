@@ -1275,8 +1275,9 @@ void SfuConnection::abortRetryController()
     mRetryCtrl.reset();
 }
 
-SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx)
-    : mWebsocketIO(websocketIO)
+SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings)
+    : mRtcCryptoMeetings(std::make_shared<rtcModule::RtcCryptoMeetings>(*rRtcCryptoMeetings))
+    , mWebsocketIO(websocketIO)
     , mAppCtx(appCtx)
 {
 

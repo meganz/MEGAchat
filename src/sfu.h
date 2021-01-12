@@ -321,11 +321,12 @@ public:
     class SfuClient
     {
     public:
-        SfuClient(WebsocketsIO& websocketIO, void* appCtx);
+        SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings);
         SfuConnection *generateSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
         void closeManagerProtocol(karere::Id chatid);
 
     private:
+        std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
         std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
         WebsocketsIO& mWebsocketIO;
         void* mAppCtx;

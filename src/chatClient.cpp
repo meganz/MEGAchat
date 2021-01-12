@@ -1597,7 +1597,7 @@ promise::Promise<void> Client::doConnect()
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
     rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
-    rtc->init(*websocketIO, appCtx);
+    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this));
 #endif
 
     auto pms = mPresencedClient.connect()

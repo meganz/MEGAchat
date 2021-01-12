@@ -680,9 +680,9 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler, 
 {
 }
 
-void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx)
+void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
 {
-    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx);
+    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings);
     if (!artc::isInitialized())
     {
         artc::init(appCtx);

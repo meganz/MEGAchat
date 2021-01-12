@@ -7,6 +7,7 @@
 #include "karereCommon.h"
 #include "sdkApi.h"
 #include <net/websocketsIO.h>
+#include "rtcCrypto.h"
 
 #define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
 #define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
@@ -141,7 +142,7 @@ public:
 class RtcModule
 {
 public:
-    virtual void init(WebsocketsIO& websocketIO, void *appCtx) = 0;
+    virtual void init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings) = 0;
     virtual void hangupAll() = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
     virtual ICall* findCallByChatid(karere::Id chatid) = 0;
