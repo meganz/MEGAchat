@@ -82,9 +82,9 @@ extern MEGA_GCM_IMPEXP GcmPostFunc megaPostMessageToGui;
  * called by a handler in the app's (GUI) event/message loop (or equivalent).
 * \warning Must be called only from the GUI thread
 */
-static inline void megaProcessMessage(struct megaMessage* vptr)
+static inline void megaProcessMessage(megaMessage* vptr)
 {
-    struct megaMessage* msg = static_cast<struct megaMessage*>(vptr);
+    struct megaMessage* msg = static_cast<megaMessage*>(vptr);
     msg->func(vptr);
 }
 
