@@ -912,13 +912,13 @@ class ChatRequestQueue
 class EventQueue
 {
 protected:
-    std::deque<struct megaMessage*> events;
+    std::deque<megaMessage*> events;
     std::mutex mutex;
 
 public:
-    void push(struct megaMessage* event);
+    void push(megaMessage* event);
     void push_front(megaMessage* event);
-    struct megaMessage *pop();
+    megaMessage *pop();
     bool isEmpty();
     size_t size();
 };

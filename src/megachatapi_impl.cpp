@@ -169,7 +169,7 @@ void MegaChatApiImpl::loop()
 #endif
 }
 
-void MegaChatApiImpl::megaApiPostMessage(struct megaMessage* msg, void* ctx)
+void MegaChatApiImpl::megaApiPostMessage(megaMessage* msg, void* ctx)
 {
     MegaChatApiImpl *megaChatApi = (MegaChatApiImpl *)ctx;
     if (megaChatApi)
@@ -186,7 +186,7 @@ void MegaChatApiImpl::megaApiPostMessage(struct megaMessage* msg, void* ctx)
     }
 }
 
-void MegaChatApiImpl::postMessage(struct megaMessage* msg)
+void MegaChatApiImpl::postMessage(megaMessage* msg)
 {
     eventQueue.push(msg);
     waiter->notify();
@@ -2135,7 +2135,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
 void MegaChatApiImpl::sendPendingEvents()
 {
-    struct megaMessage* msg;
+    megaMessage* msg;
     while ((msg = eventQueue.pop()))
     {
         megaProcessMessage(msg);
@@ -5178,21 +5178,21 @@ void ChatRequestQueue::removeListener(MegaChatRequestListener *listener)
     mutex.unlock();
 }
 
-void EventQueue::push(struct megaMessage* transfer)
+void EventQueue::push(megaMessage* transfer)
 {
     mutex.lock();
     events.push_back(transfer);
     mutex.unlock();
 }
 
-void EventQueue::push_front(struct megaMessage* event)
+void EventQueue::push_front(megaMessage* event)
 {
     mutex.lock();
     events.push_front(event);
     mutex.unlock();
 }
 
-struct megaMessage* EventQueue::pop()
+megaMessage* EventQueue::pop()
 {
     mutex.lock();
     if(events.empty())
@@ -5200,7 +5200,8 @@ struct megaMessage* EventQueue::pop()
         mutex.unlock();
         return NULL;
     }
-    struct megaMessage* event = events.front();
+
+    megaMessage* event = events.front();
     events.pop_front();
     mutex.unlock();
     return event;
