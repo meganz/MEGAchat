@@ -46,6 +46,11 @@ karere::Id Peer::getPeerid() const
     return mPeerid;
 }
 
+Keyid_t Peer::getCurrentKeyId() const
+{
+    return mCurrentkeyId;
+}
+
 int Peer::getAvFlags() const
 {
     return mAvFlags;
@@ -57,12 +62,12 @@ int Peer::getModerator() const
 }
 
 
-std::string Peer::getKey(uint64_t keyid) const
+std::string Peer::getKey(Keyid_t keyid) const
 {
     return mKeyMap.at(keyid);
 }
 
-void Peer::addKey(uint64_t keyid, const std::string &key)
+void Peer::addKey(Keyid_t keyid, const std::string &key)
 {
     assert(mKeyMap.find(keyid) == mKeyMap.end());
     mKeyMap[keyid] = key;
@@ -323,7 +328,8 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    uint64_t id = idIterator->value.GetUint64();
+    // TODO: check if it's necessary to add new data type to Rapid json impl
+    Keyid_t id = static_cast<Keyid_t>(idIterator->value.GetUint());
 
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsString())

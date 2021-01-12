@@ -21,17 +21,19 @@ public:
     Peer(const Peer& peer);
     Cid_t getCid() const;
     karere::Id getPeerid() const;
+    Keyid_t getCurrentKeyId() const;
     int getAvFlags() const;
     int getModerator() const;
-    std::string getKey(uint64_t keyid) const;
-    void addKey(uint64_t keyid, const std::string& key);
+    std::string getKey(Keyid_t keyid) const;
+    void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
 protected:
     Cid_t mCid;
     karere::Id mPeerid;
     int mAvFlags;
     int mModerator;
-    std::map<uint64_t, std::string> mKeyMap;
+    Keyid_t mCurrentkeyId; // we need to know the current keyId for frame encryption
+    std::map<Keyid_t, std::string> mKeyMap;
 
 };
 
@@ -64,7 +66,7 @@ public:
     // SFU -> Client
     virtual bool handleAvCommand(Cid_t cid, int av) = 0;
     virtual bool handleAnswerCommand(Cid_t cid, const std::string&sdp, int mod, const std::vector<Peer>&peers, const std::map<Cid_t, VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, SpeakersDescriptor>&speakers) = 0;
-    virtual bool handleKeyCommand(uint64_t keyid, Cid_t cid, const std::string& key) = 0;
+    virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
     virtual bool handleVThumbsStopCommand() = 0;
@@ -112,7 +114,7 @@ public:
         void parseVthumsObject(std::map<Cid_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
     };
 
-    typedef std::function<bool(uint64_t, Cid_t, const std::string&)> KeyCompleteFunction;
+    typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;
     class KeyCommand : public Command
     {
     public:

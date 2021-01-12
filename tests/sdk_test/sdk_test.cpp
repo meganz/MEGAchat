@@ -5237,7 +5237,7 @@ bool MockupCall::handleAnswerCommand(Cid_t cid, const string &sdp, int mod, cons
 
 }
 
-bool MockupCall::handleKeyCommand(uint64_t keyid, Cid_t cid, const std::string &key)
+bool MockupCall::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
 
 }

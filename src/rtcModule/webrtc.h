@@ -14,6 +14,7 @@
 
 // 24-bit client id (CID) for meetings.
 typedef uint32_t Cid_t;
+typedef uint8_t Keyid_t;
 
 namespace rtcModule
 {

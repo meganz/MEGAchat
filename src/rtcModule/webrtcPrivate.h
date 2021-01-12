@@ -64,7 +64,7 @@ public:
     void setVThumSlot(VideoSlot* slot);
     void setHiResSlot(VideoSlot* slot);
     void setAudioSlot(Slot* slot);
-    void addKey(uint64_t keyid, const std::string& key);
+    void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
 
     Slot* getAudioSlot();
@@ -119,11 +119,11 @@ public:
     void createTranceiver();
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
-    std::string getKeyFromPeer(Cid_t cid, uint64_t keyid);
+    std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
 
     bool handleAvCommand(Cid_t cid, int av) override;
     bool handleAnswerCommand(Cid_t cid, const std::string&sdp, int mod, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers) override;
-    bool handleKeyCommand(uint64_t keyid, Cid_t cid, const std::string& key) override;
+    bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
     bool handleVThumbsStopCommand() override;

@@ -356,7 +356,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
     setState(CallState::kStateTerminatingUserParticipation);
 }
 
-std::string Call::getKeyFromPeer(Cid_t cid, uint64_t keyid)
+std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
 {
     return mSessions[cid]->getPeer().getKey(keyid);
 }
@@ -425,7 +425,7 @@ bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,
     return true;
 }
 
-bool Call::handleKeyCommand(uint64_t keyid, Cid_t cid, const std::string &key)
+bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
     mSessions[cid]->addKey(keyid, key);
     return true;
@@ -937,7 +937,7 @@ void Session::setAudioSlot(Slot *slot)
     setSpeakRequested(false);
 }
 
-void Session::addKey(uint64_t keyid, const std::string &key)
+void Session::addKey(Keyid_t keyid, const std::string &key)
 {
     mPeer.addKey(keyid, key);
 }
