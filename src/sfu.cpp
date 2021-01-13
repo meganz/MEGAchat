@@ -22,6 +22,11 @@ std::string SpeakReqDelCommand::COMMAND_NAME = "SPEAK_RQ_DEL";
 std::string SpeakOnCommand::COMMAND_NAME = "SPEAK_ON";
 std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OfF";
 
+Peer::Peer()
+    : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0), mModerator(0)
+{
+}
+
 Peer::Peer(Cid_t cid, karere::Id peerid, int avFlags, int mod)
     : mCid(cid), mPeerid(peerid), mAvFlags(avFlags), mModerator(mod)
 {
@@ -34,6 +39,14 @@ Peer::Peer(const Peer &peer)
     , mModerator(peer.mModerator)
 {
 
+}
+
+void Peer::init(Cid_t cid, karere::Id peerid, int avFlags, int mod)
+{
+    mCid = cid;
+    mPeerid = peerid;
+    mAvFlags = avFlags;
+    mModerator = mod;
 }
 
 Cid_t Peer::getCid() const
@@ -1281,9 +1294,10 @@ void SfuConnection::abortRetryController()
     mRetryCtrl.reset();
 }
 
-SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings)
+SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, karere::Client& karereClient)
     : mRtcCryptoMeetings(std::make_shared<rtcModule::RtcCryptoMeetings>(*rRtcCryptoMeetings))
     , mWebsocketIO(websocketIO)
+    , mKarereClient(karereClient)
     , mAppCtx(appCtx)
 {
 
@@ -1302,6 +1316,16 @@ void SfuClient::closeManagerProtocol(karere::Id chatid)
 {
     mConnections[chatid]->disconnect();
     mConnections.erase(chatid);
+}
+
+std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
+{
+    return mRtcCryptoMeetings;
+}
+
+karere::Client& SfuClient::getKarereClient()
+{
+    return mKarereClient;
 }
 
 }

@@ -1,7 +1,7 @@
 #include <mega/types.h>
 #include <rtcmPrivate.h>
 #include <webrtcPrivate.h>
-
+#include "chatClient.h"
 #include <api/video/i420_buffer.h>
 #include <libyuv/convert.h>
 
@@ -15,6 +15,7 @@ Call::Call(karere::Id callid, karere::Id chatid, IGlobalCallHandler &globalCallH
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
     , mSfuClient(sfuClient)
+    , mMyPeer()
 {
     mGlobalCallHandler.onNewCall(*this);
 }
@@ -108,7 +109,7 @@ bool Call::isRinging() const
 
 bool Call::isModerator() const
 {
-    return mModerator;
+    return mMyPeer.getModerator();
 }
 
 void Call::setCallHandler(CallHandler* callHanlder)
@@ -161,7 +162,7 @@ bool Call::isSpeakAllow()
 
 void Call::approveSpeakRequest(Cid_t cid, bool allow)
 {
-    assert(mModerator);
+    assert(mMyPeer.getModerator());
     if (allow)
     {
         mSfuConnection->sendSpeakReq(cid);
@@ -176,7 +177,7 @@ void Call::stopSpeak(Cid_t cid)
 {
     if (cid)
     {
-        assert(mModerator);
+        assert(mMyPeer.getModerator());
         assert(mSessions.find(cid) != mSessions.end());
         mSfuConnection->sendSpeakDel(cid);
         return;
@@ -369,9 +370,8 @@ bool Call::handleAvCommand(Cid_t cid, int av)
 
 bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor>&speakers)
 {
-    mCid = cid;
-    mModerator = mod;
-    if (mModerator)
+    mMyPeer.init(cid, mSfuClient.getKarereClient().myHandle(), 0, mod);
+    if (mMyPeer.getModerator())
     {
         mSpeakAllow = true;
     }
@@ -674,15 +674,20 @@ void Call::removeSpeaker(Cid_t cid)
     it->second->setAudioSlot(nullptr);
 }
 
+sfu::Peer& Call::getMyPeer()
+{
+    return mMyPeer;
+}
+
 RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler, IRtcCrypto *crypto, const char *iceServers)
     : mCallHandler(callhandler)
     , mMegaApi(megaApi)
 {
 }
 
-void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
+void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings, karere::Client& karereClient)
 {
-    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings);
+    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings, karereClient);
     if (!artc::isInitialized())
     {
         artc::init(appCtx);

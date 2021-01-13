@@ -148,9 +148,7 @@ public:
     std::vector<karere::Id> mParticipants;
     karere::Id mCallid;
     karere::Id mChatid;
-    Cid_t mCid;
     CallState mState = CallState::kStateInitial;
-    bool mModerator = false;
     bool mIsRinging = false;
     bool mModeratorRequested = false;
     bool mSpeakerRequested = false;
@@ -174,10 +172,13 @@ public:
 
     std::unique_ptr<CallHandler> mCallHandler;
 
+    // represents own peer
+    sfu::Peer mMyPeer;
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videotrackDescriptors, bool hiRes = false);
     void addSpeaker(Cid_t cid, const sfu::SpeakersDescriptor& speaker);
     void removeSpeaker(Cid_t cid);
+    sfu::Peer &getMyPeer();
 };
 
 class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable
@@ -186,7 +187,7 @@ public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers);
 
 
-    void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
+    void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings, karere::Client& karereClient) override;
     void hangupAll() override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;

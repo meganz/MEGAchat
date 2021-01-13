@@ -17,6 +17,7 @@ namespace sfu
 class Peer
 {
 public:
+    Peer(); //default ctor
     Peer(Cid_t cid, karere::Id peerid, int avFlags, int mod);
     Peer(const Peer& peer);
     Cid_t getCid() const;
@@ -27,6 +28,7 @@ public:
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
+    void init(Cid_t cid, karere::Id peerid, int avFlags, int mod);
 protected:
     Cid_t mCid;
     karere::Id mPeerid;
@@ -323,14 +325,17 @@ public:
     class SfuClient
     {
     public:
-        SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings);
+        SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, karere::Client& karereClient);
         SfuConnection *generateSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
         void closeManagerProtocol(karere::Id chatid);
+        std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
+        karere::Client& getKarereClient();
 
     private:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
         std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
         WebsocketsIO& mWebsocketIO;
+        karere::Client& mKarereClient;
         void* mAppCtx;
     };
 
