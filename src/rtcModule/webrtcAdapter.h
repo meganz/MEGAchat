@@ -422,6 +422,12 @@ public:
     void RegisterObserver(webrtc::ObserverInterface* observer) override;
     void UnregisterObserver(webrtc::ObserverInterface* observer) override;
 
+    bool SupportsEncodedOutput() const override { return false; }
+    void GenerateKeyFrame() override {}
+
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
+
 private:
     bool mRunning = false;
     rtc::scoped_refptr<webrtc::JavaVideoTrackSourceInterface> mVideoSource;
