@@ -11,6 +11,7 @@
 #include "rtcmPrivate.h"
 #include <rtc_base/ref_counter.h>
 #include "rtcCrypto.h"
+#include "sfu.h"
 
 #ifdef __OBJC__
 @class AVCaptureDevice;
@@ -62,6 +63,7 @@ const uint8_t FRAME_IV_LENGTH = 12;
 
 // max number of tracks
 const static uint8_t MAX_MEDIA_TYPES = 3;
+
 // Old webrtc versions called user callbacks directly from internal webrtc threads,
 // so we needed to marshall these callbacks to our GUI thread. New webrtc relies
 // on the main thread to process internal webrtc messages (as any other webrtc thread),
@@ -279,9 +281,22 @@ public:
 class MegaEncryptor : public rtc::RefCountedObject<webrtc::FrameEncryptorInterface>
 {
 public:
-    MegaEncryptor();
-    ~MegaEncryptor();
+    MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, const std::string &callKey, IvStatic_t iv);
+    ~MegaEncryptor() override;
 
+    // set a new encryption key for SymmCipher
+    void setEncryptionKey(const std::string &encryptKey);
+
+    // increments sequential number of the packet, for each sent frame of that media track.
+    void incrementPacketCtr(const cricket::MediaType media_type);
+
+    // generates a header for a new frame, you take the ownership of returned value
+    byte *generateHeader(const cricket::MediaType media_type);
+
+    // generates an IV for a new frame, you take the ownership of returned value
+    byte *generateFrameIV(const cricket::MediaType media_type);
+
+    // encrypts a received frame
     int Encrypt(cricket::MediaType media_type,
                         uint32_t ssrc,
                         rtc::ArrayView<const uint8_t> additional_data,
@@ -289,7 +304,28 @@ public:
                         rtc::ArrayView<uint8_t> encrypted_frame,
                         size_t* bytes_written) override;
 
+    // returns the encrypted_frame size for a given frame
     size_t GetMaxCiphertextByteSize(cricket::MediaType media_type, size_t frame_size) override;
+
+private:
+
+    // symetric cipher
+    std::unique_ptr<mega::SymmCipher> mSymCipher;
+
+    // sequential number of the packet
+    uint32_t mCtr = 0;
+
+    // own peer
+    const sfu::Peer& mMyPeer;
+
+    // call key (only for public chats)
+    std::string mCallKey;
+
+    // shared ptr to crypto module for meetings
+    std::shared_ptr<::rtcModule::IRtcCryptoMeetings> mCryptoMeetings;
+
+    // static part (8 Bytes) of IV
+    IvStatic_t mIv;
 };
 
 class MegaDecryptor : public rtc::RefCountedObject<webrtc::FrameDecryptorInterface>
