@@ -679,6 +679,11 @@ sfu::Peer& Call::getMyPeer()
     return mMyPeer;
 }
 
+const std::string& Call::getCallKey() const
+{
+    return mCallKey;
+}
+
 RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler, IRtcCrypto *crypto, const char *iceServers)
     : mCallHandler(callhandler)
     , mMegaApi(megaApi)

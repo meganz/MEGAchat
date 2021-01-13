@@ -174,11 +174,16 @@ public:
 
     // represents own peer
     sfu::Peer mMyPeer;
+
+    // call key for public chats (128-bit key)
+    std::string mCallKey;
+
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videotrackDescriptors, bool hiRes = false);
     void addSpeaker(Cid_t cid, const sfu::SpeakersDescriptor& speaker);
     void removeSpeaker(Cid_t cid);
     sfu::Peer &getMyPeer();
+    const std::string &getCallKey() const;
 };
 
 class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable
