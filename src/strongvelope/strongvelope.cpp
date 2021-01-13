@@ -537,7 +537,8 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
         mChatMode = CHAT_MODE_PRIVATE;
     }
 
-    if (unifiedKey && !unifiedKey->empty()) // also for private mode if chat was public before
+    mHasUnifiedKey = unifiedKey && !unifiedKey->empty();
+    if (mHasUnifiedKey) // also for private mode if chat was public before
     {
         if (isUnifiedKeyEncrypted == kDecrypted) // from chat-link, creation's API request or cache
         {
@@ -652,9 +653,16 @@ promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::reactionDecrypt(const karere::Id &msgid, const karere::Id &userid, const KeyId &keyid, const std::string &reaction)
 {
     promise::Promise<std::shared_ptr<SendKey>> symPms;
-    if (keyid == 0) // message posted in EKR off (public mode)
+    if (keyid == CHATD_KEYID_INVALID) // message posted in EKR off (public mode)
     {
-        symPms = mUnifiedKeyDecrypted;
+        if (mHasUnifiedKey)
+        {
+            symPms = mUnifiedKeyDecrypted;
+        }
+        else
+        {
+            return ::promise::Error("reactionDecrypt: keyid is 0 but there's no unified key", EINVAL, SVCRYPTO_ENOKEY);
+        }
     }
     else
     {
@@ -1157,7 +1165,14 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         promise::Promise<std::shared_ptr<SendKey>> symPms;
         if (keyid == CHATD_KEYID_INVALID)   // message was posted while open mode
         {
-            symPms = mUnifiedKeyDecrypted;
+            if (mHasUnifiedKey)
+            {
+                symPms = mUnifiedKeyDecrypted;
+            }
+            else
+            {
+                return ::promise::Error("msgDecrypt: keyid is 0 but there's no unified key", EINVAL, SVCRYPTO_ENOKEY);
+            }
         }
         else    // message was posted with key-rotation enabled (closed mode)
         {

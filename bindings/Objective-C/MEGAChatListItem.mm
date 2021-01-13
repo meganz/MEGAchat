@@ -248,6 +248,9 @@ using namespace megachat;
         case MEGAChatMessageTypeAttachment:
             result = @"Attachment";
             break;
+        case MEGAChatMessageTypeSetRetentionTime:
+            result = @"Set Retention Time";
+            break;
         case MEGAChatMessageTypeRevokeAttachment:
             result = @"Revoke attachment";
             break;

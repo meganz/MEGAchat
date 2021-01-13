@@ -687,7 +687,7 @@ void MegaChatApi::archiveChat(MegaChatHandle chatid, bool archive, MegaChatReque
     pImpl->archiveChat(chatid, archive, listener);
 }
 
-void MegaChatApi::setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener)
+void MegaChatApi::setChatRetentionTime(MegaChatHandle chatid, unsigned int period, MegaChatRequestListener *listener)
 {
     pImpl->setChatRetentionTime(chatid, period, listener);
 }
@@ -1850,7 +1850,7 @@ int MegaChatMessage::getDuration() const
     return 0;
 }
 
-int MegaChatMessage::getRetentionTime() const
+unsigned int MegaChatMessage::getRetentionTime() const
 {
     return 0;
 }
