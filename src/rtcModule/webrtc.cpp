@@ -813,7 +813,7 @@ Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> trans
     : mCall(call)
     , mTransceiver(transceiver)
 {
-    mIv.resize(IV_SIZE);
+
 }
 
 Slot::~Slot()
@@ -841,7 +841,7 @@ Cid_t Slot::getCid() const
     return mCid;
 }
 
-void Slot::setParams(Cid_t cid, const std::vector<uint8_t> &iv)
+void Slot::setParams(Cid_t cid, IvStatic_t iv)
 {
     mCid = cid;
     mIv = iv;

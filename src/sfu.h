@@ -40,7 +40,7 @@ protected:
 class VideoTrackDescriptor
 {
 public:
-    std::vector<uint8_t> mIv;
+    IvStatic_t mIv;
     std::string mMid;
 };
 
@@ -52,7 +52,7 @@ public:
     std::string getAudioDescriptor() const;
     std::string getVideoDescriptor() const;
     void setDescriptors(const std::string& audioDescriptor, const std::string& videoDescriptor);
-    std::vector<uint8_t> mIv;
+    IvStatic_t mIv;
     std::string mMid;
 
 protected:

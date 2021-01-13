@@ -9,8 +9,6 @@
 
 #include <map>
 
-#define IV_SIZE 8
-
 namespace rtcModule
 {
 #ifdef KARERE_DISABLE_WEBRTC
@@ -32,12 +30,12 @@ public:
     void createDecryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
-    void setParams(Cid_t cid, const std::vector<uint8_t>& iv);
+    void setParams(Cid_t cid, IvStatic_t iv);
     void enableTrack(bool enable);
 
 protected:
     Call &mCall;
-    std::vector<uint8_t> mIv;
+    IvStatic_t mIv;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
     Cid_t mCid = 0;
 };

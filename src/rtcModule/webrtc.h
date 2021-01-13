@@ -12,9 +12,12 @@
 #define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
 #define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
 
+// 8-bit id of the encryption key
+typedef uint8_t Keyid_t;
 // 24-bit client id (CID) for meetings.
 typedef uint32_t Cid_t;
-typedef uint8_t Keyid_t;
+// IV static part (8 bytes),
+typedef uint64_t IvStatic_t;
 
 namespace rtcModule
 {
