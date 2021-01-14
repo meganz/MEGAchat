@@ -530,14 +530,13 @@ void Call::onError()
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
     mVThumb->createDecryptor();
-    mVThumb->createEncryptor();
+    mVThumb->createEncryptor(getMyPeer());
 
     mHiRes->createDecryptor();
-    mHiRes->createEncryptor();
+    mHiRes->createEncryptor(getMyPeer());
 
     mAudio->createDecryptor();
-    mAudio->createEncryptor();
-
+    mAudio->createEncryptor(getMyPeer());
 }
 
 void Call::onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
@@ -831,14 +830,27 @@ Slot::~Slot()
 
 }
 
-void Slot::createEncryptor()
+void Slot::createEncryptor(const sfu::Peer& peer)
 {
-    //mTransceiver->sender()->SetFrameEncryptor(MegaEncryptor);
+    mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
+                                                                      mCall.mSfuClient.getRtcCryptoMeetings(),
+                                                                      mCall.getCallKey(),
+                                                                      mIv));
 }
 
 void Slot::createDecryptor()
 {
-    //mTransceiver->receiver()->SetFrameDecryptor(MegaDecryptor);
+    auto it = mCall.mSessions.find(mCid);
+    if (it == mCall.mSessions.end())
+    {
+        RTCM_LOG_ERROR("createDecryptor: unknown cid");
+        return;
+    }
+
+    mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
+                                                                      mCall.mSfuClient.getRtcCryptoMeetings(),
+                                                                      mCall.getCallKey(),
+                                                                      mIv));
 }
 
 webrtc::RtpTransceiverInterface *Slot::getTransceiver()
