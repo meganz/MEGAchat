@@ -349,7 +349,7 @@ public:
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
 
-    bool SupportsEncodedOutput() const override {}
+    bool SupportsEncodedOutput() const override { return  false; }
     void GenerateKeyFrame() override {}
 
     bool GetStats(webrtc::VideoTrackSourceInterface::Stats* stats) override;
@@ -404,6 +404,12 @@ public:
     void RegisterObserver(webrtc::ObserverInterface* observer) override;
     void UnregisterObserver(webrtc::ObserverInterface* observer) override;
 
+    bool SupportsEncodedOutput() const override;
+    void GenerateKeyFrame() override;
+
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override;
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override;
+    
 private:
     bool mRunning = false;
     AVCaptureDevice *mCaptureDevice = nullptr;
@@ -437,6 +443,12 @@ public:
 
     void RegisterObserver(webrtc::ObserverInterface* observer) override;
     void UnregisterObserver(webrtc::ObserverInterface* observer) override;
+
+    bool SupportsEncodedOutput() const override { return false; }
+    void GenerateKeyFrame() override {}
+
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
 
 private:
     bool mRunning = false;

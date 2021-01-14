@@ -80,7 +80,8 @@ namespace presenced
 enum {
     kKeepaliveSendInterval = 25,
     kKeepaliveReplyTimeout = 15,
-    kConnectTimeout = 30
+    kConnectTimeout = 30,
+    kMaxConnSucceededTimeframe = 30 // (in seconds) timeout after we will re-fetch a fresh URL if successful connections has exceeded kMaxConnSuceeded
 };
 enum: uint8_t
 {
@@ -322,6 +323,11 @@ public:
         kConnected,
         kLoggedIn
     };
+
+    /* Limit of successful connections established during the last kMaxConnSucceededTimeframe seconds
+     * If we exceed this limit we will re-fetch a fresh URL */
+    const unsigned int kMaxConnSuceeded = 16;
+
     enum: uint16_t { kProtoVersion = 0x0001 };
 
     /* We need to save presenced url in cache in order to improve app performance,
@@ -377,6 +383,12 @@ protected:
 
     /** Timestamp of the last sent data to presenced */
     time_t mTsLastSend = 0;
+
+    /** Timestamp of the first successful connection attempt, in the last kMaxConnSucceededTimeframe seconds */
+    time_t mTsConnSuceeded = 0;
+
+    /** Number of successful connections attempts */
+    unsigned int mConnSuceeded = 0;
 
     /** Configuration of presence for the user */
     Config mConfig;
@@ -486,6 +498,9 @@ public:
     /** @brief Updates user last green if it's more recent than the current value.*/
     bool updateLastGreen(karere::Id userid, time_t lastGreen);
     time_t getLastGreen(karere::Id userid);
+
+    /** @brief reset number of succeeded connection attempts and update ts for last check **/
+    void resetConnSuceededAttempts(const time_t &t);
 
     ~Client();
 };

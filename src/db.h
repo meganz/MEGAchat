@@ -2,6 +2,7 @@
 #define _KARERE_DB_H
 
 #include <sqlite3.h>
+#include "karereCommon.h"
 
 struct SqliteString
 {
@@ -35,8 +36,25 @@ protected:
     bool commitTransaction()
     {
         if (!mHasOpenTransaction)
+        {
             return false;
-        simpleQuery("COMMIT TRANSACTION");
+        }
+        else
+        {
+            // returns zero if autocommit mode is disabled, otherwise return non-zero
+            if (!sqlite3_get_autocommit(mDb))
+            {
+                // autocommit mode is disabled by a BEGIN statement (if there's an opened transaction)
+                simpleQuery("COMMIT TRANSACTION");
+            }
+            else
+            {
+                // mHasOpenTransaction is true, but there's not an opened transaction in db
+                KR_LOG_ERROR("db error: trying to commit a transaction, but there's not an opened transaction in db");
+                assert(false);
+            }
+        }
+
         mHasOpenTransaction = false;
         mLastCommitTs = time(NULL);
         return true;

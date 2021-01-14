@@ -34,7 +34,6 @@ void globalCleanup()
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::globalCleanup();
 #endif
-    services_shutdown();
 }
 
 void init_uv_timer(void *ctx, uv_timer_t *timer)

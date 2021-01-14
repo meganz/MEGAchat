@@ -781,6 +781,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->archiveChat(chatId, archive);
 }
 
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setChatRetentionTime(chatID, (unsigned)period, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period {
+    self.megaChatApi->setChatRetentionTime(chatID, (unsigned)period);
+}
+
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
     return self.megaChatApi->openChatRoom(chatId, [self createDelegateMEGAChatRoomListener:delegate singleListener:YES]);
 }
@@ -853,6 +861,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
     
     self.megaChatApi->attachNodes(chatId, (nodeList != nil) ? [nodeList getCPtr] : NULL);
+}
+
+- (MEGAChatMessage *)sendGiphyToChat:(uint64_t)chatId srcMp4:(NSString *)srcMp4 srcWebp:(NSString *)srcWebp sizeMp4:(uint64_t)sizeMp4 sizeWebp:(uint64_t)sizeWebp  width:(int)width height:(int)height title:(NSString *)title {
+    MegaChatMessage *message = self.megaChatApi->sendGiphy(chatId, srcMp4.UTF8String, srcWebp.UTF8String, sizeMp4, sizeWebp, width, height, title.UTF8String);
+        return message ? [[MEGAChatMessage alloc] initWithMegaChatMessage:message cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatMessage *)sendGeolocationToChat:(uint64_t)chatId longitude:(float)longitude latitude:(float)latitude image:(NSString *)image {

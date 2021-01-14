@@ -407,10 +407,15 @@ public:
 
     enum
     {
-        kIdleTimeout = 64,      // (in seconds) chatd closes connection after 48-64s of not receiving a response
-        kEchoTimeout = 1,       // (in seconds) echo to check connection is alive when back to foreground
-        kConnectTimeout = 30    // (in seconds) timeout reconnection to succeeed
+        kIdleTimeout = 64,              // (in seconds) chatd closes connection after 48-64s of not receiving a response
+        kEchoTimeout = 1,               // (in seconds) echo to check connection is alive when back to foreground
+        kConnectTimeout = 30,           // (in seconds) timeout reconnection to succeeed
+        kMaxConnSucceededTimeframe = 30 // (in seconds) timeout after we will re-fetch a fresh URL if successful connections has exceeded kMaxConnSuceeded
     };
+
+    /* Limit of successful connections established during the last kMaxConnSucceededTimeframe seconds
+     * If we exceed this limit we will re-fetch a fresh URL */
+    const unsigned int kMaxConnSuceeded = 16;
 
 protected:
     Connection(Client& chatdClient, int shardNo);
@@ -450,6 +455,12 @@ protected:
     /** Timestamp of the last received data from chatd */
     time_t mTsLastRecv = 0;
 
+    /** Timestamp of the first successful connection attempt, in the last kMaxConnSucceededTimeframe seconds */
+    time_t mTsConnSuceeded = 0;
+
+    /** Number of successful connections attempts */
+    unsigned int mConnSuceeded = 0;
+
     /** Handler of the timeout for the ECHO command */
     megaHandle mEchoTimer = 0;
 
@@ -484,6 +495,9 @@ protected:
     promise::Promise<void> sendKeepalive();
     void sendEcho();
     void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
+
+    /** @brief reset number of succeeded connection attempts and update ts for last check **/
+    void resetConnSuceededAttempts(const time_t &t);
     friend class Client;
     friend class Chat;
 

@@ -224,7 +224,7 @@ public:
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
     promise::Promise<void> archiveChat(bool archive);
-    promise::Promise<void> setChatRetentionTime(int period);
+    promise::Promise<void> setChatRetentionTime(unsigned period);
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes) = 0;
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node) = 0;
@@ -313,7 +313,7 @@ public:
         promise::Promise<void> mNameResolved;
 
     public:
-        Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv, bool isPublicChat);
+        Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
 
         /** @brief The current display name of the member */
@@ -328,6 +328,8 @@ public:
         chatd::Priv priv() const { return mPriv; }
 
         promise::Promise<void> nameResolved() const;
+
+        void registerCallBacks(bool fetchIsRequired);
         friend class GroupChatRoom;
     };
     /**
@@ -347,7 +349,7 @@ protected:
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
-    promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv);
+    promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool isPublicChat, bool saveToDb = true);
     bool removeMember(uint64_t userid);
     bool syncWithApi(const mega::MegaTextChat &chat) override;
     IApp::IGroupChatListItem* addAppItem();

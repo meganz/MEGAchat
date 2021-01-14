@@ -169,7 +169,7 @@ void MegaChatApiImpl::loop()
 #endif
 }
 
-void MegaChatApiImpl::megaApiPostMessage(struct megaMessage* msg, void* ctx)
+void MegaChatApiImpl::megaApiPostMessage(megaMessage* msg, void* ctx)
 {
     MegaChatApiImpl *megaChatApi = (MegaChatApiImpl *)ctx;
     if (megaChatApi)
@@ -186,7 +186,7 @@ void MegaChatApiImpl::megaApiPostMessage(struct megaMessage* msg, void* ctx)
     }
 }
 
-void MegaChatApiImpl::postMessage(struct megaMessage* msg)
+void MegaChatApiImpl::postMessage(megaMessage* msg)
 {
     eventQueue.push(msg);
     waiter->notify();
@@ -1854,12 +1854,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_SET_RETENTION_TIME:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            int period = request->getParamType();
-            if (period < 0)
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
+            unsigned period = static_cast <unsigned>(request->getNumber());
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
@@ -2170,7 +2165,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
 void MegaChatApiImpl::sendPendingEvents()
 {
-    struct megaMessage* msg;
+    megaMessage* msg;
     while ((msg = eventQueue.pop()))
     {
         megaProcessMessage(msg);
@@ -3619,11 +3614,11 @@ void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatR
     waiter->notify();
 }
 
-void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, unsigned period, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_RETENTION_TIME, listener);
     request->setChatHandle(chatid);
-    request->setParamType(period);
+    request->setNumber(period);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5344,21 +5339,21 @@ void ChatRequestQueue::removeListener(MegaChatRequestListener *listener)
     mutex.unlock();
 }
 
-void EventQueue::push(struct megaMessage* transfer)
+void EventQueue::push(megaMessage* transfer)
 {
     mutex.lock();
     events.push_back(transfer);
     mutex.unlock();
 }
 
-void EventQueue::push_front(struct megaMessage* event)
+void EventQueue::push_front(megaMessage* event)
 {
     mutex.lock();
     events.push_front(event);
     mutex.unlock();
 }
 
-struct megaMessage* EventQueue::pop()
+megaMessage* EventQueue::pop()
 {
     mutex.lock();
     if(events.empty())
@@ -5366,7 +5361,8 @@ struct megaMessage* EventQueue::pop()
         mutex.unlock();
         return NULL;
     }
-    struct megaMessage* event = events.front();
+
+    megaMessage* event = events.front();
     events.pop_front();
     mutex.unlock();
     return event;
@@ -7558,7 +7554,7 @@ char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
     return ret;
 }
 
-unsigned int MegaChatRoomPrivate::getRetentionTime() const
+unsigned MegaChatRoomPrivate::getRetentionTime() const
 {
     return mRetentionTime;
 }
@@ -8478,9 +8474,9 @@ int MegaChatMessagePrivate::getDuration() const
     return priv;
 }
 
-int MegaChatMessagePrivate::getRetentionTime() const
+unsigned MegaChatMessagePrivate::getRetentionTime() const
 {
-    return priv;
+    return static_cast<unsigned>(priv);
 }
 
 int MegaChatMessagePrivate::getTermCode() const
