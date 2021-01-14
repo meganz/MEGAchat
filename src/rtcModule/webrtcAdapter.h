@@ -331,16 +331,49 @@ private:
 class MegaDecryptor : public rtc::RefCountedObject<webrtc::FrameDecryptorInterface>
 {
 public:
-    MegaDecryptor();
-    ~MegaDecryptor();
+     MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, const std::string &callKey, IvStatic_t iv);
+    ~MegaDecryptor() override;
 
+    // set a new decryption key for SymmCipher
+    void setDecryptionKey(const std::string &decryptKey);
+
+    // validates header by checking if CID matches with expected one, also extracts keyId and packet CTR */
+    webrtc::FrameDecryptorInterface::Status validateAndProcessHeader(cricket::MediaType media_type,
+                                                                      rtc::ArrayView<const uint8_t>
+                                                                      encrypted_frame);
+
+    // rebuild the IV for a received frame, you take the ownership of returned value
+    std::shared_ptr<byte> generateFrameIV(const cricket::MediaType media_type);
+
+    // decrypts a received frame
     Result Decrypt(cricket::MediaType media_type,
                    const std::vector<uint32_t>& csrcs,
                    rtc::ArrayView<const uint8_t> additional_data,
                    rtc::ArrayView<const uint8_t> encrypted_frame,
                    rtc::ArrayView<uint8_t> frame) override;
 
+    // returns the plain_frame size for a given encrypted frame
     size_t GetMaxPlaintextByteSize(cricket::MediaType media_type, size_t encrypted_frame_size) override;
+
+private:
+
+    // symetric cipher
+    std::unique_ptr<mega::SymmCipher> mSymCipher;
+
+    // sequential number of the packet
+    uint32_t mCtr = 0;
+
+    // peer
+    const sfu::Peer& mPeer;
+
+    // call key (only for public chats)
+    std::string mCallKey;
+
+    // crypto module for meetings
+    std::shared_ptr<::rtcModule::IRtcCryptoMeetings> mCryptoMeetings;
+
+    // static part (8 Bytes) of IV
+    IvStatic_t mIv;
 };
 
 class LocalStreamHandle
