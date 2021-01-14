@@ -77,7 +77,13 @@ int Peer::getModerator() const
 
 std::string Peer::getKey(Keyid_t keyid) const
 {
-    return mKeyMap.at(keyid);
+    std::string key;
+    auto it = mKeyMap.find(keyid);
+    if (it != mKeyMap.end())
+    {
+        key = it->second;
+    }
+    return key;
 }
 
 void Peer::addKey(Keyid_t keyid, const std::string &key)
