@@ -602,12 +602,46 @@ void Call::onRenegotiationNeeded()
 
 void Call::generateAndSendNewkey()
 {
-    // Generate key
+    // generate a new plain key
+    std::shared_ptr<strongvelope::SendKey> newPlainKey = mSfuClient.getRtcCryptoMeetings()->generateSendKey();
+    std::string plainkey = reinterpret_cast<const char *>(newPlainKey->ubuf());
+    Keyid_t currentKeyId = mMyPeer.getCurrentKeyId() + 1;
 
-    //encrypt key for all peers in mPeers store in dataKey
-    std::string dataKey;
-    uint64_t id = -1;
-    mSfuConnection->sendKey(id, dataKey);
+    // add new key to own peer key map and update currentKeyId
+    mMyPeer.addKey(currentKeyId, plainkey);
+
+    // in case of a call in a public chatroom, XORs new key with the call key for additional authentication
+    if (hasCallKey())
+    {
+        strongvelope::SendKey callKey (mCallKey.data(), mCallKey.size());
+        mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, *newPlainKey.get());
+    }
+
+    // dataKey format required by SfuConnection::sendKey: [[Cid1, EncyptedKey1], [Cid2, EncyptedKey2]]
+    rapidjson::StringBuffer s;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+    writer.StartArray();
+
+    for (const auto& session : mSessions) // encrypt key to all participants
+    {
+        // get peer Cid
+        Cid_t sessionCid = session.first;
+
+        // get peer id
+        karere::Id peerId = session.second->getPeer().getPeerid();
+
+        // encrypt key to participant
+        strongvelope::SendKey encryptedKey;
+        mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peerId, *newPlainKey.get(), encryptedKey);
+
+        // write <id,key> pair array
+        writer.StartArray();
+        writer.Uint(sessionCid);
+        writer.String(encryptedKey.buf());
+        writer.EndArray();
+    }
+    writer.EndArray();
+    mSfuConnection->sendKey(currentKeyId, s.GetString());
 }
 
 void Call::handleIncomingVideo(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videotrackDescriptors, bool hiRes)
