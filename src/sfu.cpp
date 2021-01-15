@@ -89,7 +89,8 @@ std::string Peer::getKey(Keyid_t keyid) const
 void Peer::addKey(Keyid_t keyid, const std::string &key)
 {
     assert(mKeyMap.find(keyid) == mKeyMap.end());
-    mKeyMap[keyid] = key;
+    mCurrentkeyId = keyid;
+    mKeyMap[mCurrentkeyId] = key;
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)
@@ -820,7 +821,7 @@ bool SfuConnection::joinSfu(const std::string &sdp, const std::map<int, std::str
     return sendCommand(command);
 }
 
-bool SfuConnection::sendKey(uint64_t id, const std::string &data)
+bool SfuConnection::sendKey(Keyid_t id, const std::string &data)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
@@ -828,7 +829,7 @@ bool SfuConnection::sendKey(uint64_t id, const std::string &data)
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value idValue(rapidjson::kNumberType);
-    idValue.SetUint64(id);
+    idValue.SetUint(id);
     json.AddMember(rapidjson::Value("id"), idValue, json.GetAllocator());
 
     rapidjson::Value dataValue(rapidjson::kStringType);

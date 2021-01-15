@@ -266,7 +266,7 @@ public:
 
         promise::Promise<void> getPromiseConnection();
         bool joinSfu(const std::string& sdp, const std::map<int, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
-        bool sendKey(uint64_t id, const std::string& data);
+        bool sendKey(Keyid_t id, const std::string& data);
         bool sendAv(int av);
         bool sendGetVtumbs(const std::vector<karere::Id>& cids);
         bool sendDelVthumbs(const std::vector<karere::Id>& cids);
