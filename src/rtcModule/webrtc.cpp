@@ -432,7 +432,21 @@ bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,
 
 bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
-    mSessions[cid]->addKey(keyid, key);
+    // decrypt key
+    strongvelope::SendKey encryptedKey (key.data(), key.size());
+    strongvelope::SendKey plainKey (key.data(), key.size());
+    mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(mSessions[cid]->getPeer().getPeerid(), encryptedKey, plainKey);
+
+    // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
+    if (hasCallKey())
+    {
+        strongvelope::SendKey callKey (mCallKey.data(), mCallKey.size());
+        mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
+    }
+
+    // add new key to peer key map
+    std::string newKey(reinterpret_cast<const char *>(plainKey.ubuf()), plainKey.dataSize());
+    mSessions[cid]->addKey(keyid, newKey);
     return true;
 }
 
