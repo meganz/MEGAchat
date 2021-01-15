@@ -362,6 +362,11 @@ std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
     return mSessions[cid]->getPeer().getKey(keyid);
 }
 
+bool Call::hasCallKey()
+{
+    return !mCallKey.empty();
+}
+
 bool Call::handleAvCommand(Cid_t cid, int av)
 {
     mSessions[cid]->setAvFlags(av);

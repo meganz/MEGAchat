@@ -118,6 +118,7 @@ public:
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
+    bool hasCallKey();
 
     bool handleAvCommand(Cid_t cid, int av) override;
     bool handleAnswerCommand(Cid_t cid, const std::string&sdp, int mod, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers) override;
