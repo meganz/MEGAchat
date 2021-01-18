@@ -4005,7 +4005,7 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_getDefaultTZ, sequence(text("getdefaulttz")));
     p->Add(exec_isGeolocOn, sequence(text("isgeolocationenabled")));
-    p->Add(exec_setGeolocOn, sequence(text("enablegeolocation")));
+    p->Add(exec_setGeolocOn, sequence(text("setgeolocation"), text("on")));
 
     return p;
 }
