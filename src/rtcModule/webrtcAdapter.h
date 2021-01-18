@@ -288,13 +288,13 @@ public:
     void setEncryptionKey(const std::string &encryptKey);
 
     // increments sequential number of the packet, for each sent frame of that media track.
-    void incrementPacketCtr(const cricket::MediaType media_type);
+    void incrementPacketCtr();
 
     // generates a header for a new frame, you take the ownership of returned value
-    byte *generateHeader(const cricket::MediaType media_type);
+    byte *generateHeader();
 
     // generates an IV for a new frame, you take the ownership of returned value
-    byte *generateFrameIV(const cricket::MediaType media_type);
+    byte *generateFrameIV();
 
     // encrypts a received frame
     int Encrypt(cricket::MediaType media_type,
@@ -335,12 +335,11 @@ public:
     void setDecryptionKey(const std::string &decryptKey);
 
     // validates header by checking if CID matches with expected one, also extracts keyId and packet CTR */
-    webrtc::FrameDecryptorInterface::Status validateAndProcessHeader(cricket::MediaType media_type,
-                                                                      rtc::ArrayView<const uint8_t>
+    webrtc::FrameDecryptorInterface::Status validateAndProcessHeader(rtc::ArrayView<const uint8_t>
                                                                       encrypted_frame);
 
     // rebuild the IV for a received frame, you take the ownership of returned value
-    std::shared_ptr<byte> generateFrameIV(const cricket::MediaType media_type);
+    std::shared_ptr<byte> generateFrameIV();
 
     // decrypts a received frame
     Result Decrypt(cricket::MediaType media_type,

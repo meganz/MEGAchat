@@ -330,14 +330,14 @@ void MegaEncryptor::setEncryptionKey(const std::string& encryptKey)
             : mSymCipher.reset(new mega::SymmCipher(encKey));
 }
 
-void MegaEncryptor::incrementPacketCtr(const cricket::MediaType media_type)
+void MegaEncryptor::incrementPacketCtr()
 {
     (mCtr < UINT32_MAX)
             ? mCtr++
             : mCtr = 1;   // reset packet ctr if max value has been reached
 }
 
-byte *MegaEncryptor::generateHeader(const cricket::MediaType media_type)
+byte *MegaEncryptor::generateHeader()
 {
     // header (8 Bytes): <senderCid.3> <keyId.1> <packetCtr.4>
     Cid_t cid = mMyPeer.getCid();
@@ -354,7 +354,7 @@ byte *MegaEncryptor::generateHeader(const cricket::MediaType media_type)
     return header;
 }
 
-byte *MegaEncryptor::generateFrameIV(const cricket::MediaType media_type)
+byte *MegaEncryptor::generateFrameIV()
 {
     // frame iv (12 Bytes): <ctr.4> <randombytes.8> (randombytes = static part)
     byte *iv = new byte[FRAME_IV_LENGTH];
@@ -372,13 +372,13 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
     }
 
     // generate frame iv
-    mega::unique_ptr<byte> iv(generateFrameIV(media_type));
+    mega::unique_ptr<byte> iv(generateFrameIV());
 
     // generate header
-    mega::unique_ptr<byte> header(generateHeader(media_type));
+    mega::unique_ptr<byte> header(generateHeader());
 
     // increment PacketCtr after we have generated header
-    incrementPacketCtr(media_type);
+    incrementPacketCtr();
 
     // encrypt frame
     std::string encFrame, plainFrame;
@@ -440,7 +440,7 @@ void MegaDecryptor::setDecryptionKey(const std::string &decryptKey)
 }
 
 // header.8: <CID.3> <keyId.1> <packetCTR.4>
-webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(cricket::MediaType media_type, rtc::ArrayView<const uint8_t> encrypted_frame)
+webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> encrypted_frame)
 {
     if (!encrypted_frame.size())
     {
@@ -477,7 +477,7 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
     return Status::kOk;
 }
 
-std::shared_ptr<byte> MegaDecryptor::generateFrameIV(const cricket::MediaType media_type)
+std::shared_ptr<byte> MegaDecryptor::generateFrameIV()
 {
     std::shared_ptr<byte>iv(new byte[FRAME_IV_LENGTH]);
     memcpy(iv.get(), &mCtr, FRAME_CTR_LENGTH);
@@ -488,13 +488,13 @@ std::shared_ptr<byte> MegaDecryptor::generateFrameIV(const cricket::MediaType me
 webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaType media_type, const std::vector<uint32_t> &csrcs, rtc::ArrayView<const uint8_t> additional_data, rtc::ArrayView<const uint8_t> encrypted_frame, rtc::ArrayView<uint8_t> frame)
 {
     // validate header
-    if (validateAndProcessHeader(media_type, encrypted_frame) != Status::kOk)
+    if (validateAndProcessHeader(encrypted_frame) != Status::kOk)
     {
         // return error
     }
 
     // generate iv using packet CRT received in frame header
-    std::shared_ptr<byte> iv = generateFrameIV(media_type);
+    std::shared_ptr<byte> iv = generateFrameIV();
 
     // copy encrypted_frame content into a string
     std::string encFrame;
