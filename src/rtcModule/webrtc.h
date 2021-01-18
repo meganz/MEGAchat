@@ -14,10 +14,12 @@
 
 // 8-bit id of the encryption key
 typedef uint8_t Keyid_t;
-// 24-bit client id (CID) for meetings.
+// 24-bit client id (CID) for meetings
 typedef uint32_t Cid_t;
-// IV static part (8 bytes),
+// IV static part (8 bytes)
 typedef uint64_t IvStatic_t;
+// packet Ctr (4 bytes)
+typedef uint32_t Ctr_t;
 
 namespace rtcModule
 {

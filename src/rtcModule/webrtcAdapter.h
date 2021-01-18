@@ -313,7 +313,7 @@ private:
     std::unique_ptr<mega::SymmCipher> mSymCipher;
 
     // sequential number of the packet
-    uint32_t mCtr = 0;
+    Ctr_t mCtr = 0;
 
     // own peer
     const sfu::Peer& mMyPeer;
@@ -358,7 +358,7 @@ private:
     std::unique_ptr<mega::SymmCipher> mSymCipher;
 
     // sequential number of the packet
-    uint32_t mCtr = 0;
+    Ctr_t mCtr = 0;
 
     // peer
     const sfu::Peer& mPeer;
