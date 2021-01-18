@@ -281,7 +281,7 @@ public:
 class MegaEncryptor : public rtc::RefCountedObject<webrtc::FrameEncryptorInterface>
 {
 public:
-    MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, const std::string &callKey, IvStatic_t iv);
+    MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv);
     ~MegaEncryptor() override;
 
     // set a new encryption key for SymmCipher
@@ -318,9 +318,6 @@ private:
     // own peer
     const sfu::Peer& mMyPeer;
 
-    // call key (only for public chats)
-    std::string mCallKey;
-
     // shared ptr to crypto module for meetings
     std::shared_ptr<::rtcModule::IRtcCryptoMeetings> mCryptoMeetings;
 
@@ -331,7 +328,7 @@ private:
 class MegaDecryptor : public rtc::RefCountedObject<webrtc::FrameDecryptorInterface>
 {
 public:
-     MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, const std::string &callKey, IvStatic_t iv);
+     MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv);
     ~MegaDecryptor() override;
 
     // set a new decryption key for SymmCipher
@@ -365,9 +362,6 @@ private:
 
     // peer
     const sfu::Peer& mPeer;
-
-    // call key (only for public chats)
-    std::string mCallKey;
 
     // crypto module for meetings
     std::shared_ptr<::rtcModule::IRtcCryptoMeetings> mCryptoMeetings;

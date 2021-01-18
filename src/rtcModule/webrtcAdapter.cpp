@@ -311,9 +311,8 @@ rtc::RefCountReleaseStatus VideoManager::Release() const
     return status;
 }
 
-MegaEncryptor::MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, const std::string &callKey, IvStatic_t iv)
+MegaEncryptor::MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv)
     : mMyPeer(peer)
-    , mCallKey(callKey)
     , mCryptoMeetings(cryptoMeetings)
     , mIv(iv)
 {
@@ -420,9 +419,8 @@ size_t MegaEncryptor::GetMaxCiphertextByteSize(cricket::MediaType media_type, si
     return FRAME_HEADER_LENGTH + frame_size + FRAME_GCM_TAG_LENGTH;
 }
 
-MegaDecryptor::MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, const std::string &callKey, IvStatic_t iv)
+MegaDecryptor::MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv)
     : mPeer(peer)
-    , mCallKey(callKey)
     , mCryptoMeetings(cryptoMeetings)
     , mIv(iv)
 {

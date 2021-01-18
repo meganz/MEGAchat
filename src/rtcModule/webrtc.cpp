@@ -887,7 +887,6 @@ void Slot::createEncryptor(const sfu::Peer& peer)
 {
     mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.mSfuClient.getRtcCryptoMeetings(),
-                                                                      mCall.getCallKey(),
                                                                       mIv));
 }
 
@@ -902,7 +901,6 @@ void Slot::createDecryptor()
 
     mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
                                                                       mCall.mSfuClient.getRtcCryptoMeetings(),
-                                                                      mCall.getCallKey(),
                                                                       mIv));
 }
 
