@@ -29,7 +29,8 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
     MEGAChatMessageTypePublicHandleCreate = 8,
     MEGAChatMessageTypePublicHandleDelete = 9,
     MEGAChatMessageTypeSetPrivateMode     = 10,
-    MEGAChatMessageTypeHighestManagement  = 10,
+    MEGAChatMessageTypeSetRetentionTime   = 11,
+    MEGAChatMessageTypeHighestManagement  = 11,
     MEGAChatMessageTypeAttachment         = 101,
     MEGAChatMessageTypeRevokeAttachment   = 102, /// Obsolete
     MEGAChatMessageTypeContact            = 103,
@@ -83,6 +84,7 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
 @property (readonly, nonatomic) MEGANodeList *nodeList;
 @property (readonly, nonatomic) MEGAHandleList *handleList;
 @property (readonly, nonatomic) NSInteger duration;
+@property (readonly, nonatomic) NSUInteger retentionTime;
 @property (readonly, nonatomic) MEGAChatMessageEndCallReason termCode;
 @property (readonly, nonatomic) uint64_t rowId;
 @property (readonly, nonatomic) MEGAChatContainsMeta *containsMeta;

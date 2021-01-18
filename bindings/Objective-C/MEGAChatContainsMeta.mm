@@ -5,6 +5,7 @@
 
 #import "MEGAChatRichPreview+init.h"
 #import "MEGAChatGeolocation+init.h"
+#import "MEGAChatGiphy+init.h"
 
 using namespace megachat;
 
@@ -58,6 +59,10 @@ using namespace megachat;
 
 - (MEGAChatGeolocation *)geolocation {
     return self.megaChatContainsMeta->getGeolocation() ? [[MEGAChatGeolocation alloc] initWithMegaChatGeolocation:self.megaChatContainsMeta->getGeolocation()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAChatGiphy *)giphy {
+    return self.megaChatContainsMeta->getGiphy() ? [[MEGAChatGiphy alloc] initWithMegaChatGiphy:self.megaChatContainsMeta->getGiphy()->copy() cMemoryOwn:YES] : nil;
 }
 
 @end

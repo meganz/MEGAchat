@@ -702,7 +702,7 @@ public:
     virtual int getUnreadCount() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual MegaChatHandle getUserTyping() const;
-    unsigned int getRetentionTime() const override;
+    unsigned getRetentionTime() const override;
 
     void setRetentionTime(unsigned int period);
     void setOwnPriv(int ownPriv);
@@ -804,7 +804,7 @@ public:
     virtual const MegaChatContainsMeta *getContainsMeta() const;
     virtual mega::MegaHandleList *getMegaHandleList() const;
     virtual int getDuration() const;
-    int getRetentionTime() const override;
+    unsigned getRetentionTime() const override;
     virtual int getTermCode() const;
 
     virtual int getChanges() const;
@@ -864,13 +864,13 @@ class ChatRequestQueue
 class EventQueue
 {
 protected:
-    std::deque<void *> events;
+    std::deque<megaMessage*> events;
     std::mutex mutex;
 
 public:
-    void push(void* event);
-    void push_front(void *event);
-    void* pop();
+    void push(megaMessage* event);
+    void push_front(megaMessage* event);
+    megaMessage *pop();
     bool isEmpty();
     size_t size();
 };
@@ -934,8 +934,8 @@ private:
     static int convertInitState(int state);
 
 public:
-    static void megaApiPostMessage(void* msg, void* ctx);
-    void postMessage(void *msg);
+    static void megaApiPostMessage(megaMessage *msg, void* ctx);
+    void postMessage(megaMessage *msg);
 
     void sendPendingRequests();
     void sendPendingEvents();
@@ -1098,7 +1098,7 @@ public:
     void setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
-    void setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener = NULL);
+    void setChatRetentionTime(MegaChatHandle chatid, unsigned period, MegaChatRequestListener *listener = NULL);
 
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);

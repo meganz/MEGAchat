@@ -138,4 +138,24 @@ namespace artc
     {
         mVideoSource->UnregisterObserver(observer);
     }
+
+    bool OBJCCaptureModule::SupportsEncodedOutput() const
+    {
+        return false;
+    }
+
+    void OBJCCaptureModule::GenerateKeyFrame()
+    {
+
+    }
+
+    void OBJCCaptureModule::AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink)
+    {
+
+    }
+
+    void OBJCCaptureModule::RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink)
+    {
+
+    }
 }

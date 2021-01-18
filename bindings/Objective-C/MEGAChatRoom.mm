@@ -121,6 +121,10 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->isArchived() : NO;
 }
 
+- (NSUInteger)retentionTime {
+    return self.megaChatRoom ? self.megaChatRoom->getRetentionTime() : 0;
+}
+
 - (uint64_t)creationTimeStamp {
     return self.megaChatRoom ? self.megaChatRoom->getCreationTs() : MEGACHAT_INVALID_HANDLE;
 }
