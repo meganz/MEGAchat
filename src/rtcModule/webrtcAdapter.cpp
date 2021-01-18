@@ -371,6 +371,16 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
         return 1;
     }
 
+    // set current encryption key in symCipher
+    Keyid_t keyId = mMyPeer.getCurrentKeyId();
+    std::string encryptionKey = mMyPeer.getKey(keyId);
+    if (encryptionKey.empty())
+    {
+        RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d", keyId);
+        //return ERRCODE
+    }
+    setEncryptionKey(encryptionKey);
+
     // generate frame iv
     mega::unique_ptr<byte> iv(generateFrameIV());
 
@@ -408,7 +418,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
     *bytes_written = encrypted_frame.size();
     if (GetMaxCiphertextByteSize(media_type, frame.size()) != *bytes_written)
     {
-        RTCM_LOG_WARNING("Frame size doesn't match with expected size");
+        RTCM_LOG_WARNING("Encrypt: Frame size doesn't match with expected size");
     }
     return 0;
 }
@@ -454,19 +464,19 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
     Cid_t peerCid = mPeer.getCid();
     if (memcmp(&peerCid, data, FRAME_CID_LENGTH))
     {
-        RTCM_LOG_WARNING("Frame CID doesn't match with expected one");
+        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one");
         //return error
     }
 
     // extract keyId and if it's valid, set key into SymCipher
-    uint8_t keyId = 0;
+    Keyid_t keyId = 0;
     offset += FRAME_CID_LENGTH;
     memcpy(&keyId, data + offset, FRAME_KEYID_LENGTH);
 
     std::string decryptionKey = mPeer.getKey(keyId);
     if (decryptionKey.empty())
     {
-        RTCM_LOG_WARNING("key doesn't found with keyId: %d", keyId);
+        RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d", keyId);
         //return ERRCODE
     }
     setDecryptionKey(decryptionKey);

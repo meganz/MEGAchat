@@ -432,20 +432,20 @@ bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,
 
 bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
-    // decrypt key
-    strongvelope::SendKey encryptedKey (key.data(), key.size());
-    strongvelope::SendKey plainKey (key.data(), key.size());
+    // decrypt received key
+    strongvelope::SendKey plainKey;
+    strongvelope::SendKey encryptedKey = mSfuClient.getRtcCryptoMeetings()->strToKey(key);
     mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(mSessions[cid]->getPeer().getPeerid(), encryptedKey, plainKey);
 
     // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
     if (hasCallKey())
     {
-        strongvelope::SendKey callKey (mCallKey.data(), mCallKey.size());
+        strongvelope::SendKey callKey = mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey);
         mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
     }
 
     // add new key to peer key map
-    std::string newKey(reinterpret_cast<const char *>(plainKey.ubuf()), plainKey.dataSize());
+    std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
     mSessions[cid]->addKey(keyid, newKey);
     return true;
 }
@@ -618,16 +618,16 @@ void Call::generateAndSendNewkey()
 {
     // generate a new plain key
     std::shared_ptr<strongvelope::SendKey> newPlainKey = mSfuClient.getRtcCryptoMeetings()->generateSendKey();
-    std::string plainkey = reinterpret_cast<const char *>(newPlainKey->ubuf());
-    Keyid_t currentKeyId = mMyPeer.getCurrentKeyId() + 1;
 
     // add new key to own peer key map and update currentKeyId
+    Keyid_t currentKeyId = mMyPeer.getCurrentKeyId() + 1;
+    std::string plainkey = mSfuClient.getRtcCryptoMeetings()->keyToStr(*newPlainKey.get());
     mMyPeer.addKey(currentKeyId, plainkey);
 
     // in case of a call in a public chatroom, XORs new key with the call key for additional authentication
     if (hasCallKey())
     {
-        strongvelope::SendKey callKey (mCallKey.data(), mCallKey.size());
+        strongvelope::SendKey callKey = mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey);
         mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, *newPlainKey.get());
     }
 
