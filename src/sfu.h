@@ -5,7 +5,7 @@
 #include <net/websocketsIO.h>
 #include <karereId.h>
 #include <rapidjson/document.h>
-#include <webrtc.h>
+#include "rtcCrypto.h"
 
 #define SFU_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
@@ -260,7 +260,6 @@ public:
         void disconnect();
         void doConnect();
         void retryPendingConnection(bool disconnect);
-        Cid_t getCid() const;
         bool sendCommand(const std::string& command);
         bool handleIncomingData(const char* data, size_t len);
 
@@ -318,7 +317,6 @@ public:
         void abortRetryController();
 
         std::map<std::string, std::unique_ptr<Command>> mCommands;
-        Cid_t mCid;
         SfuInterface& mCall;
     };
 

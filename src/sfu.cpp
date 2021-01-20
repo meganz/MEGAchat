@@ -689,11 +689,6 @@ void SfuConnection::retryPendingConnection(bool disconnect)
     }
 }
 
-Cid_t SfuConnection::getCid() const
-{
-    return mCid;
-}
-
 bool SfuConnection::sendCommand(const std::string &command)
 {
     if (!isOnline())
