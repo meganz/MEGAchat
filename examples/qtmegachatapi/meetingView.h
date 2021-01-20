@@ -2,6 +2,7 @@
 #define MEETINGVIEW_H
 
 #include "peerWidget.h"
+#include <megachatapi.h>
 
 #include <QPushButton>
 #include <QScrollArea>
@@ -13,7 +14,7 @@ class MeetingView : public QWidget
 {
     Q_OBJECT
 public:
-    MeetingView(QWidget* parent);
+    MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget* parent);
     void addVthumb(PeerWidget* widget);
     void addHiRes(PeerWidget* widget);
     void addLocalVideo(PeerWidget* widget);
@@ -21,6 +22,9 @@ public:
     void removeHiRes(Cid_t cid);
 
 protected:
+    megachat::MegaChatApi &mMegaChatApi;
+    mega::MegaHandle mChatid;
+
     QGridLayout* mGridLayout;
     QHBoxLayout* mThumbLayout;
     QHBoxLayout* mHiResLayout;
@@ -40,6 +44,9 @@ protected:
 
     void removeThumb(PeerWidget* widget);
     void removeHiRes(PeerWidget* widget);
+
+public slots:
+    void onHangUp();
 };
 
 #endif // MEETINGVIEW_H

@@ -1072,7 +1072,7 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle
 {
     assert(!mMeetingView);
     //auto layout = qobject_cast <QGridLayout*> (ui->mCentralWidget->layout());
-    mMeetingView = new MeetingView(this);
+    mMeetingView = new MeetingView(*mMegaChatApi, mChatRoom->getChatId(), this);
     mMeetingView->setVisible(true);
     ui->mCentralWidget->layout()->addWidget(mMeetingView);
     PeerWidget* peerWidget = new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, true, true);
@@ -1163,20 +1163,8 @@ void ChatWindow::deleteCallGui()
     int col = 0;
     int auxIndex = 0;
     ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
-    std::set<CallGui *>::iterator it;
-    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
-    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
-    {
-        CallGui *call = *it;
-        auxIndex = call->getIndex();
-        getCallPos(auxIndex, row, col);
-        layout->removeWidget(layout->itemAtPosition(row, col)->widget());
-        call->deleteLater();
-        if (auxIndex != -1)
-        {
-            mFreeCallGui[auxIndex] = megachat::MEGACHAT_INVALID_HANDLE;
-        }
-    }
+    ui->mCentralWidget->layout()->removeWidget(mMeetingView);
+
     callParticipantsGui.clear();
     setChatTittle(mChatRoom->getTitle());
     ui->mTextChatWidget->show();

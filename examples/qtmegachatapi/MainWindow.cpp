@@ -191,11 +191,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
 //                break;
 //            }
-//            case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
-//            {
-//                window->hangCall();
-//                return;
-//            }
+            case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
+            {
+                window->hangCall();
+                return;
+            }
 //            case megachat::MegaChatCall::CALL_STATUS_RING_IN:
 //            {
 //                std::set<CallGui *> *setCallGui = window->getCallGui();
@@ -258,7 +258,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             }
         }
 
-        updateVideoParticipants(call->getChatid());
+        //updateVideoParticipants(call->getChatid());
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))

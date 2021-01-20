@@ -1,7 +1,9 @@
 #include "meetingView.h"
 
-MeetingView::MeetingView(QWidget *parent)
+MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent)
     : QWidget(parent)
+    , mMegaChatApi(megaChatApi)
+    , mChatid(chatid)
 {
     mGridLayout = new QGridLayout(this);
     QWidget* widgetThumbs = new QWidget();
@@ -14,6 +16,7 @@ MeetingView::MeetingView(QWidget *parent)
     mButtonsLayout = new QVBoxLayout();
 
     mHangup = new QPushButton("Hang up", this);
+    connect(mHangup, SIGNAL(released()), this, SLOT(onHangUp()));
     mRequestSpeaker = new QPushButton("Speak", this);
     mRequestModerator = new QPushButton("Moderator", this);
     mEnableAudio = new QPushButton("Audio", this);
@@ -87,5 +90,10 @@ void MeetingView::removeThumb(PeerWidget *widget)
 void MeetingView::removeHiRes(PeerWidget *widget)
 {
     mHiResLayout->removeWidget(widget);
+}
+
+void MeetingView::onHangUp()
+{
+    mMegaChatApi.hangChatCall(mChatid);
 }
 
