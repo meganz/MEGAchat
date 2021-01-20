@@ -5227,22 +5227,22 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 
 }
 
-bool MockupCall::handleAvCommand(uint32_t cid, int av)
+bool MockupCall::handleAvCommand(Cid_t cid, int av)
 {
 
 }
 
-bool MockupCall::handleAnswerCommand(uint32_t cid, const string &sdp, int mod, const std::vector<sfu::Peer> &peers, const std::map<uint32_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<uint32_t, sfu::SpeakersDescriptor> &speakers)
+bool MockupCall::handleAnswerCommand(Cid_t cid, const string &sdp, int mod, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers)
 {
 
 }
 
-bool MockupCall::handleKeyCommand(uint64_t, uint32_t, const string &)
+bool MockupCall::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
 
 }
 
-bool MockupCall::handleVThumbsCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor> &)
+bool MockupCall::handleVThumbsCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &)
 {
 
 }
@@ -5257,7 +5257,7 @@ bool MockupCall::handleVThumbsStopCommand()
 
 }
 
-bool MockupCall::handleHiResCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor> &)
+bool MockupCall::handleHiResCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &)
 {
 
 }
@@ -5272,22 +5272,22 @@ bool MockupCall::handleHiResStopCommand()
 
 }
 
-bool MockupCall::handleSpeakReqsCommand(const std::vector<uint32_t> &)
+bool MockupCall::handleSpeakReqsCommand(const std::vector<Cid_t> &)
 {
 
 }
 
-bool MockupCall::handleSpeakReqDelCommand(uint32_t cid)
+bool MockupCall::handleSpeakReqDelCommand(Cid_t cid)
 {
 
 }
 
-bool MockupCall::handleSpeakOnCommand(uint32_t cid, sfu::SpeakersDescriptor speaker)
+bool MockupCall::handleSpeakOnCommand(Cid_t cid, sfu::SpeakersDescriptor speaker)
 {
 
 }
 
-bool MockupCall::handleSpeakOffCommand(uint32_t cid)
+bool MockupCall::handleSpeakOffCommand(Cid_t cid)
 {
 
 }

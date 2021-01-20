@@ -24,5 +24,19 @@ public:
     virtual void random(char* buf, size_t len);
 };
 
+class RtcCryptoMeetings: public rtcModule::IRtcCryptoMeetings
+{
+protected:
+    karere::Client& mClient;
+    void computeSymmetricKey(karere::Id peer, strongvelope::SendKey& output);
+public:
+    RtcCryptoMeetings(karere::Client& client);
+    void decryptKeyFrom(const karere::Id &peer, const strongvelope::SendKey &data, strongvelope::SendKey &output) override;
+    void encryptKeyTo(const karere::Id &peer, const strongvelope::SendKey &data, strongvelope::SendKey &output) override;
+    void xorWithCallKey(const strongvelope::SendKey &callKey, strongvelope::SendKey &sendKey) override;
+    std::shared_ptr<strongvelope::SendKey> generateSendKey() override;
+    static std::string keyToStr(const strongvelope::SendKey& key);
+    static strongvelope::SendKey strToKey(const std::string& keystr);
+};
 }
 #endif // MEGACRYPTOFUNCTIONS_H

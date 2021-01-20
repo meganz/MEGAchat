@@ -6,7 +6,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QHBoxLayout>
-
+#include <webrtc.h>
 #include <map>
 
 class MeetingView : public QWidget
@@ -17,8 +17,8 @@ public:
     void addVthumb(PeerWidget* widget);
     void addHiRes(PeerWidget* widget);
     void addLocalVideo(PeerWidget* widget);
-    void removeThumb(uint32_t cid);
-    void removeHiRes(uint32_t cid);
+    void removeThumb(Cid_t cid);
+    void removeHiRes(Cid_t cid);
 
 protected:
     QGridLayout* mGridLayout;
@@ -35,8 +35,8 @@ protected:
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
 
-    std::map<uint32_t, PeerWidget*> mThumbsWidget;
-    std::map<uint32_t, PeerWidget*> mHiResWidget;
+    std::map<Cid_t, PeerWidget*> mThumbsWidget;
+    std::map<Cid_t, PeerWidget*> mHiResWidget;
 
     void removeThumb(PeerWidget* widget);
     void removeHiRes(PeerWidget* widget);

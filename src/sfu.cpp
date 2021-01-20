@@ -22,7 +22,12 @@ std::string SpeakReqDelCommand::COMMAND_NAME = "SPEAK_RQ_DEL";
 std::string SpeakOnCommand::COMMAND_NAME = "SPEAK_ON";
 std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OfF";
 
-Peer::Peer(uint32_t cid, karere::Id peerid, int avFlags, int mod)
+Peer::Peer()
+    : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0), mModerator(0)
+{
+}
+
+Peer::Peer(Cid_t cid, karere::Id peerid, int avFlags, int mod)
     : mCid(cid), mPeerid(peerid), mAvFlags(avFlags), mModerator(mod)
 {
 }
@@ -36,7 +41,15 @@ Peer::Peer(const Peer &peer)
 
 }
 
-uint32_t Peer::getCid() const
+void Peer::init(Cid_t cid, karere::Id peerid, int avFlags, int mod)
+{
+    mCid = cid;
+    mPeerid = peerid;
+    mAvFlags = avFlags;
+    mModerator = mod;
+}
+
+Cid_t Peer::getCid() const
 {
     return mCid;
 }
@@ -44,6 +57,11 @@ uint32_t Peer::getCid() const
 karere::Id Peer::getPeerid() const
 {
     return mPeerid;
+}
+
+Keyid_t Peer::getCurrentKeyId() const
+{
+    return mCurrentkeyId;
 }
 
 int Peer::getAvFlags() const
@@ -57,15 +75,22 @@ int Peer::getModerator() const
 }
 
 
-std::string Peer::getKey(uint64_t keyid) const
+std::string Peer::getKey(Keyid_t keyid) const
 {
-    return mKeyMap.at(keyid);
+    std::string key;
+    auto it = mKeyMap.find(keyid);
+    if (it != mKeyMap.end())
+    {
+        key = it->second;
+    }
+    return key;
 }
 
-void Peer::addKey(uint64_t keyid, const std::string &key)
+void Peer::addKey(Keyid_t keyid, const std::string &key)
 {
     assert(mKeyMap.find(keyid) == mKeyMap.end());
-    mKeyMap[keyid] = key;
+    mCurrentkeyId = keyid;
+    mKeyMap[mCurrentkeyId] = key;
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)
@@ -165,7 +190,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    uint32_t cid = cidIterator->value.GetUint();
+    Cid_t cid = cidIterator->value.GetUint();
 
     rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
     if (modIterator == command.MemberEnd() || !modIterator->value.IsInt())
@@ -202,7 +227,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::map<uint32_t, SpeakersDescriptor> speakers;
+    std::map<Cid_t, SpeakersDescriptor> speakers;
     parseSpeakersObject(speakers, speakersIterator);
 
     rapidjson::Value::ConstMemberIterator vthumbsIterator = command.FindMember("vthumbs");
@@ -212,7 +237,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::map<uint32_t, VideoTrackDescriptor> vthumbs;
+    std::map<Cid_t, VideoTrackDescriptor> vthumbs;
     parseVthumsObject(vthumbs, vthumbsIterator);
 
     return mComplete(cid, sdpString, isModerator, peers, vthumbs, speakers);
@@ -274,12 +299,12 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
     }
 }
 
-void AnswerCommand::parseSpeakersObject(std::map<uint32_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
     for (unsigned int j = 0; j < it->value.Capacity(); ++j)
     {
-        uint32_t cid;
+        Cid_t cid;
         rapidjson::Value::ConstMemberIterator cidIterator = it->value[j].FindMember("cid");
         if (cidIterator == it->value.MemberEnd() || !cidIterator->value.IsUint())
         {
@@ -302,7 +327,7 @@ void AnswerCommand::parseSpeakersObject(std::map<uint32_t, SpeakersDescriptor> &
     }
 }
 
-void AnswerCommand::parseVthumsObject(std::map<uint32_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parseVthumsObject(std::map<Cid_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
 
@@ -323,7 +348,8 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    uint64_t id = idIterator->value.GetUint64();
+    // TODO: check if it's necessary to add new data type to Rapid json impl
+    Keyid_t id = static_cast<Keyid_t>(idIterator->value.GetUint());
 
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsString())
@@ -332,7 +358,7 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    uint32_t cid = cidIterator->value.GetUint();
+    Cid_t cid = cidIterator->value.GetUint();
 
     rapidjson::Value::ConstMemberIterator keyIterator = command.FindMember("key");
     if (keyIterator == command.MemberEnd() || !keyIterator->value.IsString())
@@ -353,7 +379,7 @@ VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete)
 
 bool VthumbsCommand::processCommand(const rapidjson::Document &command)
 {
-    std::map<uint32_t, VideoTrackDescriptor> tracks;
+    std::map<Cid_t, VideoTrackDescriptor> tracks;
 
     return mComplete(tracks);
 }
@@ -399,7 +425,7 @@ HiResCommand::HiResCommand(const HiresCompleteFunction &complete)
 
 bool HiResCommand::processCommand(const rapidjson::Document &command)
 {
-    std::map<uint32_t, VideoTrackDescriptor> tracks;
+    std::map<Cid_t, VideoTrackDescriptor> tracks;
 
     return mComplete(tracks);
 }
@@ -451,12 +477,12 @@ bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    std::vector<uint32_t> speakRequest;
+    std::vector<Cid_t> speakRequest;
     for (unsigned int j = 0; j < command.Capacity(); ++j)
     {
         if (command[j].IsString())
         {
-            uint32_t cid = command[j].GetUint();
+            Cid_t cid = command[j].GetUint();
             speakRequest.push_back(cid);
         }
         else
@@ -483,7 +509,7 @@ bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    uint32_t cid = cidIterator->value.GetUint();
+    Cid_t cid = cidIterator->value.GetUint();
 
     return mComplete(cid);
 }
@@ -496,7 +522,7 @@ SpeakOnCommand::SpeakOnCommand(const SpeakOnCompleteFunction &complete)
 
 bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
 {    
-    uint32_t cid = 0;
+    Cid_t cid = 0;
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
     {
@@ -525,7 +551,7 @@ SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete)
 
 bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
 {    
-    uint32_t cid = 0;
+    Cid_t cid = 0;
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
     {
@@ -663,11 +689,6 @@ void SfuConnection::retryPendingConnection(bool disconnect)
     }
 }
 
-uint32_t SfuConnection::getCid() const
-{
-    return mCid;
-}
-
 bool SfuConnection::sendCommand(const std::string &command)
 {
     if (!isOnline())
@@ -795,7 +816,7 @@ bool SfuConnection::joinSfu(const std::string &sdp, const std::map<int, std::str
     return sendCommand(command);
 }
 
-bool SfuConnection::sendKey(uint64_t id, const std::string &data)
+bool SfuConnection::sendKey(Keyid_t id, const std::string &data)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
@@ -803,7 +824,7 @@ bool SfuConnection::sendKey(uint64_t id, const std::string &data)
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value idValue(rapidjson::kNumberType);
-    idValue.SetUint64(id);
+    idValue.SetUint(id);
     json.AddMember(rapidjson::Value("id"), idValue, json.GetAllocator());
 
     rapidjson::Value dataValue(rapidjson::kStringType);
@@ -1275,8 +1296,10 @@ void SfuConnection::abortRetryController()
     mRetryCtrl.reset();
 }
 
-SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx)
-    : mWebsocketIO(websocketIO)
+SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id& myHandle)
+    : mRtcCryptoMeetings(std::make_shared<rtcModule::RtcCryptoMeetings>(*rRtcCryptoMeetings))
+    , mWebsocketIO(websocketIO)
+    , mMyHandle(myHandle)
     , mAppCtx(appCtx)
 {
 
@@ -1295,6 +1318,16 @@ void SfuClient::closeManagerProtocol(karere::Id chatid)
 {
     mConnections[chatid]->disconnect();
     mConnections.erase(chatid);
+}
+
+std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
+{
+    return mRtcCryptoMeetings;
+}
+
+const karere::Id& SfuClient::myHandle()
+{
+    return mMyHandle;
 }
 
 }

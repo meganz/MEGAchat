@@ -5,16 +5,16 @@
 #include <videoRenderer_Qt.h>
 
 #include <QWidget>
-
+#include <webrtc.h>
 
 class PeerWidget : public QWidget, public megachat::MegaChatVideoListener
 {
     Q_OBJECT
 public:
-    PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, uint32_t cid, bool hiRes, bool local = false);
+    PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, bool hiRes, bool local = false);
     ~PeerWidget();
     void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size) override;
-    uint32_t getCid() const;
+    Cid_t getCid() const;
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
     void drawPeerAvatar(QImage &image);
@@ -25,7 +25,7 @@ protected:
     VideoRendererQt* mVideoRender;
     megachat::MegaChatApi &mMegaChatApi;
     megachat::MegaChatHandle mChatid;
-    uint32_t mCid;
+    Cid_t mCid;
     bool mHiRes = false;
     bool mLocal = false;
 

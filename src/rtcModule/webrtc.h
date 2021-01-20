@@ -7,10 +7,10 @@
 #include "karereCommon.h"
 #include "sdkApi.h"
 #include <net/websocketsIO.h>
+#include "rtcCrypto.h"
 
 #define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
 #define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
-
 
 namespace rtcModule
 {
@@ -125,11 +125,11 @@ public:
     virtual void requestModerator() = 0;
     virtual void requestSpeaker(bool add = true) = 0;
     virtual bool isSpeakAllow() = 0;
-    virtual void approveSpeakRequest(uint32_t cid, bool allow) = 0;
-    virtual void stopSpeak(uint32_t cid = 0) = 0;
-    virtual std::vector<uint32_t> getSpeakerRequested() = 0;
-    virtual void requestHighResolutionVideo(uint32_t cid) = 0;
-    virtual void stopHighResolutionVideo(uint32_t cid) = 0;
+    virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
+    virtual void stopSpeak(Cid_t cid = 0) = 0;
+    virtual std::vector<Cid_t> getSpeakerRequested() = 0;
+    virtual void requestHighResolutionVideo(Cid_t cid) = 0;
+    virtual void stopHighResolutionVideo(Cid_t cid) = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
@@ -139,7 +139,7 @@ public:
 class RtcModule
 {
 public:
-    virtual void init(WebsocketsIO& websocketIO, void *appCtx) = 0;
+    virtual void init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) = 0;
     virtual void hangupAll() = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
     virtual ICall* findCallByChatid(karere::Id chatid) = 0;

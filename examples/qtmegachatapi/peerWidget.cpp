@@ -5,7 +5,7 @@
 #include <QMouseEvent>
 #include <QMenu>
 
-PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, uint32_t cid, bool hiRes, bool local)
+PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, bool hiRes, bool local)
     : mMegaChatApi(megaChatApi)
     , mChatid(chatid)
     , mCid(cid)
@@ -55,7 +55,7 @@ void PeerWidget::onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatH
     }
 }
 
-uint32_t PeerWidget::getCid() const
+Cid_t PeerWidget::getCid() const
 {
     return mCid;
 }

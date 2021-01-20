@@ -9,8 +9,6 @@
 
 #include <map>
 
-#define IV_SIZE 8
-
 namespace rtcModule
 {
 #ifdef KARERE_DISABLE_WEBRTC
@@ -28,18 +26,18 @@ class Slot
 public:
     Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     virtual ~Slot();
-    void createEncryptor();
+    void createEncryptor(const sfu::Peer &peer);
     void createDecryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
-    uint32_t getCid() const;
-    void setParams(uint32_t cid, const std::vector<uint8_t>& iv);
+    Cid_t getCid() const;
+    void setParams(Cid_t cid, IvStatic_t iv);
     void enableTrack(bool enable);
 
 protected:
     Call &mCall;
-    std::vector<uint8_t> mIv;
+    IvStatic_t mIv;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
-    uint32_t mCid = 0;
+    Cid_t mCid = 0;
 };
 
 class VideoSlot : public Slot, public rtc::VideoSinkInterface<webrtc::VideoFrame>
@@ -64,7 +62,7 @@ public:
     void setVThumSlot(VideoSlot* slot);
     void setHiResSlot(VideoSlot* slot);
     void setAudioSlot(Slot* slot);
-    void addKey(uint64_t keyid, const std::string& key);
+    void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
 
     Slot* getAudioSlot();
@@ -104,11 +102,11 @@ public:
     void requestModerator() override;
     void requestSpeaker(bool add = true) override;
     bool isSpeakAllow() override;
-    void approveSpeakRequest(uint32_t cid, bool allow) override;
-    void stopSpeak(uint32_t cid = 0) override;
-    std::vector<uint32_t> getSpeakerRequested() override;
-    void requestHighResolutionVideo(uint32_t cid) override;
-    void stopHighResolutionVideo(uint32_t cid) override;
+    void approveSpeakRequest(Cid_t cid, bool allow) override;
+    void stopSpeak(Cid_t cid = 0) override;
+    std::vector<Cid_t> getSpeakerRequested() override;
+    void requestHighResolutionVideo(Cid_t cid) override;
+    void stopHighResolutionVideo(Cid_t cid) override;
 
     void setCallHandler(CallHandler* callHanlder) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
@@ -119,21 +117,22 @@ public:
     void createTranceiver();
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
-    std::string getKeyFromPeer(uint32_t cid, uint64_t keyid);
+    std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
+    bool hasCallKey();
 
-    bool handleAvCommand(uint32_t cid, int av) override;
-    bool handleAnswerCommand(uint32_t cid, const std::string&sdp, int mod, const std::vector<sfu::Peer>&peers, const std::map<uint32_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<uint32_t, sfu::SpeakersDescriptor> &speakers) override;
-    bool handleKeyCommand(uint64_t keyid, uint32_t cid, const std::string& key) override;
-    bool handleVThumbsCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor>& videoTrackDescriptors) override;
+    bool handleAvCommand(Cid_t cid, int av) override;
+    bool handleAnswerCommand(Cid_t cid, const std::string&sdp, int mod, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers) override;
+    bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
+    bool handleVThumbsCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
     bool handleVThumbsStopCommand() override;
-    bool handleHiResCommand(const std::map<uint32_t, sfu::VideoTrackDescriptor>& videoTrackDescriptors) override;
+    bool handleHiResCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videoTrackDescriptors) override;
     bool handleHiResStartCommand() override;
     bool handleHiResStopCommand() override;
-    bool handleSpeakReqsCommand(const std::vector<uint32_t>&speakRequests) override;
-    bool handleSpeakReqDelCommand(uint32_t cid) override;
-    bool handleSpeakOnCommand(uint32_t cid, sfu::SpeakersDescriptor speaker) override;
-    bool handleSpeakOffCommand(uint32_t cid) override;
+    bool handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests) override;
+    bool handleSpeakReqDelCommand(Cid_t cid) override;
+    bool handleSpeakOnCommand(Cid_t cid, sfu::SpeakersDescriptor speaker) override;
+    bool handleSpeakOffCommand(Cid_t cid) override;
 
     void onError();
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
@@ -150,9 +149,7 @@ public:
     std::vector<karere::Id> mParticipants;
     karere::Id mCallid;
     karere::Id mChatid;
-    uint32_t mCid;
     CallState mState = CallState::kStateInitial;
-    bool mModerator = false;
     bool mIsRinging = false;
     bool mModeratorRequested = false;
     bool mSpeakerRequested = false;
@@ -170,16 +167,24 @@ public:
     std::unique_ptr<VideoSlot> mVThumb;
     std::unique_ptr<VideoSlot> mHiRes;
     std::map<std::string, std::unique_ptr<Slot>> mReceiverTracks;
-    std::map<uint32_t, std::unique_ptr<Session>> mSessions;
+    std::map<Cid_t, std::unique_ptr<Session>> mSessions;
 
     rtc::scoped_refptr<artc::VideoManager> mVideoDevice;
 
     std::unique_ptr<CallHandler> mCallHandler;
 
+    // represents own peer
+    sfu::Peer mMyPeer;
+
+    // call key for public chats (128-bit key)
+    std::string mCallKey;
+
     void generateAndSendNewkey();
-    void handleIncomingVideo(const std::map<uint32_t, sfu::VideoTrackDescriptor>& videotrackDescriptors, bool hiRes = false);
-    void addSpeaker(uint32_t cid, const sfu::SpeakersDescriptor& speaker);
-    void removeSpeaker(uint32_t cid);
+    void handleIncomingVideo(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videotrackDescriptors, bool hiRes = false);
+    void addSpeaker(Cid_t cid, const sfu::SpeakersDescriptor& speaker);
+    void removeSpeaker(Cid_t cid);
+    sfu::Peer &getMyPeer();
+    const std::string &getCallKey() const;
 };
 
 class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable
@@ -188,7 +193,7 @@ public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers);
 
 
-    void init(WebsocketsIO& websocketIO, void *appCtx) override;
+    void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) override;
     void hangupAll() override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;

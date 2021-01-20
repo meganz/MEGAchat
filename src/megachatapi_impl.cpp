@@ -2133,7 +2133,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            uint32_t cid = static_cast<uint32_t>(request->getUserHandle());
+            Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
             if (request->getFlag())
             {
                 call->requestHighResolutionVideo(cid);
@@ -4573,9 +4573,9 @@ MegaHandleList *MegaChatApiImpl::getReqestedSpeakers(MegaChatHandle chatid)
         return handleList;
     }
 
-    std::vector<uint32_t> speakersRequested = call->getSpeakerRequested();
+    std::vector<Cid_t> speakersRequested = call->getSpeakerRequested();
 
-    for (uint32_t speaker : speakersRequested)
+    for (Cid_t speaker : speakersRequested)
     {
         handleList->addMegaHandle(speaker);
     }
