@@ -265,12 +265,12 @@ void Call::connectSfu(const std::string &sfuUrl)
 
             sfu::Sdp sdp(mSdp);
 
-            std::map<int, uint64_t> ivs;
+            std::map<int, IvStatic_t> ivs;
             ivs[0] = mVThumb->getIv();
             ivs[1] = mHiRes->getIv();
             ivs[2] = mAudio->getIv();
             int avFlags = 0;
-            mSfuConnection->joinSfu(sdp, ivs, avFlags, true, 10);
+            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), avFlags, true, 10);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
@@ -936,7 +936,7 @@ void Slot::enableTrack(bool enable)
     }
 }
 
-uint64_t Slot::getIv() const
+IvStatic_t Slot::getIv() const
 {
     return mIv;
 }

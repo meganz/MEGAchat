@@ -309,7 +309,7 @@ public:
         bool handleIncomingData(const char* data, size_t len);
 
         promise::Promise<void> getPromiseConnection();
-        bool joinSfu(const Sdp& sdp, const std::map<int, uint64_t> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
+        bool joinSfu(const Sdp &sdp, const std::map<int, IvStatic_t> &ivs, bool moderator, int avFlags, int speaker = -1, int vthumbs = -1);
         bool sendKey(Keyid_t id, const std::string& data);
         bool sendAv(int av);
         bool sendGetVtumbs(const std::vector<karere::Id>& cids);
