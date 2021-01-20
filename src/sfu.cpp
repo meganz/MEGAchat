@@ -21,6 +21,9 @@ std::string SpeakReqsCommand::COMMAND_NAME = "SPEAK_RQ";
 std::string SpeakReqDelCommand::COMMAND_NAME = "SPEAK_RQ_DEL";
 std::string SpeakOnCommand::COMMAND_NAME = "SPEAK_ON";
 std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OfF";
+std::string StatCommand::COMMAND_NAME = "STAT";
+
+const std::string Sdp::endl = "\r\n";
 
 Peer::Peer()
     : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0), mModerator(0)
@@ -184,7 +187,7 @@ AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete)
 bool AnswerCommand::processCommand(const rapidjson::Document &command)
 {
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsString())
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsInt())
     {
         SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'cid' field");
         return false;
@@ -192,55 +195,44 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
 
     Cid_t cid = cidIterator->value.GetUint();
 
+    int isModerator = 0;
     rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
-    if (modIterator == command.MemberEnd() || !modIterator->value.IsInt())
+    if (modIterator != command.MemberEnd() && modIterator->value.IsInt())
     {
-        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'mod' field");
-        return false;
+        isModerator = modIterator->value.GetInt();
     }
 
-    int isModerator = modIterator->value.GetInt();
-
-    rapidjson::Value::ConstMemberIterator sdpIterator = command.FindMember("cid");
-    if (sdpIterator == command.MemberEnd() || !sdpIterator->value.IsString())
+    rapidjson::Value::ConstMemberIterator sdpIterator = command.FindMember("sdp");
+    if (sdpIterator == command.MemberEnd() || !sdpIterator->value.IsObject())
     {
         SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'sdp' field");
         return false;
     }
 
-    std::string sdpString = sdpIterator->value.GetString();
-
-    rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
-    if (peersIterator == command.MemberEnd() || !peersIterator->value.IsArray())
-    {
-        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'peers' field");
-        return false;
-    }
+    Sdp sdp(sdpIterator->value);
 
     std::vector<Peer> peers;
-    parsePeerObject(peers, peersIterator);
-
-    rapidjson::Value::ConstMemberIterator speakersIterator = command.FindMember("speakers");
-    if (speakersIterator == command.MemberEnd() || !speakersIterator->value.IsArray())
+    rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
+    if (peersIterator != command.MemberEnd() && peersIterator->value.IsArray())
     {
-        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'speakers' field");
-        return false;
+        parsePeerObject(peers, peersIterator);
     }
 
     std::map<Cid_t, SpeakersDescriptor> speakers;
-    parseSpeakersObject(speakers, speakersIterator);
-
-    rapidjson::Value::ConstMemberIterator vthumbsIterator = command.FindMember("vthumbs");
-    if (vthumbsIterator == command.MemberEnd() || !vthumbsIterator->value.IsArray())
+    rapidjson::Value::ConstMemberIterator speakersIterator = command.FindMember("speakers");
+    if (speakersIterator != command.MemberEnd() && speakersIterator->value.IsArray())
     {
-        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'vthumbs' field");
-        return false;
+        parseSpeakersObject(speakers, speakersIterator);
     }
 
     std::map<Cid_t, VideoTrackDescriptor> vthumbs;
-    parseVthumsObject(vthumbs, vthumbsIterator);
+    rapidjson::Value::ConstMemberIterator vthumbsIterator = command.FindMember("vthumbs");
+    if (vthumbsIterator != command.MemberEnd() && vthumbsIterator->value.IsArray())
+    {
+        parseVthumsObject(vthumbs, vthumbsIterator);
+    }
 
-    return mComplete(cid, sdpString, isModerator, peers, vthumbs, speakers);
+    return mComplete(cid, sdp, isModerator, peers, vthumbs, speakers);
 }
 
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::ConstMemberIterator &it) const
@@ -561,8 +553,378 @@ bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid);
 }
 
+StatCommand::StatCommand(const StatCommandFunction &complete)
+    : mComplete(complete)
+{
+
+}
+
+bool StatCommand::processCommand(const rapidjson::Document &command)
+{
+
+}
+
+Sdp::Sdp(const std::string &sdp)
+{
+    size_t pos = 0;
+    std::string buffer = sdp;
+    std::vector<std::string> tokens;
+    while ((pos = buffer.find(endl)) != std::string::npos)
+    {
+        std::string token = buffer.substr(0, pos);
+        tokens.push_back(token);
+        buffer.erase(0, pos + endl.size());
+    }
+
+    for (const std::string& line : tokens)
+    {
+        if (line.size() > 2 && line[0] == 'm' && line[1] == '=')
+        {
+            break;
+        }
+
+        mData["cmn"].append(line).append(endl);
+    }
+
+    unsigned int i = 0;
+    while (i < tokens.size())
+    {
+        const std::string& line = tokens.at(i);
+        std::string type = line.substr(2, 5);
+        if (type == "audio" && mData.find("atpl") == mData.end())
+        {
+            i = createTemplate("atpl", tokens, i);
+            if (mData.find("vtpl") != mData.end())
+            {
+                break;
+            }
+        }
+        else if (type == "video" && mData.find("vtpl") == mData.end())
+        {
+            i = createTemplate("vtpl", tokens, i);
+            if (mData.find("atpl") != mData.end())
+            {
+                break;
+            }
+        }
+        else
+        {
+            i = nextMline(tokens, i + 1);
+        }
+    }
+
+    for (i = nextMline(tokens, 0); i < tokens.size();)
+    {
+        i = addTrack(tokens, i);
+    }
+}
+
+Sdp::Sdp(const rapidjson::Value &sdp)
+{
+    rapidjson::Value::ConstMemberIterator cmnIterator = sdp.FindMember("cmn");
+    if (cmnIterator != sdp.MemberEnd() && cmnIterator->value.IsString())
+    {
+        mData["cmn"] = cmnIterator->value.GetString();
+    }
+
+    std::string atpl;
+    rapidjson::Value::ConstMemberIterator atplIterator = sdp.FindMember("atpl");
+    if (atplIterator != sdp.MemberEnd() && atplIterator->value.IsString())
+    {
+       mData["atpl"] = atplIterator->value.GetString();
+    }
+
+    std::string vtpl;
+    rapidjson::Value::ConstMemberIterator vtplIterator = sdp.FindMember("vtpl");
+    if (vtplIterator != sdp.MemberEnd() && vtplIterator->value.IsString())
+    {
+        mData["vtpl"] = vtplIterator->value.GetString();
+    }
+
+    rapidjson::Value::ConstMemberIterator tracksIterator = sdp.FindMember("tracks");
+    if (tracksIterator != sdp.MemberEnd() && tracksIterator->value.IsArray())
+    {
+        for (unsigned int i = 0; i < tracksIterator->value.Capacity(); i++)
+        {
+            mTracks.push_back(parseTrack(tracksIterator->value[i]));
+        }
+    }
+}
+
+std::string Sdp::unCompress()
+{
+    std::string sdp;
+    sdp.append(mData["cmn"]);
+
+    for (const SdpTrack& track : mTracks)
+    {
+        if (track.mType == "a")
+        {
+            sdp.append(unCompressTrack(track, mData["atpl"]));
+        }
+        else if (track.mType == "v")
+        {
+            sdp.append(unCompressTrack(track, mData["vtpl"]));
+        }
+    }
+
+    return sdp;
+}
+
+void Sdp::toJson(rapidjson::Document& json) const
+{
+}
+
+unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position)
+{
+    std::string temp = lines[position++];
+    temp.append(endl);
+
+    unsigned int i = 0;
+    for (i = position; i < lines.size(); i++)
+    {
+        const std::string& line = lines[i];
+        char lineType = line[0];
+        if (lineType == 'm')
+        {
+            break;
+        }
+
+        if (lineType != 'a')
+        {
+            temp.append(line).append(endl);
+            continue;
+        }
+
+        unsigned int bytesRead = 0;
+        std::string name = nextWord(line, 2, bytesRead);
+        if (name == "recvonly")
+        {
+            return nextMline(lines, i);
+        }
+
+        if (name == "sendrecv" || name == "sendonly" || name == "ssrc-group" || name == "ssrc" || name == "mid" || name == "msid")
+        {
+            continue;
+        }
+
+        temp.append(line).append(endl);
+    }
+
+    mData[type] = temp;
+
+    return i;
+}
+
+unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int position)
+{
+    std::string type = lines[position++].substr(2, 5);
+    SdpTrack track;
+    if (type == "audio")
+    {
+        track.mType = "a";
+    }
+    else if (type == "video")
+    {
+        track.mType = "v";
+    }
+
+    unsigned int i = 0;
+    for (i = position; i < lines.size(); i++)
+    {
+        std::string line = lines[i];
+        char lineType = line[0];
+        if (lineType == 'm')
+        {
+            break;
+        }
+
+        if (lineType != 'a')
+        {
+            continue;
+        }
+
+        unsigned int bytesRead = 0;
+        std::string name = nextWord(line, 2, bytesRead);
+        if (name == "sendrecv" || name == "recvonly" || name == "sendonly")
+        {
+            track.mDir = name;
+        }
+        else if (name == "mid")
+        {
+            track.mMid = std::stoull(line.substr(6));
+        }
+        else if (name == "msid")
+        {
+            std::string subLine = line.substr(7);
+            unsigned int pos = subLine.find(" ");
+            track.mSid = subLine.substr(0, pos);
+            track.mId = subLine.substr(pos, subLine.length());
+        }
+        else if (name == "ssrc-group")
+        {
+            track.mSsrcg.push_back(line.substr(13));
+        }
+        else if (name == "ssrc")
+        {
+            unsigned int bytesRead = 0;
+            std::string ret = nextWord(line, 7, bytesRead);
+            uint64_t id = std::stoull(ret);
+            if (track.mSsrcs.find(id) == track.mSsrcs.end())
+            {
+                ret = nextWord(line, bytesRead + 1, bytesRead);
+                ret = nextWord(line, bytesRead + 1, bytesRead);
+                track.mSsrcs[id] = ret;
+            }
+        }
+    }
+
+    mTracks.push_back(track);
+    return i;
+}
+
+unsigned int Sdp::nextMline(const std::vector<std::string>& lines, unsigned int position)
+{
+    for (unsigned int i = position; i < lines.size(); i++)
+    {
+        if (lines[i][0] == 'm')
+        {
+            return i;
+        }
+    }
+
+    return position;
+}
+
+std::string Sdp::nextWord(const std::string& line, unsigned int start, unsigned int& charRead)
+{
+    unsigned int i = 0;
+    for (i = start; i < line.size(); i++)
+    {
+        uint8_t ch = static_cast<uint8_t>(line[i]);
+        if ((ch >= 97 && ch <= 122) || // a - z
+                (ch >= 65 && ch <= 90) ||  // A - Z
+                (ch >= 48 && ch <= 57) ||  // 0 - 9
+                (ch == 45) || (ch == 43) || (ch == 47) || (ch == 95))
+        { // - + /
+            continue;
+        }
+
+        break;
+    }
+
+    charRead = i;
+    return line.substr(start, i - start);
+
+}
+
+SdpTrack Sdp::parseTrack(const rapidjson::Value &value) const
+{
+    SdpTrack track;
+
+    rapidjson::Value::ConstMemberIterator typeIterator = value.FindMember("t");
+    if (typeIterator != value.MemberEnd() && typeIterator->value.IsString())
+    {
+        track.mType = typeIterator->value.GetString();
+    }
+
+    rapidjson::Value::ConstMemberIterator midIterator = value.FindMember("mid");
+    if (midIterator != value.MemberEnd() && midIterator->value.IsUint64())
+    {
+        track.mMid = midIterator->value.GetUint64();
+    }
+
+    rapidjson::Value::ConstMemberIterator sidIterator = value.FindMember("sid");
+    if (sidIterator != value.MemberEnd() && sidIterator->value.IsString())
+    {
+        track.mSid = sidIterator->value.GetString();
+    }
+
+    rapidjson::Value::ConstMemberIterator idIterator = value.FindMember("id");
+    if (idIterator != value.MemberEnd() && idIterator->value.IsString())
+    {
+        track.mId = idIterator->value.GetString();
+    }
+
+    rapidjson::Value::ConstMemberIterator dirIterator = value.FindMember("dir");
+    if (dirIterator != value.MemberEnd() && dirIterator->value.IsString())
+    {
+        track.mDir = dirIterator->value.GetString();
+    }
+
+    rapidjson::Value::ConstMemberIterator ssrcgIterator = value.FindMember("ssrcg");
+    if (ssrcgIterator != value.MemberEnd() && ssrcgIterator->value.IsArray())
+    {
+        for (unsigned int i = 0; i < ssrcgIterator->value.Size(); i++)
+        {
+            if (ssrcgIterator->value[i].IsString())
+            {
+                track.mSsrcg.push_back(ssrcgIterator->value[i].GetString());
+            }
+        }
+    }
+
+    rapidjson::Value::ConstMemberIterator ssrcsIterator = value.FindMember("ssrcs");
+    if (ssrcsIterator != value.MemberEnd() && ssrcsIterator->value.IsArray())
+    {
+        for (unsigned int i = 0; i < ssrcsIterator->value.Size(); i++)
+        {
+            if (ssrcsIterator->value[i].IsObject())
+            {
+                rapidjson::Value::ConstMemberIterator ssrcsIdIterator = ssrcsIterator->value[i].FindMember("id");
+                if (ssrcsIdIterator != ssrcsIterator->value[i].MemberEnd() && ssrcsIdIterator->value.IsUint64())
+                {
+                    uint64_t id = ssrcsIdIterator->value.GetUint64();
+                    std::string cname;
+                    rapidjson::Value::ConstMemberIterator ssrcsCnameIterator = ssrcsIterator->value[i].FindMember("cname");
+                    if (ssrcsCnameIterator != ssrcsIterator->value[i].MemberEnd() && ssrcsCnameIterator->value.IsString())
+                    {
+                        cname = ssrcsCnameIterator->value.GetString();
+                    }
+
+                    track.mSsrcs[id] = cname;
+                }
+            }
+        }
+    }
+
+    return  track;
+}
+
+std::string Sdp::unCompressTrack(const SdpTrack& track, const std::string &tpl)
+{
+    std::string sdp = tpl;
+
+    sdp.append("a=mid:").append(std::to_string(track.mMid)).append(endl);
+    sdp.append("a=").append(track.mDir).append(endl);
+    if (track.mId.size())
+    {
+        sdp.append("a=msid:").append(track.mSid).append(" ").append(track.mId).append(endl);
+    }
+
+    if (track.mSsrcs.size())
+    {
+        for (const auto& ssrc : track.mSsrcs)
+        {
+            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" cname:").append(ssrc.second.length() ? ssrc.second : track.mSid).append(endl);
+            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" msid:").append(track.mSid).append(" ").append(track.mId).append(endl);
+        }
+
+        if (track.mSsrcg.size())
+        {
+            for (const std::string& grp : track.mSsrcg)
+            {
+                sdp.append("a=ssrc-group:").append(grp).append(endl);
+            }
+        }
+    }
+
+    return sdp;
+}
+
 SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface &call)
-    : mSfuUrl(sfuUrl)
+    : WebsocketsClient(false)
+    , mSfuUrl(sfuUrl)
     , mWebsocketIO(websocketIO)
     , mAppCtx(appCtx)
     , mCall(call)
@@ -580,7 +942,7 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1));
     mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2));
     mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1));
-
+    mCommands[StatCommand::COMMAND_NAME] = mega::make_unique<StatCommand>(std::bind(&sfu::SfuInterface::handleStatCommand, &call));
 }
 
 bool SfuConnection::isOnline() const
@@ -614,6 +976,8 @@ void SfuConnection::doConnect()
     setConnState(kConnecting);
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
 
+    mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
+
     bool rt = wsConnect(&mWebsocketIO, mTargetIp.c_str(),
           url.host.c_str(),
           url.port,
@@ -629,10 +993,12 @@ void SfuConnection::doConnect()
         if (oldTargetIp == ipv6 && ipv4.size())
         {
             mTargetIp = ipv4;
+            usingipv6 = false;
         }
         else if (oldTargetIp == ipv4 && ipv6.size())
         {
             mTargetIp = ipv6;
+            usingipv6 = true;
         }
 
         if (mTargetIp.size())
@@ -699,7 +1065,7 @@ bool SfuConnection::sendCommand(const std::string &command)
     {
         mSendPromise = promise::Promise<void>();
         auto wptr = weakHandle();
-        mSendPromise.fail([this, wptr](const promise::Error& err)
+        mSendPromise.fail([wptr](const promise::Error& err)
         {
             if (wptr.deleted())
                 return;
@@ -708,8 +1074,8 @@ bool SfuConnection::sendCommand(const std::string &command)
         });
     }
 
-    std::unique_ptr<char[]> dfa(mega::MegaApi::strdup(command.c_str()));
-    bool rc = wsSendMessage(dfa.get(), command.length());
+    std::unique_ptr<char[]> buffer(mega::MegaApi::strdup(command.c_str()));
+    bool rc = wsSendMessage(buffer.get(), command.length());
 
     if (!rc)
     {
@@ -721,15 +1087,8 @@ bool SfuConnection::sendCommand(const std::string &command)
 
 bool SfuConnection::handleIncomingData(const char* data, size_t len)
 {
-    std::string receivedData(data, len);
-    size_t bracketPosition = receivedData.find('}');
-    std::string commandString = receivedData;
-    if (bracketPosition < len)
-    {
-        commandString = commandString.substr(0, bracketPosition + 1);
-    }
-
-    rapidjson::StringStream stringStream(commandString.c_str());
+    SFU_LOG_DEBUG("Data received: %s", data);
+    rapidjson::StringStream stringStream(data);
     rapidjson::Document document;
     document.ParseStream(stringStream);
 
@@ -754,16 +1113,11 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
         return false;
     }
 
+    SFU_LOG_DEBUG("Received Command: %s, Bytes: %d", command.c_str(), len);
     bool processCommandResult = mCommands[command]->processCommand(document);
     if (processCommandResult && command == AnswerCommand::COMMAND_NAME)
     {
         setConnState(SfuConnection::kJoined);
-    }
-
-    if (commandString.length() < len)
-    {
-        size_t previousCommandSize = commandString.length();
-        processCommandResult = handleIncomingData(&data[previousCommandSize], len - previousCommandSize);
     }
 
     return processCommandResult;
@@ -774,7 +1128,7 @@ promise::Promise<void> SfuConnection::getPromiseConnection()
     return mConnectPromise;
 }
 
-bool SfuConnection::joinSfu(const std::string &sdp, const std::map<int, std::string> &ivs, int avFlags, int speaker, int vthumbs)
+bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<int, uint64_t> &ivs, bool moderator, int avFlags, int speaker, int vthumbs)
 {
     rapidjson::Document json(rapidjson::kObjectType);
 
@@ -782,16 +1136,87 @@ bool SfuConnection::joinSfu(const std::string &sdp, const std::map<int, std::str
     cmdValue.SetString(CSFU_JOIN.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
+    rapidjson::Value sdpValue(rapidjson::kObjectType);
+    for (const auto& data : sdp.mData)
+    {
+        rapidjson::Value dataValue(rapidjson::kStringType);
+        dataValue.SetString(data.second.c_str(), data.second.length());
+        sdpValue.AddMember(rapidjson::Value(data.first.c_str(), data.first.length()), dataValue, json.GetAllocator());
+    }
 
-    rapidjson::Value sdpValue(rapidjson::kStringType);
-    sdpValue.SetString(sdp.c_str(), sdp.length(), json.GetAllocator());
-    json.AddMember(rapidjson::Value("sdp"), sdpValue, json.GetAllocator());
+    rapidjson::Value tracksValue(rapidjson::kArrayType);
+    for(const SdpTrack& track : sdp.mTracks)
+    {
+        if (track.mType != "a" && track.mType != "v")
+        {
+            continue;
+        }
 
-    ///TODO ivs
+        rapidjson::Value dataValue(rapidjson::kObjectType);
+        dataValue.AddMember("t", rapidjson::Value(track.mType.c_str(), track.mType.length()), json.GetAllocator());
+        dataValue.AddMember("mid", rapidjson::Value(track.mMid), json.GetAllocator());
+        dataValue.AddMember("dir", rapidjson::Value(track.mDir.c_str(), track.mDir.length()), json.GetAllocator());
+        if (track.mSid.length())
+        {
+            dataValue.AddMember("sid", rapidjson::Value(track.mSid.c_str(), track.mSid.length()), json.GetAllocator());
+        }
+
+        if (track.mId.length())
+        {
+            dataValue.AddMember("id", rapidjson::Value(track.mId.c_str(), track.mId.length()), json.GetAllocator());
+        }
+
+        if (track.mSsrcg.size())
+        {
+            rapidjson::Value ssrcgValue(rapidjson::kArrayType);
+            for (const auto& element : track.mSsrcg)
+            {
+                ssrcgValue.PushBack(rapidjson::Value(element.c_str(), element.length()), json.GetAllocator());
+            }
+
+            dataValue.AddMember("ssrcg", ssrcgValue, json.GetAllocator());
+        }
+
+        if (track.mSsrcs.size())
+        {
+            rapidjson::Value ssrcsValue(rapidjson::kArrayType);
+            for (const auto& element : track.mSsrcs)
+            {
+                rapidjson::Value elementValue(rapidjson::kObjectType);
+                elementValue.AddMember("id", rapidjson::Value(element.first), json.GetAllocator());
+                elementValue.AddMember("cname", rapidjson::Value(element.second.c_str(), element.second.size()), json.GetAllocator());
+
+                ssrcsValue.PushBack(elementValue, json.GetAllocator());
+            }
+
+            dataValue.AddMember("ssrcs", ssrcsValue, json.GetAllocator());
+        }
+
+        tracksValue.PushBack(dataValue, json.GetAllocator());
+    }
+
+    sdpValue.AddMember("tracks", tracksValue, json.GetAllocator());
+
+    json.AddMember("sdp", sdpValue, json.GetAllocator());
+
+
+    // TODO Add ivs
+    rapidjson::Value ivsValue(rapidjson::kObjectType);
+    for (const auto& iv : ivs)
+    {
+        std::string number = std::to_string(iv.first);
+        // TODO: review To Hex
+        std::string value = "e6537f56b926070b";
+        ivsValue.AddMember(rapidjson::Value(number.c_str(), number.length()), rapidjson::Value(value.c_str(), value.length()), json.GetAllocator());
+    }
+
+    json.AddMember(rapidjson::Value("ivs"), ivsValue, json.GetAllocator());
 
     rapidjson::Value avValue(rapidjson::kNumberType);
     avValue.SetInt(avFlags);
     json.AddMember(rapidjson::Value("av"), avValue, json.GetAllocator());
+
+    json.AddMember("mod", moderator, json.GetAllocator());
 
     if (speaker)
     {
@@ -806,6 +1231,7 @@ bool SfuConnection::joinSfu(const std::string &sdp, const std::map<int, std::str
         vThumbsValue.SetInt(vthumbs);
         json.AddMember(rapidjson::Value("vthumbs"), vThumbsValue, json.GetAllocator());
     }
+
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);

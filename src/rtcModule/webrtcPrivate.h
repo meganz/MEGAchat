@@ -17,9 +17,6 @@ class IGlobalCallHandler
 };
 #else
 
-
-
-
 class Call;
 class Slot
 {
@@ -32,6 +29,7 @@ public:
     Cid_t getCid() const;
     void setParams(Cid_t cid, IvStatic_t iv);
     void enableTrack(bool enable);
+    uint64_t getIv() const;
 
 protected:
     Call &mCall;
@@ -85,7 +83,7 @@ class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public IC
 {
 public:
     Call(karere::Id callid, karere::Id chatid, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient);
-    ~Call();
+    virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
     CallState getState() const override;
@@ -121,7 +119,7 @@ public:
     bool hasCallKey();
 
     bool handleAvCommand(Cid_t cid, int av) override;
-    bool handleAnswerCommand(Cid_t cid, const std::string&sdp, int mod, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, int mod, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
@@ -133,6 +131,7 @@ public:
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid, sfu::SpeakersDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
+    bool handleStatCommand() override;
 
     void onError();
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
@@ -221,6 +220,7 @@ private:
 };
 
 void globalCleanup();
+
 #endif
 }
 

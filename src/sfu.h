@@ -62,12 +62,46 @@ protected:
     std::string mVideoDescriptor;
 };
 
+class SdpTrack
+{
+public:
+    std::string mType;
+    uint64_t mMid;
+    std::string mDir;
+    std::string mSid;
+    std::string mId;
+    std::vector<std::string> mSsrcg;
+    std::map<uint64_t, std::string> mSsrcs;
+
+};
+
+class Sdp
+{
+public:
+    Sdp(const std::string& sdp);
+    Sdp(const rapidjson::Value& sdp);
+    std::string unCompress();
+    void toJson(rapidjson::Document& json) const;
+
+public:
+    unsigned int createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position);
+    unsigned int addTrack(const std::vector<std::string>& lines, unsigned int position);
+    unsigned int nextMline(const std::vector<std::string>& lines, unsigned int position);
+    std::string nextWord(const std::string& line, unsigned int start, unsigned int &charRead);
+    SdpTrack parseTrack(const rapidjson::Value &value) const;
+    std::string unCompressTrack(const SdpTrack &track, const std::string& tpl);
+    std::map<std::string, std::string> mData;
+    std::vector<SdpTrack> mTracks;
+    static const std::string endl;
+};
+
+
 class SfuInterface
 {
 public:
     // SFU -> Client
     virtual bool handleAvCommand(Cid_t cid, int av) = 0;
-    virtual bool handleAnswerCommand(Cid_t cid, const std::string&sdp, int mod, const std::vector<Peer>&peers, const std::map<Cid_t, VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, SpeakersDescriptor>&speakers) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, int mod, const std::vector<Peer>&peers, const std::map<Cid_t, VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, SpeakersDescriptor>&speakers) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
@@ -79,6 +113,7 @@ public:
     virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
     virtual bool handleSpeakOnCommand(Cid_t cid, SpeakersDescriptor speaker) = 0;
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
+    virtual bool handleStatCommand() = 0;
 };
 
     class Command
@@ -104,7 +139,7 @@ public:
     class AnswerCommand : public Command
     {
     public:
-        typedef std::function<bool(Cid_t, const std::string&, int, std::vector<Peer>, std::map<Cid_t, VideoTrackDescriptor>, std::map<Cid_t, SpeakersDescriptor>)> AnswerCompleteFunction;
+        typedef std::function<bool(Cid_t, sfu::Sdp&, int, std::vector<Peer>, std::map<Cid_t, VideoTrackDescriptor>, std::map<Cid_t, SpeakersDescriptor>)> AnswerCompleteFunction;
         AnswerCommand(const AnswerCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
         static std::string COMMAND_NAME;
@@ -226,6 +261,16 @@ public:
         SpeakOffCompleteFunction mComplete;
     };
 
+    typedef std::function<bool(void)> StatCommandFunction;
+    class StatCommand : public Command
+    {
+    public:
+        StatCommand(const StatCommandFunction& complete);
+        bool processCommand(const rapidjson::Document& command) override;
+        static std::string COMMAND_NAME;
+        StatCommandFunction mComplete;
+    };
+
     class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     {
         // client->sfu commands
@@ -264,7 +309,7 @@ public:
         bool handleIncomingData(const char* data, size_t len);
 
         promise::Promise<void> getPromiseConnection();
-        bool joinSfu(const std::string& sdp, const std::map<int, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
+        bool joinSfu(const Sdp& sdp, const std::map<int, uint64_t> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
         bool sendKey(Keyid_t id, const std::string& data);
         bool sendAv(int av);
         bool sendGetVtumbs(const std::vector<karere::Id>& cids);

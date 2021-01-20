@@ -5232,7 +5232,7 @@ bool MockupCall::handleAvCommand(Cid_t cid, int av)
 
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t cid, const string &sdp, int mod, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers)
+bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, int mod, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers)
 {
 
 }
@@ -5288,6 +5288,11 @@ bool MockupCall::handleSpeakOnCommand(Cid_t cid, sfu::SpeakersDescriptor speaker
 }
 
 bool MockupCall::handleSpeakOffCommand(Cid_t cid)
+{
+
+}
+
+bool MockupCall::handleStatCommand()
 {
 
 }

@@ -263,15 +263,14 @@ void Call::connectSfu(const std::string &sfuUrl)
                 return;
             }
 
-            //TODO Compress sdp
+            sfu::Sdp sdp(mSdp);
 
-            std::map<int, std::string> ivs;
-            // TODO binary to HEX
-//            ivs[0] = mVThumb->mIv;
-//            ivs[1] = mHiRes->mIv;
-//            ivs[2] = mAudio->mIv;
+            std::map<int, uint64_t> ivs;
+            ivs[0] = mVThumb->getIv();
+            ivs[1] = mHiRes->getIv();
+            ivs[2] = mAudio->getIv();
             int avFlags = 0;
-            mSfuConnection->joinSfu(mSdp, ivs, avFlags);
+            mSfuConnection->joinSfu(sdp, ivs, avFlags, true, 10);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
@@ -349,7 +348,11 @@ void Call::getLocalStreams()
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
-    mVideoDevice->releaseDevice();
+    if (mVideoDevice)
+    {
+        mVideoDevice->releaseDevice();
+    }
+
     mSessions.clear();
     mVThumb.reset(nullptr);
     mHiRes.reset(nullptr);
@@ -374,7 +377,7 @@ bool Call::handleAvCommand(Cid_t cid, int av)
     return true;
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor>&speakers)
+bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor>&speakers)
 {
     mMyPeer.init(cid, mSfuClient.myHandle(), 0, mod);
     if (mMyPeer.getModerator())
@@ -390,17 +393,17 @@ bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,
 
     generateAndSendNewkey();
 
-    //TODO Uncompress sdp
+    std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
-    webrtc::SessionDescriptionInterface *sdp = webrtc::CreateSessionDescription("answer", spdString, &error);
-    if (!sdp)
+    webrtc::SessionDescriptionInterface *sdpInterface = webrtc::CreateSessionDescription("answer", sdpUncompress, &error);
+    if (!sdpInterface)
     {
-        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);
+        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
         return false;
     }
 
     auto wptr = weakHandle();
-    mRtcConn.setRemoteDescription(sdp)
+    mRtcConn.setRemoteDescription(sdpInterface)
     .then([wptr, this, vthumbs, speakers]()
     {
         if (wptr.deleted())
@@ -542,6 +545,11 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     return true;
 }
 
+bool Call::handleStatCommand()
+{
+    return true;
+}
+
 void Call::onError()
 {
 
@@ -594,7 +602,6 @@ void Call::onDataChannel(webrtc::DataChannelInterface *data_channel)
 void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
 {
     absl::optional<std::string> mid = transceiver->mid();
-    assert(transceiver->direction() == webrtc::RtpTransceiverDirection::kRecvOnly);
     if (mid.has_value())
     {
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
@@ -805,19 +812,15 @@ std::string RtcModuleSfu::getVideoDeviceSelected()
 promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid)
 {
     auto wptr = weakHandle();
-    mCalls[chatid] = ::mega::make_unique<Call>(chatid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
-    mCalls[chatid]->connectSfu("");
-    return promise::Void();
-
-//    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-//    .then([wptr, this, chatid](ReqResult result)
-//    {
-//        wptr.throwIfDeleted();
-//        karere::Id callid = result->getParentHandle();
-//        std::string sfuUrl = result->getText();
-//        mCallNews[callid] = ::mega::make_unique<Call>(callid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
-//        mCallNews[callid]->connectSfu(sfuUrl);
-//    });
+    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
+    .then([wptr, this, chatid](ReqResult result)
+    {
+        wptr.throwIfDeleted();
+        karere::Id callid = result->getParentHandle();
+        std::string sfuUrl = result->getText();
+        mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
+        mCalls[callid]->connectSfu(sfuUrl);
+    });
 }
 
 std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
@@ -876,7 +879,6 @@ Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> trans
     : mCall(call)
     , mTransceiver(transceiver)
 {
-
 }
 
 Slot::~Slot()
@@ -932,6 +934,11 @@ void Slot::enableTrack(bool enable)
         mTransceiver->receiver()->track()->set_enabled(enable);
         mTransceiver->sender()->track()->set_enabled(enable);
     }
+}
+
+uint64_t Slot::getIv() const
+{
+    return mIv;
 }
 
 VideoSlot::VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
