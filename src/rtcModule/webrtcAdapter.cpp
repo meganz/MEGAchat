@@ -391,7 +391,8 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
     incrementPacketCtr();
 
     // encrypt frame
-    std::string encFrame, plainFrame;
+    std::string encFrame;
+    std::string plainFrame;
     plainFrame.resize(frame.size());
     for (size_t i = 0; i < frame.size(); i++)
     {
