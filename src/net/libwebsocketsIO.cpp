@@ -430,7 +430,13 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             len = client->getOutputBufferLength();
             if (len && data)
             {
-                lws_write(wsi, (unsigned char *)data, len, LWS_WRITE_BINARY);
+                enum lws_write_protocol writeProtocol = LWS_WRITE_BINARY;
+                if (!client->client->getWriteBinary())
+                {
+                    writeProtocol = LWS_WRITE_TEXT;
+                }
+
+                lws_write(wsi, (unsigned char *)data, len, writeProtocol);
                 client->wsSendMsgCb((const char *)data, len);
                 client->resetOutputBuffer();
             }
