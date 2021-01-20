@@ -323,17 +323,17 @@ public:
     class SfuClient
     {
     public:
-        SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, karere::Client& karereClient);
+        SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id& myHandle);
         SfuConnection *generateSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
         void closeManagerProtocol(karere::Id chatid);
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
-        karere::Client& getKarereClient();
+        const karere::Id& myHandle();
 
     private:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
         std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
         WebsocketsIO& mWebsocketIO;
-        karere::Client& mKarereClient;
+        karere::Id mMyHandle;
         void* mAppCtx;
     };
 

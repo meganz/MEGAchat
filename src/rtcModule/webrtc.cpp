@@ -1,9 +1,10 @@
 #include <mega/types.h>
 #include <rtcmPrivate.h>
 #include <webrtcPrivate.h>
-#include "chatClient.h"
 #include <api/video/i420_buffer.h>
 #include <libyuv/convert.h>
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
 
 namespace rtcModule
 {
@@ -375,7 +376,7 @@ bool Call::handleAvCommand(Cid_t cid, int av)
 
 bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor>&speakers)
 {
-    mMyPeer.init(cid, mSfuClient.getKarereClient().myHandle(), 0, mod);
+    mMyPeer.init(cid, mSfuClient.myHandle(), 0, mod);
     if (mMyPeer.getModerator())
     {
         mSpeakAllow = true;
@@ -742,9 +743,9 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler, 
 {
 }
 
-void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings, karere::Client& karereClient)
+void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings, const karere::Id& myHandle)
 {
-    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings, karereClient);
+    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings, myHandle);
     if (!artc::isInitialized())
     {
         artc::init(appCtx);

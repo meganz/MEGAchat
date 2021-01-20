@@ -1296,10 +1296,10 @@ void SfuConnection::abortRetryController()
     mRetryCtrl.reset();
 }
 
-SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, karere::Client& karereClient)
+SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id& myHandle)
     : mRtcCryptoMeetings(std::make_shared<rtcModule::RtcCryptoMeetings>(*rRtcCryptoMeetings))
     , mWebsocketIO(websocketIO)
-    , mKarereClient(karereClient)
+    , mMyHandle(myHandle)
     , mAppCtx(appCtx)
 {
 
@@ -1325,9 +1325,9 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
     return mRtcCryptoMeetings;
 }
 
-karere::Client& SfuClient::getKarereClient()
+const karere::Id& SfuClient::myHandle()
 {
-    return mKarereClient;
+    return mMyHandle;
 }
 
 }
