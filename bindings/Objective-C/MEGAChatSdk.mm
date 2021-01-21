@@ -794,9 +794,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)closeChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
-    for (std::set<DelegateMEGAChatRoomListener *>::iterator it = _activeChatRoomListeners.begin() ; it != _activeChatRoomListeners.end() ; it++) {        
+    for (std::set<DelegateMEGAChatRoomListener *>::iterator it = _activeChatRoomListeners.begin() ; it != _activeChatRoomListeners.end() ; it++) {
+        self.megaChatApi->closeChatRoom(chatId, (*it));
         if ((*it)->getUserListener() == delegate) {
-            self.megaChatApi->closeChatRoom(chatId, (*it));
             [self freeChatRoomListener:(*it)];
             break;
         }
