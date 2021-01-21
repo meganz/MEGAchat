@@ -8,8 +8,6 @@
 #include <stdint.h>
 #define _DEFAULT_SOURCE 1
 #ifdef __APPLE__
-    #include <libkern/OSByteOrder.h>
-    static inline uint64_t be64toh(uint64_t x) { return OSSwapBigToHostInt64(x); }
 #elif defined(WIN32)
     #include <stdlib.h>
     static inline uint64_t be64toh(uint64_t x) { return _byteswap_uint64(x); }
