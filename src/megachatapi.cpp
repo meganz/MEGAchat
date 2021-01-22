@@ -994,9 +994,9 @@ bool MegaChatApi::isSpeakAllow(MegaChatHandle chatid)
     return pImpl->isSpeakAllow(chatid);
 }
 
-MegaHandleList *MegaChatApi::getReqestedSpeakers(MegaChatHandle chatid)
+MegaHandleList *MegaChatApi::getRequestedSpeakers(MegaChatHandle chatid)
 {
-    return pImpl->getReqestedSpeakers(chatid);
+    return pImpl->getRequestedSpeakers(chatid);
 }
 
 void MegaChatApi::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)

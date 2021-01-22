@@ -1162,7 +1162,7 @@ public:
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL); /// ***Deprecated
     bool isModerator(MegaChatHandle chatid);
     bool isSpeakAllow(MegaChatHandle chatid);
-    mega::MegaHandleList *getReqestedSpeakers(MegaChatHandle chatid);
+    mega::MegaHandleList *getRequestedSpeakers(MegaChatHandle chatid);
     void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void requestModerator(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);

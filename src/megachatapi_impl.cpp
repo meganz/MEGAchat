@@ -4564,7 +4564,7 @@ bool MegaChatApiImpl::isSpeakAllow(MegaChatHandle chatid)
     return call->isSpeakAllow();
 }
 
-MegaHandleList *MegaChatApiImpl::getReqestedSpeakers(MegaChatHandle chatid)
+MegaHandleList *MegaChatApiImpl::getRequestedSpeakers(MegaChatHandle chatid)
 {
     rtcModule::ICall *call = findCall(chatid);
     MegaHandleList* handleList = MegaHandleListPrivate::createInstance();

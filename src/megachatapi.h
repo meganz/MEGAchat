@@ -4985,7 +4985,7 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @return A list of ids requested speaker
      */
-    mega::MegaHandleList *getReqestedSpeakers(MegaChatHandle chatid);
+    mega::MegaHandleList *getRequestedSpeakers(MegaChatHandle chatid);
 
     /**
      * @brief Request become a speaker
