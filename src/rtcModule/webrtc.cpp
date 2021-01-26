@@ -3,8 +3,6 @@
 #include <webrtcPrivate.h>
 #include <api/video/i420_buffer.h>
 #include <libyuv/convert.h>
-#include <rapidjson/document.h>
-#include <rapidjson/writer.h>
 
 namespace rtcModule
 {
@@ -656,10 +654,8 @@ void Call::generateAndSendNewkey()
         mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, *newPlainKey.get());
     }
 
-    // dataKey format required by SfuConnection::sendKey: [[Cid1, EncyptedKey1], [Cid2, EncyptedKey2]]
-    rapidjson::StringBuffer s;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(s);
-    writer.StartArray();
+
+    std::map<Cid_t, std::string> keys;
 
     for (const auto& session : mSessions) // encrypt key to all participants
     {
@@ -673,14 +669,10 @@ void Call::generateAndSendNewkey()
         strongvelope::SendKey encryptedKey;
         mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peerId, *newPlainKey.get(), encryptedKey);
 
-        // write <id,key> pair array
-        writer.StartArray();
-        writer.Uint(sessionCid);
-        writer.String(encryptedKey.buf());
-        writer.EndArray();
+        keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
     }
-    writer.EndArray();
-    mSfuConnection->sendKey(currentKeyId, s.GetString());
+
+    mSfuConnection->sendKey(currentKeyId, keys);
 }
 
 void Call::handleIncomingVideo(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videotrackDescriptors, bool hiRes)

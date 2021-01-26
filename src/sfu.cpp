@@ -1074,6 +1074,7 @@ bool SfuConnection::sendCommand(const std::string &command)
         });
     }
 
+    SFU_LOG_DEBUG("Send command: %s", command.c_str());
     std::unique_ptr<char[]> buffer(mega::MegaApi::strdup(command.c_str()));
     bool rc = wsSendMessage(buffer.get(), command.length());
 
@@ -1213,22 +1214,22 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<int, uint64_t> &ivs, 
     json.AddMember(rapidjson::Value("ivs"), ivsValue, json.GetAllocator());
 
     rapidjson::Value avValue(rapidjson::kNumberType);
-    avValue.SetInt(avFlags);
+    avValue.SetInt(1);
     json.AddMember(rapidjson::Value("av"), avValue, json.GetAllocator());
 
-    json.AddMember("mod", moderator, json.GetAllocator());
+    json.AddMember("mod", 1, json.GetAllocator());
 
     if (speaker)
     {
         rapidjson::Value speakerValue(rapidjson::kNumberType);
-        speakerValue.SetInt(avFlags);
+        speakerValue.SetInt(1);
         json.AddMember(rapidjson::Value("spk"), speakerValue, json.GetAllocator());
     }
 
     if (vthumbs > 0)
     {
         rapidjson::Value vThumbsValue(rapidjson::kNumberType);
-        vThumbsValue.SetInt(vthumbs);
+        vThumbsValue.SetInt(10);
         json.AddMember(rapidjson::Value("vthumbs"), vThumbsValue, json.GetAllocator());
     }
 
@@ -1242,7 +1243,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<int, uint64_t> &ivs, 
     return sendCommand(command);
 }
 
-bool SfuConnection::sendKey(Keyid_t id, const std::string &data)
+bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
@@ -1253,8 +1254,16 @@ bool SfuConnection::sendKey(Keyid_t id, const std::string &data)
     idValue.SetUint(id);
     json.AddMember(rapidjson::Value("id"), idValue, json.GetAllocator());
 
-    rapidjson::Value dataValue(rapidjson::kStringType);
-    dataValue.SetString(data.data(), data.size(), json.GetAllocator());
+    rapidjson::Value dataValue(rapidjson::kArrayType);
+    for (const auto& key : keys)
+    {
+        rapidjson::Value keyValue(rapidjson::kArrayType);
+        keyValue.PushBack(rapidjson::Value(key.first), json.GetAllocator());
+        keyValue.PushBack(rapidjson::Value(key.second.c_str(), key.second.length()), json.GetAllocator());
+
+        dataValue.PushBack(keyValue, json.GetAllocator());
+    }
+
     json.AddMember(rapidjson::Value("data"), dataValue, json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
