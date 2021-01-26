@@ -382,10 +382,10 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
     setEncryptionKey(encryptionKey);
 
     // generate frame iv
-    mega::unique_ptr<byte> iv(generateFrameIV());
+    mega::unique_ptr<byte []> iv(generateFrameIV());
 
     // generate header
-    mega::unique_ptr<byte> header(generateHeader());
+    mega::unique_ptr<byte []> header(generateHeader());
 
     // increment PacketCtr after we have generated header
     incrementPacketCtr();
@@ -463,9 +463,10 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
 
     // check if frame CID matches with expected one
     Cid_t peerCid = mPeer.getCid();
-    if (memcmp(&peerCid, data, FRAME_CID_LENGTH))
+    memcmp(&peerCid, data, FRAME_CID_LENGTH);
+    if (peerCid != mPeer.getCid())
     {
-        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one");
+        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one expected: %d, real: %d", mPeer.getCid(), peerCid);
         //return error
     }
 

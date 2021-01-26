@@ -5232,7 +5232,7 @@ bool MockupCall::handleAvCommand(Cid_t cid, int av)
 
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, int mod, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers)
+bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, int mod, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
 
 }
@@ -5242,7 +5242,7 @@ bool MockupCall::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &k
 
 }
 
-bool MockupCall::handleVThumbsCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &)
+bool MockupCall::handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &)
 {
 
 }
@@ -5257,7 +5257,7 @@ bool MockupCall::handleVThumbsStopCommand()
 
 }
 
-bool MockupCall::handleHiResCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &)
+bool MockupCall::handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &)
 {
 
 }
@@ -5282,7 +5282,7 @@ bool MockupCall::handleSpeakReqDelCommand(Cid_t cid)
 
 }
 
-bool MockupCall::handleSpeakOnCommand(Cid_t cid, sfu::SpeakersDescriptor speaker)
+bool MockupCall::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 {
 
 }
@@ -5293,6 +5293,21 @@ bool MockupCall::handleSpeakOffCommand(Cid_t cid)
 }
 
 bool MockupCall::handleStatCommand()
+{
+
+}
+
+bool MockupCall::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
+{
+
+}
+
+bool MockupCall::handlePeerLeft(Cid_t cid)
+{
+
+}
+
+bool MockupCall::handleError(unsigned int, const string)
 {
 
 }
