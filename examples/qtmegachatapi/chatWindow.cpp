@@ -1077,58 +1077,6 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle
     ui->mCentralWidget->layout()->addWidget(mMeetingView);
     PeerWidget* peerWidget = new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, true, true);
     mMeetingView->addLocalVideo(peerWidget);
-    mMeetingView->addHiRes(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, true, false));
-    mMeetingView->addHiRes(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, true, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, true, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-    mMeetingView->addVthumb(new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, false, false));
-
-//    int row = 0;
-//    int col = 0;
-//    int auxIndex = 0;
-//    CallGui *callGui = NULL;
-//
-
-//    //Local callGui
-//    callGui = new CallGui(this, video, peerid, clientid, true);
-//    callParticipantsGui.insert(callGui);
-
-//    if (peerid == mMegaChatApi->getMyUserHandle() && clientid == mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()))
-//    {
-//        ui->mCentralWidget->setStyleSheet("background-color:#000000");
-//        auxIndex = -1;
-//    }
-//    else
-//    {
-//        for (int i = 0; i < callMaxParticipants; i++)
-//        {
-//            if (mFreeCallGui[i] == megachat::MEGACHAT_INVALID_HANDLE)
-//            {
-//               mFreeCallGui[i] = peerid;
-//               auxIndex = i;
-//               break;
-//            }
-//        }
-//    }
-//    callGui->setIndex(auxIndex);
-//    getCallPos(auxIndex, row, col);
-//    layout->addWidget(callGui,row,col);
-//    ui->mTitlebar->hide();
-//    ui->mTextChatWidget->hide();
-//    if (onHold)
-//    {
-//        callGui->enableOnHold(onHold, true);
-//    }
 }
 
 void ChatWindow::destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid)
@@ -1159,11 +1107,10 @@ void ChatWindow::destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid)
 
 void ChatWindow::deleteCallGui()
 {
-    int row = 0;
-    int col = 0;
-    int auxIndex = 0;
     ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
     ui->mCentralWidget->layout()->removeWidget(mMeetingView);
+    delete mMeetingView;
+    mMeetingView = nullptr;
 
     callParticipantsGui.clear();
     setChatTittle(mChatRoom->getTitle());

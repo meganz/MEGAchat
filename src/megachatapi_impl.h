@@ -964,7 +964,6 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::ICall* findCall(MegaChatHandle chatid);
-    void removeCall(MegaChatHandle chatid);
 #endif
 
     static void setCatchException(bool enable);

@@ -1501,13 +1501,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!chatroom->chat().connection().clientId())
-            {
-                API_LOG_ERROR("Start call - Refusing start/join a call, clientid no yet assigned by shard: %d", chatroom->chat().connection().shardNo());
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
@@ -1584,7 +1577,6 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Answer call - There is not any call in that chatroom");
                 errorCode = MegaChatError::ERROR_NOENT;
-                assert(false);
                 break;
             }
 
@@ -5082,17 +5074,6 @@ rtcModule::ICall *MegaChatApiImpl::findCall(MegaChatHandle chatid)
 
     return nullptr;
 
-}
-
-void MegaChatApiImpl::removeCall(MegaChatHandle chatid)
-{
-    sdkMutex.lock();
-    if (mClient->rtc)
-    {
-        mClient->rtc->removeCall(chatid);
-    }
-
-    sdkMutex.unlock();
 }
 
 #endif
