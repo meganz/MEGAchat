@@ -29,7 +29,7 @@ public:
     Cid_t getCid() const;
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableTrack(bool enable);
-    uint64_t getIv() const;
+    IvStatic_t getIv() const;
 
 protected:
     Call &mCall;

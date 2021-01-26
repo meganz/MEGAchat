@@ -281,7 +281,7 @@ void Call::connectSfu(const std::string &sfuUrl)
 
             sfu::Sdp sdp(mSdp);
 
-            std::map<int, uint64_t> ivs;
+            std::map<int, IvStatic_t> ivs;
             ivs[0] = mVThumb->getIv();
             ivs[1] = mHiRes->getIv();
             ivs[2] = mAudio->getIv();
@@ -992,7 +992,7 @@ void Slot::enableTrack(bool enable)
     }
 }
 
-uint64_t Slot::getIv() const
+IvStatic_t Slot::getIv() const
 {
     return mIv;
 }

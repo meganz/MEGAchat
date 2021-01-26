@@ -1286,7 +1286,7 @@ promise::Promise<void> SfuConnection::getPromiseConnection()
     return mConnectPromise;
 }
 
-bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<int, uint64_t> &ivs, bool moderator, int avFlags, int speaker, int vthumbs)
+bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<int, IvStatic_t> &ivs, bool moderator, int avFlags, int speaker, int vthumbs)
 {
     rapidjson::Document json(rapidjson::kObjectType);
 
