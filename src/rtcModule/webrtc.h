@@ -103,6 +103,7 @@ class CallHandler
 public:
     virtual ~CallHandler(){}
     virtual void onCallStateChange(ICall& call) = 0;
+    virtual void onCallRinging(ICall& call) = 0;
     virtual void onNewSession(ISession& session) = 0;
 };
 
@@ -115,10 +116,11 @@ public:
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
     virtual void hangup() = 0;
-    virtual promise::Promise<void> join() = 0;
+    virtual promise::Promise<void> join(bool moderator) = 0;
     virtual bool participate() = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
+    virtual void setRinging(bool ringing) = 0;
     virtual bool isRinging() const = 0;
 
     virtual bool isModerator() const = 0;
@@ -157,7 +159,7 @@ public:
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
     virtual void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) = 0;
-    virtual void handleNewCall(karere::Id chatid, karere::Id callid) = 0;
+    virtual void handleNewCall(karere::Id chatid, karere::Id callid, bool isRinging) = 0;
 };
 
 

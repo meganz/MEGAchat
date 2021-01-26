@@ -1527,7 +1527,8 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (!call->participate())
             {
-                call->join()
+                bool moderator = (chatroom->ownPriv() == PRIV_OPER);
+                call->join(moderator)
                 .then([request, this]()
                 {
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1587,7 +1588,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            call->join();
+            bool moderator = (chatroom->ownPriv() == PRIV_OPER);
+            call->join(moderator);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
@@ -5868,6 +5870,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     {
         mChanged = CHANGE_TYPE_STATUS;
     }
+
+    ringing = call.isRinging();
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration)
@@ -8582,7 +8586,7 @@ MegaChatCallHandler::~MegaChatCallHandler()
 
 void MegaChatCallHandler::onCallStateChange(rtcModule::ICall &call)
 {
-    if (call.getState() == rtcModule::CallState::kStateConnecting)
+    if (call.getState() == rtcModule::CallState::kStateJoining)
     {
         call.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, call.getChatid(), false));
         call.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, call.getChatid(), true));
@@ -8590,6 +8594,13 @@ void MegaChatCallHandler::onCallStateChange(rtcModule::ICall &call)
 
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_STATUS);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_RINGING_STATUS);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

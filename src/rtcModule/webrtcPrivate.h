@@ -82,7 +82,7 @@ private:
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
-    Call(karere::Id callid, karere::Id chatid, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient);
+    Call(karere::Id callid, karere::Id chatid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
@@ -90,10 +90,11 @@ public:
     void addParticipant(karere::Id peer) override;
     void removeParticipant(karere::Id peer) override;
     void hangup() override;
-    promise::Promise<void> join() override;
+    promise::Promise<void> join(bool moderator) override;
     bool participate() override;
     void enableAudioLevelMonitor(bool enable) override;
     void ignoreCall() override;
+    void setRinging(bool ringing) override;
     bool isRinging() const override;
 
     bool isModerator() const override;
@@ -150,9 +151,11 @@ public:
     karere::Id mChatid;
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
+    bool mInitiator = false;
     bool mModeratorRequested = false;
     bool mSpeakerRequested = false;
     bool mSpeakAllow = false;
+    karere::AvFlags mAv = 0;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;

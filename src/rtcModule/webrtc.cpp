@@ -9,15 +9,17 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient)
+Call::Call(karere::Id callid, karere::Id chatid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator)
     : mCallid(callid)
     , mChatid(chatid)
     , mState(kStateInitial)
+    , mIsRinging(isRinging)
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
     , mSfuClient(sfuClient)
     , mMyPeer()
 {
+    mMyPeer.setModerator(moderator);
     mGlobalCallHandler.onNewCall(*this);
 }
 
@@ -41,6 +43,11 @@ void Call::setState(CallState state)
 {
     mState = state;
     mCallHandler->onCallStateChange(*this);
+}
+
+void Call::setInitiator(bool initiator)
+{
+    mInitiator = initiator;
 }
 
 CallState Call::getState() const
@@ -75,9 +82,9 @@ void Call::hangup()
     disconnect(TermCode::kUserHangup);
 }
 
-promise::Promise<void> Call::join()
+promise::Promise<void> Call::join(bool moderator)
 {
-    setState(CallState::kStateJoining);
+    mMyPeer.setModerator(moderator);
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid, mCallid)
     .then([wptr, this](ReqResult result)
@@ -103,9 +110,19 @@ void Call::ignoreCall()
 
 }
 
+void Call::setRinging(bool ringing)
+{
+    if (mIsRinging != ringing)
+    {
+        mIsRinging = ringing;
+        mCallHandler->onCallRinging(*this);
+    }
+
+}
+
 bool Call::isRinging() const
 {
-    return mIsRinging;
+    return mIsRinging && !mInitiator;
 }
 
 bool Call::isModerator() const
