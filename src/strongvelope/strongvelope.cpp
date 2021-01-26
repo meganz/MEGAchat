@@ -10,7 +10,6 @@
 #ifdef __APPLE__
 #elif defined(WIN32)
     #include <stdlib.h>
-    static inline uint64_t be64toh(uint64_t x) { return _byteswap_uint64(x); }
 #else
     #include <endian.h>
     #ifndef __STDC_FORMAT_MACROS
