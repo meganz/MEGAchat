@@ -7,11 +7,9 @@
 
 #include <stdint.h>
 #define _DEFAULT_SOURCE 1
-#ifdef __APPLE__
-#elif defined(WIN32)
+#ifdef WIN32
     #include <stdlib.h>
-#else
-    #include <endian.h>
+#elif !defined(__APPLE__)   // linux
     #ifndef __STDC_FORMAT_MACROS
         #define __STDC_FORMAT_MACROS 1
     #endif
