@@ -1,4 +1,5 @@
 #include <mega/types.h>
+#include <mega/base64.h>
 #include <rtcmPrivate.h>
 #include <webrtcPrivate.h>
 #include <api/video/i420_buffer.h>
@@ -246,7 +247,6 @@ void Call::connectSfu(const std::string &sfuUrl)
     mSfuConnection->getPromiseConnection()
     .then([wptr, this]()
     {
-        setState(CallState::kStateJoining);
         if (wptr.deleted())
         {
             return;
@@ -257,6 +257,7 @@ void Call::connectSfu(const std::string &sfuUrl)
 
         createTranceiver();
         getLocalStreams();
+        setState(CallState::kStateJoining);
 
         webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
         options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
@@ -285,7 +286,7 @@ void Call::connectSfu(const std::string &sfuUrl)
             ivs[1] = mHiRes->getIv();
             ivs[2] = mAudio->getIv();
             int avFlags = 0;
-            mSfuConnection->joinSfu(sdp, ivs, avFlags, true, 10);
+            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), avFlags, true, 10);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
@@ -336,6 +337,7 @@ void Call::getLocalStreams()
             artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
 
     mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
+    audioTrack->set_enabled(mAv.audio());
 
     rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
     webrtc::VideoCaptureCapability capabilities;
@@ -358,7 +360,12 @@ void Call::getLocalStreams()
     parameters.encodings.push_back(encoding);
     mVThumb->getTransceiver()->sender()->SetParameters(parameters);
     static_cast<webrtc::VideoTrackInterface*>(mVThumb->getTransceiver()->sender()->track().get())->AddOrUpdateSink(mVThumb.get(), wants);
-    mVideoDevice->openDevice(videoDevices.begin()->second);
+    videoTrack->set_enabled(mAv.video());
+
+    if (mAv.video())
+    {
+        mVideoDevice->openDevice(videoDevices.begin()->second);
+    }
 }
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
@@ -374,6 +381,11 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
     mAudio.reset(nullptr);
     mReceiverTracks.clear();
     setState(CallState::kStateTerminatingUserParticipation);
+    if (mSfuConnection)
+    {
+        mSfuClient.closeManagerProtocol(mChatid);
+        mSfuConnection = nullptr;
+    }
 }
 
 std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
@@ -453,7 +465,8 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
     // decrypt received key
     strongvelope::SendKey plainKey;
-    strongvelope::SendKey encryptedKey = mSfuClient.getRtcCryptoMeetings()->strToKey(key);
+    std::string binaryKey = mega::Base64::atob(key);
+    strongvelope::SendKey encryptedKey = mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey);
     mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(mSessions[cid]->getPeer().getPeerid(), encryptedKey, plainKey);
 
     // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
@@ -465,6 +478,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 
     // add new key to peer key map
     std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
+    assert(mSessions.find(cid) != mSessions.end());
     mSessions[cid]->addKey(keyid, newKey);
     return true;
 }
