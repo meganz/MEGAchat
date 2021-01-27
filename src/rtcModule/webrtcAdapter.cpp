@@ -450,7 +450,10 @@ void MegaDecryptor::setDecryptionKey(const std::string &decryptKey)
 
 }
 
-// header.8: <CID.3> <keyId.1> <packetCTR.4>
+/*
+ * Frame format: header.8: <keyId.1> <CID.3> <packetCTR.4>
+ * Note: (keyId.1 senderCID.3) and packetCtr.4 are little-endian (No need byte-order swap) 32-bit integers.
+ */
 webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> encrypted_frame)
 {
     if (!encrypted_frame.size())
@@ -461,20 +464,9 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
     uint8_t offset = 0;
     const uint8_t *data = encrypted_frame.data();
 
-    // check if frame CID matches with expected one
-    Cid_t peerCid = mPeer.getCid();
-    memcmp(&peerCid, data, FRAME_CID_LENGTH);
-    if (peerCid != mPeer.getCid())
-    {
-        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one expected: %d, real: %d", mPeer.getCid(), peerCid);
-        //return error
-    }
-
     // extract keyId and if it's valid, set key into SymCipher
     Keyid_t keyId = 0;
-    offset += FRAME_CID_LENGTH;
-    memcpy(&keyId, data + offset, FRAME_KEYID_LENGTH);
-
+    memcpy(&keyId, data, FRAME_KEYID_LENGTH);
     std::string decryptionKey = mPeer.getKey(keyId);
     if (decryptionKey.empty())
     {
@@ -482,6 +474,16 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
         //return ERRCODE
     }
     setDecryptionKey(decryptionKey);
+
+    // check if frame CID matches with expected one
+    offset += FRAME_KEYID_LENGTH;
+    Cid_t peerCid = 0;
+    memcpy(&peerCid, data + offset, FRAME_CID_LENGTH);
+    if (peerCid != mPeer.getCid())
+    {
+        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);
+        //return error
+    }
 
     // extract packet ctr and update mCtr (ctr will be used to generate an IV to decrypt the frame)
     offset += FRAME_KEYID_LENGTH;
