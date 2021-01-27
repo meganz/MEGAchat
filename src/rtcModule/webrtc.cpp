@@ -308,13 +308,16 @@ void Call::createTranceiver()
     if (err.ok())
     {
         mVThumb = ::mega::make_unique<VideoSlot>(*this, err.MoveValue());
+        mVThumb->generateRandomIv();
     }
 
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInit);
     mHiRes = ::mega::make_unique<VideoSlot>(*this, err.MoveValue());
+    mHiRes->generateRandomIv();
 
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_AUDIO, transceiverInit);
     mAudio = ::mega::make_unique<Slot>(*this, err.MoveValue());
+    mAudio->generateRandomIv();
 
     for (int i = 0; i < RtcConstant::kMaxCallAudioSenders; i++)
     {
@@ -418,7 +421,10 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::ve
         mCallHandler->onNewSession(*mSessions[peer.getCid()]);
     }
 
-    generateAndSendNewkey();
+    if (peers.size())
+    {
+        generateAndSendNewkey();
+    }
 
     std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
@@ -997,6 +1003,11 @@ IvStatic_t Slot::getIv() const
     return mIv;
 }
 
+void Slot::generateRandomIv()
+{
+    randombytes_buf(&mIv, sizeof(mIv));
+}
+
 VideoSlot::VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : Slot(call, transceiver)
 {
@@ -1045,7 +1056,6 @@ Session::Session(const sfu::Peer &peer)
 
 Session::~Session()
 {
-
 }
 
 void Session::setSessionHandler(SessionHandler* sessionHandler)

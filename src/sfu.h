@@ -125,11 +125,12 @@ public:
         virtual bool processCommand(const rapidjson::Document& command) = 0;
         static std::string COMMAND_IDENTIFIER;
         virtual ~Command();
+        static std::string binaryToHex(uint64_t value);
+        static uint64_t hexToBinary(const std::string& hex);
     protected:
         Command();
         void parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator& it) const;
         bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
-        static uint64_t hexToBinary(const std::string& hex);
         static uint8_t hexDigitVal(char value);
     };
 

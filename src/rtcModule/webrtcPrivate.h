@@ -30,6 +30,7 @@ public:
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableTrack(bool enable);
     IvStatic_t getIv() const;
+    void generateRandomIv();
 
 protected:
     Call &mCall;

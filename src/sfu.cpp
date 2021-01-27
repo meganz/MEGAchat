@@ -200,7 +200,7 @@ uint64_t Command::hexToBinary(const std::string &hex)
         buffer[binPos] = (hexDigitVal(hex[i++])) << 4 | hexDigitVal(hex[i++]);
     }
 
-    memcpy(&value, buffer.get(), sizeof value);
+    memcpy(&value, buffer.get(), bufferSize);
 
     return value;
 }
@@ -220,6 +220,23 @@ uint8_t Command::hexDigitVal(char value)
         return 10 + value - 65; // 'A'
     }
 
+}
+
+std::string Command::binaryToHex(uint64_t value)
+{
+    std::string hexDigits = "0123456789abcdef";
+    std::string result;
+    uint8_t intermediate[8];
+    memcpy(intermediate, &value, 8);
+    for (unsigned int i = 0; i < sizeof(value); i++)
+    {
+        uint8_t firstPart = (intermediate[i] >> 4) & 0x0f;
+        uint8_t secondPart = intermediate[i] & 0x0f;
+        result += hexDigits[firstPart];
+        result += hexDigits[secondPart];
+    }
+
+    return result;
 }
 
 AVCommand::AVCommand(const AvCompleteFunction &complete)
@@ -1359,14 +1376,11 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<int, IvStatic_t> &ivs
 
     json.AddMember("sdp", sdpValue, json.GetAllocator());
 
-
-    // TODO Add ivs
     rapidjson::Value ivsValue(rapidjson::kObjectType);
     for (const auto& iv : ivs)
     {
         std::string number = std::to_string(iv.first);
-        // TODO: review To Hex
-        std::string value = "e6537f56b926070b";
+        std::string value = Command::binaryToHex(iv.second);
         ivsValue.AddMember(rapidjson::Value(number.c_str(), number.length()), rapidjson::Value(value.c_str(), value.length()), json.GetAllocator());
     }
 
