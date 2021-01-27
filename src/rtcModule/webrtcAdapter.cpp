@@ -524,9 +524,9 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
     encFrame.erase(0, FRAME_HEADER_LENGTH);
 
     // decrypt frame
-    mSymCipher->gcm_decrypt_v2(&encFrame, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &plainFrame);
+    mSymCipher->gcm_decrypt(&encFrame, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &plainFrame);
 
-    size_t plainFrameSize = plainFrame.size();
+    size_t plainFrameSize = plainFrame.size() - FRAME_GCM_TAG_LENGTH;
     for (unsigned int i = 0; i < plainFrameSize; i++)
     {
         // add decrypted frame to the output
