@@ -350,6 +350,14 @@ void Call::getLocalStreams()
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
     mVideoDevice = artc::VideoManager::Create(capabilities, videoDevices.begin()->second, artc::gAsyncWaiter->guiThread());
     videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
+
+    if (mAv.video())
+    {
+        mVideoDevice->openDevice(videoDevices.begin()->second);
+    }
+
+    videoTrack->set_enabled(mAv.video());
+
     mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
     rtc::VideoSinkWants wants;
     static_cast<webrtc::VideoTrackInterface*>(mHiRes->getTransceiver()->sender()->track().get())->AddOrUpdateSink(mHiRes.get(), wants);
@@ -363,12 +371,6 @@ void Call::getLocalStreams()
     parameters.encodings.push_back(encoding);
     mVThumb->getTransceiver()->sender()->SetParameters(parameters);
     static_cast<webrtc::VideoTrackInterface*>(mVThumb->getTransceiver()->sender()->track().get())->AddOrUpdateSink(mVThumb.get(), wants);
-    videoTrack->set_enabled(mAv.video());
-
-    if (mAv.video())
-    {
-        mVideoDevice->openDevice(videoDevices.begin()->second);
-    }
 }
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
@@ -739,6 +741,8 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         VideoSlot* slot = static_cast<VideoSlot*>(it->second.get());
         Cid_t cid = trackDescriptor.first;
         slot->createDecryptor(cid, trackDescriptor.second.mIv);
+        slot->enableTrack(true);
+        slot->setTrackSink();
 
         if (hiRes)
         {
@@ -1038,6 +1042,19 @@ void VideoSlot::OnFrame(const webrtc::VideoFrame &frame)
                            buffer->DataV(), buffer->StrideV(),
                            (uint8_t*)frameBuf, width * 4, width, height);
         mRenderer->frameComplete(userData);
+    }
+}
+
+void VideoSlot::setTrackSink()
+{
+    webrtc::VideoTrackInterface* videoTrack =
+            static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
+    videoTrack->set_enabled(true);
+
+    if (videoTrack)
+    {
+        rtc::VideoSinkWants wants;
+        videoTrack->AddOrUpdateSink(this, wants);
     }
 }
 

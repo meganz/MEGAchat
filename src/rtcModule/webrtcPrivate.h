@@ -45,6 +45,7 @@ public:
     VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void setVideoRender(IVideoRenderer* videoRenderer);
     void OnFrame(const webrtc::VideoFrame& frame) override;
+    void setTrackSink();
 
 private:
     std::unique_ptr<IVideoRenderer> mRenderer;
