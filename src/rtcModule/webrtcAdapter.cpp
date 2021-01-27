@@ -489,9 +489,9 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
     return Status::kOk;
 }
 
-std::shared_ptr<byte> MegaDecryptor::generateFrameIV()
+std::shared_ptr<byte []> MegaDecryptor::generateFrameIV()
 {
-    std::shared_ptr<byte>iv(new byte[FRAME_IV_LENGTH]);
+    std::shared_ptr<byte []>iv(new byte[FRAME_IV_LENGTH]);
     memcpy(iv.get(), &mCtr, FRAME_CTR_LENGTH);
     memcpy(iv.get(), &mIv, FRAME_IV_LENGTH - FRAME_CTR_LENGTH);
     return iv;
@@ -506,7 +506,7 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
     }
 
     // generate iv using packet CRT received in frame header
-    std::shared_ptr<byte> iv = generateFrameIV();
+    std::shared_ptr<byte[]> iv = generateFrameIV();
 
     // copy encrypted_frame content into a string
     std::string encFrame;
