@@ -8,7 +8,7 @@
 namespace sfu
 {
 // sfu->client commands
-std::string Command::COMMAND_IDENTIFIER = "cmd";
+std::string Command::COMMAND_IDENTIFIER = "a";
 std::string AVCommand::COMMAND_NAME = "AV";
 std::string AnswerCommand::COMMAND_NAME = "ANSWER";
 std::string KeyCommand::COMMAND_NAME = "KEY";
