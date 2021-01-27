@@ -1501,13 +1501,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!chatroom->chat().connection().clientId())
-            {
-                API_LOG_ERROR("Start call - Refusing start/join a call, clientid no yet assigned by shard: %d", chatroom->chat().connection().shardNo());
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
@@ -1527,7 +1520,8 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (!call->participate())
             {
-                call->join()
+                bool moderator = (chatroom->ownPriv() == PRIV_OPER);
+                call->join(moderator)
                 .then([request, this]()
                 {
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1583,11 +1577,11 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Answer call - There is not any call in that chatroom");
                 errorCode = MegaChatError::ERROR_NOENT;
-                assert(false);
                 break;
             }
 
-            call->join();
+            bool moderator = (chatroom->ownPriv() == PRIV_OPER);
+            call->join(moderator);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
@@ -5082,17 +5076,6 @@ rtcModule::ICall *MegaChatApiImpl::findCall(MegaChatHandle chatid)
 
 }
 
-void MegaChatApiImpl::removeCall(MegaChatHandle chatid)
-{
-    sdkMutex.lock();
-    if (mClient->rtc)
-    {
-        mClient->rtc->removeCall(chatid);
-    }
-
-    sdkMutex.unlock();
-}
-
 #endif
 
 void MegaChatApiImpl::cleanChatHandlers()
@@ -5868,6 +5851,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     {
         mChanged = CHANGE_TYPE_STATUS;
     }
+
+    ringing = call.isRinging();
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration)
@@ -8582,7 +8567,7 @@ MegaChatCallHandler::~MegaChatCallHandler()
 
 void MegaChatCallHandler::onCallStateChange(rtcModule::ICall &call)
 {
-    if (call.getState() == rtcModule::CallState::kStateConnecting)
+    if (call.getState() == rtcModule::CallState::kStateJoining)
     {
         call.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, call.getChatid(), false));
         call.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, call.getChatid(), true));
@@ -8590,6 +8575,13 @@ void MegaChatCallHandler::onCallStateChange(rtcModule::ICall &call)
 
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_STATUS);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_RINGING_STATUS);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

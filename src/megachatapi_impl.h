@@ -283,7 +283,7 @@ protected:
     bool ignored;
     bool localTermCode;
 
-    bool ringing;
+    bool ringing = false;
     bool mIsCaller;
 };
 
@@ -579,6 +579,7 @@ public:
     MegaChatCallHandler(MegaChatApiImpl *megaChatApi);
     ~MegaChatCallHandler();
     void onCallStateChange(rtcModule::ICall& call) override;
+    void onCallRinging(rtcModule::ICall &call) override;
     void onNewSession(rtcModule::ISession& session) override;
 
 protected:
@@ -963,7 +964,6 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::ICall* findCall(MegaChatHandle chatid);
-    void removeCall(MegaChatHandle chatid);
 #endif
 
     static void setCatchException(bool enable);

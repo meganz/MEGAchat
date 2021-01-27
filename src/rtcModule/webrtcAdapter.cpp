@@ -382,16 +382,17 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
     setEncryptionKey(encryptionKey);
 
     // generate frame iv
-    mega::unique_ptr<byte> iv(generateFrameIV());
+    mega::unique_ptr<byte []> iv(generateFrameIV());
 
     // generate header
-    mega::unique_ptr<byte> header(generateHeader());
+    mega::unique_ptr<byte []> header(generateHeader());
 
     // increment PacketCtr after we have generated header
     incrementPacketCtr();
 
     // encrypt frame
-    std::string encFrame, plainFrame;
+    std::string encFrame;
+    std::string plainFrame;
     plainFrame.resize(frame.size());
     for (size_t i = 0; i < frame.size(); i++)
     {
@@ -462,9 +463,10 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
 
     // check if frame CID matches with expected one
     Cid_t peerCid = mPeer.getCid();
-    if (memcmp(&peerCid, data, FRAME_CID_LENGTH))
+    memcmp(&peerCid, data, FRAME_CID_LENGTH);
+    if (peerCid != mPeer.getCid())
     {
-        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one");
+        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one expected: %d, real: %d", mPeer.getCid(), peerCid);
         //return error
     }
 
@@ -487,9 +489,9 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
     return Status::kOk;
 }
 
-std::shared_ptr<byte> MegaDecryptor::generateFrameIV()
+std::shared_ptr<byte []> MegaDecryptor::generateFrameIV()
 {
-    std::shared_ptr<byte>iv(new byte[FRAME_IV_LENGTH]);
+    std::shared_ptr<byte []>iv(new byte[FRAME_IV_LENGTH]);
     memcpy(iv.get(), &mCtr, FRAME_CTR_LENGTH);
     memcpy(iv.get(), &mIv, FRAME_IV_LENGTH - FRAME_CTR_LENGTH);
     return iv;
@@ -504,7 +506,7 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
     }
 
     // generate iv using packet CRT received in frame header
-    std::shared_ptr<byte> iv = generateFrameIV();
+    std::shared_ptr<byte[]> iv = generateFrameIV();
 
     // copy encrypted_frame content into a string
     std::string encFrame;

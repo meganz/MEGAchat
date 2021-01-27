@@ -115,8 +115,10 @@ private:
     pthread_t thread_id;
 #endif
 
+    bool mWriteBinary = true;
+
 public:
-    WebsocketsClient();
+    WebsocketsClient(bool writeBinary = true);
     virtual ~WebsocketsClient();
     bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f);
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
@@ -126,6 +128,8 @@ public:
     void wsDisconnect(bool immediate);
     bool wsIsConnected();
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
+
+    bool getWriteBinary() const;
 
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;

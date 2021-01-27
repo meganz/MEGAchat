@@ -339,7 +339,7 @@ public:
                                                                       encrypted_frame);
 
     // rebuild the IV for a received frame, you take the ownership of returned value
-    std::shared_ptr<byte> generateFrameIV();
+    std::shared_ptr<byte[]> generateFrameIV();
 
     // decrypts a received frame
     Result Decrypt(cricket::MediaType media_type,

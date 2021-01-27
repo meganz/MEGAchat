@@ -168,6 +168,21 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         {
             case megachat::MegaChatCall::CALL_STATUS_INITIAL:
             {
+                if (call->isRinging())
+                {
+                    QMessageBox::StandardButton reply;
+                     reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::No);
+                     if (reply == QMessageBox::Yes)
+                     {
+                        mMegaChatApi->answerChatCall(call->getChatid(), false);
+                     }
+                }
+
+                break;
+            }
+
+            case megachat::MegaChatCall::CALL_STATUS_JOINING:
+            {
                 window->ui->mTitlebar->hide();
                 window->ui->mTextChatWidget->hide();
                 window->createCallGui(call->hasVideoInitialCall(), 0, 0);
@@ -191,11 +206,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
 //                break;
 //            }
-//            case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
-//            {
-//                window->hangCall();
-//                return;
-//            }
+            case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
+            {
+                window->hangCall();
+                return;
+            }
 //            case megachat::MegaChatCall::CALL_STATUS_RING_IN:
 //            {
 //                std::set<CallGui *> *setCallGui = window->getCallGui();
@@ -258,7 +273,21 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             }
         }
 
-        updateVideoParticipants(call->getChatid());
+        //updateVideoParticipants(call->getChatid());
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
+    {
+        if (call->isRinging())
+        {
+            QMessageBox::StandardButton reply;
+             reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::No);
+             if (reply == QMessageBox::Yes)
+             {
+                mMegaChatApi->answerChatCall(call->getChatid(), false);
+             }
+        }
+
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))

@@ -1547,6 +1547,20 @@ string Command::toString(const StaticBuffer& data)
 
             return tmpString;
         }
+        case OP_CALLSTATE:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id callid = data.read<uint64_t>(9);
+            uint8_t ringing = data.read<uint8_t>(17);
+            tmpString.append("CALLSTATE chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", callid: ");
+            tmpString.append(ID_CSTR(callid));
+            tmpString.append(", Ringing: ");
+            tmpString.append(std::to_string(ringing));
+            return tmpString;
+        }
         case OP_CALLEND:
         {
             string tmpString;
@@ -2447,20 +2461,56 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
-                READ_16(userListCount, 16);
+                READ_8(userListCount, 16);
                 std::vector<karere::Id> users;
                 for (unsigned int i = 0; i < userListCount; i++)
                 {
-                    READ_ID(user, 18 + i * 8);
+                    READ_ID(user, 17 + i * 8);
                     users.push_back(user);
                 }
+
+                if (mChatdClient.mKarereClient->rtc)
+                {
+                    rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
+                    if (!call)
+                    {
+                        mChatdClient.mKarereClient->rtc->handleNewCall(chatid, callid, false);
+                    }
+                }
+
                 break;
             }
+            case OP_CALLSTATE:
+            {
+                READ_ID(chatid, 0);
+                READ_ID(callid, 8);
+                READ_8(ringing, 16);
+                CHATDS_LOG_DEBUG("recv CALLSTATE: chatid '%s' callid '%s'  ringing %d", ID_CSTR(chatid), ID_CSTR(callid), ringing);
+                if (mChatdClient.mKarereClient->rtc)
+                {
+                    rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
+                    if (!call)
+                    {
+                        mChatdClient.mKarereClient->rtc->handleNewCall(chatid, callid, ringing);
+                    }
+                    else
+                    {
+                        call->setRinging(ringing);
+                    }
+                }
+                break;
+
+            }
+                break;
             case OP_CALLEND:
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
                 READ_8(reason, 16);
+                if (mChatdClient.mKarereClient->rtc)
+                {
+                    mChatdClient.mKarereClient->rtc->removeCall(chatid);
+                }
                 break;
             }
             default:
@@ -5877,6 +5927,10 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(REACTIONSN);
         RET_ENUM_NAME(MSGIDTIMESTAMP);
         RET_ENUM_NAME(NEWMSGIDTIMESTAMP);
+        RET_ENUM_NAME(JOINEDCALL);
+        RET_ENUM_NAME(LEFTCALL);
+        RET_ENUM_NAME(CALLSTATE);
+        RET_ENUM_NAME(CALLEND);
         default: return "(invalid opcode)";
     };
 }

@@ -470,17 +470,25 @@ enum Opcode
       * @brief
       * S->C: Add user list to current in call user set
       *
-      * Receive: <chatid.8> <callid.8> <userListCount.2> <user1.8> <user2.8> ...
+      * Receive: <chatid.8> <callid.8> <userListCount.1> <user1.8> <user2.8> ...
       */
     OP_JOINEDCALL = 51,
 
     /**
       * @brief
-      * S->C: Remove user list from current in call user set
+      * S->C: Remove user list to current in call user set
       *
-      * Receive: <chatid.8> <callid.8> <userListCount.2> <user1.8> <user2.8> ...
+      * Receive: <chatid.8> <callid.8> <userListCount.1> <user1.8> <user2.8> ...
       */
     OP_LEFTCALL = 52,
+
+    /**
+      * @brief
+      * S->C: Notify call state
+      *
+      * Receive: <chatid.8> <callid.8> <ringing.1>
+      */
+    OP_CALLSTATE = 53,
 
     /**
       * @brief
