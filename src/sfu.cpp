@@ -341,14 +341,16 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
 
             int av = avIterator->value.GetUint();
 
+            int mod = 0;
             rapidjson::Value::ConstMemberIterator modIterator = it->value[j].FindMember("mod");
-            if (modIterator == it->value.MemberEnd() || !modIterator->value.IsInt())
+            if (modIterator != it->value[j].MemberEnd() && modIterator->value.IsUint())
             {
-                 SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid 'mod' value");
-                 return;
+                 mod = modIterator->value.GetUint();
             }
-
-            int mod = modIterator->value.GetInt();
+            else
+            {
+                SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid 'mod' value");
+            }
 
 
             peers.push_back(Peer(cid, userId, av, mod));
