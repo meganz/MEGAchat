@@ -224,7 +224,7 @@ uint8_t Command::hexDigitVal(char value)
 
 std::string Command::binaryToHex(uint64_t value)
 {
-    std::string hexDigits = "0123456789abcdef";
+    std::vector<std::string> hexDigits = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"};
     std::string result;
     uint8_t intermediate[8];
     memcpy(intermediate, &value, 8);
@@ -232,8 +232,8 @@ std::string Command::binaryToHex(uint64_t value)
     {
         uint8_t firstPart = (intermediate[i] >> 4) & 0x0f;
         uint8_t secondPart = intermediate[i] & 0x0f;
-        result += hexDigits[firstPart];
-        result += hexDigits[secondPart];
+        result.append(hexDigits[firstPart]);
+        result.append(hexDigits[secondPart]);
     }
 
     return result;
@@ -1305,7 +1305,7 @@ promise::Promise<void> SfuConnection::getPromiseConnection()
     return mConnectPromise;
 }
 
-bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<int, IvStatic_t> &ivs, bool moderator, int avFlags, int speaker, int vthumbs)
+bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, bool moderator, int avFlags, int speaker, int vthumbs)
 {
     rapidjson::Document json(rapidjson::kObjectType);
 
@@ -1379,31 +1379,25 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<int, IvStatic_t> &ivs
     rapidjson::Value ivsValue(rapidjson::kObjectType);
     for (const auto& iv : ivs)
     {
-        std::string number = std::to_string(iv.first);
-        std::string value = Command::binaryToHex(iv.second);
-        ivsValue.AddMember(rapidjson::Value(number.c_str(), number.length()), rapidjson::Value(value.c_str(), value.length()), json.GetAllocator());
+        ivsValue.AddMember(rapidjson::Value(iv.first.c_str(), iv.first.size()), rapidjson::Value(iv.second.c_str(), iv.second.size()), json.GetAllocator());
     }
 
-    json.AddMember(rapidjson::Value("ivs"), ivsValue, json.GetAllocator());
-
-    rapidjson::Value avValue(rapidjson::kNumberType);
-    avValue.SetInt(1);
-    json.AddMember(rapidjson::Value("av"), avValue, json.GetAllocator());
-
-    json.AddMember("mod", 1, json.GetAllocator());
+    json.AddMember("ivs", ivsValue, json.GetAllocator());
+    json.AddMember("av", avFlags, json.GetAllocator());
+    json.AddMember("mod", moderator, json.GetAllocator());
 
     if (speaker)
     {
         rapidjson::Value speakerValue(rapidjson::kNumberType);
         speakerValue.SetInt(1);
-        json.AddMember(rapidjson::Value("spk"), speakerValue, json.GetAllocator());
+        json.AddMember("spk", speakerValue, json.GetAllocator());
     }
 
     if (vthumbs > 0)
     {
         rapidjson::Value vThumbsValue(rapidjson::kNumberType);
-        vThumbsValue.SetInt(10);
-        json.AddMember(rapidjson::Value("vthumbs"), vThumbsValue, json.GetAllocator());
+        vThumbsValue.SetInt(vthumbs);
+        json.AddMember("vthumbs", vThumbsValue, json.GetAllocator());
     }
 
     rapidjson::StringBuffer buffer;

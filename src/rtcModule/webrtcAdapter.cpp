@@ -339,17 +339,17 @@ void MegaEncryptor::incrementPacketCtr()
 
 byte *MegaEncryptor::generateHeader()
 {
-    // header (8 Bytes): <senderCid.3> <keyId.1> <packetCtr.4>
-    Cid_t cid = mMyPeer.getCid();
+    // header (8 Bytes): <keyId.1> <senderCid.3> <packetCtr.4>
     byte *header = new byte[FRAME_HEADER_LENGTH];
-    memcpy(header, &cid, FRAME_CID_LENGTH);
-
-    uint8_t offset = 0;
     Keyid_t keyId = mMyPeer.getCurrentKeyId();
-    offset += FRAME_CID_LENGTH;
-    memcpy(header + offset, &keyId, FRAME_KEYID_LENGTH);
+    memcpy(header, &keyId, FRAME_KEYID_LENGTH);
 
-    offset += FRAME_KEYID_LENGTH;
+    uint8_t offset = FRAME_KEYID_LENGTH;
+
+    Cid_t cid = mMyPeer.getCid();
+    memcpy(header + offset, &cid, FRAME_CID_LENGTH);
+
+    offset += FRAME_CID_LENGTH;
     memcpy(header + offset, &mCtr, FRAME_CTR_LENGTH);
     return header;
 }

@@ -281,11 +281,11 @@ void Call::connectSfu(const std::string &sfuUrl)
 
             sfu::Sdp sdp(mSdp);
 
-            std::map<int, IvStatic_t> ivs;
-            ivs[0] = mVThumb->getIv();
-            ivs[1] = mHiRes->getIv();
-            ivs[2] = mAudio->getIv();
-            int avFlags = 0;
+            std::map<std::string, std::string> ivs;
+            ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
+            ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
+            ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
+            int avFlags = 6;
             mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), avFlags, true, 10);
         })
         .fail([wptr, this](const ::promise::Error& err)
@@ -423,10 +423,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::ve
         mCallHandler->onNewSession(*mSessions[peer.getCid()]);
     }
 
-    if (peers.size())
-    {
-        generateAndSendNewkey();
-    }
+    generateAndSendNewkey();
 
     std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
