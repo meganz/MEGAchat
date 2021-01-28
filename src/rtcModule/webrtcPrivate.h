@@ -57,7 +57,7 @@ class Session : public ISession
 public:
     Session(const sfu::Peer& peer);
     ~Session();
-    void setSessionHandler(SessionHandler* sessionHandler) override;
+
     const sfu::Peer &getPeer() const;
     void setVThumSlot(VideoSlot* slot);
     void setHiResSlot(VideoSlot* slot);
@@ -71,6 +71,11 @@ public:
 
     void setSpeakRequested(bool requested);
     bool hasRequestedSpeaker() const;
+
+    // ISession methods
+    void setSessionHandler(SessionHandler* sessionHandler) override;
+    karere::Id getPeerid() const override;
+    Cid_t getClientid() const override;
 
 private:
     sfu::Peer mPeer;

@@ -420,7 +420,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::ve
     for (const sfu::Peer& peer : peers)
     {
         mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
-        mCallHandler->onNewSession(*mSessions[peer.getCid()]);
+        mCallHandler->onNewSession(*mSessions[peer.getCid()], *this);
     }
 
     generateAndSendNewkey();
@@ -598,7 +598,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     sfu::Peer peer(cid, userid, av, false);
 
     mSessions[cid] = ::mega::make_unique<Session>(peer);
-    mCallHandler->onNewSession(*mSessions[cid]);
+    mCallHandler->onNewSession(*mSessions[cid], *this);
     generateAndSendNewkey();
     return true;
 }
@@ -1134,4 +1134,13 @@ bool Session::hasRequestedSpeaker() const
     return mSpeakRequest;
 }
 
+karere::Id Session::getPeerid() const
+{
+    return mPeer.getPeerid();
+}
+
+Cid_t Session::getClientid() const
+{
+    return mPeer.getCid();
+}
 }

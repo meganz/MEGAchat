@@ -93,6 +93,8 @@ class ISession
 {
 public:
     virtual ~ISession(){}
+    virtual karere::Id getPeerid() const = 0;
+    virtual Cid_t getClientid() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
 
 };
@@ -104,7 +106,7 @@ public:
     virtual ~CallHandler(){}
     virtual void onCallStateChange(ICall& call) = 0;
     virtual void onCallRinging(ICall& call) = 0;
-    virtual void onNewSession(ISession& session) = 0;
+    virtual void onNewSession(ISession& session, const ICall& call) = 0;
 };
 
 class ICall
