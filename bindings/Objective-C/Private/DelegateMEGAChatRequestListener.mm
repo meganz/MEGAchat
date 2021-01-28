@@ -36,7 +36,7 @@ void DelegateMEGAChatRequestListener::onRequestFinish(MegaChatApi *api, MegaChat
         dispatch_async(dispatch_get_main_queue(), ^{
             [tempListener onChatRequestFinish:tempMegaChatSDK request:[[MEGAChatRequest alloc]initWithMegaChatRequest:tempRequest cMemoryOwn:YES] error:[[MEGAChatError alloc] initWithMegaChatError:tempError cMemoryOwn:YES]];
             if (tempSingleListener) {
-                [megaChatSDK freeRequestListener:this];
+                [tempMegaChatSDK freeRequestListener:this];
             }
         });
     }

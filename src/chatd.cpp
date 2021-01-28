@@ -521,12 +521,30 @@ Connection::Connection(Client& chatdClient, int shardNo)
     : mChatdClient(chatdClient),
       mShardNo(shardNo),
       mSendPromise(promise::_Void()),
-      mDnsCache(chatdClient.mKarereClient->mDnsCache)
+      mDnsCache(chatdClient.mKarereClient->mDnsCache),
+      mTsConnSuceeded(time(nullptr))
 {
 }
 
 void Connection::wsConnectCb()
 {
+    time_t now = time(nullptr);
+    if (now - mTsConnSuceeded > kMaxConnSucceededTimeframe)
+    {
+        // reset if last check happened more than kMaxConnSucceededTimeframe seconds ago
+        resetConnSuceededAttempts(now);
+    }
+    else
+    {
+        if (++mConnSuceeded > kMaxConnSuceeded)
+        {
+            // We need to refresh URL because we have reached max successful attempts, in kMaxConnSucceededTimeframe period
+            CHATDS_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
+            resetConnSuceededAttempts(now);
+            retryPendingConnection(true, true); // cancel all retries and fetch new URL
+            return;
+        }
+    }
     setState(kStateConnected);
 }
 
@@ -559,6 +577,9 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
         const char *url = result->getLink();
         if (url && url[0] && (karere::Url(url)).host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
         {
+            // reset mConnSuceeded, to avoid a further succeeded connection attempt, can trigger another URL re-fetch
+            resetConnSuceededAttempts(time(nullptr));
+
             // Update DNSCache record with new URL
             CHATDS_LOG_DEBUG("Update URL in cache, and start a new retry attempt");
             mDnsCache.updateRecord(mShardNo, url, true);
@@ -676,6 +697,12 @@ void Connection::sendCallReqDeclineNoSupport(Id chatid, Id callid)
     msg.write<uint8_t>(32, rtcModule::kErrNotSupported);         // Termination code kErrNotSupported = 37
     auto& chat = mChatdClient.chats(chatid);
     chat.sendCommand(std::move(msg));
+}
+
+void Connection::resetConnSuceededAttempts(const time_t &t)
+{
+    mTsConnSuceeded = t;
+    mConnSuceeded = 0;
 }
 
 void Connection::setState(State state)
@@ -1100,6 +1127,8 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
                 return;
             }
 
+            // reset mConnSuceeded, to avoid a further succeeded connection attempt, can trigger another URL re-fetch
+            resetConnSuceededAttempts(time(nullptr));
             retryPendingConnection(true);
         });
     }
