@@ -85,8 +85,10 @@ enum CallState: uint8_t
 class ISession;
 class SessionHandler
 {
+public:
     virtual void onSpeakRequest(ISession& session, bool requested) = 0;
-
+    virtual void onVThumbReceived(ISession& session) = 0;
+    virtual void onHiResReceived(ISession& session) = 0;
 };
 
 class ISession

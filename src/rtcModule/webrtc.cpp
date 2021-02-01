@@ -1095,11 +1095,13 @@ const sfu::Peer& Session::getPeer() const
 void Session::setVThumSlot(VideoSlot *slot)
 {
     mVthumSlot = slot;
+    mSessionHandler->onVThumbReceived(*this);
 }
 
 void Session::setHiResSlot(VideoSlot *slot)
 {
     mHiresSlot = slot;
+    mSessionHandler->onHiResReceived(*this);
 }
 
 void Session::setAudioSlot(Slot *slot)
