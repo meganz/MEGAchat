@@ -1077,6 +1077,16 @@ void Session::setSessionHandler(SessionHandler* sessionHandler)
     mSessionHandler = sessionHandler;
 }
 
+void Session::setVideoRendererVthumb(IVideoRenderer *videoRederer)
+{
+    mVthumSlot->setVideoRender(videoRederer);
+}
+
+void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
+{
+    mHiresSlot->setVideoRender(videoRederer);
+}
+
 const sfu::Peer& Session::getPeer() const
 {
     return mPeer;

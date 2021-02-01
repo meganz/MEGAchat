@@ -96,7 +96,8 @@ public:
     virtual karere::Id getPeerid() const = 0;
     virtual Cid_t getClientid() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
-
+    virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
+    virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
 };
 
 class ICall;

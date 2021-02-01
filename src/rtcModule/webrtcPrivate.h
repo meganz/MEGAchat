@@ -74,6 +74,8 @@ public:
 
     // ISession methods
     void setSessionHandler(SessionHandler* sessionHandler) override;
+    void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
+    void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
     karere::Id getPeerid() const override;
     Cid_t getClientid() const override;
 
