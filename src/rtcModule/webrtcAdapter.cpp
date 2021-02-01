@@ -54,7 +54,6 @@ bool init(void *appCtx)
 
     if (gWebrtcContext == nullptr)
     {
-        webrtc::field_trial::InitFieldTrialsFromString("WebRTC-GenericDescriptorAdvertised/Enabled/");
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
                     nullptr /* network_thread */, thread /* worker_thread */,
                     thread, nullptr /* default_adm */,
