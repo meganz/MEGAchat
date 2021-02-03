@@ -30,6 +30,7 @@ public:
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableTrack(bool enable);
     IvStatic_t getIv() const;
+    void generateRandomIv();
 
 protected:
     Call &mCall;
@@ -44,6 +45,7 @@ public:
     VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void setVideoRender(IVideoRenderer* videoRenderer);
     void OnFrame(const webrtc::VideoFrame& frame) override;
+    void setTrackSink();
 
 private:
     std::unique_ptr<IVideoRenderer> mRenderer;

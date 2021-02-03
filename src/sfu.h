@@ -125,11 +125,12 @@ public:
         virtual bool processCommand(const rapidjson::Document& command) = 0;
         static std::string COMMAND_IDENTIFIER;
         virtual ~Command();
+        static std::string binaryToHex(uint64_t value);
+        static uint64_t hexToBinary(const std::string& hex);
     protected:
         Command();
         void parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator& it) const;
         bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
-        static uint64_t hexToBinary(const std::string& hex);
         static uint8_t hexDigitVal(char value);
     };
 
@@ -347,7 +348,7 @@ public:
         bool handleIncomingData(const char* data, size_t len);
 
         promise::Promise<void> getPromiseConnection();
-        bool joinSfu(const Sdp& sdp, const std::map<int, uint64_t> &ivs, bool moderator, int avFlags, int speaker = -1, int vthumbs = -1);
+        bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, bool moderator, int avFlags, int speaker = -1, int vthumbs = -1);
         bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
         bool sendAv(int av);
         bool sendGetVtumbs(const std::vector<karere::Id>& cids);
