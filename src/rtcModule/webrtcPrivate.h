@@ -91,10 +91,11 @@ private:
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
-    Call(karere::Id callid, karere::Id chatid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
+    karere::Id getCallerid() const override;
     CallState getState() const override;
     void addParticipant(karere::Id peer) override;
     void removeParticipant(karere::Id peer) override;
@@ -106,6 +107,7 @@ public:
     void setRinging(bool ringing) override;
     bool isRinging() const override;
 
+    void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
     void requestModerator() override;
     void requestSpeaker(bool add = true) override;
@@ -121,7 +123,6 @@ public:
     void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
 
     void setState(CallState state);
-    void setInitiator(bool initiator);
     void connectSfu(const std::string& sfuUrl);
     void createTranceiver();
     void getLocalStreams();
@@ -162,9 +163,9 @@ public:
     std::vector<karere::Id> mParticipants;
     karere::Id mCallid;
     karere::Id mChatid;
+    karere::Id mCallerId;
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
-    bool mInitiator = false;
     bool mModeratorRequested = false;
     bool mSpeakerRequested = false;
     bool mSpeakAllow = false;
@@ -226,7 +227,7 @@ public:
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
     void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) override;
-    void handleNewCall(karere::Id chatid, karere::Id callid, bool isRinging) override;
+    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging) override;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;

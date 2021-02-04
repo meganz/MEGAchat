@@ -486,7 +486,7 @@ enum Opcode
       * @brief
       * S->C: Notify call state
       *
-      * Receive: <chatid.8> <callid.8> <ringing.1>
+      * Receive: <chatid.8> <userid.8> <callid.8> <ringing.1>
       */
     OP_CALLSTATE = 53,
 

@@ -2461,6 +2461,8 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
+                const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
+                CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s", tmpStr, ID_CSTR(chatid), ID_CSTR(callid));
                 READ_8(userListCount, 16);
                 std::vector<karere::Id> users;
                 for (unsigned int i = 0; i < userListCount; i++)
@@ -2474,7 +2476,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        mChatdClient.mKarereClient->rtc->handleNewCall(chatid, callid, false);
+                        mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false);
                     }
                 }
 
@@ -2483,18 +2485,20 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_CALLSTATE:
             {
                 READ_ID(chatid, 0);
-                READ_ID(callid, 8);
-                READ_8(ringing, 16);
-                CHATDS_LOG_DEBUG("recv CALLSTATE: chatid '%s' callid '%s'  ringing %d", ID_CSTR(chatid), ID_CSTR(callid), ringing);
+                READ_ID(userid, 8);
+                READ_ID(callid, 16);
+                READ_8(ringing, 24);
+                CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %d", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
                 if (mChatdClient.mKarereClient->rtc)
                 {
                     rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        mChatdClient.mKarereClient->rtc->handleNewCall(chatid, callid, ringing);
+                        mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing);
                     }
                     else
                     {
+                        call->setCallerId(userid);
                         call->setRinging(ringing);
                     }
                 }

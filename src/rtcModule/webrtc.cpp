@@ -8,9 +8,10 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator)
     : mCallid(callid)
     , mChatid(chatid)
+    , mCallerId(callerid)
     , mState(kStateInitial)
     , mIsRinging(isRinging)
     , mGlobalCallHandler(globalCallHandler)
@@ -38,15 +39,16 @@ karere::Id Call::getChatid() const
     return mChatid;
 }
 
+karere::Id Call::getCallerid() const
+{
+    return mCallerId;
+}
+
+
 void Call::setState(CallState state)
 {
     mState = state;
     mCallHandler->onCallStateChange(*this);
-}
-
-void Call::setInitiator(bool initiator)
-{
-    mInitiator = initiator;
 }
 
 CallState Call::getState() const
@@ -119,9 +121,14 @@ void Call::setRinging(bool ringing)
 
 }
 
+void Call::setCallerId(karere::Id callerid)
+{
+    mCallerId  = callerid;
+}
+
 bool Call::isRinging() const
 {
-    return mIsRinging && !mInitiator;
+    return mIsRinging && mCallerId != mSfuClient.myHandle();
 }
 
 bool Call::isModerator() const
@@ -874,8 +881,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid)
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, false, mCallHandler, mMegaApi, *mSfuClient.get(), true);
-            mCalls[callid]->setInitiator(true);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), true);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });
@@ -927,9 +933,9 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
     mCalls.erase(callid);
 }
 
-void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callid, bool isRinging)
+void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get());
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get());
 }
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers)
