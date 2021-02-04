@@ -336,16 +336,18 @@ void MegaEncryptor::incrementPacketCtr()
             : mCtr = 1;   // reset packet ctr if max value has been reached
 }
 
+/*
+ * Frame format: header.8: <keyId.1> <CID.3> <packetCTR.4>
+ * Note: (keyId.1 senderCID.3) and packetCtr.4 are little-endian (No need byte-order swap) 32-bit integers.
+ */
 byte *MegaEncryptor::generateHeader()
 {
-    // header (8 Bytes): <keyId.1> <senderCid.3> <packetCtr.4>
     byte *header = new byte[FRAME_HEADER_LENGTH];
     Keyid_t keyId = mMyPeer.getCurrentKeyId();
     memcpy(header, &keyId, FRAME_KEYID_LENGTH);
 
-    uint8_t offset = FRAME_KEYID_LENGTH;
-
     Cid_t cid = mMyPeer.getCid();
+    uint8_t offset = FRAME_KEYID_LENGTH;
     memcpy(header + offset, &cid, FRAME_CID_LENGTH);
 
     offset += FRAME_CID_LENGTH;
