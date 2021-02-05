@@ -1473,7 +1473,11 @@ void exec_logout(ac::ACState& s)
     else if (g_chatApi->getInitState() != c::MegaChatApi::INIT_NOT_DONE)
     {
         setprompt(NOPROMPT);
+#ifdef ENABLE_SYNC
+        g_megaApi->logout(false, nullptr);
+#else
         g_megaApi->logout();
+#endif
     }
     else
     {
