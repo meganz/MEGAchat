@@ -123,4 +123,17 @@ class DelegateMegaChatRoomListener extends MegaChatRoomListener {
             });
         }
     }
+
+    @Override
+    public void onHistoryTruncatedByRetentionTime(MegaChatApi api, MegaChatMessage msg){
+        if (listener != null) {
+            final MegaChatMessage megaChatMessage = msg.copy();
+            megaChatApi.runCallback(new Runnable() {
+                public void run() {
+                    if (listener != null)
+                        listener.onHistoryTruncatedByRetentionTime(megaChatApi, megaChatMessage);
+                }
+            });
+        }
+    }
 }
