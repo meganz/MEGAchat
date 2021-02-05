@@ -41,8 +41,6 @@ using namespace megachat;
 @property (nonatomic, assign) std::set<DelegateMEGAChatNotificationListener *>activeChatNotificationListeners;
 @property (nonatomic, assign) std::set<DelegateMEGAChatNodeHistoryListener *>activeChatNodeHistoryListeners;
 
-- (MegaChatRequestListener *)createDelegateMEGAChatRequestListener:(id<MEGAChatRequestDelegate>)delegate singleListener:(BOOL)singleListener;
-
 @property MegaChatApi *megaChatApi;
 - (MegaChatApi *)getCPtr;
 
@@ -169,7 +167,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)localLogoutWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->localLogout([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    self.megaChatApi->localLogout([self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:ListenerQueueTypeCurrent]);
 }
 
 - (void)localLogout {
@@ -1159,9 +1157,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 #pragma mark - Private methods
 
 - (MegaChatRequestListener *)createDelegateMEGAChatRequestListener:(id<MEGAChatRequestDelegate>)delegate singleListener:(BOOL)singleListener {
+    return [self createDelegateMEGAChatRequestListener:delegate singleListener:singleListener queueType:ListenerQueueTypeMain];
+}
+
+- (MegaChatRequestListener *)createDelegateMEGAChatRequestListener:(id<MEGAChatRequestDelegate>)delegate singleListener:(BOOL)singleListener queueType:(ListenerQueueType)queueType {
     if (delegate == nil) return nil;
     
-    DelegateMEGAChatRequestListener *delegateListener = new DelegateMEGAChatRequestListener(self, delegate, singleListener);
+    DelegateMEGAChatRequestListener *delegateListener = new DelegateMEGAChatRequestListener(self, delegate, singleListener, queueType);
     pthread_mutex_lock(&listenerMutex);
     _activeRequestListeners.insert(delegateListener);
     pthread_mutex_unlock(&listenerMutex);
