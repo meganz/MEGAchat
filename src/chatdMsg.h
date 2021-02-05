@@ -809,7 +809,7 @@ public:
                 && type <= Message::kMsgManagementHighest);
     }
     bool isOwnMessage(karere::Id myHandle) const { return (userid == myHandle); }
-    bool isDeleted() const { return (updated && !size()); } // returns false for truncate (update = 0)
+    bool isDeleted() const { return (updated && !size() && type != kMsgTruncate); } // returns false for truncate
     bool isValidLastMessage() const
     {
         return (!isDeleted()                        // skip deleted messages (keep truncates)

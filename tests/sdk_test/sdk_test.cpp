@@ -199,7 +199,19 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 {
     bool *flagRequestLogout = &requestFlags[accountIndex][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
     bool *flagRequestLogoutChat = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogoutChat = false;
-    closeSession ? megaApi[accountIndex]->logout() : megaApi[accountIndex]->localLogout();
+    if (closeSession)
+    {
+#ifdef ENABLE_SYNC
+            megaApi[accountIndex]->logout(false, nullptr);
+#else
+            megaApi[accountIndex]->logout();
+#endif
+    }
+    else
+    {
+        megaApi[accountIndex]->localLogout();
+    }
+
     ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for logout from sdk");
     ASSERT_CHAT_TEST(!lastError[accountIndex] || lastError[accountIndex] == MegaError::API_ESID, "Error sdk logout. Error: " + std::to_string(lastError[accountIndex]));
 
@@ -315,7 +327,11 @@ void MegaChatApiTest::SetUp()
         ASSERT_CHAT_TEST(waitForResponse(flagKillSessions), "Kill sessions failed in SetUp() after " + std::to_string(maxTimeout) + " seconds");
         ASSERT_CHAT_TEST(!lastError[i], "Kill sessions failed in SetUp(). Error: " + std::to_string(lastError[i]));
         bool *flagLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagLogout = false;
+#ifdef ENABLE_SYNC
+        megaApi[i]->logout(false, nullptr);
+#else
         megaApi[i]->logout();
+#endif
         ASSERT_CHAT_TEST(waitForResponse(flagLogout), "Expired timeout for logout in SetUp()");
         ASSERT_CHAT_TEST(!lastError[i] || lastError[i] == MegaError::API_ESID, "Logout failed in SetUp(). Error: " + std::to_string(lastError[i]));
 
@@ -435,7 +451,11 @@ void MegaChatApiTest::TearDown()
                 removePendingContactRequest(i);
 
                 bool *flagRequestLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
-                megaApi[i]->logout();
+#ifdef ENABLE_SYNC
+            megaApi[i]->logout(false, nullptr);
+#else
+            megaApi[i]->logout();
+#endif
                 TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaApi logout");
                 TEST_LOG_ERROR(!lastError[i], "Failed to logout from SDK. Error: " + std::to_string(lastError[i]));
             }
