@@ -54,6 +54,7 @@ bool init(void *appCtx)
 
     if (gWebrtcContext == nullptr)
     {
+        webrtc::field_trial::InitFieldTrialsFromString("WebRTC-GenericDescriptorAuth/Disabled/");
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
                     nullptr /* network_thread */, thread /* worker_thread */,
                     thread, nullptr /* default_adm */,
@@ -360,7 +361,8 @@ byte *MegaEncryptor::generateFrameIV()
     // frame iv (12 Bytes): <ctr.4> <randombytes.8> (randombytes = static part)
     byte *iv = new byte[FRAME_IV_LENGTH];
     memcpy(iv, &mCtr, FRAME_CTR_LENGTH);
-    memcpy(iv, &mIv, FRAME_IV_LENGTH - FRAME_CTR_LENGTH);
+    memcpy(iv + FRAME_CTR_LENGTH, &mIv, FRAME_IV_LENGTH - FRAME_CTR_LENGTH);
+    return iv;
 }
 
 // encrypted_frame: <header.8> <encrypted.data.varlen> <GCM_Tag.4>
@@ -462,7 +464,6 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
         // return error
     }
 
-    uint8_t offset = 0;
     const uint8_t *data = encrypted_frame.data();
 
     // extract keyId and if it's valid, set key into SymCipher
@@ -477,7 +478,7 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
     setDecryptionKey(decryptionKey);
 
     // check if frame CID matches with expected one
-    offset += FRAME_KEYID_LENGTH;
+    uint8_t offset = FRAME_KEYID_LENGTH;
     Cid_t peerCid = 0;
     memcpy(&peerCid, data + offset, FRAME_CID_LENGTH);
     if (peerCid != mPeer.getCid())
@@ -487,7 +488,7 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
     }
 
     // extract packet ctr and update mCtr (ctr will be used to generate an IV to decrypt the frame)
-    offset += FRAME_KEYID_LENGTH;
+    offset += FRAME_CID_LENGTH;
     memcpy(&mCtr, data + offset, FRAME_CTR_LENGTH);
     return Status::kOk;
 }
@@ -496,7 +497,7 @@ std::shared_ptr<byte []> MegaDecryptor::generateFrameIV()
 {
     std::shared_ptr<byte []>iv(new byte[FRAME_IV_LENGTH]);
     memcpy(iv.get(), &mCtr, FRAME_CTR_LENGTH);
-    memcpy(iv.get(), &mIv, FRAME_IV_LENGTH - FRAME_CTR_LENGTH);
+    memcpy(iv.get()+FRAME_CTR_LENGTH, &mIv, FRAME_IV_LENGTH - FRAME_CTR_LENGTH);
     return iv;
 }
 
