@@ -39,6 +39,7 @@ enum { kErrorType = 0x2e7294d1 };//should resemble 'retryhdl'
 enum
 {
     kDefaultMaxAttemptCount = 0,
+    kDefaultMaxAttemptTimeout = 8000,
     kDefaultMaxSingleWaitTime = 60000,
     kDefaultMinInitialDelay = 1000
 };
@@ -106,6 +107,7 @@ protected:
     size_t mCurrentAttemptId = 0; //used to detect callbacks from stale attempts. Never reset (unlike mCurrentAttemptNo)
     size_t mMaxAttemptCount;
     unsigned mAttemptTimeout = 0;
+    unsigned mMaxAttemptTimeout = 0;
     unsigned mMaxSingleWaitTime;
     unsigned short mDelayRandPct = 20;
     promise::Promise<RetType> mPromise;
@@ -134,14 +136,26 @@ public:
      * then the first wait will be 120ms, the next 240ms, then 480ms and so on.
      * This can be used for high frequency initial retrying.
      */
-    RetryController(const std::string& aName, Func&& func, CancelFunc&& cancelFunc, unsigned attemptTimeout,
-        DeleteTrackable::Handle wptr, void *ctx, unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime,
-        size_t maxAttemptCount=kDefaultMaxAttemptCount, unsigned short backoffStart=1000)
-        :IRetryController(aName), mFunc(std::forward<Func>(func)), mCancelFunc(std::forward<CancelFunc>(cancelFunc)),
-         mMaxAttemptCount(maxAttemptCount), mAttemptTimeout(attemptTimeout),
-         mMaxSingleWaitTime(maxSingleWaitTime),
-         mInitialWaitTime(backoffStart),
-         appCtx(ctx), wptr(wptr)
+    RetryController(const std::string& aName
+                    , Func&& func
+                    , CancelFunc&& cancelFunc
+                    , unsigned attemptTimeout
+                    , unsigned maxAttemptTimeout
+                    , DeleteTrackable::Handle wptr
+                    , void *ctx
+                    , unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime
+                    , size_t maxAttemptCount = kDefaultMaxAttemptCount
+                    , unsigned short backoffStart=1000)
+        :IRetryController(aName)
+        , mFunc(std::forward<Func>(func))
+        , mCancelFunc(std::forward<CancelFunc>(cancelFunc))
+        , mMaxAttemptCount(maxAttemptCount)
+        , mAttemptTimeout(attemptTimeout)
+        , mMaxAttemptTimeout(maxAttemptTimeout)
+        , mMaxSingleWaitTime(maxSingleWaitTime)
+        , mInitialWaitTime(backoffStart)
+        , appCtx(ctx)
+        , wptr(wptr)
     {}
     ~RetryController()
     {
@@ -243,6 +257,21 @@ public:
         }
     }
 protected:
+    unsigned calcAttemptTimeoutNoRandomness()
+    {
+        if (mCurrentAttemptNo > kBitness)
+        {
+            if (!mAttemptTimeout)
+                return 0;
+            else
+                return mMaxAttemptTimeout;
+        }
+        unsigned t = (1 << (mCurrentAttemptNo - 1)) * mAttemptTimeout;
+        if (t <= mMaxAttemptTimeout)
+            return t;
+        else
+            return mMaxAttemptTimeout;
+    }
     unsigned calcWaitTime()
     {
         unsigned t = calcWaitTimeNoRandomness();
@@ -321,10 +350,11 @@ protected:
         assert(mState == kStateRetryWait || mState == kStateNotStarted);
         assert(mTimer == 0);
         auto attempt = mCurrentAttemptId;
-    //set an attempt timeout timer
-        if (mAttemptTimeout)
+
+        if (mAttemptTimeout)    //set an attempt timeout timer
         {
-            RETRY_LOG("Setting a timeout for attempt %zu: %u seconds", mCurrentAttemptNo, mAttemptTimeout);
+            unsigned attemptTimeout = calcAttemptTimeoutNoRandomness();
+            RETRY_LOG("Setting a timeout for attempt %zu: %u seconds", mCurrentAttemptNo, attemptTimeout);
             auto wptr = weakHandle();
             mTimer = setTimeout([wptr, this, attempt]()
             {
@@ -347,7 +377,7 @@ protected:
                     }
                 }
                 schedNextRetry(timeoutError);
-            }, mAttemptTimeout, appCtx);
+            }, attemptTimeout, appCtx);
         }
         mState = kStateInProgress;
 
@@ -361,6 +391,14 @@ protected:
                 RETRY_LOG("A previous timed-out/aborted attempt returned failure: %s", err.msg().c_str());
                 return err;
             }
+
+            if (mAttemptTimeout)
+            {
+                RETRY_LOG("A previous attempt returned failure before timeout expires: %s", err.msg().c_str());
+                // wait till the attempt timeout expires, it will schedule the next retry
+                return err;
+            }
+
             RETRY_LOG("Attempt %zu failed with message '%s'", mCurrentAttemptNo, err.what());
             cancelTimer();
             schedNextRetry(err);
@@ -447,18 +485,29 @@ static inline auto retry(const std::string& aName, Func&& func, DeleteTrackable:
 /** Similar to retry(), but returns a heap-allocated RetryController object */
 template <class Func, class CancelFunc=void*>
 static inline rh::RetryController<Func, CancelFunc>* createRetryController(
-    const std::string& aName, Func&& func,
-    DeleteTrackable::Handle wptr, void *ctx,
-    CancelFunc&& cancelFunc = nullptr,
-    unsigned attemptTimeout = 0,
-    size_t maxRetries = rh::kDefaultMaxAttemptCount,
-    size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
-    short backoffStart = rh::kDefaultMinInitialDelay)
+        const std::string& aName
+        , Func&& func
+        , DeleteTrackable::Handle wptr
+        , void *ctx
+        , CancelFunc&& cancelFunc = nullptr
+        , unsigned attemptTimeout = 0
+        , unsigned maxAttemptTimeout = rh::kDefaultMaxAttemptTimeout
+        , size_t maxRetries = rh::kDefaultMaxAttemptCount
+        , size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime
+        , short backoffStart = rh::kDefaultMinInitialDelay)
 {
-    rh::RetryController<Func, CancelFunc>* retryController = new rh::RetryController<Func, CancelFunc>(aName,
-        std::forward<Func>(func),
-        std::forward<CancelFunc>(cancelFunc), attemptTimeout, wptr, ctx,
-        maxSingleWaitTime, maxRetries, backoffStart);
+    rh::RetryController<Func, CancelFunc>* retryController = new rh::RetryController<Func, CancelFunc>(
+                aName
+                , std::forward<Func>(func)
+                , std::forward<CancelFunc>(cancelFunc)
+                , attemptTimeout
+                , maxAttemptTimeout
+                , wptr
+                , ctx
+                , maxSingleWaitTime
+                , maxRetries
+                , backoffStart);
+
     return retryController;
 }
 /*
