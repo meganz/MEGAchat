@@ -316,6 +316,7 @@ protected:
     unsigned int mChatMode = CHAT_MODE_PRIVATE;
     std::shared_ptr<UnifiedKey> mUnifiedKey;
     promise::Promise<std::shared_ptr<UnifiedKey>> mUnifiedKeyDecrypted;
+    bool mHasUnifiedKey; // indicates if chat has unified key (although it's pending to be decrypted)
 
 public:
     karere::Id chatid;

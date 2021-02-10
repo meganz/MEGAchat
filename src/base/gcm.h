@@ -22,8 +22,6 @@
     #define MEGA_GCM_IMPEXP MEGA_GCM_DLLIMPORT
 #endif
 
-typedef void(*megaMessageFunc)(void*);
-
 /** The Gui Call Marshaller mechanism supports marshalling of a plain C function
  * call with signature \c void(void*) together with an arbitrary data stuct.
  * The function pointer is the first member of the struct, and a C struct having
@@ -45,6 +43,7 @@ typedef void(*megaMessageFunc)(void*);
 
 struct megaMessage
 {
+    typedef void(*megaMessageFunc)(megaMessage*);
     megaMessageFunc func;
     /** If we don't provide an initializing constructor, operator new() will initialize
      * func to NULL, and then we will overwrite it, which is inefficient. That's why we

@@ -154,6 +154,10 @@ using namespace megachat;
     return self.megaChatMessage ? self.megaChatMessage->getDuration() : 0;
 }
 
+- (NSUInteger)retentionTime {
+    return self.megaChatMessage ? self.megaChatMessage->getRetentionTime() : 0;
+}
+
 - (MEGAChatMessageEndCallReason)termCode {
     return (MEGAChatMessageEndCallReason) (self.megaChatMessage ? self.megaChatMessage->getTermCode() : 0);
 }
