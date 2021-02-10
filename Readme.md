@@ -55,9 +55,7 @@ For more information about WebRTC compilation for Android, you can visit this li
 
 Checkout the MEGAchat repository:    
 
- - `git clone --recursive git@code.developers.mega.co.nz:megachat/MEGAchat.git`
-   or
- - `git clone --recursive https://code.developers.mega.co.nz/megachat/MEGAchat.git`
+ - `git clone --recursive https://github.com/meganz/MEGAchat.git`
 
 The MEGAchat sources are at `MEGAchat/src`
 
