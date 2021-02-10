@@ -196,7 +196,19 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 {
     bool *flagRequestLogout = &requestFlags[accountIndex][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
     bool *flagRequestLogoutChat = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogoutChat = false;
-    closeSession ? megaApi[accountIndex]->logout() : megaApi[accountIndex]->localLogout();
+    if (closeSession)
+    {
+#ifdef ENABLE_SYNC
+            megaApi[accountIndex]->logout(false, nullptr);
+#else
+            megaApi[accountIndex]->logout();
+#endif
+    }
+    else
+    {
+        megaApi[accountIndex]->localLogout();
+    }
+
     ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for logout from sdk");
     ASSERT_CHAT_TEST(!lastError[accountIndex] || lastError[accountIndex] == MegaError::API_ESID, "Error sdk logout. Error: " + std::to_string(lastError[accountIndex]));
 
@@ -312,7 +324,11 @@ void MegaChatApiTest::SetUp()
         ASSERT_CHAT_TEST(waitForResponse(flagKillSessions), "Kill sessions failed in SetUp() after " + std::to_string(maxTimeout) + " seconds");
         ASSERT_CHAT_TEST(!lastError[i], "Kill sessions failed in SetUp(). Error: " + std::to_string(lastError[i]));
         bool *flagLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagLogout = false;
+#ifdef ENABLE_SYNC
+        megaApi[i]->logout(false, nullptr);
+#else
         megaApi[i]->logout();
+#endif
         ASSERT_CHAT_TEST(waitForResponse(flagLogout), "Expired timeout for logout in SetUp()");
         ASSERT_CHAT_TEST(!lastError[i] || lastError[i] == MegaError::API_ESID, "Logout failed in SetUp(). Error: " + std::to_string(lastError[i]));
 
@@ -432,7 +448,11 @@ void MegaChatApiTest::TearDown()
                 removePendingContactRequest(i);
 
                 bool *flagRequestLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
-                megaApi[i]->logout();
+#ifdef ENABLE_SYNC
+            megaApi[i]->logout(false, nullptr);
+#else
+            megaApi[i]->logout();
+#endif
                 TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaApi logout");
                 TEST_LOG_ERROR(!lastError[i], "Failed to logout from SDK. Error: " + std::to_string(lastError[i]));
             }
@@ -4084,7 +4104,7 @@ void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHan
     ASSERT_CHAT_TEST(itemPrimary->getLastTimestamp() != 0, "Wrong last timestamp after clear history");
     delete itemPrimary; itemPrimary = NULL;
     MegaChatListItem *itemSecondary = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(itemSecondary->getUnreadCount() == 0, "Wrong unread count for chat list item after clear history. Count: " + std::to_string(itemSecondary->getUnreadCount()));
+    ASSERT_CHAT_TEST(itemSecondary->getUnreadCount() == 1, "Wrong unread count for chat list item after clear history. Count: " + std::to_string(itemSecondary->getUnreadCount()));
     ASSERT_CHAT_TEST(!strcmp(itemSecondary->getLastMessage(), ""), "Wrong content of last message for chat list item after clear history. Content: " + std::string(itemSecondary->getLastMessage()));
     ASSERT_CHAT_TEST(itemSecondary->getLastMessageType() == MegaChatMessage::TYPE_TRUNCATE, "Wrong type of last message after clear history. Type: " + std::to_string(itemSecondary->getLastMessageType()));
     ASSERT_CHAT_TEST(itemSecondary->getLastTimestamp() != 0, "Wrong last timestamp after clear history");

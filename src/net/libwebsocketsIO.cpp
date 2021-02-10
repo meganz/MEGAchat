@@ -22,6 +22,12 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     struct lws_context_creation_info info;
     memset( &info, 0, sizeof(info) );
     
+    const char *lwsversion = lws_get_library_version();
+    if (lwsversion)
+    {
+        WEBSOCKETS_LOG_DEBUG("Libwebsockets version: %s", lwsversion);        
+    }
+    
     info.port = CONTEXT_PORT_NO_LISTEN;
     info.protocols = protocols;
     info.gid = -1;
