@@ -48,7 +48,6 @@ bool init(void *appCtx)
     gAsyncWaiter = new AsyncWaiter(appCtx);
     auto thread = new rtc::Thread(gAsyncWaiter);
     gAsyncWaiter->setThread(thread);
-    thread->SetName("Main Thread", thread);
     threadMgr->SetCurrentThread(thread);
 
     if (gWebrtcContext == nullptr)
