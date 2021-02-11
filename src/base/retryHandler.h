@@ -39,7 +39,8 @@ enum { kErrorType = 0x2e7294d1 };//should resemble 'retryhdl'
 enum
 {
     kDefaultMaxAttemptCount = 0,
-    kDefaultMaxAttemptTimeout = 8000,
+    kDefaultMaxAttemptTimeout = 10000,
+    kDefaultAttemptTimeoutBias = 2000,
     kDefaultMaxSingleWaitTime = 60000,
     kDefaultMinInitialDelay = 1000
 };
@@ -266,7 +267,7 @@ protected:
             else
                 return mMaxAttemptTimeout;
         }
-        unsigned t = (1 << (mCurrentAttemptNo - 1)) * mAttemptTimeout;
+        unsigned t = (1 << (mCurrentAttemptNo - 1)) * mAttemptTimeout + kDefaultAttemptTimeoutBias;
         if (t <= mMaxAttemptTimeout)
             return t;
         else
@@ -356,12 +357,12 @@ protected:
             unsigned attemptTimeout = calcAttemptTimeoutNoRandomness();
             RETRY_LOG("Setting a timeout for attempt %zu: %u seconds", mCurrentAttemptNo, attemptTimeout);
             auto wptr = weakHandle();
-            mTimer = setTimeout([wptr, this, attempt]()
+            mTimer = setTimeout([wptr, this, attempt, attemptTimeout]()
             {
                 if (wptr.deleted())
                     return;
 
-                RETRY_LOG("Attempt %zu timed out after %u ms", mCurrentAttemptNo, mAttemptTimeout);
+                RETRY_LOG("Attempt %zu timed out after %u ms", mCurrentAttemptNo, attemptTimeout);
                 assert(attempt == mCurrentAttemptId); //if we are in a next attempt, cancelTimer() should have been called and this callback should never fire
                 mTimer = 0;
 
