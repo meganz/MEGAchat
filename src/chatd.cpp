@@ -985,7 +985,13 @@ Promise<void> Connection::reconnect()
                 sendKeepalive();
                 rejoinExistingChats();
             });
-        }, wptr, mChatdClient.mKarereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+        }, wptr, mChatdClient.mKarereClient->appCtx
+                         , nullptr                              // cancel function
+                         , KARERE_RECONNECT_ATTEMPT_TIMEOUT     // initial attempt timeout (increases exponentially)
+                         , KARERE_RECONNECT_MAX_ATTEMPT_TIMEOUT // maximum attempt timeout
+                         , 0                                    // max number of attempts
+                         , KARERE_RECONNECT_DELAY_MAX           // max single wait between attempts
+                         , 0));                                 // initial single wait between attempts  (increases exponentially)
 
         return static_cast<Promise<void>&>(mRetryCtrl->start());
     }

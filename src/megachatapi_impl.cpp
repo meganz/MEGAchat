@@ -4935,7 +4935,7 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
         return new MegaStringListPrivate();
     }
 
-    vector<char *> reactList;
+    string_vector reactions;
     const std::vector<Message::Reaction> &confirmedReactions = msg->getReactions();
     const Chat::PendingReactions& pendingReactions = (findChatRoom(chatid))->chat().getPendingReactions();
 
@@ -4960,7 +4960,7 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
 
          if (reactUsers > 0)
          {
-             reactList.emplace_back(MegaApi::strdup(auxReact.mReaction.c_str()));
+             reactions.emplace_back(auxReact.mReaction);
          }
     }
 
@@ -4971,11 +4971,11 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
                 && !msg->getReactionCount(pendingReact.mReactionString)
                 && pendingReact.mStatus == OP_ADDREACTION)
         {
-            reactList.emplace_back (MegaApi::strdup(pendingReact.mReactionString.c_str()));
+            reactions.emplace_back(pendingReact.mReactionString);
         }
     }
 
-    return new MegaStringListPrivate(reactList.data(), static_cast<int>(reactList.size()));
+    return new MegaStringListPrivate(move(reactions));
 }
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
@@ -5039,13 +5039,13 @@ IApp::IChatListHandler *MegaChatApiImpl::chatListHandler()
 
 MegaStringList *MegaChatApiImpl::getChatInDevices(const std::set<string> &devices)
 {
-    std::vector<char*> buffer;
+    string_vector buffer;
     for (const std::string &device : devices)
     {
-        buffer.push_back(MegaApi::strdup(device.c_str()));
+        buffer.push_back(device);
     }
 
-    return new MegaStringListPrivate(buffer.data(), static_cast<int>(buffer.size()));
+    return new MegaStringListPrivate(move(buffer));
 }
 
 void MegaChatApiImpl::cleanCalls()

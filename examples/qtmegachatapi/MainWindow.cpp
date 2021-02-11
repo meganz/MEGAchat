@@ -1386,7 +1386,12 @@ void MainWindow::on_mLogout_clicked()
         }
         else
         {
+#ifdef ENABLE_SYNC
+            mMegaApi->logout(false, nullptr);
+#else
             mMegaApi->logout();
+#endif
+
         }
     }    
 }

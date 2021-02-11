@@ -1473,7 +1473,11 @@ void exec_logout(ac::ACState& s)
     else if (g_chatApi->getInitState() != c::MegaChatApi::INIT_NOT_DONE)
     {
         setprompt(NOPROMPT);
+#ifdef ENABLE_SYNC
+        g_megaApi->logout(false, nullptr);
+#else
         g_megaApi->logout();
+#endif
     }
     else
     {
@@ -3669,6 +3673,76 @@ void exec_getContact(ac::ACState& s)
 }
 
 
+void exec_getDefaultTZ(ac::ACState& s)
+{
+    auto listener = new OneShotRequestListener;
+    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    {
+        auto cl = conlock(cout);
+        cl << "Get Default Time Zone Result: " << e->getErrorString() << endl;
+
+        if (!e->getErrorCode())
+        {
+            ::mega::MegaTimeZoneDetails* tz = request->getMegaTimeZoneDetails();
+            assert(tz);
+
+            int defaulttz = tz->getDefault();
+            assert(defaulttz < tz->getNumTimeZones());
+
+            // print relevant info
+            cl << "Default Time Zone: " << tz->getTimeZone(defaulttz) << endl
+               << "Time offset: " << tz->getTimeOffset(defaulttz) << endl;
+        }
+    };
+
+    // send the request
+    conlock(cout) << "  Command `" << s.words[0].s << "` is executing in the background..." << endl;
+    g_megaApi->fetchTimeZone(listener);
+}
+
+
+void exec_isGeolocOn(ac::ACState& s)
+{
+    if (!g_megaApi->isLoggedIn())
+    {
+        conlock(cout) << "Invalid operation, needs successful login." << endl;
+        return;
+    }
+
+    auto listener = new OneShotRequestListener;
+    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    {
+        const char* on = e->getErrorCode() ? "false" : "true";
+        conlock(cout) << "Is Geolocation Enabled Result: " << on << endl;
+    };
+
+    // send the request
+    conlock(cout) << "  Command `" << s.words[0].s << "` is executing in the background..." << endl;
+    g_megaApi->isGeolocationEnabled(listener);
+}
+
+
+void exec_setGeolocOn(ac::ACState& s)
+{
+    if (!g_megaApi->isLoggedIn())
+    {
+        conlock(cout) << "Invalid operation, needs successful login." << endl;
+        return;
+    }
+
+    auto listener = new OneShotRequestListener;
+    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    {
+        const char* on = e->getErrorCode() ? "false" : "true";
+        conlock(cout) << "Enable Geolocation Result: " << on << endl;
+    };
+
+    // send the request
+    conlock(cout) << "  Command `" << s.words[0].s << "` is executing in the background..." << endl;
+    g_megaApi->enableGeolocation(listener);
+}
+
+
 
 ac::ACN autocompleteSyntax()
 {
@@ -3830,6 +3904,10 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getCameraUploadsFolderSecondary, sequence(text("getcamerauploadsfoldersecondary")));
 
     p->Add(exec_getContact, sequence(text("getcontact"), param("email")));
+
+    p->Add(exec_getDefaultTZ, sequence(text("getdefaulttz")));
+    p->Add(exec_isGeolocOn, sequence(text("isgeolocationenabled")));
+    p->Add(exec_setGeolocOn, sequence(text("setgeolocation"), text("on")));
 
     return p;
 }
