@@ -335,8 +335,7 @@ public:
     void setDecryptionKey(const std::string &decryptKey);
 
     // validates header by checking if CID matches with expected one, also extracts keyId and packet CTR */
-    webrtc::FrameDecryptorInterface::Status validateAndProcessHeader(rtc::ArrayView<const uint8_t>
-                                                                      encrypted_frame);
+    byte* validateAndProcessHeader(rtc::ArrayView<const uint8_t> encrypted_frame);
 
     // rebuild the IV for a received frame, you take the ownership of returned value
     std::shared_ptr<byte[]> generateFrameIV();

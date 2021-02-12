@@ -401,7 +401,13 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
     {
         plainFrame[i] = static_cast<char>(frame[i]);
     }
-    mSymCipher->gcm_encrypt(&plainFrame, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &encFrame);
+
+    bool result = mSymCipher->gcm_encrypt_aad(&plainFrame, header.get(), FRAME_HEADER_LENGTH, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &encFrame);
+    if (!result)
+    {
+        // TODO: manage errors and define error codes
+        return 1;
+    }
 
     // add header to the output
     const CryptoPP::byte *headerPtr= header.get();
@@ -423,6 +429,8 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
     if (GetMaxCiphertextByteSize(media_type, frame.size()) != *bytes_written)
     {
         RTCM_LOG_WARNING("Encrypt: Frame size doesn't match with expected size");
+        // TODO: manage errors and define error codes
+        return 1;
     }
     return 0;
 }
@@ -457,11 +465,11 @@ void MegaDecryptor::setDecryptionKey(const std::string &decryptKey)
  * Frame format: header.8: <keyId.1> <CID.3> <packetCTR.4>
  * Note: (keyId.1 senderCID.3) and packetCtr.4 are little-endian (No need byte-order swap) 32-bit integers.
  */
-webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> encrypted_frame)
+byte* MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> encrypted_frame)
 {
     if (!encrypted_frame.size())
     {
-        // return error
+        return nullptr;
     }
 
     const uint8_t *data = encrypted_frame.data();
@@ -473,7 +481,7 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
     if (decryptionKey.empty())
     {
         RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d", keyId);
-        //return ERRCODE
+        return nullptr;
     }
     setDecryptionKey(decryptionKey);
 
@@ -484,13 +492,16 @@ webrtc::FrameDecryptorInterface::Status MegaDecryptor::validateAndProcessHeader(
     if (peerCid != mPeer.getCid())
     {
         RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);
-        //return error
+        return nullptr;
     }
 
     // extract packet ctr and update mCtr (ctr will be used to generate an IV to decrypt the frame)
     offset += FRAME_CID_LENGTH;
     memcpy(&mCtr, data + offset, FRAME_CTR_LENGTH);
-    return Status::kOk;
+
+    byte *header = new byte[FRAME_HEADER_LENGTH];
+    memcpy(header, data, FRAME_HEADER_LENGTH);
+    return header;
 }
 
 std::shared_ptr<byte []> MegaDecryptor::generateFrameIV()
@@ -503,10 +514,11 @@ std::shared_ptr<byte []> MegaDecryptor::generateFrameIV()
 
 webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaType media_type, const std::vector<uint32_t> &csrcs, rtc::ArrayView<const uint8_t> additional_data, rtc::ArrayView<const uint8_t> encrypted_frame, rtc::ArrayView<uint8_t> frame)
 {
-    // validate header
-    if (validateAndProcessHeader(encrypted_frame) != Status::kOk)
+    // validate and extract header to be authenticated in gcm_decrypt_aad
+    mega::unique_ptr<byte []> header(validateAndProcessHeader(encrypted_frame));
+    if (!header)
     {
-        // return error
+        return Result(Status::kRecoverable, 0);
     }
 
     // generate iv using packet CRT received in frame header
@@ -526,22 +538,26 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
     encFrame.erase(0, FRAME_HEADER_LENGTH);
 
     // decrypt frame
-    mSymCipher->gcm_decrypt(&encFrame, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &plainFrame);
-
-    size_t plainFrameSize = plainFrame.size() - FRAME_GCM_TAG_LENGTH;
-    for (unsigned int i = 0; i < plainFrameSize; i++)
+    bool result = mSymCipher->gcm_decrypt_aad(&encFrame, header.get(), FRAME_HEADER_LENGTH, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &plainFrame);
+    if (!result)
     {
-        // add decrypted frame to the output
+        return Result(Status::kRecoverable, 0);
+    }
+
+    // add decrypted frame to the output
+    for (unsigned int i = 0; i < plainFrame.size(); i++)
+    {
         frame[i] = static_cast<uint8_t> (plainFrame[i]);
     }
 
     // check if decrypted frame size is the expected one
-    assert(GetMaxPlaintextByteSize(media_type, encrypted_frame.size()) == plainFrameSize);
-    if (GetMaxPlaintextByteSize(media_type, encrypted_frame.size()) != plainFrameSize)
+    assert(GetMaxPlaintextByteSize(media_type, encrypted_frame.size()) == plainFrame.size());
+    size_t expectedFrameSize = GetMaxPlaintextByteSize(media_type, encrypted_frame.size());
+    if (expectedFrameSize != plainFrame.size())
     {
-        RTCM_LOG_WARNING("Plain frame size doesn't match with expected size");
+        RTCM_LOG_WARNING("Plain frame size doesn't match with expected size, expected: %d decrypted: %d", expectedFrameSize, plainFrame.size());
     }
-    return Result(Status::kOk, plainFrameSize);
+    return Result(Status::kOk, plainFrame.size());
 }
 
 size_t MegaDecryptor::GetMaxPlaintextByteSize(cricket::MediaType media_type, size_t encrypted_frame_size)

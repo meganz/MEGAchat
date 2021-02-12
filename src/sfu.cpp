@@ -666,7 +666,7 @@ StatCommand::StatCommand(const StatCommandFunction &complete)
 
 bool StatCommand::processCommand(const rapidjson::Document &command)
 {
-
+    return true;
 }
 
 PeerJoinCommand::PeerJoinCommand(const PeerJoinCommandFunction &complete)
@@ -1940,7 +1940,7 @@ PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete)
 
 bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
 {
-
+    return true;
 }
 
 }
