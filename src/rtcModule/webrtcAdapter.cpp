@@ -325,9 +325,7 @@ MegaEncryptor::~MegaEncryptor()
 void MegaEncryptor::setEncryptionKey(const std::string& encryptKey)
 {
     const unsigned char *encKey = reinterpret_cast<const unsigned char*>(encryptKey.data());
-    mSymCipher
-            ? mSymCipher->setkey(encKey)
-            : mSymCipher.reset(new mega::SymmCipher(encKey));
+    mSymCipher.reset(new mega::SymmCipher(encKey));
 }
 
 void MegaEncryptor::incrementPacketCtr()
@@ -374,15 +372,21 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
         return 1;
     }
 
-    // set current encryption key in symCipher
-    Keyid_t keyId = mMyPeer.getCurrentKeyId();
-    std::string encryptionKey = mMyPeer.getKey(keyId);
-    if (encryptionKey.empty())
+    // get keyId for peer
+    Keyid_t auxKeyId = mMyPeer.getCurrentKeyId();
+    if (!mSymCipher || (auxKeyId != mKeyId))
     {
-        RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d", keyId);
-        //return ERRCODE
+        // If there's no key armed in SymCipher or keyId doesn't match with current one
+        mKeyId = auxKeyId;
+        std::string encryptionKey = mMyPeer.getKey(auxKeyId);
+        if (encryptionKey.empty())
+        {
+            RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d", auxKeyId);
+            // TODO: manage errors and define error codes
+            return 1;
+        }
+        setEncryptionKey(encryptionKey);
     }
-    setEncryptionKey(encryptionKey);
 
     // generate frame iv
     mega::unique_ptr<byte []> iv(generateFrameIV());

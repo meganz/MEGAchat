@@ -315,6 +315,9 @@ private:
     // sequential number of the packet
     Ctr_t mCtr = 0;
 
+    // keyId of current key armed in SymCipher
+    Keyid_t mKeyId = 0;
+
     // own peer
     const sfu::Peer& mMyPeer;
 
