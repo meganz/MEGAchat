@@ -455,55 +455,51 @@ MegaDecryptor::~MegaDecryptor()
 void MegaDecryptor::setDecryptionKey(const std::string &decryptKey)
 {
     const unsigned char *decKey = reinterpret_cast<const unsigned char*>(decryptKey.data());
-    mSymCipher
-            ? mSymCipher->setkey(decKey)
-            : mSymCipher.reset(new mega::SymmCipher(decKey));
-
+    mSymCipher.reset(new mega::SymmCipher(decKey));
 }
 
 /*
- * Frame format: header.8: <keyId.1> <CID.3> <packetCTR.4>
+ * header format: <header.8> = <keyId.1> <cid.3> <packetCTR.4>
  * Note: (keyId.1 senderCID.3) and packetCtr.4 are little-endian (No need byte-order swap) 32-bit integers.
  */
-byte* MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> encrypted_frame)
+bool MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header)
 {
-    if (!encrypted_frame.size())
+    assert(header.size() == FRAME_HEADER_LENGTH);
+    const uint8_t *headerData = header.data();
+
+    // extract keyId from header
+    Keyid_t auxKeyId = 0;
+    memcpy(&auxKeyId, headerData, FRAME_KEYID_LENGTH);
+    if (!mSymCipher || (auxKeyId != mKeyId))
     {
-        return nullptr;
+        // If there's no key armed in SymCipher or keyId doesn't match with current one
+        mKeyId = auxKeyId;
+        std::string decryptionKey = mPeer.getKey(auxKeyId);
+        if (decryptionKey.empty())
+        {
+            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d", auxKeyId);
+            return false;
+        }
+        setDecryptionKey(decryptionKey);
     }
 
-    const uint8_t *data = encrypted_frame.data();
-
-    // extract keyId and if it's valid, set key into SymCipher
-    Keyid_t keyId = 0;
-    memcpy(&keyId, data, FRAME_KEYID_LENGTH);
-    std::string decryptionKey = mPeer.getKey(keyId);
-    if (decryptionKey.empty())
-    {
-        RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d", keyId);
-        return nullptr;
-    }
-    setDecryptionKey(decryptionKey);
-
-    // check if frame CID matches with expected one
+    // extract CID from header, and check if matches with expected one
     uint8_t offset = FRAME_KEYID_LENGTH;
     Cid_t peerCid = 0;
-    memcpy(&peerCid, data + offset, FRAME_CID_LENGTH);
+    memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
     if (peerCid != mPeer.getCid())
     {
         RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);
-        return nullptr;
+        return false;
     }
 
-    // extract packet ctr and update mCtr (ctr will be used to generate an IV to decrypt the frame)
+    // extract packet ctr from header, and update mCtr (ctr will be used to generate an IV to decrypt the frame)
     offset += FRAME_CID_LENGTH;
-    memcpy(&mCtr, data + offset, FRAME_CTR_LENGTH);
-
-    byte *header = new byte[FRAME_HEADER_LENGTH];
-    memcpy(header, data, FRAME_HEADER_LENGTH);
-    return header;
+    memcpy(&mCtr, headerData + offset, FRAME_CTR_LENGTH);
+    return true;
 }
 
+/* frame IV format: <frameIv.12> = <frameCtr.4> <staticIv.8> */
 std::shared_ptr<byte []> MegaDecryptor::generateFrameIV()
 {
     std::shared_ptr<byte []>iv(new byte[FRAME_IV_LENGTH]);
@@ -512,39 +508,41 @@ std::shared_ptr<byte []> MegaDecryptor::generateFrameIV()
     return iv;
 }
 
+/* frame format: <receivedFrame.N> = <header.8> <encframeData.M> <gcmTag.4>
+ * Note: encframeData length (M) = receivedFrame_length(N) - header_length(8) - gcmTag_length(4) */
 webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaType media_type, const std::vector<uint32_t> &csrcs, rtc::ArrayView<const uint8_t> additional_data, rtc::ArrayView<const uint8_t> encrypted_frame, rtc::ArrayView<uint8_t> frame)
 {
-    // validate and extract header to be authenticated in gcm_decrypt_aad
-    mega::unique_ptr<byte []> header(validateAndProcessHeader(encrypted_frame));
-    if (!header)
+    if (encrypted_frame.empty())
     {
         return Result(Status::kRecoverable, 0);
     }
 
-    // generate iv using packet CRT received in frame header
+    // extract header, encrypted frame data, and gcmTag(message hash or MAC) from encrypted_frame
+    rtc::ArrayView<const byte> header = encrypted_frame.subview(0, FRAME_HEADER_LENGTH);
+    rtc::ArrayView<const byte> data   = encrypted_frame.subview(FRAME_HEADER_LENGTH, encrypted_frame.size() - FRAME_HEADER_LENGTH - FRAME_GCM_TAG_LENGTH);
+    rtc::ArrayView<const byte> gcmTag = encrypted_frame.subview(encrypted_frame.size() - FRAME_GCM_TAG_LENGTH);
+    assert(encrypted_frame.size() == (header.size() + data.size()+ gcmTag.size()));
+
+    // validate header and extract keyid, cid and Ctr
+    if (!validateAndProcessHeader(header))
+    {
+        return Result(Status::kRecoverable, 0);
+    }
+
+    // re-build frame iv with staticIv and frame CTR
     std::shared_ptr<byte[]> iv = generateFrameIV();
 
-    // copy encrypted_frame content into a string
-    std::string encFrame;
-    std::string plainFrame;
-    const char *auxData = reinterpret_cast<const char *>(encrypted_frame.data());
-    size_t auxSize = encrypted_frame.size();
-    for (unsigned int i = 0; i < auxSize; i++)
-    {
-        encFrame.push_back(auxData[i]);
-    }
-
-    // Remove header
-    encFrame.erase(0, FRAME_HEADER_LENGTH);
-
     // decrypt frame
-    bool result = mSymCipher->gcm_decrypt_aad(&encFrame, header.get(), FRAME_HEADER_LENGTH, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &plainFrame);
-    if (!result)
+    std::string plainFrame;
+    if (!mSymCipher->gcm_decrypt_aad(data.data(), data.size(),
+                                     header.data(), FRAME_HEADER_LENGTH,
+                                     gcmTag.data(), FRAME_GCM_TAG_LENGTH,
+                                     iv.get(), FRAME_IV_LENGTH, &plainFrame))
     {
         return Result(Status::kRecoverable, 0);
     }
 
-    // add decrypted frame to the output
+    // add decrypted data to the output
     for (unsigned int i = 0; i < plainFrame.size(); i++)
     {
         frame[i] = static_cast<uint8_t> (plainFrame[i]);
