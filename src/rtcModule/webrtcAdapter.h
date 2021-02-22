@@ -7,9 +7,9 @@
 #include "base/gcmpp.h"
 #include "karereCommon.h" //only for std::string on android
 #include "base/promise.h"
-#include "webrtcAsyncWaiter.h"
 #include "rtcmPrivate.h"
 #include <rtc_base/ref_counter.h>
+#include <base/trackDelete.h>
 
 #ifdef __OBJC__
 @class AVCaptureDevice;
@@ -35,7 +35,10 @@ namespace artc
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 
 extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
-extern AsyncWaiter* gAsyncWaiter;
+extern std::unique_ptr<rtc::Thread> gNetworkThread;
+extern std::unique_ptr<rtc::Thread> gWorkerThread;
+extern std::unique_ptr<rtc::Thread> gSignalingThread;
+extern void* gAppCtx;
 
 struct Identity
 {
@@ -71,19 +74,22 @@ enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
 // and using that mechanism webrtc marshalls the calls on the main/GUI thread by itself,
 // thus we don't need to do that. Define RTCM_MARSHALL_CALLBACKS if you want the callbacks
 // marshalled by Karere. This should not be needed.
-
+#define RTCM_MARSHALL_CALLBACKS
 #ifdef RTCM_MARSHALL_CALLBACKS
 #define RTCM_DO_CALLBACK(code,...)      \
-    ::mega::marshallCall([__VA_ARGS__]() mutable { \
+    auto wptr = weakHandle();   \
+    karere::marshallCall([wptr, __VA_ARGS__](){ \
+        if (wptr.deleted())   \
+            return; \
         code;                                    \
-    })
+    }, gAppCtx)
 #else
 #define RTCM_DO_CALLBACK(code,...)                              \
     assert(rtc::Thread::Current() == gAsyncWaiter->guiThread()); \
     code
 #endif
 
-class SdpCreateCallbacks : public webrtc::CreateSessionDescriptionObserver
+class SdpCreateCallbacks : public webrtc::CreateSessionDescriptionObserver, public karere::DeleteTrackable
 {
 public:
   // The implementation of the CreateSessionDescriptionObserver takes
@@ -132,7 +138,7 @@ struct IceCandText
     }
 };
 
-class SdpSetCallbacks : public webrtc::SetSessionDescriptionObserver
+class SdpSetCallbacks : public webrtc::SetSessionDescriptionObserver, public karere::DeleteTrackable
 {
 public:
     typedef promise::Promise<void> PromiseType;
@@ -148,9 +154,7 @@ public:
     virtual void OnFailure(webrtc::RTCError error)
     {
         RTCM_DO_CALLBACK(
-            mPromise.reject(::promise::Error(error.message(), kSetSdpDescriptionFailed, ERRTYPE_RTC));
-            Release();
-        , this, error.message());
+            mPromise.reject(::promise::Error(error.message(), kSetSdpDescriptionFailed, ERRTYPE_RTC)); Release();, this, error);
     }
 
 protected:
@@ -158,12 +162,12 @@ protected:
 };
 
 template <class C>
-class myPeerConnection: public
-        rtc::scoped_refptr<webrtc::PeerConnectionInterface>
+class myPeerConnection: public rtc::scoped_refptr<webrtc::PeerConnectionInterface>
 {
 protected:
     //PeerConnectionObserver implementation
-    struct Observer: public webrtc::PeerConnectionObserver
+    struct Observer: public webrtc::PeerConnectionObserver,
+                     public karere::DeleteTrackable
     {
         Observer(C& handler):mHandler(handler){}
         virtual void OnError()
@@ -217,7 +221,7 @@ protected:
 
         virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
         {
-            RTCM_DO_CALLBACK(mHandler.onTrack(transceiver));
+            RTCM_DO_CALLBACK(mHandler.onTrack(transceiver), this, transceiver);
         }
 
     protected:
@@ -434,6 +438,7 @@ private:
     webrtc::VideoCaptureCapability mCapabilities;
     JNIEnv* mEnv;
 };
+
 #endif
 
 }
