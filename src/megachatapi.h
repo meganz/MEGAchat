@@ -150,6 +150,20 @@ public:
     virtual bool hasVideo() const;
 
     /**
+     * @brief Returns true if video quality is hight resolution for the session
+     *
+     * @return true if video quality is hight resolution, otherwise returns false
+     */
+    virtual bool isHiResVideo() const;
+
+    /**
+     * @brief Returns true if video quality is low resolution for the session
+     *
+     * @return true if video quality is low resolution, otherwise returns false
+     */
+    virtual bool isLowResVideo() const;
+
+    /**
      * @brief Returns the termination code for this session
      *
      * Possible values are:

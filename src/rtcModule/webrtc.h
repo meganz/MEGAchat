@@ -97,6 +97,7 @@ public:
     virtual ~ISession(){}
     virtual karere::Id getPeerid() const = 0;
     virtual Cid_t getClientid() const = 0;
+    virtual karere::AvFlags getAvFlags() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
@@ -110,6 +111,7 @@ public:
     virtual void onCallStateChange(ICall& call) = 0;
     virtual void onCallRinging(ICall& call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
+    virtual void onRemoteAvFlagsChange(ISession& session, const ICall& call) = 0;
 };
 
 class ICall

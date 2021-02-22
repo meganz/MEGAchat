@@ -174,6 +174,8 @@ public:
     virtual MegaChatHandle getClientid() const override;
     virtual bool hasAudio() const override;
     virtual bool hasVideo() const override;
+    virtual bool isHiResVideo() const override;
+    virtual bool isLowResVideo() const override;
     virtual int getTermCode() const override;
     virtual bool isLocalTermCode() const override;
     virtual int getNetworkQuality() const override;
@@ -182,6 +184,7 @@ public:
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
 
+    karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
     void setAvFlags(karere::AvFlags flags);
     void setNetworkQuality(int quality);
@@ -196,6 +199,7 @@ private:
     uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id peerid;
     uint32_t clientid;
+    karere::AvFlags mAvFlags = 0;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
 };
 
@@ -581,6 +585,7 @@ public:
     void onCallStateChange(rtcModule::ICall& call) override;
     void onCallRinging(rtcModule::ICall &call) override;
     void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
+    void onRemoteAvFlagsChange(rtcModule::ISession& sess, const rtcModule::ICall &call) override;
 
 protected:
     MegaChatApiImpl* mMegaChatApi;

@@ -78,6 +78,16 @@ bool MegaChatSession::hasVideo() const
     return false;
 }
 
+bool MegaChatSession::isHiResVideo() const
+{
+    return false;
+}
+
+bool MegaChatSession::isLowResVideo() const
+{
+    return false;
+}
+
 int MegaChatSession::getTermCode() const
 {
     return 0;

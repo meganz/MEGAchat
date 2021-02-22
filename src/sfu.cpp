@@ -34,7 +34,7 @@ Peer::Peer()
 {
 }
 
-Peer::Peer(Cid_t cid, karere::Id peerid, int avFlags, int mod)
+Peer::Peer(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod)
     : mCid(cid), mPeerid(peerid), mAvFlags(avFlags), mModerator(mod)
 {
 }
@@ -48,7 +48,7 @@ Peer::Peer(const Peer &peer)
 
 }
 
-void Peer::init(Cid_t cid, karere::Id peerid, int avFlags, int mod)
+void Peer::init(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod)
 {
     mCid = cid;
     mPeerid = peerid;
@@ -71,7 +71,7 @@ Keyid_t Peer::getCurrentKeyId() const
     return mCurrentkeyId;
 }
 
-int Peer::getAvFlags() const
+karere::AvFlags Peer::getAvFlags() const
 {
     return mAvFlags;
 }
@@ -354,7 +354,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
                  return;
             }
 
-            int av = avIterator->value.GetUint();
+            unsigned av = avIterator->value.GetUint();
 
             int mod = 0;
             rapidjson::Value::ConstMemberIterator modIterator = it->value[j].FindMember("mod");

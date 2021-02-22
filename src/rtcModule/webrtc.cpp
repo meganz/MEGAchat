@@ -413,6 +413,7 @@ bool Call::hasCallKey()
 bool Call::handleAvCommand(Cid_t cid, int av)
 {
     mSessions[cid]->setAvFlags(av);
+    mCallHandler->onRemoteAvFlagsChange(*mSessions[cid], *this);
     return true;
 }
 
@@ -1160,5 +1161,10 @@ karere::Id Session::getPeerid() const
 Cid_t Session::getClientid() const
 {
     return mPeer.getCid();
+}
+
+karere::AvFlags Session::getAvFlags() const
+{
+    return mPeer.getAvFlags();
 }
 }

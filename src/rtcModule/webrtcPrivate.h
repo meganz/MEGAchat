@@ -78,6 +78,7 @@ public:
     void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
     karere::Id getPeerid() const override;
     Cid_t getClientid() const override;
+    karere::AvFlags getAvFlags() const override;
 
 private:
     sfu::Peer mPeer;

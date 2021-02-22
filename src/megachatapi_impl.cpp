@@ -5716,6 +5716,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     : state(SESSION_STATUS_INVALID)
     , peerid(session.getPeerid())
     , clientid(session.getClientid())
+    , mAvFlags(session.getAvFlags())
     , mChanged(CHANGE_TYPE_NO_CHANGES)
 {
 }
@@ -5724,6 +5725,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     : state(session.getStatus())
     , peerid(session.getPeerid())
     , clientid(session.getClientid())
+    , mAvFlags(session.getAvFlags())
     , mChanged(session.getChanges())
 {
 }
@@ -5754,13 +5756,24 @@ MegaChatHandle MegaChatSessionPrivate::getClientid() const
 
 bool MegaChatSessionPrivate::hasAudio() const
 {
-    return false;
+    return mAvFlags.audio();
 }
 
 bool MegaChatSessionPrivate::hasVideo() const
 {
-    return false;
+    return mAvFlags.video();
 }
+
+bool MegaChatSessionPrivate::isHiResVideo() const
+{
+    return mAvFlags.videoHiRes();
+}
+
+bool MegaChatSessionPrivate::isLowResVideo() const
+{
+    return mAvFlags.videoLowRes();
+}
+
 int MegaChatSessionPrivate::getTermCode() const
 {
     return false;
@@ -5794,6 +5807,11 @@ int MegaChatSessionPrivate::getChanges() const
 bool MegaChatSessionPrivate::hasChanged(int changeType) const
 {
     return (mChanged & changeType);
+}
+
+karere::AvFlags MegaChatSessionPrivate::getAvFlags() const
+{
+    return mAvFlags;
 }
 
 void MegaChatSessionPrivate::setState(uint8_t state)
@@ -8597,6 +8615,15 @@ void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModul
     sess.setSessionHandler(sessionHandler);
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(sess);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_AUDIO_REQUESTED);
+    mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());
+}
+
+void MegaChatCallHandler::onRemoteAvFlagsChange(rtcModule::ISession& sess, const rtcModule::ICall &call)
+{
+    MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);
+    sess.setSessionHandler(sessionHandler);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(sess);
+    megaSession->setChange(MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS);
     mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());
 }
 
