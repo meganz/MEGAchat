@@ -580,7 +580,7 @@ public:
     ~MegaChatCallHandler();
     void onCallStateChange(rtcModule::ICall& call) override;
     void onCallRinging(rtcModule::ICall &call) override;
-    void onNewSession(rtcModule::ISession& session) override;
+    void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
 
 protected:
     MegaChatApiImpl* mMegaChatApi;
@@ -589,9 +589,11 @@ protected:
 class MegaChatSessionHandler : public rtcModule::SessionHandler
 {
 public:
-    MegaChatSessionHandler(MegaChatApiImpl *mMegaChatApi);
+    MegaChatSessionHandler(MegaChatApiImpl *mMegaChatApi, const rtcModule::ICall& call);
     virtual ~MegaChatSessionHandler();
-    void onSpeakRequest(rtcModule::ISession& session, bool requested);
+    void onSpeakRequest(rtcModule::ISession& session, bool requested) override;
+    void onVThumbReceived(rtcModule::ISession& session) override;
+    void onHiResReceived(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;

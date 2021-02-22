@@ -85,16 +85,21 @@ enum CallState: uint8_t
 class ISession;
 class SessionHandler
 {
+public:
     virtual void onSpeakRequest(ISession& session, bool requested) = 0;
-
+    virtual void onVThumbReceived(ISession& session) = 0;
+    virtual void onHiResReceived(ISession& session) = 0;
 };
 
 class ISession
 {
 public:
     virtual ~ISession(){}
+    virtual karere::Id getPeerid() const = 0;
+    virtual Cid_t getClientid() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
-
+    virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
+    virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
 };
 
 class ICall;
@@ -104,7 +109,7 @@ public:
     virtual ~CallHandler(){}
     virtual void onCallStateChange(ICall& call) = 0;
     virtual void onCallRinging(ICall& call) = 0;
-    virtual void onNewSession(ISession& session) = 0;
+    virtual void onNewSession(ISession& session, const ICall& call) = 0;
 };
 
 class ICall
@@ -112,6 +117,7 @@ class ICall
 public:
     virtual karere::Id getCallid() const = 0;
     virtual karere::Id getChatid() const = 0;
+    virtual karere::Id getCallerid() const = 0;
     virtual CallState getState() const = 0;
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
@@ -123,6 +129,7 @@ public:
     virtual void setRinging(bool ringing) = 0;
     virtual bool isRinging() const = 0;
 
+    virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;
     virtual void requestModerator() = 0;
     virtual void requestSpeaker(bool add = true) = 0;
@@ -159,7 +166,7 @@ public:
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
     virtual void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) = 0;
-    virtual void handleNewCall(karere::Id chatid, karere::Id callid, bool isRinging) = 0;
+    virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging) = 0;
 };
 
 

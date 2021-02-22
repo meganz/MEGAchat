@@ -90,6 +90,8 @@ public:
         CHANGE_TYPE_STATUS = 0x01,                  /// Session status has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x02,          /// Remote audio/video flags has changed
         CHANGE_TYPE_SESSION_AUDIO_REQUESTED = 0x04, /// Session audio requested
+        CHANGE_TYPE_SESSION_ON_VTHUMB = 0x08,       /// Vthumb video received
+        CHANGE_TYPE_SESSION_ON_HIRES = 0x10,       /// Hi-Res video received
     };
 
 

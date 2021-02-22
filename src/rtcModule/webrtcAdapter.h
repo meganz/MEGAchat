@@ -315,6 +315,9 @@ private:
     // sequential number of the packet
     Ctr_t mCtr = 0;
 
+    // keyId of current key armed in SymCipher
+    Keyid_t mKeyId = 0;
+
     // own peer
     const sfu::Peer& mMyPeer;
 
@@ -335,8 +338,7 @@ public:
     void setDecryptionKey(const std::string &decryptKey);
 
     // validates header by checking if CID matches with expected one, also extracts keyId and packet CTR */
-    webrtc::FrameDecryptorInterface::Status validateAndProcessHeader(rtc::ArrayView<const uint8_t>
-                                                                      encrypted_frame);
+    bool validateAndProcessHeader(rtc::ArrayView<const uint8_t> header);
 
     // rebuild the IV for a received frame, you take the ownership of returned value
     std::shared_ptr<byte[]> generateFrameIV();
@@ -358,6 +360,9 @@ private:
 
     // sequential number of the packet
     Ctr_t mCtr = 0;
+
+    // keyId of current key armed in SymCipher
+    Keyid_t mKeyId = 0;
 
     // peer
     const sfu::Peer& mPeer;

@@ -5713,6 +5713,10 @@ void MegaChatRequestPrivate::setParamType(int paramType)
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &session)
+    : state(SESSION_STATUS_INVALID)
+    , peerid(session.getPeerid())
+    , clientid(session.getClientid())
+    , mChanged(CHANGE_TYPE_NO_CHANGES)
 {
 }
 
@@ -5843,6 +5847,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     chatid = call.getChatid();
     callid = call.getCallid();
     status = call.getState();
+    callerId = call.getCallerid();
+
     if (call.getState() == rtcModule::CallState::kStateInitial)
     {
         mChanged = CHANGE_TYPE_STATUS;
@@ -8585,16 +8591,20 @@ void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
-void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess)
+void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModule::ICall &call)
 {
-    MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi);
+    MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);
     sess.setSessionHandler(sessionHandler);
-    AvFlags av;
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(sess);
+    megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_AUDIO_REQUESTED);
+    mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());
 }
 
-MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi)
+MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {
     this->mMegaChatApi = megaChatApi;
+    this->mChatid = call.getChatid();
+    this->mCallid = call.getCallid();
 }
 
 MegaChatSessionHandler::~MegaChatSessionHandler()
@@ -8609,6 +8619,21 @@ void MegaChatSessionHandler::onSpeakRequest(rtcModule::ISession &session, bool r
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
+void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
+{
+    session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_VTHUMB);
+    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
+}
+
+void MegaChatSessionHandler::onHiResReceived(rtcModule::ISession& session)
+{
+    session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES);
+    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
+}
 
 #endif
 

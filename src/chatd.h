@@ -1537,7 +1537,9 @@ public:
     //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
     // - Version 8:
     //  * Solves several bugs related to missing RETENTION time upon re-joins, anonymous previewers and others
-    static const unsigned chatdVersion = 8;
+    // - Version 9:
+    //  * Add commands OP_JOINEDCALL, OP_LEFTCALL, OP_CALLSTATE, OP_CALLEND
+    static const unsigned chatdVersion = 9;
 
     // Minimum retention history check period (in seconds)
     static const unsigned kMinRetentionTimeout = 60;
