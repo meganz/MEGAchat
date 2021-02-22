@@ -247,15 +247,13 @@ AVCommand::AVCommand(const AvCompleteFunction &complete)
 bool AVCommand::processCommand(const rapidjson::Document &command)
 {
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsString())
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsInt())
     {
         SFU_LOG_ERROR("Received data doesn't have 'cid' field");
         return false;
     }
 
-    std::string cidString = cidIterator->value.GetString();
-    ::mega::MegaHandle cid = ::mega::MegaApi::base64ToUserHandle(cidString.c_str());
-
+    Cid_t cid = cidIterator->value.GetUint();
     rapidjson::Value::ConstMemberIterator avIterator = command.FindMember("av");
     if (avIterator == command.MemberEnd() || !avIterator->value.IsInt())
     {
