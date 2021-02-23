@@ -21,7 +21,7 @@ std::string HiResStopCommand::COMMAND_NAME = "HIRES_STOP";
 std::string SpeakReqsCommand::COMMAND_NAME = "SPEAK_REQS";
 std::string SpeakReqDelCommand::COMMAND_NAME = "SPEAK_RQ_DEL";
 std::string SpeakOnCommand::COMMAND_NAME = "SPEAK_ON";
-std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OfF";
+std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OFF";
 std::string StatCommand::COMMAND_NAME = "STAT";
 std::string PeerJoinCommand::COMMAND_NAME = "PEERJOIN";
 std::string PeerLeftCommand::COMMAND_NAME = "PEERLEFT";
@@ -219,7 +219,6 @@ uint8_t Command::hexDigitVal(char value)
     {
         return 10 + value - 65; // 'A'
     }
-
 }
 
 std::string Command::binaryToHex(uint64_t value)
