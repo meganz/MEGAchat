@@ -92,7 +92,7 @@ private:
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false, unsigned avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
@@ -123,6 +123,8 @@ public:
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
     void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
 
+    karere::AvFlags getLocalAvFlags() override;
+    void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setState(CallState state);
     void connectSfu(const std::string& sfuUrl);
     void createTranceiver();
@@ -170,7 +172,7 @@ public:
     bool mModeratorRequested = false;
     bool mSpeakerRequested = false;
     bool mSpeakAllow = false;
-    karere::AvFlags mAv = 0;
+    karere::AvFlags mLocalAvFlags = 0; // local Av flags
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;

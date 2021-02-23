@@ -8,12 +8,13 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator, unsigned avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
     , mState(kStateInitial)
     , mIsRinging(isRinging)
+    , mLocalAvFlags(static_cast<uint8_t>(avflags))
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
     , mSfuClient(sfuClient)
@@ -43,7 +44,6 @@ karere::Id Call::getCallerid() const
 {
     return mCallerId;
 }
-
 
 void Call::setState(CallState state)
 {
@@ -160,6 +160,17 @@ void Call::requestModerator()
 
     mModeratorRequested = true;
     mSfuConnection->sendModeratorRequested();
+}
+
+karere::AvFlags Call::getLocalAvFlags()
+{
+    return mLocalAvFlags;
+}
+
+void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
+{
+    mLocalAvFlags = flags;
+    mSfuConnection->sendAv(flags.value());
 }
 
 void Call::requestSpeaker(bool add)
@@ -347,7 +358,7 @@ void Call::getLocalStreams()
             artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
 
     mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
-    audioTrack->set_enabled(mAv.audio());
+    audioTrack->set_enabled(mLocalAvFlags.audio());
 
     rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
     webrtc::VideoCaptureCapability capabilities;
@@ -358,12 +369,12 @@ void Call::getLocalStreams()
     mVideoDevice = artc::VideoManager::Create(capabilities, videoDevices.begin()->second, artc::gAsyncWaiter->guiThread());
     videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
 
-    if (mAv.video())
+    if (mLocalAvFlags.video())
     {
         mVideoDevice->openDevice(videoDevices.begin()->second);
     }
 
-    videoTrack->set_enabled(mAv.video());
+    videoTrack->set_enabled(mLocalAvFlags.video());
 
     mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
     rtc::VideoSinkWants wants;
