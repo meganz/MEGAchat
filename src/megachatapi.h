@@ -68,10 +68,9 @@ class MegaChatNodeHistoryListener;
  *
  * The states that a session has during its life time are:
  * Outgoing call:
- *  - SESSION_STATUS_INVALID
- *  - SESSION_STATUS_INITIAL
- *  - SESSION_STATUS_IN_PROGRESS
- *  - SESSION_STATUS_DESTROYED
+ *  - SESSION_STATUS_INVALID = 0xFF
+ *  - SESSION_STATUS_IN_PROGRESS = 0
+ *  - SESSION_STATUS_DESTROYED = 1
  */
 class MegaChatSession
 {
@@ -79,8 +78,7 @@ public:
     enum
     {
         SESSION_STATUS_INVALID = 0xFF,
-        SESSION_STATUS_INITIAL = 0,         /// Session is being negotiated between peers
-        SESSION_STATUS_IN_PROGRESS,         /// Session is established and there is communication between peers
+        SESSION_STATUS_IN_PROGRESS = 0,         /// Session is operative
         SESSION_STATUS_DESTROYED            /// Session is finished and resources can be released
     };
 
@@ -115,9 +113,8 @@ public:
      *
      * @return the session status
      * Valid values are:
-     *  - SESSION_STATUS_INITIAL = 0
-     *  - SESSION_STATUS_IN_PROGRESS = 1
-     *  - SESSION_STATUS_DESTROYED = 2
+     *  - SESSION_STATUS_IN_PROGRESS = 0
+     *  - SESSION_STATUS_DESTROYED = 1
      */
     virtual int getStatus() const;
 

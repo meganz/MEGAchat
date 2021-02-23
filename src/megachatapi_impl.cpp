@@ -8637,6 +8637,13 @@ void MegaChatSessionHandler::onHiResReceived(rtcModule::ISession& session)
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
+void MegaChatSessionHandler::onDestroySession(rtcModule::ISession &session)
+{
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    megaSession->setChange(MegaChatSession::CHANGE_TYPE_STATUS);
+    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
+}
+
 #endif
 
 MegaChatListItemListPrivate::MegaChatListItemListPrivate()

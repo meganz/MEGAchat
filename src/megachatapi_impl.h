@@ -595,6 +595,7 @@ public:
     void onSpeakRequest(rtcModule::ISession& session, bool requested) override;
     void onVThumbReceived(rtcModule::ISession& session) override;
     void onHiResReceived(rtcModule::ISession& session) override;
+    void onDestroySession(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;

@@ -21,6 +21,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
 {
     mMyPeer.setModerator(moderator);
     mGlobalCallHandler.onNewCall(*this);
+    mSessions.clear();
 }
 
 Call::~Call()
@@ -1076,6 +1077,8 @@ Session::Session(const sfu::Peer &peer)
 
 Session::~Session()
 {
+    mState = kSessStateDestroyed;
+    mSessionHandler->onDestroySession(*this);
 }
 
 void Session::setSessionHandler(SessionHandler* sessionHandler)
