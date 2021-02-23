@@ -197,6 +197,7 @@ private:
     karere::Id peerid;
     uint32_t clientid;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
+    karere::AvFlags mAVFlags;
 };
 
 class MegaChatCallPrivate : public MegaChatCall

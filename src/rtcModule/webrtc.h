@@ -73,13 +73,19 @@ enum TermCode: uint8_t
 
 enum CallState: uint8_t
 {
-    kStateInitial,      // < Call object was initialised
+    kStateInitial = 0,      // < Call object was initialised
     kStateUserNoParticipating,  // < User is not particpating in the call
     kStateConnecting,   // < Connecting to SFU
     kStateJoining,      // < Joining a call
     kStateInProgress,
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
     kStateDestroyed    // < Call object is not valid anymore, the call is removed from the system
+};
+
+enum SessionState: uint8_t
+{
+    kSessStateInProgress = 0,
+    kSessStateDestroyed    // < Call object is not valid anymore, the call is removed from the system
 };
 
 class ISession;
@@ -97,6 +103,8 @@ public:
     virtual ~ISession(){}
     virtual karere::Id getPeerid() const = 0;
     virtual Cid_t getClientid() const = 0;
+    virtual SessionState getState() const = 0;
+    virtual karere::AvFlags getAvFlags() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;

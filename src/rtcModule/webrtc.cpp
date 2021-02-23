@@ -1161,4 +1161,14 @@ Cid_t Session::getClientid() const
 {
     return mPeer.getCid();
 }
+
+SessionState Session::getState() const
+{
+    return mState;
+}
+
+karere::AvFlags Session::getAvFlags() const
+{
+    return mPeer.getAvFlags();
+}
 }

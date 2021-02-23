@@ -5713,10 +5713,11 @@ void MegaChatRequestPrivate::setParamType(int paramType)
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &session)
-    : state(SESSION_STATUS_INVALID)
+    : state(session.getState())
     , peerid(session.getPeerid())
     , clientid(session.getClientid())
     , mChanged(CHANGE_TYPE_NO_CHANGES)
+    , mAVFlags(session.getAvFlags())
 {
 }
 
@@ -5725,6 +5726,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , peerid(session.getPeerid())
     , clientid(session.getClientid())
     , mChanged(session.getChanges())
+    , mAVFlags(session.mAVFlags)
 {
 }
 
@@ -8596,7 +8598,7 @@ void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModul
     MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);
     sess.setSessionHandler(sessionHandler);
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(sess);
-    megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_AUDIO_REQUESTED);
+    megaSession->setChange(MegaChatSession::CHANGE_TYPE_STATUS);
     mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());
 }
 

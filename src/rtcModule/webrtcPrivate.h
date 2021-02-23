@@ -78,6 +78,8 @@ public:
     void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
     karere::Id getPeerid() const override;
     Cid_t getClientid() const override;
+    SessionState getState() const override;
+    karere::AvFlags getAvFlags() const override;
 
 private:
     sfu::Peer mPeer;
@@ -86,6 +88,7 @@ private:
     Slot* mAudioSlot = nullptr;
     SessionHandler* mSessionHandler = nullptr;
     bool mSpeakRequest = false;
+    SessionState mState = kSessStateInProgress;
 };
 
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall

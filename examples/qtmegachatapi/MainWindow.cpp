@@ -195,32 +195,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 //                window->enableCallReconnect(true);
 //                break;
 //            }
-//            case megachat::MegaChatCall::CALL_STATUS_REQUEST_SENT:
-//            {
-//                std::set<CallGui *> *setCallGui = window->getCallGui();
-
-//                if (setCallGui->size() == 0)
-//                {
-//                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
-//                }
-
-//                break;
-//            }
+//
             case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
             {
                 window->hangCall();
                 return;
             }
-//            case megachat::MegaChatCall::CALL_STATUS_RING_IN:
-//            {
-//                std::set<CallGui *> *setCallGui = window->getCallGui();
-
-//                if (setCallGui->size() == 0)
-//                {
-//                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()), call->isOnHold());
-//                }
-//                break;
-//            }
 //            case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
 //            {
 //                window->enableCallReconnect(false);
@@ -303,11 +283,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
     {
-        CallGui* callGui = window->getMyCallGui();
-        if (callGui)
-        {
-            callGui->enableOnHold(call->isOnHold(), true);
-        }
+
     }
 }
 
@@ -321,55 +297,20 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
 
     ChatWindow *window = itemController->showChatWindow();
     assert(window);
+    assert(window->mMeetingView);
 
-    CallGui *callGui = nullptr;
-    std::set<CallGui *> *setOfCallGui = window->getCallGui();
-    std::set<CallGui *>::iterator it;
-    for (it = setOfCallGui->begin(); it != setOfCallGui->end(); ++it)
+
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
     {
-        callGui = *it;
-        if (callGui->getPeerid() == session->getPeerid() && callGui->getClientid() == session->getClientid())
+        if (session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
         {
-            break;
-        }
-    }
-
-    if (callGui == nullptr)
-    {
-        return;
-    }
-
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS) &&
-            session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
-    {
-        if (session->hasVideo())
-        {
-            callGui->ui->videoRenderer->disableStaticImage();
+            // TODO: add to peer list View
         }
         else
         {
-            callGui->setAvatar();
-            callGui->ui->videoRenderer->enableStaticImage();
+            window->mMeetingView->removeThumb(session->getPeerid());
+            window->mMeetingView->removeHiRes(session->getPeerid());
         }
-
-        updateVideoParticipants(chatid);
-        callGui->setPeerAudioVideoFlag(session->hasAudio(), session->hasVideo());
-    }
-
-    //NEW SESSIONS
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
-    {
-       assert(session);
-       switch (session->getStatus())
-       {
-           case MegaChatSession::SESSION_STATUS_IN_PROGRESS:
-           {
-               window->connectPeerCallGui(session->getPeerid(), session->getClientid());
-               updateVideoParticipants(chatid);
-               callGui->setPeerAudioVideoFlag(session->hasAudio(), session->hasVideo());
-               break;
-           }
-       }
     }
 }
 
@@ -380,18 +321,6 @@ MegaChatApplication* MainWindow::getApp() const
 
 void MainWindow::updateVideoParticipants(MegaChatHandle chatid)
 {
-    ChatListItemController *itemController = getChatControllerById(chatid);
-    ChatWindow *window = itemController->showChatWindow();
-    assert(window);
-
-    std::unique_ptr<MegaChatCall> call;
-    call.reset(mMegaChatApi->getChatCall(chatid));
-
-    CallGui* callGui = window->getMyCallGui();
-    if (callGui)
-    {
-        callGui->setVideoPaticipant(call->getNumParticipants(MegaChatCall::VIDEO));
-    }
 }
 
 #endif

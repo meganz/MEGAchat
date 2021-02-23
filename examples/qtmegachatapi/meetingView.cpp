@@ -71,15 +71,19 @@ void MeetingView::addLocalVideo(PeerWidget *widget)
 void MeetingView::removeThumb(Cid_t cid)
 {
     auto it = mThumbsWidget.find(cid);
-    assert(it != mThumbsWidget.end());
-    removeThumb(it->second);
+    if (it != mThumbsWidget.end())
+    {
+        removeThumb(it->second);
+    }
 }
 
 void MeetingView::removeHiRes(Cid_t cid)
 {
     auto it = mThumbsWidget.find(cid);
-    assert(it != mThumbsWidget.end());
-    removeThumb(it->second);
+    if (it != mThumbsWidget.end())
+    {
+        removeHiRes(it->second);
+    }
 }
 
 void MeetingView::removeThumb(PeerWidget *widget)
