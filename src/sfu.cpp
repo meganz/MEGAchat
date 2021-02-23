@@ -1438,7 +1438,7 @@ bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys
     return sendCommand(command);
 }
 
-bool SfuConnection::sendAv(int av)
+bool SfuConnection::sendAv(unsigned av)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
@@ -1446,7 +1446,7 @@ bool SfuConnection::sendAv(int av)
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value avValue(rapidjson::kNumberType);
-    avValue.SetInt(av);
+    avValue.SetUint(av);
     json.AddMember(rapidjson::Value("av"), avValue, json.GetAllocator());
 
     rapidjson::StringBuffer buffer;

@@ -350,7 +350,7 @@ public:
         promise::Promise<void> getPromiseConnection();
         bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, bool moderator, int avFlags, int speaker = -1, int vthumbs = -1);
         bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
-        bool sendAv(int av);
+        bool sendAv(unsigned av);
         bool sendGetVtumbs(const std::vector<karere::Id>& cids);
         bool sendDelVthumbs(const std::vector<karere::Id>& cids);
         bool sendGetHiRes(karere::Id cid, int r, int lo = -1);
