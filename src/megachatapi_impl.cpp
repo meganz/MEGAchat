@@ -5934,6 +5934,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     callid = call.getCallid();
     status = call.getState();
     callerId = call.getCallerid();
+    localAVFlags = call.getLocalAvFlags();
 
     if (call.getState() == rtcModule::CallState::kStateInitial)
     {

@@ -162,7 +162,7 @@ void Call::requestModerator()
     mSfuConnection->sendModeratorRequested();
 }
 
-karere::AvFlags Call::getLocalAvFlags()
+karere::AvFlags Call::getLocalAvFlags() const
 {
     return mLocalAvFlags;
 }

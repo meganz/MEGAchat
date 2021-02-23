@@ -125,7 +125,7 @@ public:
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
     void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
 
-    karere::AvFlags getLocalAvFlags() override;
+    karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setState(CallState state);
     void connectSfu(const std::string& sfuUrl);

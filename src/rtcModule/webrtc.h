@@ -147,7 +147,7 @@ public:
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
-    virtual karere::AvFlags getLocalAvFlags() = 0;
+    virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
 };
 
