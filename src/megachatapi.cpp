@@ -1044,6 +1044,16 @@ void MegaChatApi::stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, Meg
     pImpl->stoptHiResVideo(chatid, cid, listener);
 }
 
+void MegaChatApi::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+{
+    pImpl->requestLowResVideo(chatid, cids, listener);
+}
+
+void MegaChatApi::stoptLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+{
+    pImpl->stoptLowResVideo(chatid, cids, listener);
+}
+
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
     pImpl->addChatCallListener(listener);

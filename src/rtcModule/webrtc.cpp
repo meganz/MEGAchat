@@ -256,6 +256,16 @@ void Call::stopHighResolutionVideo(Cid_t cid)
     mSfuConnection->sendDelHiRes(cid);
 }
 
+void Call::requestLowResolutionVideo(const std::vector<karere::Id> &cids)
+{
+    mSfuConnection->sendGetVtumbs(cids);
+}
+
+void Call::stopLowResolutionVideo(const std::vector<karere::Id> &cids)
+{
+    mSfuConnection->sendDelVthumbs(cids);
+}
+
 void Call::connectSfu(const std::string &sfuUrl)
 {
     setState(CallState::kStateConnecting);

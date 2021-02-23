@@ -118,6 +118,8 @@ public:
     std::vector<Cid_t> getSpeakerRequested() override;
     void requestHighResolutionVideo(Cid_t cid) override;
     void stopHighResolutionVideo(Cid_t cid) override;
+    void requestLowResolutionVideo(const std::vector<karere::Id> &cids) override;
+    void stopLowResolutionVideo(const std::vector<karere::Id> &cids) override;
 
     void setCallHandler(CallHandler* callHanlder) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;

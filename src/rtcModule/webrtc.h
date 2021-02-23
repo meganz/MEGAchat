@@ -141,6 +141,8 @@ public:
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid) = 0;
     virtual void stopHighResolutionVideo(Cid_t cid) = 0;
+    virtual void requestLowResolutionVideo(const std::vector<karere::Id> &cids) = 0;
+    virtual void stopLowResolutionVideo(const std::vector<karere::Id> &cids) = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;

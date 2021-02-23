@@ -2113,7 +2113,7 @@ void MegaChatApiImpl::sendPendingRequests()
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK_MODERATOR - Invalid chatid");
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid chatid");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
@@ -2121,7 +2121,7 @@ void MegaChatApiImpl::sendPendingRequests()
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK_MODERATOR  - There is not any call in that chatroom");
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO  - There is not any call in that chatroom");
                 errorCode = MegaChatError::ERROR_NOENT;
                 assert(false);
                 break;
@@ -2141,6 +2141,53 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+        case MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO:
+        {
+            handle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Invalid chatid");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            rtcModule::ICall *call = findCall(chatid);
+            if (!call)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO  - There is not any call in that chatroom");
+                errorCode = MegaChatError::ERROR_NOENT;
+                assert(false);
+                break;
+            }
+
+            if (!request->getMegaHandleList() || !request->getMegaHandleList()->size())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Invalid list of Cids");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            std::vector<karere::Id> cids;
+            const MegaHandleList *auxcids = request->getMegaHandleList();
+            for (size_t i = 0; i < auxcids->size(); i++)
+            {
+                cids.emplace_back(static_cast<Cid_t>(auxcids->get(static_cast<unsigned>(i))));
+            }
+
+            if (request->getFlag())
+            {
+                call->requestLowResolutionVideo(cids);
+            }
+            else
+            {
+                call->stopLowResolutionVideo(cids);
+            }
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
+
 #endif
         default:
         {
@@ -4660,6 +4707,26 @@ void MegaChatApiImpl::stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid,
     waiter->notify();
 }
 
+void MegaChatApiImpl::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(true);
+    request->setMegaHandleList(cids);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::stoptLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(false);
+    request->setMegaHandleList(cids);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::onNewCall(rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
@@ -5498,6 +5565,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_REQUEST_SPEAK_MODERATOR: return "REQUEST_SPEAK_MODERATOR";
         case TYPE_APPROVE_SPEAK_MODERATOR: return "APPROVE_SPEAK_MODERATOR_REQUEST";
         case TYPE_REQUEST_HIGH_RES_VIDEO: return "REQUEST_HIGH_RES_VIDEO";
+        case TYPE_REQUEST_LOW_RES_VIDEO: return "REQUEST_LOW_RES_VIDEO";
     }
     return "UNKNOWN";
 }
