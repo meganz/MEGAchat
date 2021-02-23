@@ -339,6 +339,7 @@ public:
         };
 
         SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call);
+        ~SfuConnection();
         bool isOnline() const;
         promise::Promise<void> connect();
         void disconnect();

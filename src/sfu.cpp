@@ -1121,6 +1121,14 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     mCommands[ErrorCommand::COMMAND_NAME] = mega::make_unique<ErrorCommand>(std::bind(&sfu::SfuInterface::handleError, &call, std::placeholders::_1, std::placeholders::_2));
 }
 
+SfuConnection::~SfuConnection()
+{
+    if (mConnState != kDisconnected)
+    {
+        disconnect();
+    }
+}
+
 bool SfuConnection::isOnline() const
 {
     return (mConnState >= kConnected);
