@@ -68,15 +68,15 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
         unsigned time;
         int loop;
     };
-    megaMessage::megaMessageFunc cfunc = persist
-        ? (megaMessage::megaMessageFunc) [](megaMessage* arg)
+    megaMessageFunc cfunc = persist
+        ? (megaMessageFunc) [](megaMessage* arg)
           {
               Msg* msg = static_cast<Msg*>(arg);
               if (msg->canceled)
                   return;
               msg->cb();
           }
-        : (megaMessage::megaMessageFunc) [](megaMessage* arg)
+        : (megaMessageFunc) [](megaMessage* arg)
           {
               timerMutex.lock();
               Msg* msg = static_cast<Msg*>(arg);
