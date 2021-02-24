@@ -23,7 +23,6 @@ namespace artc
 
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = nullptr;
-std::unique_ptr<rtc::Thread> gNetworkThread = nullptr;
 std::unique_ptr<rtc::Thread> gWorkerThread = nullptr;
 std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
 void *gAppCtx = nullptr;
@@ -40,21 +39,15 @@ bool init(void *appCtx)
 
     if (gWebrtcContext == nullptr)
     {
-        gNetworkThread = std::unique_ptr<rtc::Thread>(rtc::Thread::CreateWithSocketServer());
-        gNetworkThread->SetName("network_thread", nullptr);
-        RTC_CHECK(gNetworkThread->Start()) << "Failed to start thread";
+        gWorkerThread = rtc::Thread::Create();
+        gWorkerThread->Start();
 
-        gWorkerThread = std::unique_ptr<rtc::Thread>(rtc::Thread::Create());
-        gWorkerThread->SetName("worker_thread", nullptr);
-        RTC_CHECK(gWorkerThread->Start()) << "Failed to start thread";
-
-        gSignalingThread = std::unique_ptr<rtc::Thread>(rtc::Thread::Create());
-        gSignalingThread->SetName("signaling_thread", nullptr);
-        RTC_CHECK(gSignalingThread->Start()) << "Failed to start thread";
+        gSignalingThread = rtc::Thread::Create();
+        gSignalingThread->Start();
 
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
-                    gNetworkThread.get(), gWorkerThread.get(),
-                    gSignalingThread.get(), nullptr,
+                    nullptr /*networThread*/, gWorkerThread.get() /*workThread*/,
+                    gSignalingThread.get() /*signaledThread*/, nullptr,
                     webrtc::CreateBuiltinAudioEncoderFactory(),
                     webrtc::CreateBuiltinAudioDecoderFactory(),
                     webrtc::CreateBuiltinVideoEncoderFactory(),
@@ -78,7 +71,6 @@ void cleanup()
     rtc::CleanupSSL();
     rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
     gIsInitialized = false;
-    gNetworkThread.reset(nullptr);
     gWorkerThread.reset(nullptr);
     gSignalingThread.reset(nullptr);
 }

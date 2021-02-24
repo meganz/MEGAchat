@@ -35,7 +35,6 @@ namespace artc
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 
 extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
-extern std::unique_ptr<rtc::Thread> gNetworkThread;
 extern std::unique_ptr<rtc::Thread> gWorkerThread;
 extern std::unique_ptr<rtc::Thread> gSignalingThread;
 extern void* gAppCtx;
