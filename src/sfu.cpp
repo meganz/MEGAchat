@@ -247,7 +247,7 @@ AVCommand::AVCommand(const AvCompleteFunction &complete)
 bool AVCommand::processCommand(const rapidjson::Document &command)
 {
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsInt())
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
         SFU_LOG_ERROR("Received data doesn't have 'cid' field");
         return false;
@@ -273,7 +273,7 @@ AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete)
 bool AnswerCommand::processCommand(const rapidjson::Document &command)
 {
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsInt())
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
         SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'cid' field");
         return false;
@@ -598,7 +598,7 @@ SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &comple
 bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
 {
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsString())
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
         SFU_LOG_ERROR("Received data doesn't have 'cid' field");
         return false;
