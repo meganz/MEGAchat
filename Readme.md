@@ -36,7 +36,7 @@ Create a directory to download Webrtc (webrtc_dir) and add it to $PATH
  - `fetch --nohooks webrtc`  
  - `gclient sync`  
  - `cd ./src`  
- - `git checkout 9863f3d246e2da7a2e1f42bbc5757f6af5ec5682`
+ - `git checkout 41bfcf4a63611409220fcd458a03deaa2cd23619`
  - `gclient sync`  
 
 ### Chromium build system ###
