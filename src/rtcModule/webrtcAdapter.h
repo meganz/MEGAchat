@@ -166,7 +166,7 @@ class myPeerConnection: public rtc::scoped_refptr<webrtc::PeerConnectionInterfac
 protected:
     //PeerConnectionObserver implementation
     struct Observer: public webrtc::PeerConnectionObserver,
-                     public karere::DeleteTrackable
+                     public karere::DeleteTrackable    // required to use weakHandle() at RTCM_DO_CALLBACK()
     {
         Observer(C& handler):mHandler(handler){}
         virtual void OnError()
