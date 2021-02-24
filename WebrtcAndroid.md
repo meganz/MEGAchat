@@ -1,5 +1,5 @@
 # WebRTC for Android #
-We provide pre-built binaries and headers for arm32, arm64, x86 and x64. You can download them from [here](https://mega.nz/file/1qQTUIzY#Q3euQPnLZ5jpJCOE3GgNUfXp4Xw7nuuE_BG2eX73byI).
+We provide pre-built binaries and headers for arm32, arm64, x86 and x64. You can download them from [here](https://mega.nz/file/93AmybIL#RyKXV3L_TlQTvfXhh1vrmnwg_3S4HEdBAXjl4brcvFI).
 We strongly recommend to user the pre-built library, rather than build it by yourself. In case you want to build your own version, please, follow these steps:
 * Install the [Chromium depot tools](http://dev.chromium.org/developers/how-tos/install-depot-tools)
 * Download WebRTC and compile for all architectures
@@ -9,7 +9,7 @@ We strongly recommend to user the pre-built library, rather than build it by you
     cd webrtcAndroid
     fetch --nohooks webrtcAndroid
     cd src
-    git checkout 41bfcf4a63611409220fcd458a03deaa2cd23619`    (branch-heads/4405)
+    git checkout 41bfcf4a63611409220fcd458a03deaa2cd23619
     gclient sync
 ```
 Before compile, you need to modify the file `buildtools/third_party/libc++/trunk/include/__config`
