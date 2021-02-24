@@ -1509,8 +1509,7 @@ bool SfuConnection::sendGetHiRes(karere::Id cid, int r, int lo)
     cmdValue.SetString(CSFU_GET_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
-    std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-    json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+    json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
 
@@ -1528,8 +1527,7 @@ bool SfuConnection::sendDelHiRes(karere::Id cid)
     cmdValue.SetString(CSFU_DEL_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
-    std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-    json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+    json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
@@ -1544,8 +1542,7 @@ bool SfuConnection::sendHiResSetLo(karere::Id cid, int lo)
     cmdValue.SetString(CSFU_HIRES_SET_LO.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
-    std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-    json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+    json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
@@ -1580,8 +1577,7 @@ bool SfuConnection::sendSpeakReq(karere::Id cid)
 
     if (cid.isValid())
     {
-        std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-        json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+        json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     }
 
     rapidjson::StringBuffer buffer;
@@ -1600,8 +1596,7 @@ bool SfuConnection::sendSpeakReqDel(karere::Id cid)
 
     if (cid.isValid())
     {
-        std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-        json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+        json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     }
 
     rapidjson::StringBuffer buffer;
@@ -1620,8 +1615,7 @@ bool SfuConnection::sendSpeakDel(karere::Id cid)
 
     if (cid.isValid())
     {
-        std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-        json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+        json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     }
 
     rapidjson::StringBuffer buffer;
