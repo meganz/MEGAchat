@@ -497,8 +497,21 @@ VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete)
 
 bool VthumbsCommand::processCommand(const rapidjson::Document &command)
 {
+    Cid_t cid = 0;
     std::map<Cid_t, TrackDescriptor> tracks;
-
+    rapidjson::Value::ConstMemberIterator it = command.FindMember("tracks");
+    if (it != command.MemberEnd())
+    {
+        assert(it->value.IsObject());
+        for (auto itMember = it->value.MemberBegin(); itMember != it->value.MemberEnd(); ++itMember)
+        {
+            assert(itMember->name.IsString() && itMember->value.IsObject());
+            cid = static_cast<Cid_t>(atoi(itMember->name.GetString()));
+            TrackDescriptor td;
+            parseTrackDescriptor(td, itMember);
+            tracks[cid] = td; // add entry to map <cid, trackDescriptor>
+        }
+    }
     return mComplete(tracks);
 }
 
