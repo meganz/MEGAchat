@@ -1947,7 +1947,15 @@ PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete)
 
 bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
 {
-    return true;
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'cid' field");
+        return false;
+    }
+
+    ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
+    return mComplete(cid);
 }
 
 }

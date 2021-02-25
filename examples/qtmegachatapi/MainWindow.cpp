@@ -304,13 +304,18 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     {
         if (session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
         {
-            // TODO: add to peer list View
+            window->mMeetingView->addSession(*session);
         }
         else
         {
-            window->mMeetingView->removeThumb(session->getPeerid());
-            window->mMeetingView->removeHiRes(session->getPeerid());
+            window->mMeetingView->removeThumb(session->getClientid());
+            window->mMeetingView->removeHiRes(session->getClientid());
+            window->mMeetingView->removeSession(*session);
         }
+    }
+    else
+    {
+        window->mMeetingView->updateSession(*session);
     }
 }
 

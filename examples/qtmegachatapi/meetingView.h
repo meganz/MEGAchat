@@ -7,7 +7,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QHBoxLayout>
-#include <webrtc.h>
+#include <QListWidget>
 #include <map>
 
 class MeetingView : public QWidget
@@ -18,8 +18,11 @@ public:
     void addVthumb(PeerWidget* widget);
     void addHiRes(PeerWidget* widget);
     void addLocalVideo(PeerWidget* widget);
-    void removeThumb(Cid_t cid);
-    void removeHiRes(Cid_t cid);
+    void removeThumb(uint32_t cid);
+    void removeHiRes(uint32_t cid);
+    void addSession(const megachat::MegaChatSession& session);
+    void removeSession(const megachat::MegaChatSession& session);
+    void updateSession(const megachat::MegaChatSession& session);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -39,14 +42,21 @@ protected:
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
 
-    std::map<Cid_t, PeerWidget*> mThumbsWidget;
-    std::map<Cid_t, PeerWidget*> mHiResWidget;
+    QListWidget* mListWidget;
+
+
+    std::map<uint32_t, PeerWidget*> mThumbsWidget;
+    std::map<uint32_t, PeerWidget*> mHiResWidget;
+
+    std::map<uint32_t, QListWidgetItem*> mSessionItems;
 
     void removeThumb(PeerWidget* widget);
     void removeHiRes(PeerWidget* widget);
+    std::string sessionToString(const megachat::MegaChatSession& session);
 
 public slots:
     void onHangUp();
+    void onSessionContextMenu(const QPoint &);
 };
 
 #endif // MEETINGVIEW_H

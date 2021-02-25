@@ -295,15 +295,12 @@ public:
     enum
     {
         CALL_STATUS_INITIAL = 0,                        /// Initial state
-        CALL_STATUS_HAS_LOCAL_STREAM,                   /// Call has obtained a local video-audio stream
-        CALL_STATUS_REQUEST_SENT,                       /// Call request has been sent to receiver
-        CALL_STATUS_RING_IN,                            /// Call is at incoming state, it has not been answered or rejected yet
-        CALL_STATUS_JOINING,                            /// Intermediate state, while connection is established
+        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
+        CALL_STATUS_CONNECTING,                         /// Intermediate state, while connection sfu is established
+        CALL_STATUS_JOINING,                            /// In this state configure connection with SFU
         CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
-        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
-        CALL_STATUS_RECONNECTING,                       /// User is reconnecting to the call
     };
 
     enum
