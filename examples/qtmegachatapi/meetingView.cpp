@@ -148,6 +148,7 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
 
     returnedString.append("A:").append(std::to_string(session.hasAudio())).append("/");
     returnedString.append("V:").append(std::to_string(session.hasVideo())).append("/");
+    returnedString.append("ReqS:").append(std::to_string(session.hasRequestSpeak())).append("/");
 
     return returnedString;
 }
@@ -166,26 +167,46 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         return;
     }
 
+    QString text = item->text();
+    QStringList textList = text.split('/');
+    uint32_t cid = textList[1].toUInt();
+
     QMenu submenu;
     std::string requestThumb("Request vThumb");
     std::string requestHiRes("Request hiRes");
+    std::string approveSpeak("Approve Speak");
+    std::string rejectSpeak("Reject Speak");
     submenu.addAction(requestThumb.c_str());
     submenu.addAction(requestHiRes.c_str());
+    std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
+    if (call && call->isModerator())
+    {
+       megachat::MegaChatSession* session = call->getMegaChatSession(cid);
+       if (session->hasRequestSpeak())
+       {
+           submenu.addAction(approveSpeak.c_str());
+           submenu.addAction(rejectSpeak.c_str());
+       }
+    }
+
     QAction* rightClickItem = submenu.exec(globalPoint);
     if (rightClickItem)
     {
-        QString text = item->text();
-        QStringList textList = text.split('/');
-        uint32_t cid = textList[1].toUInt();
-
         if (rightClickItem->text().contains(requestThumb.c_str()))
         {
             //mMegaChatApi.requestHiResVideo(mChatid, cid);
         }
-
-        if (rightClickItem->text().contains(requestHiRes.c_str()))
+        else if (rightClickItem->text().contains(requestHiRes.c_str()))
         {
             mMegaChatApi.requestHiResVideo(mChatid, cid);
+        }
+        else if (rightClickItem->text().contains(approveSpeak.c_str()))
+        {
+            mMegaChatApi.approveSpeakRequest(mChatid, cid);
+        }
+        else if (rightClickItem->text().contains(rejectSpeak.c_str()))
+        {
+            mMegaChatApi.rejectSpeakRequest(mChatid, cid);
         }
     }
 }

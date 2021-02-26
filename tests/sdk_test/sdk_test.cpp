@@ -5332,3 +5332,8 @@ bool MockupCall::handleError(unsigned int, const string)
 {
 
 }
+
+bool MockupCall::handleModerator(Cid_t cid, bool moderator)
+{
+
+}

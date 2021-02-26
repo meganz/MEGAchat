@@ -152,17 +152,6 @@ void Call::setVideoRendererHiRes(IVideoRenderer *videoRederer)
     mHiRes->setVideoRender(videoRederer);
 }
 
-void Call::requestModerator()
-{
-    if (mModeratorRequested)
-    {
-        return;
-    }
-
-    mModeratorRequested = true;
-    mSfuConnection->sendModeratorRequested();
-}
-
 void Call::requestSpeaker(bool add)
 {
     if (!mSpeakerRequested && add)
@@ -217,7 +206,7 @@ std::vector<Cid_t> Call::getSpeakerRequested()
 
     for (const auto& session : mSessions)
     {
-        if (session.second->hasRequestedSpeaker())
+        if (session.second->hasRequestSpeak())
         {
             speakerRequested.push_back(session.first);
         }
@@ -244,6 +233,29 @@ void Call::requestHighResolutionVideo(Cid_t cid)
 void Call::stopHighResolutionVideo(Cid_t cid)
 {
     mSfuConnection->sendDelHiRes(cid);
+}
+
+std::vector<karere::Id> Call::getParticipants() const
+{
+    return mParticipants;
+}
+
+std::vector<Cid_t> Call::getSessionsCids() const
+{
+    std::vector<Cid_t> returnedValue;
+
+    for (const auto& sessionIt : mSessions)
+    {
+        returnedValue.push_back(sessionIt.first);
+    }
+
+    return returnedValue;
+}
+
+ISession* Call::getSession(Cid_t cid) const
+{
+    return mSessions.at(cid).get();
+
 }
 
 void Call::connectSfu(const std::string &sfuUrl)
@@ -622,6 +634,22 @@ bool Call::handleError(unsigned int code, const std::string reason)
     disconnect(static_cast<TermCode>(code), reason);
 }
 
+bool Call::handleModerator(Cid_t cid, bool moderator)
+{
+    if (cid)
+    {
+        assert(mSessions.find(cid) != mSessions.end());
+        mSessions[cid]->setModerator(moderator);
+    }
+    else
+    {
+        mIsModerator = moderator;
+        mCallHandler->onModeratorChange(*this);
+    }
+
+    return true;
+}
+
 void Call::onError()
 {
 
@@ -818,7 +846,7 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
     if (!artc::isInitialized())
     {
         artc::init(appCtx);
-        RTCM_LOG_ERROR("WebRTC stack initialized before first use");
+        RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
 }
 
@@ -1069,7 +1097,7 @@ void globalCleanup()
     artc::cleanup();
 }
 
-Session::Session(const sfu::Peer &peer)
+Session::Session(const sfu::Peer& peer)
     : mPeer(peer)
 {
 
@@ -1147,12 +1175,14 @@ VideoSlot *Session::betHiResSlot()
 
 void Session::setSpeakRequested(bool requested)
 {
-    mSpeakRequest = requested;
+    mHasRequestSpeak = requested;
+    mSessionHandler->onAudioRequested(*this);
 }
 
-bool Session::hasRequestedSpeaker() const
+bool Session::setModerator(bool requested)
 {
-    return mSpeakRequest;
+    mIsModerator = requested;
+    mSessionHandler->onModeratorChange(*this);
 }
 
 karere::Id Session::getPeerid() const
@@ -1173,5 +1203,15 @@ SessionState Session::getState() const
 karere::AvFlags Session::getAvFlags() const
 {
     return mPeer.getAvFlags();
+}
+
+bool Session::isModerator() const
+{
+    return mIsModerator;
+}
+
+bool Session::hasRequestSpeak() const
+{
+    return mHasRequestSpeak;
 }
 }
