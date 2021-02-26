@@ -100,7 +100,7 @@ class SfuInterface
 {
 public:
     // SFU -> Client
-    virtual bool handleAvCommand(Cid_t cid, int av) = 0;
+    virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;
     virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, int mod, const std::vector<Peer>&peers, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
@@ -134,7 +134,7 @@ public:
         static uint8_t hexDigitVal(char value);
     };
 
-    typedef std::function<bool(karere::Id, int)> AvCompleteFunction;
+    typedef std::function<bool(karere::Id, unsigned)> AvCompleteFunction;
     class AVCommand : public Command
     {
     public:

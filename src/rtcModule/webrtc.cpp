@@ -431,9 +431,9 @@ bool Call::hasCallKey()
     return !mCallKey.empty();
 }
 
-bool Call::handleAvCommand(Cid_t cid, int av)
+bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
-    mSessions[cid]->setAvFlags(av);
+    mSessions[cid]->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
     mCallHandler->onRemoteAvFlagsChange(*mSessions[cid], *this);
     return true;
 }

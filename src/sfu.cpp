@@ -261,7 +261,7 @@ bool AVCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    int av = avIterator->value.GetInt();
+    unsigned av = avIterator->value.GetUint();
     return mComplete(cid, av);
 }
 
