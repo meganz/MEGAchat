@@ -183,6 +183,13 @@ bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::
          return false;
     }
 
+    rapidjson::Value::ConstMemberIterator reuseIterator = it->value.FindMember("r");
+    if (midIterator != it->value.MemberEnd() && midIterator->value.IsUint())
+    {
+        // parse reuse flag in case it's found in trackDescriptor
+        trackDescriptor.mReuse = reuseIterator->value.GetUint();
+    }
+
     trackDescriptor.mMid = midIterator->value.GetUint();
     trackDescriptor.mIv = hexToBinary(ivString);
     return true;

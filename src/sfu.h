@@ -45,6 +45,7 @@ class TrackDescriptor
 public:
     IvStatic_t mIv = 0;
     uint32_t mMid;
+    bool mReuse = false;
 };
 
 class SpeakersDescriptor
