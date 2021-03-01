@@ -73,13 +73,19 @@ enum TermCode: uint8_t
 
 enum CallState: uint8_t
 {
-    kStateInitial,      // < Call object was initialised
+    kStateInitial = 0,      // < Call object was initialised
     kStateUserNoParticipating,  // < User is not particpating in the call
     kStateConnecting,   // < Connecting to SFU
     kStateJoining,      // < Joining a call
     kStateInProgress,
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
     kStateDestroyed    // < Call object is not valid anymore, the call is removed from the system
+};
+
+enum SessionState: uint8_t
+{
+    kSessStateInProgress = 0,
+    kSessStateDestroyed    // < Call object is not valid anymore, the call is removed from the system
 };
 
 class ISession;
@@ -89,6 +95,9 @@ public:
     virtual void onSpeakRequest(ISession& session, bool requested) = 0;
     virtual void onVThumbReceived(ISession& session) = 0;
     virtual void onHiResReceived(ISession& session) = 0;
+    virtual void onDestroySession(ISession& session) = 0;
+    virtual void onModeratorChange(ISession& session) = 0;
+    virtual void onAudioRequested(ISession& session) = 0;
 };
 
 class ISession
@@ -97,6 +106,10 @@ public:
     virtual ~ISession(){}
     virtual karere::Id getPeerid() const = 0;
     virtual Cid_t getClientid() const = 0;
+    virtual SessionState getState() const = 0;
+    virtual karere::AvFlags getAvFlags() const = 0;
+    virtual bool isModerator() const = 0;
+    virtual bool hasRequestSpeak() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
@@ -110,6 +123,8 @@ public:
     virtual void onCallStateChange(ICall& call) = 0;
     virtual void onCallRinging(ICall& call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
+    virtual void onModeratorChange(const ICall& call) = 0;
+    virtual void onAudioApproved(const ICall& call) = 0;
 };
 
 class ICall
@@ -131,7 +146,6 @@ public:
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;
-    virtual void requestModerator() = 0;
     virtual void requestSpeaker(bool add = true) = 0;
     virtual bool isSpeakAllow() = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
@@ -139,6 +153,10 @@ public:
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid) = 0;
     virtual void stopHighResolutionVideo(Cid_t cid) = 0;
+
+    virtual std::vector<karere::Id> getParticipants() const = 0;
+    virtual std::vector<Cid_t> getSessionsCids() const = 0;
+    virtual ISession* getSession(Cid_t cid) const = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;

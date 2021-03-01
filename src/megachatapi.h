@@ -62,16 +62,15 @@ class MegaChatNodeHistoryListener;
 /**
  * @brief Provide information about a session
  *
- * A session is an object that represents webRTC comunication between two peers. A call contains none or
- * several sessions and it can be obtained with MegaChatCall::getMegaChatSession. MegaChatCall has
- * the ownership of the object.
+ * A session is an object that represents a client that is active in a call which I am participating.
+ * A call contains none or several sessions and it can be obtained with MegaChatCall::getMegaChatSession.
+ * MegaChatCall has the ownership of the object.
  *
  * The states that a session has during its life time are:
  * Outgoing call:
- *  - SESSION_STATUS_INVALID
- *  - SESSION_STATUS_INITIAL
- *  - SESSION_STATUS_IN_PROGRESS
- *  - SESSION_STATUS_DESTROYED
+ *  - SESSION_STATUS_INVALID = 0xFF
+ *  - SESSION_STATUS_IN_PROGRESS = 0
+ *  - SESSION_STATUS_DESTROYED = 1
  */
 class MegaChatSession
 {
@@ -79,8 +78,7 @@ public:
     enum
     {
         SESSION_STATUS_INVALID = 0xFF,
-        SESSION_STATUS_INITIAL = 0,         /// Session is being negotiated between peers
-        SESSION_STATUS_IN_PROGRESS,         /// Session is established and there is communication between peers
+        SESSION_STATUS_IN_PROGRESS = 0,         /// Session is operative
         SESSION_STATUS_DESTROYED            /// Session is finished and resources can be released
     };
 
@@ -89,9 +87,10 @@ public:
         CHANGE_TYPE_NO_CHANGES = 0x00,              /// Session doesn't have any change
         CHANGE_TYPE_STATUS = 0x01,                  /// Session status has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x02,          /// Remote audio/video flags has changed
-        CHANGE_TYPE_SESSION_AUDIO_REQUESTED = 0x04, /// Session audio requested
-        CHANGE_TYPE_SESSION_ON_VTHUMB = 0x08,       /// Vthumb video received
-        CHANGE_TYPE_SESSION_ON_HIRES = 0x10,       /// Hi-Res video received
+        CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04, /// Session speak requested
+        CHANGE_TYPE_SESSION_MODERATOR = 0x08,       /// Session moderator requested
+        CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10,       /// Vthumb video received
+        CHANGE_TYPE_SESSION_ON_HIRES = 0x20,        /// Hi-Res video received
     };
 
 
@@ -115,9 +114,8 @@ public:
      *
      * @return the session status
      * Valid values are:
-     *  - SESSION_STATUS_INITIAL = 0
-     *  - SESSION_STATUS_IN_PROGRESS = 1
-     *  - SESSION_STATUS_DESTROYED = 2
+     *  - SESSION_STATUS_IN_PROGRESS = 0
+     *  - SESSION_STATUS_DESTROYED = 1
      */
     virtual int getStatus() const;
 
@@ -267,6 +265,20 @@ public:
      * @return true if this session has an specific change
      */
     virtual bool hasChanged(int changeType) const;
+
+    /**
+     * @brief Returns if peer has request speak
+     *
+     * @return true if has request speak
+     */
+    virtual bool hasRequestSpeak() const;
+
+    /**
+     * @brief Returns if session is moderator
+     *
+     * @return true if session is moderator
+     */
+    virtual bool isModerator() const;
 };
 
 /**
@@ -298,15 +310,12 @@ public:
     enum
     {
         CALL_STATUS_INITIAL = 0,                        /// Initial state
-        CALL_STATUS_HAS_LOCAL_STREAM,                   /// Call has obtained a local video-audio stream
-        CALL_STATUS_REQUEST_SENT,                       /// Call request has been sent to receiver
-        CALL_STATUS_RING_IN,                            /// Call is at incoming state, it has not been answered or rejected yet
-        CALL_STATUS_JOINING,                            /// Intermediate state, while connection is established
+        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
+        CALL_STATUS_CONNECTING,                         /// Intermediate state, while connection sfu is established
+        CALL_STATUS_JOINING,                            /// In this state configure connection with SFU
         CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
-        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
-        CALL_STATUS_RECONNECTING,                       /// User is reconnecting to the call
     };
 
     enum
@@ -317,6 +326,8 @@ public:
         CHANGE_TYPE_RINGING_STATUS = 0x04,          /// Peer has changed its ringing state
         CHANGE_TYPE_CALL_COMPOSITION = 0x08,        /// Call composition has changed (User added or removed from call)
         CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
+        CHANGE_TYPE_CALL_MODERATOR = 0x20,          /// Moderator has been enabled
+        CHANGE_TYPE_CALL_SPEAK = 0x40,              /// Speak has been enabled
     };
 
     enum
@@ -538,29 +549,7 @@ public:
     virtual bool isRinging() const;
 
     /**
-     * @brief Get a list with the ids of peers that have a session with me
-     *
-     * Every session is identified by a pair of \c peerid and \c clientid. This method returns the
-     * list of peerids for each session. Note that, if there are multiple sessions with the same peer
-     * (who uses multiple clients), the same peerid will be included multiple times (once per session)
-     *
-     * The pair peerid and clientid that identify a session are at same position in the list
-     *
-     * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
-     *
-     * You take the ownership of the returned value.
-     *
-     * @return A list of handles with the ids of peers
-     */
-    virtual mega::MegaHandleList *getSessionsPeerid() const;
-
-    /**
      * @brief Get a list with the ids of client that have a session with me
-     *
-     * Every session is identified by a pair of \c peerid and \c clientid. This method returns the
-     * list of clientids for each session.
-     *
-     * The pair peerid and clientid that identify a session are at same position in the list
      *
      * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
      *
@@ -579,11 +568,10 @@ public:
      * valid until the MegaChatCall is deleted. If you want to save the MegaChatSession,
      * use MegaChatSession::copy
      *
-     * @param peerid MegaChatHandle that identifies the peer
      * @param clientid MegaChatHandle that identifies the clientid
      * @return Session for \c peerid and \c clientid
      */
-    virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid);
+    virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientid);
 
     /**
      * @brief Returns the handle of the peer that has been added/removed to call
@@ -618,33 +606,13 @@ public:
      * @brief Get a list with the ids of peers that are participating in the call
      *
      * In a group call, this function returns the list of active participants,
-     * regardless your own user participates or not. In consequence,
-     * the list can differ from the one returned by MegaChatCall::getSessionsPeerid
-     *
-     * To identify completely a call participant it's necessary the peerid plus the clientid
-     * (megaChatCall::getClientidParticipants)
+     * regardless your own user participates or not.
      *
      * You take the ownership of the returned value.
      *
      * @return A list of handles with the ids of peers
      */
     virtual mega::MegaHandleList *getPeeridParticipants() const;
-
-    /**
-     * @brief Get a list with the ids of clients that are participating in the call
-     *
-     * In a group call, this function returns the list of active participants,
-     * regardless your own user participates or not. In consequence,
-     * the list can differ from the one returned by MegaChatCall::getSessionsclientid
-     *
-     * To idendentify completely a call participant it's neccesary the clientid plus the peerid
-     * (megaChatCall::getPeeridParticipants)
-     *
-     * You take the ownership of the returned value.
-     *
-     * @return A list of handles with the clientids
-     */
-    virtual mega::MegaHandleList *getClientidParticipants() const;
 
     /**
      * @brief Get the number of peers participating in the call
@@ -698,6 +666,13 @@ public:
      * @return true if call is on hold
      */
     virtual bool isOnHold() const;
+
+    /**
+     * @brief Returns if user is moderator in the call
+     *
+     * @return true if call is on hold
+     */
+    virtual bool isModerator() const;
 };
 
 /**
@@ -1761,19 +1736,14 @@ public:
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
         TYPE_IMPORT_MESSAGES,  TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD,
         TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TYPE_MANAGE_REACTION,
-        TYPE_GET_PEER_ATTRIBUTES, TYPE_REQUEST_SPEAK_MODERATOR,
-        TYPE_APPROVE_SPEAK_MODERATOR, TYPE_REQUEST_HIGH_RES_VIDEO,
+        TYPE_GET_PEER_ATTRIBUTES, TYPE_REQUEST_SPEAK,
+        TYPE_APPROVE_SPEAK, TYPE_REQUEST_HIGH_RES_VIDEO,
         TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
         AUDIO = 0,
         VIDEO = 1
-    };
-
-    enum {
-        SPEAKER = 0,
-        MODERATOR = 1,
     };
 
     virtual ~MegaChatRequest();
@@ -4955,7 +4925,7 @@ public:
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Retruns if user is moderator
+     * @brief Retruns if user is moderator in a call
      *
      * @note If there isn't a call in that chatroom or you are not a moderator,
      * this method returns false
@@ -4963,10 +4933,10 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @return True if user is moderator in the call
      */
-    bool isModerator(MegaChatHandle chatid);
+    bool isCallModerator(MegaChatHandle chatid);
 
     /**
-     * @brief Returns if user call speak
+     * @brief Returns if user can speak in a call
      *
      * @note If there isn't a call in that chatroom or you are not a moderator,
      * this method returns false
@@ -4992,11 +4962,10 @@ public:
     /**
      * @brief Request become a speaker
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK_MODERATOR
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that it is a request operation
-     * - MegaChatRequest::getNumber - 0 -> indicate that it is a speaker operation
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -5006,11 +4975,10 @@ public:
     /**
      * @brief Remove a request to become a speaker
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK_MODERATOR
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that it is a remove request operation
-     * - MegaChatRequest::getNumber - 0 -> indicate that it is a speaker operation
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -5018,27 +4986,12 @@ public:
     void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Request become a moderator
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK_MODERATOR
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - true -> indicate that it is a request operation
-     * - MegaChatRequest::getNumber - 1 -> indicate that it is a moderator operation
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void requestModerator(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-
-    /**
      * @brief Approve speak request
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK_MODERATOR
+     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that approve the request
-     * - MegaChatRequest::getNumber - 0 -> indicate that it is a speaker operation
      * - MegaChatRequest::getUserHandle - Returns the cid of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -5050,11 +5003,10 @@ public:
     /**
      * @brief Reject speak request
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK_MODERATOR
+     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that reject the request
-     * - MegaChatRequest::getNumber - 0 -> indicate that it is a speaker operation
      * - MegaChatRequest::getUserHandle - Returns the cid of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -5062,22 +5014,6 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
-
-    /**
-     * @brief Approve moderator request
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK_MODERATOR
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - true -> indicate that approve the request
-     * - MegaChatRequest::getNumber - 1 -> indicate that it is a moderator operation
-     * - MegaChatRequest::getUserHandle - Returns the cid of the user
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param cid MegaChatHandle that identifies client
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void approveModeratorRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Request high resolution video from a client

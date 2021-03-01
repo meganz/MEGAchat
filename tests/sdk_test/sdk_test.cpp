@@ -4597,6 +4597,23 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
 
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS) && call->isRinging())
+    {
+        if (api->getNumCalls() > 1)
+        {
+            // Hangup in progress call and answer the new call
+//                api->hangChatCall(mCallId[apiIndex]);
+//                api->answerChatCall(call->getChatid());
+
+            // Hangup in coming call
+            api->hangChatCall(call->getChatid());
+        }
+
+        mCallReceived[apiIndex] = true;
+        mChatIdRingInCall[apiIndex] = call->getChatid();
+        mCallIdRingIn[apiIndex] = call->getId();
+    }
+
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
         unsigned int apiIndex = getMegaChatApiIndex(api);
@@ -4607,23 +4624,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             mChatIdInProgressCall[apiIndex] = call->getChatid();
             break;
 
-        case MegaChatCall::CALL_STATUS_RING_IN:
-            if (api->getNumCalls() > 1)
-            {
-                // Hangup in progress call and answer the new call
-//                api->hangChatCall(mCallId[apiIndex]);
-//                api->answerChatCall(call->getChatid());
-
-                // Hangup in coming call
-                api->hangChatCall(call->getChatid());
-            }
-
-            mCallReceived[apiIndex] = true;
-            mChatIdRingInCall[apiIndex] = call->getChatid();
-            mCallIdRingIn[apiIndex] = call->getId();
-            break;
-
-        case MegaChatCall::CALL_STATUS_REQUEST_SENT:
+        case MegaChatCall::CALL_STATUS_JOINING:
             mCallIdRequestSent[apiIndex] = call->getId();
             break;
 
@@ -5328,6 +5329,11 @@ bool MockupCall::handlePeerLeft(Cid_t cid)
 }
 
 bool MockupCall::handleError(unsigned int, const string)
+{
+
+}
+
+bool MockupCall::handleModerator(Cid_t cid, bool moderator)
 {
 
 }

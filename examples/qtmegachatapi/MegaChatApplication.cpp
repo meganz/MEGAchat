@@ -350,6 +350,7 @@ void MegaChatApplication::enableStaging(bool enable)
     useStaging = enable;
     if (enable)
     {
+        //mMegaApi->changeApiUrl("https://api-sandbox3.developers.mega.co.nz/");
         mMegaApi->changeApiUrl("https://staging.api.mega.co.nz/");
     }
     else
@@ -800,16 +801,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     }
                 }
               }
-            else
-            {
-                megachat::MegaChatHandle chatId = request->getChatHandle();
-                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
-                if(itemController)
-                {
-                    ChatWindow *chatWin = itemController->showChatWindow();
-                    chatWin->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(chatId));
-                }
-            }
+
             break;
 
           case MegaChatRequest::TYPE_HANG_CHAT_CALL:

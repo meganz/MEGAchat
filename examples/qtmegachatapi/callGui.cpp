@@ -70,25 +70,25 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
 
 void CallGui::connectPeerCallGui()
 {
-    MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
-    setCall(auxCall);
-    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
-            mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
-    {
-        localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this, false);
-        ui->mAnswBtn->hide();
-        if (!mVideo)
-        {
-            setAvatar();
-            ui->videoRenderer->enableStaticImage();
-        }
-    }
-    else
-    {
-        remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid, mClientid);
-        MegaChatSession * session = auxCall->getMegaChatSession(mPeerid, mClientid);
-        enableOnHold(session->isOnHold(), false);
-    }
+//    MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
+//    setCall(auxCall);
+//    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
+//            mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
+//    {
+//        localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this, false);
+//        ui->mAnswBtn->hide();
+//        if (!mVideo)
+//        {
+//            setAvatar();
+//            ui->videoRenderer->enableStaticImage();
+//        }
+//    }
+//    else
+//    {
+//        remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid, mClientid);
+//        MegaChatSession * session = auxCall->getMegaChatSession(mPeerid, mClientid);
+//        enableOnHold(session->isOnHold(), false);
+//    }
 }
 
 MegaChatHandle CallGui::getPeerid() const

@@ -65,8 +65,6 @@ class ChatWindow : public QDialog,
         void previewUpdate(MegaChatRoom *auxRoom = NULL);
         void createAttachMenu(QMenu& menu);
         void truncateChatUI();
-        void connectPeerCallGui(MegaChatHandle peerid, MegaChatHandle clientid);
-        void destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid);
         void hangCall();
         void setChatTittle(const char *title);
         bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
@@ -84,11 +82,6 @@ class ChatWindow : public QDialog,
         void onAttachGiphy();
         void enableCallReconnect(bool enable);
 
-#ifndef KARERE_DISABLE_WEBRTC
-        std::set<CallGui *> *getCallGui();
-        CallGui* getMyCallGui();
-        void setCallGui(CallGui *callGui);
-#endif
         ChatListItemController *getChatItemController();
         MainWindow *getMainWin() const;
 
@@ -96,8 +89,6 @@ class ChatWindow : public QDialog,
         Ui::ChatWindowUi *ui;
 #ifndef KARERE_DISABLE_WEBRTC
         MeetingView *mMeetingView = nullptr;
-        CallGui *mCallGui;
-        std::set<CallGui *> callParticipantsGui;
 #endif
         MainWindow *mMainWin;
         megachat::MegaChatApi *mMegaChatApi;

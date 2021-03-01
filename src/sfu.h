@@ -117,6 +117,7 @@ public:
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
     virtual bool handlePeerLeft(Cid_t cid) = 0;
     virtual bool handleError(unsigned int , const std::string) = 0;
+    virtual bool handleModerator(Cid_t cid, bool moderator) = 0;
 };
 
     class Command
@@ -310,6 +311,16 @@ public:
         ErrorCommandFunction mComplete;
     };
 
+    typedef std::function<bool(Cid_t cid, bool moderator)> ModeratorCommandFunction;
+    class ModeratorCommand : public Command
+    {
+    public:
+        ModeratorCommand(const ModeratorCommandFunction& complete);
+        bool processCommand(const rapidjson::Document& command) override;
+        static std::string COMMAND_NAME;
+        ModeratorCommandFunction mComplete;
+    };
+
     class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     {
         // client->sfu commands
@@ -339,6 +350,7 @@ public:
         };
 
         SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call);
+        ~SfuConnection();
         bool isOnline() const;
         promise::Promise<void> connect();
         void disconnect();
@@ -360,7 +372,6 @@ public:
         bool sendSpeakReq(karere::Id cid = karere::Id::inval());
         bool sendSpeakReqDel(karere::Id cid = karere::Id::inval());
         bool sendSpeakDel(karere::Id cid = karere::Id::inval());
-        bool sendModeratorRequested(karere::Id cid = karere::Id::inval());
 
     protected:
         std::string mSfuUrl;

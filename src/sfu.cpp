@@ -21,11 +21,12 @@ std::string HiResStopCommand::COMMAND_NAME = "HIRES_STOP";
 std::string SpeakReqsCommand::COMMAND_NAME = "SPEAK_REQS";
 std::string SpeakReqDelCommand::COMMAND_NAME = "SPEAK_RQ_DEL";
 std::string SpeakOnCommand::COMMAND_NAME = "SPEAK_ON";
-std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OfF";
+std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OFF";
 std::string StatCommand::COMMAND_NAME = "STAT";
 std::string PeerJoinCommand::COMMAND_NAME = "PEERJOIN";
 std::string PeerLeftCommand::COMMAND_NAME = "PEERLEFT";
 std::string ErrorCommand::COMMAND_NAME = "ERR";
+std::string ModeratorCommand::COMMAND_NAME = "MOD";
 
 const std::string Sdp::endl = "\r\n";
 
@@ -219,7 +220,6 @@ uint8_t Command::hexDigitVal(char value)
     {
         return 10 + value - 65; // 'A'
     }
-
 }
 
 std::string Command::binaryToHex(uint64_t value)
@@ -1119,6 +1119,15 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1));
     mCommands[ErrorCommand::COMMAND_NAME] = mega::make_unique<ErrorCommand>(std::bind(&sfu::SfuInterface::handleError, &call, std::placeholders::_1, std::placeholders::_2));
+    mCommands[ModeratorCommand::COMMAND_NAME] = mega::make_unique<ModeratorCommand>(std::bind(&sfu::SfuInterface::handleModerator, &call, std::placeholders::_1, std::placeholders::_2));
+}
+
+SfuConnection::~SfuConnection()
+{
+    if (mConnState != kDisconnected)
+    {
+        disconnect();
+    }
 }
 
 bool SfuConnection::isOnline() const
@@ -1633,11 +1642,6 @@ bool SfuConnection::sendSpeakDel(karere::Id cid)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendModeratorRequested(karere::Id cid)
-{
-    assert(false);
-}
-
 void SfuConnection::setConnState(SfuConnection::ConnState newState)
 {
     if (newState == mConnState)
@@ -1935,12 +1939,45 @@ const karere::Id& SfuClient::myHandle()
 PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete)
     : mComplete(complete)
 {
-
 }
 
 bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
 {
-    return true;
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'cid' field");
+        return false;
+    }
+
+    ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
+    return mComplete(cid);
+}
+
+ModeratorCommand::ModeratorCommand(const ModeratorCommandFunction &complete)
+    : mComplete(complete)
+{
+}
+
+bool ModeratorCommand::processCommand(const rapidjson::Document &command)
+{
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    Cid_t cid = 0;
+    if (cidIterator != command.MemberEnd() || cidIterator->value.IsUint())
+    {
+        cid = (cidIterator->value.GetUint64());
+    }
+
+    rapidjson::Value::ConstMemberIterator modeIterator = command.FindMember("mod");
+    if (modeIterator == command.MemberEnd() || !modeIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'mod' field");
+        return false;
+    }
+
+    bool moderator = modeIterator->value.GetUint();
+
+    return mComplete(cid, moderator);
 }
 
 }
