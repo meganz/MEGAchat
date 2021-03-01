@@ -123,6 +123,16 @@ bool MegaChatSession::hasChanged(int changeType) const
     return false;
 }
 
+bool MegaChatSession::hasRequestSpeak() const
+{
+    return false;
+}
+
+bool MegaChatSession::isModerator() const
+{
+    false;
+}
+
 MegaChatCall::~MegaChatCall()
 {
 }
@@ -207,17 +217,12 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
-MegaHandleList *MegaChatCall::getSessionsPeerid() const
-{
-    return NULL;
-}
-
 MegaHandleList *MegaChatCall::getSessionsClientid() const
 {
     return NULL;
 }
 
-MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle /*peerid*/, MegaChatHandle /*clientid*/)
+MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle /*clientid*/)
 {
     return NULL;
 }
@@ -233,11 +238,6 @@ int MegaChatCall::getCallCompositionChange() const
 }
 
 MegaHandleList *MegaChatCall::getPeeridParticipants() const
-{
-    return NULL;
-}
-
-MegaHandleList *MegaChatCall::getClientidParticipants() const
 {
     return NULL;
 }
@@ -268,6 +268,11 @@ MegaChatHandle MegaChatCall::getCaller() const
 }
 
 bool MegaChatCall::isOnHold() const
+{
+    return false;
+}
+
+bool MegaChatCall::isModerator() const
 {
     return false;
 }
@@ -994,9 +999,9 @@ void MegaChatApi::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, Me
     pImpl->enableAudioLevelMonitor(enable, chatid, listener);
 }
 
-bool MegaChatApi::isModerator(MegaChatHandle chatid)
+bool MegaChatApi::isCallModerator(MegaChatHandle chatid)
 {
-    return pImpl->isModerator(chatid);
+    return pImpl->isCallModerator(chatid);
 }
 
 bool MegaChatApi::isSpeakAllow(MegaChatHandle chatid)
@@ -1014,11 +1019,6 @@ void MegaChatApi::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *l
     pImpl->requestSpeak(chatid, listener);
 }
 
-void MegaChatApi::requestModerator(MegaChatHandle chatid, MegaChatRequestListener *listener)
-{
-    pImpl->requestModerator(chatid, listener);
-}
-
 void MegaChatApi::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
 {
     pImpl->approveSpeakRequest(chatid, cid, listener);
@@ -1027,11 +1027,6 @@ void MegaChatApi::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid,
 void MegaChatApi::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
 {
     pImpl->rejectSpeakRequest(chatid, cid, listener);
-}
-
-void MegaChatApi::approveModeratorRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
-{
-    pImpl->approveModeratorRequest(chatid, cid, listener);
 }
 
 void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)

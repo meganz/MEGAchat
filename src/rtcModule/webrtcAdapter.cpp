@@ -477,13 +477,14 @@ bool MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> heade
     if (!mSymCipher || (auxKeyId != mKeyId))
     {
         // If there's no key armed in SymCipher or keyId doesn't match with current one
-        mKeyId = auxKeyId;
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
         {
             RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d", auxKeyId);
             return false;
         }
+
+        mKeyId = auxKeyId;
         setDecryptionKey(decryptionKey);
     }
 

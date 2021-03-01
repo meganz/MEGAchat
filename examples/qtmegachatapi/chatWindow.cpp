@@ -10,9 +10,6 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
       ui(new Ui::ChatWindowUi)
 {
     nSending = 0;
-#ifndef KARERE_DISABLE_WEBRTC
-    mCallGui = NULL;
-#endif
     mPreview = false;
     loadedMessages = 0;
     loadedAttachments = 0;
@@ -432,30 +429,6 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
     return megachat::MEGACHAT_INVALID_HANDLE;
 }
 
-#ifndef KARERE_DISABLE_WEBRTC
-std::set<CallGui *> *ChatWindow::getCallGui()
-{
-    return &callParticipantsGui;
-}
-
-CallGui *ChatWindow::getMyCallGui()
-{
-    for (auto callGuiIt = callParticipantsGui.begin(); callGuiIt != callParticipantsGui.end(); callGuiIt++)
-    {
-        if ((*callGuiIt)->getPeerid() == mMegaChatApi->getMyUserHandle() && (*callGuiIt)->getClientid() == mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()))
-        {
-            return *callGuiIt;
-        }
-    }
-
-    return nullptr;
-}
-
-void ChatWindow::setCallGui(CallGui *callGui)
-{
-    mCallGui = callGui;
-}
-
 ChatListItemController *ChatWindow::getChatItemController()
 {
     mMainWin->getChatControllerById(mChatRoom->getChatId());
@@ -465,7 +438,6 @@ MainWindow *ChatWindow::getMainWin() const
 {
     return mMainWin;
 }
-#endif
 
 void ChatWindow::onMessageReceived(megachat::MegaChatApi*, megachat::MegaChatMessage *msg)
 {
@@ -1079,32 +1051,6 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle
     mMeetingView->addLocalVideo(peerWidget);
 }
 
-void ChatWindow::destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid)
-{
-    int row = 0;
-    int col = 0;
-    int auxIndex = 0;
-    std::set<CallGui *>::iterator it;
-    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
-    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
-    {
-        CallGui *call = *it;
-        if (call->getPeerid() == peerid && call->getClientid() == clientid)
-        {
-            auxIndex = call->getIndex();
-            getCallPos(auxIndex, row, col);
-            layout->removeWidget(layout->itemAtPosition(row, col)->widget());
-            call->deleteLater();
-            callParticipantsGui.erase(it);
-            if (auxIndex != -1)
-            {
-                mFreeCallGui[auxIndex] = megachat::MEGACHAT_INVALID_HANDLE;
-            }
-            break;
-        }
-    }
-}
-
 void ChatWindow::deleteCallGui()
 {
     ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
@@ -1112,7 +1058,6 @@ void ChatWindow::deleteCallGui()
     delete mMeetingView;
     mMeetingView = nullptr;
 
-    callParticipantsGui.clear();
     setChatTittle(mChatRoom->getTitle());
     ui->mTextChatWidget->show();
     ui->mTitlebar->show();
@@ -1183,9 +1128,9 @@ void ChatWindow::getCallPos(int index, int &row, int &col)
 
 void ChatWindow::closeEvent(QCloseEvent *event)
 {
-    if (mCallGui)
+    if (mMeetingView)
     {
-        mCallGui->onHangCall(true);
+        deleteCallGui();
     }
     delete this;
     event->accept();
@@ -1200,23 +1145,6 @@ void ChatWindow::onCallBtn(bool video)
        mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
 //       delete auxCall;
 //   }
-}
-
-void ChatWindow::connectPeerCallGui(MegaChatHandle peerid, MegaChatHandle clientid)
-{
-    std::set<CallGui *>::iterator it;
-    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
-    {
-        CallGui *call = *it;
-        if (call->getPeerid() == peerid && call->getClientid() == clientid)
-        {
-            if (!call->getCall())
-            {
-                call->connectPeerCallGui();
-                break;
-            }
-        }
-    }
 }
 
 void ChatWindow::hangCall()

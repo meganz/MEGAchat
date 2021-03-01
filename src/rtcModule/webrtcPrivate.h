@@ -70,15 +70,18 @@ public:
     VideoSlot* betHiResSlot();
 
     void setSpeakRequested(bool requested);
-    bool hasRequestedSpeaker() const;
+    bool setModerator(bool requested);
 
     // ISession methods
+    karere::Id getPeerid() const override;
+    Cid_t getClientid() const override;
+    SessionState getState() const override;
+    karere::AvFlags getAvFlags() const override;
+    bool isModerator() const override;
+    bool hasRequestSpeak() const override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
     void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
-    karere::Id getPeerid() const override;
-    Cid_t getClientid() const override;
-    karere::AvFlags getAvFlags() const override;
 
 private:
     sfu::Peer mPeer;
@@ -86,7 +89,9 @@ private:
     VideoSlot* mHiresSlot = nullptr;
     Slot* mAudioSlot = nullptr;
     SessionHandler* mSessionHandler = nullptr;
-    bool mSpeakRequest = false;
+    bool mIsModerator = false;
+    bool mHasRequestSpeak = false;
+    SessionState mState = kSessStateInProgress;
 };
 
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
@@ -110,7 +115,6 @@ public:
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
-    void requestModerator() override;
     void requestSpeaker(bool add = true) override;
     bool isSpeakAllow() override;
     void approveSpeakRequest(Cid_t cid, bool allow) override;
@@ -120,6 +124,10 @@ public:
     void stopHighResolutionVideo(Cid_t cid) override;
     void requestLowResolutionVideo(const std::vector<karere::Id> &cids) override;
     void stopLowResolutionVideo(const std::vector<karere::Id> &cids) override;
+
+    std::vector<karere::Id> getParticipants() const override;
+    std::vector<Cid_t> getSessionsCids() const override;
+    ISession* getSession(Cid_t cid) const override;
 
     void setCallHandler(CallHandler* callHanlder) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
@@ -152,6 +160,7 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid) override;
     bool handleError(unsigned int code, const std::string reason) override;
+    bool handleModerator(Cid_t cid, bool moderator) override;
 
     void onError();
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
@@ -171,7 +180,7 @@ public:
     karere::Id mCallerId;
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
-    bool mModeratorRequested = false;
+    bool mIsModerator = false;
     bool mSpeakerRequested = false;
     bool mSpeakAllow = false;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
