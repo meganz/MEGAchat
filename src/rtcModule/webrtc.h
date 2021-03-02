@@ -98,6 +98,7 @@ public:
     virtual void onDestroySession(ISession& session) = 0;
     virtual void onModeratorChange(ISession& session) = 0;
     virtual void onAudioRequested(ISession& session) = 0;
+    virtual void onAudioVideoFlagsChanged(ISession& session) = 0;
 };
 
 class ISession
@@ -123,7 +124,6 @@ public:
     virtual void onCallStateChange(ICall& call) = 0;
     virtual void onCallRinging(ICall& call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
-    virtual void onRemoteAvFlagsChange(ISession& session, const ICall& call) = 0;
     virtual void onModeratorChange(const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;
 };

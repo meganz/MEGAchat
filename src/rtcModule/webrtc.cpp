@@ -446,7 +446,6 @@ bool Call::hasCallKey()
 bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
     mSessions[cid]->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
-    mCallHandler->onRemoteAvFlagsChange(*mSessions[cid], *this);
     return true;
 }
 
@@ -1177,6 +1176,7 @@ void Session::setAvFlags(karere::AvFlags flags)
 {
     mPeer.setAvFlags(flags);
     assert(mSessionHandler);
+    mSessionHandler->onAudioVideoFlagsChanged(*this);
 }
 
 Slot *Session::getAudioSlot()

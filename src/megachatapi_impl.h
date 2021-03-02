@@ -589,7 +589,6 @@ public:
     void onCallStateChange(rtcModule::ICall& call) override;
     void onCallRinging(rtcModule::ICall &call) override;
     void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
-    void onRemoteAvFlagsChange(rtcModule::ISession& sess, const rtcModule::ICall &call) override;
     void onModeratorChange(const rtcModule::ICall& call) override;
     void onAudioApproved(const rtcModule::ICall& call) override;
 
@@ -608,6 +607,7 @@ public:
     void onDestroySession(rtcModule::ISession& session) override;
     void onModeratorChange(rtcModule::ISession& session) override;
     void onAudioRequested(rtcModule::ISession& session) override;
+    void onAudioVideoFlagsChanged(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;
