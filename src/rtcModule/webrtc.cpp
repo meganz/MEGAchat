@@ -231,7 +231,8 @@ void Call::requestHighResolutionVideo(Cid_t cid)
     bool hasVthumb = false;
     for (const auto& session : mSessions)
     {
-        if (session.second->getVthumSlot()->getCid() == cid)
+        Slot* slot = session.second->getVthumSlot();
+        if (slot && slot->getCid() == cid)
         {
             hasVthumb = true;
             break;
@@ -508,23 +509,37 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::ve
 
 bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
-    // decrypt received key
-    strongvelope::SendKey plainKey;
-    std::string binaryKey = mega::Base64::atob(key);
-    strongvelope::SendKey encryptedKey = mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey);
-    mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(mSessions[cid]->getPeer().getPeerid(), encryptedKey, plainKey);
-
-    // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
-    if (hasCallKey())
+    karere::Id peerid = mSessions[cid]->getPeer().getPeerid();
+    auto wptr = weakHandle();
+    mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peerid)
+    .then([wptr, keyid, cid, key, this](Buffer*)
     {
-        strongvelope::SendKey callKey = mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey);
-        mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
-    }
+        if (wptr.deleted())
+        {
+            return;
+        }
 
-    // add new key to peer key map
-    std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
-    assert(mSessions.find(cid) != mSessions.end());
-    mSessions[cid]->addKey(keyid, newKey);
+        // decrypt received key
+        strongvelope::SendKey plainKey;
+        std::string binaryKey = mega::Base64::atob(key);
+
+
+        strongvelope::SendKey encryptedKey = mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey);
+        mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(mSessions[cid]->getPeer().getPeerid(), encryptedKey, plainKey);
+
+        // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
+        if (hasCallKey())
+        {
+            strongvelope::SendKey callKey = mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey);
+            mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
+        }
+
+        // add new key to peer key map
+        std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
+        assert(mSessions.find(cid) != mSessions.end());
+        mSessions[cid]->addKey(keyid, newKey);
+    });
+
     return true;
 }
 
@@ -758,25 +773,40 @@ void Call::generateAndSendNewkey()
         mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, *newPlainKey.get());
     }
 
-
-    std::map<Cid_t, std::string> keys;
-
+    std::vector<promise::Promise<Buffer*>> promises;
     for (const auto& session : mSessions) // encrypt key to all participants
     {
-        // get peer Cid
-        Cid_t sessionCid = session.first;
-
-        // get peer id
-        karere::Id peerId = session.second->getPeer().getPeerid();
-
-        // encrypt key to participant
-        strongvelope::SendKey encryptedKey;
-        mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peerId, *newPlainKey.get(), encryptedKey);
-
-        keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
+        promises.push_back(mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(session.second->getPeer().getPeerid()));
     }
 
-    mSfuConnection->sendKey(currentKeyId, keys);
+    auto wptr = weakHandle();
+    promise::when(promises)
+    .then([wptr, currentKeyId, newPlainKey, this]
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        std::map<Cid_t, std::string> keys;
+
+        for (const auto& session : mSessions) // encrypt key to all participants
+        {
+            // get peer Cid
+            Cid_t sessionCid = session.first;
+
+            // get peer id
+            karere::Id peerId = session.second->getPeer().getPeerid();
+
+            // encrypt key to participant
+            strongvelope::SendKey encryptedKey;
+            mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peerId, *newPlainKey.get(), encryptedKey);
+
+            keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
+        }
+
+        mSfuConnection->sendKey(currentKeyId, keys);
+    });
 }
 
 void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, bool hiRes)
@@ -1000,7 +1030,23 @@ Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> trans
 
 Slot::~Slot()
 {
+    if (mTransceiver->receiver())
+    {
+       rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mTransceiver->receiver()->GetFrameDecryptor();
+       if (decryptor)
+       {
+           static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
+       }
+    }
 
+    if (mTransceiver->sender())
+    {
+        rtc::scoped_refptr<webrtc::FrameEncryptorInterface> encrytor = mTransceiver->sender()->GetFrameEncryptor();
+        if (encrytor)
+        {
+            static_cast<artc::MegaEncryptor*>(encrytor.get())->setTerminating();
+        }
+    }
 }
 
 void Slot::createEncryptor(const sfu::Peer& peer)
@@ -1067,6 +1113,18 @@ void Slot::generateRandomIv()
 VideoSlot::VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : Slot(call, transceiver)
 {
+}
+
+VideoSlot::~VideoSlot()
+{
+    webrtc::VideoTrackInterface* videoTrack =
+            static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
+    videoTrack->set_enabled(true);
+
+    if (videoTrack)
+    {
+        videoTrack->RemoveSink(this);
+    }
 }
 
 void VideoSlot::setVideoRender(IVideoRenderer *videoRenderer)

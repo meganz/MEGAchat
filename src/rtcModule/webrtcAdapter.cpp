@@ -366,6 +366,11 @@ byte *MegaEncryptor::generateFrameIV()
 // encrypted_frame: <header.8> <encrypted.data.varlen> <GCM_Tag.4>
 int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::ArrayView<const uint8_t> additional_data, rtc::ArrayView<const uint8_t> frame, rtc::ArrayView<uint8_t> encrypted_frame, size_t *bytes_written)
 {
+    if (mTerminating)
+    {
+        return 1;
+    }
+
     if (!frame.size())
     {
         // TODO: manage errors and define error codes
@@ -445,6 +450,11 @@ size_t MegaEncryptor::GetMaxCiphertextByteSize(cricket::MediaType media_type, si
     return FRAME_HEADER_LENGTH + frame_size + FRAME_GCM_TAG_LENGTH;
 }
 
+void MegaEncryptor::setTerminating()
+{
+    mTerminating = true;
+}
+
 MegaDecryptor::MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv)
     : mPeer(peer)
     , mCryptoMeetings(cryptoMeetings)
@@ -517,6 +527,11 @@ std::shared_ptr<byte []> MegaDecryptor::generateFrameIV()
  * Note: encframeData length (M) = receivedFrame_length(N) - header_length(8) - gcmTag_length(4) */
 webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaType media_type, const std::vector<uint32_t> &csrcs, rtc::ArrayView<const uint8_t> additional_data, rtc::ArrayView<const uint8_t> encrypted_frame, rtc::ArrayView<uint8_t> frame)
 {
+    if (mTerminating)
+    {
+        return Result(Status::kFailedToDecrypt, 0);
+    }
+
     if (encrypted_frame.empty())
     {
         return Result(Status::kRecoverable, 0);
@@ -566,6 +581,11 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
 size_t MegaDecryptor::GetMaxPlaintextByteSize(cricket::MediaType media_type, size_t encrypted_frame_size)
 {
     return encrypted_frame_size - FRAME_HEADER_LENGTH - FRAME_GCM_TAG_LENGTH;
+}
+
+void MegaDecryptor::setTerminating()
+{
+    mTerminating = true;
 }
 
 #ifdef __ANDROID__
