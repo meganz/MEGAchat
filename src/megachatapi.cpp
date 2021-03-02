@@ -78,6 +78,16 @@ bool MegaChatSession::hasVideo() const
     return false;
 }
 
+bool MegaChatSession::isHiResVideo() const
+{
+    return false;
+}
+
+bool MegaChatSession::isLowResVideo() const
+{
+    return false;
+}
+
 int MegaChatSession::getTermCode() const
 {
     return 0;
@@ -1027,6 +1037,16 @@ void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, M
 void MegaChatApi::stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
 {
     pImpl->stoptHiResVideo(chatid, cid, listener);
+}
+
+void MegaChatApi::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+{
+    pImpl->requestLowResVideo(chatid, cids, listener);
+}
+
+void MegaChatApi::stoptLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+{
+    pImpl->stoptLowResVideo(chatid, cids, listener);
 }
 
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)

@@ -8,12 +8,13 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator, unsigned avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
     , mState(kStateInitial)
     , mIsRinging(isRinging)
+    , mLocalAvFlags(static_cast<uint8_t>(avflags))
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
     , mSfuClient(sfuClient)
@@ -44,7 +45,6 @@ karere::Id Call::getCallerid() const
 {
     return mCallerId;
 }
-
 
 void Call::setState(CallState state)
 {
@@ -152,6 +152,17 @@ void Call::setVideoRendererHiRes(IVideoRenderer *videoRederer)
     mHiRes->setVideoRender(videoRederer);
 }
 
+karere::AvFlags Call::getLocalAvFlags() const
+{
+    return mLocalAvFlags;
+}
+
+void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
+{
+    mLocalAvFlags = flags;
+    mSfuConnection->sendAv(flags.value());
+}
+
 void Call::requestSpeaker(bool add)
 {
     if (!mSpeakerRequested && add)
@@ -235,6 +246,16 @@ void Call::stopHighResolutionVideo(Cid_t cid)
     mSfuConnection->sendDelHiRes(cid);
 }
 
+void Call::requestLowResolutionVideo(const std::vector<karere::Id> &cids)
+{
+    mSfuConnection->sendGetVtumbs(cids);
+}
+
+void Call::stopLowResolutionVideo(const std::vector<karere::Id> &cids)
+{
+    mSfuConnection->sendDelVthumbs(cids);
+}
+
 std::vector<karere::Id> Call::getParticipants() const
 {
     return mParticipants;
@@ -255,7 +276,6 @@ std::vector<Cid_t> Call::getSessionsCids() const
 ISession* Call::getSession(Cid_t cid) const
 {
     return mSessions.at(cid).get();
-
 }
 
 void Call::connectSfu(const std::string &sfuUrl)
@@ -360,7 +380,7 @@ void Call::getLocalStreams()
             artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
 
     mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
-    audioTrack->set_enabled(mAv.audio());
+    audioTrack->set_enabled(mLocalAvFlags.audio());
 
     rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
     webrtc::VideoCaptureCapability capabilities;
@@ -371,12 +391,12 @@ void Call::getLocalStreams()
     mVideoDevice = artc::VideoManager::Create(capabilities, videoDevices.begin()->second, artc::gAsyncWaiter->guiThread());
     videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
 
-    if (mAv.video())
+    if (mLocalAvFlags.video())
     {
         mVideoDevice->openDevice(videoDevices.begin()->second);
     }
 
-    videoTrack->set_enabled(mAv.video());
+    videoTrack->set_enabled(mLocalAvFlags.video());
 
     mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
     rtc::VideoSinkWants wants;
@@ -423,9 +443,9 @@ bool Call::hasCallKey()
     return !mCallKey.empty();
 }
 
-bool Call::handleAvCommand(Cid_t cid, int av)
+bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
-    mSessions[cid]->setAvFlags(av);
+    mSessions[cid]->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
     return true;
 }
 
@@ -1156,6 +1176,7 @@ void Session::setAvFlags(karere::AvFlags flags)
 {
     mPeer.setAvFlags(flags);
     assert(mSessionHandler);
+    mSessionHandler->onAudioVideoFlagsChanged(*this);
 }
 
 Slot *Session::getAudioSlot()

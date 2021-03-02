@@ -18,22 +18,22 @@ class Peer
 {
 public:
     Peer(); //default ctor
-    Peer(Cid_t cid, karere::Id peerid, int avFlags, int mod);
+    Peer(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod);
     Peer(const Peer& peer);
     Cid_t getCid() const;
     karere::Id getPeerid() const;
     Keyid_t getCurrentKeyId() const;
-    int getAvFlags() const;
+    karere::AvFlags getAvFlags() const;
     int getModerator() const;
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
     void setModerator(bool moderator);
-    void init(Cid_t cid, karere::Id peerid, int avFlags, int mod);
+    void init(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod);
 protected:
     Cid_t mCid = 0;
     karere::Id mPeerid;
-    int mAvFlags = 0;
+    karere::AvFlags mAvFlags = 0;
     int mModerator = 0;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
@@ -45,6 +45,7 @@ class TrackDescriptor
 public:
     IvStatic_t mIv = 0;
     uint32_t mMid;
+    bool mReuse = false;
 };
 
 class SpeakersDescriptor
@@ -100,7 +101,7 @@ class SfuInterface
 {
 public:
     // SFU -> Client
-    virtual bool handleAvCommand(Cid_t cid, int av) = 0;
+    virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;
     virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, int mod, const std::vector<Peer>&peers, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
@@ -135,7 +136,7 @@ public:
         static uint8_t hexDigitVal(char value);
     };
 
-    typedef std::function<bool(karere::Id, int)> AvCompleteFunction;
+    typedef std::function<bool(karere::Id, unsigned)> AvCompleteFunction;
     class AVCommand : public Command
     {
     public:
@@ -362,7 +363,7 @@ public:
         promise::Promise<void> getPromiseConnection();
         bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, bool moderator, int avFlags, int speaker = -1, int vthumbs = -1);
         bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
-        bool sendAv(int av);
+        bool sendAv(unsigned av);
         bool sendGetVtumbs(const std::vector<karere::Id>& cids);
         bool sendDelVthumbs(const std::vector<karere::Id>& cids);
         bool sendGetHiRes(karere::Id cid, int r, int lo = -1);

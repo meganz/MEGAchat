@@ -98,6 +98,7 @@ public:
     virtual void onDestroySession(ISession& session) = 0;
     virtual void onModeratorChange(ISession& session) = 0;
     virtual void onAudioRequested(ISession& session) = 0;
+    virtual void onAudioVideoFlagsChanged(ISession& session) = 0;
 };
 
 class ISession
@@ -106,8 +107,8 @@ public:
     virtual ~ISession(){}
     virtual karere::Id getPeerid() const = 0;
     virtual Cid_t getClientid() const = 0;
-    virtual SessionState getState() const = 0;
     virtual karere::AvFlags getAvFlags() const = 0;
+    virtual SessionState getState() const = 0;
     virtual bool isModerator() const = 0;
     virtual bool hasRequestSpeak() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
@@ -153,6 +154,8 @@ public:
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid) = 0;
     virtual void stopHighResolutionVideo(Cid_t cid) = 0;
+    virtual void requestLowResolutionVideo(const std::vector<karere::Id> &cids) = 0;
+    virtual void stopLowResolutionVideo(const std::vector<karere::Id> &cids) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
@@ -161,6 +164,8 @@ public:
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
+    virtual karere::AvFlags getLocalAvFlags() const = 0;
+    virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
 };
 
 class RtcModule

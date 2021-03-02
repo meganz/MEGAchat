@@ -174,6 +174,8 @@ public:
     virtual MegaChatHandle getClientid() const override;
     virtual bool hasAudio() const override;
     virtual bool hasVideo() const override;
+    virtual bool isHiResVideo() const override;
+    virtual bool isLowResVideo() const override;
     virtual int getTermCode() const override;
     virtual bool isLocalTermCode() const override;
     virtual int getNetworkQuality() const override;
@@ -184,6 +186,7 @@ public:
     virtual bool isModerator() const override;
     virtual bool hasRequestSpeak() const override;
 
+    karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
     void setAvFlags(karere::AvFlags flags);
     void setNetworkQuality(int quality);
@@ -198,6 +201,7 @@ private:
     uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id peerid;
     uint32_t clientid;
+    karere::AvFlags mAvFlags = 0;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     karere::AvFlags mAVFlags;
     bool mHasRequestSpeak = false;
@@ -603,6 +607,7 @@ public:
     void onDestroySession(rtcModule::ISession& session) override;
     void onModeratorChange(rtcModule::ISession& session) override;
     void onAudioRequested(rtcModule::ISession& session) override;
+    void onAudioVideoFlagsChanged(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;
@@ -1180,6 +1185,8 @@ public:
     void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
     void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
+    void stoptLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
 
     void onNewCall(rtcModule::ICall& call) override;
     void onAddPeer(rtcModule::ICall& call, karere::Id peer) override;

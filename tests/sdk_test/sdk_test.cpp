@@ -5248,7 +5248,7 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 
 }
 
-bool MockupCall::handleAvCommand(Cid_t cid, int av)
+bool MockupCall::handleAvCommand(Cid_t cid, unsigned av)
 {
 
 }

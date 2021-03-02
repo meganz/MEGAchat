@@ -148,6 +148,20 @@ public:
     virtual bool hasVideo() const;
 
     /**
+     * @brief Returns true if video quality is hight resolution for the session
+     *
+     * @return true if video quality is hight resolution, otherwise returns false
+     */
+    virtual bool isHiResVideo() const;
+
+    /**
+     * @brief Returns true if video quality is low resolution for the session
+     *
+     * @return true if video quality is low resolution, otherwise returns false
+     */
+    virtual bool isLowResVideo() const;
+
+    /**
      * @brief Returns the termination code for this session
      *
      * Possible values are:
@@ -1736,8 +1750,8 @@ public:
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
         TYPE_IMPORT_MESSAGES,  TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD,
         TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TYPE_MANAGE_REACTION,
-        TYPE_GET_PEER_ATTRIBUTES, TYPE_REQUEST_SPEAK,
-        TYPE_APPROVE_SPEAK, TYPE_REQUEST_HIGH_RES_VIDEO,
+        TYPE_GET_PEER_ATTRIBUTES, TYPE_REQUEST_SPEAK, TYPE_APPROVE_SPEAK,
+        TYPE_REQUEST_HIGH_RES_VIDEO, TYPE_REQUEST_LOW_RES_VIDEO,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -5044,6 +5058,36 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Request low resolution video from a list of clients
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicate that request low resolution video
+     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Cids
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param cids List of clients Cids
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void requestLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Stop low resolution video from a list of clients
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - false -> indicate that stop low resolution video
+     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Cids
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param cids List of clients Cids
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void stoptLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
 
 #endif
 

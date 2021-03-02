@@ -35,7 +35,7 @@ Peer::Peer()
 {
 }
 
-Peer::Peer(Cid_t cid, karere::Id peerid, int avFlags, int mod)
+Peer::Peer(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod)
     : mCid(cid), mPeerid(peerid), mAvFlags(avFlags), mModerator(mod)
 {
 }
@@ -49,7 +49,7 @@ Peer::Peer(const Peer &peer)
 
 }
 
-void Peer::init(Cid_t cid, karere::Id peerid, int avFlags, int mod)
+void Peer::init(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod)
 {
     mCid = cid;
     mPeerid = peerid;
@@ -72,7 +72,7 @@ Keyid_t Peer::getCurrentKeyId() const
     return mCurrentkeyId;
 }
 
-int Peer::getAvFlags() const
+karere::AvFlags Peer::getAvFlags() const
 {
     return mAvFlags;
 }
@@ -184,6 +184,13 @@ bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::
          return false;
     }
 
+    rapidjson::Value::ConstMemberIterator reuseIterator = it->value.FindMember("r");
+    if (reuseIterator != it->value.MemberEnd() && reuseIterator->value.IsUint())
+    {
+        // parse reuse flag in case it's found in trackDescriptor
+        trackDescriptor.mReuse = reuseIterator->value.GetUint();
+    }
+
     trackDescriptor.mMid = midIterator->value.GetUint();
     trackDescriptor.mIv = hexToBinary(ivString);
     return true;
@@ -247,15 +254,13 @@ AVCommand::AVCommand(const AvCompleteFunction &complete)
 bool AVCommand::processCommand(const rapidjson::Document &command)
 {
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsString())
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
         SFU_LOG_ERROR("Received data doesn't have 'cid' field");
         return false;
     }
 
-    std::string cidString = cidIterator->value.GetString();
-    ::mega::MegaHandle cid = ::mega::MegaApi::base64ToUserHandle(cidString.c_str());
-
+    Cid_t cid = cidIterator->value.GetUint();
     rapidjson::Value::ConstMemberIterator avIterator = command.FindMember("av");
     if (avIterator == command.MemberEnd() || !avIterator->value.IsInt())
     {
@@ -263,7 +268,7 @@ bool AVCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    int av = avIterator->value.GetInt();
+    unsigned av = avIterator->value.GetUint();
     return mComplete(cid, av);
 }
 
@@ -275,7 +280,7 @@ AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete)
 bool AnswerCommand::processCommand(const rapidjson::Document &command)
 {
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsInt())
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
         SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 'cid' field");
         return false;
@@ -356,7 +361,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
                  return;
             }
 
-            int av = avIterator->value.GetUint();
+            unsigned av = avIterator->value.GetUint();
 
             int mod = 0;
             rapidjson::Value::ConstMemberIterator modIterator = it->value[j].FindMember("mod");
@@ -499,8 +504,21 @@ VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete)
 
 bool VthumbsCommand::processCommand(const rapidjson::Document &command)
 {
+    Cid_t cid = 0;
     std::map<Cid_t, TrackDescriptor> tracks;
-
+    rapidjson::Value::ConstMemberIterator it = command.FindMember("tracks");
+    if (it != command.MemberEnd())
+    {
+        assert(it->value.IsObject());
+        for (auto itMember = it->value.MemberBegin(); itMember != it->value.MemberEnd(); ++itMember)
+        {
+            assert(itMember->name.IsString() && itMember->value.IsObject());
+            cid = static_cast<Cid_t>(atoi(itMember->name.GetString()));
+            TrackDescriptor td;
+            parseTrackDescriptor(td, itMember);
+            tracks[cid] = td; // add entry to map <cid, trackDescriptor>
+        }
+    }
     return mComplete(tracks);
 }
 
@@ -533,7 +551,21 @@ HiResCommand::HiResCommand(const HiresCompleteFunction &complete)
 
 bool HiResCommand::processCommand(const rapidjson::Document &command)
 {
+    Cid_t cid = 0;
     std::map<Cid_t, TrackDescriptor> tracks;
+    rapidjson::Value::ConstMemberIterator it = command.FindMember("tracks");
+    if (it != command.MemberEnd())
+    {
+        assert(it->value.IsObject());
+        for (auto itMember = it->value.MemberBegin(); itMember != it->value.MemberEnd(); ++itMember)
+        {
+            assert(itMember->name.IsString() && itMember->value.IsObject());
+            cid = static_cast<Cid_t>(atoi(itMember->name.GetString()));
+            TrackDescriptor td;
+            parseTrackDescriptor(td, itMember);
+            tracks[cid] = td; // add entry to map <cid, trackDescriptor>
+        }
+    }
 
     return mComplete(tracks);
 }
@@ -600,7 +632,7 @@ SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &comple
 bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
 {
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsString())
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
         SFU_LOG_ERROR("Received data doesn't have 'cid' field");
         return false;
@@ -1449,7 +1481,7 @@ bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys
     return sendCommand(command);
 }
 
-bool SfuConnection::sendAv(int av)
+bool SfuConnection::sendAv(unsigned av)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
@@ -1457,7 +1489,7 @@ bool SfuConnection::sendAv(int av)
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value avValue(rapidjson::kNumberType);
-    avValue.SetInt(av);
+    avValue.SetUint(av);
     json.AddMember(rapidjson::Value("av"), avValue, json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
@@ -1520,8 +1552,7 @@ bool SfuConnection::sendGetHiRes(karere::Id cid, int r, int lo)
     cmdValue.SetString(CSFU_GET_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
-    std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-    json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+    json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
 
@@ -1539,8 +1570,7 @@ bool SfuConnection::sendDelHiRes(karere::Id cid)
     cmdValue.SetString(CSFU_DEL_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
-    std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-    json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+    json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
@@ -1555,8 +1585,7 @@ bool SfuConnection::sendHiResSetLo(karere::Id cid, int lo)
     cmdValue.SetString(CSFU_HIRES_SET_LO.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
-    std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-    json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+    json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
@@ -1591,8 +1620,7 @@ bool SfuConnection::sendSpeakReq(karere::Id cid)
 
     if (cid.isValid())
     {
-        std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-        json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+        json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     }
 
     rapidjson::StringBuffer buffer;
@@ -1611,8 +1639,7 @@ bool SfuConnection::sendSpeakReqDel(karere::Id cid)
 
     if (cid.isValid())
     {
-        std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-        json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+        json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     }
 
     rapidjson::StringBuffer buffer;
@@ -1631,8 +1658,7 @@ bool SfuConnection::sendSpeakDel(karere::Id cid)
 
     if (cid.isValid())
     {
-        std::unique_ptr<char[]> cidString = std::unique_ptr<char[]>(::mega::MegaApi::userHandleToBase64(cid.val));
-        json.AddMember("cid", rapidjson::Value(cidString.get(), strlen(cidString.get())), json.GetAllocator());
+        json.AddMember("cid", rapidjson::Value(cid.val), json.GetAllocator());
     }
 
     rapidjson::StringBuffer buffer;
