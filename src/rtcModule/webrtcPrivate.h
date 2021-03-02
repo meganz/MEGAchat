@@ -43,6 +43,7 @@ class VideoSlot : public Slot, public rtc::VideoSinkInterface<webrtc::VideoFrame
 {
 public:
     VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    ~VideoSlot();
     void setVideoRender(IVideoRenderer* videoRenderer);
     void OnFrame(const webrtc::VideoFrame& frame) override;
     void setTrackSink();

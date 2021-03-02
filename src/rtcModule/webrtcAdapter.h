@@ -307,6 +307,8 @@ public:
     // returns the encrypted_frame size for a given frame
     size_t GetMaxCiphertextByteSize(cricket::MediaType media_type, size_t frame_size) override;
 
+    void setTerminating();
+
 private:
 
     // symetric cipher
@@ -326,6 +328,8 @@ private:
 
     // static part (8 Bytes) of IV
     IvStatic_t mIv;
+
+    bool mTerminating = false;
 };
 
 class MegaDecryptor : public rtc::RefCountedObject<webrtc::FrameDecryptorInterface>
@@ -353,6 +357,8 @@ public:
     // returns the plain_frame size for a given encrypted frame
     size_t GetMaxPlaintextByteSize(cricket::MediaType media_type, size_t encrypted_frame_size) override;
 
+    void setTerminating();
+
 private:
 
     // symetric cipher
@@ -372,6 +378,8 @@ private:
 
     // static part (8 Bytes) of IV
     IvStatic_t mIv;
+
+    bool mTerminating = false;
 };
 
 class LocalStreamHandle

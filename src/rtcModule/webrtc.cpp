@@ -1029,7 +1029,23 @@ Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> trans
 
 Slot::~Slot()
 {
+    if (mTransceiver->receiver())
+    {
+       rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mTransceiver->receiver()->GetFrameDecryptor();
+       if (decryptor)
+       {
+           static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
+       }
+    }
 
+    if (mTransceiver->sender())
+    {
+        rtc::scoped_refptr<webrtc::FrameEncryptorInterface> encrytor = mTransceiver->sender()->GetFrameEncryptor();
+        if (encrytor)
+        {
+            static_cast<artc::MegaEncryptor*>(encrytor.get())->setTerminating();
+        }
+    }
 }
 
 void Slot::createEncryptor(const sfu::Peer& peer)
@@ -1096,6 +1112,19 @@ void Slot::generateRandomIv()
 VideoSlot::VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : Slot(call, transceiver)
 {
+}
+
+VideoSlot::~VideoSlot()
+{
+    webrtc::VideoTrackInterface* videoTrack =
+            static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
+    videoTrack->set_enabled(true);
+
+    if (videoTrack)
+    {
+        rtc::VideoSinkWants wants;
+        videoTrack->RemoveSink(this);
+    }
 }
 
 void VideoSlot::setVideoRender(IVideoRenderer *videoRenderer)
