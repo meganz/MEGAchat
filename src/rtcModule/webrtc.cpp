@@ -1123,7 +1123,6 @@ VideoSlot::~VideoSlot()
 
     if (videoTrack)
     {
-        rtc::VideoSinkWants wants;
         videoTrack->RemoveSink(this);
     }
 }
