@@ -231,7 +231,8 @@ void Call::requestHighResolutionVideo(Cid_t cid)
     bool hasVthumb = false;
     for (const auto& session : mSessions)
     {
-        if (session.second->getVthumSlot()->getCid() == cid)
+        Slot* slot = session.second->getVthumSlot();
+        if (slot && slot->getCid() == cid)
         {
             hasVthumb = true;
             break;
