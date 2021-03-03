@@ -168,7 +168,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         {
             case megachat::MegaChatCall::CALL_STATUS_INITIAL:
             {
-                if (call->isRinging())
+                if (call->isRinging() && call->getCaller() != mMegaChatApi->getMyUserHandle())
                 {
                     QMessageBox::StandardButton reply;
                      reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::No);
@@ -258,7 +258,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
     {
-        if (call->isRinging())
+        if (call->isRinging() && call->getCaller() != mMegaChatApi->getMyUserHandle())
         {
             QMessageBox::StandardButton reply;
              reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::No);
