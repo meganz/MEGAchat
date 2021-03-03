@@ -197,7 +197,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     {
         if (rightClickItem->text().contains(requestThumb.c_str()))
         {
-            //mMegaChatApi.requestHiResVideo(mChatid, cid);
+            mMegaChatApi.requestHiResVideo(mChatid, cid);
         }
         else if (rightClickItem->text().contains(requestHiRes.c_str()))
         {
