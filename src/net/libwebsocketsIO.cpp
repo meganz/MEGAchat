@@ -45,7 +45,7 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     info.options |= LWS_SERVER_OPTION_LIBUV;
     info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
     
-    lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
+    lws_set_log_level(LLL_ERR | LLL_WARN |LLL_NOTICE|LLL_INFO|LLL_DEBUG|LLL_PARSER|LLL_HEADER|LLL_EXT|LLL_CLIENT|LLL_LATENCY|LLL_USER|LLL_THREAD, NULL);
     wscontext = lws_create_context(&info);
 
     eventloop = libuvWaiter->eventloop;
@@ -479,6 +479,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             break;
         }
         default:
+            WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
             break;
     }
     
