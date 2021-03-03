@@ -140,6 +140,7 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
     if (name)
     {
         returnedString.append(name);
+        delete [] name;
     }
 
     returnedString.append("/");

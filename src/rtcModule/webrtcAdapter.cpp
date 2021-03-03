@@ -76,8 +76,8 @@ void cleanup()
 {
     if (!gIsInitialized)
         return;
-    gWebrtcContext.release();
-    gWebrtcContext = NULL;
+    gWebrtcContext = nullptr;
+    gIsInitialized = false;
     rtc::CleanupSSL();
     rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
     delete gAsyncWaiter->guiThread();

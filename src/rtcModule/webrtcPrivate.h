@@ -89,7 +89,7 @@ private:
     VideoSlot* mVthumSlot = nullptr;
     VideoSlot* mHiresSlot = nullptr;
     Slot* mAudioSlot = nullptr;
-    SessionHandler* mSessionHandler = nullptr;
+    std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
     bool mIsModerator = false;
     bool mHasRequestSpeak = false;
     SessionState mState = kSessStateInProgress;

@@ -1189,7 +1189,7 @@ Session::~Session()
 
 void Session::setSessionHandler(SessionHandler* sessionHandler)
 {
-    mSessionHandler = sessionHandler;
+    mSessionHandler = std::unique_ptr<SessionHandler>(sessionHandler);
 }
 
 void Session::setVideoRendererVthumb(IVideoRenderer *videoRederer)

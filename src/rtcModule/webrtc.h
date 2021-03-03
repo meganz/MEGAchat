@@ -92,6 +92,7 @@ class ISession;
 class SessionHandler
 {
 public:
+    virtual ~SessionHandler(){}
     virtual void onSpeakRequest(ISession& session, bool requested) = 0;
     virtual void onVThumbReceived(ISession& session) = 0;
     virtual void onHiResReceived(ISession& session) = 0;
@@ -171,6 +172,7 @@ public:
 class RtcModule
 {
 public:
+    virtual ~RtcModule(){};
     virtual void init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) = 0;
     virtual void hangupAll() = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
