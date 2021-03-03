@@ -8631,7 +8631,6 @@ MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, con
 
 MegaChatSessionHandler::~MegaChatSessionHandler()
 {
-    delete remoteVideoRender;
 }
 
 void MegaChatSessionHandler::onSpeakRequest(rtcModule::ISession &session, bool requested)

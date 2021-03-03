@@ -613,8 +613,6 @@ private:
     MegaChatApiImpl *mMegaChatApi;
     MegaChatHandle mCallid;
     MegaChatHandle mChatid;
-    rtcModule::IVideoRenderer *remoteVideoRender;
-
 };
 #endif
 
