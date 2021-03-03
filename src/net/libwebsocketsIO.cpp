@@ -37,6 +37,7 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     }
     
     info.port = CONTEXT_PORT_NO_LISTEN;
+    info.pcontext = &wscontext;
     info.protocols = protocols;
     info.gid = -1;
     info.uid = -1;
@@ -44,12 +45,12 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     info.options |= LWS_SERVER_OPTION_LIBUV;
     info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
+    info.foreign_loops = (void**)&(libuvWaiter->eventloop);
     
     lws_set_log_level(LLL_ERR | LLL_WARN |LLL_NOTICE|LLL_INFO|LLL_DEBUG|LLL_PARSER|LLL_HEADER|LLL_EXT|LLL_CLIENT|LLL_LATENCY|LLL_USER|LLL_THREAD, NULL);
     wscontext = lws_create_context(&info);
 
     eventloop = libuvWaiter->eventloop;
-    lws_uv_initloop(wscontext, libuvWaiter->eventloop, 0);
     WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
 }
 
