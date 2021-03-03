@@ -1501,10 +1501,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            bool enableVideo = request->getFlag();
+            karere::AvFlags avFlags(true, enableVideo);
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-                mClient->rtc->startCall(chatid)
+                mClient->rtc->startCall(chatid, avFlags)
                 .then([request, this]()
                 {
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1521,7 +1523,7 @@ void MegaChatApiImpl::sendPendingRequests()
             else if (!call->participate())
             {
                 bool moderator = (chatroom->ownPriv() == PRIV_OPER);
-                call->join(moderator)
+                call->join(moderator, avFlags)
                 .then([request, this]()
                 {
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1548,7 +1550,6 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            bool enableVideo = request->getFlag();
 
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
@@ -1581,7 +1582,9 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             bool moderator = (chatroom->ownPriv() == PRIV_OPER);
-            call->join(moderator);
+            bool enableVideo = request->getFlag();
+            karere::AvFlags avFlags(true, enableVideo);
+            call->join(moderator, avFlags);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);

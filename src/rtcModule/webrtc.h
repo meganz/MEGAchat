@@ -139,7 +139,7 @@ public:
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
     virtual void hangup() = 0;
-    virtual promise::Promise<void> join(bool moderator) = 0;
+    virtual promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) = 0;
     virtual bool participate() = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
@@ -181,7 +181,7 @@ public:
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual std::string getVideoDeviceSelected() = 0;
-    virtual promise::Promise<void> startCall(karere::Id chatid) = 0;
+    virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags) = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;

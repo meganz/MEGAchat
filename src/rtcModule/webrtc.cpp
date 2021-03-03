@@ -8,13 +8,13 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator, unsigned avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
     , mState(kStateInitial)
     , mIsRinging(isRinging)
-    , mLocalAvFlags(static_cast<uint8_t>(avflags))
+    , mLocalAvFlags(avflags)
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
     , mSfuClient(sfuClient)
@@ -84,8 +84,9 @@ void Call::hangup()
     disconnect(TermCode::kUserHangup);
 }
 
-promise::Promise<void> Call::join(bool moderator)
+promise::Promise<void> Call::join(bool moderator, karere::AvFlags avFlags)
 {
+    mLocalAvFlags = avFlags;
     mMyPeer.setModerator(moderator);
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid, mCallid)
@@ -949,18 +950,18 @@ std::string RtcModuleSfu::getVideoDeviceSelected()
     return "";
 }
 
-promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid)
+promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags)
 {
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-    .then([wptr, this, chatid](ReqResult result)
+    .then([wptr, this, chatid, avFlags](ReqResult result)
     {
         wptr.throwIfDeleted();
         karere::Id callid = result->getParentHandle();
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), true);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), true, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });

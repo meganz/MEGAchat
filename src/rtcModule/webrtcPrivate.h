@@ -98,7 +98,7 @@ private:
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false, unsigned avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false, karere::AvFlags avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
@@ -107,7 +107,7 @@ public:
     void addParticipant(karere::Id peer) override;
     void removeParticipant(karere::Id peer) override;
     void hangup() override;
-    promise::Promise<void> join(bool moderator) override;
+    promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) override;
     bool participate() override;
     void enableAudioLevelMonitor(bool enable) override;
     void ignoreCall() override;
@@ -222,8 +222,6 @@ class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable
 {
 public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers);
-
-
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) override;
     void hangupAll() override;
     ICall* findCall(karere::Id callid) override;
@@ -232,7 +230,7 @@ public:
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     std::string getVideoDeviceSelected() override;
-    promise::Promise<void> startCall(karere::Id chatid) override;
+    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags) override;
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
