@@ -104,12 +104,12 @@ void globalCleanup();
 struct AvFlags
 {
 protected:
-    uint8_t mFlags;
+    uint8_t mFlags = 0;
 public:
     //Bit 3 (value 4) is occupied by kFlagRinging = 0x04
     enum: uint8_t { kAudio = 1, kCameraLowRes = 2, kCameraHiRes = 4, kCamera = 6,
                     kScreenLowRes = 8, kScreenHiRes = 16, kScreen = 24,
-                  kLowResVideo = 10, kHiResVideo = 20, kVideo = 30};
+                    kLowResVideo = 10, kHiResVideo = 20, kVideo = 30};
     AvFlags(uint8_t flags): mFlags(flags){}
     AvFlags(bool audio, bool video)
     : mFlags((audio ? kAudio : 0) | (video ? kVideo : 0)){}
