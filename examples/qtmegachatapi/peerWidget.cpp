@@ -12,6 +12,7 @@ PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHan
     , mHiRes(hiRes)
     , mLocal(local)
 {
+    mMegaChatVideoListenerDelegate = new QTMegaChatVideoListener(&mMegaChatApi, this);
     mVideoRender = new VideoRendererQt(this);
     QHBoxLayout* layout = new QHBoxLayout();
     layout->addWidget(mVideoRender);
@@ -19,11 +20,11 @@ PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHan
 
     if (mLocal)
     {
-        mMegaChatApi.addChatLocalVideoListener(mChatid, mHiRes, this);
+        mMegaChatApi.addChatLocalVideoListener(mChatid, mHiRes, mMegaChatVideoListenerDelegate);
     }
     else
     {
-        //mMegaChatApi.addChatRemoteVideoListener(mChatid, mCid, mHiRes, this);
+        mMegaChatApi.addChatRemoteVideoListener(mChatid, mCid, mHiRes, mMegaChatVideoListenerDelegate);
         auto image = new QImage(QSize(262, 262), QImage::Format_ARGB32);
         drawPeerAvatar(*image);
         mVideoRender->setStaticImage(image);
@@ -37,11 +38,11 @@ PeerWidget::~PeerWidget()
 {
     if (mLocal)
     {
-        mMegaChatApi.removeChatLocalVideoListener(mChatid, mHiRes, this);
+        mMegaChatApi.removeChatLocalVideoListener(mChatid, mHiRes, mMegaChatVideoListenerDelegate);
     }
     else
     {
-        mMegaChatApi.removeChatRemoteVideoListener(mChatid, mCid, mHiRes, this);
+        mMegaChatApi.removeChatRemoteVideoListener(mChatid, mCid, mHiRes, mMegaChatVideoListenerDelegate);
     }
 }
 
