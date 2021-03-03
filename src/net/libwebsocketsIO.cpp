@@ -19,6 +19,14 @@ static struct lws_protocols protocols[] =
 
 LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
 {
+    ::mega::LibuvWaiter *libuvWaiter = dynamic_cast<::mega::LibuvWaiter *>(waiter);
+    if (!libuvWaiter)
+    {
+        WEBSOCKETS_LOG_ERROR("Fatal error: NULL or invalid waiter object");
+        assert(false);
+        abort();
+    }
+
     struct lws_context_creation_info info;
     memset( &info, 0, sizeof(info) );
     
@@ -40,13 +48,6 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
     wscontext = lws_create_context(&info);
 
-    ::mega::LibuvWaiter *libuvWaiter = dynamic_cast<::mega::LibuvWaiter *>(waiter);
-    if (!libuvWaiter)
-    {
-        WEBSOCKETS_LOG_ERROR("Fatal error: NULL or invalid waiter object");
-        assert(false);
-        abort();
-    }
     eventloop = libuvWaiter->eventloop;
     lws_uv_initloop(wscontext, libuvWaiter->eventloop, 0);
     WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
