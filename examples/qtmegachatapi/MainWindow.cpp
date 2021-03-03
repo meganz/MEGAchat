@@ -299,6 +299,31 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     assert(window);
     assert(window->mMeetingView);
 
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES) && window->mMeetingView)
+    {
+        if (session->isHiResVideo())
+        {
+            PeerWidget *peerWidget = new PeerWidget(*mMegaChatApi, chatid, session->getClientid(), true);
+            window->mMeetingView->addHiRes(peerWidget);
+        }
+        else
+        {
+            window->mMeetingView->removeHiRes(session->getClientid());
+        }
+    }
+
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_VTHUMB) && window->mMeetingView)
+    {
+        if (session->isLowResVideo())
+        {
+            PeerWidget *peerWidget = new PeerWidget(*mMegaChatApi, chatid, session->getClientid(), false);
+            window->mMeetingView->addVthumb(peerWidget);
+        }
+        else
+        {
+            window->mMeetingView->removeThumb(session->getClientid());
+        }
+    }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
     {

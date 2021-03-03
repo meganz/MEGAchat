@@ -23,7 +23,7 @@ PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHan
     }
     else
     {
-        //mMegaChatApi.addChatRemoteVideoListener(mChatid, mCid, mHiRes, this);
+        mMegaChatApi.addChatRemoteVideoListener(mChatid, mCid, mHiRes, this);
         auto image = new QImage(QSize(262, 262), QImage::Format_ARGB32);
         drawPeerAvatar(*image);
         mVideoRender->setStaticImage(image);

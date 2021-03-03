@@ -7,13 +7,13 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     , mChatid(chatid)
 {
     mGridLayout = new QGridLayout(this);
-    QWidget* widgetThumbs = new QWidget();
-    mThumbLayout = new QHBoxLayout(widgetThumbs);
-    QWidget* widgetHiRes = new QWidget();
-    mHiResLayout = new QHBoxLayout(widgetHiRes);
-    mLocalLayout = new QHBoxLayout();
     mThumbView = new QScrollArea();
     mHiResView = new QScrollArea();
+    QWidget* widgetThumbs = new QWidget(mThumbView);
+    QWidget* widgetHiRes = new QWidget(mHiResView);
+    mThumbLayout = new QHBoxLayout(widgetThumbs);
+    mHiResLayout = new QHBoxLayout(widgetHiRes);
+    mLocalLayout = new QHBoxLayout();
     mButtonsLayout = new QVBoxLayout();
 
     mListWidget = new QListWidget();
@@ -59,12 +59,14 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 void MeetingView::addVthumb(PeerWidget *widget)
 {
     mThumbLayout->addWidget(widget);
+    widget->show();
     mThumbsWidget[widget->getCid()] = widget;
 }
 
 void MeetingView::addHiRes(PeerWidget *widget)
 {
     mHiResLayout->addWidget(widget, 1);
+    widget->show();
     mHiResWidget[widget->getCid()] = widget;
 }
 
