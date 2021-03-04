@@ -98,6 +98,13 @@ private:
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
+    enum SpeakerState
+    {
+        kNoSpeaker = 0,
+        kPending = 1,
+        kActive = 2,
+    };
+
     Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false, karere::AvFlags avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
@@ -182,8 +189,7 @@ public:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIsModerator = false;
-    bool mSpeakerRequested = false;
-    bool mSpeakAllow = false;
+    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
 
     std::string mSfuUrl;

@@ -79,7 +79,6 @@ void Call::removeParticipant(karere::Id peer)
     return;
 }
 
-void Call::hangup()
 promise::Promise<void> Call::hangup()
 {
     if (mState == kStateClientNoParticipating && mIsRinging)
@@ -114,7 +113,7 @@ promise::Promise<void> Call::join(bool moderator, karere::AvFlags avFlags)
 
 bool Call::participate()
 {
-    return (mState > kStateUserNoParticipating && mState < kStateTerminatingUserParticipation);
+    return (mState > kStateClientNoParticipating && mState < kStateTerminatingUserParticipation);
 }
 
 void Call::enableAudioLevelMonitor(bool enable)
@@ -180,16 +179,16 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 
 void Call::requestSpeaker(bool add)
 {
-    if (!mSpeakerRequested && add)
+    if (mSpeakerState == SpeakerState::kNoSpeaker && add)
     {
-        mSpeakerRequested = true;
+        mSpeakerState = SpeakerState::kPending;
         mSfuConnection->sendSpeakReq();
         return;
     }
 
-    if (mSpeakerRequested && !add)
+    if (mSpeakerState == SpeakerState::kPending && !add)
     {
-        mSpeakerRequested = false;
+        mSpeakerState = SpeakerState::kNoSpeaker;
         mSfuConnection->sendSpeakReqDel();
         return;
     }
@@ -341,7 +340,8 @@ void Call::connectSfu(const std::string &sfuUrl)
             ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
             ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
             ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), mLocalAvFlags.value(), true, 10);
+            int speaker = SpeakerState::kPending;
+            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), mLocalAvFlags.value(), speaker, kInitialvthumbCount);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
@@ -467,10 +467,6 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
     mMyPeer.init(cid, mSfuClient.myHandle(), 0, mod);
-    if (mMyPeer.getModerator())
-    {
-        mSpeakAllow = true;
-    }
 
     for (const sfu::Peer& peer : peers)
     {
@@ -602,10 +598,6 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
             assert(mSessions.find(cid) != mSessions.end());
             mSessions[cid]->setSpeakRequested(true);
         }
-        else
-        {
-            mSpeakerRequested = true;
-        }
     }
 
     return true;
@@ -618,10 +610,9 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
         assert(mSessions.find(cid) != mSessions.end());
         mSessions[cid]->setSpeakRequested(false);
     }
-    else
+    else if (mSpeakerState == SpeakerState::kPending)
     {
-        mSpeakAllow = false;
-        mSpeakerRequested = false;
+        mSpeakerState = SpeakerState::kNoSpeaker;
     }
 
     return true;
@@ -633,9 +624,9 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
     {
         addSpeaker(cid, speaker);
     }
-    else
+    else if (mSpeakerState == SpeakerState::kPending)
     {
-        mSpeakAllow = true;
+        mSpeakerState = SpeakerState::kActive;
         mAudio->enableTrack(true);
     }
 
@@ -648,10 +639,10 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     {
         removeSpeaker(cid);
     }
-    else
+    else if (mSpeakerState == SpeakerState::kActive)
     {
-        mSpeakAllow = false;
         mAudio->enableTrack(false);
+        mSpeakerState = SpeakerState::kNoSpeaker;
     }
 
     return true;
@@ -1029,6 +1020,7 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
 void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging)
 {
     mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get());
+    mCalls[callid]->setState(kStateClientNoParticipating);
 }
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers)

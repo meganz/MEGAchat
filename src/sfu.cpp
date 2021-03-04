@@ -31,7 +31,7 @@ std::string ModeratorCommand::COMMAND_NAME = "MOD";
 const std::string Sdp::endl = "\r\n";
 
 Peer::Peer()
-    : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0), mModerator(0)
+    : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0), mModerator(1)
 {
 }
 
@@ -1430,7 +1430,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
     if (speaker)
     {
         rapidjson::Value speakerValue(rapidjson::kNumberType);
-        speakerValue.SetInt(1);
+        speakerValue.SetInt(speaker);
         json.AddMember("spk", speakerValue, json.GetAllocator());
     }
 

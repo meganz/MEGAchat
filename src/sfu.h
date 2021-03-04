@@ -34,7 +34,7 @@ protected:
     Cid_t mCid = 0;
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = 0;
-    int mModerator = 0;
+    int mModerator = 1;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
 

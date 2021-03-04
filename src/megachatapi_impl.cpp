@@ -1522,7 +1522,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (!call->participate())
             {
-                bool moderator = (chatroom->ownPriv() == PRIV_OPER);
+                bool moderator = true;
                 call->join(moderator, avFlags)
                 .then([request, this]()
                 {
@@ -1581,13 +1581,23 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool moderator = (chatroom->ownPriv() == PRIV_OPER);
+            bool moderator = true;
             bool enableVideo = request->getFlag();
             karere::AvFlags avFlags(true, enableVideo);
-            call->join(moderator, avFlags);
+            call->join(moderator, avFlags)
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const ::promise::Error& err)
+            {
+                API_LOG_ERROR("Error Joining a chat call: %s", err.what());
 
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-            fireOnChatRequestFinish(request, megaChatError);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+
             break;
         }
         case MegaChatRequest::TYPE_HANG_CHAT_CALL:
