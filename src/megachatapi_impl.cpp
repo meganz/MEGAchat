@@ -1506,19 +1506,38 @@ void MegaChatApiImpl::sendPendingRequests()
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-                mClient->rtc->startCall(chatid, avFlags)
-                .then([request, this]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request, this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error Starting a chat call: %s", err.what());
+               ::promise::Promise<std::shared_ptr<std::string>> pms;
+               if (chatroom->publicChat())
+               {
+                   pms = static_cast<GroupChatRoom *>(chatroom)->unifiedKey();
+               }
+               else
+               {
+                   pms.resolve(std::make_shared<string>());
+               }
 
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
+               pms.then([request, this, chatid, avFlags] (shared_ptr<string> unifiedKey)
+               {
+                   mClient->rtc->startCall(chatid, avFlags, unifiedKey)
+                   .then([request, this]()
+                   {
+                       MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                       fireOnChatRequestFinish(request, megaChatError);
+                   })
+                   .fail([request, this](const ::promise::Error& err)
+                   {
+                       API_LOG_ERROR("Error Starting a chat call: %s", err.what());
+
+                       MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                       fireOnChatRequestFinish(request, megaChatError);
+                   });
+               })
+               .fail([request, this] (const ::promise::Error &err)
+               {
+                   API_LOG_ERROR("Failed to decrypt unified key: %s", err.what());
+                   MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                   fireOnChatRequestFinish(request, megaChatError);
+               });
             }
             else if (!call->participate())
             {

@@ -2482,7 +2482,26 @@ void Connection::execCommand(const StaticBuffer& buf)
                     rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false);
+                        auto& chat = mChatdClient.chats(chatid);
+                        promise::Promise<std::shared_ptr<std::string>> pms;
+                        if (chat.isPublic())
+                        {
+                            pms = chat.crypto()->getUnifiedKey();
+                        }
+                        else
+                        {
+                            pms.resolve(std::make_shared<string>());
+                        }
+
+                        pms.then([this, chatid, callid] (shared_ptr<string> unifiedKey)
+                        {
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, unifiedKey);
+                        })
+                        .fail([] (const ::promise::Error &err)
+                        {
+                            // Todo: check if it's necessary to throw an exception
+                            throw std::runtime_error("Failed to decrypt unified key");
+                        });
                     }
                 }
 
@@ -2500,7 +2519,26 @@ void Connection::execCommand(const StaticBuffer& buf)
                     rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing);
+                        auto& chat = mChatdClient.chats(chatid);
+                        promise::Promise<std::shared_ptr<std::string>> pms;
+                        if (chat.isPublic())
+                        {
+                            pms = chat.crypto()->getUnifiedKey();
+                        }
+                        else
+                        {
+                            pms.resolve(std::make_shared<string>());
+                        }
+
+                        pms.then([this, chatid, callid, userid, ringing] (shared_ptr<string> unifiedKey)
+                        {
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing, unifiedKey);
+                        })
+                        .fail([] (const ::promise::Error &err)
+                        {
+                            // Todo: check if it's necessary to throw an exception
+                            throw std::runtime_error("Failed to decrypt unified key");
+                        });
                     }
                     else
                     {

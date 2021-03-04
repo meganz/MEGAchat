@@ -181,7 +181,7 @@ public:
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual std::string getVideoDeviceSelected() = 0;
-    virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags) = 0;
+    virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
@@ -191,7 +191,7 @@ public:
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
     virtual void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) = 0;
-    virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging) = 0;
+    virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
 

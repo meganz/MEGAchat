@@ -105,7 +105,7 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false, karere::AvFlags avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, std::shared_ptr<std::string> callKey = nullptr, bool moderator = false, karere::AvFlags avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
@@ -236,7 +236,7 @@ public:
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     std::string getVideoDeviceSelected() override;
-    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags) override;
+    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) override;
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
@@ -246,7 +246,7 @@ public:
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
     void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) override;
-    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging) override;
+    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey = nullptr) override;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;

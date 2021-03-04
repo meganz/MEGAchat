@@ -8,7 +8,7 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, bool moderator, karere::AvFlags avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
@@ -20,6 +20,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mSfuClient(sfuClient)
     , mMyPeer()
 {
+    mCallKey = callKey ? (*callKey.get()) : nullptr;
     mMyPeer.setModerator(moderator);
     mGlobalCallHandler.onNewCall(*this);
     mSessions.clear();
@@ -954,18 +955,24 @@ std::string RtcModuleSfu::getVideoDeviceSelected()
     return "";
 }
 
-promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags)
+promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey)
 {
+    // we need a temp string to avoid issues with lambda shared pointer capture
+    std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-    .then([wptr, this, chatid, avFlags](ReqResult result)
+    .then([wptr, this, chatid, avFlags, auxCallKey](ReqResult result)
     {
+        std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
+                ? std::make_shared<std::string>(auxCallKey)
+                : nullptr;
+
         wptr.throwIfDeleted();
         karere::Id callid = result->getParentHandle();
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), true, avFlags);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), sharedUnifiedKey, true, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });
@@ -1017,9 +1024,9 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
     mCalls.erase(callid);
 }
 
-void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging)
+void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get());
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get(), callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 
