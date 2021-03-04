@@ -18,32 +18,34 @@ class Peer
 {
 public:
     Peer(); //default ctor
-    Peer(Cid_t cid, karere::Id peerid, int avFlags, int mod);
+    Peer(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod);
     Peer(const Peer& peer);
     Cid_t getCid() const;
     karere::Id getPeerid() const;
     Keyid_t getCurrentKeyId() const;
-    int getAvFlags() const;
+    karere::AvFlags getAvFlags() const;
     int getModerator() const;
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
-    void init(Cid_t cid, karere::Id peerid, int avFlags, int mod);
+    void setModerator(bool moderator);
+    void init(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod);
 protected:
-    Cid_t mCid;
+    Cid_t mCid = 0;
     karere::Id mPeerid;
-    int mAvFlags;
-    int mModerator;
-    Keyid_t mCurrentkeyId; // we need to know the current keyId for frame encryption
+    karere::AvFlags mAvFlags = 0;
+    int mModerator = 1;
+    Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
 
 };
 
-class VideoTrackDescriptor
+class TrackDescriptor
 {
 public:
-    IvStatic_t mIv;
-    std::string mMid;
+    IvStatic_t mIv = 0;
+    uint32_t mMid;
+    bool mReuse = false;
 };
 
 class SpeakersDescriptor
@@ -62,23 +64,61 @@ protected:
     std::string mVideoDescriptor;
 };
 
+class SdpTrack
+{
+public:
+    std::string mType;
+    uint64_t mMid;
+    std::string mDir;
+    std::string mSid;
+    std::string mId;
+    std::vector<std::string> mSsrcg;
+    std::vector<std::pair<uint64_t, std::string>> mSsrcs;
+};
+
+class Sdp
+{
+public:
+    Sdp(const std::string& sdp);
+    Sdp(const rapidjson::Value& sdp);
+    std::string unCompress();
+    void toJson(rapidjson::Document& json) const;
+
+public:
+    unsigned int createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position);
+    unsigned int addTrack(const std::vector<std::string>& lines, unsigned int position);
+    unsigned int nextMline(const std::vector<std::string>& lines, unsigned int position);
+    std::string nextWord(const std::string& line, unsigned int start, unsigned int &charRead);
+    SdpTrack parseTrack(const rapidjson::Value &value) const;
+    std::string unCompressTrack(const SdpTrack &track, const std::string& tpl);
+    std::map<std::string, std::string> mData;
+    std::vector<SdpTrack> mTracks;
+    static const std::string endl;
+};
+
+
 class SfuInterface
 {
 public:
     // SFU -> Client
-    virtual bool handleAvCommand(Cid_t cid, int av) = 0;
-    virtual bool handleAnswerCommand(Cid_t cid, const std::string&sdp, int mod, const std::vector<Peer>&peers, const std::map<Cid_t, VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, SpeakersDescriptor>&speakers) = 0;
+    virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, int mod, const std::vector<Peer>&peers, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
-    virtual bool handleVThumbsCommand(const std::map<Cid_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
+    virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
     virtual bool handleVThumbsStopCommand() = 0;
-    virtual bool handleHiResCommand(const std::map<Cid_t, VideoTrackDescriptor>& videoTrackDescriptors) = 0;
+    virtual bool handleHiResCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleHiResStartCommand() = 0;
     virtual bool handleHiResStopCommand() = 0;
     virtual bool handleSpeakReqsCommand(const std::vector<Cid_t>&) = 0;
     virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
-    virtual bool handleSpeakOnCommand(Cid_t cid, SpeakersDescriptor speaker) = 0;
+    virtual bool handleSpeakOnCommand(Cid_t cid, TrackDescriptor speaker) = 0;
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
+    virtual bool handleStatCommand() = 0;
+    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
+    virtual bool handlePeerLeft(Cid_t cid) = 0;
+    virtual bool handleError(unsigned int , const std::string) = 0;
+    virtual bool handleModerator(Cid_t cid, bool moderator) = 0;
 };
 
     class Command
@@ -86,12 +126,17 @@ public:
     public:
         virtual bool processCommand(const rapidjson::Document& command) = 0;
         static std::string COMMAND_IDENTIFIER;
+        virtual ~Command();
+        static std::string binaryToHex(uint64_t value);
+        static uint64_t hexToBinary(const std::string& hex);
     protected:
         Command();
         void parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator& it) const;
+        bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
+        static uint8_t hexDigitVal(char value);
     };
 
-    typedef std::function<bool(karere::Id, int)> AvCompleteFunction;
+    typedef std::function<bool(karere::Id, unsigned)> AvCompleteFunction;
     class AVCommand : public Command
     {
     public:
@@ -104,7 +149,7 @@ public:
     class AnswerCommand : public Command
     {
     public:
-        typedef std::function<bool(Cid_t, const std::string&, int, std::vector<Peer>, std::map<Cid_t, VideoTrackDescriptor>, std::map<Cid_t, SpeakersDescriptor>)> AnswerCompleteFunction;
+        typedef std::function<bool(Cid_t, sfu::Sdp&, int, std::vector<Peer>, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>)> AnswerCompleteFunction;
         AnswerCommand(const AnswerCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
         static std::string COMMAND_NAME;
@@ -112,8 +157,9 @@ public:
 
     private:
         void parsePeerObject(std::vector<Peer>&peers, rapidjson::Value::ConstMemberIterator& it) const;
+        bool parseTracks(const std::vector<Peer>&peers, std::map<Cid_t, TrackDescriptor> &tracks, rapidjson::Value::ConstMemberIterator& it, bool audio = false) const;
         void parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator& it) const;
-        void parseVthumsObject(std::map<Cid_t, VideoTrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
+        void parseVthumsObject(std::map<Cid_t, TrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
     };
 
     typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;
@@ -126,7 +172,7 @@ public:
         KeyCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(const std::map<Cid_t, VideoTrackDescriptor>&)> VtumbsCompleteFunction;
+    typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> VtumbsCompleteFunction;
     class VthumbsCommand : public Command
     {
     public:
@@ -156,7 +202,7 @@ public:
         VtumbsStopCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(const std::map<Cid_t, VideoTrackDescriptor>&)> HiresCompleteFunction;
+    typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> HiresCompleteFunction;
     class HiResCommand : public Command
     {
     public:
@@ -206,7 +252,7 @@ public:
         SpeakReqDelCompleteFunction mComplete;
     };
 
-    typedef std::function<bool(Cid_t cid, SpeakersDescriptor speaker)> SpeakOnCompleteFunction;
+    typedef std::function<bool(Cid_t cid, TrackDescriptor speaker)> SpeakOnCompleteFunction;
     class SpeakOnCommand : public Command
     {
     public:
@@ -226,6 +272,56 @@ public:
         SpeakOffCompleteFunction mComplete;
     };
 
+    typedef std::function<bool(void)> StatCommandFunction;
+    class StatCommand : public Command
+    {
+    public:
+        StatCommand(const StatCommandFunction& complete);
+        bool processCommand(const rapidjson::Document& command) override;
+        static std::string COMMAND_NAME;
+        StatCommandFunction mComplete;
+    };
+
+    typedef std::function<bool(Cid_t cid, uint64_t userid, int av)> PeerJoinCommandFunction;
+    class PeerJoinCommand : public Command
+    {
+    public:
+        PeerJoinCommand(const PeerJoinCommandFunction& complete);
+        bool processCommand(const rapidjson::Document& command) override;
+        static std::string COMMAND_NAME;
+        PeerJoinCommandFunction mComplete;
+    };
+
+    typedef std::function<bool(Cid_t cid)> PeerLeftCommandFunction;
+    class PeerLeftCommand : public Command
+    {
+    public:
+        PeerLeftCommand(const PeerLeftCommandFunction& complete);
+        bool processCommand(const rapidjson::Document& command) override;
+        static std::string COMMAND_NAME;
+        PeerLeftCommandFunction mComplete;
+    };
+
+    typedef std::function<bool(unsigned int , const std::string)> ErrorCommandFunction;
+    class ErrorCommand : public Command
+    {
+    public:
+        ErrorCommand(const ErrorCommandFunction& complete);
+        bool processCommand(const rapidjson::Document& command) override;
+        static std::string COMMAND_NAME;
+        ErrorCommandFunction mComplete;
+    };
+
+    typedef std::function<bool(Cid_t cid, bool moderator)> ModeratorCommandFunction;
+    class ModeratorCommand : public Command
+    {
+    public:
+        ModeratorCommand(const ModeratorCommandFunction& complete);
+        bool processCommand(const rapidjson::Document& command) override;
+        static std::string COMMAND_NAME;
+        ModeratorCommandFunction mComplete;
+    };
+
     class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     {
         // client->sfu commands
@@ -240,7 +336,7 @@ public:
         const std::string CSFU_LAYER = "LAYER";
         const std::string CSFU_SPEAK_RQ = "SPEAK_RQ";
         const std::string CSFU_SPEAK_RQ_DEL = "SPEAK_RQ_DEL";
-        const std::string CSFU_SPEAK_DEL = "SPEAK_DEL";
+        const std::string CSFU_SPEAK_DEL = "SPEAKER_DEL";
 
     public:
         enum ConnState
@@ -255,6 +351,7 @@ public:
         };
 
         SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call);
+        ~SfuConnection();
         bool isOnline() const;
         promise::Promise<void> connect();
         void disconnect();
@@ -264,9 +361,9 @@ public:
         bool handleIncomingData(const char* data, size_t len);
 
         promise::Promise<void> getPromiseConnection();
-        bool joinSfu(const std::string& sdp, const std::map<int, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
-        bool sendKey(Keyid_t id, const std::string& data);
-        bool sendAv(int av);
+        bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, bool moderator, int avFlags, int speaker = -1, int vthumbs = -1);
+        bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
+        bool sendAv(unsigned av);
         bool sendGetVtumbs(const std::vector<karere::Id>& cids);
         bool sendDelVthumbs(const std::vector<karere::Id>& cids);
         bool sendGetHiRes(karere::Id cid, int r, int lo = -1);
@@ -276,7 +373,6 @@ public:
         bool sendSpeakReq(karere::Id cid = karere::Id::inval());
         bool sendSpeakReqDel(karere::Id cid = karere::Id::inval());
         bool sendSpeakDel(karere::Id cid = karere::Id::inval());
-        bool sendModeratorRequested(karere::Id cid = karere::Id::inval());
 
     protected:
         std::string mSfuUrl;

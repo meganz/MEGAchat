@@ -307,6 +307,8 @@ public:
     // returns the encrypted_frame size for a given frame
     size_t GetMaxCiphertextByteSize(cricket::MediaType media_type, size_t frame_size) override;
 
+    void setTerminating();
+
 private:
 
     // symetric cipher
@@ -314,6 +316,9 @@ private:
 
     // sequential number of the packet
     Ctr_t mCtr = 0;
+
+    // keyId of current key armed in SymCipher
+    Keyid_t mKeyId = 0;
 
     // own peer
     const sfu::Peer& mMyPeer;
@@ -323,6 +328,8 @@ private:
 
     // static part (8 Bytes) of IV
     IvStatic_t mIv;
+
+    bool mTerminating = false;
 };
 
 class MegaDecryptor : public rtc::RefCountedObject<webrtc::FrameDecryptorInterface>
@@ -335,11 +342,10 @@ public:
     void setDecryptionKey(const std::string &decryptKey);
 
     // validates header by checking if CID matches with expected one, also extracts keyId and packet CTR */
-    webrtc::FrameDecryptorInterface::Status validateAndProcessHeader(rtc::ArrayView<const uint8_t>
-                                                                      encrypted_frame);
+    bool validateAndProcessHeader(rtc::ArrayView<const uint8_t> header);
 
     // rebuild the IV for a received frame, you take the ownership of returned value
-    std::shared_ptr<byte> generateFrameIV();
+    std::shared_ptr<byte[]> generateFrameIV();
 
     // decrypts a received frame
     Result Decrypt(cricket::MediaType media_type,
@@ -351,6 +357,8 @@ public:
     // returns the plain_frame size for a given encrypted frame
     size_t GetMaxPlaintextByteSize(cricket::MediaType media_type, size_t encrypted_frame_size) override;
 
+    void setTerminating();
+
 private:
 
     // symetric cipher
@@ -358,6 +366,9 @@ private:
 
     // sequential number of the packet
     Ctr_t mCtr = 0;
+
+    // keyId of current key armed in SymCipher
+    Keyid_t mKeyId = 0;
 
     // peer
     const sfu::Peer& mPeer;
@@ -367,6 +378,8 @@ private:
 
     // static part (8 Bytes) of IV
     IvStatic_t mIv;
+
+    bool mTerminating = false;
 };
 
 class LocalStreamHandle

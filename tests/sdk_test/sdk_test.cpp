@@ -199,7 +199,19 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 {
     bool *flagRequestLogout = &requestFlags[accountIndex][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
     bool *flagRequestLogoutChat = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogoutChat = false;
-    closeSession ? megaApi[accountIndex]->logout() : megaApi[accountIndex]->localLogout();
+    if (closeSession)
+    {
+#ifdef ENABLE_SYNC
+            megaApi[accountIndex]->logout(false, nullptr);
+#else
+            megaApi[accountIndex]->logout();
+#endif
+    }
+    else
+    {
+        megaApi[accountIndex]->localLogout();
+    }
+
     ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for logout from sdk");
     ASSERT_CHAT_TEST(!lastError[accountIndex] || lastError[accountIndex] == MegaError::API_ESID, "Error sdk logout. Error: " + std::to_string(lastError[accountIndex]));
 
@@ -315,7 +327,11 @@ void MegaChatApiTest::SetUp()
         ASSERT_CHAT_TEST(waitForResponse(flagKillSessions), "Kill sessions failed in SetUp() after " + std::to_string(maxTimeout) + " seconds");
         ASSERT_CHAT_TEST(!lastError[i], "Kill sessions failed in SetUp(). Error: " + std::to_string(lastError[i]));
         bool *flagLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagLogout = false;
+#ifdef ENABLE_SYNC
+        megaApi[i]->logout(false, nullptr);
+#else
         megaApi[i]->logout();
+#endif
         ASSERT_CHAT_TEST(waitForResponse(flagLogout), "Expired timeout for logout in SetUp()");
         ASSERT_CHAT_TEST(!lastError[i] || lastError[i] == MegaError::API_ESID, "Logout failed in SetUp(). Error: " + std::to_string(lastError[i]));
 
@@ -435,7 +451,11 @@ void MegaChatApiTest::TearDown()
                 removePendingContactRequest(i);
 
                 bool *flagRequestLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
-                megaApi[i]->logout();
+#ifdef ENABLE_SYNC
+            megaApi[i]->logout(false, nullptr);
+#else
+            megaApi[i]->logout();
+#endif
                 TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaApi logout");
                 TEST_LOG_ERROR(!lastError[i], "Failed to logout from SDK. Error: " + std::to_string(lastError[i]));
             }
@@ -4087,7 +4107,7 @@ void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHan
     ASSERT_CHAT_TEST(itemPrimary->getLastTimestamp() != 0, "Wrong last timestamp after clear history");
     delete itemPrimary; itemPrimary = NULL;
     MegaChatListItem *itemSecondary = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(itemSecondary->getUnreadCount() == 0, "Wrong unread count for chat list item after clear history. Count: " + std::to_string(itemSecondary->getUnreadCount()));
+    ASSERT_CHAT_TEST(itemSecondary->getUnreadCount() == 1, "Wrong unread count for chat list item after clear history. Count: " + std::to_string(itemSecondary->getUnreadCount()));
     ASSERT_CHAT_TEST(!strcmp(itemSecondary->getLastMessage(), ""), "Wrong content of last message for chat list item after clear history. Content: " + std::string(itemSecondary->getLastMessage()));
     ASSERT_CHAT_TEST(itemSecondary->getLastMessageType() == MegaChatMessage::TYPE_TRUNCATE, "Wrong type of last message after clear history. Type: " + std::to_string(itemSecondary->getLastMessageType()));
     ASSERT_CHAT_TEST(itemSecondary->getLastTimestamp() != 0, "Wrong last timestamp after clear history");
@@ -4577,6 +4597,23 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
 
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS) && call->isRinging())
+    {
+        if (api->getNumCalls() > 1)
+        {
+            // Hangup in progress call and answer the new call
+//                api->hangChatCall(mCallId[apiIndex]);
+//                api->answerChatCall(call->getChatid());
+
+            // Hangup in coming call
+            api->hangChatCall(call->getChatid());
+        }
+
+        mCallReceived[apiIndex] = true;
+        mChatIdRingInCall[apiIndex] = call->getChatid();
+        mCallIdRingIn[apiIndex] = call->getId();
+    }
+
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
         unsigned int apiIndex = getMegaChatApiIndex(api);
@@ -4587,23 +4624,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             mChatIdInProgressCall[apiIndex] = call->getChatid();
             break;
 
-        case MegaChatCall::CALL_STATUS_RING_IN:
-            if (api->getNumCalls() > 1)
-            {
-                // Hangup in progress call and answer the new call
-//                api->hangChatCall(mCallId[apiIndex]);
-//                api->answerChatCall(call->getChatid());
-
-                // Hangup in coming call
-                api->hangChatCall(call->getChatid());
-            }
-
-            mCallReceived[apiIndex] = true;
-            mChatIdRingInCall[apiIndex] = call->getChatid();
-            mCallIdRingIn[apiIndex] = call->getId();
-            break;
-
-        case MegaChatCall::CALL_STATUS_REQUEST_SENT:
+        case MegaChatCall::CALL_STATUS_JOINING:
             mCallIdRequestSent[apiIndex] = call->getId();
             break;
 
@@ -5227,12 +5248,12 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 
 }
 
-bool MockupCall::handleAvCommand(Cid_t cid, int av)
+bool MockupCall::handleAvCommand(Cid_t cid, unsigned av)
 {
 
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t cid, const string &sdp, int mod, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::VideoTrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor> &speakers)
+bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, int mod, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
 
 }
@@ -5242,7 +5263,7 @@ bool MockupCall::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &k
 
 }
 
-bool MockupCall::handleVThumbsCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &)
+bool MockupCall::handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &)
 {
 
 }
@@ -5257,7 +5278,7 @@ bool MockupCall::handleVThumbsStopCommand()
 
 }
 
-bool MockupCall::handleHiResCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &)
+bool MockupCall::handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &)
 {
 
 }
@@ -5282,12 +5303,37 @@ bool MockupCall::handleSpeakReqDelCommand(Cid_t cid)
 
 }
 
-bool MockupCall::handleSpeakOnCommand(Cid_t cid, sfu::SpeakersDescriptor speaker)
+bool MockupCall::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 {
 
 }
 
 bool MockupCall::handleSpeakOffCommand(Cid_t cid)
+{
+
+}
+
+bool MockupCall::handleStatCommand()
+{
+
+}
+
+bool MockupCall::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
+{
+
+}
+
+bool MockupCall::handlePeerLeft(Cid_t cid)
+{
+
+}
+
+bool MockupCall::handleError(unsigned int, const string)
+{
+
+}
+
+bool MockupCall::handleModerator(Cid_t cid, bool moderator)
 {
 
 }

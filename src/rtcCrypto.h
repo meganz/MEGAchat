@@ -35,6 +35,7 @@ public:
     void encryptKeyTo(const karere::Id &peer, const strongvelope::SendKey &data, strongvelope::SendKey &output) override;
     void xorWithCallKey(const strongvelope::SendKey &callKey, strongvelope::SendKey &sendKey) override;
     std::shared_ptr<strongvelope::SendKey> generateSendKey() override;
+    promise::Promise<Buffer*> getCU25519PublicKey(const karere::Id &peer) override;
     static std::string keyToStr(const strongvelope::SendKey& key);
     static strongvelope::SendKey strToKey(const std::string& keystr);
 };

@@ -60,7 +60,8 @@ void WebsocketsClientImpl::wsSendMsgCb(const char *data, size_t len)
     client->wsSendMsgCb(data, len);
 }
 
-WebsocketsClient::WebsocketsClient()
+WebsocketsClient::WebsocketsClient(bool writeBinary)
+    : mWriteBinary(writeBinary)
 {
     ctx = NULL;
 #if !defined(_WIN32) || !defined(_MSC_VER)
@@ -188,6 +189,11 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
     WEBSOCKETS_LOG_DEBUG("Socket was closed gracefully or by server");
 
     wsCloseCb(errcode, errtype, preason, reason_len);
+}
+
+bool WebsocketsClient::getWriteBinary() const
+{
+    return mWriteBinary;
 }
 
 DNScache::DNScache(SqliteDb &db, int chatdVersion)

@@ -126,6 +126,11 @@ std::shared_ptr<strongvelope::SendKey> RtcCryptoMeetings::generateSendKey()
     return key;
 }
 
+::promise::Promise<Buffer *> RtcCryptoMeetings::getCU25519PublicKey(const Id &peer)
+{
+    return mClient.userAttrCache().getAttr(peer, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY);
+}
+
 void RtcCryptoMeetings::xorWithCallKey(const strongvelope::SendKey &callKey, strongvelope::SendKey &sendKey)
 {
     SymmCipher::xorblock(static_cast<const byte *> (callKey.ubuf()), static_cast<byte *>(sendKey.ubuf()));

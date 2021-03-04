@@ -22,6 +22,12 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     struct lws_context_creation_info info;
     memset( &info, 0, sizeof(info) );
     
+    const char *lwsversion = lws_get_library_version();
+    if (lwsversion)
+    {
+        WEBSOCKETS_LOG_DEBUG("Libwebsockets version: %s", lwsversion);        
+    }
+    
     info.port = CONTEXT_PORT_NO_LISTEN;
     info.protocols = protocols;
     info.gid = -1;
@@ -430,7 +436,13 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             len = client->getOutputBufferLength();
             if (len && data)
             {
-                lws_write(wsi, (unsigned char *)data, len, LWS_WRITE_BINARY);
+                enum lws_write_protocol writeProtocol = LWS_WRITE_BINARY;
+                if (!client->client->getWriteBinary())
+                {
+                    writeProtocol = LWS_WRITE_TEXT;
+                }
+
+                lws_write(wsi, (unsigned char *)data, len, writeProtocol);
                 client->wsSendMsgCb((const char *)data, len);
                 client->resetOutputBuffer();
             }

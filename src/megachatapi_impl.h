@@ -174,6 +174,8 @@ public:
     virtual MegaChatHandle getClientid() const override;
     virtual bool hasAudio() const override;
     virtual bool hasVideo() const override;
+    virtual bool isHiResVideo() const override;
+    virtual bool isLowResVideo() const override;
     virtual int getTermCode() const override;
     virtual bool isLocalTermCode() const override;
     virtual int getNetworkQuality() const override;
@@ -181,7 +183,10 @@ public:
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
+    virtual bool isModerator() const override;
+    virtual bool hasRequestSpeak() const override;
 
+    karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
     void setAvFlags(karere::AvFlags flags);
     void setNetworkQuality(int quality);
@@ -196,14 +201,17 @@ private:
     uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id peerid;
     uint32_t clientid;
+    karere::AvFlags mAvFlags = 0;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
+    karere::AvFlags mAVFlags;
+    bool mHasRequestSpeak = false;
+    bool mIsModerator = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
 {
 public:
     MegaChatCallPrivate(const rtcModule::ICall& call);
-    MegaChatCallPrivate(karere::Id chatid, karere::Id callid, uint32_t duration = 0);
     MegaChatCallPrivate(const MegaChatCallPrivate &call);
 
     virtual ~MegaChatCallPrivate() override;
@@ -228,19 +236,18 @@ public:
     virtual int getTermCode() const override;
     virtual bool isLocalTermCode() const override;
     virtual bool isRinging() const override;
-    virtual mega::MegaHandleList *getSessionsPeerid() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;
-    virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid) override;
+    virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientid) override;
     virtual int getNumParticipants(int audioVideo) const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
-    virtual mega::MegaHandleList *getClientidParticipants() const override;
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
+    virtual bool isModerator() const override;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -253,7 +260,6 @@ public:
     void setIsRinging(bool ringing);
     void setIgnoredCall(bool ignored);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
-    void removeSession(karere::Id peerid, uint32_t clientid);
 
     int availableAudioSlots();
     int availableVideoSlots();
@@ -273,8 +279,8 @@ protected:
     int mChanged = MegaChatCall::CHANGE_TYPE_NO_CHANGES;
     int64_t initialTs;
     int64_t finalTs;
-    std::map<chatd::EndpointId, MegaChatSession *> sessions;
-    std::map<chatd::EndpointId, karere::AvFlags> participants;
+    std::map<MegaChatHandle, std::unique_ptr<MegaChatSession>> mSessions;
+    std::map<MegaChatHandle, karere::AvFlags> participants;
     MegaChatHandle mPeerId;
     int callCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle callerId;
@@ -283,8 +289,9 @@ protected:
     bool ignored;
     bool localTermCode;
 
-    bool ringing;
+    bool ringing = false;
     bool mIsCaller;
+    bool mIsModerator = false;
 };
 
 class MegaChatVideoFrame
@@ -579,7 +586,10 @@ public:
     MegaChatCallHandler(MegaChatApiImpl *megaChatApi);
     ~MegaChatCallHandler();
     void onCallStateChange(rtcModule::ICall& call) override;
-    void onNewSession(rtcModule::ISession& session) override;
+    void onCallRinging(rtcModule::ICall &call) override;
+    void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
+    void onModeratorChange(const rtcModule::ICall& call) override;
+    void onAudioApproved(const rtcModule::ICall& call) override;
 
 protected:
     MegaChatApiImpl* mMegaChatApi;
@@ -588,16 +598,20 @@ protected:
 class MegaChatSessionHandler : public rtcModule::SessionHandler
 {
 public:
-    MegaChatSessionHandler(MegaChatApiImpl *mMegaChatApi);
+    MegaChatSessionHandler(MegaChatApiImpl *mMegaChatApi, const rtcModule::ICall& call);
     virtual ~MegaChatSessionHandler();
-    void onSpeakRequest(rtcModule::ISession& session, bool requested);
+    void onSpeakRequest(rtcModule::ISession& session, bool requested) override;
+    void onVThumbReceived(rtcModule::ISession& session) override;
+    void onHiResReceived(rtcModule::ISession& session) override;
+    void onDestroySession(rtcModule::ISession& session) override;
+    void onModeratorChange(rtcModule::ISession& session) override;
+    void onAudioRequested(rtcModule::ISession& session) override;
+    void onAudioVideoFlagsChanged(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;
     MegaChatHandle mCallid;
     MegaChatHandle mChatid;
-    rtcModule::IVideoRenderer *remoteVideoRender;
-
 };
 #endif
 
@@ -963,7 +977,6 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::ICall* findCall(MegaChatHandle chatid);
-    void removeCall(MegaChatHandle chatid);
 #endif
 
     static void setCatchException(bool enable);
@@ -1160,17 +1173,17 @@ public:
     int getMaxVideoCallParticipants();
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);  /// ***Deprecated
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL); /// ***Deprecated
-    bool isModerator(MegaChatHandle chatid);
+    bool isCallModerator(MegaChatHandle chatid);
     bool isSpeakAllow(MegaChatHandle chatid);
     mega::MegaHandleList *getRequestedSpeakers(MegaChatHandle chatid);
     void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-    void requestModerator(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
     void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
-    void approveModeratorRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
     void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
+    void stoptLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
 
     void onNewCall(rtcModule::ICall& call) override;
     void onAddPeer(rtcModule::ICall& call, karere::Id peer) override;

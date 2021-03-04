@@ -1,24 +1,29 @@
 #include <mega/types.h>
+#include <mega/base64.h>
 #include <rtcmPrivate.h>
 #include <webrtcPrivate.h>
 #include <api/video/i420_buffer.h>
 #include <libyuv/convert.h>
-#include <rapidjson/document.h>
-#include <rapidjson/writer.h>
 
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
+    , mCallerId(callerid)
     , mState(kStateInitial)
+    , mIsRinging(isRinging)
+    , mLocalAvFlags(avflags)
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
     , mSfuClient(sfuClient)
     , mMyPeer()
 {
+    mCallKey = callKey ? (*callKey.get()) : std::string();
+    mMyPeer.setModerator(moderator);
     mGlobalCallHandler.onNewCall(*this);
+    mSessions.clear();
 }
 
 Call::~Call()
@@ -35,6 +40,11 @@ karere::Id Call::getCallid() const
 karere::Id Call::getChatid() const
 {
     return mChatid;
+}
+
+karere::Id Call::getCallerid() const
+{
+    return mCallerId;
 }
 
 void Call::setState(CallState state)
@@ -70,14 +80,28 @@ void Call::removeParticipant(karere::Id peer)
     return;
 }
 
-void Call::hangup()
+promise::Promise<void> Call::hangup()
 {
-    disconnect(TermCode::kUserHangup);
+    if (mState == kStateClientNoParticipating && mIsRinging)
+    {
+        auto wptr = weakHandle();
+        return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
+        .then([](ReqResult /*result*/)
+        {
+
+        });
+    }
+    else
+    {
+        disconnect(TermCode::kUserHangup);
+        return promise::_Void();
+    }
 }
 
-promise::Promise<void> Call::join()
+promise::Promise<void> Call::join(bool moderator, karere::AvFlags avFlags)
 {
-    setState(CallState::kStateJoining);
+    mLocalAvFlags = avFlags;
+    mMyPeer.setModerator(moderator);
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid, mCallid)
     .then([wptr, this](ReqResult result)
@@ -90,7 +114,7 @@ promise::Promise<void> Call::join()
 
 bool Call::participate()
 {
-    return (mState > kStateUserNoParticipating && mState < kStateTerminatingUserParticipation);
+    return (mState > kStateClientNoParticipating && mState < kStateTerminatingUserParticipation);
 }
 
 void Call::enableAudioLevelMonitor(bool enable)
@@ -103,9 +127,24 @@ void Call::ignoreCall()
 
 }
 
+void Call::setRinging(bool ringing)
+{
+    if (mIsRinging != ringing)
+    {
+        mIsRinging = ringing;
+        mCallHandler->onCallRinging(*this);
+    }
+
+}
+
+void Call::setCallerId(karere::Id callerid)
+{
+    mCallerId  = callerid;
+}
+
 bool Call::isRinging() const
 {
-    return mIsRinging;
+    return mIsRinging && mCallerId != mSfuClient.myHandle();
 }
 
 bool Call::isModerator() const
@@ -128,29 +167,29 @@ void Call::setVideoRendererHiRes(IVideoRenderer *videoRederer)
     mHiRes->setVideoRender(videoRederer);
 }
 
-void Call::requestModerator()
+karere::AvFlags Call::getLocalAvFlags() const
 {
-    if (mModeratorRequested)
-    {
-        return;
-    }
+    return mLocalAvFlags;
+}
 
-    mModeratorRequested = true;
-    mSfuConnection->sendModeratorRequested();
+void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
+{
+    mLocalAvFlags = flags;
+    mSfuConnection->sendAv(flags.value());
 }
 
 void Call::requestSpeaker(bool add)
 {
-    if (!mSpeakerRequested && add)
+    if (mSpeakerState == SpeakerState::kNoSpeaker && add)
     {
-        mSpeakerRequested = true;
+        mSpeakerState = SpeakerState::kPending;
         mSfuConnection->sendSpeakReq();
         return;
     }
 
-    if (mSpeakerRequested && !add)
+    if (mSpeakerState == SpeakerState::kPending && !add)
     {
-        mSpeakerRequested = false;
+        mSpeakerState = SpeakerState::kNoSpeaker;
         mSfuConnection->sendSpeakReqDel();
         return;
     }
@@ -193,7 +232,7 @@ std::vector<Cid_t> Call::getSpeakerRequested()
 
     for (const auto& session : mSessions)
     {
-        if (session.second->hasRequestedSpeaker())
+        if (session.second->hasRequestSpeak())
         {
             speakerRequested.push_back(session.first);
         }
@@ -207,7 +246,8 @@ void Call::requestHighResolutionVideo(Cid_t cid)
     bool hasVthumb = false;
     for (const auto& session : mSessions)
     {
-        if (session.second->getVthumSlot()->getCid() == cid)
+        Slot* slot = session.second->getVthumSlot();
+        if (slot && slot->getCid() == cid)
         {
             hasVthumb = true;
             break;
@@ -222,6 +262,38 @@ void Call::stopHighResolutionVideo(Cid_t cid)
     mSfuConnection->sendDelHiRes(cid);
 }
 
+void Call::requestLowResolutionVideo(const std::vector<karere::Id> &cids)
+{
+    mSfuConnection->sendGetVtumbs(cids);
+}
+
+void Call::stopLowResolutionVideo(const std::vector<karere::Id> &cids)
+{
+    mSfuConnection->sendDelVthumbs(cids);
+}
+
+std::vector<karere::Id> Call::getParticipants() const
+{
+    return mParticipants;
+}
+
+std::vector<Cid_t> Call::getSessionsCids() const
+{
+    std::vector<Cid_t> returnedValue;
+
+    for (const auto& sessionIt : mSessions)
+    {
+        returnedValue.push_back(sessionIt.first);
+    }
+
+    return returnedValue;
+}
+
+ISession* Call::getSession(Cid_t cid) const
+{
+    return mSessions.at(cid).get();
+}
+
 void Call::connectSfu(const std::string &sfuUrl)
 {
     setState(CallState::kStateConnecting);
@@ -231,7 +303,6 @@ void Call::connectSfu(const std::string &sfuUrl)
     mSfuConnection->getPromiseConnection()
     .then([wptr, this]()
     {
-        setState(CallState::kStateJoining);
         if (wptr.deleted())
         {
             return;
@@ -242,6 +313,7 @@ void Call::connectSfu(const std::string &sfuUrl)
 
         createTranceiver();
         getLocalStreams();
+        setState(CallState::kStateJoining);
 
         webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
         options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
@@ -263,15 +335,14 @@ void Call::connectSfu(const std::string &sfuUrl)
                 return;
             }
 
-            //TODO Compress sdp
+            sfu::Sdp sdp(mSdp);
 
-            std::map<int, std::string> ivs;
-            // TODO binary to HEX
-//            ivs[0] = mVThumb->mIv;
-//            ivs[1] = mHiRes->mIv;
-//            ivs[2] = mAudio->mIv;
-            int avFlags = 0;
-            mSfuConnection->joinSfu(mSdp, ivs, avFlags);
+            std::map<std::string, std::string> ivs;
+            ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
+            ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
+            ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
+            int speaker = SpeakerState::kPending;
+            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), mLocalAvFlags.value(), speaker, kInitialvthumbCount);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
@@ -293,13 +364,16 @@ void Call::createTranceiver()
     if (err.ok())
     {
         mVThumb = ::mega::make_unique<VideoSlot>(*this, err.MoveValue());
+        mVThumb->generateRandomIv();
     }
 
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInit);
     mHiRes = ::mega::make_unique<VideoSlot>(*this, err.MoveValue());
+    mHiRes->generateRandomIv();
 
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_AUDIO, transceiverInit);
     mAudio = ::mega::make_unique<Slot>(*this, err.MoveValue());
+    mAudio->generateRandomIv();
 
     for (int i = 0; i < RtcConstant::kMaxCallAudioSenders; i++)
     {
@@ -322,6 +396,7 @@ void Call::getLocalStreams()
             artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
 
     mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
+    audioTrack->set_enabled(mLocalAvFlags.audio());
 
     rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
     webrtc::VideoCaptureCapability capabilities;
@@ -331,6 +406,14 @@ void Call::getLocalStreams()
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
     mVideoDevice = artc::VideoManager::Create(capabilities, videoDevices.begin()->second, artc::gAsyncWaiter->guiThread());
     videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
+
+    if (mLocalAvFlags.video())
+    {
+        mVideoDevice->openDevice(videoDevices.begin()->second);
+    }
+
+    videoTrack->set_enabled(mLocalAvFlags.video());
+
     mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
     rtc::VideoSinkWants wants;
     static_cast<webrtc::VideoTrackInterface*>(mHiRes->getTransceiver()->sender()->track().get())->AddOrUpdateSink(mHiRes.get(), wants);
@@ -344,18 +427,26 @@ void Call::getLocalStreams()
     parameters.encodings.push_back(encoding);
     mVThumb->getTransceiver()->sender()->SetParameters(parameters);
     static_cast<webrtc::VideoTrackInterface*>(mVThumb->getTransceiver()->sender()->track().get())->AddOrUpdateSink(mVThumb.get(), wants);
-    mVideoDevice->openDevice(videoDevices.begin()->second);
 }
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
-    mVideoDevice->releaseDevice();
+    if (mVideoDevice)
+    {
+        mVideoDevice->releaseDevice();
+    }
+
     mSessions.clear();
     mVThumb.reset(nullptr);
     mHiRes.reset(nullptr);
     mAudio.reset(nullptr);
     mReceiverTracks.clear();
     setState(CallState::kStateTerminatingUserParticipation);
+    if (mSfuConnection)
+    {
+        mSfuClient.closeManagerProtocol(mChatid);
+        mSfuConnection = nullptr;
+    }
 }
 
 std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
@@ -368,39 +459,35 @@ bool Call::hasCallKey()
     return !mCallKey.empty();
 }
 
-bool Call::handleAvCommand(Cid_t cid, int av)
+bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
-    mSessions[cid]->setAvFlags(av);
+    mSessions[cid]->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
     return true;
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::VideoTrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::SpeakersDescriptor>&speakers)
+bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
     mMyPeer.init(cid, mSfuClient.myHandle(), 0, mod);
-    if (mMyPeer.getModerator())
-    {
-        mSpeakAllow = true;
-    }
 
     for (const sfu::Peer& peer : peers)
     {
-        mSessions[cid] = ::mega::make_unique<Session>(peer);
-        mCallHandler->onNewSession(*mSessions[cid]);
+        mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
+        mCallHandler->onNewSession(*mSessions[peer.getCid()], *this);
     }
 
     generateAndSendNewkey();
 
-    //TODO Uncompress sdp
+    std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
-    webrtc::SessionDescriptionInterface *sdp = webrtc::CreateSessionDescription("answer", spdString, &error);
-    if (!sdp)
+    webrtc::SessionDescriptionInterface *sdpInterface = webrtc::CreateSessionDescription("answer", sdpUncompress, &error);
+    if (!sdpInterface)
     {
-        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);
+        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
         return false;
     }
 
     auto wptr = weakHandle();
-    mRtcConn.setRemoteDescription(sdp)
+    mRtcConn.setRemoteDescription(sdpInterface)
     .then([wptr, this, vthumbs, speakers]()
     {
         if (wptr.deleted())
@@ -413,7 +500,7 @@ bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,
         for(auto speak : speakers)
         {
             Cid_t cid = speak.first;
-            const sfu::SpeakersDescriptor& speakerDecriptor = speak.second;
+            const sfu::TrackDescriptor& speakerDecriptor = speak.second;
             addSpeaker(cid, speakerDecriptor);
         }
 
@@ -433,25 +520,41 @@ bool Call::handleAnswerCommand(Cid_t cid, const std::string& spdString, int mod,
 
 bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
-    // decrypt received key
-    strongvelope::SendKey plainKey;
-    strongvelope::SendKey encryptedKey = mSfuClient.getRtcCryptoMeetings()->strToKey(key);
-    mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(mSessions[cid]->getPeer().getPeerid(), encryptedKey, plainKey);
-
-    // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
-    if (hasCallKey())
+    karere::Id peerid = mSessions[cid]->getPeer().getPeerid();
+    auto wptr = weakHandle();
+    mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peerid)
+    .then([wptr, keyid, cid, key, this](Buffer*)
     {
-        strongvelope::SendKey callKey = mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey);
-        mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
-    }
+        if (wptr.deleted())
+        {
+            return;
+        }
 
-    // add new key to peer key map
-    std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
-    mSessions[cid]->addKey(keyid, newKey);
+        // decrypt received key
+        strongvelope::SendKey plainKey;
+        std::string binaryKey = mega::Base64::atob(key);
+
+
+        strongvelope::SendKey encryptedKey = mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey);
+        mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(mSessions[cid]->getPeer().getPeerid(), encryptedKey, plainKey);
+
+        // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
+        if (hasCallKey())
+        {
+            strongvelope::SendKey callKey = mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey);
+            mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
+        }
+
+        // add new key to peer key map
+        std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
+        assert(mSessions.find(cid) != mSessions.end());
+        mSessions[cid]->addKey(keyid, newKey);
+    });
+
     return true;
 }
 
-bool Call::handleVThumbsCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videoTrackDescriptors)
+bool Call::handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors)
 {
     handleIncomingVideo(videoTrackDescriptors);
     return true;
@@ -469,7 +572,7 @@ bool Call::handleVThumbsStopCommand()
     return true;
 }
 
-bool Call::handleHiResCommand(const std::map<Cid_t, sfu::VideoTrackDescriptor>& videoTrackDescriptors)
+bool Call::handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor>& videoTrackDescriptors)
 {
     handleIncomingVideo(videoTrackDescriptors, true);
     return true;
@@ -491,7 +594,11 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 {
     for (Cid_t cid : speakRequests)
     {
-        mSessions[cid]->setSpeakRequested(true);
+        if (cid != mMyPeer.getCid())
+        {
+            assert(mSessions.find(cid) != mSessions.end());
+            mSessions[cid]->setSpeakRequested(true);
+        }
     }
 
     return true;
@@ -501,26 +608,26 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
 {
     if (cid)
     {
+        assert(mSessions.find(cid) != mSessions.end());
         mSessions[cid]->setSpeakRequested(false);
     }
-    else
+    else if (mSpeakerState == SpeakerState::kPending)
     {
-        mSpeakAllow = false;
-        mSpeakerRequested = false;
+        mSpeakerState = SpeakerState::kNoSpeaker;
     }
 
     return true;
 }
 
-bool Call::handleSpeakOnCommand(Cid_t cid, sfu::SpeakersDescriptor speaker)
+bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 {
     if (cid)
     {
         addSpeaker(cid, speaker);
     }
-    else
+    else if (mSpeakerState == SpeakerState::kPending)
     {
-        mSpeakAllow = true;
+        mSpeakerState = SpeakerState::kActive;
         mAudio->enableTrack(true);
     }
 
@@ -533,10 +640,52 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     {
         removeSpeaker(cid);
     }
+    else if (mSpeakerState == SpeakerState::kActive)
+    {
+        mAudio->enableTrack(false);
+        mSpeakerState = SpeakerState::kNoSpeaker;
+    }
+
+    return true;
+}
+
+bool Call::handleStatCommand()
+{
+    return true;
+}
+
+bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
+{
+    sfu::Peer peer(cid, userid, av, false);
+
+    mSessions[cid] = ::mega::make_unique<Session>(peer);
+    mCallHandler->onNewSession(*mSessions[cid], *this);
+    generateAndSendNewkey();
+    return true;
+}
+
+bool Call::handlePeerLeft(Cid_t cid)
+{
+    mSessions.erase(cid);
+}
+
+bool Call::handleError(unsigned int code, const std::string reason)
+{
+    RTCM_LOG_ERROR("SFU error (Remove call ) -> code: %d, reason: %s", code, reason.c_str());
+    disconnect(static_cast<TermCode>(code), reason);
+}
+
+bool Call::handleModerator(Cid_t cid, bool moderator)
+{
+    if (cid)
+    {
+        assert(mSessions.find(cid) != mSessions.end());
+        mSessions[cid]->setModerator(moderator);
+    }
     else
     {
-        mSpeakAllow = false;
-        mAudio->enableTrack(false);
+        mIsModerator = moderator;
+        mCallHandler->onModeratorChange(*this);
     }
 
     return true;
@@ -594,19 +743,17 @@ void Call::onDataChannel(webrtc::DataChannelInterface *data_channel)
 void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
 {
     absl::optional<std::string> mid = transceiver->mid();
-    assert(transceiver->direction() == webrtc::RtpTransceiverDirection::kRecvOnly);
     if (mid.has_value())
     {
+        std::string value = mid.value();
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
         {
-            mReceiverTracks[mid.value()] = ::mega::make_unique<Slot>(*this, transceiver);
+            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<Slot>(*this, transceiver);
         }
         else
         {
-            mReceiverTracks[mid.value()] = ::mega::make_unique<VideoSlot>(*this, transceiver);
+            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<VideoSlot>(*this, transceiver);
         }
-
-        mReceiverTracks[mid.value()]->createDecryptor();
     }
 }
 
@@ -632,52 +779,59 @@ void Call::generateAndSendNewkey()
         mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, *newPlainKey.get());
     }
 
-    // dataKey format required by SfuConnection::sendKey: [[Cid1, EncyptedKey1], [Cid2, EncyptedKey2]]
-    rapidjson::StringBuffer s;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(s);
-    writer.StartArray();
-
+    std::vector<promise::Promise<Buffer*>> promises;
     for (const auto& session : mSessions) // encrypt key to all participants
     {
-        // get peer Cid
-        Cid_t sessionCid = session.first;
-
-        // get peer id
-        karere::Id peerId = session.second->getPeer().getPeerid();
-
-        // encrypt key to participant
-        strongvelope::SendKey encryptedKey;
-        mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peerId, *newPlainKey.get(), encryptedKey);
-
-        // write <id,key> pair array
-        writer.StartArray();
-        writer.Uint(sessionCid);
-        writer.String(encryptedKey.buf());
-        writer.EndArray();
+        promises.push_back(mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(session.second->getPeer().getPeerid()));
     }
-    writer.EndArray();
-    mSfuConnection->sendKey(currentKeyId, s.GetString());
+
+    auto wptr = weakHandle();
+    promise::when(promises)
+    .then([wptr, currentKeyId, newPlainKey, this]
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        std::map<Cid_t, std::string> keys;
+
+        for (const auto& session : mSessions) // encrypt key to all participants
+        {
+            // get peer Cid
+            Cid_t sessionCid = session.first;
+
+            // get peer id
+            karere::Id peerId = session.second->getPeer().getPeerid();
+
+            // encrypt key to participant
+            strongvelope::SendKey encryptedKey;
+            mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peerId, *newPlainKey.get(), encryptedKey);
+
+            keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
+        }
+
+        mSfuConnection->sendKey(currentKeyId, keys);
+    });
 }
 
-void Call::handleIncomingVideo(const std::map<Cid_t, sfu::VideoTrackDescriptor> &videotrackDescriptors, bool hiRes)
+void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, bool hiRes)
 {
     for (auto trackDescriptor : videotrackDescriptors)
     {
         auto it = mReceiverTracks.find(trackDescriptor.second.mMid);
         if (it == mReceiverTracks.end())
         {
-            RTCM_LOG_ERROR("Unknown vtrack mid %s", trackDescriptor.second.mMid.c_str());
+            RTCM_LOG_ERROR("Unknown vtrack mid %d", trackDescriptor.second.mMid);
             return;
         }
-
-        webrtc::VideoTrackInterface* videoTrack =
-                static_cast<webrtc::VideoTrackInterface*>(it->second.get()->getTransceiver()->receiver()->track().get());
 
         rtc::VideoSinkWants opts;
         VideoSlot* slot = static_cast<VideoSlot*>(it->second.get());
         Cid_t cid = trackDescriptor.first;
-        slot->setParams(cid, trackDescriptor.second.mIv);
-        slot->createDecryptor();
+        slot->createDecryptor(cid, trackDescriptor.second.mIv);
+        slot->enableTrack(true);
+        slot->setTrackSink();
 
         if (hiRes)
         {
@@ -690,7 +844,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::VideoTrackDescriptor> 
     }
 }
 
-void Call::addSpeaker(Cid_t cid, const sfu::SpeakersDescriptor &speaker)
+void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
 {
     if (mSessions.find(cid) == mSessions.end())
     {
@@ -707,8 +861,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::SpeakersDescriptor &speaker)
 
     Slot* slot = it->second.get();
     slot->enableTrack(true);
-    slot->setParams(cid, speaker.mIv);
-    slot->createDecryptor();
+    slot->createDecryptor(cid, speaker.mIv);
 
     mSessions[cid]->setAudioSlot(slot);
 }
@@ -749,7 +902,7 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
     if (!artc::isInitialized())
     {
         artc::init(appCtx);
-        RTCM_LOG_ERROR("WebRTC stack initialized before first use");
+        RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
 }
 
@@ -802,22 +955,27 @@ std::string RtcModuleSfu::getVideoDeviceSelected()
     return "";
 }
 
-promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid)
+promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey)
 {
+    // we need a temp string to avoid issues with lambda shared pointer capture
+    std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
-    mCalls[chatid] = ::mega::make_unique<Call>(chatid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
-    mCalls[chatid]->connectSfu("");
-    return promise::Void();
+    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
+    .then([wptr, this, chatid, avFlags, auxCallKey](ReqResult result)
+    {
+        std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
+                ? std::make_shared<std::string>(auxCallKey)
+                : nullptr;
 
-//    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-//    .then([wptr, this, chatid](ReqResult result)
-//    {
-//        wptr.throwIfDeleted();
-//        karere::Id callid = result->getParentHandle();
-//        std::string sfuUrl = result->getText();
-//        mCallNews[callid] = ::mega::make_unique<Call>(callid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
-//        mCallNews[callid]->connectSfu(sfuUrl);
-//    });
+        wptr.throwIfDeleted();
+        karere::Id callid = result->getParentHandle();
+        std::string sfuUrl = result->getText();
+        if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
+        {
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), sharedUnifiedKey, true, avFlags);
+            mCalls[callid]->connectSfu(sfuUrl);
+        }
+    });
 }
 
 std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
@@ -836,7 +994,11 @@ void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
     Call* call = static_cast<Call*>(findCallByChatid(chatid));
     if (call)
     {
-        call->disconnect(termCode);
+        if (call->getState() <= CallState::kStateInProgress)
+        {
+            call->disconnect(termCode);
+        }
+
         mCalls.erase(call->getCallid());
     }
 }
@@ -862,9 +1024,10 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
     mCalls.erase(callid);
 }
 
-void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callid)
+void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mCallHandler, mMegaApi, *mSfuClient.get());
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get(), callKey);
+    mCalls[callid]->setState(kStateClientNoParticipating);
 }
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers)
@@ -876,12 +1039,27 @@ Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> trans
     : mCall(call)
     , mTransceiver(transceiver)
 {
-
 }
 
 Slot::~Slot()
 {
+    if (mTransceiver->receiver())
+    {
+       rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mTransceiver->receiver()->GetFrameDecryptor();
+       if (decryptor)
+       {
+           static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
+       }
+    }
 
+    if (mTransceiver->sender())
+    {
+        rtc::scoped_refptr<webrtc::FrameEncryptorInterface> encrytor = mTransceiver->sender()->GetFrameEncryptor();
+        if (encrytor)
+        {
+            static_cast<artc::MegaEncryptor*>(encrytor.get())->setTerminating();
+        }
+    }
 }
 
 void Slot::createEncryptor(const sfu::Peer& peer)
@@ -915,10 +1093,11 @@ Cid_t Slot::getCid() const
     return mCid;
 }
 
-void Slot::setParams(Cid_t cid, IvStatic_t iv)
+void Slot::createDecryptor(Cid_t cid, IvStatic_t iv)
 {
     mCid = cid;
     mIv = iv;
+    createDecryptor();
 }
 
 void Slot::enableTrack(bool enable)
@@ -934,9 +1113,31 @@ void Slot::enableTrack(bool enable)
     }
 }
 
+IvStatic_t Slot::getIv() const
+{
+    return mIv;
+}
+
+void Slot::generateRandomIv()
+{
+    randombytes_buf(&mIv, sizeof(mIv));
+}
+
 VideoSlot::VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : Slot(call, transceiver)
 {
+}
+
+VideoSlot::~VideoSlot()
+{
+    webrtc::VideoTrackInterface* videoTrack =
+            static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
+    videoTrack->set_enabled(true);
+
+    if (videoTrack)
+    {
+        videoTrack->RemoveSink(this);
+    }
 }
 
 void VideoSlot::setVideoRender(IVideoRenderer *videoRenderer)
@@ -967,6 +1168,19 @@ void VideoSlot::OnFrame(const webrtc::VideoFrame &frame)
     }
 }
 
+void VideoSlot::setTrackSink()
+{
+    webrtc::VideoTrackInterface* videoTrack =
+            static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
+    videoTrack->set_enabled(true);
+
+    if (videoTrack)
+    {
+        rtc::VideoSinkWants wants;
+        videoTrack->AddOrUpdateSink(this, wants);
+    }
+}
+
 void globalCleanup()
 {
     if (!artc::isInitialized())
@@ -974,7 +1188,7 @@ void globalCleanup()
     artc::cleanup();
 }
 
-Session::Session(const sfu::Peer &peer)
+Session::Session(const sfu::Peer& peer)
     : mPeer(peer)
 {
 
@@ -982,12 +1196,23 @@ Session::Session(const sfu::Peer &peer)
 
 Session::~Session()
 {
-
+    mState = kSessStateDestroyed;
+    mSessionHandler->onDestroySession(*this);
 }
 
 void Session::setSessionHandler(SessionHandler* sessionHandler)
 {
-    mSessionHandler = sessionHandler;
+    mSessionHandler = std::unique_ptr<SessionHandler>(sessionHandler);
+}
+
+void Session::setVideoRendererVthumb(IVideoRenderer *videoRederer)
+{
+    mVthumSlot->setVideoRender(videoRederer);
+}
+
+void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
+{
+    mHiresSlot->setVideoRender(videoRederer);
 }
 
 const sfu::Peer& Session::getPeer() const
@@ -998,11 +1223,13 @@ const sfu::Peer& Session::getPeer() const
 void Session::setVThumSlot(VideoSlot *slot)
 {
     mVthumSlot = slot;
+    mSessionHandler->onVThumbReceived(*this);
 }
 
 void Session::setHiResSlot(VideoSlot *slot)
 {
     mHiresSlot = slot;
+    mSessionHandler->onHiResReceived(*this);
 }
 
 void Session::setAudioSlot(Slot *slot)
@@ -1020,6 +1247,7 @@ void Session::setAvFlags(karere::AvFlags flags)
 {
     mPeer.setAvFlags(flags);
     assert(mSessionHandler);
+    mSessionHandler->onAudioVideoFlagsChanged(*this);
 }
 
 Slot *Session::getAudioSlot()
@@ -1039,12 +1267,43 @@ VideoSlot *Session::betHiResSlot()
 
 void Session::setSpeakRequested(bool requested)
 {
-    mSpeakRequest = requested;
+    mHasRequestSpeak = requested;
+    mSessionHandler->onAudioRequested(*this);
 }
 
-bool Session::hasRequestedSpeaker() const
+bool Session::setModerator(bool requested)
 {
-    return mSpeakRequest;
+    mIsModerator = requested;
+    mSessionHandler->onModeratorChange(*this);
 }
 
+karere::Id Session::getPeerid() const
+{
+    return mPeer.getPeerid();
+}
+
+Cid_t Session::getClientid() const
+{
+    return mPeer.getCid();
+}
+
+SessionState Session::getState() const
+{
+    return mState;
+}
+
+karere::AvFlags Session::getAvFlags() const
+{
+    return mPeer.getAvFlags();
+}
+
+bool Session::isModerator() const
+{
+    return mIsModerator;
+}
+
+bool Session::hasRequestSpeak() const
+{
+    return mHasRequestSpeak;
+}
 }

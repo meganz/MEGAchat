@@ -985,7 +985,13 @@ Promise<void> Connection::reconnect()
                 sendKeepalive();
                 rejoinExistingChats();
             });
-        }, wptr, mChatdClient.mKarereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+        }, wptr, mChatdClient.mKarereClient->appCtx
+                         , nullptr                              // cancel function
+                         , KARERE_RECONNECT_ATTEMPT_TIMEOUT     // initial attempt timeout (increases exponentially)
+                         , KARERE_RECONNECT_MAX_ATTEMPT_TIMEOUT // maximum attempt timeout
+                         , 0                                    // max number of attempts
+                         , KARERE_RECONNECT_DELAY_MAX           // max single wait between attempts
+                         , 0));                                 // initial single wait between attempts  (increases exponentially)
 
         return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
@@ -1545,6 +1551,20 @@ string Command::toString(const StaticBuffer& data)
                 tmpString.append(ID_CSTR(userid));
             }
 
+            return tmpString;
+        }
+        case OP_CALLSTATE:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id callid = data.read<uint64_t>(9);
+            uint8_t ringing = data.read<uint8_t>(17);
+            tmpString.append("CALLSTATE chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", callid: ");
+            tmpString.append(ID_CSTR(callid));
+            tmpString.append(", Ringing: ");
+            tmpString.append(std::to_string(ringing));
             return tmpString;
         }
         case OP_CALLEND:
@@ -2447,20 +2467,98 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
-                READ_16(userListCount, 16);
+                const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
+                CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s", tmpStr, ID_CSTR(chatid), ID_CSTR(callid));
+                READ_8(userListCount, 16);
                 std::vector<karere::Id> users;
                 for (unsigned int i = 0; i < userListCount; i++)
                 {
-                    READ_ID(user, 18 + i * 8);
+                    READ_ID(user, 17 + i * 8);
                     users.push_back(user);
                 }
+
+                if (mChatdClient.mKarereClient->rtc)
+                {
+                    rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
+                    if (!call)
+                    {
+                        auto& chat = mChatdClient.chats(chatid);
+                        promise::Promise<std::shared_ptr<std::string>> pms;
+                        if (chat.isPublic())
+                        {
+                            pms = chat.crypto()->getUnifiedKey();
+                        }
+                        else
+                        {
+                            pms.resolve(std::make_shared<string>());
+                        }
+
+                        pms.then([this, chatid, callid] (shared_ptr<string> unifiedKey)
+                        {
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, unifiedKey);
+                        })
+                        .fail([] (const ::promise::Error &err)
+                        {
+                            // Todo: check if it's necessary to throw an exception
+                            throw std::runtime_error("Failed to decrypt unified key");
+                        });
+                    }
+                }
+
                 break;
             }
+            case OP_CALLSTATE:
+            {
+                READ_ID(chatid, 0);
+                READ_ID(userid, 8);
+                READ_ID(callid, 16);
+                READ_8(ringing, 24);
+                CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %d", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
+                if (mChatdClient.mKarereClient->rtc)
+                {
+                    rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
+                    if (!call)
+                    {
+                        auto& chat = mChatdClient.chats(chatid);
+                        promise::Promise<std::shared_ptr<std::string>> pms;
+                        if (chat.isPublic())
+                        {
+                            pms = chat.crypto()->getUnifiedKey();
+                        }
+                        else
+                        {
+                            pms.resolve(std::make_shared<string>());
+                        }
+
+                        pms.then([this, chatid, callid, userid, ringing] (shared_ptr<string> unifiedKey)
+                        {
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing, unifiedKey);
+                        })
+                        .fail([] (const ::promise::Error &err)
+                        {
+                            // Todo: check if it's necessary to throw an exception
+                            throw std::runtime_error("Failed to decrypt unified key");
+                        });
+                    }
+                    else
+                    {
+                        call->setCallerId(userid);
+                        call->setRinging(ringing);
+                    }
+                }
+                break;
+
+            }
+                break;
             case OP_CALLEND:
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
                 READ_8(reason, 16);
+                if (mChatdClient.mKarereClient->rtc)
+                {
+                    mChatdClient.mKarereClient->rtc->removeCall(chatid);
+                }
                 break;
             }
             default:
@@ -5877,6 +5975,10 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(REACTIONSN);
         RET_ENUM_NAME(MSGIDTIMESTAMP);
         RET_ENUM_NAME(NEWMSGIDTIMESTAMP);
+        RET_ENUM_NAME(JOINEDCALL);
+        RET_ENUM_NAME(LEFTCALL);
+        RET_ENUM_NAME(CALLSTATE);
+        RET_ENUM_NAME(CALLEND);
         default: return "(invalid opcode)";
     };
 }
