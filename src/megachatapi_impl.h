@@ -212,7 +212,6 @@ class MegaChatCallPrivate : public MegaChatCall
 {
 public:
     MegaChatCallPrivate(const rtcModule::ICall& call);
-    MegaChatCallPrivate(karere::Id chatid, karere::Id callid, uint32_t duration = 0);
     MegaChatCallPrivate(const MegaChatCallPrivate &call);
 
     virtual ~MegaChatCallPrivate() override;

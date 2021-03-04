@@ -5919,33 +5919,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     }
 }
 
-MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration)
-{
-    status = CALL_STATUS_INITIAL;
-    this->chatid = chatid;
-    this->callid = callid;
-    // localAVFlags are invalid until state change to rtcModule::ICall::KStateHasLocalStream
-    localAVFlags = karere::AvFlags(false, false);
-    initialAVFlags = karere::AvFlags(false, false);
-    initialTs = 0;
-    if (duration > 0)
-    {
-        initialTs = time(NULL) - duration;
-    }
-
-    finalTs = 0;
-    termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
-    localTermCode = false;
-    ringing = false;
-    ignored = false;
-    mChanged = 0;
-    mPeerId = 0;
-    callerId = MEGACHAT_INVALID_HANDLE;
-    mIsCaller = false;
-    callCompositionChange = NO_COMPOSITION_CHANGE;
-    mIsModerator = false;
-}
-
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
 {
     this->status = call.getStatus();
