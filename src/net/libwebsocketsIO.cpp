@@ -135,7 +135,7 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
     i.context = wscontext;
     i.address = cip.c_str();
     i.port = port;
-    i.ssl_connection = ssl ? 2 : 0;
+    i.ssl_connection = ssl ? (LCCSCF_USE_SSL | LCCSCF_ALLOW_SELFSIGNED) : 0;
     string urlpath = "/";
     urlpath.append(path);
     i.path = urlpath.c_str();
