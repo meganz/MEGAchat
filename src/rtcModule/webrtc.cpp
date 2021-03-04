@@ -413,7 +413,7 @@ void Call::getLocalStreams()
 
     mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
     rtc::VideoSinkWants wants;
-    static_cast<webrtc::VideoTrackInterface*>(mHiRes->getTransceiver()->sender()->track().get())->AddOrUpdateSink(mHiRes.get(), wants);
+    mVideoDevice->AddOrUpdateSink(mHiRes.get(), wants);
 
     mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
     webrtc::RtpParameters parameters;
@@ -423,7 +423,7 @@ void Call::getLocalStreams()
     encoding.max_bitrate_bps = 100 * 1024;
     parameters.encodings.push_back(encoding);
     mVThumb->getTransceiver()->sender()->SetParameters(parameters);
-    static_cast<webrtc::VideoTrackInterface*>(mVThumb->getTransceiver()->sender()->track().get())->AddOrUpdateSink(mVThumb.get(), wants);
+    mVideoDevice->AddOrUpdateSink(mVThumb.get(), wants);
 }
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
