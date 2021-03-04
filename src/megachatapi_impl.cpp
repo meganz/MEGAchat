@@ -5839,21 +5839,6 @@ bool MegaChatSessionPrivate::isLowResVideo() const
     return mAvFlags.videoLowRes();
 }
 
-int MegaChatSessionPrivate::getTermCode() const
-{
-    return false;
-}
-
-bool MegaChatSessionPrivate::isLocalTermCode() const
-{
-    return false;
-}
-
-int MegaChatSessionPrivate::getNetworkQuality() const
-{
-    return false;
-}
-
 bool MegaChatSessionPrivate::getAudioDetected() const
 {
     return false;

@@ -176,9 +176,6 @@ public:
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;
     virtual bool isLowResVideo() const override;
-    virtual int getTermCode() const override;
-    virtual bool isLocalTermCode() const override;
-    virtual int getNetworkQuality() const override;
     virtual bool getAudioDetected() const override;
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;

@@ -88,21 +88,6 @@ bool MegaChatSession::isLowResVideo() const
     return false;
 }
 
-int MegaChatSession::getTermCode() const
-{
-    return 0;
-}
-
-bool MegaChatSession::isLocalTermCode() const
-{
-    return false;
-}
-
-int MegaChatSession::getNetworkQuality() const
-{
-    return 0;
-}
-
 bool MegaChatSession::getAudioDetected() const
 {
     return false;

@@ -162,50 +162,6 @@ public:
     virtual bool isLowResVideo() const;
 
     /**
-     * @brief Returns the termination code for this session
-     *
-     * Possible values are:
-     *
-     *   - MegaChatCall::TERM_CODE_USER_HANGUP       = 0
-     *  Normal user hangup. User has left the call
-     *
-     *   - MegaChatCall::TERM_CODE_NOT_FINISHED      = 10
-     *  The session is in progress, no termination code yet
-     *
-     *   -MegaChatCall::TERM_CODE_ERROR             = 21
-     *  Notify any error type. A reconnection is launched
-     *
-     * @note If the session is not finished yet, it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
-     * The rest of values are invalid as term code for a session
-     *
-     * To check if the call was terminated locally or remotely, see MegaChatSession::isLocalTermCode().
-     *
-     * @return termination code for the call
-     */
-    virtual int getTermCode() const;
-
-    /**
-     * @brief Returns if the session finished locally or remotely
-     *
-     * @return True if the call finished locally. False if the call finished remotely
-     */
-    virtual bool isLocalTermCode() const;
-
-
-    /**
-     * @brief Returns network quality
-     *
-     * The valid network quality values are between 0 and 5
-     * 0 -> the worst quality
-     * 5 -> the best quality
-     *
-     * @note The app may want to show a "slow network" warning when the quality is <= 1.
-     *
-     * @return network quality
-     */
-    virtual int getNetworkQuality() const;
-
-    /**
      * @brief Returns if audio is detected for this session
      *
      * @note The returned value is always false when audio level monitor is disabled
