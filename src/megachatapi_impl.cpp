@@ -1693,29 +1693,18 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-//            if (enable)
-//            {
-//                if ((operationType == MegaChatRequest::AUDIO && !call->availableAudioSlots())
-//                        || (operationType == MegaChatRequest::VIDEO && !call->availableVideoSlots()))
-//                {
-//                    API_LOG_ERROR("Cannot enable the A/V because the call doesn't have available A/V slots");
-//                    errorCode = MegaChatError::ERROR_TOOMANY;
-//                    break;
-//                }
-//            }
+            karere::AvFlags currentFlags = call->getLocalAvFlags();
+            karere::AvFlags requestedFlags = currentFlags;
+            if (operationType == MegaChatRequest::AUDIO)
+            {
+                requestedFlags.set(karere::AvFlags::kAudio);
+            }
+            else // (operationType == MegaChatRequest::VIDEO)
+            {
+                requestedFlags.set(karere::AvFlags::kVideo);
+            }
 
-//            karere::AvFlags currentFlags = call->sentFlags();
-//            karere::AvFlags requestedFlags = currentFlags;
-//            if (operationType == MegaChatRequest::AUDIO)
-//            {
-//                requestedFlags.setAudio(enable);
-//            }
-//            else // (operationType == MegaChatRequest::VIDEO)
-//            {
-//                requestedFlags.setVideo(enable);
-//            }
-
-//            karere::AvFlags effectiveFlags = call->muteUnmute(requestedFlags);
+            call->updateAndSendLocalAvFlags(requestedFlags);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);

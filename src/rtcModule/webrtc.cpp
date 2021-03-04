@@ -176,6 +176,7 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 {
     mLocalAvFlags = flags;
     mSfuConnection->sendAv(flags.value());
+    updateAudioTracks();
 }
 
 void Call::requestSpeaker(bool add)
@@ -392,11 +393,7 @@ void Call::createTranceiver()
 
 void Call::getLocalStreams()
 {
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
-            artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
-
-    mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
-    audioTrack->set_enabled(mLocalAvFlags.audio());
+    updateAudioTracks();
 
     rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
     webrtc::VideoCaptureCapability capabilities;
@@ -628,7 +625,7 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
     else if (mSpeakerState == SpeakerState::kPending)
     {
         mSpeakerState = SpeakerState::kActive;
-        mAudio->enableTrack(true);
+        updateAudioTracks();
     }
 
     return true;
@@ -642,8 +639,8 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     }
     else if (mSpeakerState == SpeakerState::kActive)
     {
-        mAudio->enableTrack(false);
         mSpeakerState = SpeakerState::kNoSpeaker;
+        updateAudioTracks();
     }
 
     return true;
@@ -885,9 +882,46 @@ sfu::Peer& Call::getMyPeer()
     return mMyPeer;
 }
 
+sfu::SfuClient &Call::getSfuClient()
+{
+    return mSfuClient;
+}
+
+std::map<Cid_t, std::unique_ptr<Session> > &Call::getSessions()
+{
+    return mSessions;
+}
+
 const std::string& Call::getCallKey() const
 {
     return mCallKey;
+}
+
+void Call::updateAudioTracks()
+{
+    bool audio = mSpeakerState > SpeakerState::kNoSpeaker && mLocalAvFlags.audio();
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
+    if (audio)
+    {
+        if (track)
+        {
+            rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
+                    artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
+
+            mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
+            audioTrack->set_enabled(true);
+        }
+        else
+        {
+            track->set_enabled(true);
+        }
+
+    }
+    else if (track)
+    {
+        track->set_enabled(false);
+        mAudio->getTransceiver()->sender()->SetTrack(nullptr);
+    }
 }
 
 RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler, IRtcCrypto *crypto, const char *iceServers)
@@ -1065,21 +1099,21 @@ Slot::~Slot()
 void Slot::createEncryptor(const sfu::Peer& peer)
 {
     mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
-                                                                      mCall.mSfuClient.getRtcCryptoMeetings(),
+                                                                      mCall.getSfuClient().getRtcCryptoMeetings(),
                                                                       mIv));
 }
 
 void Slot::createDecryptor()
 {
-    auto it = mCall.mSessions.find(mCid);
-    if (it == mCall.mSessions.end())
+    auto it = mCall.getSessions().find(mCid);
+    if (it == mCall.getSessions().end())
     {
         RTCM_LOG_ERROR("createDecryptor: unknown cid");
         return;
     }
 
     mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
-                                                                      mCall.mSfuClient.getRtcCryptoMeetings(),
+                                                                      mCall.getSfuClient().getRtcCryptoMeetings(),
                                                                       mIv));
 }
 

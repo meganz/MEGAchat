@@ -150,6 +150,9 @@ public:
     void disconnect(TermCode termCode, const std::string& msg = "");
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
+    sfu::Peer &getMyPeer();
+    sfu::SfuClient& getSfuClient();
+    std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, int mod, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -181,7 +184,7 @@ public:
     void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void onRenegotiationNeeded();
 
-public:
+protected:
     std::vector<karere::Id> mParticipants;
     karere::Id mCallid;
     karere::Id mChatid;
@@ -220,8 +223,8 @@ public:
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, bool hiRes = false);
     void addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker);
     void removeSpeaker(Cid_t cid);
-    sfu::Peer &getMyPeer();
     const std::string &getCallKey() const;
+    void updateAudioTracks();
 };
 
 class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable
