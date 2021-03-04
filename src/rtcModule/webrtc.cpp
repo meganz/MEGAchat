@@ -327,8 +327,7 @@ void Call::connectSfu(const std::string &sfuUrl)
             ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
             ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
             ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-            int avFlags = 6;
-            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), avFlags, true, 10);
+            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), mLocalAvFlags.value(), true, 10);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
