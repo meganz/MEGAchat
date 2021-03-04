@@ -1619,7 +1619,21 @@ void MegaChatApiImpl::sendPendingRequests()
                     break;
                 }
 
-                call->hangup();
+                call->hangup()
+                .then([request, this]()
+                {
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                })
+                .fail([request, this](const ::promise::Error& err)
+                {
+                    API_LOG_ERROR("Error hang up a chat call: %s", err.what());
+
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
+
+                break;
             }
             else    // hang all calls (no specific chatid)
             {

@@ -74,7 +74,7 @@ enum TermCode: uint8_t
 enum CallState: uint8_t
 {
     kStateInitial = 0,      // < Call object was initialised
-    kStateUserNoParticipating,  // < User is not particpating in the call
+    kStateClientNoParticipating,  // < User is not particpating in the call
     kStateConnecting,   // < Connecting to SFU
     kStateJoining,      // < Joining a call
     kStateInProgress,
@@ -138,7 +138,7 @@ public:
     virtual CallState getState() const = 0;
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
-    virtual void hangup() = 0;
+    virtual promise::Promise<void> hangup() = 0;
     virtual promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) = 0;
     virtual bool participate() = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;

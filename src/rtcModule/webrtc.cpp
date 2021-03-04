@@ -80,8 +80,22 @@ void Call::removeParticipant(karere::Id peer)
 }
 
 void Call::hangup()
+promise::Promise<void> Call::hangup()
 {
-    disconnect(TermCode::kUserHangup);
+    if (mState == kStateClientNoParticipating && mIsRinging)
+    {
+        auto wptr = weakHandle();
+        return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
+        .then([](ReqResult /*result*/)
+        {
+
+        });
+    }
+    else
+    {
+        disconnect(TermCode::kUserHangup);
+        return promise::_Void();
+    }
 }
 
 promise::Promise<void> Call::join(bool moderator, karere::AvFlags avFlags)

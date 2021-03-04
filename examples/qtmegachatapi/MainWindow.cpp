@@ -171,10 +171,14 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 if (call->isRinging() && call->getCaller() != mMegaChatApi->getMyUserHandle())
                 {
                     QMessageBox::StandardButton reply;
-                     reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::No);
+                     reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
                      if (reply == QMessageBox::Yes)
                      {
                         mMegaChatApi->answerChatCall(call->getChatid(), false);
+                     }
+                     else if (QMessageBox::Cancel)
+                     {
+                         mMegaChatApi->hangChatCall(call->getChatid());
                      }
                 }
 
@@ -261,10 +265,14 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         if (call->isRinging() && call->getCaller() != mMegaChatApi->getMyUserHandle())
         {
             QMessageBox::StandardButton reply;
-             reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::No);
+             reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
              if (reply == QMessageBox::Yes)
              {
                 mMegaChatApi->answerChatCall(call->getChatid(), false);
+             }
+             else if (QMessageBox::Cancel)
+             {
+                 mMegaChatApi->hangChatCall(call->getChatid());
              }
         }
 
