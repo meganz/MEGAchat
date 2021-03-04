@@ -383,31 +383,11 @@ public:
     virtual bool hasLocalAudio() const;
 
     /**
-     * @brief Return audio state for initial call
-     *
-     * The initial flags used to start the call. They are not valid if
-     * you missed the call in ringing state.
-     *
-     * @return true if audio is enable, false if audio is disable
-     */
-    virtual bool hasAudioInitialCall() const;
-
-    /**
      * @brief Return video state for local
      *
      * @return true if video is enable, false if video is disable
      */
     virtual bool hasLocalVideo() const;
-
-    /**
-     * @brief Return video state for initial call
-     *
-     * The initial flags used to start the call. They are not valid if
-     * you missed the call in ringing state.
-     *
-     * @return true if video is enable, false if video is disable
-     */
-    virtual bool hasVideoInitialCall() const;
 
     /**
      * @brief Returns a bit field with the changes of the call

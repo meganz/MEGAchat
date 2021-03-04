@@ -147,17 +147,7 @@ bool MegaChatCall::hasLocalAudio() const
     return false;
 }
 
-bool MegaChatCall::hasAudioInitialCall() const
-{
-    return false;
-}
-
 bool MegaChatCall::hasLocalVideo() const
-{
-    return false;
-}
-
-bool MegaChatCall::hasVideoInitialCall() const
 {
     return false;
 }

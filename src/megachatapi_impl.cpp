@@ -5954,7 +5954,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->callid = call.getId();
     this->mIsCaller = call.isOutgoing();
     this->localAVFlags = call.localAVFlags;
-    this->initialAVFlags = call.initialAVFlags;
     this->mChanged = call.mChanged;
     this->initialTs = call.initialTs;
     this->finalTs = call.finalTs;
@@ -6005,19 +6004,9 @@ bool MegaChatCallPrivate::hasLocalAudio() const
     return localAVFlags.audio();
 }
 
-bool MegaChatCallPrivate::hasAudioInitialCall() const
-{
-    return initialAVFlags.audio();
-}
-
 bool MegaChatCallPrivate::hasLocalVideo() const
 {
     return localAVFlags.video();
-}
-
-bool MegaChatCallPrivate::hasVideoInitialCall() const
-{
-    return initialAVFlags.video();
 }
 
 int MegaChatCallPrivate::getChanges() const
@@ -6198,11 +6187,6 @@ void MegaChatCallPrivate::setLocalAudioVideoFlags(AvFlags localAVFlags)
 
     this->localAVFlags = localAVFlags;
     mChanged |= MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS;
-}
-
-void MegaChatCallPrivate::setInitialAudioVideoFlags(AvFlags initialAVFlags)
-{
-    this->initialAVFlags = initialAVFlags;
 }
 
 void MegaChatCallPrivate::setInitialTimeStamp(int64_t timeStamp)

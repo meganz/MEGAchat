@@ -220,9 +220,7 @@ public:
     virtual MegaChatHandle getId() const override;
 
     virtual bool hasLocalAudio() const override;
-    virtual bool hasAudioInitialCall() const override;
     virtual bool hasLocalVideo() const override;
-    virtual bool hasVideoInitialCall() const override;
 
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
@@ -248,7 +246,6 @@ public:
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
-    void setInitialAudioVideoFlags(karere::AvFlags initialAVFlags);
     void setInitialTimeStamp(int64_t timeStamp);
     void setFinalTimeStamp(int64_t timeStamp);
     void removeChanges();
@@ -272,7 +269,6 @@ protected:
     int status = MegaChatCall::CALL_STATUS_INITIAL;
     MegaChatHandle callid;
     karere::AvFlags localAVFlags;
-    karere::AvFlags initialAVFlags;
     int mChanged = MegaChatCall::CHANGE_TYPE_NO_CHANGES;
     int64_t initialTs;
     int64_t finalTs;
