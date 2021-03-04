@@ -20,7 +20,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mSfuClient(sfuClient)
     , mMyPeer()
 {
-    mCallKey = callKey ? (*callKey.get()) : nullptr;
+    mCallKey = callKey ? (*callKey.get()) : std::string();
     mMyPeer.setModerator(moderator);
     mGlobalCallHandler.onNewCall(*this);
     mSessions.clear();
