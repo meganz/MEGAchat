@@ -315,6 +315,7 @@ void Call::connectSfu(const std::string &sfuUrl)
         mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
 
         createTranceiver();
+        mSpeakerState = SpeakerState::kPending;
         getLocalStreams();
         setState(CallState::kStateJoining);
 
@@ -344,8 +345,7 @@ void Call::connectSfu(const std::string &sfuUrl)
             ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
             ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
             ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-            int speaker = SpeakerState::kPending;
-            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), mLocalAvFlags.value(), speaker, kInitialvthumbCount);
+            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
@@ -353,7 +353,6 @@ void Call::connectSfu(const std::string &sfuUrl)
                 return;
             disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
         });
-
     });
 }
 
@@ -880,7 +879,7 @@ void Call::updateAudioTracks()
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
     if (audio)
     {
-        if (track)
+        if (!track)
         {
             rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
                     artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
