@@ -136,6 +136,7 @@ public:
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getSession(Cid_t cid) const override;
+    bool isOutgoing() const override;
 
     void setCallHandler(CallHandler* callHanlder) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;

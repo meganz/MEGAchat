@@ -161,6 +161,7 @@ public:
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
     virtual ISession* getSession(Cid_t cid) const = 0;
+    virtual bool isOutgoing() const = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;

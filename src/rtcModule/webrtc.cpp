@@ -152,6 +152,11 @@ bool Call::isModerator() const
     return mMyPeer.getModerator();
 }
 
+bool Call::isOutgoing() const
+{
+    return mCallerId == mSfuClient.myHandle();
+}
+
 void Call::setCallHandler(CallHandler* callHanlder)
 {
     mCallHandler = std::unique_ptr<CallHandler>(callHanlder);
