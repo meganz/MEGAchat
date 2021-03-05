@@ -193,71 +193,21 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
                 break;
             }
-//            case megachat::MegaChatCall::CALL_STATUS_RECONNECTING:
-//            {
-//                window->hangCall();
-//                window->enableCallReconnect(true);
-//                break;
-//            }
-//
+            case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
+            {
+                window->mMeetingView->updateAudioButtonText(call);
+                break;
+            }
             case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
             {
                 window->hangCall();
                 return;
             }
-//            case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
-//            {
-//                window->enableCallReconnect(false);
-//                std::set<CallGui *> *setOfCallGui = window->getCallGui();
-
-//                if (setOfCallGui->size() == 0)
-//                {
-//                    window->createCallGui(call->hasVideoInitialCall(),
-//                                          mMegaChatApi->getMyUserHandle(),
-//                                          mMegaChatApi->getMyClientidHandle(call->getChatid()), call->isOnHold());
-
-
-//                }
-
-//                window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
-
-//                CallGui *callGui = window->getMyCallGui();
-//                callGui->setPeerAudioVideoFlag(call->hasLocalAudio(), call->hasLocalVideo());
-
-//                MegaHandleList* clientids = call->getClientidParticipants();
-//                MegaHandleList* peerids = call->getPeeridParticipants();
-//                for (unsigned int i = 0; i < peerids->size(); i++)
-//                {
-//                    if (peerids->get(i) != mMegaChatApi->getMyUserHandle() || mMegaChatApi->getMyClientidHandle(call->getChatid()) != clientids->get(i))
-//                    {
-//                        window->createCallGui(false, peerids->get(i), clientids->get(i));
-//                    }
-//                }
-
-//                delete clientids;
-//                delete peerids;
-
-//                break;
-//            }
-//            case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
-//            {
-//                window->hangCall();
-//                window->enableCallReconnect(false);
-//                break;
-//            }
-//            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
-//            {
-//                window->hangCall();
-//                window->enableCallReconnect(false);
-//                break;
-//            }
             default:
             {
                 break;
             }
         }
-
-        //updateVideoParticipants(call->getChatid());
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
@@ -280,6 +230,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
     {
+        window->mMeetingView->updateAudioButtonText(call);
         updateVideoParticipants(call->getChatid());
     }
 

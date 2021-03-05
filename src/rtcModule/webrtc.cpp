@@ -177,6 +177,7 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
     mLocalAvFlags = flags;
     mSfuConnection->sendAv(flags.value());
     updateAudioTracks();
+    mCallHandler->onLocalFlagsChanged(*this);
 }
 
 void Call::requestSpeaker(bool add)

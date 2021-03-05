@@ -25,7 +25,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mHangup, SIGNAL(released()), this, SLOT(onHangUp()));
     mRequestSpeaker = new QPushButton("Speak", this);
     mRequestModerator = new QPushButton("Moderator", this);
-    mEnableAudio = new QPushButton("Audio", this);
+    mEnableAudio = new QPushButton("Audio-disable", this);
+    connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
     mEnableVideo = new QPushButton("Video", this);
 
     setLayout(mGridLayout);
@@ -125,6 +126,21 @@ void MeetingView::updateSession(const megachat::MegaChatSession &session)
     }
 }
 
+void MeetingView::updateAudioButtonText(MegaChatCall *call)
+{
+    std::string text;
+    if (call->hasLocalAudio())
+    {
+        text = "Disable Audio";
+    }
+    else
+    {
+        text = "Enable Audio";
+    }
+
+    mEnableAudio->setText(text.c_str());
+}
+
 void MeetingView::removeThumb(PeerWidget *widget)
 {
     mThumbLayout->removeWidget(widget);
@@ -211,6 +227,19 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         {
             mMegaChatApi.rejectSpeakRequest(mChatid, cid);
         }
+    }
+}
+
+void MeetingView::onEnableAudio()
+{
+    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (call->hasLocalAudio())
+    {
+        mMegaChatApi.disableAudio(mChatid);
+    }
+    else
+    {
+        mMegaChatApi.enableAudio(mChatid);
     }
 }
 

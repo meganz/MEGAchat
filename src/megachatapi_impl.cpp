@@ -1697,11 +1697,25 @@ void MegaChatApiImpl::sendPendingRequests()
             karere::AvFlags requestedFlags = currentFlags;
             if (operationType == MegaChatRequest::AUDIO)
             {
-                requestedFlags.set(karere::AvFlags::kAudio);
+                if (enable)
+                {
+                    requestedFlags.add(karere::AvFlags::kAudio);
+                }
+                else
+                {
+                    requestedFlags.remove(karere::AvFlags::kAudio);
+                }
             }
             else // (operationType == MegaChatRequest::VIDEO)
             {
-                requestedFlags.set(karere::AvFlags::kVideo);
+                if (enable)
+                {
+                    requestedFlags.add(karere::AvFlags::kVideo);
+                }
+                else
+                {
+                    requestedFlags.remove(karere::AvFlags::kVideo);
+                }
             }
 
             call->updateAndSendLocalAvFlags(requestedFlags);
@@ -8627,6 +8641,13 @@ void MegaChatCallHandler::onAudioApproved(const rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_SPEAK);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
