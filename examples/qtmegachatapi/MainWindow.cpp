@@ -196,6 +196,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
                 window->mMeetingView->updateAudioButtonText(call);
+                window->mMeetingView->updateVideoButtonText(call);
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
@@ -231,6 +232,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
     {
         window->mMeetingView->updateAudioButtonText(call);
+        window->mMeetingView->updateVideoButtonText(call);
         updateVideoParticipants(call->getChatid());
     }
 

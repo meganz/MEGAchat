@@ -5302,7 +5302,7 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatVideoListener that will receive local video
      */
-    void addChatLocalVideoListener(MegaChatHandle chatid, bool hiRes, MegaChatVideoListener *listener);
+    void addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
      * @brief Unregister a MegaChatVideoListener

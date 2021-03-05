@@ -24,6 +24,7 @@ public:
     void removeSession(const megachat::MegaChatSession& session);
     void updateSession(const megachat::MegaChatSession& session);
     void updateAudioButtonText(MegaChatCall *call);
+    void updateVideoButtonText(MegaChatCall *call);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -59,6 +60,7 @@ public slots:
     void onHangUp();
     void onSessionContextMenu(const QPoint &);
     void onEnableAudio();
+    void onEnableVideo();
 };
 
 #endif // MEETINGVIEW_H

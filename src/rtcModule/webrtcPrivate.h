@@ -205,7 +205,9 @@ protected:
     std::string mSdp;
     std::unique_ptr<Slot> mAudio;
     std::unique_ptr<VideoSlot> mVThumb;
+    bool mVThumbActive = false;
     std::unique_ptr<VideoSlot> mHiRes;
+    bool mHiResActive = false;
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
 
@@ -225,6 +227,7 @@ protected:
     void removeSpeaker(Cid_t cid);
     const std::string &getCallKey() const;
     void updateAudioTracks();
+    void updateVideoTracks();
 };
 
 class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable

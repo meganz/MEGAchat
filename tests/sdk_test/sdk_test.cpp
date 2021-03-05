@@ -3021,8 +3021,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     mLocalVideoListener[a1] = new TestChatVideoListener();
     mLocalVideoListener[a2] = new TestChatVideoListener();
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, mLocalVideoListener[a1]);
-    megaChatApi[a2]->addChatLocalVideoListener(chatid, false, mLocalVideoListener[a2]);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
+    megaChatApi[a2]->addChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
     // Remote video listener aren't necessary because call is never ging to be answered at tests
 
     // A calls B and B hangs up the call
@@ -3275,7 +3275,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
 
     TestChatVideoListener localVideoListener;
 
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
 
     // Manual Test
     // Emit call
@@ -3323,7 +3323,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
     megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
 
     sleep(5);
     std::cerr << "Mute Call" << std::endl;
@@ -3472,7 +3472,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
     TestChatVideoListener localVideoListener;
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
 
     // ---- MANUAL TEST ----
 
@@ -3516,7 +3516,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
     megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
 
     sleep(40);  // wait to receive some traffic
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);

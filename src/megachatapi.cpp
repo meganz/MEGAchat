@@ -1059,9 +1059,9 @@ void MegaChatApi::removeChatCallListener(MegaChatCallListener *listener)
     pImpl->removeChatCallListener(listener);
 }
 
-void MegaChatApi::addChatLocalVideoListener(MegaChatHandle chatid, bool hiRes, MegaChatVideoListener *listener)
+void MegaChatApi::addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
 {
-    pImpl->addChatVideoListener(chatid, 0, hiRes, listener);
+    pImpl->addChatVideoListener(chatid, 0, true, listener);
 }
 
 void MegaChatApi::removeChatLocalVideoListener(MegaChatHandle chatid, bool hiRes, MegaChatVideoListener *listener)

@@ -20,7 +20,7 @@ PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHan
 
     if (mLocal)
     {
-        mMegaChatApi.addChatLocalVideoListener(mChatid, mHiRes, mMegaChatVideoListenerDelegate);
+        mMegaChatApi.addChatLocalVideoListener(mChatid, mMegaChatVideoListenerDelegate);
     }
     else
     {

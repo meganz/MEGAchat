@@ -6,7 +6,7 @@ LocalCallListener::LocalCallListener(MegaChatApi *megaChatApi, CallGui *callGui,
     : CallListener(megaChatApi, callGui, MEGACHAT_INVALID_HANDLE, 0)
     , mHiRes(hiRes)
 {
-    mMegaChatApi->addChatLocalVideoListener(mCallGui->getCall()->getChatid(), mHiRes, megaChatVideoListenerDelegate);
+    mMegaChatApi->addChatLocalVideoListener(mCallGui->getCall()->getChatid(), megaChatVideoListenerDelegate);
 }
 
 LocalCallListener::~LocalCallListener()

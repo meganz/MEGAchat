@@ -177,6 +177,7 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
     mLocalAvFlags = flags;
     mSfuConnection->sendAv(flags.value());
     updateAudioTracks();
+    updateVideoTracks();
     mCallHandler->onLocalFlagsChanged(*this);
 }
 
@@ -395,36 +396,7 @@ void Call::createTranceiver()
 void Call::getLocalStreams()
 {
     updateAudioTracks();
-
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-    webrtc::VideoCaptureCapability capabilities;
-    capabilities.width = RtcConstant::kHiResWidth;
-    capabilities.height = RtcConstant::kHiResHeight;
-    capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
-    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
-    mVideoDevice = artc::VideoManager::Create(capabilities, videoDevices.begin()->second, artc::gAsyncWaiter->guiThread());
-    videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
-
-    if (mLocalAvFlags.video())
-    {
-        mVideoDevice->openDevice(videoDevices.begin()->second);
-    }
-
-    videoTrack->set_enabled(mLocalAvFlags.video());
-
-    mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
-    rtc::VideoSinkWants wants;
-    mVideoDevice->AddOrUpdateSink(mHiRes.get(), wants);
-
-    mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
-    webrtc::RtpParameters parameters;
-    webrtc::RtpEncodingParameters encoding;
-    double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
-    encoding.scale_resolution_down_by = scale;
-    encoding.max_bitrate_bps = 100 * 1024;
-    parameters.encodings.push_back(encoding);
-    mVThumb->getTransceiver()->sender()->SetParameters(parameters);
-    mVideoDevice->AddOrUpdateSink(mVThumb.get(), wants);
+    updateVideoTracks();
 }
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
@@ -560,13 +532,15 @@ bool Call::handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &vid
 
 bool Call::handleVThumbsStartCommand()
 {
-    mVThumb->enableTrack(true);
+    mVThumbActive = true;
+    updateVideoTracks();
     return true;
 }
 
 bool Call::handleVThumbsStopCommand()
 {
-    mVThumb->enableTrack(false);
+    mVThumbActive = false;
+    updateVideoTracks();
     return true;
 }
 
@@ -578,13 +552,15 @@ bool Call::handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor>& video
 
 bool Call::handleHiResStartCommand()
 {
-    mHiRes->enableTrack(true);
+    mHiResActive = true;
+    updateVideoTracks();
     return true;
 }
 
 bool Call::handleHiResStopCommand()
 {
-    mHiRes->enableTrack(false);
+    mHiResActive = false;
+    updateVideoTracks();
     return true;
 }
 
@@ -922,6 +898,72 @@ void Call::updateAudioTracks()
     {
         track->set_enabled(false);
         mAudio->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+}
+
+void Call::updateVideoTracks()
+{
+    if (mLocalAvFlags.video())
+    {
+        if (!mVideoDevice)
+        {
+            webrtc::VideoCaptureCapability capabilities;
+            capabilities.width = RtcConstant::kHiResWidth;
+            capabilities.height = RtcConstant::kHiResHeight;
+            capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
+            std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+            mVideoDevice = artc::VideoManager::Create(capabilities, videoDevices.begin()->second, artc::gAsyncWaiter->guiThread());
+            mVideoDevice->openDevice(videoDevices.begin()->second);
+            // Our local slot connect directly to video device to keep showing video althoug no one wants our video
+            rtc::VideoSinkWants wants;
+            mVideoDevice->AddOrUpdateSink(mVThumb.get(), wants);
+            mVideoDevice->AddOrUpdateSink(mHiRes.get(), wants);
+
+        }
+
+        if (mHiResActive && !mHiRes->getTransceiver()->sender()->track())
+        {
+            rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
+            mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
+        }
+        else if (!mHiResActive)
+        {
+            mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
+        }
+
+        if (mVThumbActive && !mVThumb->getTransceiver()->sender()->track())
+        {
+            rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
+            webrtc::RtpParameters parameters;
+            webrtc::RtpEncodingParameters encoding;
+            double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
+            encoding.scale_resolution_down_by = scale;
+            encoding.max_bitrate_bps = 100 * 1024;
+            parameters.encodings.push_back(encoding);
+            mVThumb->getTransceiver()->sender()->SetParameters(parameters);
+            mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
+        }
+        else if (!mVThumbActive)
+        {
+            mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+        }
+    }
+    else
+    {
+        if (mHiRes->getTransceiver()->sender()->track())
+        {
+            mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
+        }
+
+        if (mVThumb->getTransceiver()->sender()->track())
+        {
+            mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+        }
+
+        mVideoDevice->releaseDevice();
+        mVideoDevice = nullptr;
     }
 }
 
