@@ -109,7 +109,7 @@ public:
     //Bit 3 (value 4) is occupied by kFlagRinging = 0x04
     enum: uint8_t { kAudio = 1, kCameraLowRes = 2, kCameraHiRes = 4, kCamera = 6,
                     kScreenLowRes = 8, kScreenHiRes = 16, kScreen = 24,
-                    kLowResVideo = 10, kHiResVideo = 20, kVideo = 30};
+                    kLowResVideo = 10, kHiResVideo = 20, kVideo = 30, kOnHold = 128};
     AvFlags(uint8_t flags): mFlags(flags){}
     AvFlags(bool audio, bool video)
     : mFlags((audio ? kAudio : 0) | (video ? kVideo : 0)){}
@@ -137,9 +137,20 @@ public:
             result+= "sL";
         if (mFlags & kScreenHiRes)
             result+= "sH";
+        if (mFlags & kOnHold)
+            result+='h';
         if (result.empty())
             result='-';
         return result;
+    }
+
+    bool has(uint8_t val) const{ return mFlags & val; }
+    void add(uint8_t val) { mFlags = mFlags | val; }
+    void remove(uint8_t val) { mFlags = mFlags & ~val; }
+
+    void setOnHold(bool enable)
+    {
+        enable ? add(kOnHold) : remove(kOnHold);
     }
 };
 

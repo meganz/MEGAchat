@@ -1723,37 +1723,37 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_SET_CALL_ON_HOLD:
         {
-                MegaChatHandle chatid = request->getChatHandle();
-                bool onHold = request->getFlag();
+            MegaChatHandle chatid = request->getChatHandle();
+            bool onHold = request->getFlag();
 
-                rtcModule::ICall* call = findCall(chatid);
-                if (!call)
-                {
-                    API_LOG_ERROR("Set call on hold  - There is not any call in that chatroom");
-                    errorCode = MegaChatError::ERROR_NOENT;
-                    assert(false);
-                    break;
-                }
-
-//                if (call->state() != rtcModule::ICall::kStateInProgress)
-//                {
-//                    API_LOG_ERROR("The call can't be set onHold until call is in-progres");
-//                    errorCode = MegaChatError::ERROR_ACCESS;
-//                    break;
-//                }
-
-//                if (onHold == call->sentFlags().onHold())
-//                {
-//                    API_LOG_ERROR("Set call on hold - Call is on hold and try to set on hold or conversely");
-//                    errorCode = MegaChatError::ERROR_ARGS;
-//                    break;
-//                }
-
-//                call->setOnHold(onHold);
-
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
+            rtcModule::ICall* call = findCall(chatid);
+            if (!call)
+            {
+                API_LOG_ERROR("Set call on hold  - There is not any call in that chatroom");
+                errorCode = MegaChatError::ERROR_NOENT;
+                assert(false);
                 break;
+            }
+
+            if (call->getState() != rtcModule::CallState::kStateInProgress)
+            {
+                API_LOG_ERROR("The call can't be set onHold until call is in-progres");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            karere::AvFlags currentFlags = call->getLocalAvFlags();
+            if (onHold == currentFlags.has(karere::AvFlags::kOnHold))
+            {
+                API_LOG_ERROR("Set call on hold - Call is on hold and try to set on hold or conversely");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+            currentFlags.setOnHold(onHold);
+            call->updateAndSendLocalAvFlags(currentFlags);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
         }
         case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
         {
@@ -5838,7 +5838,7 @@ bool MegaChatSessionPrivate::getAudioDetected() const
 
 bool MegaChatSessionPrivate::isOnHold() const
 {
-    return false;
+    return mAVFlags.has(karere::AvFlags::kOnHold);
 }
 
 int MegaChatSessionPrivate::getChanges() const
@@ -6150,7 +6150,7 @@ MegaChatHandle MegaChatCallPrivate::getCaller() const
 
 bool MegaChatCallPrivate::isOnHold() const
 {
-    return false;
+    return localAVFlags.has(karere::AvFlags::kOnHold);
 }
 
 bool MegaChatCallPrivate::isModerator() const
