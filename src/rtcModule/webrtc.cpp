@@ -265,12 +265,12 @@ void Call::stopHighResolutionVideo(Cid_t cid)
     mSfuConnection->sendDelHiRes(cid);
 }
 
-void Call::requestLowResolutionVideo(const std::vector<karere::Id> &cids)
+void Call::requestLowResolutionVideo(const std::vector<Cid_t> &cids)
 {
     mSfuConnection->sendGetVtumbs(cids);
 }
 
-void Call::stopLowResolutionVideo(const std::vector<karere::Id> &cids)
+void Call::stopLowResolutionVideo(const std::vector<Cid_t> &cids)
 {
     mSfuConnection->sendDelVthumbs(cids);
 }
@@ -962,8 +962,11 @@ void Call::updateVideoTracks()
             mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
         }
 
-        mVideoDevice->releaseDevice();
-        mVideoDevice = nullptr;
+        if (mVideoDevice)
+        {
+            mVideoDevice->releaseDevice();
+            mVideoDevice = nullptr;
+        }
     }
 }
 

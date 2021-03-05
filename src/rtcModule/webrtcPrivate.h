@@ -130,8 +130,8 @@ public:
     std::vector<Cid_t> getSpeakerRequested() override;
     void requestHighResolutionVideo(Cid_t cid) override;
     void stopHighResolutionVideo(Cid_t cid) override;
-    void requestLowResolutionVideo(const std::vector<karere::Id> &cids) override;
-    void stopLowResolutionVideo(const std::vector<karere::Id> &cids) override;
+    void requestLowResolutionVideo(const std::vector<Cid_t> &cids) override;
+    void stopLowResolutionVideo(const std::vector<Cid_t> &cids) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;

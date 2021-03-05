@@ -2187,7 +2187,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            std::vector<karere::Id> cids;
+            std::vector<Cid_t> cids;
             const MegaHandleList *auxcids = request->getMegaHandleList();
             for (size_t i = 0; i < auxcids->size(); i++)
             {
@@ -8679,7 +8679,7 @@ void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
 
 void MegaChatSessionHandler::onHiResReceived(rtcModule::ISession& session)
 {
-    session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
+    session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, true, session.getClientid()));
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());

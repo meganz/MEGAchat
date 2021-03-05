@@ -229,7 +229,9 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     {
         if (rightClickItem->text().contains(requestThumb.c_str()))
         {
-            mMegaChatApi.requestHiResVideo(mChatid, cid);
+            std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+            handleList->addMegaHandle(cid);
+            mMegaChatApi.requestLowResVideo(mChatid, handleList.get());
         }
         else if (rightClickItem->text().contains(requestHiRes.c_str()))
         {

@@ -156,8 +156,8 @@ public:
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid) = 0;
     virtual void stopHighResolutionVideo(Cid_t cid) = 0;
-    virtual void requestLowResolutionVideo(const std::vector<karere::Id> &cids) = 0;
-    virtual void stopLowResolutionVideo(const std::vector<karere::Id> &cids) = 0;
+    virtual void requestLowResolutionVideo(const std::vector<Cid_t> &cids) = 0;
+    virtual void stopLowResolutionVideo(const std::vector<Cid_t> &cids) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
