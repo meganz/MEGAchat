@@ -4632,15 +4632,6 @@ public:
     void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Hang all active calls
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
-     *
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void hangAllChatCalls(MegaChatRequestListener *listener = NULL);
-
-    /**
      * @brief Enable audio for a call that is in progress
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
@@ -4799,34 +4790,6 @@ public:
      * @return True if there is a call in a chatroom. False in other case
      */
     bool hasCallInChatRoom(MegaChatHandle chatid);
-
-    /**
-     * @brief Enable/disable groupcalls
-     *
-     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
-     * in the history about group calls will be visible since the call takes place anyway.
-     *
-     * By default, groupcalls are disabled.
-     *
-     * This method should be called after MegaChatApi::init. A MegaChatApi::logout resets its value.
-     *
-     * @param enable True for enable group calls. False to disable them.
-     * @deprecated Groupcalls are always enabled, this function has no effect.
-     */
-    void enableGroupChatCalls(bool enable);
-
-    /**
-     * @brief Returns true if groupcalls are enabled
-     *
-     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
-     * in the history about group calls will be visible.
-     *
-     * By default, groupcalls are disabled. A MegaChatApi::logout resets its value.
-     *
-     * @return True if group calls are enabled. Otherwise, false.
-     * @deprecated Groupcalls are always enabled
-     */
-    bool areGroupChatCallEnabled();
 
     /**
      * @brief Returns the maximum call participants

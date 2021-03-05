@@ -4371,14 +4371,6 @@ void MegaChatApiImpl::hangChatCall(MegaChatHandle chatid, MegaChatRequestListene
     waiter->notify();
 }
 
-void MegaChatApiImpl::hangAllChatCalls(MegaChatRequestListener *listener = NULL)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
-    request->setChatHandle(MEGACHAT_INVALID_HANDLE);
-    requestQueue.push(request);
-    waiter->notify();
-}
-
 void MegaChatApiImpl::setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);

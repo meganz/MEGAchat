@@ -874,11 +874,6 @@ void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *l
     pImpl->hangChatCall(chatid, listener);
 }
 
-void MegaChatApi::hangAllChatCalls(MegaChatRequestListener *listener)
-{
-    pImpl->hangAllChatCalls(listener);
-}
-
 void MegaChatApi::enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->setAudioEnable(chatid, true, listener);
@@ -942,16 +937,6 @@ MegaHandleList *MegaChatApi::getChatCallsIds()
 bool MegaChatApi::hasCallInChatRoom(MegaChatHandle chatid)
 {
     return pImpl->hasCallInChatRoom(chatid);
-}
-
-void MegaChatApi::enableGroupChatCalls(bool /*enable*/)
-{
-
-}
-
-bool MegaChatApi::areGroupChatCallEnabled()
-{
-    return true;
 }
 
 int MegaChatApi::getMaxCallParticipants()
