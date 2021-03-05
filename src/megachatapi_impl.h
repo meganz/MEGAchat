@@ -252,7 +252,6 @@ public:
     void setChange(int mChanged);
     void setTermCode(rtcModule::TermCode termCode);
     void setIsRinging(bool ringing);
-    void setIgnoredCall(bool ignored);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
 
     int availableAudioSlots();
@@ -279,7 +278,7 @@ protected:
     MegaChatHandle callerId;
 
     int termCode;
-    bool ignored;
+    bool mIgnored;
     bool localTermCode;
 
     bool ringing = false;
@@ -1155,7 +1154,7 @@ public:
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);   /// ***Deprecated
     MegaChatCall *getChatCall(MegaChatHandle chatId);
-    void setIgnoredCall(MegaChatHandle chatId);
+    bool setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
     mega::MegaHandleList *getChatCalls(int callState = -1);

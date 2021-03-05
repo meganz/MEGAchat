@@ -909,9 +909,9 @@ MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
     return pImpl->getChatCall(chatid);
 }
 
-void MegaChatApi::setIgnoredCall(MegaChatHandle chatid)
+bool MegaChatApi::setIgnoredCall(MegaChatHandle chatid)
 {
-    pImpl->setIgnoredCall(chatid);
+    return pImpl->setIgnoredCall(chatid);
 }
 
 MegaChatCall *MegaChatApi::getChatCallByCallId(MegaChatHandle callId)

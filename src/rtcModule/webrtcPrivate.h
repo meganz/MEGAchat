@@ -120,6 +120,7 @@ public:
     void ignoreCall() override;
     void setRinging(bool ringing) override;
     bool isRinging() const override;
+    bool isIgnored() const override;
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
@@ -190,6 +191,7 @@ public:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIsModerator = false;
+    bool mIgnored = false;
     SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
 

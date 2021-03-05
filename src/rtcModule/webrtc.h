@@ -145,6 +145,7 @@ public:
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
     virtual bool isRinging() const = 0;
+    virtual bool isIgnored() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;

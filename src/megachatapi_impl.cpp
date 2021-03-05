@@ -4393,25 +4393,36 @@ void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener
     waiter->notify();
 }
 
-void MegaChatApiImpl::setIgnoredCall(MegaChatHandle chatId)
+bool MegaChatApiImpl::setIgnoredCall(MegaChatHandle chatId)
 {
     if (!mClient->rtc)
     {
         API_LOG_ERROR("Ignore call - WebRTC is not initialized");
-        return;
+        return false;
     }
 
-    if (chatId != MEGACHAT_INVALID_HANDLE)
+    if (chatId == MEGACHAT_INVALID_HANDLE)
     {
-        rtcModule::ICall* call = mClient->rtc->findCallByChatid(chatId);
-        if (!call)
-        {
-            API_LOG_ERROR("Ignore call - Failed to get the call associated to chat room");
-            return;
-        }
+        API_LOG_ERROR("Ignore call - Invalid chatId");
+        return false;
+    }
 
-        call->ignoreCall();
-     }
+    SdkMutexGuard g(sdkMutex);
+    rtcModule::ICall* call = mClient->rtc->findCallByChatid(chatId);
+    if (!call)
+    {
+        API_LOG_ERROR("Ignore call - Failed to get the call associated to chat room");
+        return false;
+    }
+
+    if (call->isIgnored())
+    {
+        API_LOG_ERROR("Ignore call - Call is already marked as ignored");
+        return false;
+    }
+
+    call->ignoreCall();
+    return true;
 }
 
 MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle chatId)
@@ -5905,6 +5916,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     status = call.getState();
     callerId = call.getCallerid();
     mIsCaller = call.isOutgoing();
+    mIgnored = call.isIgnored();
 
     localAVFlags = call.getLocalAvFlags();
 
@@ -5940,7 +5952,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->termCode = call.termCode;
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
-    this->ignored = call.ignored;
+    this->mIgnored = call.mIgnored;
     this->mPeerId = call.mPeerId;
     this->callCompositionChange = call.callCompositionChange;
     this->callerId = call.callerId;
@@ -6116,7 +6128,7 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
 
 bool MegaChatCallPrivate::isIgnored() const
 {
-    return ignored;
+    return mIgnored;
 }
 
 bool MegaChatCallPrivate::isIncoming() const
@@ -6257,11 +6269,6 @@ void MegaChatCallPrivate::setIsRinging(bool ringing)
 {
     this->ringing = ringing;
     mChanged |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
-}
-
-void MegaChatCallPrivate::setIgnoredCall(bool ignored)
-{
-    this->ignored = ignored;
 }
 
 MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &sess)

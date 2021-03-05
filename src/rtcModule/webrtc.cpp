@@ -124,7 +124,7 @@ void Call::enableAudioLevelMonitor(bool enable)
 
 void Call::ignoreCall()
 {
-
+    mIgnored = true;
 }
 
 void Call::setRinging(bool ringing)
@@ -135,6 +135,11 @@ void Call::setRinging(bool ringing)
         mCallHandler->onCallRinging(*this);
     }
 
+}
+
+bool Call::isIgnored() const
+{
+    return mIgnored;
 }
 
 void Call::setCallerId(karere::Id callerid)

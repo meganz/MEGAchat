@@ -4735,11 +4735,12 @@ public:
     MegaChatCall *getChatCall(MegaChatHandle chatid);
 
     /**
-     * @brief Mark as ignored the MegaChatCall associated with a chatroom
+     * @brief Mark as ignored the call associated with a chatroom
      *
      * @param chatid MegaChatHandle that identifies the chat room
+     * @return true if call can be marked as ignored, otherwise return false.
      */
-    void setIgnoredCall(MegaChatHandle chatid);
+    bool setIgnoredCall(MegaChatHandle chatid);
 
     /**
      * @brief Get the MegaChatCall that has a specific id
