@@ -178,7 +178,6 @@ public:
     virtual void hangupAll() = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
     virtual ICall* findCallByChatid(karere::Id chatid) = 0;
-    virtual void loadDeviceList() = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual std::string getVideoDeviceSelected() = 0;

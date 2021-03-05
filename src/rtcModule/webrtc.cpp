@@ -940,11 +940,6 @@ ICall *RtcModuleSfu::findCallByChatid(karere::Id chatid)
     return nullptr;
 }
 
-void RtcModuleSfu::loadDeviceList()
-{
-
-}
-
 bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
 {
     return false;

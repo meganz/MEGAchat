@@ -1153,7 +1153,7 @@ public:
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
-    void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
+    void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);   /// ***Deprecated
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     void setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);

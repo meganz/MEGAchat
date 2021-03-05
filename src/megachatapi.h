@@ -4716,6 +4716,7 @@ public:
      *
      * Call this function to update the list of available devices, ie. after plug-in a webcam to your PC.
      *
+     * @deprecated Use MegaChatApi::getChatVideoInDevices
      * @param listener MegaChatRequestListener to track this request
      */
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);

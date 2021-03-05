@@ -233,7 +233,6 @@ public:
     void hangupAll() override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;
-    void loadDeviceList() override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     std::string getVideoDeviceSelected() override;

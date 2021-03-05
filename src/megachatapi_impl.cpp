@@ -1755,20 +1755,6 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
-        case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
-        {
-            if (!mClient->rtc)
-            {
-                API_LOG_ERROR("Load AV devices - WebRTC is not initialized");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
-            mClient->rtc->loadDeviceList();
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-            fireOnChatRequestFinish(request, megaChatError);
-            break;
-        }
 
         case MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM:
         {
@@ -7746,6 +7732,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:    // no content at all
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:    // no content at all
             case MegaChatMessage::TYPE_SET_PRIVATE_MODE:
+            case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
             default:
                 break;
         }
