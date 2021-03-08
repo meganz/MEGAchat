@@ -146,6 +146,7 @@ public:
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
     virtual bool isRinging() const = 0;
+    virtual bool isIgnored() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;
@@ -162,6 +163,7 @@ public:
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
     virtual ISession* getSession(Cid_t cid) const = 0;
+    virtual bool isOutgoing() const = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
@@ -178,7 +180,6 @@ public:
     virtual void hangupAll() = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
     virtual ICall* findCallByChatid(karere::Id chatid) = 0;
-    virtual void loadDeviceList() = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual std::string getVideoDeviceSelected() = 0;

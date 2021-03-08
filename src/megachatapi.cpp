@@ -88,21 +88,6 @@ bool MegaChatSession::isLowResVideo() const
     return false;
 }
 
-int MegaChatSession::getTermCode() const
-{
-    return 0;
-}
-
-bool MegaChatSession::isLocalTermCode() const
-{
-    return false;
-}
-
-int MegaChatSession::getNetworkQuality() const
-{
-    return 0;
-}
-
 bool MegaChatSession::getAudioDetected() const
 {
     return false;
@@ -162,17 +147,7 @@ bool MegaChatCall::hasLocalAudio() const
     return false;
 }
 
-bool MegaChatCall::hasAudioInitialCall() const
-{
-    return false;
-}
-
 bool MegaChatCall::hasLocalVideo() const
-{
-    return false;
-}
-
-bool MegaChatCall::hasVideoInitialCall() const
 {
     return false;
 }
@@ -899,11 +874,6 @@ void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *l
     pImpl->hangChatCall(chatid, listener);
 }
 
-void MegaChatApi::hangAllChatCalls(MegaChatRequestListener *listener)
-{
-    pImpl->hangAllChatCalls(listener);
-}
-
 void MegaChatApi::enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->setAudioEnable(chatid, true, listener);
@@ -939,9 +909,9 @@ MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
     return pImpl->getChatCall(chatid);
 }
 
-void MegaChatApi::setIgnoredCall(MegaChatHandle chatid)
+bool MegaChatApi::setIgnoredCall(MegaChatHandle chatid)
 {
-    pImpl->setIgnoredCall(chatid);
+    return pImpl->setIgnoredCall(chatid);
 }
 
 MegaChatCall *MegaChatApi::getChatCallByCallId(MegaChatHandle callId)
@@ -967,16 +937,6 @@ MegaHandleList *MegaChatApi::getChatCallsIds()
 bool MegaChatApi::hasCallInChatRoom(MegaChatHandle chatid)
 {
     return pImpl->hasCallInChatRoom(chatid);
-}
-
-void MegaChatApi::enableGroupChatCalls(bool /*enable*/)
-{
-
-}
-
-bool MegaChatApi::areGroupChatCallEnabled()
-{
-    return true;
 }
 
 int MegaChatApi::getMaxCallParticipants()
@@ -1009,9 +969,9 @@ bool MegaChatApi::isSpeakAllow(MegaChatHandle chatid)
     return pImpl->isSpeakAllow(chatid);
 }
 
-MegaHandleList *MegaChatApi::getReqestedSpeakers(MegaChatHandle chatid)
+MegaHandleList *MegaChatApi::getRequestedSpeakers(MegaChatHandle chatid)
 {
-    return pImpl->getReqestedSpeakers(chatid);
+    return pImpl->getRequestedSpeakers(chatid);
 }
 
 void MegaChatApi::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)

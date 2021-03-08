@@ -1726,48 +1726,34 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_SET_CALL_ON_HOLD:
         {
-                MegaChatHandle chatid = request->getChatHandle();
-                bool onHold = request->getFlag();
+            MegaChatHandle chatid = request->getChatHandle();
+            bool onHold = request->getFlag();
 
-                rtcModule::ICall* call = findCall(chatid);
-                if (!call)
-                {
-                    API_LOG_ERROR("Set call on hold  - There is not any call in that chatroom");
-                    errorCode = MegaChatError::ERROR_NOENT;
-                    assert(false);
-                    break;
-                }
-
-//                if (call->state() != rtcModule::ICall::kStateInProgress)
-//                {
-//                    API_LOG_ERROR("The call can't be set onHold until call is in-progres");
-//                    errorCode = MegaChatError::ERROR_ACCESS;
-//                    break;
-//                }
-
-//                if (onHold == call->sentFlags().onHold())
-//                {
-//                    API_LOG_ERROR("Set call on hold - Call is on hold and try to set on hold or conversely");
-//                    errorCode = MegaChatError::ERROR_ARGS;
-//                    break;
-//                }
-
-//                call->setOnHold(onHold);
-
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-                break;
-        }
-        case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
-        {
-            if (!mClient->rtc)
+            rtcModule::ICall* call = findCall(chatid);
+            if (!call)
             {
-                API_LOG_ERROR("Load AV devices - WebRTC is not initialized");
+                API_LOG_ERROR("Set call on hold  - There is not any call in that chatroom");
+                errorCode = MegaChatError::ERROR_NOENT;
+                assert(false);
+                break;
+            }
+
+            if (call->getState() != rtcModule::CallState::kStateInProgress)
+            {
+                API_LOG_ERROR("The call can't be set onHold until call is in-progres");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
-            mClient->rtc->loadDeviceList();
+            karere::AvFlags currentFlags = call->getLocalAvFlags();
+            if (onHold == currentFlags.has(karere::AvFlags::kOnHold))
+            {
+                API_LOG_ERROR("Set call on hold - Call is on hold and try to set on hold or conversely");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+            currentFlags.setOnHold(onHold);
+            call->updateAndSendLocalAvFlags(currentFlags);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             break;
@@ -4374,14 +4360,6 @@ void MegaChatApiImpl::hangChatCall(MegaChatHandle chatid, MegaChatRequestListene
     waiter->notify();
 }
 
-void MegaChatApiImpl::hangAllChatCalls(MegaChatRequestListener *listener = NULL)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
-    request->setChatHandle(MEGACHAT_INVALID_HANDLE);
-    requestQueue.push(request);
-    waiter->notify();
-}
-
 void MegaChatApiImpl::setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);
@@ -4418,25 +4396,36 @@ void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener
     waiter->notify();
 }
 
-void MegaChatApiImpl::setIgnoredCall(MegaChatHandle chatId)
+bool MegaChatApiImpl::setIgnoredCall(MegaChatHandle chatId)
 {
     if (!mClient->rtc)
     {
         API_LOG_ERROR("Ignore call - WebRTC is not initialized");
-        return;
+        return false;
     }
 
-    if (chatId != MEGACHAT_INVALID_HANDLE)
+    if (chatId == MEGACHAT_INVALID_HANDLE)
     {
-        rtcModule::ICall* call = mClient->rtc->findCallByChatid(chatId);
-        if (!call)
-        {
-            API_LOG_ERROR("Ignore call - Failed to get the call associated to chat room");
-            return;
-        }
+        API_LOG_ERROR("Ignore call - Invalid chatId");
+        return false;
+    }
 
-        call->ignoreCall();
-     }
+    SdkMutexGuard g(sdkMutex);
+    rtcModule::ICall* call = mClient->rtc->findCallByChatid(chatId);
+    if (!call)
+    {
+        API_LOG_ERROR("Ignore call - Failed to get the call associated to chat room");
+        return false;
+    }
+
+    if (call->isIgnored())
+    {
+        API_LOG_ERROR("Ignore call - Call is already marked as ignored");
+        return false;
+    }
+
+    call->ignoreCall();
+    return true;
 }
 
 MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle chatId)
@@ -4624,7 +4613,7 @@ bool MegaChatApiImpl::isSpeakAllow(MegaChatHandle chatid)
     return call->isSpeakAllow();
 }
 
-MegaHandleList *MegaChatApiImpl::getReqestedSpeakers(MegaChatHandle chatid)
+MegaHandleList *MegaChatApiImpl::getRequestedSpeakers(MegaChatHandle chatid)
 {
     rtcModule::ICall *call = findCall(chatid);
     MegaHandleList* handleList = MegaHandleListPrivate::createInstance();
@@ -5842,21 +5831,6 @@ bool MegaChatSessionPrivate::isLowResVideo() const
     return mAvFlags.videoLowRes();
 }
 
-int MegaChatSessionPrivate::getTermCode() const
-{
-    return false;
-}
-
-bool MegaChatSessionPrivate::isLocalTermCode() const
-{
-    return false;
-}
-
-int MegaChatSessionPrivate::getNetworkQuality() const
-{
-    return false;
-}
-
 bool MegaChatSessionPrivate::getAudioDetected() const
 {
     return false;
@@ -5864,7 +5838,7 @@ bool MegaChatSessionPrivate::getAudioDetected() const
 
 bool MegaChatSessionPrivate::isOnHold() const
 {
-    return false;
+    return mAVFlags.has(karere::AvFlags::kOnHold);
 }
 
 int MegaChatSessionPrivate::getChanges() const
@@ -5944,6 +5918,9 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     callid = call.getCallid();
     status = call.getState();
     callerId = call.getCallerid();
+    mIsCaller = call.isOutgoing();
+    mIgnored = call.isIgnored();
+
     localAVFlags = call.getLocalAvFlags();
 
     if (call.getState() == rtcModule::CallState::kStateInitial)
@@ -5972,14 +5949,13 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->callid = call.getId();
     this->mIsCaller = call.isOutgoing();
     this->localAVFlags = call.localAVFlags;
-    this->initialAVFlags = call.initialAVFlags;
     this->mChanged = call.mChanged;
     this->initialTs = call.initialTs;
     this->finalTs = call.finalTs;
     this->termCode = call.termCode;
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
-    this->ignored = call.ignored;
+    this->mIgnored = call.mIgnored;
     this->mPeerId = call.mPeerId;
     this->callCompositionChange = call.callCompositionChange;
     this->callerId = call.callerId;
@@ -6023,19 +5999,9 @@ bool MegaChatCallPrivate::hasLocalAudio() const
     return localAVFlags.audio();
 }
 
-bool MegaChatCallPrivate::hasAudioInitialCall() const
-{
-    return initialAVFlags.audio();
-}
-
 bool MegaChatCallPrivate::hasLocalVideo() const
 {
     return localAVFlags.video();
-}
-
-bool MegaChatCallPrivate::hasVideoInitialCall() const
-{
-    return initialAVFlags.video();
 }
 
 int MegaChatCallPrivate::getChanges() const
@@ -6165,7 +6131,7 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
 
 bool MegaChatCallPrivate::isIgnored() const
 {
-    return ignored;
+    return mIgnored;
 }
 
 bool MegaChatCallPrivate::isIncoming() const
@@ -6185,7 +6151,7 @@ MegaChatHandle MegaChatCallPrivate::getCaller() const
 
 bool MegaChatCallPrivate::isOnHold() const
 {
-    return false;
+    return localAVFlags.has(karere::AvFlags::kOnHold);
 }
 
 bool MegaChatCallPrivate::isModerator() const
@@ -6216,11 +6182,6 @@ void MegaChatCallPrivate::setLocalAudioVideoFlags(AvFlags localAVFlags)
 
     this->localAVFlags = localAVFlags;
     mChanged |= MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS;
-}
-
-void MegaChatCallPrivate::setInitialAudioVideoFlags(AvFlags initialAVFlags)
-{
-    this->initialAVFlags = initialAVFlags;
 }
 
 void MegaChatCallPrivate::setInitialTimeStamp(int64_t timeStamp)
@@ -6311,11 +6272,6 @@ void MegaChatCallPrivate::setIsRinging(bool ringing)
 {
     this->ringing = ringing;
     mChanged |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
-}
-
-void MegaChatCallPrivate::setIgnoredCall(bool ignored)
-{
-    this->ignored = ignored;
 }
 
 MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &sess)
@@ -7786,6 +7742,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:    // no content at all
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:    // no content at all
             case MegaChatMessage::TYPE_SET_PRIVATE_MODE:
+            case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
             default:
                 break;
         }

@@ -120,6 +120,7 @@ public:
     void ignoreCall() override;
     void setRinging(bool ringing) override;
     bool isRinging() const override;
+    bool isIgnored() const override;
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
@@ -136,6 +137,7 @@ public:
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getSession(Cid_t cid) const override;
+    bool isOutgoing() const override;
 
     void setCallHandler(CallHandler* callHanlder) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
@@ -192,6 +194,7 @@ protected:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIsModerator = false;
+    bool mIgnored = false;
     SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
 
@@ -238,7 +241,6 @@ public:
     void hangupAll() override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;
-    void loadDeviceList() override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     std::string getVideoDeviceSelected() override;

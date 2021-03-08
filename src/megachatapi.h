@@ -162,50 +162,6 @@ public:
     virtual bool isLowResVideo() const;
 
     /**
-     * @brief Returns the termination code for this session
-     *
-     * Possible values are:
-     *
-     *   - MegaChatCall::TERM_CODE_USER_HANGUP       = 0
-     *  Normal user hangup. User has left the call
-     *
-     *   - MegaChatCall::TERM_CODE_NOT_FINISHED      = 10
-     *  The session is in progress, no termination code yet
-     *
-     *   -MegaChatCall::TERM_CODE_ERROR             = 21
-     *  Notify any error type. A reconnection is launched
-     *
-     * @note If the session is not finished yet, it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
-     * The rest of values are invalid as term code for a session
-     *
-     * To check if the call was terminated locally or remotely, see MegaChatSession::isLocalTermCode().
-     *
-     * @return termination code for the call
-     */
-    virtual int getTermCode() const;
-
-    /**
-     * @brief Returns if the session finished locally or remotely
-     *
-     * @return True if the call finished locally. False if the call finished remotely
-     */
-    virtual bool isLocalTermCode() const;
-
-
-    /**
-     * @brief Returns network quality
-     *
-     * The valid network quality values are between 0 and 5
-     * 0 -> the worst quality
-     * 5 -> the best quality
-     *
-     * @note The app may want to show a "slow network" warning when the quality is <= 1.
-     *
-     * @return network quality
-     */
-    virtual int getNetworkQuality() const;
-
-    /**
      * @brief Returns if audio is detected for this session
      *
      * @note The returned value is always false when audio level monitor is disabled
@@ -427,31 +383,11 @@ public:
     virtual bool hasLocalAudio() const;
 
     /**
-     * @brief Return audio state for initial call
-     *
-     * The initial flags used to start the call. They are not valid if
-     * you missed the call in ringing state.
-     *
-     * @return true if audio is enable, false if audio is disable
-     */
-    virtual bool hasAudioInitialCall() const;
-
-    /**
      * @brief Return video state for local
      *
      * @return true if video is enable, false if video is disable
      */
     virtual bool hasLocalVideo() const;
-
-    /**
-     * @brief Return video state for initial call
-     *
-     * The initial flags used to start the call. They are not valid if
-     * you missed the call in ringing state.
-     *
-     * @return true if video is enable, false if video is disable
-     */
-    virtual bool hasVideoInitialCall() const;
 
     /**
      * @brief Returns a bit field with the changes of the call
@@ -4696,15 +4632,6 @@ public:
     void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Hang all active calls
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
-     *
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void hangAllChatCalls(MegaChatRequestListener *listener = NULL);
-
-    /**
      * @brief Enable audio for a call that is in progress
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
@@ -4789,6 +4716,7 @@ public:
      *
      * Call this function to update the list of available devices, ie. after plug-in a webcam to your PC.
      *
+     * @deprecated Use MegaChatApi::getChatVideoInDevices
      * @param listener MegaChatRequestListener to track this request
      */
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
@@ -4807,11 +4735,12 @@ public:
     MegaChatCall *getChatCall(MegaChatHandle chatid);
 
     /**
-     * @brief Mark as ignored the MegaChatCall associated with a chatroom
+     * @brief Mark as ignored the call associated with a chatroom
      *
      * @param chatid MegaChatHandle that identifies the chat room
+     * @return true if call can be marked as ignored, otherwise return false.
      */
-    void setIgnoredCall(MegaChatHandle chatid);
+    bool setIgnoredCall(MegaChatHandle chatid);
 
     /**
      * @brief Get the MegaChatCall that has a specific id
@@ -4863,34 +4792,6 @@ public:
      * @return True if there is a call in a chatroom. False in other case
      */
     bool hasCallInChatRoom(MegaChatHandle chatid);
-
-    /**
-     * @brief Enable/disable groupcalls
-     *
-     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
-     * in the history about group calls will be visible since the call takes place anyway.
-     *
-     * By default, groupcalls are disabled.
-     *
-     * This method should be called after MegaChatApi::init. A MegaChatApi::logout resets its value.
-     *
-     * @param enable True for enable group calls. False to disable them.
-     * @deprecated Groupcalls are always enabled, this function has no effect.
-     */
-    void enableGroupChatCalls(bool enable);
-
-    /**
-     * @brief Returns true if groupcalls are enabled
-     *
-     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
-     * in the history about group calls will be visible.
-     *
-     * By default, groupcalls are disabled. A MegaChatApi::logout resets its value.
-     *
-     * @return True if group calls are enabled. Otherwise, false.
-     * @deprecated Groupcalls are always enabled
-     */
-    bool areGroupChatCallEnabled();
 
     /**
      * @brief Returns the maximum call participants
@@ -4971,7 +4872,7 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @return A list of ids requested speaker
      */
-    mega::MegaHandleList *getReqestedSpeakers(MegaChatHandle chatid);
+    mega::MegaHandleList *getRequestedSpeakers(MegaChatHandle chatid);
 
     /**
      * @brief Request become a speaker
