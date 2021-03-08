@@ -429,6 +429,11 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
     return megachat::MEGACHAT_INVALID_HANDLE;
 }
 
+MeetingView *ChatWindow::getMeetingView()
+{
+    return mMeetingView;
+}
+
 ChatListItemController *ChatWindow::getChatItemController()
 {
     mMainWin->getChatControllerById(mChatRoom->getChatId());

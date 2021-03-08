@@ -979,6 +979,11 @@ void MegaChatApi::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *l
     pImpl->requestSpeak(chatid, listener);
 }
 
+void MegaChatApi::removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->removeRequestSpeak(chatid, listener);
+}
+
 void MegaChatApi::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
 {
     pImpl->approveSpeakRequest(chatid, cid, listener);

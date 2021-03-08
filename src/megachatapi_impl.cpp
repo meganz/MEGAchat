@@ -2072,11 +2072,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-           call->requestSpeaker(enable);
-
-           MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-           fireOnChatRequestFinish(request, megaChatError);
-           break;
+            call->requestSpeaker(enable);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
         }
         case MegaChatRequest::TYPE_APPROVE_SPEAK:
         {

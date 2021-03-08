@@ -25,10 +25,12 @@ public:
     void updateSession(const megachat::MegaChatSession& session);
     void updateAudioButtonText(MegaChatCall *call);
     void updateVideoButtonText(MegaChatCall *call);
+    void onRequestSpeakFinish();
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
     mega::MegaHandle mChatid;
+    bool enableReqSpeaker;
 
     QGridLayout* mGridLayout;
     QHBoxLayout* mThumbLayout;
@@ -59,6 +61,7 @@ protected:
 public slots:
     void onHangUp();
     void onSessionContextMenu(const QPoint &);
+    void onRequestSpeak();
     void onEnableAudio();
     void onEnableVideo();
 };

@@ -23,7 +23,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 
     mHangup = new QPushButton("Hang up", this);
     connect(mHangup, SIGNAL(released()), this, SLOT(onHangUp()));
-    mRequestSpeaker = new QPushButton("Speak", this);
+    mRequestSpeaker = new QPushButton("Request Speak", this);
+    connect(mRequestSpeaker, SIGNAL(released()), this, SLOT(onRequestSpeak()));
     mRequestModerator = new QPushButton("Moderator", this);
     mEnableAudio = new QPushButton("Audio-disable", this);
     connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
@@ -56,6 +57,11 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mGridLayout->setRowStretch(1, 3);
     mGridLayout->setRowStretch(2, 3);
     mLocalLayout->addLayout(mButtonsLayout);
+
+    // enable ReqSpeak btn
+    enableReqSpeaker = true;
+    mRequestSpeaker->setEnabled(true);
+    mRequestSpeaker->setText("ReqSpeak (enable)");
 }
 
 void MeetingView::addVthumb(PeerWidget *widget)
@@ -248,9 +254,41 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     }
 }
 
+void MeetingView::onRequestSpeak()
+{
+    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+
+    mRequestSpeaker->setEnabled(false); //disable button while request is being processed
+    enableReqSpeaker
+            ? mMegaChatApi.requestSpeak(mChatid)
+            : mMegaChatApi.removeRequestSpeak(mChatid);
+
+    enableReqSpeaker = !enableReqSpeaker;
+}
+
+void MeetingView::onRequestSpeakFinish()
+{
+    enableReqSpeaker
+        ? mRequestSpeaker->setText("ReqSpeak (enable)")
+        : mRequestSpeaker->setText("ReqSpeak (cancel)");
+
+    mRequestSpeaker->setEnabled(true);
+}
+
 void MeetingView::onEnableAudio()
 {
     std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+
     if (call->hasLocalAudio())
     {
         mMegaChatApi.disableAudio(mChatid);
@@ -264,6 +302,12 @@ void MeetingView::onEnableAudio()
 void MeetingView::onEnableVideo()
 {
     std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+
     if (call->hasLocalVideo())
     {
         mMegaChatApi.disableVideo(mChatid);
