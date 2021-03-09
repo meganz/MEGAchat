@@ -424,12 +424,15 @@ public:
         void closeManagerProtocol(karere::Id chatid);
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
         const karere::Id& myHandle();
+        const std::string& getDefVideoDevice();
+        void setDefVideoDevice(const std::string& device);
 
     private:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
         std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
         WebsocketsIO& mWebsocketIO;
         karere::Id mMyHandle;
+        std::string mDefVideoDevice;
         void* mAppCtx;
     };
 

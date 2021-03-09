@@ -182,6 +182,12 @@ karere::AvFlags Call::getLocalAvFlags() const
     return mLocalAvFlags;
 }
 
+void Call::updateVideoInDevice()
+{
+    // todo implement
+    RTCM_LOG_DEBUG("updateVideoInDevice");
+}
+
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 {
     mLocalAvFlags = flags;
@@ -916,13 +922,21 @@ void Call::updateVideoTracks()
     {
         if (!mVideoDevice)
         {
+            std::string videoDevice = mSfuClient.getDefVideoDevice(); // get default video device
+            if (videoDevice.empty())
+            {
+                RTCM_LOG_WARNING("Default video in device is not set");
+                assert(false);
+                std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+                videoDevice = videoDevices.begin()->second;
+            }
+
             webrtc::VideoCaptureCapability capabilities;
             capabilities.width = RtcConstant::kHiResWidth;
             capabilities.height = RtcConstant::kHiResHeight;
             capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
-            std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
-            mVideoDevice = artc::VideoManager::Create(capabilities, videoDevices.begin()->second, artc::gAsyncWaiter->guiThread());
-            mVideoDevice->openDevice(videoDevices.begin()->second);
+            mVideoDevice = artc::VideoManager::Create(capabilities, videoDevice, artc::gAsyncWaiter->guiThread());
+            mVideoDevice->openDevice(videoDevice);
             // Our local slot connect directly to video device to keep showing video althoug no one wants our video
             rtc::VideoSinkWants wants;
             mVideoDevice->AddOrUpdateSink(mVThumb.get(), wants);
@@ -993,6 +1007,10 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
         artc::init(appCtx);
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
+
+    // set default video in device
+    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    mSfuClient->setDefVideoDevice(videoDevices.begin()->second);
 }
 
 void RtcModuleSfu::hangupAll()
@@ -1026,12 +1044,29 @@ ICall *RtcModuleSfu::findCallByChatid(karere::Id chatid)
 
 bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
 {
+    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    for (auto it = videoDevices.begin(); it != videoDevices.end(); it++)
+    {
+        if (!it->first.compare(device))
+        {
+            mSfuClient->setDefVideoDevice(it->second);
+            for (const auto& call : mCalls)
+            {
+                call.second->updateVideoInDevice();
+            }
+            return true;
+        }
+    }
     return false;
 }
 
 void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 {
-
+    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    for (auto it = videoDevices.begin(); it != videoDevices.end(); it++)
+    {
+        devicesVector.insert(it->first);
+    }
 }
 
 std::string RtcModuleSfu::getVideoDeviceSelected()

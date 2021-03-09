@@ -1960,6 +1960,16 @@ const karere::Id& SfuClient::myHandle()
     return mMyHandle;
 }
 
+const std::string& SfuClient::getDefVideoDevice()
+{
+    return mDefVideoDevice;
+}
+
+void SfuClient::setDefVideoDevice(const std::string& device)
+{
+    mDefVideoDevice = device;
+}
+
 PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete)
     : mComplete(complete)
 {

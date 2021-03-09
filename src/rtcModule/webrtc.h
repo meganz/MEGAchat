@@ -170,6 +170,7 @@ public:
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
+    virtual void updateVideoInDevice() = 0;
 };
 
 class RtcModule

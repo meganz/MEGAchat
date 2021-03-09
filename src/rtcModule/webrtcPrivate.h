@@ -145,6 +145,7 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
+    void updateVideoInDevice() override;
     void setState(CallState state);
     void connectSfu(const std::string& sfuUrl);
     void createTranceiver();
