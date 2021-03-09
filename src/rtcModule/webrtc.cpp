@@ -80,10 +80,30 @@ void Call::removeParticipant(karere::Id peer)
     return;
 }
 
+promise::Promise<void> Call::endCall()
+{
+    if (!isModerator())
+    {
+        return promise::_Void();
+    }
+
+    auto wptr = weakHandle();
+    return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
+    .then([](ReqResult /*result*/)
+    {
+
+    });
+}
+
 promise::Promise<void> Call::hangup()
 {
     if (mState == kStateClientNoParticipating && mIsRinging)
     {
+        if (!isModerator())
+        {
+            return promise::_Void();
+        }
+
         auto wptr = weakHandle();
         return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
         .then([](ReqResult /*result*/)

@@ -140,6 +140,7 @@ public:
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
     virtual promise::Promise<void> hangup() = 0;
+    virtual promise::Promise<void> endCall() = 0;
     virtual promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) = 0;
     virtual bool participate() = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;

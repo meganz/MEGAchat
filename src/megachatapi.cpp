@@ -874,6 +874,11 @@ void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *l
     pImpl->hangChatCall(chatid, listener);
 }
 
+void MegaChatApi::endChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->endChatCall(chatid, listener);
+}
+
 void MegaChatApi::enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->setAudioEnable(chatid, true, listener);

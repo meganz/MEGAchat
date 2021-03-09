@@ -114,6 +114,7 @@ public:
     void addParticipant(karere::Id peer) override;
     void removeParticipant(karere::Id peer) override;
     promise::Promise<void> hangup() override;
+    promise::Promise<void> endCall() override;
     promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) override;
     bool participate() override;
     void enableAudioLevelMonitor(bool enable) override;
