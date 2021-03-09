@@ -123,7 +123,7 @@ public:
     bool operator==(AvFlags other) { return (mFlags == other.mFlags); }
     bool operator!=(AvFlags other) { return (mFlags != other.mFlags); }
     bool any() const { return mFlags != 0; }
-    bool has(uint8_t val) { return mFlags & val; }
+    bool has(uint8_t val) const { return mFlags & val; }
     void add(uint8_t val) { mFlags = mFlags | val; }
     void remove(uint8_t val) { mFlags = mFlags & ~val; }
     operator bool() const { return mFlags != 0; }
@@ -146,10 +146,6 @@ public:
             result='-';
         return result;
     }
-
-    bool has(uint8_t val) const{ return mFlags & val; }
-    void add(uint8_t val) { mFlags = mFlags | val; }
-    void remove(uint8_t val) { mFlags = mFlags & ~val; }
 
     void setOnHold(bool enable)
     {
