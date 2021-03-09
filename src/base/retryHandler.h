@@ -355,7 +355,7 @@ protected:
         if (mAttemptTimeout)    //set an attempt timeout timer
         {
             unsigned attemptTimeout = calcAttemptTimeoutNoRandomness();
-            RETRY_LOG("Setting a timeout for attempt %zu: %u seconds", mCurrentAttemptNo, attemptTimeout);
+            RETRY_LOG("Setting a timeout for attempt %zu: %u ms", mCurrentAttemptNo, attemptTimeout);
             auto wptr = weakHandle();
             mTimer = setTimeout([wptr, this, attempt, attemptTimeout]()
             {
