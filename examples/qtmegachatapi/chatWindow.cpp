@@ -1045,7 +1045,7 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle clientid, bool onHold)
+void ChatWindow::createCallGui(MegaChatHandle peerid, MegaChatHandle clientid, bool onHold)
 {
     assert(!mMeetingView);
     //auto layout = qobject_cast <QGridLayout*> (ui->mCentralWidget->layout());

@@ -148,7 +148,10 @@ public:
     virtual bool hasVideo() const;
 
     /**
-     * @brief Returns true if video quality is hight resolution for the session
+     * @brief Returns true if video quality is high resolution for the session
+     *
+     * @note Indicate if client is sending high resolution video at this moment.
+     * We can configure the session for receive video but peer is not sending yet
      *
      * @return true if video quality is hight resolution, otherwise returns false
      */
@@ -156,6 +159,9 @@ public:
 
     /**
      * @brief Returns true if video quality is low resolution for the session
+     *
+     * @note Indicate if client is sending low resolution video at this moment.
+     * We can configure the session for receive video but peer is not sending yet
      *
      * @return true if video quality is low resolution, otherwise returns false
      */
@@ -194,14 +200,20 @@ public:
      *  - CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
-     *  - CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04
-     * Check if the network quality of the session changed. Check MegaChatSession::getNetworkQuality
+     *  - CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
+     * Notify if speak requested has changed
      *
-     *  - CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08
-     * Check if the level audio of the session changed. Check MegaChatSession::getAudioDetected
+     *  - CHANGE_TYPE_SESSION_MODERATOR = 0x08
+     * Notify if moderator state has changed
      *
-     *  - CHANGE_TYPE_SESSION_OPERATIVE = 0x10
-     * Notify session is fully operative
+     *  - CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10
+     * Notify if one client has the possibility of send low resolution video
+     * It's possible that hasLowResVideo is false yet
+     *
+     * - CHANGE_TYPE_SESSION_ON_HIRES = 0x20
+     * Notify if one client has the possibility of send high resolution video
+     * It's possible that hasHighResViideo is false yet
+     *
      */
     virtual int getChanges() const;
 
@@ -223,14 +235,19 @@ public:
      *  - CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
-     *  - CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x04
-     * Check if the network quality of the session changed. Check MegaChatSession::getNetworkQuality
+     *  - CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
+     * Notify if speak requested has changed
      *
-     *  - CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x08
-     * Check if the level audio of the session changed. Check MegaChatSession::getAudioDetected
+     *  - CHANGE_TYPE_SESSION_MODERATOR = 0x08
+     * Notify if moderator state has changed
      *
-     *  - CHANGE_TYPE_SESSION_OPERATIVE = 0x10
-     * Notify session is fully operative
+     *  - CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10
+     * Notify if one client has the possibility of send low resolution video
+     * It's possible that hasLowResVideo is false yet
+     *
+     * - CHANGE_TYPE_SESSION_ON_HIRES = 0x20
+     * Notify if one client has the possibility of send high resolution video
+     * It's possible that hasHighResViideo is false yet
      *
      * @return true if this session has an specific change
      */

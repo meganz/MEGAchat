@@ -395,10 +395,10 @@ void Call::connectSfu(const std::string &sfuUrl)
 
 void Call::createTranceiver()
 {
-    webrtc::RtpTransceiverInit transceiverInit;
-    transceiverInit.direction = webrtc::RtpTransceiverDirection::kSendRecv;
+    webrtc::RtpTransceiverInit transceiverInitVThumb;
+    transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> err
-            = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInit);
+            = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitVThumb);
 
     if (err.ok())
     {
@@ -406,11 +406,15 @@ void Call::createTranceiver()
         mVThumb->generateRandomIv();
     }
 
-    err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInit);
+    webrtc::RtpTransceiverInit transceiverInitHiRes;
+    transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
+    err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
     mHiRes = ::mega::make_unique<VideoSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 
-    err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_AUDIO, transceiverInit);
+    webrtc::RtpTransceiverInit transceiverInitAudio;
+    transceiverInitAudio.direction = webrtc::RtpTransceiverDirection::kSendRecv;
+    err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_AUDIO, transceiverInitAudio);
     mAudio = ::mega::make_unique<Slot>(*this, err.MoveValue());
     mAudio->generateRandomIv();
 
@@ -499,7 +503,12 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::ve
         if (wptr.deleted())
             return;
 
-        //TODO setThumbVtrackResScale()
+        double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
+        webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
+        assert(parameters.encodings.size());
+        parameters.encodings[0].scale_resolution_down_by = scale;
+        parameters.encodings[0].max_bitrate_bps = 100 * 1024;
+        mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
 
         handleIncomingVideo(vthumbs);
 
@@ -976,18 +985,13 @@ void Call::updateVideoTracks()
             mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
         }
 
-        if (mVThumbActive && !mVThumb->getTransceiver()->sender()->track())
+        if (!mVThumb->getTransceiver()->sender()->track())
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
             videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
-            webrtc::RtpParameters parameters;
-            webrtc::RtpEncodingParameters encoding;
-            double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
-            encoding.scale_resolution_down_by = scale;
-            encoding.max_bitrate_bps = 100 * 1024;
-            parameters.encodings.push_back(encoding);
-            mVThumb->getTransceiver()->sender()->SetParameters(parameters);
+            webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
             mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
+
         }
         else if (!mVThumbActive)
         {
