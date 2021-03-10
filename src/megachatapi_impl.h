@@ -232,7 +232,7 @@ public:
     virtual bool isLocalTermCode() const override;
     virtual bool isRinging() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
-    virtual MegaChatHandle getPeeridCallCompositionChange() const override;
+    virtual MegaChatHandle getClientidCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientid) override;
     virtual int getNumParticipants(int audioVideo) const override;

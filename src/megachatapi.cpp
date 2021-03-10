@@ -202,7 +202,7 @@ MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle /*clientid*/)
     return NULL;
 }
 
-MegaChatHandle MegaChatCall::getPeeridCallCompositionChange() const
+MegaChatHandle MegaChatCall::getClientidCallCompositionChange() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }

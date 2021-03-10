@@ -6089,7 +6089,7 @@ MegaHandleList *MegaChatCallPrivate::getSessionsClientid() const
     return sessionList;
 }
 
-MegaChatHandle MegaChatCallPrivate::getPeeridCallCompositionChange() const
+MegaChatHandle MegaChatCallPrivate::getClientidCallCompositionChange() const
 {
     return mPeerId;
 }

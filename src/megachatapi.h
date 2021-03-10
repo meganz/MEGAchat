@@ -426,7 +426,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
-     * @see MegaChatCall::getPeeridCallCompositionChange value
+     * @see MegaChatCall::getClientidCallCompositionChange value
      */
     virtual int getChanges() const;
 
@@ -452,7 +452,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
-     * @see MegaChatCall::getPeeridCallCompositionChange value
+     * @see MegaChatCall::getClientidCallCompositionChange value
      *
      * @return true if this call has an specific change
      */
@@ -548,7 +548,7 @@ public:
      *
      * @return Handle of the peer which has been added/removed to call
      */
-    virtual MegaChatHandle getPeeridCallCompositionChange() const;
+    virtual MegaChatHandle getClientidCallCompositionChange() const;
 
     /**
      * @brief Returns if peer has been added or removed from the call
