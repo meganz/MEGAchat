@@ -6105,30 +6105,9 @@ MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle clientid
     return NULL;
 }
 
-int MegaChatCallPrivate::getNumParticipants(int audioVideo) const
+int MegaChatCallPrivate::getNumParticipants() const
 {
-    assert(audioVideo == MegaChatCall::AUDIO || audioVideo == MegaChatCall::VIDEO || audioVideo == MegaChatCall::ANY_FLAG);
-    int numParticipants = 0;
-    if (audioVideo == MegaChatCall::ANY_FLAG)
-    {
-        numParticipants = participants.size();
-    }
-    else
-    {
-        for (auto it = participants.begin(); it != participants.end(); it ++)
-        {
-            if (audioVideo == MegaChatCall::AUDIO && it->second.audio())
-            {
-                numParticipants++;
-            }
-            else if (audioVideo == MegaChatCall::VIDEO && it->second.video())
-            {
-                numParticipants++;
-            }
-        }
-    }
-
-    return numParticipants;
+    return static_cast<int>(participants.size());
 }
 
 MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
@@ -6244,28 +6223,12 @@ MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &ses
 
 int MegaChatCallPrivate::availableAudioSlots()
 {
-    int usedSlots = getNumParticipants(MegaChatCall::AUDIO);
-
-    int availableSlots = 0;
-    if (usedSlots < rtcModule::RtcConstant::kMaxCallAudioSenders)
-    {
-        availableSlots = rtcModule::RtcConstant::kMaxCallAudioSenders;
-    }
-
-    return availableSlots;
+    return 0;
 }
 
 int MegaChatCallPrivate::availableVideoSlots()
 {
-    int usedSlots = getNumParticipants(MegaChatCall::VIDEO);
-
-    int availableSlots = 0;
-    if (usedSlots < rtcModule::RtcConstant::kMaxCallVideoSenders)
-    {
-        availableSlots = rtcModule::RtcConstant::kMaxCallVideoSenders;
-    }
-
-    return availableSlots;
+    return 0;
 }
 
 void MegaChatCallPrivate::setPeerid(Id peerid, bool added)

@@ -212,7 +212,7 @@ MegaHandleList *MegaChatCall::getPeeridParticipants() const
     return NULL;
 }
 
-int MegaChatCall::getNumParticipants(int audioVideo) const
+int MegaChatCall::getNumParticipants() const
 {
     return 0;
 }

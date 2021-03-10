@@ -561,14 +561,9 @@ public:
      * In a group call, this function returns the number of active participants,
      * regardless your own user participates or not.
      *
-     * 0 -> with audio (c\ AUDIO)
-     * 1 -> with video (c\ VIDEO)
-     * 2 -> with any combination of audio/video, both or none (c\ ANY_FLAG)
-     *
-     * @param audioVideo indicate if it returns the number of all participants or only those have audio or video active
      * @return Number of active participants in the call
      */
-    virtual int getNumParticipants(int audioVideo) const;
+    virtual int getNumParticipants() const;
 
     /**
      * @brief Returns if call has been ignored

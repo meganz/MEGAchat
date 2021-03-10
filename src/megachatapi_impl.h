@@ -234,7 +234,7 @@ public:
     virtual MegaChatHandle getClientidCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientid) override;
-    virtual int getNumParticipants(int audioVideo) const override;
+    virtual int getNumParticipants() const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
