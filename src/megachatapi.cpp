@@ -989,34 +989,34 @@ void MegaChatApi::removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListe
     pImpl->removeRequestSpeak(chatid, listener);
 }
 
-void MegaChatApi::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
+void MegaChatApi::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
-    pImpl->approveSpeakRequest(chatid, cid, listener);
+    pImpl->approveSpeakRequest(chatid, clientId, listener);
 }
 
-void MegaChatApi::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
+void MegaChatApi::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
-    pImpl->rejectSpeakRequest(chatid, cid, listener);
+    pImpl->rejectSpeakRequest(chatid, clientId, listener);
 }
 
-void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
+void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
-    pImpl->requestHiResVideo(chatid, cid, listener);
+    pImpl->requestHiResVideo(chatid, clientId, listener);
 }
 
-void MegaChatApi::stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
+void MegaChatApi::stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
-    pImpl->stoptHiResVideo(chatid, cid, listener);
+    pImpl->stoptHiResVideo(chatid, clientId, listener);
 }
 
-void MegaChatApi::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+void MegaChatApi::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
-    pImpl->requestLowResVideo(chatid, cids, listener);
+    pImpl->requestLowResVideo(chatid, clientIds, listener);
 }
 
-void MegaChatApi::stoptLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+void MegaChatApi::stoptLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
-    pImpl->stoptLowResVideo(chatid, cids, listener);
+    pImpl->stoptLowResVideo(chatid, clientIds, listener);
 }
 
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)

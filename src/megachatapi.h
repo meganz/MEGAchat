@@ -4919,13 +4919,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that approve the request
-     * - MegaChatRequest::getUserHandle - Returns the cid of the user
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cid MegaChatHandle that identifies client
+     * @param clientId MegaChatHandle that identifies client
      * @param listener MegaChatRequestListener to track this request
      */
-    void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Reject speak request
@@ -4934,13 +4934,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that reject the request
-     * - MegaChatRequest::getUserHandle - Returns the cid of the user
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cid MegaChatHandle that identifies client
+     * @param clientId MegaChatHandle that identifies client
      * @param listener MegaChatRequestListener to track this request
      */
-    void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Request high resolution video from a client
@@ -4949,13 +4949,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that request high resolution video
-     * - MegaChatRequest::getUserHandle - Returns the cid of the user
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cid MegaChatHandle that identifies client
+     * @param clientId MegaChatHandle that identifies client
      * @param listener MegaChatRequestListener to track this request
      */
-    void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Stop high resolution video from a client
@@ -4964,13 +4964,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that stop high resolution video
-     * - MegaChatRequest::getUserHandle - Returns the cid of the user
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cid MegaChatHandle that identifies client
+     * @param clientId MegaChatHandle that identifies client
      * @param listener MegaChatRequestListener to track this request
      */
-    void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Request low resolution video from a list of clients
@@ -4979,13 +4979,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that request low resolution video
-     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Cids
+     * - MegaChatRequest::getMegaHandleList - Returns the list of client Ids
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cids List of clients Cids
+     * @param clientIds List of clients Ids
      * @param listener MegaChatRequestListener to track this request
      */
-    void requestLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
+    void requestLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Stop low resolution video from a list of clients
@@ -4994,13 +4994,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that stop low resolution video
-     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Cids
+     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Ids
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cids List of clients Cids
+     * @param clientIds List of clients Ids
      * @param listener MegaChatRequestListener to track this request
      */
-    void stoptLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
+    void stoptLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
 
 #endif
 

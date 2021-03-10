@@ -1172,12 +1172,12 @@ public:
     mega::MegaHandleList *getRequestedSpeakers(MegaChatHandle chatid);
     void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-    void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
-    void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
-    void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
-    void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
-    void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
-    void stoptLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
+    void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
+    void stoptLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
 
     void onNewCall(rtcModule::ICall& call) override;
     void onAddPeer(rtcModule::ICall& call, karere::Id peer) override;

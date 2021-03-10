@@ -4669,62 +4669,62 @@ void MegaChatApiImpl::removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestL
     waiter->notify();
 }
 
-void MegaChatApiImpl::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_APPROVE_SPEAK, listener);
     request->setChatHandle(chatid);
     request->setFlag(true);
-    request->setUserHandle(cid);
+    request->setUserHandle(clientId);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_APPROVE_SPEAK, listener);
     request->setChatHandle(chatid);
     request->setFlag(false);
-    request->setUserHandle(cid);
+    request->setUserHandle(clientId);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO, listener);
     request->setChatHandle(chatid);
     request->setFlag(true);
-    request->setUserHandle(cid);
+    request->setUserHandle(clientId);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO, listener);
     request->setChatHandle(chatid);
     request->setFlag(false);
-    request->setUserHandle(cid);
+    request->setUserHandle(clientId);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+void MegaChatApiImpl::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO, listener);
     request->setChatHandle(chatid);
     request->setFlag(true);
-    request->setMegaHandleList(cids);
+    request->setMegaHandleList(clientIds);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::stoptLowResVideo(MegaChatHandle chatid, MegaHandleList *cids, MegaChatRequestListener *listener)
+void MegaChatApiImpl::stoptLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO, listener);
     request->setChatHandle(chatid);
     request->setFlag(false);
-    request->setMegaHandleList(cids);
+    request->setMegaHandleList(clientIds);
     requestQueue.push(request);
     waiter->notify();
 }
