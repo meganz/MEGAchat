@@ -8,7 +8,7 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
@@ -17,7 +17,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mLocalAvFlags(avflags)
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
-    , mSfuClient(sfuClient)
+    , mSfuClient(rtc.getSfuClient())
     , mMyPeer()
     , mRtc(rtc)
 {
@@ -1112,7 +1112,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), (*this), sharedUnifiedKey, true, avFlags);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), sharedUnifiedKey, true, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });
@@ -1132,6 +1132,11 @@ unsigned int RtcModuleSfu::getNumCalls()
 const std::string& RtcModuleSfu::getDefVideoDevice() const
 {
     return mVideoDeviceSelected;
+}
+
+sfu::SfuClient& RtcModuleSfu::getSfuClient()
+{
+    return (*mSfuClient.get());
 }
 
 void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
@@ -1171,7 +1176,7 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
 
 void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get(), (*this), callKey);
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 

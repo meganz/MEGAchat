@@ -8,6 +8,7 @@
 #include "sdkApi.h"
 #include <net/websocketsIO.h>
 #include "rtcCrypto.h"
+#include "sfu.h"
 
 #define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
 #define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
@@ -190,6 +191,7 @@ public:
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
     virtual const std::string& getDefVideoDevice() const = 0;
+    virtual sfu::SfuClient& getSfuClient() = 0;
 
     virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;
 

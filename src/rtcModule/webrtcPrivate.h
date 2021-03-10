@@ -106,7 +106,7 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey = nullptr, bool moderator = false, karere::AvFlags avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey = nullptr, bool moderator = false, karere::AvFlags avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
@@ -254,6 +254,7 @@ public:
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
     const std::string& getDefVideoDevice() const override;
+    sfu::SfuClient& getSfuClient() override;
 
     void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
 
