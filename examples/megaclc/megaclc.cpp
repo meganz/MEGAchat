@@ -2442,12 +2442,6 @@ void exec_hangchatcall(ac::ACState& s)
     g_chatApi->hangChatCall(room, listener);
 }
 
-void exec_hangallchatcalls(ac::ACState&)
-{
-    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
-    g_chatApi->hangAllChatCalls(listener);
-}
-
 void exec_enableaudio(ac::ACState& s)
 {
     c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
@@ -3821,7 +3815,6 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_startchatcall, sequence(text("startchatcall"), param("roomid"), opt(either(text("true"), text("false")))));
     p->Add(exec_answerchatcall, sequence(text("answerchatcall"), param("roomid"), opt(either(text("true"), text("false")))));
     p->Add(exec_hangchatcall, sequence(text("hangchatcall"), param("roomid")));
-    p->Add(exec_hangallchatcalls, sequence(text("hangallchatcalls")));
     p->Add(exec_enableaudio, sequence(text("enableaudio"), param("roomid")));
     p->Add(exec_disableaudio, sequence(text("disableaudio"), param("roomid")));
     p->Add(exec_enablevideo, sequence(text("enablevideo"), param("roomid")));

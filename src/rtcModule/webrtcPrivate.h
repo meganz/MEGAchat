@@ -17,6 +17,7 @@ class IGlobalCallHandler
 };
 #else
 
+class RtcModuleSfu;
 class Call;
 class Slot
 {
@@ -98,7 +99,14 @@ private:
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, bool moderator = false, unsigned avflags = 0);
+    enum SpeakerState
+    {
+        kNoSpeaker = 0,
+        kPending = 1,
+        kActive = 2,
+    };
+
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey = nullptr, bool moderator = false, karere::AvFlags avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
@@ -106,13 +114,15 @@ public:
     CallState getState() const override;
     void addParticipant(karere::Id peer) override;
     void removeParticipant(karere::Id peer) override;
-    void hangup() override;
-    promise::Promise<void> join(bool moderator) override;
+    promise::Promise<void> hangup() override;
+    promise::Promise<void> endCall() override;
+    promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) override;
     bool participate() override;
     void enableAudioLevelMonitor(bool enable) override;
     void ignoreCall() override;
     void setRinging(bool ringing) override;
     bool isRinging() const override;
+    bool isIgnored() const override;
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
@@ -123,12 +133,13 @@ public:
     std::vector<Cid_t> getSpeakerRequested() override;
     void requestHighResolutionVideo(Cid_t cid) override;
     void stopHighResolutionVideo(Cid_t cid) override;
-    void requestLowResolutionVideo(const std::vector<karere::Id> &cids) override;
-    void stopLowResolutionVideo(const std::vector<karere::Id> &cids) override;
+    void requestLowResolutionVideo(const std::vector<Cid_t> &cids) override;
+    void stopLowResolutionVideo(const std::vector<Cid_t> &cids) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getSession(Cid_t cid) const override;
+    bool isOutgoing() const override;
 
     void setCallHandler(CallHandler* callHanlder) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
@@ -136,6 +147,7 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
+    void updateVideoInDevice() override;
     void setState(CallState state);
     void connectSfu(const std::string& sfuUrl);
     void createTranceiver();
@@ -143,6 +155,9 @@ public:
     void disconnect(TermCode termCode, const std::string& msg = "");
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
+    sfu::Peer &getMyPeer();
+    sfu::SfuClient& getSfuClient();
+    std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, int mod, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -174,7 +189,7 @@ public:
     void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void onRenegotiationNeeded();
 
-public:
+protected:
     std::vector<karere::Id> mParticipants;
     karere::Id mCallid;
     karere::Id mChatid;
@@ -182,8 +197,8 @@ public:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIsModerator = false;
-    bool mSpeakerRequested = false;
-    bool mSpeakAllow = false;
+    bool mIgnored = false;
+    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
 
     std::string mSfuUrl;
@@ -196,7 +211,9 @@ public:
     std::string mSdp;
     std::unique_ptr<Slot> mAudio;
     std::unique_ptr<VideoSlot> mVThumb;
+    bool mVThumbActive = false;
     std::unique_ptr<VideoSlot> mHiRes;
+    bool mHiResActive = false;
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
 
@@ -210,45 +227,48 @@ public:
     // call key for public chats (128-bit key)
     std::string mCallKey;
 
+    RtcModuleSfu& mRtc;
+
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, bool hiRes = false);
     void addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker);
     void removeSpeaker(Cid_t cid);
-    sfu::Peer &getMyPeer();
     const std::string &getCallKey() const;
+    void updateAudioTracks();
+    void updateVideoTracks();
 };
 
 class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable
 {
 public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers);
-
-
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) override;
     void hangupAll() override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;
-    void loadDeviceList() override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     std::string getVideoDeviceSelected() override;
-    promise::Promise<void> startCall(karere::Id chatid) override;
+    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) override;
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
+    const std::string& getDefVideoDevice() const override;
+    sfu::SfuClient& getSfuClient() override;
 
     void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
     void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) override;
-    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging) override;
+    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey = nullptr) override;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
     IGlobalCallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
+    std::string mVideoDeviceSelected;
 };
 
 void globalCleanup();

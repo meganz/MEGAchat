@@ -23,10 +23,13 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 
     mHangup = new QPushButton("Hang up", this);
     connect(mHangup, SIGNAL(released()), this, SLOT(onHangUp()));
-    mRequestSpeaker = new QPushButton("Speak", this);
+    mRequestSpeaker = new QPushButton("Request Speak", this);
+    connect(mRequestSpeaker, SIGNAL(released()), this, SLOT(onRequestSpeak()));
     mRequestModerator = new QPushButton("Moderator", this);
-    mEnableAudio = new QPushButton("Audio", this);
-    mEnableVideo = new QPushButton("Video", this);
+    mEnableAudio = new QPushButton("Audio-disable", this);
+    connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
+    mEnableVideo = new QPushButton("Video-disable", this);
+    connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
 
     setLayout(mGridLayout);
 
@@ -54,6 +57,11 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mGridLayout->setRowStretch(1, 3);
     mGridLayout->setRowStretch(2, 3);
     mLocalLayout->addLayout(mButtonsLayout);
+
+    // enable ReqSpeak btn
+    enableReqSpeaker = true;
+    mRequestSpeaker->setEnabled(true);
+    mRequestSpeaker->setText("ReqSpeak (enable)");
 }
 
 void MeetingView::addVthumb(PeerWidget *widget)
@@ -123,6 +131,36 @@ void MeetingView::updateSession(const megachat::MegaChatSession &session)
         QListWidgetItem* item = it->second;
         item->setText(sessionToString(session).c_str());
     }
+}
+
+void MeetingView::updateAudioButtonText(MegaChatCall *call)
+{
+    std::string text;
+    if (call->hasLocalAudio())
+    {
+        text = "Disable Audio";
+    }
+    else
+    {
+        text = "Enable Audio";
+    }
+
+    mEnableAudio->setText(text.c_str());
+}
+
+void MeetingView::updateVideoButtonText(MegaChatCall *call)
+{
+    std::string text;
+    if (call->hasLocalVideo())
+    {
+        text = "Disable Video";
+    }
+    else
+    {
+        text = "Enable Video";
+    }
+
+    mEnableVideo->setText(text.c_str());
 }
 
 void MeetingView::removeThumb(PeerWidget *widget)
@@ -197,7 +235,9 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     {
         if (rightClickItem->text().contains(requestThumb.c_str()))
         {
-            //mMegaChatApi.requestHiResVideo(mChatid, cid);
+            std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+            handleList->addMegaHandle(cid);
+            mMegaChatApi.requestLowResVideo(mChatid, handleList.get());
         }
         else if (rightClickItem->text().contains(requestHiRes.c_str()))
         {
@@ -211,6 +251,70 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         {
             mMegaChatApi.rejectSpeakRequest(mChatid, cid);
         }
+    }
+}
+
+void MeetingView::onRequestSpeak()
+{
+    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+
+    mRequestSpeaker->setEnabled(false); //disable button while request is being processed
+    enableReqSpeaker
+            ? mMegaChatApi.requestSpeak(mChatid)
+            : mMegaChatApi.removeRequestSpeak(mChatid);
+
+    enableReqSpeaker = !enableReqSpeaker;
+}
+
+void MeetingView::onRequestSpeakFinish()
+{
+    enableReqSpeaker
+        ? mRequestSpeaker->setText("ReqSpeak (enable)")
+        : mRequestSpeaker->setText("ReqSpeak (cancel)");
+
+    mRequestSpeaker->setEnabled(true);
+}
+
+void MeetingView::onEnableAudio()
+{
+    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+
+    if (call->hasLocalAudio())
+    {
+        mMegaChatApi.disableAudio(mChatid);
+    }
+    else
+    {
+        mMegaChatApi.enableAudio(mChatid);
+    }
+}
+
+void MeetingView::onEnableVideo()
+{
+    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+
+    if (call->hasLocalVideo())
+    {
+        mMegaChatApi.disableVideo(mChatid);
+    }
+    else
+    {
+        mMegaChatApi.enableVideo(mChatid);
     }
 }
 

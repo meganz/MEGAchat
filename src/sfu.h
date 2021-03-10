@@ -34,7 +34,7 @@ protected:
     Cid_t mCid = 0;
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = 0;
-    int mModerator = 0;
+    int mModerator = 1;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
 
@@ -364,15 +364,15 @@ public:
         bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, bool moderator, int avFlags, int speaker = -1, int vthumbs = -1);
         bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
         bool sendAv(unsigned av);
-        bool sendGetVtumbs(const std::vector<karere::Id>& cids);
-        bool sendDelVthumbs(const std::vector<karere::Id>& cids);
-        bool sendGetHiRes(karere::Id cid, int r, int lo = -1);
-        bool sendDelHiRes(karere::Id cid);
-        bool sendHiResSetLo(karere::Id cid, int lo = -1);
+        bool sendGetVtumbs(const std::vector<Cid_t>& cids);
+        bool sendDelVthumbs(const std::vector<Cid_t>& cids);
+        bool sendGetHiRes(Cid_t cid, int r, int lo = -1);
+        bool sendDelHiRes(Cid_t cid);
+        bool sendHiResSetLo(Cid_t cid, int lo = -1);
         bool sendLayer(int spt, int tmp, int stmp);
-        bool sendSpeakReq(karere::Id cid = karere::Id::inval());
-        bool sendSpeakReqDel(karere::Id cid = karere::Id::inval());
-        bool sendSpeakDel(karere::Id cid = karere::Id::inval());
+        bool sendSpeakReq(Cid_t cid = 0);
+        bool sendSpeakReqDel(Cid_t cid = 0);
+        bool sendSpeakDel(Cid_t cid = 0);
 
     protected:
         std::string mSfuUrl;
@@ -424,6 +424,7 @@ public:
         void closeManagerProtocol(karere::Id chatid);
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
         const karere::Id& myHandle();
+        void setDefVideoDevice(const std::string& device);
 
     private:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;

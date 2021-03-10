@@ -8,6 +8,7 @@
 #include "sdkApi.h"
 #include <net/websocketsIO.h>
 #include "rtcCrypto.h"
+#include "sfu.h"
 
 #define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
 #define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
@@ -74,7 +75,7 @@ enum TermCode: uint8_t
 enum CallState: uint8_t
 {
     kStateInitial = 0,      // < Call object was initialised
-    kStateUserNoParticipating,  // < User is not particpating in the call
+    kStateClientNoParticipating,  // < User is not particpating in the call
     kStateConnecting,   // < Connecting to SFU
     kStateJoining,      // < Joining a call
     kStateInProgress,
@@ -127,6 +128,7 @@ public:
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
     virtual void onModeratorChange(const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;
+    virtual void onLocalFlagsChanged(const ICall& call) = 0;
 };
 
 class ICall
@@ -138,13 +140,15 @@ public:
     virtual CallState getState() const = 0;
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
-    virtual void hangup() = 0;
-    virtual promise::Promise<void> join(bool moderator) = 0;
+    virtual promise::Promise<void> hangup() = 0;
+    virtual promise::Promise<void> endCall() = 0;
+    virtual promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) = 0;
     virtual bool participate() = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
     virtual bool isRinging() const = 0;
+    virtual bool isIgnored() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;
@@ -155,18 +159,20 @@ public:
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid) = 0;
     virtual void stopHighResolutionVideo(Cid_t cid) = 0;
-    virtual void requestLowResolutionVideo(const std::vector<karere::Id> &cids) = 0;
-    virtual void stopLowResolutionVideo(const std::vector<karere::Id> &cids) = 0;
+    virtual void requestLowResolutionVideo(const std::vector<Cid_t> &cids) = 0;
+    virtual void stopLowResolutionVideo(const std::vector<Cid_t> &cids) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
     virtual ISession* getSession(Cid_t cid) const = 0;
+    virtual bool isOutgoing() const = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
+    virtual void updateVideoInDevice() = 0;
 };
 
 class RtcModule
@@ -177,21 +183,22 @@ public:
     virtual void hangupAll() = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
     virtual ICall* findCallByChatid(karere::Id chatid) = 0;
-    virtual void loadDeviceList() = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual std::string getVideoDeviceSelected() = 0;
-    virtual promise::Promise<void> startCall(karere::Id chatid) = 0;
+    virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
+    virtual const std::string& getDefVideoDevice() const = 0;
+    virtual sfu::SfuClient& getSfuClient() = 0;
 
     virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
     virtual void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) = 0;
-    virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging) = 0;
+    virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
 
@@ -216,6 +223,7 @@ enum RtcConstant {
    kMaxCallReceivers = 20,
    kMaxCallAudioSenders = 20,
    kMaxCallVideoSenders = 6,
+   kInitialvthumbCount = 10,
    kHiResWidth = 960,
    kHiResHeight = 540,
    kHiResMaxFPS = 30,
