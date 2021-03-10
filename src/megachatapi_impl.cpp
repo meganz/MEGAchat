@@ -6235,57 +6235,7 @@ void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
 
 void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local)
 {
-    // Last four bits indicate the termination code and fifth bit indicate local or peer
-    switch (termCode & (~rtcModule::TermCode::kPeer))
-    {
-        case rtcModule::TermCode::kUserHangup:
-            megaTermCode = MegaChatCall::TERM_CODE_USER_HANGUP;
-            break;        
-        case rtcModule::TermCode::kCallReqCancel:
-            megaTermCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
-            break;
-        case rtcModule::TermCode::kCallRejected:
-            megaTermCode = MegaChatCall::TERM_CODE_CALL_REJECT;
-            break;
-        case rtcModule::TermCode::kAnsElsewhere:
-            megaTermCode = MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE;
-            break;
-        case rtcModule::TermCode::kRejElsewhere:
-            megaTermCode = MegaChatCall::TEMR_CODE_REJECT_ELSE_WHERE;
-            break;
-        case rtcModule::TermCode::kAnswerTimeout:
-            megaTermCode = MegaChatCall::TERM_CODE_ANSWER_TIMEOUT;
-            break;
-        case rtcModule::TermCode::kRingOutTimeout:
-            megaTermCode = MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT;
-            break;
-        case rtcModule::TermCode::kAppTerminating:
-            megaTermCode = MegaChatCall::TERM_CODE_APP_TERMINATING;
-            break;
-        case rtcModule::TermCode::kBusy:
-            megaTermCode = MegaChatCall::TERM_CODE_BUSY;
-            break;
-        case rtcModule::TermCode::kNotFinished:
-            megaTermCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
-            break;
-        case rtcModule::TermCode::kDestroyByCallCollision:
-            megaTermCode = MegaChatCall::TERM_CODE_DESTROY_BY_COLLISION;
-            break;
-        case rtcModule::TermCode::kCallerGone:
-        case rtcModule::TermCode::kInvalid:
-        default:
-            megaTermCode = MegaChatCall::TERM_CODE_ERROR;
-            break;
-    }
 
-    if (termCode & rtcModule::TermCode::kPeer)
-    {
-        local = false;
-    }
-    else
-    {
-        local = true;
-    }
 }
 
 void MegaChatCallPrivate::setIsRinging(bool ringing)

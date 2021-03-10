@@ -318,24 +318,6 @@ public:
         CHANGE_TYPE_CALL_SPEAK = 0x40,              /// Speak has been enabled
     };
 
-    enum
-    {
-        TERM_CODE_USER_HANGUP       = 0,    /// Normal user hangup
-        TERM_CODE_CALL_REQ_CANCEL   = 1,    /// Call request was canceled before call was answered
-        TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected in
-                                            /// the current device
-        TERM_CODE_ANSWER_ELSE_WHERE = 3,    /// Call was answered on another device of ours
-        TEMR_CODE_REJECT_ELSE_WHERE = 4,    /// Call was rejected on another device of ours
-        TERM_CODE_ANSWER_TIMEOUT    = 5,    /// Call was not answered in a timely manner
-        TERM_CODE_RING_OUT_TIMEOUT  = 6,    /// We have sent a call request but no RINGING received within this timeout - no other
-                                            /// users are online
-        TERM_CODE_APP_TERMINATING   = 7,    /// The application is terminating
-        TERM_CODE_BUSY              = 9,    /// Peer is in another call
-        TERM_CODE_NOT_FINISHED      = 10,   /// The call is in progress, no termination code yet
-        TERM_CODE_DESTROY_BY_COLLISION   = 19,   /// The call has finished by a call collision
-        TERM_CODE_ERROR             = 21    /// Notify any error type
-    };
-
     enum {
         AUDIO = 0,
         VIDEO = 1,
@@ -487,8 +469,6 @@ public:
 
     /**
      * @brief Returns the termination code for this call
-     *
-     * @note If the call is not finished yet, it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
      *
      * To check if the call was terminated locally or remotely, see MegaChatCall::isLocalTermCode().
      *

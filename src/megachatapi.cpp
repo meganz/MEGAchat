@@ -179,7 +179,7 @@ int64_t MegaChatCall::getFinalTimeStamp() const
 
 int MegaChatCall::getTermCode() const
 {
-    return TERM_CODE_NOT_FINISHED;
+    return 0;
 }
 
 bool MegaChatCall::isLocalTermCode() const
