@@ -8,7 +8,7 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
@@ -19,6 +19,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mMegaApi(megaApi)
     , mSfuClient(sfuClient)
     , mMyPeer()
+    , mRtc(rtc)
 {
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mMyPeer.setModerator(moderator);
@@ -942,7 +943,7 @@ void Call::updateVideoTracks()
     {
         if (!mVideoDevice)
         {
-            std::string videoDevice = mSfuClient.getDefVideoDevice(); // get default video device
+            std::string videoDevice = mRtc.getDefVideoDevice(); // get default video device
             if (videoDevice.empty())
             {
                 RTCM_LOG_WARNING("Default video in device is not set");
@@ -1030,7 +1031,7 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
 
     // set default video in device
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
-    mSfuClient->setDefVideoDevice(videoDevices.begin()->second);
+    mVideoDeviceSelected = videoDevices.begin()->second;
 }
 
 void RtcModuleSfu::hangupAll()
@@ -1069,7 +1070,7 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
     {
         if (!it->first.compare(device))
         {
-            mSfuClient->setDefVideoDevice(it->second);
+            mVideoDeviceSelected = it->second;
             for (const auto& call : mCalls)
             {
                 call.second->updateVideoInDevice();
@@ -1111,7 +1112,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), sharedUnifiedKey, true, avFlags);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), (*this), sharedUnifiedKey, true, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });
@@ -1126,6 +1127,11 @@ std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
 unsigned int RtcModuleSfu::getNumCalls()
 {
     return 0;
+}
+
+const std::string& RtcModuleSfu::getDefVideoDevice() const
+{
+    return mVideoDeviceSelected;
 }
 
 void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
@@ -1165,7 +1171,7 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
 
 void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get(), callKey);
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get(), (*this), callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 

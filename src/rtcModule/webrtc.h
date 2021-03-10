@@ -189,6 +189,7 @@ public:
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
+    virtual const std::string& getDefVideoDevice() const = 0;
 
     virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;
 

@@ -4633,7 +4633,7 @@ public:
     void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief End a call in a chat room
+     * @brief End a call in a chat room (user must be moderator)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
