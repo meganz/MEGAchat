@@ -5913,7 +5913,8 @@ void MegaChatSessionPrivate::setSessionFullyOperative()
 
 void MegaChatSessionPrivate::setOnHold(bool onHold)
 {
-
+    mAVFlags.setOnHold(onHold);
+    mChanged |= CHANGE_TYPE_SESSION_ON_HOLD;
 }
 
 void MegaChatSessionPrivate::setTermCode(int termCode)
@@ -8686,6 +8687,13 @@ void MegaChatSessionHandler::onAudioVideoFlagsChanged(rtcModule::ISession &sessi
 {
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS);
+    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
+}
+
+void MegaChatSessionHandler::onOnHold(rtcModule::ISession& session)
+{
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    megaSession->setOnHold(session.getAvFlags().has(karere::AvFlags::kOnHold));
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 

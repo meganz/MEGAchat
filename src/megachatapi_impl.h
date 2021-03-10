@@ -600,6 +600,7 @@ public:
     void onModeratorChange(rtcModule::ISession& session) override;
     void onAudioRequested(rtcModule::ISession& session) override;
     void onAudioVideoFlagsChanged(rtcModule::ISession& session) override;
+    void onOnHold(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;

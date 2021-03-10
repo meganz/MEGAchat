@@ -91,6 +91,7 @@ public:
         CHANGE_TYPE_SESSION_MODERATOR = 0x08,       /// Session moderator requested
         CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10,       /// Vthumb video received
         CHANGE_TYPE_SESSION_ON_HIRES = 0x20,        /// Hi-Res video received
+        CHANGE_TYPE_SESSION_ON_HOLD = 0x40,         /// Session is on hold
     };
 
 

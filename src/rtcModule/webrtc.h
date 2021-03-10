@@ -101,6 +101,7 @@ public:
     virtual void onModeratorChange(ISession& session) = 0;
     virtual void onAudioRequested(ISession& session) = 0;
     virtual void onAudioVideoFlagsChanged(ISession& session) = 0;
+    virtual void onOnHold(ISession& session) = 0;
 };
 
 class ISession
