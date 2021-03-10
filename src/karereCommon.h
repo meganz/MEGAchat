@@ -144,10 +144,6 @@ public:
         return result;
     }
 
-    bool has(uint8_t val) const{ return mFlags & val; }
-    void add(uint8_t val) { mFlags = mFlags | val; }
-    void remove(uint8_t val) { mFlags = mFlags & ~val; }
-
     void setOnHold(bool enable)
     {
         enable ? add(kOnHold) : remove(kOnHold);

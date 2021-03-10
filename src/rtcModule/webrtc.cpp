@@ -8,7 +8,7 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient &sfuClient, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
@@ -17,8 +17,9 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mLocalAvFlags(avflags)
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
-    , mSfuClient(sfuClient)
+    , mSfuClient(rtc.getSfuClient())
     , mMyPeer()
+    , mRtc(rtc)
 {
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mMyPeer.setModerator(moderator);
@@ -80,10 +81,30 @@ void Call::removeParticipant(karere::Id peer)
     return;
 }
 
+promise::Promise<void> Call::endCall()
+{
+    if (!isModerator())
+    {
+        return promise::_Void();
+    }
+
+    auto wptr = weakHandle();
+    return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
+    .then([](ReqResult /*result*/)
+    {
+
+    });
+}
+
 promise::Promise<void> Call::hangup()
 {
     if (mState == kStateClientNoParticipating && mIsRinging)
     {
+        if (!isModerator())
+        {
+            return promise::_Void();
+        }
+
         auto wptr = weakHandle();
         return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
         .then([](ReqResult /*result*/)
@@ -180,6 +201,12 @@ void Call::setVideoRendererHiRes(IVideoRenderer *videoRederer)
 karere::AvFlags Call::getLocalAvFlags() const
 {
     return mLocalAvFlags;
+}
+
+void Call::updateVideoInDevice()
+{
+    // todo implement
+    RTCM_LOG_DEBUG("updateVideoInDevice");
 }
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
@@ -925,13 +952,21 @@ void Call::updateVideoTracks()
     {
         if (!mVideoDevice)
         {
+            std::string videoDevice = mRtc.getDefVideoDevice(); // get default video device
+            if (videoDevice.empty())
+            {
+                RTCM_LOG_WARNING("Default video in device is not set");
+                assert(false);
+                std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+                videoDevice = videoDevices.begin()->second;
+            }
+
             webrtc::VideoCaptureCapability capabilities;
             capabilities.width = RtcConstant::kHiResWidth;
             capabilities.height = RtcConstant::kHiResHeight;
             capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
-            std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
-            mVideoDevice = artc::VideoManager::Create(capabilities, videoDevices.begin()->second, artc::gAsyncWaiter->guiThread());
-            mVideoDevice->openDevice(videoDevices.begin()->second);
+            mVideoDevice = artc::VideoManager::Create(capabilities, videoDevice, artc::gAsyncWaiter->guiThread());
+            mVideoDevice->openDevice(videoDevice);
             // Our local slot connect directly to video device to keep showing video althoug no one wants our video
             rtc::VideoSinkWants wants;
             mVideoDevice->AddOrUpdateSink(mVThumb.get(), wants);
@@ -997,6 +1032,10 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
         artc::init(appCtx);
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
+
+    // set default video in device
+    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    mVideoDeviceSelected = videoDevices.begin()->second;
 }
 
 void RtcModuleSfu::hangupAll()
@@ -1030,12 +1069,29 @@ ICall *RtcModuleSfu::findCallByChatid(karere::Id chatid)
 
 bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
 {
+    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    for (auto it = videoDevices.begin(); it != videoDevices.end(); it++)
+    {
+        if (!it->first.compare(device))
+        {
+            mVideoDeviceSelected = it->second;
+            for (const auto& call : mCalls)
+            {
+                call.second->updateVideoInDevice();
+            }
+            return true;
+        }
+    }
     return false;
 }
 
 void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 {
-
+    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    for (auto it = videoDevices.begin(); it != videoDevices.end(); it++)
+    {
+        devicesVector.insert(it->first);
+    }
 }
 
 std::string RtcModuleSfu::getVideoDeviceSelected()
@@ -1060,7 +1116,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, *mSfuClient.get(), sharedUnifiedKey, true, avFlags);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), sharedUnifiedKey, true, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });
@@ -1075,6 +1131,16 @@ std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
 unsigned int RtcModuleSfu::getNumCalls()
 {
     return 0;
+}
+
+const std::string& RtcModuleSfu::getDefVideoDevice() const
+{
+    return mVideoDeviceSelected;
+}
+
+sfu::SfuClient& RtcModuleSfu::getSfuClient()
+{
+    return (*mSfuClient.get());
 }
 
 void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
@@ -1114,7 +1180,7 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
 
 void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, *mSfuClient.get(), callKey);
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 

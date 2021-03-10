@@ -874,6 +874,11 @@ void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *l
     pImpl->hangChatCall(chatid, listener);
 }
 
+void MegaChatApi::endChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->endChatCall(chatid, listener);
+}
+
 void MegaChatApi::enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->setAudioEnable(chatid, true, listener);
@@ -977,6 +982,11 @@ MegaHandleList *MegaChatApi::getRequestedSpeakers(MegaChatHandle chatid)
 void MegaChatApi::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->requestSpeak(chatid, listener);
+}
+
+void MegaChatApi::removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->removeRequestSpeak(chatid, listener);
 }
 
 void MegaChatApi::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener)

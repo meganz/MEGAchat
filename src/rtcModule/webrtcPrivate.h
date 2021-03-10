@@ -17,6 +17,7 @@ class IGlobalCallHandler
 };
 #else
 
+class RtcModuleSfu;
 class Call;
 class Slot
 {
@@ -105,7 +106,7 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, sfu::SfuClient& sfuClient, std::shared_ptr<std::string> callKey = nullptr, bool moderator = false, karere::AvFlags avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey = nullptr, bool moderator = false, karere::AvFlags avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
@@ -114,6 +115,7 @@ public:
     void addParticipant(karere::Id peer) override;
     void removeParticipant(karere::Id peer) override;
     promise::Promise<void> hangup() override;
+    promise::Promise<void> endCall() override;
     promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) override;
     bool participate() override;
     void enableAudioLevelMonitor(bool enable) override;
@@ -145,6 +147,7 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
+    void updateVideoInDevice() override;
     void setState(CallState state);
     void connectSfu(const std::string& sfuUrl);
     void createTranceiver();
@@ -224,6 +227,8 @@ protected:
     // call key for public chats (128-bit key)
     std::string mCallKey;
 
+    RtcModuleSfu& mRtc;
+
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, bool hiRes = false);
     void addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker);
@@ -248,6 +253,8 @@ public:
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
+    const std::string& getDefVideoDevice() const override;
+    sfu::SfuClient& getSfuClient() override;
 
     void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
 
@@ -261,6 +268,7 @@ private:
     IGlobalCallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
+    std::string mVideoDeviceSelected;
 };
 
 void globalCleanup();

@@ -424,6 +424,7 @@ public:
         void closeManagerProtocol(karere::Id chatid);
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
         const karere::Id& myHandle();
+        void setDefVideoDevice(const std::string& device);
 
     private:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;

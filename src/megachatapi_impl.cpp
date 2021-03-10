@@ -1648,8 +1648,19 @@ void MegaChatApiImpl::sendPendingRequests()
                     break;
                 }
 
-                call->hangup()
-                .then([request, this]()
+                bool endCall = request->getFlag();
+                if (endCall && !call->isModerator())
+                {
+                    API_LOG_ERROR("End call withouth enough privileges");
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+
+                ::promise::Promise<void> pms = endCall
+                        ? call->endCall()   // end call
+                        : call->hangup();   // hang up
+
+                pms.then([request, this]()
                 {
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
@@ -2072,11 +2083,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-           call->requestSpeaker(enable);
-
-           MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-           fireOnChatRequestFinish(request, megaChatError);
-           break;
+            call->requestSpeaker(enable);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
         }
         case MegaChatRequest::TYPE_APPROVE_SPEAK:
         {
@@ -4356,6 +4366,15 @@ void MegaChatApiImpl::hangChatCall(MegaChatHandle chatid, MegaChatRequestListene
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
     request->setChatHandle(chatid);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::endChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(true);
     requestQueue.push(request);
     waiter->notify();
 }

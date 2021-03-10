@@ -8,6 +8,7 @@
 #include "sdkApi.h"
 #include <net/websocketsIO.h>
 #include "rtcCrypto.h"
+#include "sfu.h"
 
 #define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
 #define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
@@ -140,6 +141,7 @@ public:
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
     virtual promise::Promise<void> hangup() = 0;
+    virtual promise::Promise<void> endCall() = 0;
     virtual promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) = 0;
     virtual bool participate() = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;
@@ -170,6 +172,7 @@ public:
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
+    virtual void updateVideoInDevice() = 0;
 };
 
 class RtcModule
@@ -187,6 +190,8 @@ public:
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
+    virtual const std::string& getDefVideoDevice() const = 0;
+    virtual sfu::SfuClient& getSfuClient() = 0;
 
     virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;
 

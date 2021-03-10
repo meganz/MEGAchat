@@ -170,8 +170,8 @@ std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevic
     uint32_t numDevices = info->NumberOfDevices();
     for (uint32_t i = 0; i < numDevices; i++)
     {
-        char deviceName[256];
-        char uniqueName[256];
+        char deviceName[256]; // Friendly name of the capture device.
+        char uniqueName[256]; // Unique name of the capture device if it exist.
         info->GetDeviceName(i, deviceName, sizeof(deviceName), uniqueName, sizeof(uniqueName));
         videoDevices.insert(std::pair<std::string, std::string>(deviceName, uniqueName));
     }
