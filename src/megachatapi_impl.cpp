@@ -5973,7 +5973,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->initialTs = call.initialTs;
     this->finalTs = call.finalTs;
     this->termCode = call.termCode;
-    this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
     this->mIgnored = call.mIgnored;
     this->mPeerId = call.mPeerId;
@@ -6066,11 +6065,6 @@ int64_t MegaChatCallPrivate::getFinalTimeStamp() const
 int MegaChatCallPrivate::getTermCode() const
 {
     return termCode;
-}
-
-bool MegaChatCallPrivate::isLocalTermCode() const
-{
-    return localTermCode;
 }
 
 bool MegaChatCallPrivate::isRinging() const
@@ -6230,7 +6224,6 @@ void MegaChatCallPrivate::setChange(int changed)
 
 void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
 {
-    convertTermCode(termCode, this->termCode, localTermCode);
 }
 
 void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local)

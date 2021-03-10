@@ -182,11 +182,6 @@ int MegaChatCall::getTermCode() const
     return 0;
 }
 
-bool MegaChatCall::isLocalTermCode() const
-{
-    return false;
-}
-
 bool MegaChatCall::isRinging() const
 {
     return false;

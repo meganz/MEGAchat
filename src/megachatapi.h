@@ -470,18 +470,11 @@ public:
     /**
      * @brief Returns the termination code for this call
      *
-     * To check if the call was terminated locally or remotely, see MegaChatCall::isLocalTermCode().
+     * To check if the call was terminated
      *
      * @return termination code for the call
      */
     virtual int getTermCode() const;
-
-    /**
-     * @brief Returns if the call finished locally or remotely
-     *
-     * @return True if the call finished locally. False if the call finished remotely
-     */
-    virtual bool isLocalTermCode() const;
 
     /**
      * @brief Returns the status of the remote call

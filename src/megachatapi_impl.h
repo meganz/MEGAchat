@@ -229,7 +229,6 @@ public:
     virtual int64_t getInitialTimeStamp() const override;
     virtual int64_t getFinalTimeStamp() const override;
     virtual int getTermCode() const override;
-    virtual bool isLocalTermCode() const override;
     virtual bool isRinging() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getClientidCallCompositionChange() const override;
@@ -279,7 +278,6 @@ protected:
 
     int termCode;
     bool mIgnored;
-    bool localTermCode;
 
     bool ringing = false;
     bool mIsCaller;
