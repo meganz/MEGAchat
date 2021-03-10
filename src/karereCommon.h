@@ -123,6 +123,9 @@ public:
     bool operator==(AvFlags other) { return (mFlags == other.mFlags); }
     bool operator!=(AvFlags other) { return (mFlags != other.mFlags); }
     bool any() const { return mFlags != 0; }
+    bool has(uint8_t val) const { return mFlags & val; }
+    void add(uint8_t val) { mFlags = mFlags | val; }
+    void remove(uint8_t val) { mFlags = mFlags & ~val; }
     operator bool() const { return mFlags != 0; }
     std::string toString() const
     {
