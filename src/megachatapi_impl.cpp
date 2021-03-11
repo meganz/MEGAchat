@@ -5883,7 +5883,7 @@ void MegaChatSessionPrivate::setTermCode(int termCode)
 
 void MegaChatSessionPrivate::setChange(int change)
 {
-    mChanged = change;
+    mChanged |= change;
 }
 
 void MegaChatSessionPrivate::removeChanges()
