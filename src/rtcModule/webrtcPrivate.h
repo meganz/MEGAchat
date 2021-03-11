@@ -140,6 +140,7 @@ public:
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getSession(Cid_t cid) const override;
     bool isOutgoing() const override;
+    static const char *stateToStr(uint8_t state);
 
     void setCallHandler(CallHandler* callHanlder) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
@@ -148,7 +149,7 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void updateVideoInDevice() override;
-    void setState(CallState state);
+    void setState(CallState newState);
     void connectSfu(const std::string& sfuUrl);
     void createTranceiver();
     void getLocalStreams();

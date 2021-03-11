@@ -262,6 +262,7 @@ public:
     void setCaller(karere::Id caller);
     void setOnHold(bool onHold);
     static void convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local);
+    static int convertCallState(rtcModule::CallState newState);
 
 protected:
     MegaChatHandle chatid;

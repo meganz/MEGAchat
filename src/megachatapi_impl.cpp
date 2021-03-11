@@ -6176,6 +6176,37 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, int &meg
 
 }
 
+int MegaChatCallPrivate::convertCallState(rtcModule::CallState newState)
+{
+    // todo: implement additional operations associated to the state change
+    int state = 0;
+    switch(newState)
+    {
+        case rtcModule::CallState::kStateInitial:
+            state = MegaChatCall::CALL_STATUS_INITIAL;
+            break;
+        case rtcModule::CallState::kStateClientNoParticipating:
+            state = MegaChatCall::CALL_STATUS_USER_NO_PRESENT;
+            break;
+        case rtcModule::CallState::kStateConnecting:
+            state = MegaChatCall::CALL_STATUS_CONNECTING;
+            break;
+        case rtcModule::CallState::kStateJoining:
+            state = MegaChatCall::CALL_STATUS_JOINING;
+            break;
+        case rtcModule::CallState::kStateInProgress:
+            state = MegaChatCall::CALL_STATUS_IN_PROGRESS;
+            break;
+        case rtcModule::CallState::kStateTerminatingUserParticipation:
+            state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
+            break;
+        case rtcModule::CallState::kStateDestroyed:
+            state = MegaChatCall::CALL_STATUS_DESTROYED;
+            break;
+    }
+    return state;
+}
+
 void MegaChatCallPrivate::setIsRinging(bool ringing)
 {
     this->ringing = ringing;
@@ -8459,7 +8490,7 @@ void MegaChatCallHandler::onCallStateChange(rtcModule::ICall &call)
     }
 
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_STATUS);
+    chatCall->setStatus(MegaChatCallPrivate::convertCallState(call.getState()));
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

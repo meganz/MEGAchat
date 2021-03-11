@@ -48,9 +48,15 @@ karere::Id Call::getCallerid() const
     return mCallerId;
 }
 
-void Call::setState(CallState state)
+void Call::setState(CallState newState)
 {
-    mState = state;
+    RTCM_LOG_DEBUG("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
+                 karere::Id(getChatid()).toString().c_str(),
+                 karere::Id(getCallid()).toString().c_str(),
+                 Call::stateToStr(mState),
+                 Call::stateToStr(newState));
+
+    mState = newState;
     mCallHandler->onCallStateChange(*this);
 }
 
@@ -181,6 +187,22 @@ bool Call::isModerator() const
 bool Call::isOutgoing() const
 {
     return mCallerId == mSfuClient.myHandle();
+}
+
+
+const char *Call::stateToStr(uint8_t state)
+{
+    switch(state)
+    {
+        RET_ENUM_NAME(kStateInitial);
+        RET_ENUM_NAME(kStateClientNoParticipating);
+        RET_ENUM_NAME(kStateConnecting);
+        RET_ENUM_NAME(kStateJoining);    // < Joining a call
+        RET_ENUM_NAME(kStateInProgress);
+        RET_ENUM_NAME(kStateTerminatingUserParticipation);
+        RET_ENUM_NAME(kStateDestroyed);
+        default: return "(invalid call state)";
+    }
 }
 
 void Call::setCallHandler(CallHandler* callHanlder)
