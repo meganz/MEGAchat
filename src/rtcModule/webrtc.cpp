@@ -993,7 +993,7 @@ void Call::updateVideoTracks()
     {
         if (!mVideoDevice)
         {
-            std::string videoDevice = mRtc.getDefVideoDevice(); // get default video device
+            std::string videoDevice = mRtc.getVideoDeviceSelected(); // get default video device
             if (videoDevice.empty())
             {
                 RTCM_LOG_WARNING("Default video in device is not set");
@@ -1135,11 +1135,6 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
     }
 }
 
-std::string RtcModuleSfu::getVideoDeviceSelected()
-{
-    return "";
-}
-
 promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey)
 {
     // we need a temp string to avoid issues with lambda shared pointer capture
@@ -1174,7 +1169,7 @@ unsigned int RtcModuleSfu::getNumCalls()
     return 0;
 }
 
-const std::string& RtcModuleSfu::getDefVideoDevice() const
+const std::string& RtcModuleSfu::getVideoDeviceSelected() const
 {
     return mVideoDeviceSelected;
 }

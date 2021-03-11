@@ -190,12 +190,11 @@ public:
     virtual ICall* findCallByChatid(karere::Id chatid) = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
-    virtual std::string getVideoDeviceSelected() = 0;
     virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
-    virtual const std::string& getDefVideoDevice() const = 0;
+    virtual const std::string& getVideoDeviceSelected() const = 0;
     virtual sfu::SfuClient& getSfuClient() = 0;
 
     virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;

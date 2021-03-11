@@ -253,12 +253,11 @@ public:
     ICall* findCallByChatid(karere::Id chatid) override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
-    std::string getVideoDeviceSelected() override;
     promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) override;
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
-    const std::string& getDefVideoDevice() const override;
+    const std::string& getVideoDeviceSelected() const override;
     sfu::SfuClient& getSfuClient() override;
 
     void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
