@@ -217,7 +217,7 @@ public:
 
     virtual int getStatus() const override;
     virtual MegaChatHandle getChatid() const override;
-    virtual MegaChatHandle getId() const override;
+    virtual MegaChatHandle getCallId() const override;
 
     virtual bool hasLocalAudio() const override;
     virtual bool hasLocalVideo() const override;

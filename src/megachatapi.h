@@ -365,7 +365,7 @@ public:
      *
      * @return MegaChatHandle of the call.
      */
-    virtual MegaChatHandle getId() const;
+    virtual MegaChatHandle getCallId() const;
 
     /**
      * @brief Return audio state for local

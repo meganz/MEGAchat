@@ -137,7 +137,7 @@ MegaChatHandle MegaChatCall::getChatid() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-MegaChatHandle MegaChatCall::getId() const
+MegaChatHandle MegaChatCall::getCallId() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }

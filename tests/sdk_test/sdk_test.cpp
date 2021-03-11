@@ -3299,7 +3299,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     MegaChatCall *chatCall = megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]);
     ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCallByChatId");
 
-    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getId());
+    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getCallId());
     ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall");
 
 
@@ -3489,7 +3489,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     MegaChatCall *chatCall = megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]);
     ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCall (by chatid)");
 
-    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getId());
+    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getCallId());
     ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall (by callid)");
 
     delete chatCall;    chatCall = NULL;
@@ -4608,7 +4608,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
         mCallReceived[apiIndex] = true;
         mChatIdRingInCall[apiIndex] = call->getChatid();
-        mCallIdRingIn[apiIndex] = call->getId();
+        mCallIdRingIn[apiIndex] = call->getCallId();
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
@@ -4622,7 +4622,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             break;
 
         case MegaChatCall::CALL_STATUS_JOINING:
-            mCallIdRequestSent[apiIndex] = call->getId();
+            mCallIdRequestSent[apiIndex] = call->getCallId();
             break;
 
         case MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:

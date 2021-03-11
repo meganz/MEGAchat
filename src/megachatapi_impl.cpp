@@ -2686,7 +2686,7 @@ void MegaChatApiImpl::fireOnChatRequestTemporaryError(MegaChatRequestPrivate *re
 
 void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
 {
-    if (call->getId() == Id::inval())
+    if (call->getCallId() == Id::inval())
     {
         // if a call have no id yet, it's because we haven't received yet the initial CALLDATA,
         // but just some previous opcodes related to the call, like INCALLs or CALLTIME (which
@@ -4484,7 +4484,7 @@ MegaChatCall *MegaChatApiImpl::getChatCallByCallId(MegaChatHandle callId)
     {
         karere::Id chatId = calls->get(i);
         MegaChatCall *call = getChatCall(chatId);
-        if (call && call->getId() == callId)
+        if (call && call->getCallId() == callId)
         {
             chatCall =  call;
             break;
@@ -4549,7 +4549,7 @@ MegaHandleList *MegaChatApiImpl::getChatCallsIds()
         MegaChatCall *call = getChatCall(chatId);
         if (call)
         {
-            callList->addMegaHandle(call->getId());
+            callList->addMegaHandle(call->getCallId());
             delete call;
         }
     }
@@ -5927,7 +5927,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
 {
     this->status = call.getStatus();
     this->chatid = call.getChatid();
-    this->callid = call.getId();
+    this->callid = call.getCallId();
     this->mIsCaller = call.isOutgoing();
     this->localAVFlags = call.localAVFlags;
     this->mChanged = call.mChanged;
@@ -5970,7 +5970,7 @@ MegaChatHandle MegaChatCallPrivate::getChatid() const
     return chatid;
 }
 
-MegaChatHandle MegaChatCallPrivate::getId() const
+MegaChatHandle MegaChatCallPrivate::getCallId() const
 {
     return callid;
 }
@@ -6128,7 +6128,7 @@ void MegaChatCallPrivate::setStatus(int status)
     {
         API_LOG_INFO("Call Destroyed. ChatId: %s, callid: %s, duration: %d (s)",
                      karere::Id(getChatid()).toString().c_str(),
-                     karere::Id(getId()).toString().c_str(), getDuration());
+                     karere::Id(getCallId()).toString().c_str(), getDuration());
     }
 }
 
