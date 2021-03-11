@@ -89,7 +89,7 @@ public:
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x02,          /// Remote audio/video flags has changed
         CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04, /// Session speak requested
         CHANGE_TYPE_SESSION_MODERATOR = 0x08,       /// Session moderator requested
-        CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10,       /// Vthumb video received
+        CHANGE_TYPE_SESSION_ON_LOWRES = 0x10,       /// Low-Res video received
         CHANGE_TYPE_SESSION_ON_HIRES = 0x20,        /// Hi-Res video received
         CHANGE_TYPE_SESSION_ON_HOLD = 0x40,         /// Session is on hold
     };
@@ -207,7 +207,7 @@ public:
      *  - CHANGE_TYPE_SESSION_MODERATOR = 0x08
      * Notify if moderator state has changed
      *
-     *  - CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10
+     *  - CHANGE_TYPE_SESSION_ON_LOWRES = 0x10
      * Notify if one client has the possibility of send low resolution video
      * It's possible that hasLowResVideo is false yet
      *
@@ -242,7 +242,7 @@ public:
      *  - CHANGE_TYPE_SESSION_MODERATOR = 0x08
      * Notify if moderator state has changed
      *
-     *  - CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10
+     *  - CHANGE_TYPE_SESSION_ON_LOWRES = 0x10
      * Notify if one client has the possibility of send low resolution video
      * It's possible that hasLowResVideo is false yet
      *

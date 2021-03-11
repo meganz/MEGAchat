@@ -8522,7 +8522,7 @@ void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
 {
     session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
-    megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_VTHUMB);
+    megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
