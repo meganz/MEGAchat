@@ -235,9 +235,9 @@ void Call::requestSpeaker(bool add)
     }
 }
 
-bool Call::isSpeakAllow()
+bool Call::isSpeakAllow() const
 {
-    assert(false);
+    return mSpeakerState == SpeakerState::kActive && mLocalAvFlags.audio();
 }
 
 void Call::approveSpeakRequest(Cid_t cid, bool allow)

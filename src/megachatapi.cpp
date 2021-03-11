@@ -247,6 +247,11 @@ bool MegaChatCall::isModerator() const
     return false;
 }
 
+bool MegaChatCall::isSpeakAllow() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);

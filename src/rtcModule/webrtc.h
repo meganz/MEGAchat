@@ -154,7 +154,7 @@ public:
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;
     virtual void requestSpeaker(bool add = true) = 0;
-    virtual bool isSpeakAllow() = 0;
+    virtual bool isSpeakAllow() const = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
     virtual void stopSpeak(Cid_t cid = 0) = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;

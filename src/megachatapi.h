@@ -609,6 +609,15 @@ public:
      * @return true if call is on hold
      */
     virtual bool isModerator() const;
+
+    /**
+     * @brief Returns if user can speak in a call
+     *
+     * @note If there isn't a call in that chatroom, this method returns false
+     *
+     * @return True if user is allow to speak in the call
+     */
+    virtual bool isSpeakAllow() const;
 };
 
 /**

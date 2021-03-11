@@ -127,7 +127,7 @@ public:
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
     void requestSpeaker(bool add = true) override;
-    bool isSpeakAllow() override;
+    bool isSpeakAllow() const override;
     void approveSpeakRequest(Cid_t cid, bool allow) override;
     void stopSpeak(Cid_t cid = 0) override;
     std::vector<Cid_t> getSpeakerRequested() override;

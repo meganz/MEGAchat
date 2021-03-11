@@ -5899,6 +5899,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     callerId = call.getCallerid();
     mIsCaller = call.isOutgoing();
     mIgnored = call.isIgnored();
+    mIsSpeakAllow = call.isSpeakAllow();
 
     localAVFlags = call.getLocalAvFlags();
 
@@ -5938,6 +5939,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->callCompositionChange = call.callCompositionChange;
     this->callerId = call.callerId;
     this->mIsModerator = call.isModerator();
+    this->mIsSpeakAllow = call.isSpeakAllow();
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
@@ -6109,6 +6111,11 @@ bool MegaChatCallPrivate::isOnHold() const
 bool MegaChatCallPrivate::isModerator() const
 {
     return mIsModerator;
+}
+
+bool MegaChatCallPrivate::isSpeakAllow() const
+{
+    return mIsSpeakAllow;
 }
 
 void MegaChatCallPrivate::setStatus(int status)

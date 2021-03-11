@@ -242,6 +242,7 @@ public:
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
     virtual bool isModerator() const override;
+    bool isSpeakAllow() const override;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -282,6 +283,7 @@ protected:
     bool ringing = false;
     bool mIsCaller;
     bool mIsModerator = false;
+    bool mIsSpeakAllow = false;
 };
 
 class MegaChatVideoFrame
