@@ -56,6 +56,16 @@ void Call::setState(CallState newState)
                  Call::stateToStr(mState),
                  Call::stateToStr(newState));
 
+    if (newState == CallState::kStateInProgress)
+    {
+        // initial ts is set when user has joined to the call
+        mInitialTs = time(nullptr);
+    }
+    if (newState == CallState::kStateTerminatingUserParticipation)
+    {
+        mFinalTs = time(nullptr);
+    }
+
     mState = newState;
     mCallHandler->onCallStateChange(*this);
 }
@@ -189,6 +199,15 @@ bool Call::isOutgoing() const
     return mCallerId == mSfuClient.myHandle();
 }
 
+int64_t Call::getInitialTimeStamp() const
+{
+    return mInitialTs;
+}
+
+int64_t Call::getFinalTimeStamp() const
+{
+    return mFinalTs;
+}
 
 const char *Call::stateToStr(uint8_t state)
 {

@@ -246,8 +246,6 @@ public:
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
-    void setInitialTimeStamp(int64_t timeStamp);
-    void setFinalTimeStamp(int64_t timeStamp);
     void removeChanges();
     void setChange(int mChanged);
     void setTermCode(rtcModule::TermCode termCode);
@@ -270,8 +268,8 @@ protected:
     MegaChatHandle callid;
     karere::AvFlags localAVFlags;
     int mChanged = MegaChatCall::CHANGE_TYPE_NO_CHANGES;
-    int64_t initialTs;
-    int64_t finalTs;
+    int64_t mInitialTs;
+    int64_t mFinalTs;
     std::map<MegaChatHandle, std::unique_ptr<MegaChatSession>> mSessions;
     std::map<MegaChatHandle, karere::AvFlags> participants;
     MegaChatHandle mPeerId;

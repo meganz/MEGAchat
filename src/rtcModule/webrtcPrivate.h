@@ -140,6 +140,8 @@ public:
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getSession(Cid_t cid) const override;
     bool isOutgoing() const override;
+    virtual int64_t getInitialTimeStamp() const override;
+    virtual int64_t getFinalTimeStamp() const override;
     static const char *stateToStr(uint8_t state);
 
     void setCallHandler(CallHandler* callHanlder) override;
@@ -201,6 +203,8 @@ protected:
     bool mIgnored = false;
     SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
+    int64_t mInitialTs = 0;
+    int64_t mFinalTs = 0;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;

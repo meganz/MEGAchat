@@ -5900,8 +5900,9 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mIsCaller = call.isOutgoing();
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
-
     localAVFlags = call.getLocalAvFlags();
+    mInitialTs = call.getInitialTimeStamp();
+    mFinalTs = call.getFinalTimeStamp();
 
     if (call.getState() == rtcModule::CallState::kStateInitial)
     {
@@ -5930,8 +5931,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->mIsCaller = call.isOutgoing();
     this->localAVFlags = call.localAVFlags;
     this->mChanged = call.mChanged;
-    this->initialTs = call.initialTs;
-    this->finalTs = call.finalTs;
+    this->mInitialTs = call.mInitialTs;
+    this->mFinalTs = call.mFinalTs;
     this->termCode = call.termCode;
     this->ringing = call.ringing;
     this->mIgnored = call.mIgnored;
@@ -5998,15 +5999,15 @@ int64_t MegaChatCallPrivate::getDuration() const
 {
     int64_t duration = 0;
 
-    if (initialTs > 0)
+    if (mInitialTs > 0)
     {
-        if (finalTs > 0)
+        if (mFinalTs > 0)
         {
-            duration = finalTs - initialTs;
+            duration = mFinalTs - mInitialTs;
         }
         else
         {
-            duration = time(NULL) - initialTs;
+            duration = time(NULL) - mInitialTs;
         }
     }
 
@@ -6015,12 +6016,12 @@ int64_t MegaChatCallPrivate::getDuration() const
 
 int64_t MegaChatCallPrivate::getInitialTimeStamp() const
 {
-    return initialTs;
+    return mInitialTs;
 }
 
 int64_t MegaChatCallPrivate::getFinalTimeStamp() const
 {
-    return finalTs;
+    return mFinalTs;
 }
 
 int MegaChatCallPrivate::getTermCode() const
@@ -6125,7 +6126,6 @@ void MegaChatCallPrivate::setStatus(int status)
 
     if (status == MegaChatCall::CALL_STATUS_DESTROYED)
     {
-        setFinalTimeStamp(time(NULL));
         API_LOG_INFO("Call Destroyed. ChatId: %s, callid: %s, duration: %d (s)",
                      karere::Id(getChatid()).toString().c_str(),
                      karere::Id(getId()).toString().c_str(), getDuration());
@@ -6141,19 +6141,6 @@ void MegaChatCallPrivate::setLocalAudioVideoFlags(AvFlags localAVFlags)
 
     this->localAVFlags = localAVFlags;
     mChanged |= MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS;
-}
-
-void MegaChatCallPrivate::setInitialTimeStamp(int64_t timeStamp)
-{
-    initialTs = timeStamp;
-}
-
-void MegaChatCallPrivate::setFinalTimeStamp(int64_t timeStamp)
-{
-    if (initialTs > 0)
-    {
-        finalTs = timeStamp;
-    }
 }
 
 void MegaChatCallPrivate::removeChanges()
