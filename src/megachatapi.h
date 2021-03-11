@@ -4840,41 +4840,6 @@ public:
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Retruns if user is moderator in a call
-     *
-     * @note If there isn't a call in that chatroom or you are not a moderator,
-     * this method returns false
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @return True if user is moderator in the call
-     */
-    bool isCallModerator(MegaChatHandle chatid);
-
-    /**
-     * @brief Returns if user can speak in a call
-     *
-     * @note If there isn't a call in that chatroom or you are not a moderator,
-     * this method returns false
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @return True if user is allow to speak in the call
-     */
-    bool isSpeakAllow(MegaChatHandle chatid);
-
-    /**
-     * @brief Get a list with requested speaker
-     *
-     * @note If there isn't a call in that chatroom or you are not a moderator,
-     * this method returns a empty list
-     *
-     * You take the ownership of the returned value.
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @return A list of ids requested speaker
-     */
-    mega::MegaHandleList *getRequestedSpeakers(MegaChatHandle chatid);
-
-    /**
      * @brief Request become a speaker
      *
      * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK

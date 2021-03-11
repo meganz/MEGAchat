@@ -4610,47 +4610,6 @@ void MegaChatApiImpl::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid
     waiter->notify();
 }
 
-bool MegaChatApiImpl::isCallModerator(MegaChatHandle chatid)
-{
-    rtcModule::ICall *call = findCall(chatid);
-    if (!call)
-    {
-        return false;
-    }
-
-    return call->isModerator();
-}
-
-bool MegaChatApiImpl::isSpeakAllow(MegaChatHandle chatid)
-{
-    rtcModule::ICall *call = findCall(chatid);
-    if (!call)
-    {
-        return false;
-    }
-
-    return call->isSpeakAllow();
-}
-
-MegaHandleList *MegaChatApiImpl::getRequestedSpeakers(MegaChatHandle chatid)
-{
-    rtcModule::ICall *call = findCall(chatid);
-    MegaHandleList* handleList = MegaHandleListPrivate::createInstance();
-    if (!call || !call->isModerator())
-    {
-        return handleList;
-    }
-
-    std::vector<Cid_t> speakersRequested = call->getSpeakerRequested();
-
-    for (Cid_t speaker : speakersRequested)
-    {
-        handleList->addMegaHandle(speaker);
-    }
-
-    return handleList;
-}
-
 void MegaChatApiImpl::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_SPEAK, listener);

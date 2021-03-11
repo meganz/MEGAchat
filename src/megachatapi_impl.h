@@ -1165,9 +1165,6 @@ public:
     int getMaxVideoCallParticipants();
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);  /// ***Deprecated
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL); /// ***Deprecated
-    bool isCallModerator(MegaChatHandle chatid);
-    bool isSpeakAllow(MegaChatHandle chatid);
-    mega::MegaHandleList *getRequestedSpeakers(MegaChatHandle chatid);
     void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);

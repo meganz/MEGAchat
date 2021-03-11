@@ -959,21 +959,6 @@ void MegaChatApi::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, Me
     pImpl->enableAudioLevelMonitor(enable, chatid, listener);
 }
 
-bool MegaChatApi::isCallModerator(MegaChatHandle chatid)
-{
-    return pImpl->isCallModerator(chatid);
-}
-
-bool MegaChatApi::isSpeakAllow(MegaChatHandle chatid)
-{
-    return pImpl->isSpeakAllow(chatid);
-}
-
-MegaHandleList *MegaChatApi::getRequestedSpeakers(MegaChatHandle chatid)
-{
-    return pImpl->getRequestedSpeakers(chatid);
-}
-
 void MegaChatApi::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->requestSpeak(chatid, listener);
