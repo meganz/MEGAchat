@@ -277,19 +277,12 @@ public:
  * and MegaChatApi::getChatCallByCallId
  *
  * The states that a call has during its life time are:
- * Outgoing call:
  *  - CALL_STATUS_INITIAL
- *  - CALL_STATUS_HAS_LOCAL_STREAM
- *  - CALL_STATUS_REQUEST_SENT
- *  - CALL_STATUS_IN_PROGRESS
- *  - CALL_STATUS_TERMINATING
- *  - CALL_STATUS_DESTROYED
- *
- * Incoming call:
- *  - CALL_STATUS_RING_IN
+ *  - CALL_STATUS_USER_NO_PRESENT
+ *  - CALL_STATUS_CONNECTING
  *  - CALL_STATUS_JOINING
  *  - CALL_STATUS_IN_PROGRESS
- *  - CALL_STATUS_TERMINATING
+ *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION
  *  - CALL_STATUS_DESTROYED
  */
 class MegaChatCall
@@ -351,13 +344,12 @@ public:
      * @return the call status
      * Valid values are:
      *  - CALL_STATUS_INITIAL = 0
-     *  - CALL_STATUS_HAS_LOCAL_STREAM = 1
-     *  - CALL_STATUS_REQUEST_SENT = 2
-     *  - CALL_STATUS_RING_IN = 3
-     *  - CALL_STATUS_JOINING = 4
-     *  - CALL_STATUS_IN_PROGRESS = 5
-     *  - CALL_STATUS_TERMINATING = 6
-     *  - CALL_STATUS_DESTROYED = 7
+     *  - CALL_STATUS_USER_NO_PRESENT = 1
+     *  - CALL_STATUS_CONNECTING = 2
+     *  - CALL_STATUS_JOINING = 3
+     *  - CALL_STATUS_IN_PROGRESS = 4
+     *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION = 5
+     *  - CALL_STATUS_DESTROYED = 6
      */
     virtual int getStatus() const;
 
