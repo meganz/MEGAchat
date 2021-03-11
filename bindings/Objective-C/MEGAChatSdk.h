@@ -88,6 +88,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)importMessagesFromPath:(NSString *)externalDbPath;
 - (MEGAChatInit)initAnonymous;
 - (void)resetClientId;
+- (void)deleteMegaChatApi;
 
 - (MEGAChatInit)initState;
 
