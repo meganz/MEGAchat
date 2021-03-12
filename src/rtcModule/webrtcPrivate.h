@@ -84,6 +84,8 @@ public:
     void setSessionHandler(SessionHandler* sessionHandler) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
     void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
+    bool hasHighResolutionTrack() const override;
+    bool hasLowResolutionTrack() const override;
 
 private:
     sfu::Peer mPeer;

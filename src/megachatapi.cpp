@@ -115,7 +115,17 @@ bool MegaChatSession::hasRequestSpeak() const
 
 bool MegaChatSession::isModerator() const
 {
-    false;
+    return false;
+}
+
+bool MegaChatSession::canRecvVideoHiRes() const
+{
+    return false;
+}
+
+bool MegaChatSession::canRecvVideoLowRes() const
+{
+    return false;
 }
 
 MegaChatCall::~MegaChatCall()
