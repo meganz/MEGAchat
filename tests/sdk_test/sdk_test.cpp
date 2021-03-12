@@ -3188,8 +3188,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, mLocalVideoListener[a1]);
-    megaChatApi[a2]->removeChatLocalVideoListener(chatid, false, mLocalVideoListener[a2]);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
+    megaChatApi[a2]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
 
     delete chatroomListener;
     chatroomListener = NULL;
@@ -3311,7 +3311,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     std::cout << "Call finished." << std::endl;
 
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     // Receive call
     std::cout << "Ready to receive calls..." << std::endl;
@@ -3342,7 +3342,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     std::cout << "Call finished." << std::endl;
     sleep(5);
 
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
@@ -3500,7 +3500,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call must be already finished and it is not");
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     // Receive call
 
@@ -3518,7 +3518,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     sleep(40);  // wait to receive some traffic
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 

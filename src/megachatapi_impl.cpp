@@ -2746,6 +2746,7 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
     }
     else
     {
+        assert(clientid); // local video listeners can't be un/registered into this map
         it = mVideoListenersLowRes.find(chatid);
         itEnd = mVideoListenersLowRes.end();
     }
@@ -4815,6 +4816,7 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
     }
     else
     {
+        assert(clientid); // local video listeners can't be un/registered into this map
         mVideoListenersLowRes[chatid][clientid].insert(listener);
     }
 
@@ -4846,6 +4848,8 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
     }
     else
     {
+        assert(clientid); // local video listeners can't be un/registered into this map
+
         mVideoListenersLowRes[chatid][clientid].erase(listener);
 
         if (mVideoListenersLowRes[chatid][clientid].empty())
@@ -6269,7 +6273,7 @@ void MegaChatVideoReceiver::frameComplete(void *userData)
 {
     mChatApi->videoMutex.lock();
     MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
-    mChatApi->fireOnChatVideoData(mChatid, mClientid, frame->width, frame->height, (char *)frame->buffer, mHiRes);
+    mChatApi->fireOnChatVideoData(mChatid, mClientid, frame->width, frame->height, (char *)frame->buffer, mClientid ? mHiRes : true);
     mChatApi->videoMutex.unlock();
     delete [] frame->buffer;
     delete frame;

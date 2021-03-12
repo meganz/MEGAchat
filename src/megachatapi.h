@@ -5163,10 +5163,9 @@ public:
      * This listener won't receive more events.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param hiRes boolean that identify if video is high resolution or low resolution
      * @param listener Object that is unregistered
      */
-    void removeChatLocalVideoListener(MegaChatHandle chatid, bool hiRes, MegaChatVideoListener *listener);
+    void removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
      * @brief Register a listener to receive video from remote device for an specific chat room and peer
