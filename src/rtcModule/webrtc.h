@@ -13,6 +13,8 @@
 #define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
 #define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
 
+#define RET_ENUM_NAME(name) case name: return #name
+
 namespace rtcModule
 {
 #ifdef KARERE_DISABLE_WEBRTC
@@ -101,6 +103,7 @@ public:
     virtual void onModeratorChange(ISession& session) = 0;
     virtual void onAudioRequested(ISession& session) = 0;
     virtual void onAudioVideoFlagsChanged(ISession& session) = 0;
+    virtual void onOnHold(ISession& session) = 0;
 };
 
 class ISession
@@ -153,7 +156,7 @@ public:
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;
     virtual void requestSpeaker(bool add = true) = 0;
-    virtual bool isSpeakAllow() = 0;
+    virtual bool isSpeakAllow() const = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
     virtual void stopSpeak(Cid_t cid = 0) = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
@@ -166,6 +169,8 @@ public:
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
     virtual ISession* getSession(Cid_t cid) const = 0;
     virtual bool isOutgoing() const = 0;
+    virtual int64_t getInitialTimeStamp() const = 0;
+    virtual int64_t getFinalTimeStamp() const = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
@@ -185,12 +190,11 @@ public:
     virtual ICall* findCallByChatid(karere::Id chatid) = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
-    virtual std::string getVideoDeviceSelected() = 0;
     virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
-    virtual const std::string& getDefVideoDevice() const = 0;
+    virtual const std::string& getVideoDeviceSelected() const = 0;
     virtual sfu::SfuClient& getSfuClient() = 0;
 
     virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;

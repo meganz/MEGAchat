@@ -48,9 +48,25 @@ karere::Id Call::getCallerid() const
     return mCallerId;
 }
 
-void Call::setState(CallState state)
+void Call::setState(CallState newState)
 {
-    mState = state;
+    RTCM_LOG_DEBUG("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
+                 karere::Id(getChatid()).toString().c_str(),
+                 karere::Id(getCallid()).toString().c_str(),
+                 Call::stateToStr(mState),
+                 Call::stateToStr(newState));
+
+    if (newState == CallState::kStateInProgress)
+    {
+        // initial ts is set when user has joined to the call
+        mInitialTs = time(nullptr);
+    }
+    if (newState == CallState::kStateTerminatingUserParticipation)
+    {
+        mFinalTs = time(nullptr);
+    }
+
+    mState = newState;
     mCallHandler->onCallStateChange(*this);
 }
 
@@ -183,6 +199,31 @@ bool Call::isOutgoing() const
     return mCallerId == mSfuClient.myHandle();
 }
 
+int64_t Call::getInitialTimeStamp() const
+{
+    return mInitialTs;
+}
+
+int64_t Call::getFinalTimeStamp() const
+{
+    return mFinalTs;
+}
+
+const char *Call::stateToStr(uint8_t state)
+{
+    switch(state)
+    {
+        RET_ENUM_NAME(kStateInitial);
+        RET_ENUM_NAME(kStateClientNoParticipating);
+        RET_ENUM_NAME(kStateConnecting);
+        RET_ENUM_NAME(kStateJoining);    // < Joining a call
+        RET_ENUM_NAME(kStateInProgress);
+        RET_ENUM_NAME(kStateTerminatingUserParticipation);
+        RET_ENUM_NAME(kStateDestroyed);
+        default: return "(invalid call state)";
+    }
+}
+
 void Call::setCallHandler(CallHandler* callHanlder)
 {
     mCallHandler = std::unique_ptr<CallHandler>(callHanlder);
@@ -235,9 +276,9 @@ void Call::requestSpeaker(bool add)
     }
 }
 
-bool Call::isSpeakAllow()
+bool Call::isSpeakAllow() const
 {
-    assert(false);
+    return mSpeakerState == SpeakerState::kActive && mLocalAvFlags.audio();
 }
 
 void Call::approveSpeakRequest(Cid_t cid, bool allow)
@@ -952,7 +993,7 @@ void Call::updateVideoTracks()
     {
         if (!mVideoDevice)
         {
-            std::string videoDevice = mRtc.getDefVideoDevice(); // get default video device
+            std::string videoDevice = mRtc.getVideoDeviceSelected(); // get default video device
             if (videoDevice.empty())
             {
                 RTCM_LOG_WARNING("Default video in device is not set");
@@ -1094,11 +1135,6 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
     }
 }
 
-std::string RtcModuleSfu::getVideoDeviceSelected()
-{
-    return "";
-}
-
 promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey)
 {
     // we need a temp string to avoid issues with lambda shared pointer capture
@@ -1133,7 +1169,7 @@ unsigned int RtcModuleSfu::getNumCalls()
     return 0;
 }
 
-const std::string& RtcModuleSfu::getDefVideoDevice() const
+const std::string& RtcModuleSfu::getVideoDeviceSelected() const
 {
     return mVideoDeviceSelected;
 }

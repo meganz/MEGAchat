@@ -11,7 +11,7 @@ LocalCallListener::LocalCallListener(MegaChatApi *megaChatApi, CallGui *callGui,
 
 LocalCallListener::~LocalCallListener()
 {
-    mMegaChatApi->removeChatLocalVideoListener(mCallGui->getCall()->getChatid(), mHiRes, megaChatVideoListenerDelegate);
+    mMegaChatApi->removeChatLocalVideoListener(mCallGui->getCall()->getChatid(), megaChatVideoListenerDelegate);
 }
 
 void LocalCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)

@@ -2470,12 +2470,6 @@ void exec_disablevideo(ac::ACState& s)
     g_chatApi->disableVideo(room, listener);
 }
 
-void exec_loadaudiovideodevicelist(ac::ACState&)
-{
-    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
-    g_chatApi->loadAudioVideoDeviceList(listener);
-}
-
 void exec_getchatcall(ac::ACState&)
 {
     /**
@@ -3819,7 +3813,6 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_disableaudio, sequence(text("disableaudio"), param("roomid")));
     p->Add(exec_enablevideo, sequence(text("enablevideo"), param("roomid")));
     p->Add(exec_disablevideo, sequence(text("disablevideo"), param("roomid")));
-    p->Add(exec_loadaudiovideodevicelist, sequence(text("loadaudiovideodevicelist")));
     p->Add(exec_getchatcall, sequence(text("getchatcall"), param("roomid")));
     p->Add(exec_setignoredcall, sequence(text("setignoredcall"), param("roomid")));
     p->Add(exec_getchatcallbycallid, sequence(text("getchatcallbycallid"), param("callid")));

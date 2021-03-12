@@ -379,7 +379,7 @@ void MegaChatApiTest::SetUp()
         mCallDestroyed[i] = false;
         mChatIdRingInCall[i] = MEGACHAT_INVALID_HANDLE;
         mTerminationLocal[i]= false;
-        mTerminationCode[i] = MegaChatCall::TERM_CODE_NOT_FINISHED;
+        mTerminationCode[i] = 0;
         mChatIdInProgressCall[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdRingIn[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdRequestSent[i] = MEGACHAT_INVALID_HANDLE;
@@ -3009,15 +3009,15 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     loadHistory(a1, chatid, chatroomListener);
     loadHistory(a2, chatid, chatroomListener);
 
-    bool *audioVideoDeviceListLoaded0 = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded0 = false;
-    megaChatApi[a1]->loadAudioVideoDeviceList();
-    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded0), "Timeout expired for load audio video devices in account 1");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to load Devide list account 1: " + std::to_string(lastErrorChat[a1]));
+//    bool *audioVideoDeviceListLoaded0 = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded0 = false;
+//    megaChatApi[a1]->loadAudioVideoDeviceList();
+//    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded0), "Timeout expired for load audio video devices in account 1");
+//    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to load Devide list account 1: " + std::to_string(lastErrorChat[a1]));
 
-    bool *audioVideoDeviceListLoaded1 = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded1 = false;
-    megaChatApi[a2]->loadAudioVideoDeviceList();
-    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded1), "Timeout expired for load audio video devices in account 2");
-    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to load Devide list account 2: " + std::to_string(lastErrorChat[a2]));
+//    bool *audioVideoDeviceListLoaded1 = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded1 = false;
+//    megaChatApi[a2]->loadAudioVideoDeviceList();
+//    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded1), "Timeout expired for load audio video devices in account 2");
+//    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to load Devide list account 2: " + std::to_string(lastErrorChat[a2]));
 
     mLocalVideoListener[a1] = new TestChatVideoListener();
     mLocalVideoListener[a2] = new TestChatVideoListener();
@@ -3033,8 +3033,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     bool *termLocal1 = &mTerminationLocal[a2]; *termLocal1 = false;
     bool *callDestroyed0 = &mCallDestroyed[a1]; *callDestroyed0 = false;
     bool *callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
-    int *termCode0 = &mTerminationCode[a1]; *termCode0 = MegaChatCall::TERM_CODE_NOT_FINISHED;
-    int *termCode1 = &mTerminationCode[a2]; *termCode1 = MegaChatCall::TERM_CODE_NOT_FINISHED;
+    int *termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
+    int *termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
     bool *flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdRequestSent[a1] = MEGACHAT_INVALID_HANDLE;
@@ -3059,11 +3059,11 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
 
-    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_CALL_REJECT && *termCode0 == *termCode1,
-                     "Invalid Termination code. TermCode1: "
-                     + std::to_string(*termCode0)
-                     + "  TermCode2: "
-                     + std::to_string(*termCode1));
+//    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_CALL_REJECT && *termCode0 == *termCode1,
+//                     "Invalid Termination code. TermCode1: "
+//                     + std::to_string(*termCode0)
+//                     + "  TermCode2: "
+//                     + std::to_string(*termCode1));
 
     ASSERT_CHAT_TEST(*termLocal0 == false && *termLocal0 != *termLocal1, "Invalid Termination local");
 
@@ -3075,8 +3075,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     termLocal1 = &mTerminationLocal[a2]; *termLocal1 = false;
     callDestroyed0 = &mCallDestroyed[a1]; *callDestroyed0 = false;
     callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
-    termCode0 = &mTerminationCode[a1]; *termCode0 = MegaChatCall::TERM_CODE_NOT_FINISHED;
-    termCode1 = &mTerminationCode[a2]; *termCode1 = MegaChatCall::TERM_CODE_NOT_FINISHED;
+    termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
+    termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
     flagHangUpCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdRequestSent[a1] = MEGACHAT_INVALID_HANDLE;
@@ -3101,11 +3101,11 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
 
-    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_CALL_REQ_CANCEL && *termCode0 == *termCode1,
-                     "Invalid Termination code. TermCode1: "
-                     + std::to_string(*termCode0)
-                     + "  TermCode2: "
-                     + std::to_string(*termCode1));
+//    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_CALL_REQ_CANCEL && *termCode0 == *termCode1,
+//                     "Invalid Termination code. TermCode1: "
+//                     + std::to_string(*termCode0)
+//                     + "  TermCode2: "
+//                     + std::to_string(*termCode1));
 
     ASSERT_CHAT_TEST(*termLocal0 == true && *termLocal0 != *termLocal1, "Invalid Termination local");
 
@@ -3118,8 +3118,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     termLocal1 = &mTerminationLocal[a2]; *termLocal1 = false;
     callDestroyed0 = &mCallDestroyed[a1]; *callDestroyed0 = false;
     callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
-    termCode0 = &mTerminationCode[a1]; *termCode0 = MegaChatCall::TERM_CODE_NOT_FINISHED;
-    termCode1 = &mTerminationCode[a2]; *termCode1 = MegaChatCall::TERM_CODE_NOT_FINISHED;
+    termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
+    termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
     flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdRequestSent[a1] = MEGACHAT_INVALID_HANDLE;
@@ -3146,11 +3146,11 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
 
-    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_CALL_REJECT && *termCode0 == *termCode1,
-                     "Invalid Termination code. TermCode1: "
-                     + std::to_string(*termCode0)
-                     + "  TermCode2: "
-                     + std::to_string(*termCode1));
+//    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_CALL_REJECT && *termCode0 == *termCode1,
+//                     "Invalid Termination code. TermCode1: "
+//                     + std::to_string(*termCode0)
+//                     + "  TermCode2: "
+//                     + std::to_string(*termCode1));
 
     ASSERT_CHAT_TEST(*termLocal0 == false && *termLocal0 != *termLocal1, "Invalid Termination local");
 
@@ -3162,8 +3162,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     termLocal1 = &mTerminationLocal[a2]; *termLocal1 = false;
     callDestroyed0 = &mCallDestroyed[a1]; *callDestroyed0 = false;
     callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
-    termCode0 = &mTerminationCode[a1]; *termCode0 = MegaChatCall::TERM_CODE_NOT_FINISHED;
-    termCode1 = &mTerminationCode[a2]; *termCode1 = MegaChatCall::TERM_CODE_NOT_FINISHED;
+    termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
+    termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdRequestSent[a1] = MEGACHAT_INVALID_HANDLE;
     megaChatApi[a1]->startChatCall(chatid, true);
@@ -3177,19 +3177,19 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
 
-    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_ANSWER_TIMEOUT && *termCode0 == *termCode1,
-                     "Invalid Termination code. TermCode1: "
-                     + std::to_string(*termCode0)
-                     + "  TermCode2: "
-                     + std::to_string(*termCode1));
+//    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_ANSWER_TIMEOUT && *termCode0 == *termCode1,
+//                     "Invalid Termination code. TermCode1: "
+//                     + std::to_string(*termCode0)
+//                     + "  TermCode2: "
+//                     + std::to_string(*termCode1));
 
     ASSERT_CHAT_TEST(*termLocal0 == true && *termLocal0 != *termLocal1, "Invalid Termination local");
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, mLocalVideoListener[a1]);
-    megaChatApi[a2]->removeChatLocalVideoListener(chatid, false, mLocalVideoListener[a2]);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
+    megaChatApi[a2]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
 
     delete chatroomListener;
     chatroomListener = NULL;
@@ -3264,9 +3264,9 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
     logout(a2);
 
-    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
-    megaChatApi[a1]->loadAudioVideoDeviceList();
-    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
+//    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
+//    megaChatApi[a1]->loadAudioVideoDeviceList();
+//    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
 
     ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
@@ -3299,7 +3299,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     MegaChatCall *chatCall = megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]);
     ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCallByChatId");
 
-    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getId());
+    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getCallId());
     ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall");
 
 
@@ -3311,7 +3311,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     std::cout << "Call finished." << std::endl;
 
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     // Receive call
     std::cout << "Ready to receive calls..." << std::endl;
@@ -3342,7 +3342,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     std::cout << "Call finished." << std::endl;
     sleep(5);
 
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
@@ -3462,9 +3462,9 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
 
     loadHistory(a1, chatid, chatroomListener);
 
-    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
-    megaChatApi[a1]->loadAudioVideoDeviceList();
-    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
+//    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
+//    megaChatApi[a1]->loadAudioVideoDeviceList();
+//    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
 
     ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
@@ -3489,7 +3489,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     MegaChatCall *chatCall = megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]);
     ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCall (by chatid)");
 
-    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getId());
+    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getCallId());
     ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall (by callid)");
 
     delete chatCall;    chatCall = NULL;
@@ -3500,7 +3500,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call must be already finished and it is not");
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     // Receive call
 
@@ -3518,7 +3518,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     sleep(40);  // wait to receive some traffic
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, false, &localVideoListener);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
@@ -4608,7 +4608,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
         mCallReceived[apiIndex] = true;
         mChatIdRingInCall[apiIndex] = call->getChatid();
-        mCallIdRingIn[apiIndex] = call->getId();
+        mCallIdRingIn[apiIndex] = call->getCallId();
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
@@ -4622,12 +4622,12 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             break;
 
         case MegaChatCall::CALL_STATUS_JOINING:
-            mCallIdRequestSent[apiIndex] = call->getId();
+            mCallIdRequestSent[apiIndex] = call->getCallId();
             break;
 
         case MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
             mTerminationCode[apiIndex] = call->getTermCode();
-            mTerminationLocal[apiIndex] = (bool)call->isLocalTermCode();
+            mTerminationLocal[apiIndex] = 0;
             break;
 
         case MegaChatCall::CALL_STATUS_DESTROYED:

@@ -127,7 +127,7 @@ public:
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
     void requestSpeaker(bool add = true) override;
-    bool isSpeakAllow() override;
+    bool isSpeakAllow() const override;
     void approveSpeakRequest(Cid_t cid, bool allow) override;
     void stopSpeak(Cid_t cid = 0) override;
     std::vector<Cid_t> getSpeakerRequested() override;
@@ -140,6 +140,9 @@ public:
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getSession(Cid_t cid) const override;
     bool isOutgoing() const override;
+    virtual int64_t getInitialTimeStamp() const override;
+    virtual int64_t getFinalTimeStamp() const override;
+    static const char *stateToStr(uint8_t state);
 
     void setCallHandler(CallHandler* callHanlder) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
@@ -148,7 +151,7 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void updateVideoInDevice() override;
-    void setState(CallState state);
+    void setState(CallState newState);
     void connectSfu(const std::string& sfuUrl);
     void createTranceiver();
     void getLocalStreams();
@@ -200,6 +203,8 @@ protected:
     bool mIgnored = false;
     SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
+    int64_t mInitialTs = 0;
+    int64_t mFinalTs = 0;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;
@@ -248,12 +253,11 @@ public:
     ICall* findCallByChatid(karere::Id chatid) override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
-    std::string getVideoDeviceSelected() override;
     promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) override;
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
-    const std::string& getDefVideoDevice() const override;
+    const std::string& getVideoDeviceSelected() const override;
     sfu::SfuClient& getSfuClient() override;
 
     void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;

@@ -34,7 +34,7 @@ PeerWidget::~PeerWidget()
 {
     if (mLocal)
     {
-        mMegaChatApi.removeChatLocalVideoListener(mChatid, mHiRes, mMegaChatVideoListenerDelegate);
+        mMegaChatApi.removeChatLocalVideoListener(mChatid, mMegaChatVideoListenerDelegate);
     }
     else
     {

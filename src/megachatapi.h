@@ -89,8 +89,9 @@ public:
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x02,          /// Remote audio/video flags has changed
         CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04, /// Session speak requested
         CHANGE_TYPE_SESSION_MODERATOR = 0x08,       /// Session moderator requested
-        CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10,       /// Vthumb video received
+        CHANGE_TYPE_SESSION_ON_LOWRES = 0x10,       /// Low-Res video received
         CHANGE_TYPE_SESSION_ON_HIRES = 0x20,        /// Hi-Res video received
+        CHANGE_TYPE_SESSION_ON_HOLD = 0x40,         /// Session is on hold
     };
 
 
@@ -206,7 +207,7 @@ public:
      *  - CHANGE_TYPE_SESSION_MODERATOR = 0x08
      * Notify if moderator state has changed
      *
-     *  - CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10
+     *  - CHANGE_TYPE_SESSION_ON_LOWRES = 0x10
      * Notify if one client has the possibility of send low resolution video
      * It's possible that hasLowResVideo is false yet
      *
@@ -241,7 +242,7 @@ public:
      *  - CHANGE_TYPE_SESSION_MODERATOR = 0x08
      * Notify if moderator state has changed
      *
-     *  - CHANGE_TYPE_SESSION_ON_VTHUMB = 0x10
+     *  - CHANGE_TYPE_SESSION_ON_LOWRES = 0x10
      * Notify if one client has the possibility of send low resolution video
      * It's possible that hasLowResVideo is false yet
      *
@@ -276,19 +277,12 @@ public:
  * and MegaChatApi::getChatCallByCallId
  *
  * The states that a call has during its life time are:
- * Outgoing call:
  *  - CALL_STATUS_INITIAL
- *  - CALL_STATUS_HAS_LOCAL_STREAM
- *  - CALL_STATUS_REQUEST_SENT
- *  - CALL_STATUS_IN_PROGRESS
- *  - CALL_STATUS_TERMINATING
- *  - CALL_STATUS_DESTROYED
- *
- * Incoming call:
- *  - CALL_STATUS_RING_IN
+ *  - CALL_STATUS_USER_NO_PRESENT
+ *  - CALL_STATUS_CONNECTING
  *  - CALL_STATUS_JOINING
  *  - CALL_STATUS_IN_PROGRESS
- *  - CALL_STATUS_TERMINATING
+ *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION
  *  - CALL_STATUS_DESTROYED
  */
 class MegaChatCall
@@ -315,24 +309,6 @@ public:
         CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
         CHANGE_TYPE_CALL_MODERATOR = 0x20,          /// Moderator has been enabled
         CHANGE_TYPE_CALL_SPEAK = 0x40,              /// Speak has been enabled
-    };
-
-    enum
-    {
-        TERM_CODE_USER_HANGUP       = 0,    /// Normal user hangup
-        TERM_CODE_CALL_REQ_CANCEL   = 1,    /// Call request was canceled before call was answered
-        TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected in
-                                            /// the current device
-        TERM_CODE_ANSWER_ELSE_WHERE = 3,    /// Call was answered on another device of ours
-        TEMR_CODE_REJECT_ELSE_WHERE = 4,    /// Call was rejected on another device of ours
-        TERM_CODE_ANSWER_TIMEOUT    = 5,    /// Call was not answered in a timely manner
-        TERM_CODE_RING_OUT_TIMEOUT  = 6,    /// We have sent a call request but no RINGING received within this timeout - no other
-                                            /// users are online
-        TERM_CODE_APP_TERMINATING   = 7,    /// The application is terminating
-        TERM_CODE_BUSY              = 9,    /// Peer is in another call
-        TERM_CODE_NOT_FINISHED      = 10,   /// The call is in progress, no termination code yet
-        TERM_CODE_DESTROY_BY_COLLISION   = 19,   /// The call has finished by a call collision
-        TERM_CODE_ERROR             = 21    /// Notify any error type
     };
 
     enum {
@@ -368,13 +344,12 @@ public:
      * @return the call status
      * Valid values are:
      *  - CALL_STATUS_INITIAL = 0
-     *  - CALL_STATUS_HAS_LOCAL_STREAM = 1
-     *  - CALL_STATUS_REQUEST_SENT = 2
-     *  - CALL_STATUS_RING_IN = 3
-     *  - CALL_STATUS_JOINING = 4
-     *  - CALL_STATUS_IN_PROGRESS = 5
-     *  - CALL_STATUS_TERMINATING = 6
-     *  - CALL_STATUS_DESTROYED = 7
+     *  - CALL_STATUS_USER_NO_PRESENT = 1
+     *  - CALL_STATUS_CONNECTING = 2
+     *  - CALL_STATUS_JOINING = 3
+     *  - CALL_STATUS_IN_PROGRESS = 4
+     *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION = 5
+     *  - CALL_STATUS_DESTROYED = 6
      */
     virtual int getStatus() const;
 
@@ -390,7 +365,7 @@ public:
      *
      * @return MegaChatHandle of the call.
      */
-    virtual MegaChatHandle getId() const;
+    virtual MegaChatHandle getCallId() const;
 
     /**
      * @brief Return audio state for local
@@ -426,7 +401,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
-     * @see MegaChatCall::getPeeridCallCompositionChange value
+     * @see MegaChatCall::getClientidCallCompositionChange value
      */
     virtual int getChanges() const;
 
@@ -452,7 +427,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
-     * @see MegaChatCall::getPeeridCallCompositionChange value
+     * @see MegaChatCall::getClientidCallCompositionChange value
      *
      * @return true if this call has an specific change
      */
@@ -487,20 +462,11 @@ public:
     /**
      * @brief Returns the termination code for this call
      *
-     * @note If the call is not finished yet, it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
-     *
-     * To check if the call was terminated locally or remotely, see MegaChatCall::isLocalTermCode().
+     * To check if the call was terminated
      *
      * @return termination code for the call
      */
     virtual int getTermCode() const;
-
-    /**
-     * @brief Returns if the call finished locally or remotely
-     *
-     * @return True if the call finished locally. False if the call finished remotely
-     */
-    virtual bool isLocalTermCode() const;
 
     /**
      * @brief Returns the status of the remote call
@@ -548,7 +514,7 @@ public:
      *
      * @return Handle of the peer which has been added/removed to call
      */
-    virtual MegaChatHandle getPeeridCallCompositionChange() const;
+    virtual MegaChatHandle getClientidCallCompositionChange() const;
 
     /**
      * @brief Returns if peer has been added or removed from the call
@@ -587,14 +553,9 @@ public:
      * In a group call, this function returns the number of active participants,
      * regardless your own user participates or not.
      *
-     * 0 -> with audio (c\ AUDIO)
-     * 1 -> with video (c\ VIDEO)
-     * 2 -> with any combination of audio/video, both or none (c\ ANY_FLAG)
-     *
-     * @param audioVideo indicate if it returns the number of all participants or only those have audio or video active
      * @return Number of active participants in the call
      */
-    virtual int getNumParticipants(int audioVideo) const;
+    virtual int getNumParticipants() const;
 
     /**
      * @brief Returns if call has been ignored
@@ -640,6 +601,15 @@ public:
      * @return true if call is on hold
      */
     virtual bool isModerator() const;
+
+    /**
+     * @brief Returns if user can speak in a call
+     *
+     * @note If there isn't a call in that chatroom, this method returns false
+     *
+     * @return True if user is allow to speak in the call
+     */
+    virtual bool isSpeakAllow() const;
 };
 
 /**
@@ -4739,20 +4709,6 @@ public:
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Search all audio and video devices available at that moment.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
-     *
-     * After call this function, available devices can be obtained calling MegaChatApi::getChatVideoInDevices.
-     *
-     * Call this function to update the list of available devices, ie. after plug-in a webcam to your PC.
-     *
-     * @deprecated Use MegaChatApi::getChatVideoInDevices
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
-
-    /**
      * @brief Get the MegaChatCall associated with a chatroom
      *
      * If \c chatid is invalid or there isn't any MegaChatCall associated with the chatroom,
@@ -4871,41 +4827,6 @@ public:
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Retruns if user is moderator in a call
-     *
-     * @note If there isn't a call in that chatroom or you are not a moderator,
-     * this method returns false
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @return True if user is moderator in the call
-     */
-    bool isCallModerator(MegaChatHandle chatid);
-
-    /**
-     * @brief Returns if user can speak in a call
-     *
-     * @note If there isn't a call in that chatroom or you are not a moderator,
-     * this method returns false
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @return True if user is allow to speak in the call
-     */
-    bool isSpeakAllow(MegaChatHandle chatid);
-
-    /**
-     * @brief Get a list with requested speaker
-     *
-     * @note If there isn't a call in that chatroom or you are not a moderator,
-     * this method returns a empty list
-     *
-     * You take the ownership of the returned value.
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @return A list of ids requested speaker
-     */
-    mega::MegaHandleList *getRequestedSpeakers(MegaChatHandle chatid);
-
-    /**
      * @brief Request become a speaker
      *
      * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK
@@ -4938,13 +4859,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that approve the request
-     * - MegaChatRequest::getUserHandle - Returns the cid of the user
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cid MegaChatHandle that identifies client
+     * @param clientId MegaChatHandle that identifies client
      * @param listener MegaChatRequestListener to track this request
      */
-    void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Reject speak request
@@ -4953,13 +4874,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that reject the request
-     * - MegaChatRequest::getUserHandle - Returns the cid of the user
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cid MegaChatHandle that identifies client
+     * @param clientId MegaChatHandle that identifies client
      * @param listener MegaChatRequestListener to track this request
      */
-    void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Request high resolution video from a client
@@ -4968,13 +4889,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that request high resolution video
-     * - MegaChatRequest::getUserHandle - Returns the cid of the user
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cid MegaChatHandle that identifies client
+     * @param clientId MegaChatHandle that identifies client
      * @param listener MegaChatRequestListener to track this request
      */
-    void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Stop high resolution video from a client
@@ -4983,13 +4904,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that stop high resolution video
-     * - MegaChatRequest::getUserHandle - Returns the cid of the user
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cid MegaChatHandle that identifies client
+     * @param clientId MegaChatHandle that identifies client
      * @param listener MegaChatRequestListener to track this request
      */
-    void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle cid, MegaChatRequestListener *listener = NULL);
+    void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Request low resolution video from a list of clients
@@ -4998,13 +4919,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that request low resolution video
-     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Cids
+     * - MegaChatRequest::getMegaHandleList - Returns the list of client Ids
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cids List of clients Cids
+     * @param clientIds List of clients Ids
      * @param listener MegaChatRequestListener to track this request
      */
-    void requestLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
+    void requestLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Stop low resolution video from a list of clients
@@ -5013,13 +4934,13 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that stop low resolution video
-     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Cids
+     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Ids
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param cids List of clients Cids
+     * @param clientIds List of clients Ids
      * @param listener MegaChatRequestListener to track this request
      */
-    void stoptLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *cids, MegaChatRequestListener *listener = NULL);
+    void stoptLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
 
 #endif
 
@@ -5242,10 +5163,9 @@ public:
      * This listener won't receive more events.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param hiRes boolean that identify if video is high resolution or low resolution
      * @param listener Object that is unregistered
      */
-    void removeChatLocalVideoListener(MegaChatHandle chatid, bool hiRes, MegaChatVideoListener *listener);
+    void removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
      * @brief Register a listener to receive video from remote device for an specific chat room and peer
