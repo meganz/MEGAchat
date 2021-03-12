@@ -182,6 +182,8 @@ public:
     virtual bool hasChanged(int changeType) const override;
     virtual bool isModerator() const override;
     virtual bool hasRequestSpeak() const override;
+    virtual bool canRecvVideoHiRes() const;
+    virtual bool canRecvVideoLowRes() const;
 
     karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
@@ -203,6 +205,8 @@ private:
     karere::AvFlags mAVFlags;
     bool mHasRequestSpeak = false;
     bool mIsModerator = false;
+    bool mHasHiResTrack = false;
+    bool mHasLowResTrack = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall

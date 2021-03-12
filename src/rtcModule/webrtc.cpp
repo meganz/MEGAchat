@@ -1405,6 +1405,16 @@ void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
     mHiresSlot->setVideoRender(videoRederer);
 }
 
+bool Session::hasHighResolutionTrack() const
+{
+    return  mHiresSlot->getTransceiver()->sender()->track() ? true : false;
+}
+
+bool Session::hasLowResolutionTrack() const
+{
+    return  mVthumSlot->getTransceiver()->sender()->track() ? true : false;
+}
+
 const sfu::Peer& Session::getPeer() const
 {
     return mPeer;
