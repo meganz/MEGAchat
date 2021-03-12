@@ -828,10 +828,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
             }
             break;
-
-         case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
-                mMainWin->createSettingsMenu();
-            break;
 #endif
         case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
             if (error != MegaChatError::ERROR_OK)

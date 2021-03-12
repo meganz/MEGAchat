@@ -266,7 +266,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         window->mMeetingView->addHiRes(peerWidget);
     }
 
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_VTHUMB) && window->mMeetingView)
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES) && window->mMeetingView)
     {
         PeerWidget *peerWidget = new PeerWidget(*mMegaChatApi, chatid, session->getClientid(), false);
         window->mMeetingView->addVthumb(peerWidget);
@@ -666,7 +666,7 @@ void MainWindow::updateToolTipMyInfo()
 void MainWindow::onWebRTCsetting()
 {
     #ifndef KARERE_DISABLE_WEBRTC
-        this->mMegaChatApi->loadAudioVideoDeviceList();
+    createSettingsMenu();
     #endif
 }
 

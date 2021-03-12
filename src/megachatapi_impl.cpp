@@ -6023,7 +6023,7 @@ int64_t MegaChatCallPrivate::getFinalTimeStamp() const
 
 int MegaChatCallPrivate::getTermCode() const
 {
-    return termCode;
+    return 0;
 }
 
 bool MegaChatCallPrivate::isRinging() const
