@@ -5900,6 +5900,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     localAVFlags = call.getLocalAvFlags();
     mInitialTs = call.getInitialTimeStamp();
     mFinalTs = call.getFinalTimeStamp();
+    mAudioDetected = call.isAudioDetected();
 
     if (call.getState() == rtcModule::CallState::kStateInitial)
     {
@@ -5938,6 +5939,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->callerId = call.callerId;
     this->mIsModerator = call.isModerator();
     this->mIsSpeakAllow = call.isSpeakAllow();
+    this->mAudioDetected = call.isAudioDetected();
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
@@ -5985,6 +5987,11 @@ bool MegaChatCallPrivate::hasLocalVideo() const
 int MegaChatCallPrivate::getChanges() const
 {
     return mChanged;
+}
+
+bool MegaChatCallPrivate::isAudioDetected() const
+{
+    return mAudioDetected;
 }
 
 bool MegaChatCallPrivate::hasChanged(int changeType) const
@@ -6247,6 +6254,11 @@ void MegaChatCallPrivate::setOnHold(bool onHold)
     this->mChanged |= MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD;
 }
 
+void MegaChatCallPrivate::setAudioDetected(bool audioDetected)
+{
+    this->mAudioDetected = audioDetected;
+    this->mChanged |= MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL;
+}
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, bool hiRes, uint32_t clientid)
 {
     this->mChatApi = chatApi;
@@ -8512,6 +8524,14 @@ void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+
+void MegaChatCallHandler::onCallAudioDetected(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setAudioDetected(call.isAudioDetected());
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

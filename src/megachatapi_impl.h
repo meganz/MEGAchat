@@ -224,6 +224,7 @@ public:
 
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
+    virtual bool isAudioDetected() const override;
 
     virtual int64_t getDuration() const override;
     virtual int64_t getInitialTimeStamp() const override;
@@ -259,6 +260,7 @@ public:
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
     void setOnHold(bool onHold);
+    void setAudioDetected(bool mAudioDetected);
     static void convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local);
     static int convertCallState(rtcModule::CallState newState);
 
@@ -278,7 +280,7 @@ protected:
 
     int termCode;
     bool mIgnored;
-
+    bool mAudioDetected = false;
     bool ringing = false;
     bool mIsCaller;
     bool mIsModerator = false;
@@ -582,6 +584,7 @@ public:
     void onModeratorChange(const rtcModule::ICall& call) override;
     void onAudioApproved(const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call) override;
+    void onCallAudioDetected(const rtcModule::ICall& call) override;
 
 protected:
     MegaChatApiImpl* mMegaChatApi;

@@ -21,6 +21,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mMyPeer()
     , mRtc(rtc)
 {
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(*this));
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mMyPeer.setModerator(moderator);
     mGlobalCallHandler.onNewCall(*this);
@@ -48,6 +49,10 @@ karere::Id Call::getCallerid() const
     return mCallerId;
 }
 
+bool Call::isAudioDetected() const
+{
+    return mAudioDetected;
+}
 void Call::setState(CallState newState)
 {
     RTCM_LOG_DEBUG("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
@@ -156,7 +161,25 @@ bool Call::participate()
 
 void Call::enableAudioLevelMonitor(bool enable)
 {
+    if (mAudioLevelMonitorEnabled == enable)
+    {
+        return;
+    }
 
+    mAudioLevelMonitorEnabled = enable;
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack =
+            mAudio->getTransceiver()->sender()->track();
+
+    webrtc::AudioTrackInterface* audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
+    if (!audioTrack || !mAudioLevelMonitor)
+    {
+        RTCM_LOG_DEBUG("Error enabling AudioLevelMonitor");
+        return;
+    }
+
+    enable
+        ? audioTrack->AddSink(mAudioLevelMonitor.get())
+        : audioTrack->RemoveSink(mAudioLevelMonitor.get());
 }
 
 void Call::ignoreCall()
@@ -177,6 +200,11 @@ void Call::setRinging(bool ringing)
 bool Call::isIgnored() const
 {
     return mIgnored;
+}
+
+bool Call::isAudioLevelMonitorEnabled() const
+{
+    return mAudioLevelMonitorEnabled;
 }
 
 void Call::setCallerId(karere::Id callerid)
@@ -257,6 +285,12 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
     updateAudioTracks();
     updateVideoTracks();
     mCallHandler->onLocalFlagsChanged(*this);
+}
+
+void Call::updateCallAudioDetected(bool audioDetected)
+{
+    mAudioDetected = audioDetected;
+    mCallHandler->onCallAudioDetected(*this);
 }
 
 void Call::requestSpeaker(bool add)
@@ -1495,5 +1529,54 @@ bool Session::isModerator() const
 bool Session::hasRequestSpeak() const
 {
     return mHasRequestSpeak;
+}
+
+AudioLevelMonitor::AudioLevelMonitor(Call &call)
+    : mCall(call)
+{
+}
+
+void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
+{
+    if (!mCall.getLocalAvFlags().audio())
+    {
+        if (mAudioDetected)
+        {
+            mAudioDetected = false;
+            mCall.updateCallAudioDetected(mAudioDetected);
+        }
+
+        return;
+    }
+
+    assert(bits_per_sample == 16);
+    time_t nowTime = time(NULL);
+    if (nowTime - mPreviousTime > 2) // Two seconds between samples
+    {
+        mPreviousTime = nowTime;
+        size_t valueCount = number_of_channels * number_of_frames;
+        int16_t *data = (int16_t*)audio_data;
+        int16_t audioMaxValue = data[0];
+        int16_t audioMinValue = data[0];
+        for (size_t i = 1; i < valueCount; i++)
+        {
+            if (data[i] > audioMaxValue)
+            {
+                audioMaxValue = data[i];
+            }
+
+            if (data[i] < audioMinValue)
+            {
+                audioMinValue = data[i];
+            }
+        }
+
+        bool audioDetected = (abs(audioMaxValue) + abs(audioMinValue) > kAudioThreshold);
+        if (audioDetected != mAudioDetected)
+        {
+            mAudioDetected = audioDetected;
+            mCall.updateCallAudioDetected(mAudioDetected);
+        }
+    }
 }
 }

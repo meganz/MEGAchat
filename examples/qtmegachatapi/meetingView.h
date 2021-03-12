@@ -45,6 +45,7 @@ protected:
     QPushButton* mRequestModerator;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
+    QPushButton* mAudioMonitor;
 
     QListWidget* mListWidget;
 
@@ -64,6 +65,7 @@ public slots:
     void onRequestSpeak();
     void onEnableAudio();
     void onEnableVideo();
+    void onEnableAudioMonitor(bool audioMonitorEnable);
 };
 
 #endif // MEETINGVIEW_H

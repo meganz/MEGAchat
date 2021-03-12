@@ -157,6 +157,11 @@ int MegaChatCall::getChanges() const
     return 0;
 }
 
+bool MegaChatCall::isAudioDetected() const
+{
+    return false;
+}
+
 bool MegaChatCall::hasChanged(int ) const
 {
     return false;

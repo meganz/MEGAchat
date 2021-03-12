@@ -309,6 +309,7 @@ public:
         CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
         CHANGE_TYPE_CALL_MODERATOR = 0x20,          /// Moderator has been enabled
         CHANGE_TYPE_CALL_SPEAK = 0x40,              /// Speak has been enabled
+        CHANGE_TYPE_AUDIO_LEVEL = 0x80,             /// Indicates if we are speaking
     };
 
     enum {
@@ -432,6 +433,8 @@ public:
      * @return true if this call has an specific change
      */
     virtual bool hasChanged(int changeType) const;
+
+    virtual bool isAudioDetected() const;
 
     /**
      * @brief Return call duration
