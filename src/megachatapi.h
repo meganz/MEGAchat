@@ -4709,20 +4709,6 @@ public:
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Search all audio and video devices available at that moment.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
-     *
-     * After call this function, available devices can be obtained calling MegaChatApi::getChatVideoInDevices.
-     *
-     * Call this function to update the list of available devices, ie. after plug-in a webcam to your PC.
-     *
-     * @deprecated Use MegaChatApi::getChatVideoInDevices
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
-
-    /**
      * @brief Get the MegaChatCall associated with a chatroom
      *
      * If \c chatid is invalid or there isn't any MegaChatCall associated with the chatroom,

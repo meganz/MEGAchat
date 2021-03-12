@@ -4408,13 +4408,6 @@ void MegaChatApiImpl::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaC
     waiter->notify();
 }
 
-void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES, listener);
-    requestQueue.push(request);
-    waiter->notify();
-}
-
 bool MegaChatApiImpl::setIgnoredCall(MegaChatHandle chatId)
 {
     if (!mClient->rtc)

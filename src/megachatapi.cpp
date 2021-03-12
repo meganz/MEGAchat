@@ -904,11 +904,6 @@ void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatR
     pImpl->setCallOnHold(chatid, setOnHold, listener);
 }
 
-void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
-{
-    pImpl->loadAudioVideoDeviceList(listener);
-}
-
 MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
 {
     return pImpl->getChatCall(chatid);
