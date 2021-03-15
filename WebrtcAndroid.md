@@ -1,5 +1,5 @@
 # WebRTC for Android #
-We provide pre-built binaries and headers for arm32, arm64, x86 and x64. You can download them from [here](https://mega.nz/file/93AmybIL#RyKXV3L_TlQTvfXhh1vrmnwg_3S4HEdBAXjl4brcvFI).
+We provide pre-built binaries and headers for arm32, arm64, x86 and x64. You can download them from [here](https://mega.nz/file/RsMEgZqA#s0P754Ua7AqvWwamCeyrvNcyhmPjHTQQIxtqziSU4HI).
 We strongly recommend to user the pre-built library, rather than build it by yourself. In case you want to build your own version, please, follow these steps:
 * Install the [Chromium depot tools](http://dev.chromium.org/developers/how-tos/install-depot-tools)
 * Download WebRTC and compile for all architectures
@@ -20,6 +20,11 @@ Before compile, you need to modify the file `buildtools/third_party/libc++/trunk
 - _LIBCPP_CONCAT(__,_LIBCPP_ABI_VERSION)
 + _LIBCPP_CONCAT(__ndk,_LIBCPP_ABI_VERSION)
 #endif
+```
+
+and apply patch in webrtc source directory
+```
+git apply ${MEGA_SDK_PATH}/patches/webRtcPatch.patch
 ```
 
 Now, you are ready to start building the library. We recommend to compile every architecture in different console in order to reset the environment variable `LD_LIBRARY_PATH`.
