@@ -512,6 +512,14 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         mVideoDevice->releaseDevice();
     }
 
+    for (const auto& session : mSessions)
+    {
+        Slot *slot = session.second->getAudioSlot();
+        slot->enableAudioMonitor(false); // disable audio monitor
+        slot->enableTrack(false);
+        session.second->setAudioSlot(nullptr);
+    }
+
     mSessions.clear();
     mVThumb.reset(nullptr);
     mHiRes.reset(nullptr);
@@ -751,6 +759,16 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 
 bool Call::handlePeerLeft(Cid_t cid)
 {
+    auto it = mSessions.find(cid);
+    if (it == mSessions.end())
+    {
+        RTCM_LOG_ERROR("handlePeerLeft: unknown cid");
+        return false;
+    }
+
+    Slot *slot = it->second->getAudioSlot();
+    slot->enableAudioMonitor(false); // disable audio monitor
+    slot->enableTrack(false);
     mSessions.erase(cid);
 }
 
@@ -947,7 +965,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
     Slot* slot = it->second.get();
     slot->enableTrack(true);
     slot->createDecryptor(cid, speaker.mIv);
-    slot->enableAudioMonitor(true);
+    slot->enableAudioMonitor(true); // enable audio monitor
 
     mSessions[cid]->setAudioSlot(slot);
 }
@@ -961,9 +979,9 @@ void Call::removeSpeaker(Cid_t cid)
         return;
     }
 
-    Slot* slot = it->second->getAudioSlot();
+    Slot *slot = it->second->getAudioSlot();
+    slot->enableAudioMonitor(false); // disable audio monitor
     slot->enableTrack(false);
-    slot->enableAudioMonitor(false);
     it->second->setAudioSlot(nullptr);
 }
 
