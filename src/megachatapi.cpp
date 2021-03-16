@@ -115,7 +115,12 @@ bool MegaChatSession::hasRequestSpeak() const
 
 bool MegaChatSession::isModerator() const
 {
-    false;
+    return false;
+}
+
+bool MegaChatSession::isAudioDetected() const
+{
+    return false;
 }
 
 MegaChatCall::~MegaChatCall()

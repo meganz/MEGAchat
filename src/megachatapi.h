@@ -92,6 +92,7 @@ public:
         CHANGE_TYPE_SESSION_ON_LOWRES = 0x10,       /// Low-Res video received
         CHANGE_TYPE_SESSION_ON_HIRES = 0x20,        /// Hi-Res video received
         CHANGE_TYPE_SESSION_ON_HOLD = 0x40,         /// Session is on hold
+        CHANGE_TYPE_AUDIO_LEVEL = 0x80,             /// Indicates if peer is speaking
     };
 
 
@@ -267,6 +268,12 @@ public:
      * @return true if session is moderator
      */
     virtual bool isModerator() const;
+
+    /**
+     * @brief // todo complete documentation
+     *
+     */
+    virtual bool isAudioDetected() const;
 };
 
 /**
@@ -434,6 +441,10 @@ public:
      */
     virtual bool hasChanged(int changeType) const;
 
+    /**
+     * @brief // todo complete documentation
+     *
+     */
     virtual bool isAudioDetected() const;
 
     /**

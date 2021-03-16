@@ -181,6 +181,7 @@ public:
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
     virtual bool isModerator() const override;
+    virtual bool isAudioDetected() const override;
     virtual bool hasRequestSpeak() const override;
 
     karere::AvFlags getAvFlags() const; // for internal use
@@ -203,6 +204,7 @@ private:
     karere::AvFlags mAVFlags;
     bool mHasRequestSpeak = false;
     bool mIsModerator = false;
+    bool mAudioDetected = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
@@ -584,7 +586,7 @@ public:
     void onModeratorChange(const rtcModule::ICall& call) override;
     void onAudioApproved(const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call) override;
-    void onCallAudioDetected(const rtcModule::ICall& call) override;
+    void onLocalAudioDetected(const rtcModule::ICall& call) override;
 
 protected:
     MegaChatApiImpl* mMegaChatApi;
@@ -603,6 +605,7 @@ public:
     void onAudioRequested(rtcModule::ISession& session) override;
     void onAudioVideoFlagsChanged(rtcModule::ISession& session) override;
     void onOnHold(rtcModule::ISession& session) override;
+    void onRemoteAudioDetected(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;

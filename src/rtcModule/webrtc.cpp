@@ -21,6 +21,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mMyPeer()
     , mRtc(rtc)
 {
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, -1)); // -1 represent local
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mMyPeer.setModerator(moderator);
     mGlobalCallHandler.onNewCall(*this);
@@ -274,10 +275,10 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
     mCallHandler->onLocalFlagsChanged(*this);
 }
 
-void Call::updateCallAudioDetected(bool audioDetected)
+void Call::setAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
-    mCallHandler->onCallAudioDetected(*this);
+    mCallHandler->onLocalAudioDetected(*this);
 }
 
 void Call::requestSpeaker(bool add)
@@ -943,6 +944,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
     Slot* slot = it->second.get();
     slot->enableTrack(true);
     slot->createDecryptor(cid, speaker.mIv);
+    slot->enableAudioMonitor(true);
 
     mSessions[cid]->setAudioSlot(slot);
 }
@@ -958,6 +960,7 @@ void Call::removeSpeaker(Cid_t cid)
 
     Slot* slot = it->second->getAudioSlot();
     slot->enableTrack(false);
+    slot->enableAudioMonitor(false);
     it->second->setAudioSlot(nullptr);
 }
 
@@ -1249,12 +1252,12 @@ RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : mCall(call)
     , mTransceiver(transceiver)
-    , mAudioLevelMonitor(new AudioLevelMonitor(call))
 {
 }
 
 Slot::~Slot()
 {
+    enableAudioMonitor(false); // unregister remote audioMonitor
     if (mTransceiver->receiver())
     {
        rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mTransceiver->receiver()->GetFrameDecryptor();
@@ -1310,6 +1313,24 @@ void Slot::createDecryptor(Cid_t cid, IvStatic_t iv)
     mCid = cid;
     mIv = iv;
     createDecryptor();
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
+}
+
+void Slot::enableAudioMonitor(bool enable)
+{
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
+    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
+    assert(audioTrack);
+    if (enable && !mAudioLevelMonitorEnabled)
+    {
+        mAudioLevelMonitorEnabled = true;
+        audioTrack->AddSink(mAudioLevelMonitor.get());     // enable AudioLevelMonitor for remote audio detection
+    }
+    else if (!enable && mAudioLevelMonitorEnabled)
+    {
+        mAudioLevelMonitorEnabled = false;
+        audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
+    }
 }
 
 void Slot::enableTrack(bool enable)
@@ -1323,13 +1344,6 @@ void Slot::enableTrack(bool enable)
         mTransceiver->receiver()->track()->set_enabled(enable);
         mTransceiver->sender()->track()->set_enabled(enable);
     }
-
-    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
-    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
-    assert(audioTrack);
-    enable
-        ? audioTrack->AddSink(mAudioLevelMonitor.get())     // enable AudioLevelMonitor for remote audio detection
-        : audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
 }
 
 IvStatic_t Slot::getIv() const
@@ -1434,6 +1448,12 @@ void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
     mHiresSlot->setVideoRender(videoRederer);
 }
 
+void Session::setAudioDetected(bool audioDetected)
+{
+    mAudioDetected = audioDetected;
+    mSessionHandler->onRemoteAudioDetected(*this);
+}
+
 const sfu::Peer& Session::getPeer() const
 {
     return mPeer;
@@ -1521,24 +1541,28 @@ bool Session::isModerator() const
     return mIsModerator;
 }
 
+bool Session::isAudioDetected() const
+{
+    return mAudioDetected;
+}
+
 bool Session::hasRequestSpeak() const
 {
     return mHasRequestSpeak;
 }
 
-AudioLevelMonitor::AudioLevelMonitor(Call &call)
-    : mCall(call)
+AudioLevelMonitor::AudioLevelMonitor(Call &call, int32_t cid)
+    : mCall(call), mCid(cid)
 {
 }
 
 void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
 {
-    if (!mCall.getLocalAvFlags().audio())
+    if (!hasAudio())
     {
         if (mAudioDetected)
         {
-            mAudioDetected = false;
-            mCall.updateCallAudioDetected(mAudioDetected);
+            onAudioDetected(false);
         }
 
         return;
@@ -1569,9 +1593,37 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
         bool audioDetected = (abs(audioMaxValue) + abs(audioMinValue) > kAudioThreshold);
         if (audioDetected != mAudioDetected)
         {
-            mAudioDetected = audioDetected;
-            mCall.updateCallAudioDetected(mAudioDetected);
+            onAudioDetected(mAudioDetected);
         }
+    }
+}
+
+bool AudioLevelMonitor::hasAudio()
+{
+    if (mCid < 0)
+    {
+        return mCall.getLocalAvFlags().audio();
+    }
+    else
+    {
+        assert(mCall.getSession(mCid));
+        ISession *sess = mCall.getSession(mCid);
+        return sess->getAvFlags().audio();
+    }
+}
+
+void AudioLevelMonitor::onAudioDetected(bool audioDetected)
+{
+    mAudioDetected = audioDetected;
+    if (mCid < 0) // local
+    {
+        mCall.setAudioDetected(mAudioDetected);
+    }
+    else // remote
+    {
+        assert(mCall.getSession(mCid));
+        ISession *sess = mCall.getSession(mCid);
+        sess->setAudioDetected(mAudioDetected);
     }
 }
 }

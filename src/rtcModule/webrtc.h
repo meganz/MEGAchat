@@ -104,6 +104,7 @@ public:
     virtual void onAudioRequested(ISession& session) = 0;
     virtual void onAudioVideoFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
+    virtual void onRemoteAudioDetected(ISession& session) = 0;
 };
 
 class ISession
@@ -115,10 +116,12 @@ public:
     virtual karere::AvFlags getAvFlags() const = 0;
     virtual SessionState getState() const = 0;
     virtual bool isModerator() const = 0;
+    virtual bool isAudioDetected() const = 0;
     virtual bool hasRequestSpeak() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
+    virtual void setAudioDetected(bool audioDetected) = 0;
 };
 
 class ICall;
@@ -132,7 +135,7 @@ public:
     virtual void onModeratorChange(const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
-    virtual void onCallAudioDetected(const ICall& call) = 0;
+    virtual void onLocalAudioDetected(const ICall& call) = 0;
 };
 
 class ICall
@@ -180,7 +183,7 @@ public:
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
-    virtual void updateCallAudioDetected(bool audioDetected) = 0;
+    virtual void setAudioDetected(bool audioDetected) = 0;
     virtual void updateVideoInDevice() = 0;
 };
 

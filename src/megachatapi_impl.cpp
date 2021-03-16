@@ -5747,6 +5747,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , mAVFlags(session.getAvFlags())
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mIsModerator(session.isModerator())
+    , mAudioDetected(session.isAudioDetected())
 {
 }
 
@@ -5759,6 +5760,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , mAVFlags(session.mAVFlags)
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mIsModerator(session.isModerator())
+    , mAudioDetected(session.isAudioDetected())
 {
 }
 
@@ -5836,6 +5838,11 @@ bool MegaChatSessionPrivate::isModerator() const
     return mIsModerator;
 }
 
+bool MegaChatSessionPrivate::isAudioDetected() const
+{
+    return mAudioDetected;
+}
+
 bool MegaChatSessionPrivate::hasRequestSpeak() const
 {
     return mHasRequestSpeak;
@@ -5859,7 +5866,8 @@ void MegaChatSessionPrivate::setNetworkQuality(int quality)
 
 void MegaChatSessionPrivate::setAudioDetected(bool audioDetected)
 {
-
+    mAudioDetected = audioDetected;
+    mChanged |= CHANGE_TYPE_AUDIO_LEVEL;
 }
 
 void MegaChatSessionPrivate::setSessionFullyOperative()
@@ -6250,7 +6258,7 @@ void MegaChatCallPrivate::setCaller(Id caller)
 
 void MegaChatCallPrivate::setOnHold(bool onHold)
 {
-    //this->localAVFlags.setOnHold(onHold);
+    this->localAVFlags.setOnHold(onHold);
     this->mChanged |= MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD;
 }
 
@@ -6259,6 +6267,7 @@ void MegaChatCallPrivate::setAudioDetected(bool audioDetected)
     this->mAudioDetected = audioDetected;
     this->mChanged |= MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL;
 }
+
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, bool hiRes, uint32_t clientid)
 {
     this->mChatApi = chatApi;
@@ -8527,12 +8536,11 @@ void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
-
-void MegaChatCallHandler::onCallAudioDetected(const rtcModule::ICall& call)
+void MegaChatCallHandler::onLocalAudioDetected(const rtcModule::ICall& call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setAudioDetected(call.isAudioDetected());
-    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+    std::unique_ptr<MegaChatCallPrivate> megaChatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    megaChatCall->setAudioDetected(call.isAudioDetected());
+    mMegaChatApi->fireOnChatCallUpdate(megaChatCall.get());
 }
 
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
@@ -8604,6 +8612,12 @@ void MegaChatSessionHandler::onOnHold(rtcModule::ISession& session)
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
+void MegaChatSessionHandler::onRemoteAudioDetected(rtcModule::ISession& session)
+{
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    megaSession->setAudioDetected(session.isAudioDetected());
+    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
+}
 #endif
 
 MegaChatListItemListPrivate::MegaChatListItemListPrivate()
