@@ -54,7 +54,7 @@ namespace artc
         
         [mCameraVideoCapturer startCaptureWithDevice:mCaptureDevice format:selectedFormat fps:capabilities.maxFPS];
         mRunning = true;
-        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraVideoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
+        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraVideoCapturer, gSignalingThread.get(), gWorkerThread.get());
     }
 
     std::set<std::pair<std::string, std::string>> OBJCCaptureModule::getVideoDevices()

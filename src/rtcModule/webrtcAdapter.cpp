@@ -1,6 +1,5 @@
 #include "rtcmPrivate.h"
 #include "webrtcAdapter.h"
-#include "webrtcAsyncWaiter.h"
 #include <api/create_peerconnection_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
@@ -25,9 +24,11 @@ namespace artc
 
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = nullptr;
+std::unique_ptr<rtc::Thread> gWorkerThread = nullptr;
+std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
+void *gAppCtx = nullptr;
 
 static bool gIsInitialized = false;
-AsyncWaiter* gAsyncWaiter = nullptr;
 
 bool isInitialized() { return gIsInitialized; }
 bool init(void *appCtx)
@@ -35,29 +36,18 @@ bool init(void *appCtx)
     if (gIsInitialized)
         return false;
 
-    rtc::ThreadManager* threadMgr = rtc::ThreadManager::Instance(); //ensure the ThreadManager singleton is created
-    auto t = threadMgr->CurrentThread();
-    if (t) //Main thread is not wrapper if NO_MAIN_THREAD_WRAPPING is defined when building webrtc
-    {
-        assert(t->IsOwned());
-        t->UnwrapCurrent();
-        delete t;
-        assert(!threadMgr->CurrentThread());
-    }
-// Put our custom Thread object in the main thread, so our main thread can process
-// webrtc messages, in a non-blocking way, integrated with the application's message loop
-    gAsyncWaiter = new AsyncWaiter(appCtx);
-    auto thread = new rtc::Thread(gAsyncWaiter);
-    gAsyncWaiter->setThread(thread);
-    thread->SetName("Main Thread", thread);
-    threadMgr->SetCurrentThread(thread);
+    gAppCtx = appCtx;
 
     if (gWebrtcContext == nullptr)
     {
         webrtc::field_trial::InitFieldTrialsFromString("WebRTC-GenericDescriptorAuth/Disabled/");
+        gWorkerThread = rtc::Thread::Create();
+        gWorkerThread->Start();
+        gSignalingThread = rtc::Thread::Create();
+        gSignalingThread->Start();
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
-                    nullptr /* network_thread */, thread /* worker_thread */,
-                    thread, nullptr /* default_adm */,
+                    nullptr /*networThread*/, gWorkerThread.get() /*workThread*/,
+                    gSignalingThread.get() /*signaledThread*/, nullptr,
                     webrtc::CreateBuiltinAudioEncoderFactory(),
                     webrtc::CreateBuiltinAudioDecoderFactory(),
                     webrtc::CreateBuiltinVideoEncoderFactory(),
@@ -80,10 +70,9 @@ void cleanup()
     gIsInitialized = false;
     rtc::CleanupSSL();
     rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
-    delete gAsyncWaiter->guiThread();
-    delete gAsyncWaiter;
-    gAsyncWaiter = nullptr;
     gIsInitialized = false;
+    gWorkerThread.reset(nullptr);
+    gSignalingThread.reset(nullptr);
 }
 
 /** Stream id and other ids generator */
@@ -618,8 +607,7 @@ CaptureModuleAndroid::~CaptureModuleAndroid()
 std::set<std::pair<std::string, std::string>> CaptureModuleAndroid::getVideoDevices()
 {
     std::set<std::pair<std::string, std::string>> devices;
-    JNIEnv* env;
-    MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    JNIEnv* env = webrtc::AttachCurrentThreadIfNeeded();
     if (deviceListMID)
     {
         jobject object = env->CallStaticObjectMethod(applicationClass, deviceListMID);
@@ -640,8 +628,7 @@ std::set<std::pair<std::string, std::string>> CaptureModuleAndroid::getVideoDevi
 
 void CaptureModuleAndroid::openDevice(const std::string &videoDevice)
 {
-    JNIEnv* env;
-    MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    JNIEnv* env = webrtc::AttachCurrentThreadIfNeeded();
     if (startVideoCaptureMID)
     {
         jstring javaDevice = env->NewStringUTF(videoDevice.c_str());
@@ -651,8 +638,7 @@ void CaptureModuleAndroid::openDevice(const std::string &videoDevice)
 
 void CaptureModuleAndroid::releaseDevice()
 {
-    JNIEnv* env;
-    MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    JNIEnv* env = webrtc::AttachCurrentThreadIfNeeded();
     if (stopVideoCaptureMID)
     {
         env->CallStaticVoidMethod(applicationClass, stopVideoCaptureMID);
@@ -706,6 +692,7 @@ void CaptureModuleAndroid::RegisterObserver(webrtc::ObserverInterface* observer)
 void CaptureModuleAndroid::UnregisterObserver(webrtc::ObserverInterface* observer)
 {
 }
+
 #endif
 
 }

@@ -720,7 +720,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -808,7 +808,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/base";
 			};
 			name = Debug;
 		};
@@ -818,7 +818,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -901,7 +901,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/base";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
