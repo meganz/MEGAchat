@@ -6257,7 +6257,7 @@ void MegaChatCallPrivate::setCaller(Id caller)
 
 void MegaChatCallPrivate::setOnHold(bool onHold)
 {
-    //this->localAVFlags.setOnHold(onHold);
+    this->localAVFlags.setOnHold(onHold);
     this->mChanged |= MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD;
 }
 
