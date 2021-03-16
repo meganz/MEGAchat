@@ -394,7 +394,10 @@ std::vector<Cid_t> Call::getSessionsCids() const
 
 ISession* Call::getSession(Cid_t cid) const
 {
-    return mSessions.at(cid).get();
+    auto it = mSessions.find(cid);
+    return (it != mSessions.end())
+        ? it->second.get()
+        : nullptr;
 }
 
 void Call::connectSfu(const std::string &sfuUrl)
@@ -1257,7 +1260,6 @@ Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> trans
 
 Slot::~Slot()
 {
-    enableAudioMonitor(false); // unregister remote audioMonitor
     if (mTransceiver->receiver())
     {
        rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mTransceiver->receiver()->GetFrameDecryptor();
@@ -1606,9 +1608,12 @@ bool AudioLevelMonitor::hasAudio()
     }
     else
     {
-        assert(mCall.getSession(mCid));
         ISession *sess = mCall.getSession(mCid);
-        return sess->getAvFlags().audio();
+        if (sess)
+        {
+            return sess->getAvFlags().audio();
+        }
+        return false;
     }
 }
 
