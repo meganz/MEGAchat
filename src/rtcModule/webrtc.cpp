@@ -21,7 +21,6 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mMyPeer()
     , mRtc(rtc)
 {
-    mAudioLevelMonitor.reset(new AudioLevelMonitor(*this));
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mMyPeer.setModerator(moderator);
     mGlobalCallHandler.onNewCall(*this);
@@ -53,6 +52,7 @@ bool Call::isAudioDetected() const
 {
     return mAudioDetected;
 }
+
 void Call::setState(CallState newState)
 {
     RTCM_LOG_DEBUG("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
@@ -166,20 +166,7 @@ void Call::enableAudioLevelMonitor(bool enable)
         return;
     }
 
-    mAudioLevelMonitorEnabled = enable;
-    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack =
-            mAudio->getTransceiver()->sender()->track();
-
-    webrtc::AudioTrackInterface* audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
-    if (!audioTrack || !mAudioLevelMonitor)
-    {
-        RTCM_LOG_DEBUG("Error enabling AudioLevelMonitor");
-        return;
-    }
-
-    enable
-        ? audioTrack->AddSink(mAudioLevelMonitor.get())
-        : audioTrack->RemoveSink(mAudioLevelMonitor.get());
+    // Todo: implement local audio level monitor management
 }
 
 void Call::ignoreCall()
@@ -1262,6 +1249,7 @@ RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : mCall(call)
     , mTransceiver(transceiver)
+    , mAudioLevelMonitor(new AudioLevelMonitor(call))
 {
 }
 
@@ -1335,6 +1323,13 @@ void Slot::enableTrack(bool enable)
         mTransceiver->receiver()->track()->set_enabled(enable);
         mTransceiver->sender()->track()->set_enabled(enable);
     }
+
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
+    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
+    assert(audioTrack);
+    enable
+        ? audioTrack->AddSink(mAudioLevelMonitor.get())     // enable AudioLevelMonitor for remote audio detection
+        : audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
 }
 
 IvStatic_t Slot::getIv() const

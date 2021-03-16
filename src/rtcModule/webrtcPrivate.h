@@ -54,6 +54,7 @@ protected:
     Call &mCall;
     IvStatic_t mIv;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
+    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     Cid_t mCid = 0;
 };
 
