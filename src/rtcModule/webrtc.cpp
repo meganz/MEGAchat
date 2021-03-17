@@ -252,11 +252,18 @@ void Call::updateVideoInDevice()
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 {
+    bool onHoldChanged = mLocalAvFlags.has(karere::AvFlags::kOnHold)
+            != flags.has(karere::AvFlags::kOnHold);
+
     mLocalAvFlags = flags;
     mSfuConnection->sendAv(flags.value());
     updateAudioTracks();
     updateVideoTracks();
-    mCallHandler->onLocalFlagsChanged(*this);
+
+    onHoldChanged
+        ? mCallHandler->onOnHold(*this)             // notify onHold Change
+        : mCallHandler->onLocalFlagsChanged(*this); // notify local AvFlags Change
+
 }
 
 void Call::requestSpeaker(bool add)
