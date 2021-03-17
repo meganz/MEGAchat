@@ -8529,6 +8529,13 @@ void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
+void MegaChatCallHandler::onOnHold(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setOnHold(call.getLocalAvFlags().has(karere::AvFlags::kOnHold));
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {
     this->mMegaChatApi = megaChatApi;

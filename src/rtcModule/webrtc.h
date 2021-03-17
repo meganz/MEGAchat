@@ -136,6 +136,7 @@ public:
     virtual void onModeratorChange(const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
+    virtual void onOnHold(const ICall& call) = 0;
 };
 
 class ICall

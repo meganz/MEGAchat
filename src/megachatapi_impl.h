@@ -586,6 +586,7 @@ public:
     void onModeratorChange(const rtcModule::ICall& call) override;
     void onAudioApproved(const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call) override;
+    void onOnHold(const rtcModule::ICall& call) override;
 
 protected:
     MegaChatApiImpl* mMegaChatApi;
