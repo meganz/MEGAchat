@@ -69,6 +69,7 @@ enum TermCode: uint8_t
     kErrStreamRenegotationTimeout = 42, // < Timed out waiting for completion of offer-answer exchange
     kErrorLast = 42,            // < Last enum indicating call termination due to error
     kLast = 42,                 // < Last call terminate enum value
+    kSvrShuttingDown = 66,      // < Server is shutting down
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kErrNoCall = 129,           // < Attempted to join non-existing call
