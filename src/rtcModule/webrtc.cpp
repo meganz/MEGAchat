@@ -1322,7 +1322,7 @@ VideoSlot::~VideoSlot()
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
-    videoTrack->set_enabled(true);
+    videoTrack->set_enabled(false);
 
     if (videoTrack)
     {
