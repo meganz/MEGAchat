@@ -30,6 +30,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
     mEnableVideo = new QPushButton("Video-disable", this);
     connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
+    mAudioMonitor = new QPushButton("Audio monitor", this);
+    connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
 
     setLayout(mGridLayout);
 
@@ -52,6 +54,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mRequestModerator);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
+    mButtonsLayout->addWidget(mAudioMonitor);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -316,5 +319,10 @@ void MeetingView::onEnableVideo()
     {
         mMegaChatApi.enableVideo(mChatid);
     }
+}
+
+void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
+{
+    mMegaChatApi.enableAudioLevelMonitor(true, mChatid);
 }
 

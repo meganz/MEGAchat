@@ -92,6 +92,7 @@ public:
         CHANGE_TYPE_SESSION_ON_LOWRES = 0x10,       /// Low-Res video received
         CHANGE_TYPE_SESSION_ON_HIRES = 0x20,        /// Hi-Res video received
         CHANGE_TYPE_SESSION_ON_HOLD = 0x40,         /// Session is on hold
+        CHANGE_TYPE_AUDIO_LEVEL = 0x80,             /// Indicates if peer is speaking
     };
 
 
@@ -269,7 +270,13 @@ public:
     virtual bool isModerator() const;
 
     /**
-     * @brief Returns if we are ready to receive high resolution video from this client
+     * @brief Returns if remote audio is detected for this session.
+     *
+     * @return true if audio is detected
+     */
+    virtual bool isAudioDetected() const;
+
+    /** @brief Returns if we are ready to receive high resolution video from this client
      *
      * @note If this method returns true doesn't mean that we receive video in high resolution, maybe
      * client has their video disable but we are ready to receive it
@@ -329,6 +336,7 @@ public:
         CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
         CHANGE_TYPE_CALL_MODERATOR = 0x20,          /// Moderator has been enabled
         CHANGE_TYPE_CALL_SPEAK = 0x40,              /// Speak has been enabled
+        CHANGE_TYPE_AUDIO_LEVEL = 0x80,             /// Indicates if we are speaking
     };
 
     enum {
@@ -452,6 +460,13 @@ public:
      * @return true if this call has an specific change
      */
     virtual bool hasChanged(int changeType) const;
+
+    /**
+     * @brief Returns if local audio is detected
+     *
+     * @return true if audio is detected
+     */
+    virtual bool isAudioDetected() const;
 
     /**
      * @brief Return call duration
