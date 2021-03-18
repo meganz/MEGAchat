@@ -270,8 +270,9 @@ public:
     virtual bool isModerator() const;
 
     /**
-     * @brief // todo complete documentation
+     * @brief Returns if remote audio is detected for this session.
      *
+     * @return true if audio is detected
      */
     virtual bool isAudioDetected() const;
 };
@@ -442,8 +443,9 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     /**
-     * @brief // todo complete documentation
+     * @brief Returns if local audio is detected
      *
+     * @return true if audio is detected
      */
     virtual bool isAudioDetected() const;
 
