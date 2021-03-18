@@ -8,6 +8,7 @@
 #include <QScrollArea>
 #include <QHBoxLayout>
 #include <QListWidget>
+#include <QLabel>
 #include <map>
 
 class MeetingView : public QWidget
@@ -26,6 +27,8 @@ public:
     void updateAudioButtonText(MegaChatCall *call);
     void updateVideoButtonText(MegaChatCall *call);
     void onRequestSpeakFinish();
+    void setOnHold(bool mIsOnHold, bool remote = false);
+    bool mIsOnHold = false;
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -45,6 +48,8 @@ protected:
     QPushButton* mRequestModerator;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
+    QPushButton* mSetOnHold;
+    QLabel* mOnHoldLabel;
 
     QListWidget* mListWidget;
 
@@ -60,6 +65,7 @@ protected:
 
 public slots:
     void onHangUp();
+    void onOnHold();
     void onSessionContextMenu(const QPoint &);
     void onRequestSpeak();
     void onEnableAudio();

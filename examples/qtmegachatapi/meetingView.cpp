@@ -30,7 +30,12 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
     mEnableVideo = new QPushButton("Video-disable", this);
     connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
-
+    mSetOnHold = new QPushButton("onHold", this);
+    connect(mSetOnHold, SIGNAL(released()), this, SLOT(onOnHold()));
+    mOnHoldLabel = new QLabel("CALL ONHOLD", this);
+    mOnHoldLabel->setAlignment(Qt::AlignCenter);
+    mOnHoldLabel->setContentsMargins(0, 0, 0, 0);
+    mOnHoldLabel->setVisible(false);
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -52,6 +57,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mRequestModerator);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
+    mButtonsLayout->addWidget(mSetOnHold);
+    mButtonsLayout->addWidget(mOnHoldLabel);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -163,6 +170,15 @@ void MeetingView::updateVideoButtonText(MegaChatCall *call)
     mEnableVideo->setText(text.c_str());
 }
 
+void MeetingView::setOnHold(bool isOnHold, bool remote)
+{
+    mIsOnHold = isOnHold;
+    mOnHoldLabel->setVisible(isOnHold);
+    remote
+        ? mOnHoldLabel->setStyleSheet("background-color:#123978 ;color:#FFFFFF; font-weight:bold;")
+        : mOnHoldLabel->setStyleSheet("background-color:#876300 ;color:#FFFFFF; font-weight:bold;");
+}
+
 void MeetingView::removeThumb(PeerWidget *widget)
 {
     mThumbLayout->removeWidget(widget);
@@ -197,6 +213,15 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
 void MeetingView::onHangUp()
 {
     mMegaChatApi.hangChatCall(mChatid);
+}
+
+void MeetingView::onOnHold()
+{
+    std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
+    if (call)
+    {
+        mMegaChatApi.setCallOnHold(mChatid, !call->isOnHold());
+    }
 }
 
 void MeetingView::onSessionContextMenu(const QPoint &pos)
