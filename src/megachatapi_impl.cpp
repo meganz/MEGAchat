@@ -8591,7 +8591,7 @@ void MegaChatSessionHandler::onAudioRequested(rtcModule::ISession &session)
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
-void MegaChatSessionHandler::onAudioVideoFlagsChanged(rtcModule::ISession &session)
+void MegaChatSessionHandler::onRemoteFlagsChanged(rtcModule::ISession &session)
 {
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS);

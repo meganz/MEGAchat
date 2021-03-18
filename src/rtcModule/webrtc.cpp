@@ -1460,7 +1460,7 @@ void Session::setAvFlags(karere::AvFlags flags)
 {
     mPeer.setAvFlags(flags);
     assert(mSessionHandler);
-    mSessionHandler->onAudioVideoFlagsChanged(*this);
+    mSessionHandler->onRemoteFlagsChanged(*this);
 }
 
 Slot *Session::getAudioSlot()

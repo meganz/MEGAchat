@@ -603,7 +603,7 @@ public:
     void onDestroySession(rtcModule::ISession& session) override;
     void onModeratorChange(rtcModule::ISession& session) override;
     void onAudioRequested(rtcModule::ISession& session) override;
-    void onAudioVideoFlagsChanged(rtcModule::ISession& session) override;
+    void onRemoteFlagsChanged(rtcModule::ISession& session) override;
     void onOnHold(rtcModule::ISession& session) override;
 
 private:
