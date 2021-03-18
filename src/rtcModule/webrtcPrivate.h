@@ -123,6 +123,7 @@ public:
     void enableAudioLevelMonitor(bool enable) override;
     void ignoreCall() override;
     void setRinging(bool ringing) override;
+    void setOnHold() override;
     bool isRinging() const override;
     bool isIgnored() const override;
 

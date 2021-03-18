@@ -174,6 +174,27 @@ void Call::setRinging(bool ringing)
 
 }
 
+void Call::setOnHold()
+{
+    // disable audio track
+    if (mAudio->getTransceiver()->sender()->track())
+    {
+        mAudio->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+
+    // disable hi-res track
+    if (mHiRes->getTransceiver()->sender()->track())
+    {
+        mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+
+    // disable low-res track
+    if (mVThumb->getTransceiver()->sender()->track())
+    {
+        mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+}
+
 bool Call::isIgnored() const
 {
     return mIgnored;
@@ -255,13 +276,21 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
     bool onHoldChanged = mLocalAvFlags.isOnHold() != flags.isOnHold();
     mLocalAvFlags = flags;
     mSfuConnection->sendAv(flags.value());
-    updateAudioTracks();
-    updateVideoTracks();
 
+    if (onHoldChanged && flags.isOnHold()) // set call onHold
+    {
+        setOnHold();
+    }
+    else // if we are updating flags or we are disabling OnHold
+    {
+        updateAudioTracks();
+        updateVideoTracks();
+    }
+
+    // notify app with the corresponding event
     onHoldChanged
-        ? mCallHandler->onOnHold(*this)             // notify onHold Change
-        : mCallHandler->onLocalFlagsChanged(*this); // notify local AvFlags Change
-
+        ? mCallHandler->onOnHold(*this)             // onHold Change
+        : mCallHandler->onLocalFlagsChanged(*this); // local AvFlags Change
 }
 
 void Call::requestSpeaker(bool add)
@@ -517,6 +546,23 @@ bool Call::hasCallKey()
 
 bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
+    karere::AvFlags oldFlags = mSessions[cid]->getAvFlags();
+    karere::AvFlags newFlags(static_cast<uint8_t>(av));
+    bool onHoldChanged = oldFlags.isOnHold() != newFlags.isOnHold();
+    if (onHoldChanged)
+    {
+        if (newFlags.isOnHold()) // set call onHold
+        {
+            setOnHold();
+        }
+        else // disable call onHold
+        {
+            updateAudioTracks();
+            updateVideoTracks();
+        }
+    }
+
+    // update session flags
     mSessions[cid]->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
     return true;
 }
