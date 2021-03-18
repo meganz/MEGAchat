@@ -997,7 +997,8 @@ void Call::updateAudioTracks()
 
 void Call::updateVideoTracks()
 {
-    if (mLocalAvFlags.video())
+    bool isOnHold = mLocalAvFlags.has(karere::AvFlags::kOnHold);
+    if (mLocalAvFlags.video() && !isOnHold)
     {
         if (!mVideoDevice)
         {
@@ -1023,6 +1024,7 @@ void Call::updateVideoTracks()
 
         }
 
+        // hi-res track
         if (mHiResActive && !mHiRes->getTransceiver()->sender()->track())
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
@@ -1034,6 +1036,7 @@ void Call::updateVideoTracks()
             mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
         }
 
+        // low-res track
         if (!mVThumb->getTransceiver()->sender()->track())
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
@@ -1049,17 +1052,19 @@ void Call::updateVideoTracks()
     }
     else
     {
+        // disable hi-res track
         if (mHiRes->getTransceiver()->sender()->track())
         {
             mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
         }
 
+        // disable low-res track
         if (mVThumb->getTransceiver()->sender()->track())
         {
             mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
         }
 
-        if (mVideoDevice)
+        if (!isOnHold && mVideoDevice)
         {
             mVideoDevice->releaseDevice();
             mVideoDevice = nullptr;
