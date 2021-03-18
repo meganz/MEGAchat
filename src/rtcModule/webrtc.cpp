@@ -252,9 +252,7 @@ void Call::updateVideoInDevice()
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 {
-    bool onHoldChanged = mLocalAvFlags.has(karere::AvFlags::kOnHold)
-            != flags.has(karere::AvFlags::kOnHold);
-
+    bool onHoldChanged = mLocalAvFlags.isOnHold() != flags.isOnHold();
     mLocalAvFlags = flags;
     mSfuConnection->sendAv(flags.value());
     updateAudioTracks();
@@ -970,9 +968,8 @@ const std::string& Call::getCallKey() const
 void Call::updateAudioTracks()
 {
     bool audio = mSpeakerState > SpeakerState::kNoSpeaker && mLocalAvFlags.audio();
-    bool isOnHold = mLocalAvFlags.has(karere::AvFlags::kOnHold);
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
-    if (audio && !isOnHold)
+    if (audio && !mLocalAvFlags.isOnHold())
     {
         if (!track) // create audio track only if not exists
         {
@@ -997,7 +994,7 @@ void Call::updateAudioTracks()
 
 void Call::updateVideoTracks()
 {
-    bool isOnHold = mLocalAvFlags.has(karere::AvFlags::kOnHold);
+    bool isOnHold = mLocalAvFlags.isOnHold();
     if (mLocalAvFlags.video() && !isOnHold)
     {
         if (!mVideoDevice)
@@ -1458,9 +1455,12 @@ void Session::addKey(Keyid_t keyid, const std::string &key)
 
 void Session::setAvFlags(karere::AvFlags flags)
 {
+    bool onHoldChanged = mPeer.getAvFlags().isOnHold() != flags.isOnHold();
     mPeer.setAvFlags(flags);
     assert(mSessionHandler);
-    mSessionHandler->onRemoteFlagsChanged(*this);
+    onHoldChanged
+        ? mSessionHandler->onOnHold(*this)              // notify onHold Change
+        : mSessionHandler->onRemoteFlagsChanged(*this); // notify local AvFlags Change
 }
 
 Slot *Session::getAudioSlot()
