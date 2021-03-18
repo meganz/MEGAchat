@@ -1319,7 +1319,7 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
     rapidjson::Value::ConstMemberIterator jsonIterator = document.FindMember(Command::COMMAND_IDENTIFIER.c_str());
     if (jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString())
     {
-        SFU_LOG_ERROR("Received data doesn't have 'cmd' field");
+        SFU_LOG_ERROR("Received data doesn't have 'a' field");
         return false;
     }
 

@@ -109,6 +109,8 @@ public:
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
     void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
     void setAudioDetected(bool audioDetected) override;
+    bool hasHighResolutionTrack() const override;
+    bool hasLowResolutionTrack() const override;
 
 private:
     sfu::Peer mPeer;

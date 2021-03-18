@@ -123,6 +123,16 @@ bool MegaChatSession::isAudioDetected() const
     return false;
 }
 
+bool MegaChatSession::canRecvVideoHiRes() const
+{
+    return false;
+}
+
+bool MegaChatSession::canRecvVideoLowRes() const
+{
+    return false;
+}
+
 MegaChatCall::~MegaChatCall()
 {
 }

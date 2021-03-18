@@ -1051,7 +1051,7 @@ void Call::updateVideoTracks()
             capabilities.width = RtcConstant::kHiResWidth;
             capabilities.height = RtcConstant::kHiResHeight;
             capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
-            mVideoDevice = artc::VideoManager::Create(capabilities, videoDevice, artc::gAsyncWaiter->guiThread());
+            mVideoDevice = artc::VideoManager::Create(capabilities, videoDevice, artc::gWorkerThread.get());
             mVideoDevice->openDevice(videoDevice);
             // Our local slot connect directly to video device to keep showing video althoug no one wants our video
             rtc::VideoSinkWants wants;
@@ -1472,6 +1472,16 @@ void Session::setAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
     mSessionHandler->onRemoteAudioDetected(*this);
+}
+
+bool Session::hasHighResolutionTrack() const
+{
+    return  mHiresSlot->getTransceiver()->sender()->track() ? true : false;
+}
+
+bool Session::hasLowResolutionTrack() const
+{
+    return  mVthumSlot->getTransceiver()->sender()->track() ? true : false;
 }
 
 const sfu::Peer& Session::getPeer() const

@@ -71,6 +71,7 @@ enum TermCode: uint8_t
     kLast = 42,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
+    kErrNoCall = 129,           // < Attempted to join non-existing call
     kInvalid = 0x7f
 };
 
@@ -122,6 +123,8 @@ public:
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
     virtual void setAudioDetected(bool audioDetected) = 0;
+    virtual bool hasHighResolutionTrack() const = 0;
+    virtual bool hasLowResolutionTrack() const = 0;
 };
 
 class ICall;

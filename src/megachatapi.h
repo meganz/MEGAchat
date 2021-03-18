@@ -275,6 +275,25 @@ public:
      * @return true if audio is detected
      */
     virtual bool isAudioDetected() const;
+
+    /** @brief Returns if we are ready to receive high resolution video from this client
+     *
+     * @note If this method returns true doesn't mean that we receive video in high resolution, maybe
+     * client has their video disable but we are ready to receive it
+     *
+     * @return true if we are ready to receive video in high resolution
+     */
+    virtual bool canRecvVideoHiRes() const;
+
+    /**
+     * @brief Returns if we are ready to receive low resolution video from this client
+     *
+     * @note If this method returns true doesn't mean that we receive video in low resolution, maybe
+     * client has their video disable but we are ready to receive it
+     *
+     * @return true if we are ready to receive video in low resolution
+     */
+    virtual bool canRecvVideoLowRes() const;
 };
 
 /**

@@ -5748,6 +5748,8 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mIsModerator(session.isModerator())
     , mAudioDetected(session.isAudioDetected())
+    , mHasHiResTrack(session.hasHighResolutionTrack())
+    , mHasLowResTrack(session.hasLowResolutionTrack())
 {
 }
 
@@ -5761,6 +5763,8 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mIsModerator(session.isModerator())
     , mAudioDetected(session.isAudioDetected())
+    , mHasHiResTrack(session.mHasHiResTrack)
+    , mHasLowResTrack(session.mHasLowResTrack)
 {
 }
 
@@ -5846,6 +5850,16 @@ bool MegaChatSessionPrivate::isAudioDetected() const
 bool MegaChatSessionPrivate::hasRequestSpeak() const
 {
     return mHasRequestSpeak;
+}
+
+bool MegaChatSessionPrivate::canRecvVideoHiRes() const
+{
+    return mHasHiResTrack;
+}
+
+bool MegaChatSessionPrivate::canRecvVideoLowRes() const
+{
+    return mHasLowResTrack;
 }
 
 void MegaChatSessionPrivate::setState(uint8_t state)
