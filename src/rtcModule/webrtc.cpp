@@ -970,10 +970,11 @@ const std::string& Call::getCallKey() const
 void Call::updateAudioTracks()
 {
     bool audio = mSpeakerState > SpeakerState::kNoSpeaker && mLocalAvFlags.audio();
+    bool isOnHold = mLocalAvFlags.has(karere::AvFlags::kOnHold);
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
-    if (audio)
+    if (audio && !isOnHold)
     {
-        if (!track)
+        if (!track) // create audio track only if not exists
         {
             rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
                     artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
@@ -987,7 +988,7 @@ void Call::updateAudioTracks()
         }
 
     }
-    else if (track)
+    else if (track) // if no audio flags active, or call is onHold
     {
         track->set_enabled(false);
         mAudio->getTransceiver()->sender()->SetTrack(nullptr);
