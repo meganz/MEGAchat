@@ -99,8 +99,10 @@ void MeetingView::removeThumb(uint32_t cid)
     auto it = mThumbsWidget.find(cid);
     if (it != mThumbsWidget.end())
     {
+        PeerWidget* widget = it->second;
         removeThumb(it->second);
         mThumbsWidget.erase(it);
+        delete widget;
     }
 }
 
@@ -109,8 +111,10 @@ void MeetingView::removeHiRes(uint32_t cid)
     auto it = mHiResWidget.find(cid);
     if (it != mHiResWidget.end())
     {
+        PeerWidget* widget = it->second;
         removeHiRes(it->second);
         mHiResWidget.erase(it);
+        delete widget;
     }
 }
 
