@@ -33,6 +33,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mSetOnHold = new QPushButton("onHold", this);
     connect(mSetOnHold, SIGNAL(released()), this, SLOT(onOnHold()));
     mOnHoldLabel = new QLabel("CALL ONHOLD", this);
+    mOnHoldLabel->setStyleSheet("background-color:#876300 ;color:#FFFFFF; font-weight:bold;");
     mOnHoldLabel->setAlignment(Qt::AlignCenter);
     mOnHoldLabel->setContentsMargins(0, 0, 0, 0);
     mOnHoldLabel->setVisible(false);
@@ -87,6 +88,7 @@ void MeetingView::addHiRes(PeerWidget *widget)
 
 void MeetingView::addLocalVideo(PeerWidget *widget)
 {
+    mLocalWidget = widget;
     QHBoxLayout * localLayout = new QHBoxLayout();
     localLayout->addWidget(widget);
     mLocalLayout->addLayout(localLayout);
@@ -98,15 +100,17 @@ void MeetingView::removeThumb(uint32_t cid)
     if (it != mThumbsWidget.end())
     {
         removeThumb(it->second);
+        mThumbsWidget.erase(it);
     }
 }
 
 void MeetingView::removeHiRes(uint32_t cid)
 {
-    auto it = mThumbsWidget.find(cid);
-    if (it != mThumbsWidget.end())
+    auto it = mHiResWidget.find(cid);
+    if (it != mHiResWidget.end())
     {
         removeHiRes(it->second);
+        mHiResWidget.erase(it);
     }
 }
 
@@ -170,13 +174,29 @@ void MeetingView::updateVideoButtonText(MegaChatCall *call)
     mEnableVideo->setText(text.c_str());
 }
 
-void MeetingView::setOnHold(bool isOnHold, bool remote)
+void MeetingView::setOnHold(bool isOnHold, MegaChatHandle cid)
 {
-    mIsOnHold = isOnHold;
-    mOnHoldLabel->setVisible(isOnHold);
-    remote
-        ? mOnHoldLabel->setStyleSheet("background-color:#123978 ;color:#FFFFFF; font-weight:bold;")
-        : mOnHoldLabel->setStyleSheet("background-color:#876300 ;color:#FFFFFF; font-weight:bold;");
+    if (cid == MEGACHAT_INVALID_HANDLE)
+    {
+        mLocalWidget->setOnHold(isOnHold);
+        mOnHoldLabel->setVisible(isOnHold);
+    }
+    else
+    {
+        // set low-res widget onHold
+        auto it = mThumbsWidget.find(cid);
+        if (it != mThumbsWidget.end())
+        {
+            it->second->setOnHold(isOnHold);
+        }
+
+        // set hi-res widget onHold
+        auto auxit = mHiResWidget.find(cid);
+        if (auxit != mHiResWidget.end())
+        {
+            auxit->second->setOnHold(isOnHold);
+        }
+    }
 }
 
 void MeetingView::removeThumb(PeerWidget *widget)

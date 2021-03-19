@@ -27,8 +27,7 @@ public:
     void updateAudioButtonText(MegaChatCall *call);
     void updateVideoButtonText(MegaChatCall *call);
     void onRequestSpeakFinish();
-    void setOnHold(bool mIsOnHold, bool remote = false);
-    bool mIsOnHold = false;
+    void setOnHold(bool mIsOnHold, MegaChatHandle cid);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -53,7 +52,7 @@ protected:
 
     QListWidget* mListWidget;
 
-
+    PeerWidget* mLocalWidget = nullptr;
     std::map<uint32_t, PeerWidget*> mThumbsWidget;
     std::map<uint32_t, PeerWidget*> mHiResWidget;
 
