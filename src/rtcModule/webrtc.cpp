@@ -193,6 +193,19 @@ void Call::setOnHold()
     {
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
     }
+
+    // release video device
+    if (mVideoDevice)
+    {
+        mVideoDevice->releaseDevice();
+        mVideoDevice = nullptr;
+    }
+}
+
+void Call::releaseOnHold()
+{
+    updateAudioTracks();
+    updateVideoTracks();
 }
 
 bool Call::isIgnored() const
@@ -273,24 +286,32 @@ void Call::updateVideoInDevice()
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 {
-    bool onHoldChanged = mLocalAvFlags.isOnHold() != flags.isOnHold();
+    if (flags == mLocalAvFlags)
+    {
+        RTCM_LOG_WARNING("updateAndSendLocalAvFlags: AV flags has not changed");
+        return;
+    }
+
+    // update and send local AV flags
+    karere::AvFlags olFlags = mLocalAvFlags;
     mLocalAvFlags = flags;
     mSfuConnection->sendAv(flags.value());
 
-    if (onHoldChanged && flags.isOnHold()) // set call onHold
+    if (olFlags.isOnHold() != flags.isOnHold())
     {
-        setOnHold();
+        // kOnHold flag has changed
+        (flags.isOnHold())
+                ? setOnHold()
+                : releaseOnHold();
+
+        mCallHandler->onOnHold(*this); // notify app onHold Change
     }
-    else // if we are updating flags or we are disabling OnHold
+    else
     {
         updateAudioTracks();
         updateVideoTracks();
+        mCallHandler->onLocalFlagsChanged(*this);  // notify app local AvFlags Change
     }
-
-    // notify app with the corresponding event
-    onHoldChanged
-        ? mCallHandler->onOnHold(*this)             // onHold Change
-        : mCallHandler->onLocalFlagsChanged(*this); // local AvFlags Change
 }
 
 void Call::requestSpeaker(bool add)
@@ -546,20 +567,16 @@ bool Call::hasCallKey()
 
 bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
-    karere::AvFlags oldFlags = mSessions[cid]->getAvFlags();
-    karere::AvFlags newFlags(static_cast<uint8_t>(av));
-    bool onHoldChanged = oldFlags.isOnHold() != newFlags.isOnHold();
-    if (onHoldChanged)
+    if (mMyPeer.getCid() == cid)
     {
-        if (newFlags.isOnHold()) // set call onHold
-        {
-            setOnHold();
-        }
-        else // disable call onHold
-        {
-            updateAudioTracks();
-            updateVideoTracks();
-        }
+        RTCM_LOG_WARNING("handleAvCommand: Received our own AV flags");
+        return false;
+    }
+
+    if (mSessions.find(cid) == mSessions.end())
+    {
+        RTCM_LOG_WARNING("handleAvCommand: Received AV flags for unknown peer cid %d", cid);
+        return false;
     }
 
     // update session flags
@@ -1501,12 +1518,18 @@ void Session::addKey(Keyid_t keyid, const std::string &key)
 
 void Session::setAvFlags(karere::AvFlags flags)
 {
+    assert(mSessionHandler);
+    if (flags == mPeer.getAvFlags())
+    {
+        RTCM_LOG_WARNING("setAvFlags: remote AV flags has not changed");
+        return;
+    }
+
     bool onHoldChanged = mPeer.getAvFlags().isOnHold() != flags.isOnHold();
     mPeer.setAvFlags(flags);
-    assert(mSessionHandler);
     onHoldChanged
-        ? mSessionHandler->onOnHold(*this)              // notify onHold Change
-        : mSessionHandler->onRemoteFlagsChanged(*this); // notify local AvFlags Change
+        ? mSessionHandler->onOnHold(*this)              // notify session onHold Change
+        : mSessionHandler->onRemoteFlagsChanged(*this); // notify remote AvFlags Change
 }
 
 Slot *Session::getAudioSlot()
