@@ -10,7 +10,7 @@ CallListener::CallListener(MegaChatApi *megaChatApi, CallGui *callGui, MegaChatH
     mClientid = clientid;
 }
 
-CallListener::~ CallListener()
+CallListener::~CallListener()
 {
     delete megaChatVideoListenerDelegate;
 }

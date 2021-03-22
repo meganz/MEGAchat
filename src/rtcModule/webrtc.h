@@ -182,8 +182,6 @@ public:
     virtual int64_t getFinalTimeStamp() const = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
-    virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
-    virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual void setAudioDetected(bool audioDetected) = 0;
@@ -201,6 +199,10 @@ public:
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
+    virtual void takeDevice() = 0;
+    virtual void releaseDevice() = 0;
+    virtual void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) = 0;
+    virtual bool removeLocalVideoRederer(karere::Id chatid) = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;

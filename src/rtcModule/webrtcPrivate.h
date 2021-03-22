@@ -63,18 +63,23 @@ protected:
     bool mAudioLevelMonitorEnabled = false;
 };
 
-class VideoSlot : public Slot, public rtc::VideoSinkInterface<webrtc::VideoFrame>
+class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>
 {
 public:
-    VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
-    ~VideoSlot();
+    VideoSink();
+    virtual ~VideoSink();
     void setVideoRender(IVideoRenderer* videoRenderer);
-    void OnFrame(const webrtc::VideoFrame& frame) override;
-    void setTrackSink();
-
+    virtual void OnFrame(const webrtc::VideoFrame& frame) override;
 private:
     std::unique_ptr<IVideoRenderer> mRenderer;
+};
 
+class RemoteVideoSlot : public Slot, public VideoSink
+{
+public:
+    RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    ~RemoteVideoSlot();
+    void addSinkToTrack();
 };
 
 class Session : public ISession
@@ -84,15 +89,15 @@ public:
     ~Session();
 
     const sfu::Peer &getPeer() const;
-    void setVThumSlot(VideoSlot* slot);
-    void setHiResSlot(VideoSlot* slot);
+    void setVThumSlot(RemoteVideoSlot* slot);
+    void setHiResSlot(RemoteVideoSlot* slot);
     void setAudioSlot(Slot* slot);
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
 
     Slot* getAudioSlot();
-    VideoSlot* getVthumSlot();
-    VideoSlot* betHiResSlot();
+    RemoteVideoSlot* getVthumSlot();
+    RemoteVideoSlot* betHiResSlot();
 
     void setSpeakRequested(bool requested);
     bool setModerator(bool requested);
@@ -114,8 +119,8 @@ public:
 
 private:
     sfu::Peer mPeer;
-    VideoSlot* mVthumSlot = nullptr;
-    VideoSlot* mHiresSlot = nullptr;
+    RemoteVideoSlot* mVthumSlot = nullptr;
+    RemoteVideoSlot* mHiresSlot = nullptr;
     Slot* mAudioSlot = nullptr;
     std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
     bool mIsModerator = false;
@@ -175,8 +180,6 @@ public:
     static const char *stateToStr(uint8_t state);
 
     void setCallHandler(CallHandler* callHanlder) override;
-    void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
-    void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
@@ -192,6 +195,8 @@ public:
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
+    void takeVideoDevice();
+    void releaseVideoDevice();
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, int mod, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -249,14 +254,12 @@ protected:
     artc::myPeerConnection<Call> mRtcConn;
     std::string mSdp;
     std::unique_ptr<Slot> mAudio;
-    std::unique_ptr<VideoSlot> mVThumb;
+    std::unique_ptr<Slot> mVThumb;
     bool mVThumbActive = false;
-    std::unique_ptr<VideoSlot> mHiRes;
+    std::unique_ptr<Slot> mHiRes;
     bool mHiResActive = false;
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
-
-    rtc::scoped_refptr<artc::VideoManager> mVideoDevice;
 
     std::unique_ptr<CallHandler> mCallHandler;
 
@@ -267,6 +270,7 @@ protected:
     std::string mCallKey;
 
     RtcModuleSfu& mRtc;
+    artc::VideoManager* mVideoManager = nullptr;
 
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, bool hiRes = false);
@@ -277,7 +281,7 @@ protected:
     void updateVideoTracks();
 };
 
-class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable
+class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
 {
 public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers);
@@ -288,6 +292,10 @@ public:
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) override;
+    void takeDevice() override;
+    void releaseDevice() override;
+    void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) override;
+    bool removeLocalVideoRederer(karere::Id chatid) override;
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
@@ -301,12 +309,20 @@ public:
     void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) override;
     void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey = nullptr) override;
 
+    void OnFrame(const webrtc::VideoFrame& frame) override;
+
+    artc::VideoManager* getVideoDevice();
+
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
     IGlobalCallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
     std::string mVideoDeviceSelected;
+    rtc::scoped_refptr<artc::VideoManager> mVideoDevice;
+    unsigned int mDeviceCount = 0;
+    std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
+    std::map<karere::Id, VideoSink> mVideoSink;
 };
 
 void globalCleanup();

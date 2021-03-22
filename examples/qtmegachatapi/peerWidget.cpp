@@ -226,3 +226,15 @@ bool PeerWidget::event(QEvent *event)
 
     return true;
 }
+
+void PeerWidget::removeVideoListener()
+{
+    if (mLocal)
+    {
+        mMegaChatApi.removeChatLocalVideoListener(mChatid, mMegaChatVideoListenerDelegate);
+    }
+    else
+    {
+        mMegaChatApi.removeChatRemoteVideoListener(mChatid, mCid, mHiRes, mMegaChatVideoListenerDelegate);
+    }
+}

@@ -83,8 +83,10 @@ void MeetingView::addHiRes(PeerWidget *widget)
 
 void MeetingView::addLocalVideo(PeerWidget *widget)
 {
+    assert(!mLocalWidget);
     QHBoxLayout * localLayout = new QHBoxLayout();
     localLayout->addWidget(widget);
+    mLocalWidget = widget;
     mLocalLayout->addLayout(localLayout);
 }
 
@@ -199,6 +201,7 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
 
 void MeetingView::onHangUp()
 {
+    mLocalWidget->removeVideoListener();
     mMegaChatApi.hangChatCall(mChatid);
 }
 

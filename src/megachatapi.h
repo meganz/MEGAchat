@@ -1709,7 +1709,7 @@ public:
         TYPE_IMPORT_MESSAGES,  TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD,
         TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TYPE_MANAGE_REACTION,
         TYPE_GET_PEER_ATTRIBUTES, TYPE_REQUEST_SPEAK, TYPE_APPROVE_SPEAK,
-        TYPE_REQUEST_HIGH_RES_VIDEO, TYPE_REQUEST_LOW_RES_VIDEO,
+        TYPE_REQUEST_HIGH_RES_VIDEO, TYPE_REQUEST_LOW_RES_VIDEO, TYPE_OPEN_VIDEO_DEVICE,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -4742,6 +4742,30 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Open video device
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns true open device
+     *
+     * @note App is responsible to release device and remove MegaChatVideoListener
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void openVideoDevice(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Release video device
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns false close device
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Get the MegaChatCall associated with a chatroom

@@ -2204,6 +2204,29 @@ void MegaChatApiImpl::sendPendingRequests()
             break;
         }
 
+        case MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE:
+        {
+            if (!mClient->rtc)
+            {
+                API_LOG_ERROR("OpenVideoDevice - WebRTC is not initialized");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            if (request->getFlag())
+            {
+                mClient->rtc->takeDevice();
+            }
+            else
+            {
+                mClient->rtc->releaseDevice();
+            }
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
+
 #endif
         default:
         {
@@ -2739,6 +2762,19 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
 {
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator it;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator itEnd;
+
+    if (clientid == 0)
+    {
+        for( MegaChatVideoListener_set::iterator videoListenerIterator = mLocalVideoListeners[chatid].begin();
+             videoListenerIterator != mLocalVideoListeners[chatid].end();
+             videoListenerIterator++)
+        {
+            (*videoListenerIterator)->onChatVideoData(chatApi, chatid, width, height, buffer, width * height * 4);
+        }
+
+        return;
+    }
+
     if (hiRes)
     {
          it = mVideoListenersHiRes.find(chatid);
@@ -4400,6 +4436,22 @@ void MegaChatApiImpl::setVideoEnable(MegaChatHandle chatid, bool enable, MegaCha
     waiter->notify();
 }
 
+void MegaChatApiImpl::openVideoDevice(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE, listener);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::releaseVideoDevice(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE, listener);
+    request->setFlag(false);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CALL_ON_HOLD, listener);
@@ -4810,13 +4862,17 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
     }
 
     videoMutex.lock();
-    if (hiRes)
+    if (clientid == 0)
+    {
+        mLocalVideoListeners[chatid].insert(listener);
+        mClient->rtc->addLocalVideoRenderer(chatid, new MegaChatVideoReceiver(this, chatid, true));
+    }
+    else if (hiRes)
     {
         mVideoListenersHiRes[chatid][clientid].insert(listener);
     }
     else
     {
-        assert(clientid); // local video listeners can't be un/registered into this map
         mVideoListenersLowRes[chatid][clientid].insert(listener);
     }
 
@@ -4832,7 +4888,16 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
 
     videoMutex.lock();
 
-    if (hiRes)
+    if (clientid == 0)
+    {
+        mLocalVideoListeners[chatid].erase(listener);
+        if (mLocalVideoListeners[chatid].empty())
+        {
+            mLocalVideoListeners.erase(chatid);
+            mClient->rtc->removeLocalVideoRederer(chatid);
+        }
+    }
+    else if (hiRes)
     {
         mVideoListenersHiRes[chatid][clientid].erase(listener);
 
@@ -5524,6 +5589,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_APPROVE_SPEAK: return "APPROVE_SPEAK";
         case TYPE_REQUEST_HIGH_RES_VIDEO: return "REQUEST_HIGH_RES_VIDEO";
         case TYPE_REQUEST_LOW_RES_VIDEO: return "REQUEST_LOW_RES_VIDEO";
+        case TYPE_OPEN_VIDEO_DEVICE: return "OPEN_VIDEO_DEVICE";
     }
     return "UNKNOWN";
 }
@@ -8502,12 +8568,6 @@ MegaChatCallHandler::~MegaChatCallHandler()
 
 void MegaChatCallHandler::onCallStateChange(rtcModule::ICall &call)
 {
-    if (call.getState() == rtcModule::CallState::kStateJoining)
-    {
-        call.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, call.getChatid(), false));
-        call.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, call.getChatid(), true));
-    }
-
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setStatus(MegaChatCallPrivate::convertCallState(call.getState()));
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());

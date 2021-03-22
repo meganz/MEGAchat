@@ -941,6 +941,7 @@ private:
     std::set<MegaChatCallListener *> callListeners;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersHiRes;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersLowRes;
+    std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalVideoListeners;
 
     mega::MegaStringList *getChatInDevices(const std::set<std::string> &devices);
     void cleanCalls();
@@ -1163,6 +1164,8 @@ public:
     void endChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
+    void openVideoDevice(MegaChatRequestListener *listener = NULL);
+    void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);
