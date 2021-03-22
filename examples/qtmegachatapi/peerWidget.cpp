@@ -42,6 +42,19 @@ PeerWidget::~PeerWidget()
     }
 }
 
+void PeerWidget::setOnHold(bool isOnHold)
+{
+    auto image = new QImage(QSize(262, 262), QImage::Format_ARGB32);
+    image->fill(Qt::black);
+    mVideoRender->disableStaticImage();
+    if (isOnHold)
+    {
+        drawAvatar(*image, 'H', 0, true);
+    }
+    mVideoRender->setStaticImage(image);
+    mVideoRender->enableStaticImage();
+}
+
 void PeerWidget::onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
 {
     QImage *auxImg = CreateFrame(width, height, buffer, size);
@@ -175,14 +188,20 @@ void PeerWidget::drawPeerAvatar(QImage &image)
     delete [] title;
 }
 
-void PeerWidget::drawAvatar(QImage &image, QChar letter, uint64_t userid)
+void PeerWidget::drawAvatar(QImage &image, QChar letter, uint64_t userid, bool onHold)
 {
     uint64_t auxId = mMegaChatApi.getMyUserHandle();
     image.fill(Qt::black);
-    auto color = QColor("green");
-    if (userid != auxId)
+
+    QColor color;
+    if (onHold)
     {
-        color = QColor("blue");
+        color = QColor("orange");
+    }
+    else {
+        (userid != auxId)
+                ? color = QColor("blue")
+                : color = QColor("green");
     }
 
     int cx = image.rect().width()/2;

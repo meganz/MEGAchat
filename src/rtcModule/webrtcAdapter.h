@@ -459,7 +459,6 @@ public:
     void UnregisterObserver(webrtc::ObserverInterface* observer) override;
 
 protected:
-    rtc::ThreadChecker mWorkerThreadChecker;
     rtc::VideoBroadcaster mBroadcaster;
     webrtc::MediaSourceInterface::SourceState mState;
     bool mRemote;

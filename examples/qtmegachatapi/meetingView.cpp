@@ -1,5 +1,6 @@
 #include "meetingView.h"
 #include <QMenu>
+#include <QApplication>
 
 MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent)
     : QWidget(parent)
@@ -30,8 +31,16 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
     mEnableVideo = new QPushButton("Video-disable", this);
     connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
+
     mAudioMonitor = new QPushButton("Audio monitor", this);
     connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
+    mSetOnHold = new QPushButton("onHold", this);
+    connect(mSetOnHold, SIGNAL(released()), this, SLOT(onOnHold()));
+    mOnHoldLabel = new QLabel("CALL ONHOLD", this);
+    mOnHoldLabel->setStyleSheet("background-color:#876300 ;color:#FFFFFF; font-weight:bold;");
+    mOnHoldLabel->setAlignment(Qt::AlignCenter);
+    mOnHoldLabel->setContentsMargins(0, 0, 0, 0);
+    mOnHoldLabel->setVisible(false);
 
     setLayout(mGridLayout);
 
@@ -55,6 +64,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
     mButtonsLayout->addWidget(mAudioMonitor);
+    mButtonsLayout->addWidget(mSetOnHold);
+    mButtonsLayout->addWidget(mOnHoldLabel);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -84,9 +95,9 @@ void MeetingView::addHiRes(PeerWidget *widget)
 void MeetingView::addLocalVideo(PeerWidget *widget)
 {
     assert(!mLocalWidget);
+    mLocalWidget = widget;
     QHBoxLayout * localLayout = new QHBoxLayout();
     localLayout->addWidget(widget);
-    mLocalWidget = widget;
     mLocalLayout->addLayout(localLayout);
 }
 
@@ -95,22 +106,29 @@ void MeetingView::removeThumb(uint32_t cid)
     auto it = mThumbsWidget.find(cid);
     if (it != mThumbsWidget.end())
     {
+        PeerWidget* widget = it->second;
         removeThumb(it->second);
+        mThumbsWidget.erase(it);
+        delete widget;
     }
 }
 
 void MeetingView::removeHiRes(uint32_t cid)
 {
-    auto it = mThumbsWidget.find(cid);
-    if (it != mThumbsWidget.end())
+    auto it = mHiResWidget.find(cid);
+    if (it != mHiResWidget.end())
     {
+        PeerWidget* widget = it->second;
         removeHiRes(it->second);
+        mHiResWidget.erase(it);
+        delete widget;
     }
 }
 
 void MeetingView::addSession(const megachat::MegaChatSession &session)
 {
     QListWidgetItem* item = new QListWidgetItem(sessionToString(session).c_str());
+    item->setIcon(QApplication::style()->standardPixmap(QStyle::SP_MediaPlay));
     mListWidget->addItem(item);
     assert(mSessionItems.find(session.getClientid()) == mSessionItems.end());
     mSessionItems[session.getClientid()] = item;
@@ -168,6 +186,41 @@ void MeetingView::updateVideoButtonText(MegaChatCall *call)
     mEnableVideo->setText(text.c_str());
 }
 
+void MeetingView::setOnHold(bool isOnHold, MegaChatHandle cid)
+{
+    if (cid == MEGACHAT_INVALID_HANDLE)
+    {
+        mLocalWidget->setOnHold(isOnHold);
+        mOnHoldLabel->setVisible(isOnHold);
+    }
+    else
+    {
+        // update session item
+        auto sessIt = mSessionItems.find(cid);
+        if (sessIt != mSessionItems.end())
+        {
+            QListWidgetItem *item = sessIt->second;
+            isOnHold
+                    ? item->setIcon(QApplication::style()->standardPixmap(QStyle::SP_MediaPause))
+                    : item->setIcon(QApplication::style()->standardPixmap(QStyle::SP_MediaPlay));
+        }
+
+        // set low-res widget onHold
+        auto it = mThumbsWidget.find(cid);
+        if (it != mThumbsWidget.end())
+        {
+            it->second->setOnHold(isOnHold);
+        }
+
+        // set hi-res widget onHold
+        auto auxit = mHiResWidget.find(cid);
+        if (auxit != mHiResWidget.end())
+        {
+            auxit->second->setOnHold(isOnHold);
+        }
+    }
+}
+
 void MeetingView::removeThumb(PeerWidget *widget)
 {
     mThumbLayout->removeWidget(widget);
@@ -203,6 +256,15 @@ void MeetingView::onHangUp()
 {
     mLocalWidget->removeVideoListener();
     mMegaChatApi.hangChatCall(mChatid);
+}
+
+void MeetingView::onOnHold()
+{
+    std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
+    if (call)
+    {
+        mMegaChatApi.setCallOnHold(mChatid, !call->isOnHold());
+    }
 }
 
 void MeetingView::onSessionContextMenu(const QPoint &pos)

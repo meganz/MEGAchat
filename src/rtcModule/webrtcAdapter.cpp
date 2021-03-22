@@ -87,7 +87,6 @@ CaptureModuleLinux::CaptureModuleLinux(const webrtc::VideoCaptureCapability &cap
       mRemote(remote),
       mCapabilities(capabilities)
 {
-    mWorkerThreadChecker.Detach();
 }
 
 CaptureModuleLinux::~CaptureModuleLinux()
@@ -126,13 +125,11 @@ bool CaptureModuleLinux::GetStats(webrtc::VideoTrackSourceInterface::Stats *stat
 
 void CaptureModuleLinux::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
 {
-    RTC_DCHECK(mWorkerThreadChecker.IsCurrent());
     mBroadcaster.AddOrUpdateSink(sink, wants);
 }
 
 void CaptureModuleLinux::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
 {
-    RTC_DCHECK(mWorkerThreadChecker.IsCurrent());
     mBroadcaster.RemoveSink(sink);
 }
 

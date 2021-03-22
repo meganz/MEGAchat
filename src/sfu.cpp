@@ -754,17 +754,14 @@ bool ErrorCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
+    std::string errorMsg = "";
     unsigned int code = codeIterator->value.GetUint();
-
     rapidjson::Value::ConstMemberIterator msgIterator = command.FindMember("msg");
-    if (msgIterator == command.MemberEnd() || !msgIterator->value.IsString())
+    if (msgIterator != command.MemberEnd() && msgIterator->value.IsString())
     {
-        SFU_LOG_ERROR("ErrorCommand: Received data doesn't have 'msg' field");
-        return false;
+        errorMsg = msgIterator->value.GetString();
     }
-
-    std::string error = msgIterator->value.GetString();
-    return mComplete(code, error);
+    return mComplete(code, errorMsg);
 }
 
 Sdp::Sdp(const std::string &sdp)

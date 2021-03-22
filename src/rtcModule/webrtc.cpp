@@ -185,6 +185,40 @@ void Call::setRinging(bool ringing)
 
 }
 
+void Call::setOnHold()
+{
+    // disable audio track
+    if (mAudio->getTransceiver()->sender()->track())
+    {
+        mAudio->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+
+    // disable hi-res track
+    if (mHiRes->getTransceiver()->sender()->track())
+    {
+        mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+
+    // disable low-res track
+    if (mVThumb->getTransceiver()->sender()->track())
+    {
+        mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+
+    // release video device
+    if (mVideoDevice)
+    {
+        mVideoDevice->releaseDevice();
+        mVideoDevice = nullptr;
+    }
+}
+
+void Call::releaseOnHold()
+{
+    updateAudioTracks();
+    updateVideoTracks();
+}
+
 bool Call::isIgnored() const
 {
     return mIgnored;
@@ -258,15 +292,32 @@ void Call::updateVideoInDevice()
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 {
-    bool videoChange = mLocalAvFlags.video() != flags.video();
+    if (flags == mLocalAvFlags)
+    {
+        RTCM_LOG_WARNING("updateAndSendLocalAvFlags: AV flags has not changed");
+        return;
+    }
+
+    // update and send local AV flags
+    karere::AvFlags olFlags = mLocalAvFlags;
     mLocalAvFlags = flags;
     mSfuConnection->sendAv(flags.value());
-    updateAudioTracks();
-    if (videoChange)
+
+    if (olFlags.isOnHold() != flags.isOnHold())
     {
-        updateVideoTracks();
+        // kOnHold flag has changed
+        (flags.isOnHold())
+                ? setOnHold()
+                : releaseOnHold();
+
+        mCallHandler->onOnHold(*this); // notify app onHold Change
     }
-    mCallHandler->onLocalFlagsChanged(*this);
+    else
+    {
+        updateAudioTracks();
+        updateVideoTracks();
+        mCallHandler->onLocalFlagsChanged(*this);  // notify app local AvFlags Change
+    }
 }
 
 void Call::setAudioDetected(bool audioDetected)
@@ -542,6 +593,19 @@ bool Call::hasCallKey()
 
 bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
+    if (mMyPeer.getCid() == cid)
+    {
+        RTCM_LOG_WARNING("handleAvCommand: Received our own AV flags");
+        return false;
+    }
+
+    if (mSessions.find(cid) == mSessions.end())
+    {
+        RTCM_LOG_WARNING("handleAvCommand: Received AV flags for unknown peer cid %d", cid);
+        return false;
+    }
+
+    // update session flags
     mSessions[cid]->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
     return true;
 }
@@ -1024,9 +1088,9 @@ void Call::updateAudioTracks()
 {
     bool audio = mSpeakerState > SpeakerState::kNoSpeaker && mLocalAvFlags.audio();
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
-    if (audio)
+    if (audio && !mLocalAvFlags.isOnHold())
     {
-        if (!track)
+        if (!track) // create audio track only if not exists
         {
             rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
                     artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
@@ -1040,7 +1104,7 @@ void Call::updateAudioTracks()
         }
 
     }
-    else if (track)
+    else if (track) // if no audio flags active, or call is onHold
     {
         track->set_enabled(false);
         mAudio->getTransceiver()->sender()->SetTrack(nullptr);
@@ -1049,10 +1113,12 @@ void Call::updateAudioTracks()
 
 void Call::updateVideoTracks()
 {
-    if (mLocalAvFlags.video())
+    bool isOnHold = mLocalAvFlags.isOnHold();
+    if (mLocalAvFlags.video() && !isOnHold)
     {
         takeVideoDevice();
 
+        // hi-res track
         if (mHiResActive && !mHiRes->getTransceiver()->sender()->track())
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
@@ -1064,6 +1130,7 @@ void Call::updateVideoTracks()
             mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
         }
 
+        // low-res track
         if (!mVThumb->getTransceiver()->sender()->track())
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
@@ -1079,11 +1146,13 @@ void Call::updateVideoTracks()
     }
     else
     {
+        // disable hi-res track
         if (mHiRes->getTransceiver()->sender()->track())
         {
             mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
         }
 
+        // disable low-res track
         if (mVThumb->getTransceiver()->sender()->track())
         {
             mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
@@ -1459,7 +1528,7 @@ RemoteVideoSlot::~RemoteVideoSlot()
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
-    videoTrack->set_enabled(true);
+    videoTrack->set_enabled(false);
 
     if (videoTrack)
     {
@@ -1608,9 +1677,18 @@ void Session::addKey(Keyid_t keyid, const std::string &key)
 
 void Session::setAvFlags(karere::AvFlags flags)
 {
-    mPeer.setAvFlags(flags);
     assert(mSessionHandler);
-    mSessionHandler->onAudioVideoFlagsChanged(*this);
+    if (flags == mPeer.getAvFlags())
+    {
+        RTCM_LOG_WARNING("setAvFlags: remote AV flags has not changed");
+        return;
+    }
+
+    bool onHoldChanged = mPeer.getAvFlags().isOnHold() != flags.isOnHold();
+    mPeer.setAvFlags(flags);
+    onHoldChanged
+        ? mSessionHandler->onOnHold(*this)              // notify session onHold Change
+        : mSessionHandler->onRemoteFlagsChanged(*this); // notify remote AvFlags Change
 }
 
 Slot *Session::getAudioSlot()

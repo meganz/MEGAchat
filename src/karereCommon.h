@@ -120,6 +120,7 @@ public:
     bool video() const { return mFlags & kVideo; }
     bool videoLowRes() const { return mFlags & kLowResVideo; }
     bool videoHiRes() const { return mFlags & kHiResVideo; }
+    bool isOnHold() const { return mFlags & kOnHold; }
     bool operator==(AvFlags other) { return (mFlags == other.mFlags); }
     bool operator!=(AvFlags other) { return (mFlags != other.mFlags); }
     bool any() const { return mFlags != 0; }

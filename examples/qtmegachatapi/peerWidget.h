@@ -13,12 +13,13 @@ class PeerWidget : public QWidget, public megachat::MegaChatVideoListener
 public:
     PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, bool hiRes, bool local = false);
     ~PeerWidget();
+    void setOnHold(bool isOnHold);
     void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size) override;
     Cid_t getCid() const;
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
     void drawPeerAvatar(QImage &image);
-    void drawAvatar(QImage &image, QChar letter, uint64_t userid);
+    void drawAvatar(QImage &image, QChar letter, uint64_t userid, bool onHold = false);
     bool event(QEvent *event) override;
     QTMegaChatVideoListener *mMegaChatVideoListenerDelegate;
     void removeVideoListener();

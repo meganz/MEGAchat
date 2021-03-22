@@ -249,7 +249,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
     {
-
+        window->mMeetingView->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
     }
 }
 
@@ -264,6 +264,11 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     ChatWindow *window = itemController->showChatWindow();
     assert(window);
     assert(window->mMeetingView);
+
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD))
+    {
+        window->mMeetingView->setOnHold(session->isOnHold(), session->getClientid());
+    }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES) && window->mMeetingView)
     {

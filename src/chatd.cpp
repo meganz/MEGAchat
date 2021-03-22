@@ -2510,7 +2510,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_CALLSTATE:
             {
                 READ_ID(chatid, 0);
-                READ_ID(userid, 8);
+                READ_ID(userid, 8); // call originator id
                 READ_ID(callid, 16);
                 READ_8(ringing, 24);
                 CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %d", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
