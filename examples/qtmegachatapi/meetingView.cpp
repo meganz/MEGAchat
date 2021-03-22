@@ -1,5 +1,6 @@
 #include "meetingView.h"
 #include <QMenu>
+#include <QApplication>
 
 MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent)
     : QWidget(parent)
@@ -121,6 +122,7 @@ void MeetingView::removeHiRes(uint32_t cid)
 void MeetingView::addSession(const megachat::MegaChatSession &session)
 {
     QListWidgetItem* item = new QListWidgetItem(sessionToString(session).c_str());
+    item->setIcon(QApplication::style()->standardPixmap(QStyle::SP_MediaPlay));
     mListWidget->addItem(item);
     assert(mSessionItems.find(session.getClientid()) == mSessionItems.end());
     mSessionItems[session.getClientid()] = item;
@@ -187,6 +189,16 @@ void MeetingView::setOnHold(bool isOnHold, MegaChatHandle cid)
     }
     else
     {
+        // update session item
+        auto sessIt = mSessionItems.find(cid);
+        if (sessIt != mSessionItems.end())
+        {
+            QListWidgetItem *item = sessIt->second;
+            isOnHold
+                    ? item->setIcon(QApplication::style()->standardPixmap(QStyle::SP_MediaPause))
+                    : item->setIcon(QApplication::style()->standardPixmap(QStyle::SP_MediaPlay));
+        }
+
         // set low-res widget onHold
         auto it = mThumbsWidget.find(cid);
         if (it != mThumbsWidget.end())
