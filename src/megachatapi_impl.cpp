@@ -1757,7 +1757,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             karere::AvFlags currentFlags = call->getLocalAvFlags();
-            if (onHold == currentFlags.has(karere::AvFlags::kOnHold))
+            if (onHold == currentFlags.isOnHold())
             {
                 API_LOG_ERROR("Set call on hold - Call is on hold and try to set on hold or conversely");
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -5819,7 +5819,7 @@ bool MegaChatSessionPrivate::getAudioDetected() const
 
 bool MegaChatSessionPrivate::isOnHold() const
 {
-    return mAVFlags.has(karere::AvFlags::kOnHold);
+    return mAVFlags.isOnHold();
 }
 
 int MegaChatSessionPrivate::getChanges() const
@@ -6132,7 +6132,7 @@ MegaChatHandle MegaChatCallPrivate::getCaller() const
 
 bool MegaChatCallPrivate::isOnHold() const
 {
-    return localAVFlags.has(karere::AvFlags::kOnHold);
+    return localAVFlags.isOnHold();
 }
 
 bool MegaChatCallPrivate::isModerator() const
@@ -8557,6 +8557,13 @@ void MegaChatCallHandler::onLocalAudioDetected(const rtcModule::ICall& call)
     mMegaChatApi->fireOnChatCallUpdate(megaChatCall.get());
 }
 
+void MegaChatCallHandler::onOnHold(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setOnHold(call.getLocalAvFlags().isOnHold());
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {
     this->mMegaChatApi = megaChatApi;
@@ -8612,7 +8619,7 @@ void MegaChatSessionHandler::onAudioRequested(rtcModule::ISession &session)
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
-void MegaChatSessionHandler::onAudioVideoFlagsChanged(rtcModule::ISession &session)
+void MegaChatSessionHandler::onRemoteFlagsChanged(rtcModule::ISession &session)
 {
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS);
@@ -8622,7 +8629,7 @@ void MegaChatSessionHandler::onAudioVideoFlagsChanged(rtcModule::ISession &sessi
 void MegaChatSessionHandler::onOnHold(rtcModule::ISession& session)
 {
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
-    megaSession->setOnHold(session.getAvFlags().has(karere::AvFlags::kOnHold));
+    megaSession->setOnHold(session.getAvFlags().isOnHold());
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 

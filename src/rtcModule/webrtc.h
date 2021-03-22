@@ -69,6 +69,7 @@ enum TermCode: uint8_t
     kErrStreamRenegotationTimeout = 42, // < Timed out waiting for completion of offer-answer exchange
     kErrorLast = 42,            // < Last enum indicating call termination due to error
     kLast = 42,                 // < Last call terminate enum value
+    kSvrShuttingDown = 66,      // < Server is shutting down
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kErrNoCall = 129,           // < Attempted to join non-existing call
@@ -103,7 +104,7 @@ public:
     virtual void onDestroySession(ISession& session) = 0;
     virtual void onModeratorChange(ISession& session) = 0;
     virtual void onAudioRequested(ISession& session) = 0;
-    virtual void onAudioVideoFlagsChanged(ISession& session) = 0;
+    virtual void onRemoteFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
     virtual void onRemoteAudioDetected(ISession& session) = 0;
 };
@@ -139,6 +140,7 @@ public:
     virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
     virtual void onLocalAudioDetected(const ICall& call) = 0;
+    virtual void onOnHold(const ICall& call) = 0;
 };
 
 class ICall
@@ -158,6 +160,8 @@ public:
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
+    virtual void setOnHold() = 0;
+    virtual void releaseOnHold() = 0;
     virtual bool isRinging() const = 0;
     virtual bool isIgnored() const = 0;
     virtual bool isAudioLevelMonitorEnabled() const = 0;

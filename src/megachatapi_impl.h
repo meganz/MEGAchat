@@ -591,6 +591,7 @@ public:
     void onAudioApproved(const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call) override;
     void onLocalAudioDetected(const rtcModule::ICall& call) override;
+    void onOnHold(const rtcModule::ICall& call) override;
 
 protected:
     MegaChatApiImpl* mMegaChatApi;
@@ -607,7 +608,7 @@ public:
     void onDestroySession(rtcModule::ISession& session) override;
     void onModeratorChange(rtcModule::ISession& session) override;
     void onAudioRequested(rtcModule::ISession& session) override;
-    void onAudioVideoFlagsChanged(rtcModule::ISession& session) override;
+    void onRemoteFlagsChanged(rtcModule::ISession& session) override;
     void onOnHold(rtcModule::ISession& session) override;
     void onRemoteAudioDetected(rtcModule::ISession& session) override;
 
