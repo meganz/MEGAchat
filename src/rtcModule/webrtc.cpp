@@ -1239,7 +1239,7 @@ void RtcModuleSfu::addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *vide
     mRenderers[chatid] = std::unique_ptr<IVideoRenderer>(videoRederer);
 }
 
-bool RtcModuleSfu::removeLocalVideoRederer(karere::Id chatid)
+bool RtcModuleSfu::removeLocalVideoRenderer(karere::Id chatid)
 {
     mRenderers.erase(chatid);
 }

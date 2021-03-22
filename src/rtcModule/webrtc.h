@@ -202,7 +202,7 @@ public:
     virtual void takeDevice() = 0;
     virtual void releaseDevice() = 0;
     virtual void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) = 0;
-    virtual bool removeLocalVideoRederer(karere::Id chatid) = 0;
+    virtual bool removeLocalVideoRenderer(karere::Id chatid) = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;

@@ -4898,7 +4898,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
         if (mLocalVideoListeners[chatid].empty())
         {
             mLocalVideoListeners.erase(chatid);
-            mClient->rtc->removeLocalVideoRederer(chatid);
+            mClient->rtc->removeLocalVideoRenderer(chatid);
         }
     }
     else if (hiRes)

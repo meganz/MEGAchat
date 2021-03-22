@@ -322,7 +322,7 @@ public:
         CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call or you haven't answered the call yet
         CALL_STATUS_CONNECTING,                         /// Intermediate state, while connection sfu is established
         CALL_STATUS_JOINING,                            /// In this state configure connection with SFU
-        CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication wiht SFU
+        CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication with SFU
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
     };
@@ -4609,7 +4609,7 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
-     * @param enableAudio True for starting a call without mute the audio
+     * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
@@ -4641,7 +4641,7 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
-     * @param enableAudio True for answering a call without mute the audio
+     * @param enableAudio True for answering a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
