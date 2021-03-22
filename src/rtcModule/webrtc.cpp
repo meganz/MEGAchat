@@ -1629,22 +1629,12 @@ void Session::setAudioDetected(bool audioDetected)
 
 bool Session::hasHighResolutionTrack() const
 {
-    if (!mHiresSlot)
-    {
-        return false;
-    }
-
-    return  mHiresSlot->getTransceiver()->sender()->track() ? true : false;
+    return mHiresSlot && mHiresSlot->getTransceiver()->sender()->track() ? true : false;
 }
 
 bool Session::hasLowResolutionTrack() const
 {
-    if (!mVthumSlot)
-    {
-        return false;
-    }
-
-    return  mVthumSlot->getTransceiver()->sender()->track() ? true : false;
+    return mVthumSlot && mVthumSlot->getTransceiver()->sender()->track() ? true : false;
 }
 
 const sfu::Peer& Session::getPeer() const
