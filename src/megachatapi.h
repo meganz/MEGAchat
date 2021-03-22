@@ -64,7 +64,8 @@ class MegaChatNodeHistoryListener;
  *
  * A session is an object that represents a client that is active in a call which I am participating.
  * A call contains none or several sessions and it can be obtained with MegaChatCall::getMegaChatSession.
- * MegaChatCall has the ownership of the object.
+ * MegaChatCall has the ownership of the object. Session updates are notified by
+ * MegaChatCallListener::onChatSessionUpdate
  *
  * The states that a session has during its life time are:
  * Outgoing call:
@@ -318,10 +319,10 @@ public:
     enum
     {
         CALL_STATUS_INITIAL = 0,                        /// Initial state
-        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
+        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call or you haven't answered the call yet
         CALL_STATUS_CONNECTING,                         /// Intermediate state, while connection sfu is established
         CALL_STATUS_JOINING,                            /// In this state configure connection with SFU
-        CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication
+        CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication wiht SFU
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
     };
@@ -4584,6 +4585,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -4607,9 +4609,10 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
+     * @param enableAudio True for starting a call without mute the audio
      * @param listener MegaChatRequestListener to track this request
      */
-    void startChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Answer a call received in a chat room
@@ -4618,6 +4621,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -4637,9 +4641,10 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
+     * @param enableAudio True for answering a call without mute the audio
      * @param listener MegaChatRequestListener to track this request
      */
-    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Hang a call in a chat room
@@ -5211,6 +5216,9 @@ public:
      *
      * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
      *
+     * @note if we want to receive video before start a call (openVideoDevice), we have to
+     * register a MegaChatVideoListener with chatid = MEGACHAT_INVALID_HANDLE
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatVideoListener that will receive local video
      */
@@ -5220,6 +5228,8 @@ public:
      * @brief Unregister a MegaChatVideoListener
      *
      * This listener won't receive more events.
+     * @note if we want to remove the listener added to receive video frames before start a call
+     * we have to use chatid = MEGACHAT_INVALID_HANDLE
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener Object that is unregistered

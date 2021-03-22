@@ -1502,7 +1502,8 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             bool enableVideo = request->getFlag();
-            karere::AvFlags avFlags(true, enableVideo);
+            bool enableAudio = request->getParamType();
+            karere::AvFlags avFlags(enableAudio, enableVideo);
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
@@ -1602,7 +1603,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
             bool moderator = true;
             bool enableVideo = request->getFlag();
-            karere::AvFlags avFlags(true, enableVideo);
+            bool enableAudio = request->getParamType();
+            karere::AvFlags avFlags(enableAudio, enableVideo);
             call->join(moderator, avFlags)
             .then([request, this]()
             {
@@ -4381,20 +4383,22 @@ char *MegaChatApiImpl::getVideoDeviceSelected()
     return deviceName;
 }
 
-void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_START_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
+    request->setParamType(enableAudio);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ANSWER_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
+    request->setParamType(enableAudio);
     requestQueue.push(request);
     waiter->notify();
 }
