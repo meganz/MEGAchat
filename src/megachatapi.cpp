@@ -118,6 +118,11 @@ bool MegaChatSession::isModerator() const
     return false;
 }
 
+bool MegaChatSession::isAudioDetected() const
+{
+    return false;
+}
+
 bool MegaChatSession::canRecvVideoHiRes() const
 {
     return false;
@@ -165,6 +170,11 @@ bool MegaChatCall::hasLocalVideo() const
 int MegaChatCall::getChanges() const
 {
     return 0;
+}
+
+bool MegaChatCall::isAudioDetected() const
+{
+    return false;
 }
 
 bool MegaChatCall::hasChanged(int ) const

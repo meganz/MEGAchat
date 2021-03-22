@@ -19,6 +19,26 @@ class IGlobalCallHandler
 
 class RtcModuleSfu;
 class Call;
+class Session;
+class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
+{
+    public:
+    AudioLevelMonitor(Call &call, int32_t cid = -1);
+    virtual void OnData(const void *audio_data,
+                        int bits_per_sample,
+                        int sample_rate,
+                        size_t number_of_channels,
+                        size_t number_of_frames);
+    bool hasAudio();
+    void onAudioDetected(bool audioDetected);
+
+private:
+    time_t mPreviousTime = 0;
+    Call &mCall;
+    bool mAudioDetected = false;
+    int32_t mCid; // -1 represents local audio monitor
+};
+
 class Slot
 {
 public:
@@ -29,6 +49,7 @@ public:
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
     void createDecryptor(Cid_t cid, IvStatic_t iv);
+    void enableAudioMonitor(bool enable);
     void enableTrack(bool enable);
     IvStatic_t getIv() const;
     void generateRandomIv();
@@ -37,7 +58,9 @@ protected:
     Call &mCall;
     IvStatic_t mIv;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
+    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     Cid_t mCid = 0;
+    bool mAudioLevelMonitorEnabled = false;
 };
 
 class VideoSlot : public Slot, public rtc::VideoSinkInterface<webrtc::VideoFrame>
@@ -80,10 +103,12 @@ public:
     SessionState getState() const override;
     karere::AvFlags getAvFlags() const override;
     bool isModerator() const override;
+    bool isAudioDetected() const override;
     bool hasRequestSpeak() const override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
     void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
+    void setAudioDetected(bool audioDetected) override;
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
 
@@ -95,6 +120,7 @@ private:
     std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
     bool mIsModerator = false;
     bool mHasRequestSpeak = false;
+    bool mAudioDetected = false;
     SessionState mState = kSessStateInProgress;
 };
 
@@ -113,6 +139,7 @@ public:
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
+    bool isAudioDetected() const override;
     CallState getState() const override;
     void addParticipant(karere::Id peer) override;
     void removeParticipant(karere::Id peer) override;
@@ -127,6 +154,7 @@ public:
     void releaseOnHold() override;
     bool isRinging() const override;
     bool isIgnored() const override;
+    bool isAudioLevelMonitorEnabled() const override;
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
@@ -154,6 +182,7 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
+    void setAudioDetected(bool audioDetected) override;
     void updateVideoInDevice() override;
     void setState(CallState newState);
     void connectSfu(const std::string& sfuUrl);
@@ -209,6 +238,9 @@ protected:
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
     int64_t mInitialTs = 0;
     int64_t mFinalTs = 0;
+    bool mAudioDetected = false;
+    bool mAudioLevelMonitorEnabled = false;
+    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;

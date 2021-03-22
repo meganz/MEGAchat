@@ -31,6 +31,9 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
     mEnableVideo = new QPushButton("Video-disable", this);
     connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
+
+    mAudioMonitor = new QPushButton("Audio monitor", this);
+    connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
     mSetOnHold = new QPushButton("onHold", this);
     connect(mSetOnHold, SIGNAL(released()), this, SLOT(onOnHold()));
     mOnHoldLabel = new QLabel("CALL ONHOLD", this);
@@ -38,6 +41,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mOnHoldLabel->setAlignment(Qt::AlignCenter);
     mOnHoldLabel->setContentsMargins(0, 0, 0, 0);
     mOnHoldLabel->setVisible(false);
+
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -59,6 +63,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mRequestModerator);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
+    mButtonsLayout->addWidget(mAudioMonitor);
     mButtonsLayout->addWidget(mSetOnHold);
     mButtonsLayout->addWidget(mOnHoldLabel);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
@@ -377,5 +382,10 @@ void MeetingView::onEnableVideo()
     {
         mMegaChatApi.enableVideo(mChatid);
     }
+}
+
+void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
+{
+    mMegaChatApi.enableAudioLevelMonitor(true, mChatid);
 }
 

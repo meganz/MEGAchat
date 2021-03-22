@@ -106,6 +106,7 @@ public:
     virtual void onAudioRequested(ISession& session) = 0;
     virtual void onRemoteFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
+    virtual void onRemoteAudioDetected(ISession& session) = 0;
 };
 
 class ISession
@@ -117,10 +118,12 @@ public:
     virtual karere::AvFlags getAvFlags() const = 0;
     virtual SessionState getState() const = 0;
     virtual bool isModerator() const = 0;
+    virtual bool isAudioDetected() const = 0;
     virtual bool hasRequestSpeak() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
+    virtual void setAudioDetected(bool audioDetected) = 0;
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
 };
@@ -136,6 +139,7 @@ public:
     virtual void onModeratorChange(const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
+    virtual void onLocalAudioDetected(const ICall& call) = 0;
     virtual void onOnHold(const ICall& call) = 0;
 };
 
@@ -145,6 +149,7 @@ public:
     virtual karere::Id getCallid() const = 0;
     virtual karere::Id getChatid() const = 0;
     virtual karere::Id getCallerid() const = 0;
+    virtual bool isAudioDetected() const = 0;
     virtual CallState getState() const = 0;
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
@@ -159,6 +164,7 @@ public:
     virtual void releaseOnHold() = 0;
     virtual bool isRinging() const = 0;
     virtual bool isIgnored() const = 0;
+    virtual bool isAudioLevelMonitorEnabled() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;
@@ -184,6 +190,7 @@ public:
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
+    virtual void setAudioDetected(bool audioDetected) = 0;
     virtual void updateVideoInDevice() = 0;
 };
 
@@ -217,6 +224,7 @@ void globalCleanup();
 
 
 static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
+static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
 
 class IGlobalCallHandler
 {
