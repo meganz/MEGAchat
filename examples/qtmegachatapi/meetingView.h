@@ -53,7 +53,6 @@ protected:
 
     QListWidget* mListWidget;
 
-    PeerWidget* mLocalWidget = nullptr;
     std::map<uint32_t, PeerWidget*> mThumbsWidget;
     std::map<uint32_t, PeerWidget*> mHiResWidget;
     PeerWidget* mLocalWidget = nullptr;
