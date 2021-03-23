@@ -1179,11 +1179,6 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
     mDeviceCount = 0;
 }
 
-void RtcModuleSfu::hangupAll()
-{
-
-}
-
 ICall *RtcModuleSfu::findCall(karere::Id callid)
 {
     auto it = mCalls.find(callid);

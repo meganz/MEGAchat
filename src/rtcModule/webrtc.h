@@ -197,7 +197,6 @@ class RtcModule
 public:
     virtual ~RtcModule(){};
     virtual void init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) = 0;
-    virtual void hangupAll() = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
     virtual ICall* findCallByChatid(karere::Id chatid) = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
