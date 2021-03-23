@@ -27,53 +27,12 @@ class
 enum TermCode: uint8_t
 {
     kUserHangup = 0,            // < Normal user hangup
-    kCallReqCancel = 1,         // < deprecated, now we have CALL_REQ_CANCEL specially for call requests, but keep this
-    // < code to notify the app when the call is cancelled (in contrast to kUserHangup, which is used when call was stablished)
-    kCallRejected = 2,          // < Outgoing call has been rejected by the peer OR incoming call has been rejected in
-    // < the current device
-    kAnsElsewhere = 3,          // < Call was answered on another device of ours
-    kRejElsewhere = 4,          // < Call was rejected on another device of ours
-    kAnswerTimeout = 5,         // < Call was not answered in a timely manner
-    kRingOutTimeout = 6,        // < We have sent a call request but no RINGING received within this timeout - no other
-    // < users are online
-    kAppTerminating = 7,        // < The application is terminating
-    kCallerGone = 8,
-    kBusy = 9,                  // < Peer is in another call
-    kStreamChange = 10,         // < Session was force closed by a client because it wants to change the media stream
-    kNotFinished = 125,         // < It is no finished value, it is TermCode value while call is in progress
-    kDestroyByCallCollision = 19,// < The call has finished by a call collision
-    kNormalHangupLast = 20,     // < Last enum specifying a normal call termination
-    kErrorFirst = 21,           // < First enum specifying call termination due to error
-    kErrApiTimeout = 22,        // < Mega API timed out on some request (usually for RSA keys)
-    kErrFprVerifFailed = 23,    // < Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
-    kErrProtoTimeout = 24,      // < Protocol timeout - one if the peers did not send something that was expected,
-    // < in a timely manner
-    kErrProtocol = 25,          // < General protocol error
-    kErrInternal = 26,          // < Internal error in the client
-    kErrLocalMedia = 27,        // < Error getting media from mic/camera
-    kErrNoMedia = 28,           // < There is no media to be exchanged - both sides don't have audio/video to send
-    kErrNetSignalling = 29,     // < chatd shard was disconnected
-    kErrIceDisconn = 30,        // < The media connection got broken, due to network error
-    kErrIceFail = 31,           // < Media connection could not be established, because webrtc was unable to traverse NAT.
-    // < The two endpoints just couldn't connect to each other in any way(many combinations are tested, via ICE candidates)
     kErrSdp = 32,               // < error generating or setting SDP description
-    kErrPeerOffline = 33,       // < we received a notification that that user went offline
-    kErrSessSetupTimeout = 34,  // < timed out waiting for session
-    kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
-    kErrAlready = 36,           // < There is already a call in this chatroom
-    kErrNotSupported = 37,      // < Clients that don't support calls send CALL_REQ_CANCEL with this code
-    kErrCallSetupTimeout =  38, // < Timed out waiting for a connected session after the call was answered/joined
-    kErrKickedFromChat = 39,    // < Call terminated because we were removed from the group chat
-    kErrIceTimeout = 40,        // < Sesion setup timed out, because ICE stuck at the 'checking' stage
-    kErrStreamRenegotation = 41,// < SDP error during stream renegotiation
-    kErrStreamRenegotationTimeout = 42, // < Timed out waiting for completion of offer-answer exchange
-    kErrorLast = 42,            // < Last enum indicating call termination due to error
-    kLast = 42,                 // < Last call terminate enum value
+    kRtcDisconn = 64,
+    kSigDisconn = 65,
     kSvrShuttingDown = 66,      // < Server is shutting down
-    kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
-                                // < not at our side
+    kErrSignaling = 128,
     kErrNoCall = 129,           // < Attempted to join non-existing call
-    kInvalid = 0x7f
 };
 
 enum CallState: uint8_t
