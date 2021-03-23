@@ -206,11 +206,7 @@ void Call::setOnHold()
     }
 
     // release video device
-    if (mVideoDevice)
-    {
-        mVideoDevice->releaseDevice();
-        mVideoDevice = nullptr;
-    }
+    releaseVideoDevice();
 }
 
 void Call::releaseOnHold()
@@ -1183,11 +1179,6 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
     mDeviceCount = 0;
 }
 
-void RtcModuleSfu::hangupAll()
-{
-
-}
-
 ICall *RtcModuleSfu::findCall(karere::Id callid)
 {
     auto it = mCalls.find(callid);
@@ -1321,7 +1312,7 @@ std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
 
 unsigned int RtcModuleSfu::getNumCalls()
 {
-    return 0;
+    return mCalls.size();
 }
 
 const std::string& RtcModuleSfu::getVideoDeviceSelected() const

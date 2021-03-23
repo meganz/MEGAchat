@@ -1631,59 +1631,55 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             MegaChatHandle chatid = request->getChatHandle();
-            if (chatid != MEGACHAT_INVALID_HANDLE)
+            if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                ChatRoom *chatroom = findChatRoom(chatid);
-                if (!chatroom)
-                {
-                    API_LOG_ERROR("Hang up call- Chatroom has not been found");
-                    errorCode = MegaChatError::ERROR_NOENT;
-                    break;
-                }
-
-                rtcModule::ICall* call = findCall(chatid);
-                if (!call)
-                {
-                    API_LOG_ERROR("Hang up call - There is not any call in that chatroom");
-                    errorCode = MegaChatError::ERROR_NOENT;
-                    assert(false);
-                    break;
-                }
-
-                bool endCall = request->getFlag();
-                if (endCall && !call->isModerator())
-                {
-                    API_LOG_ERROR("End call withouth enough privileges");
-                    errorCode = MegaChatError::ERROR_ACCESS;
-                    break;
-                }
-
-                ::promise::Promise<void> pms = endCall
-                        ? call->endCall()   // end call
-                        : call->hangup();   // hang up
-
-                pms.then([request, this]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request, this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error hang up a chat call: %s", err.what());
-
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
-
+                API_LOG_ERROR("Hang up call - invalid chatid");
+                errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
-            else    // hang all calls (no specific chatid)
+
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
             {
-                mClient->rtc->hangupAll();
+                API_LOG_ERROR("Hang up call- Chatroom has not been found");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
             }
 
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-            fireOnChatRequestFinish(request, megaChatError);
+            rtcModule::ICall* call = findCall(chatid);
+            if (!call)
+            {
+                API_LOG_ERROR("Hang up call - There is not any call in that chatroom");
+                errorCode = MegaChatError::ERROR_NOENT;
+                assert(false);
+                break;
+            }
+
+            bool endCall = request->getFlag();
+            if (endCall && !call->isModerator())
+            {
+                API_LOG_ERROR("End call withouth enough privileges");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            ::promise::Promise<void> pms = endCall
+                    ? call->endCall()   // end call
+                    : call->hangup();   // hang up
+
+            pms.then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const ::promise::Error& err)
+            {
+                API_LOG_ERROR("Error hang up a chat call: %s", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+
             break;
         }
         case MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL:
@@ -5175,11 +5171,6 @@ rtcModule::ICall *MegaChatApiImpl::findCall(MegaChatHandle chatid)
 void MegaChatApiImpl::cleanChatHandlers()
 {
 #ifndef KARERE_DISABLE_WEBRTC
-    if (mClient->rtc)
-    {
-        mClient->rtc->hangupAll();
-    }
-
     cleanCalls();
 #endif
 
@@ -5882,11 +5873,6 @@ bool MegaChatSessionPrivate::isLowResVideo() const
     return mAvFlags.videoLowRes();
 }
 
-bool MegaChatSessionPrivate::getAudioDetected() const
-{
-    return false;
-}
-
 bool MegaChatSessionPrivate::isOnHold() const
 {
     return mAVFlags.isOnHold();
@@ -5938,36 +5924,16 @@ void MegaChatSessionPrivate::setState(uint8_t state)
     mChanged |= MegaChatSession::CHANGE_TYPE_STATUS;
 }
 
-void MegaChatSessionPrivate::setAvFlags(AvFlags flags)
-{
-
-}
-
-void MegaChatSessionPrivate::setNetworkQuality(int quality)
-{
-
-}
-
 void MegaChatSessionPrivate::setAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
     mChanged |= CHANGE_TYPE_AUDIO_LEVEL;
 }
 
-void MegaChatSessionPrivate::setSessionFullyOperative()
-{
-
-}
-
 void MegaChatSessionPrivate::setOnHold(bool onHold)
 {
     mAVFlags.setOnHold(onHold);
     mChanged |= CHANGE_TYPE_SESSION_ON_HOLD;
-}
-
-void MegaChatSessionPrivate::setTermCode(int termCode)
-{
-
 }
 
 void MegaChatSessionPrivate::setChange(int change)
@@ -6248,15 +6214,6 @@ void MegaChatCallPrivate::removeChanges()
 void MegaChatCallPrivate::setChange(int changed)
 {
     this->mChanged = changed;
-}
-
-void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
-{
-}
-
-void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local)
-{
-
 }
 
 int MegaChatCallPrivate::convertCallState(rtcModule::CallState newState)

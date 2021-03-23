@@ -176,7 +176,6 @@ public:
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;
     virtual bool isLowResVideo() const override;
-    virtual bool getAudioDetected() const override;
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
@@ -188,12 +187,8 @@ public:
 
     karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
-    void setAvFlags(karere::AvFlags flags);
-    void setNetworkQuality(int quality);
     void setAudioDetected(bool audioDetected);
-    void setSessionFullyOperative();
     void setOnHold(bool onHold);
-    void setTermCode(int termCode);
     void setChange(int change);
     void removeChanges();
 
@@ -255,7 +250,6 @@ public:
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
     void removeChanges();
     void setChange(int mChanged);
-    void setTermCode(rtcModule::TermCode termCode);
     void setIsRinging(bool ringing);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
 
@@ -267,7 +261,6 @@ public:
     void setCaller(karere::Id caller);
     void setOnHold(bool onHold);
     void setAudioDetected(bool mAudioDetected);
-    static void convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local);
     static int convertCallState(rtcModule::CallState newState);
 
 protected:
