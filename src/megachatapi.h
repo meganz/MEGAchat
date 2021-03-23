@@ -171,16 +171,6 @@ public:
     virtual bool isLowResVideo() const;
 
     /**
-     * @brief Returns if audio is detected for this session
-     *
-     * @note The returned value is always false when audio level monitor is disabled
-     * @see MegaChatApi::enableAudioLevelMonitor or audio flag is disabled
-     *
-     * @return true if audio is detected for this session, false in other case
-     */
-    virtual bool getAudioDetected() const;
-
-    /**
      * @brief Returns if session is on hold
      *
      * @return true if session is on hold
@@ -271,9 +261,12 @@ public:
     virtual bool isModerator() const;
 
     /**
-     * @brief Returns if remote audio is detected for this session.
+     * @brief Returns if audio is detected for this session
      *
-     * @return true if audio is detected
+     * @note The returned value is always false when audio level monitor is disabled
+     * @see MegaChatApi::enableAudioLevelMonitor or audio flag is disabled
+     *
+     * @return true if audio is detected for this session, false in other case
      */
     virtual bool isAudioDetected() const;
 

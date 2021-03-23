@@ -88,11 +88,6 @@ bool MegaChatSession::isLowResVideo() const
     return false;
 }
 
-bool MegaChatSession::getAudioDetected() const
-{
-    return false;
-}
-
 bool MegaChatSession::isOnHold() const
 {
     return false;

@@ -5873,11 +5873,6 @@ bool MegaChatSessionPrivate::isLowResVideo() const
     return mAvFlags.videoLowRes();
 }
 
-bool MegaChatSessionPrivate::getAudioDetected() const
-{
-    return false;
-}
-
 bool MegaChatSessionPrivate::isOnHold() const
 {
     return mAVFlags.isOnHold();
@@ -5929,36 +5924,16 @@ void MegaChatSessionPrivate::setState(uint8_t state)
     mChanged |= MegaChatSession::CHANGE_TYPE_STATUS;
 }
 
-void MegaChatSessionPrivate::setAvFlags(AvFlags flags)
-{
-
-}
-
-void MegaChatSessionPrivate::setNetworkQuality(int quality)
-{
-
-}
-
 void MegaChatSessionPrivate::setAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
     mChanged |= CHANGE_TYPE_AUDIO_LEVEL;
 }
 
-void MegaChatSessionPrivate::setSessionFullyOperative()
-{
-
-}
-
 void MegaChatSessionPrivate::setOnHold(bool onHold)
 {
     mAVFlags.setOnHold(onHold);
     mChanged |= CHANGE_TYPE_SESSION_ON_HOLD;
-}
-
-void MegaChatSessionPrivate::setTermCode(int termCode)
-{
-
 }
 
 void MegaChatSessionPrivate::setChange(int change)

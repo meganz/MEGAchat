@@ -176,7 +176,6 @@ public:
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;
     virtual bool isLowResVideo() const override;
-    virtual bool getAudioDetected() const override;
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
@@ -188,12 +187,8 @@ public:
 
     karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
-    void setAvFlags(karere::AvFlags flags);
-    void setNetworkQuality(int quality);
     void setAudioDetected(bool audioDetected);
-    void setSessionFullyOperative();
     void setOnHold(bool onHold);
-    void setTermCode(int termCode);
     void setChange(int change);
     void removeChanges();
 
