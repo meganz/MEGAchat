@@ -250,7 +250,6 @@ public:
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
     void removeChanges();
     void setChange(int mChanged);
-    void setTermCode(rtcModule::TermCode termCode);
     void setIsRinging(bool ringing);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
 
@@ -262,7 +261,6 @@ public:
     void setCaller(karere::Id caller);
     void setOnHold(bool onHold);
     void setAudioDetected(bool mAudioDetected);
-    static void convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local);
     static int convertCallState(rtcModule::CallState newState);
 
 protected:

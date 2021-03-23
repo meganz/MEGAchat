@@ -6216,15 +6216,6 @@ void MegaChatCallPrivate::setChange(int changed)
     this->mChanged = changed;
 }
 
-void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
-{
-}
-
-void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, int &megaTermCode, bool &local)
-{
-
-}
-
 int MegaChatCallPrivate::convertCallState(rtcModule::CallState newState)
 {
     // todo: implement additional operations associated to the state change
