@@ -102,7 +102,7 @@ class SfuInterface
 public:
     // SFU -> Client
     virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;
-    virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, int mod, const std::vector<Peer>&peers, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, int mod, uint64_t, const std::vector<Peer>&peers, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
@@ -149,7 +149,7 @@ public:
     class AnswerCommand : public Command
     {
     public:
-        typedef std::function<bool(Cid_t, sfu::Sdp&, int, std::vector<Peer>, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>)> AnswerCompleteFunction;
+        typedef std::function<bool(Cid_t, sfu::Sdp&, int, uint64_t, std::vector<Peer>, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>)> AnswerCompleteFunction;
         AnswerCommand(const AnswerCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
         static std::string COMMAND_NAME;

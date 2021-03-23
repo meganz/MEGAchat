@@ -606,7 +606,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
+bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
     mMyPeer.init(cid, mSfuClient.myHandle(), 0, mod);
 
@@ -629,7 +629,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::ve
 
     auto wptr = weakHandle();
     mRtcConn.setRemoteDescription(sdpInterface)
-    .then([wptr, this, vthumbs, speakers]()
+    .then([wptr, this, vthumbs, speakers, ts]()
     {
         if (wptr.deleted())
             return;
@@ -651,6 +651,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::ve
         }
 
         setState(CallState::kStateInProgress);
+        mInitialTs -= ts; // subtract ts received in ANSWER command, from ts captured upon setState kStateInProgress
     })
     .fail([wptr, this](const ::promise::Error& err)
     {

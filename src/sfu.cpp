@@ -304,6 +304,16 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
 
     Sdp sdp(sdpIterator->value);
 
+    rapidjson::Value::ConstMemberIterator tsIterator = command.FindMember("t");
+    if (tsIterator == command.MemberEnd() || !tsIterator->value.IsUint64())
+    {
+        SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 't' field");
+        return false;
+    }
+
+    // call start ts
+    uint64_t ts = tsIterator->value.GetUint64();
+
     std::vector<Peer> peers;
     rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
     if (peersIterator != command.MemberEnd() && peersIterator->value.IsArray())
@@ -325,7 +335,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         parseTracks(peers, vthumbs, vthumbsIterator);
     }
 
-    return mComplete(cid, sdp, isModerator, peers, vthumbs, speakers);
+    return mComplete(cid, sdp, ts, isModerator, peers, vthumbs, speakers);
 }
 
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::ConstMemberIterator &it) const
@@ -1132,7 +1142,7 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     , mCall(call)
 {
     mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2));
-    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
+    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7));
     mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1));
     mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call));
