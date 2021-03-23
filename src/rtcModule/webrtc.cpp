@@ -1312,7 +1312,7 @@ std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
 
 unsigned int RtcModuleSfu::getNumCalls()
 {
-    return 0;
+    return mCalls.size();
 }
 
 const std::string& RtcModuleSfu::getVideoDeviceSelected() const
