@@ -206,11 +206,7 @@ void Call::setOnHold()
     }
 
     // release video device
-    if (mVideoDevice)
-    {
-        mVideoDevice->releaseDevice();
-        mVideoDevice = nullptr;
-    }
+    releaseVideoDevice();
 }
 
 void Call::releaseOnHold()
