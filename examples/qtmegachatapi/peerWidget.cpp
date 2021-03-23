@@ -32,14 +32,7 @@ PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHan
 
 PeerWidget::~PeerWidget()
 {
-    if (mLocal)
-    {
-        mMegaChatApi.removeChatLocalVideoListener(mChatid, mMegaChatVideoListenerDelegate);
-    }
-    else
-    {
-        mMegaChatApi.removeChatRemoteVideoListener(mChatid, mCid, mHiRes, mMegaChatVideoListenerDelegate);
-    }
+    removeVideoListener();
 }
 
 void PeerWidget::setOnHold(bool isOnHold)
@@ -248,6 +241,11 @@ bool PeerWidget::event(QEvent *event)
 
 void PeerWidget::removeVideoListener()
 {
+    if (!mMegaChatVideoListenerDelegate)
+    {
+        return;
+    }
+
     if (mLocal)
     {
         mMegaChatApi.removeChatLocalVideoListener(mChatid, mMegaChatVideoListenerDelegate);
@@ -256,4 +254,7 @@ void PeerWidget::removeVideoListener()
     {
         mMegaChatApi.removeChatRemoteVideoListener(mChatid, mCid, mHiRes, mMegaChatVideoListenerDelegate);
     }
+
+    delete mMegaChatVideoListenerDelegate;
+    mMegaChatVideoListenerDelegate = nullptr;
 }

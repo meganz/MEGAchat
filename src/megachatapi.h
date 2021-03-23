@@ -156,7 +156,7 @@ public:
      * @note Indicate if client is sending high resolution video at this moment.
      * We can configure the session for receive video but peer is not sending yet
      *
-     * @return true if video quality is hight resolution, otherwise returns false
+     * @return true if video quality is high resolution, otherwise returns false
      */
     virtual bool isHiResVideo() const;
 
@@ -205,7 +205,7 @@ public:
      *
      * - CHANGE_TYPE_SESSION_ON_HIRES = 0x20
      * Notify if one client has the possibility of send high resolution video
-     * It's possible that hasHighResViideo is false yet
+     * It's possible that hasHighResVideo is false yet
      *
      */
     virtual int getChanges() const;
@@ -240,7 +240,7 @@ public:
      *
      * - CHANGE_TYPE_SESSION_ON_HIRES = 0x20
      * Notify if one client has the possibility of send high resolution video
-     * It's possible that hasHighResViideo is false yet
+     * It's possible that hasHighResVideo is false yet
      *
      * @return true if this session has an specific change
      */

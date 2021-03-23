@@ -78,6 +78,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mRequestSpeaker->setText("ReqSpeak (enable)");
 }
 
+MeetingView::~MeetingView()
+{
+}
+
 void MeetingView::addVthumb(PeerWidget *widget)
 {
     mThumbLayout->addWidget(widget);

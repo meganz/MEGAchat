@@ -16,6 +16,7 @@ class MeetingView : public QWidget
     Q_OBJECT
 public:
     MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget* parent);
+    ~MeetingView();
     void addVthumb(PeerWidget* widget);
     void addHiRes(PeerWidget* widget);
     void addLocalVideo(PeerWidget* widget);

@@ -4890,44 +4890,72 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
 
     if (clientid == 0)
     {
-        mLocalVideoListeners[chatid].erase(listener);
-        if (mLocalVideoListeners[chatid].empty())
+        auto it = mLocalVideoListeners.find(chatid);
+        if (it != mLocalVideoListeners.end())
         {
-            mLocalVideoListeners.erase(chatid);
-            mClient->rtc->removeLocalVideoRenderer(chatid);
+            MegaChatVideoListener_set &videoListenersSet = it->second;
+            videoListenersSet.erase(listener);
+            if (videoListenersSet.empty())
+            {
+                // if videoListenersSet is empty, remove entry from mLocalVideoListeners map
+                mLocalVideoListeners.erase(chatid);
+                mClient->rtc->removeLocalVideoRenderer(chatid);
+            }
         }
     }
     else if (hiRes)
     {
-        mVideoListenersHiRes[chatid][clientid].erase(listener);
-
-        if (mVideoListenersHiRes[chatid][clientid].empty())
+        auto itHiRes = mVideoListenersHiRes.find(chatid);
+        if (itHiRes != mVideoListenersHiRes.end())
         {
-            mVideoListenersHiRes[chatid].erase(clientid);
-        }
+            MegaChatPeerVideoListener_map &videoListenersMap = itHiRes->second;
+            auto auxit = videoListenersMap.find(clientid);
+            if (auxit != videoListenersMap.end())
+            {
+                // remove listener from MegaChatVideoListener_set
+                MegaChatVideoListener_set &videoListener_set = auxit->second;
+                videoListener_set.erase(listener);
+                if (videoListener_set.empty())
+                {
+                    // if MegaChatVideoListener_set is empty, remove entry from MegaChatPeerVideoListener_map
+                    videoListenersMap.erase(clientid);
+                }
+            }
 
-        if (mVideoListenersHiRes[chatid].empty())
-        {
-            mVideoListenersHiRes.erase(chatid);
+            if (videoListenersMap.empty())
+            {
+                // if MegaChatPeerVideoListener_map is empty, remove entry from mVideoListenersHiRes map
+                mVideoListenersHiRes.erase(chatid);
+            }
         }
     }
     else
     {
         assert(clientid); // local video listeners can't be un/registered into this map
-
-        mVideoListenersLowRes[chatid][clientid].erase(listener);
-
-        if (mVideoListenersLowRes[chatid][clientid].empty())
+        auto itLowRes = mVideoListenersLowRes.find(chatid);
+        if (itLowRes != mVideoListenersLowRes.end())
         {
-            mVideoListenersLowRes[chatid].erase(clientid);
-        }
+            MegaChatPeerVideoListener_map &videoListenersMap = itLowRes->second;
+            auto auxit = videoListenersMap.find(clientid);
+            if (auxit != videoListenersMap.end())
+            {
+                // remove listener from MegaChatVideoListener_set
+                MegaChatVideoListener_set &videoListener_set = auxit->second;
+                videoListener_set.erase(listener);
+                if (videoListener_set.empty())
+                {
+                    // if MegaChatVideoListener_set is empty, remove entry from MegaChatPeerVideoListener_map
+                    videoListenersMap.erase(clientid);
+                }
+            }
 
-        if (mVideoListenersLowRes[chatid].empty())
-        {
-            mVideoListenersLowRes.erase(chatid);
+            if (videoListenersMap.empty())
+            {
+                // if MegaChatPeerVideoListener_map is empty, remove entry from mVideoListenersLowRes map
+                mVideoListenersLowRes.erase(chatid);
+            }
         }
     }
-
     videoMutex.unlock();
 }
 
