@@ -942,6 +942,7 @@ private:
     std::set<MegaChatCallListener *> callListeners;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersHiRes;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersLowRes;
+    std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalVideoListeners;
 
     mega::MegaStringList *getChatInDevices(const std::set<std::string> &devices);
     void cleanCalls();
@@ -1158,12 +1159,14 @@ public:
     char *getVideoDeviceSelected();
 
     // Calls
-    void startChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
-    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
+    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void endChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
+    void openVideoDevice(MegaChatRequestListener *listener = NULL);
+    void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);
@@ -1174,8 +1177,8 @@ public:
     bool hasCallInChatRoom(MegaChatHandle chatid);
     int getMaxCallParticipants();
     int getMaxVideoCallParticipants();
-    bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);  /// ***Deprecated
-    void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL); /// ***Deprecated
+    bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
+    void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);

@@ -22,6 +22,7 @@ public:
     void drawAvatar(QImage &image, QChar letter, uint64_t userid, bool onHold = false);
     bool event(QEvent *event) override;
     QTMegaChatVideoListener *mMegaChatVideoListenerDelegate;
+    void removeVideoListener();
 
 protected:
     VideoRendererQt* mVideoRender;

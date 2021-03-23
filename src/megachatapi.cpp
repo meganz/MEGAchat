@@ -879,14 +879,14 @@ char *MegaChatApi::getVideoDeviceSelected()
     return pImpl->getVideoDeviceSelected();
 }
 
-void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-    pImpl->startChatCall(chatid, enableVideo, listener);
+    pImpl->startChatCall(chatid, enableVideo, enableAudio, listener);
 }
 
-void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-    pImpl->answerChatCall(chatid, enableVideo, listener);
+    pImpl->answerChatCall(chatid, enableVideo, enableAudio, listener);
 }
 
 void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
@@ -922,6 +922,16 @@ void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *l
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     pImpl->setCallOnHold(chatid, setOnHold, listener);
+}
+
+void MegaChatApi::openVideoDevice(MegaChatRequestListener *listener)
+{
+    pImpl->openVideoDevice(listener);
+}
+
+void MegaChatApi::releaseVideoDevice(MegaChatRequestListener *listener)
+{
+    pImpl->releaseVideoDevice(listener);
 }
 
 MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)

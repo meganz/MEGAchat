@@ -279,16 +279,6 @@ void Call::setCallHandler(CallHandler* callHanlder)
     mCallHandler = std::unique_ptr<CallHandler>(callHanlder);
 }
 
-void Call::setVideoRendererVthumb(IVideoRenderer *videoRederer)
-{
-    mVThumb->setVideoRender(videoRederer);
-}
-
-void Call::setVideoRendererHiRes(IVideoRenderer *videoRederer)
-{
-    mHiRes->setVideoRender(videoRederer);
-}
-
 karere::AvFlags Call::getLocalAvFlags() const
 {
     return mLocalAvFlags;
@@ -523,14 +513,14 @@ void Call::createTranceiver()
 
     if (err.ok())
     {
-        mVThumb = ::mega::make_unique<VideoSlot>(*this, err.MoveValue());
+        mVThumb = ::mega::make_unique<RemoteVideoSlot>(*this, err.MoveValue());
         mVThumb->generateRandomIv();
     }
 
     webrtc::RtpTransceiverInit transceiverInitHiRes;
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
-    mHiRes = ::mega::make_unique<VideoSlot>(*this, err.MoveValue());
+    mHiRes = ::mega::make_unique<RemoteVideoSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitAudio;
@@ -557,14 +547,17 @@ void Call::createTranceiver()
 void Call::getLocalStreams()
 {
     updateAudioTracks();
-    updateVideoTracks();
+    if (mLocalAvFlags.video())
+    {
+        updateVideoTracks();
+    }
 }
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
-    if (mVideoDevice)
+    if (mLocalAvFlags.video())
     {
-        mVideoDevice->releaseDevice();
+        releaseVideoDevice();
     }
 
     for (const auto& session : mSessions)
@@ -923,7 +916,7 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
         }
         else
         {
-            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<VideoSlot>(*this, transceiver);
+            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver);
         }
     }
 }
@@ -998,11 +991,11 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         rtc::VideoSinkWants opts;
-        VideoSlot* slot = static_cast<VideoSlot*>(it->second.get());
+        RemoteVideoSlot* slot = static_cast<RemoteVideoSlot*>(it->second.get());
         Cid_t cid = trackDescriptor.first;
         slot->createDecryptor(cid, trackDescriptor.second.mIv);
         slot->enableTrack(true);
-        slot->setTrackSink();
+        slot->addSinkToTrack();
 
         if (hiRes)
         {
@@ -1068,6 +1061,24 @@ std::map<Cid_t, std::unique_ptr<Session> > &Call::getSessions()
     return mSessions;
 }
 
+void Call::takeVideoDevice()
+{
+    if (!mVideoManager)
+    {
+        mRtc.takeDevice();
+        mVideoManager = mRtc.getVideoDevice();
+    }
+}
+
+void Call::releaseVideoDevice()
+{
+    if (mVideoManager)
+    {
+        mRtc.releaseDevice();
+        mVideoManager = nullptr;
+    }
+}
+
 const std::string& Call::getCallKey() const
 {
     return mCallKey;
@@ -1105,35 +1116,13 @@ void Call::updateVideoTracks()
     bool isOnHold = mLocalAvFlags.isOnHold();
     if (mLocalAvFlags.video() && !isOnHold)
     {
-        if (!mVideoDevice)
-        {
-            std::string videoDevice = mRtc.getVideoDeviceSelected(); // get default video device
-            if (videoDevice.empty())
-            {
-                RTCM_LOG_WARNING("Default video in device is not set");
-                assert(false);
-                std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
-                videoDevice = videoDevices.begin()->second;
-            }
-
-            webrtc::VideoCaptureCapability capabilities;
-            capabilities.width = RtcConstant::kHiResWidth;
-            capabilities.height = RtcConstant::kHiResHeight;
-            capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
-            mVideoDevice = artc::VideoManager::Create(capabilities, videoDevice, artc::gWorkerThread.get());
-            mVideoDevice->openDevice(videoDevice);
-            // Our local slot connect directly to video device to keep showing video althoug no one wants our video
-            rtc::VideoSinkWants wants;
-            mVideoDevice->AddOrUpdateSink(mVThumb.get(), wants);
-            mVideoDevice->AddOrUpdateSink(mHiRes.get(), wants);
-
-        }
+        takeVideoDevice();
 
         // hi-res track
         if (mHiResActive && !mHiRes->getTransceiver()->sender()->track())
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
+            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
             mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
         }
         else if (!mHiResActive)
@@ -1145,7 +1134,7 @@ void Call::updateVideoTracks()
         if (!mVThumb->getTransceiver()->sender()->track())
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice->getVideoTrackSource());
+            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
             webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
             mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
 
@@ -1169,11 +1158,7 @@ void Call::updateVideoTracks()
             mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
         }
 
-        if (!isOnHold && mVideoDevice)
-        {
-            mVideoDevice->releaseDevice();
-            mVideoDevice = nullptr;
-        }
+        releaseVideoDevice();
     }
 }
 
@@ -1195,6 +1180,7 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
     // set default video in device
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
     mVideoDeviceSelected = videoDevices.begin()->second;
+    mDeviceCount = 0;
 }
 
 void RtcModuleSfu::hangupAll()
@@ -1276,6 +1262,57 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
     });
 }
 
+void RtcModuleSfu::takeDevice()
+{
+    if (!mDeviceCount)
+    {
+        std::string videoDevice = mVideoDeviceSelected; // get default video device
+        if (videoDevice.empty())
+        {
+            RTCM_LOG_WARNING("Default video in device is not set");
+            assert(false);
+            std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+            videoDevice = videoDevices.begin()->second;
+        }
+
+        webrtc::VideoCaptureCapability capabilities;
+        capabilities.width = RtcConstant::kHiResWidth;
+        capabilities.height = RtcConstant::kHiResHeight;
+        capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
+
+        mVideoDevice = artc::VideoManager::Create(capabilities, videoDevice, artc::gWorkerThread.get());
+        mVideoDevice->openDevice(videoDevice);
+        rtc::VideoSinkWants wants;
+        mVideoDevice->AddOrUpdateSink(this, wants);
+    }
+
+    mDeviceCount++;
+}
+
+void RtcModuleSfu::releaseDevice()
+{
+    if (mDeviceCount > 0)
+    {
+        mDeviceCount--;
+        if (mDeviceCount == 0)
+        {
+            assert(mVideoDevice);
+            mVideoDevice->RemoveSink(this);
+            mVideoDevice->releaseDevice();
+        }
+    }
+}
+
+void RtcModuleSfu::addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer)
+{
+    mRenderers[chatid] = std::unique_ptr<IVideoRenderer>(videoRederer);
+}
+
+bool RtcModuleSfu::removeLocalVideoRenderer(karere::Id chatid)
+{
+    mRenderers.erase(chatid);
+}
+
 std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
 {
     std::vector<karere::Id> v;
@@ -1336,6 +1373,39 @@ void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere:
 {
     mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
+}
+
+void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
+{
+    for (auto& render : mRenderers)
+    {
+        ICall* call = findCallByChatid(render.first);
+        if ((call && call->getLocalAvFlags().video() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+        {
+            void* userData = NULL;
+            auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
+            if (frame.rotation() != webrtc::kVideoRotation_0)
+            {
+                buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+            }
+            unsigned short width = (unsigned short)buffer->width();
+            unsigned short height = (unsigned short)buffer->height();
+            void* frameBuf = render.second->getImageBuffer(width, height, userData);
+            if (!frameBuf) //image is frozen or app is minimized/covered
+                return;
+            libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+                               buffer->DataU(), buffer->StrideU(),
+                               buffer->DataV(), buffer->StrideV(),
+                               (uint8_t*)frameBuf, width * 4, width, height);
+
+            render.second->frameComplete(userData);
+        }
+    }
+}
+
+artc::VideoManager *RtcModuleSfu::getVideoDevice()
+{
+    return mVideoDevice;
 }
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers)
@@ -1449,12 +1519,12 @@ void Slot::generateRandomIv()
     randombytes_buf(&mIv, sizeof(mIv));
 }
 
-VideoSlot::VideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : Slot(call, transceiver)
 {
 }
 
-VideoSlot::~VideoSlot()
+RemoteVideoSlot::~RemoteVideoSlot()
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
@@ -1466,12 +1536,22 @@ VideoSlot::~VideoSlot()
     }
 }
 
-void VideoSlot::setVideoRender(IVideoRenderer *videoRenderer)
+VideoSink::VideoSink()
+{
+
+}
+
+VideoSink::~VideoSink()
+{
+
+}
+
+void VideoSink::setVideoRender(IVideoRenderer *videoRenderer)
 {
     mRenderer = std::unique_ptr<IVideoRenderer>(videoRenderer);
 }
 
-void VideoSlot::OnFrame(const webrtc::VideoFrame &frame)
+void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
 {
     if (mRenderer)
     {
@@ -1494,7 +1574,7 @@ void VideoSlot::OnFrame(const webrtc::VideoFrame &frame)
     }
 }
 
-void VideoSlot::setTrackSink()
+void RemoteVideoSlot::addSinkToTrack()
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
@@ -1562,13 +1642,13 @@ const sfu::Peer& Session::getPeer() const
     return mPeer;
 }
 
-void Session::setVThumSlot(VideoSlot *slot)
+void Session::setVThumSlot(RemoteVideoSlot *slot)
 {
     mVthumSlot = slot;
     mSessionHandler->onVThumbReceived(*this);
 }
 
-void Session::setHiResSlot(VideoSlot *slot)
+void Session::setHiResSlot(RemoteVideoSlot *slot)
 {
     mHiresSlot = slot;
     mSessionHandler->onHiResReceived(*this);
@@ -1606,12 +1686,12 @@ Slot *Session::getAudioSlot()
     return mAudioSlot;
 }
 
-VideoSlot *Session::getVthumSlot()
+RemoteVideoSlot *Session::getVthumSlot()
 {
     return mVthumSlot;
 }
 
-VideoSlot *Session::betHiResSlot()
+RemoteVideoSlot *Session::betHiResSlot()
 {
     return mHiresSlot;
 }
