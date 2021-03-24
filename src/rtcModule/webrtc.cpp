@@ -403,18 +403,24 @@ std::vector<Cid_t> Call::getSpeakerRequested()
 
 void Call::requestHighResolutionVideo(Cid_t cid)
 {
-    bool hasVthumb = false;
-    for (const auto& session : mSessions)
+    mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false));
+}
+
+void Call::requestHiresQuality(Cid_t cid, int quality)
+{
+    if (!hasVideoSlot(cid))
     {
-        Slot* slot = session.second->getVthumSlot();
-        if (slot && slot->getCid() == cid)
-        {
-            hasVthumb = true;
-            break;
-        }
+        RTCM_LOG_WARNING("setHighResolutionDivider: Currently not receiving a hi-res stream for this peer");
+        return;
     }
 
-    mSfuConnection->sendGetHiRes(cid, hasVthumb);
+    if (quality < kCallQualityHighDef || quality > kCallQualityHighLow)
+    {
+        RTCM_LOG_WARNING("setHiResDivider: invalid resolution divider value (spatial layer offset).");
+        return;
+    }
+
+    mSfuConnection->sendHiResSetLo(cid, quality);
 }
 
 void Call::stopHighResolutionVideo(Cid_t cid)

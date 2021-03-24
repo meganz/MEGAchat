@@ -333,6 +333,13 @@ public:
         CHANGE_TYPE_AUDIO_LEVEL = 0x80,             /// Indicates if we are speaking
     };
 
+    enum
+    {
+        CALL_QUALITY_HIGH_DEF = 0,
+        CALL_QUALITY_HIGH_MEDIUM = 1,
+        CALL_QUALITY_HIGH_LOW = 2,
+    };
+
     enum {
         AUDIO = 0,
         VIDEO = 1,
@@ -1703,7 +1710,8 @@ public:
         TYPE_IMPORT_MESSAGES,  TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD,
         TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TYPE_MANAGE_REACTION,
         TYPE_GET_PEER_ATTRIBUTES, TYPE_REQUEST_SPEAK, TYPE_APPROVE_SPEAK,
-        TYPE_REQUEST_HIGH_RES_VIDEO, TYPE_REQUEST_LOW_RES_VIDEO, TYPE_OPEN_VIDEO_DEVICE,
+        TYPE_REQUEST_HIGH_RES_VIDEO, TYPE_REQUEST_LOW_RES_VIDEO,
+        TYPE_OPEN_VIDEO_DEVICE, TYPE_REQUEST_HIRES_QUALITY,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -4726,6 +4734,27 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Request a high resolution quality level from a client
+     *
+     * Valid values for quality param are:
+     *  + MegaChatCall::CALL_QUALITY_HIGH_DEF = 0,     // Default hi-res quality
+     *  + MegaChatCall::CALL_QUALITY_HIGH_MEDIUM = 1,  // 2x lower resolution
+     *  + MegaChatCall::CALL_QUALITY_HIGH_LOW = 2,     // 4x lower resolution
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     * - MegaChatRequest::getParamType  - Returns the quality level requested
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientid MegaChatHandle that identifies the client
+     * @param quality The quality level requested
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Set/unset a call on hold

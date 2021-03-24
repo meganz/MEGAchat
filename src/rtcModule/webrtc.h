@@ -52,6 +52,13 @@ enum SessionState: uint8_t
     kSessStateDestroyed    // < Call object is not valid anymore, the call is removed from the system
 };
 
+enum CallQuality
+{
+    kCallQualityHighDef = 0,        // Default hi-res quality
+    kCallQualityHighMedium = 1,     // 1 layer lower  (2x lower resolution)
+    kCallQualityHighLow = 2,        // 2 layers lower (4x lower resolution)
+};
+
 class ISession;
 class SessionHandler
 {
@@ -134,6 +141,7 @@ public:
     virtual void stopSpeak(Cid_t cid = 0) = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid) = 0;
+    virtual void requestHiresQuality(Cid_t cid, int quality) = 0;
     virtual void stopHighResolutionVideo(Cid_t cid) = 0;
     virtual void requestLowResolutionVideo(const std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(const std::vector<Cid_t> &cids) = 0;
