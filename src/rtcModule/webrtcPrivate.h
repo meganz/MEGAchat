@@ -97,7 +97,7 @@ public:
 
     Slot* getAudioSlot();
     RemoteVideoSlot* getVthumSlot();
-    RemoteVideoSlot* betHiResSlot();
+    RemoteVideoSlot* getHiResSlot();
 
     void setSpeakRequested(bool requested);
     bool setModerator(bool requested);

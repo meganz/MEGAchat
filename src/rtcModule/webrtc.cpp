@@ -1683,7 +1683,7 @@ RemoteVideoSlot *Session::getVthumSlot()
     return mVthumSlot;
 }
 
-RemoteVideoSlot *Session::betHiResSlot()
+RemoteVideoSlot *Session::getHiResSlot()
 {
     return mHiresSlot;
 }
