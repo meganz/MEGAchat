@@ -225,6 +225,22 @@ bool Call::isAudioLevelMonitorEnabled() const
     return mAudioLevelMonitorEnabled;
 }
 
+bool Call::hasVideoSlot(Cid_t cid, bool highRes) const
+{
+    for (const auto& session : mSessions)
+    {
+        Slot *slot = highRes
+                ? session.second->getHiResSlot()
+                : session.second->getVthumSlot();
+
+        if (slot && slot->getCid() == cid)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void Call::setCallerId(karere::Id callerid)
 {
     mCallerId  = callerid;

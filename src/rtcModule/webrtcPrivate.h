@@ -160,6 +160,7 @@ public:
     bool isRinging() const override;
     bool isIgnored() const override;
     bool isAudioLevelMonitorEnabled() const override;
+    bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
