@@ -8,7 +8,7 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool moderator, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
@@ -300,6 +300,12 @@ void Call::updateVideoInDevice()
 {
     // todo implement
     RTCM_LOG_DEBUG("updateVideoInDevice");
+}
+
+void Call::setModerator(bool moderator)
+{
+    mMyPeer.setModerator(moderator);
+    mCallHandler->onModeratorChange(*this);
 }
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
@@ -860,17 +866,6 @@ bool Call::handleError(unsigned int code, const std::string reason)
 
 bool Call::handleModerator(Cid_t cid, bool moderator)
 {
-    if (cid)
-    {
-        assert(mSessions.find(cid) != mSessions.end());
-        mSessions[cid]->setModerator(moderator);
-    }
-    else
-    {
-        mIsModerator = moderator;
-        mCallHandler->onModeratorChange(*this);
-    }
-
     return true;
 }
 
@@ -1253,13 +1248,13 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
     }
 }
 
-promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey)
+promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool moderator, std::shared_ptr<std::string> unifiedKey)
 {
     // we need a temp string to avoid issues with lambda shared pointer capture
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-    .then([wptr, this, chatid, avFlags, auxCallKey](ReqResult result)
+    .then([wptr, this, chatid, avFlags, auxCallKey, moderator](ReqResult result)
     {
         std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
                 ? std::make_shared<std::string>(auxCallKey)
@@ -1270,7 +1265,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), sharedUnifiedKey, true, avFlags);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), moderator, sharedUnifiedKey, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });
@@ -1383,9 +1378,9 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
     mCalls.erase(callid);
 }
 
-void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey)
+void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool moderator, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), callKey);
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), moderator, callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 

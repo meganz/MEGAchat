@@ -1517,9 +1517,10 @@ void MegaChatApiImpl::sendPendingRequests()
                    pms.resolve(std::make_shared<string>());
                }
 
-               pms.then([request, this, chatid, avFlags] (shared_ptr<string> unifiedKey)
+               bool moderator = chatroom->ownPriv() == Priv::PRIV_OPER;
+               pms.then([request, this, chatid, avFlags, moderator] (shared_ptr<string> unifiedKey)
                {
-                   mClient->rtc->startCall(chatid, avFlags, unifiedKey)
+                   mClient->rtc->startCall(chatid, avFlags, moderator, unifiedKey)
                    .then([request, this]()
                    {
                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1542,7 +1543,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (!call->participate())
             {
-                bool moderator = true;
+                bool moderator = chatroom->ownPriv() == Priv::PRIV_OPER;
                 call->join(moderator, avFlags)
                 .then([request, this]()
                 {
@@ -1601,7 +1602,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool moderator = true;
+            bool moderator = chatroom->ownPriv() == Priv::PRIV_OPER;
             bool enableVideo = request->getFlag();
             bool enableAudio = request->getParamType();
             karere::AvFlags avFlags(enableAudio, enableVideo);
