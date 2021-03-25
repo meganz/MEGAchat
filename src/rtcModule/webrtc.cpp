@@ -20,10 +20,10 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mSfuClient(rtc.getSfuClient())
     , mMyPeer()
     , mRtc(rtc)
+    , mModerator(moderator)
 {
     mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, -1)); // -1 represent local
     mCallKey = callKey ? (*callKey.get()) : std::string();
-    mMyPeer.setModerator(moderator);
     mGlobalCallHandler.onNewCall(*this);
     mSessions.clear();
 }
@@ -144,7 +144,6 @@ promise::Promise<void> Call::hangup()
 promise::Promise<void> Call::join(bool moderator, karere::AvFlags avFlags)
 {
     mLocalAvFlags = avFlags;
-    mMyPeer.setModerator(moderator);
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid, mCallid)
     .then([wptr, this](ReqResult result)
@@ -258,7 +257,7 @@ bool Call::isRinging() const
 
 bool Call::isModerator() const
 {
-    return mMyPeer.getModerator();
+    return mModerator;
 }
 
 bool Call::isOutgoing() const
@@ -309,7 +308,7 @@ void Call::updateVideoInDevice()
 
 void Call::setModerator(bool moderator)
 {
-    mMyPeer.setModerator(moderator);
+    mModerator = moderator;
     mCallHandler->onModeratorChange(*this);
 }
 
@@ -373,7 +372,7 @@ bool Call::isSpeakAllow() const
 
 void Call::approveSpeakRequest(Cid_t cid, bool allow)
 {
-    assert(mMyPeer.getModerator());
+    assert(mModerator);
     if (allow)
     {
         mSfuConnection->sendSpeakReq(cid);
@@ -388,7 +387,7 @@ void Call::stopSpeak(Cid_t cid)
 {
     if (cid)
     {
-        assert(mMyPeer.getModerator());
+        assert(mModerator);
         assert(mSessions.find(cid) != mSessions.end());
         mSfuConnection->sendSpeakDel(cid);
         return;
@@ -522,7 +521,7 @@ void Call::connectSfu(const std::string &sfuUrl)
             ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
             ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
             ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-            mSfuConnection->joinSfu(sdp, ivs, mMyPeer.getModerator(), mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
+            mSfuConnection->joinSfu(sdp, ivs, mModerator, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
@@ -641,7 +640,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
 
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
-    mMyPeer.init(cid, mSfuClient.myHandle(), 0, mod);
+    mMyPeer.init(cid, mSfuClient.myHandle(), 0);
 
     for (const sfu::Peer& peer : peers)
     {
@@ -840,7 +839,7 @@ bool Call::handleStatCommand()
 
 bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 {
-    sfu::Peer peer(cid, userid, av, false);
+    sfu::Peer peer(cid, userid, av);
 
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler->onNewSession(*mSessions[cid], *this);
@@ -1207,6 +1206,7 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
     mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings, myHandle);
     if (!artc::isInitialized())
     {
+        //rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
         artc::init(appCtx);
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
@@ -1761,12 +1761,6 @@ void Session::setSpeakRequested(bool requested)
     mSessionHandler->onAudioRequested(*this);
 }
 
-bool Session::setModerator(bool requested)
-{
-    mIsModerator = requested;
-    mSessionHandler->onModeratorChange(*this);
-}
-
 karere::Id Session::getPeerid() const
 {
     return mPeer.getPeerid();
@@ -1785,11 +1779,6 @@ SessionState Session::getState() const
 karere::AvFlags Session::getAvFlags() const
 {
     return mPeer.getAvFlags();
-}
-
-bool Session::isModerator() const
-{
-    return mIsModerator;
 }
 
 bool Session::isAudioDetected() const

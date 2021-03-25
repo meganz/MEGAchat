@@ -179,7 +179,6 @@ public:
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
-    virtual bool isModerator() const override;
     virtual bool isAudioDetected() const override;
     virtual bool hasRequestSpeak() const override;
     virtual bool canRecvVideoHiRes() const override;
@@ -200,7 +199,6 @@ private:
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     karere::AvFlags mAVFlags;
     bool mHasRequestSpeak = false;
-    bool mIsModerator = false;
     bool mAudioDetected = false;
     bool mHasHiResTrack = false;
     bool mHasLowResTrack = false;
@@ -243,7 +241,6 @@ public:
     virtual bool isOutgoing() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
-    virtual bool isModerator() const override;
     bool isSpeakAllow() const override;
     int getNetworkQuality() const override;
 
@@ -283,7 +280,6 @@ protected:
     bool mAudioDetected = false;
     bool ringing = false;
     bool mIsCaller;
-    bool mIsModerator = false;
     bool mIsSpeakAllow = false;
     int mNetworkQuality = rtcModule::kNetworkQualityDefault;
 };
@@ -601,7 +597,6 @@ public:
     void onVThumbReceived(rtcModule::ISession& session) override;
     void onHiResReceived(rtcModule::ISession& session) override;
     void onDestroySession(rtcModule::ISession& session) override;
-    void onModeratorChange(rtcModule::ISession& session) override;
     void onAudioRequested(rtcModule::ISession& session) override;
     void onRemoteFlagsChanged(rtcModule::ISession& session) override;
     void onOnHold(rtcModule::ISession& session) override;

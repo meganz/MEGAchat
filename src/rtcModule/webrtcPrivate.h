@@ -100,14 +100,12 @@ public:
     RemoteVideoSlot* getHiResSlot();
 
     void setSpeakRequested(bool requested);
-    bool setModerator(bool requested);
 
     // ISession methods
     karere::Id getPeerid() const override;
     Cid_t getClientid() const override;
     SessionState getState() const override;
     karere::AvFlags getAvFlags() const override;
-    bool isModerator() const override;
     bool isAudioDetected() const override;
     bool hasRequestSpeak() const override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
@@ -123,7 +121,6 @@ private:
     RemoteVideoSlot* mHiresSlot = nullptr;
     Slot* mAudioSlot = nullptr;
     std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
-    bool mIsModerator = false;
     bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
     SessionState mState = kSessStateInProgress;
@@ -275,6 +272,7 @@ protected:
 
     // represents own peer
     sfu::Peer mMyPeer;
+    bool mModerator = false;
 
     // call key for public chats (128-bit key)
     std::string mCallKey;

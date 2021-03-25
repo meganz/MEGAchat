@@ -108,11 +108,6 @@ bool MegaChatSession::hasRequestSpeak() const
     return false;
 }
 
-bool MegaChatSession::isModerator() const
-{
-    return false;
-}
-
 bool MegaChatSession::isAudioDetected() const
 {
     return false;
@@ -253,11 +248,6 @@ MegaChatHandle MegaChatCall::getCaller() const
 }
 
 bool MegaChatCall::isOnHold() const
-{
-    return false;
-}
-
-bool MegaChatCall::isModerator() const
 {
     return false;
 }
