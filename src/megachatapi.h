@@ -331,6 +331,7 @@ public:
         CHANGE_TYPE_CALL_MODERATOR = 0x20,          /// Moderator has been enabled
         CHANGE_TYPE_CALL_SPEAK = 0x40,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x80,             /// Indicates if we are speaking
+        CHANGE_TYPE_NETWORK_QUALITY = 0x100,         /// Network quality has change
     };
 
     enum
@@ -646,6 +647,19 @@ public:
      * @return True if user is allow to speak in the call
      */
     virtual bool isSpeakAllow() const;
+
+    /**
+     * @brief Returns network quality
+     *
+     * The valid network quality values are between 0 and 5
+     * 0 -> the worst quality
+     * 5 -> the best quality
+     *
+     * @note The app may want to show a "slow network" warning when the quality is <= 1.
+     *
+     * @return network quality
+     */
+    virtual int getNetworkQuality() const;
 };
 
 /**

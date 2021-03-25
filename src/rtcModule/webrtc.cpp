@@ -241,6 +241,11 @@ bool Call::hasVideoSlot(Cid_t cid, bool highRes) const
     return false;
 }
 
+int Call::getNetworkQuality() const
+{
+    return mNetworkQuality;
+}
+
 void Call::setCallerId(karere::Id callerid)
 {
     mCallerId  = callerid;

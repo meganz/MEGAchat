@@ -182,8 +182,8 @@ public:
     virtual bool isModerator() const override;
     virtual bool isAudioDetected() const override;
     virtual bool hasRequestSpeak() const override;
-    virtual bool canRecvVideoHiRes() const;
-    virtual bool canRecvVideoLowRes() const;
+    virtual bool canRecvVideoHiRes() const override;
+    virtual bool canRecvVideoLowRes() const override;
 
     karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
@@ -245,6 +245,7 @@ public:
     virtual bool isOnHold() const override;
     virtual bool isModerator() const override;
     bool isSpeakAllow() const override;
+    int getNetworkQuality() const override;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -284,6 +285,7 @@ protected:
     bool mIsCaller;
     bool mIsModerator = false;
     bool mIsSpeakAllow = false;
+    int mNetworkQuality = rtcModule::kNetworkQualityDefault;
 };
 
 class MegaChatVideoFrame

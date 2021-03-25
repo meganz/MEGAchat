@@ -132,6 +132,7 @@ public:
     virtual bool isIgnored() const = 0;
     virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
+    virtual int getNetworkQuality() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;

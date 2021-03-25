@@ -267,6 +267,11 @@ bool MegaChatCall::isSpeakAllow() const
     return false;
 }
 
+int MegaChatCall::getNetworkQuality() const
+{
+    return 0;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);

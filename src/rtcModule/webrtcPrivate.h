@@ -161,6 +161,7 @@ public:
     bool isIgnored() const override;
     bool isAudioLevelMonitorEnabled() const override;
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
+    int getNetworkQuality() const override;
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
@@ -248,6 +249,7 @@ protected:
     bool mAudioDetected = false;
     bool mAudioLevelMonitorEnabled = false;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
+    int mNetworkQuality = kNetworkQualityDefault;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;
