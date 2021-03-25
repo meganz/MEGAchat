@@ -8,7 +8,7 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey, bool moderator, karere::AvFlags avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool moderator, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
@@ -225,6 +225,22 @@ bool Call::isAudioLevelMonitorEnabled() const
     return mAudioLevelMonitorEnabled;
 }
 
+bool Call::hasVideoSlot(Cid_t cid, bool highRes) const
+{
+    for (const auto& session : mSessions)
+    {
+        Slot *slot = highRes
+                ? session.second->getHiResSlot()
+                : session.second->getVthumSlot();
+
+        if (slot && slot->getCid() == cid)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void Call::setCallerId(karere::Id callerid)
 {
     mCallerId  = callerid;
@@ -284,6 +300,12 @@ void Call::updateVideoInDevice()
 {
     // todo implement
     RTCM_LOG_DEBUG("updateVideoInDevice");
+}
+
+void Call::setModerator(bool moderator)
+{
+    mMyPeer.setModerator(moderator);
+    mCallHandler->onModeratorChange(*this);
 }
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
@@ -387,18 +409,24 @@ std::vector<Cid_t> Call::getSpeakerRequested()
 
 void Call::requestHighResolutionVideo(Cid_t cid)
 {
-    bool hasVthumb = false;
-    for (const auto& session : mSessions)
+    mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false));
+}
+
+void Call::requestHiresQuality(Cid_t cid, int quality)
+{
+    if (!hasVideoSlot(cid))
     {
-        Slot* slot = session.second->getVthumSlot();
-        if (slot && slot->getCid() == cid)
-        {
-            hasVthumb = true;
-            break;
-        }
+        RTCM_LOG_WARNING("setHighResolutionDivider: Currently not receiving a hi-res stream for this peer");
+        return;
     }
 
-    mSfuConnection->sendGetHiRes(cid, hasVthumb);
+    if (quality < kCallQualityHighDef || quality > kCallQualityHighLow)
+    {
+        RTCM_LOG_WARNING("setHiResDivider: invalid resolution divider value (spatial layer offset).");
+        return;
+    }
+
+    mSfuConnection->sendHiResSetLo(cid, quality);
 }
 
 void Call::stopHighResolutionVideo(Cid_t cid)
@@ -606,7 +634,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
+bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
     mMyPeer.init(cid, mSfuClient.myHandle(), 0, mod);
 
@@ -629,7 +657,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::ve
 
     auto wptr = weakHandle();
     mRtcConn.setRemoteDescription(sdpInterface)
-    .then([wptr, this, vthumbs, speakers]()
+    .then([wptr, this, vthumbs, speakers, ts]()
     {
         if (wptr.deleted())
             return;
@@ -651,6 +679,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod,  const std::ve
         }
 
         setState(CallState::kStateInProgress);
+        mInitialTs -= ts; // subtract ts received in ANSWER command, from ts captured upon setState kStateInProgress
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -837,17 +866,6 @@ bool Call::handleError(unsigned int code, const std::string reason)
 
 bool Call::handleModerator(Cid_t cid, bool moderator)
 {
-    if (cid)
-    {
-        assert(mSessions.find(cid) != mSessions.end());
-        mSessions[cid]->setModerator(moderator);
-    }
-    else
-    {
-        mIsModerator = moderator;
-        mCallHandler->onModeratorChange(*this);
-    }
-
     return true;
 }
 
@@ -1230,13 +1248,13 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
     }
 }
 
-promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey)
+promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool moderator, std::shared_ptr<std::string> unifiedKey)
 {
     // we need a temp string to avoid issues with lambda shared pointer capture
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-    .then([wptr, this, chatid, avFlags, auxCallKey](ReqResult result)
+    .then([wptr, this, chatid, avFlags, auxCallKey, moderator](ReqResult result)
     {
         std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
                 ? std::make_shared<std::string>(auxCallKey)
@@ -1247,7 +1265,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), sharedUnifiedKey, true, avFlags);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), moderator, sharedUnifiedKey, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });
@@ -1360,9 +1378,9 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
     mCalls.erase(callid);
 }
 
-void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey)
+void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool moderator, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), callKey);
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), moderator, callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 
@@ -1682,7 +1700,7 @@ RemoteVideoSlot *Session::getVthumSlot()
     return mVthumSlot;
 }
 
-RemoteVideoSlot *Session::betHiResSlot()
+RemoteVideoSlot *Session::getHiResSlot()
 {
     return mHiresSlot;
 }

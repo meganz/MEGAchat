@@ -914,6 +914,11 @@ void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *l
     pImpl->setVideoEnable(chatid,false, listener);
 }
 
+void MegaChatApi::requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
+{
+    pImpl->requestHiresQuality(chatid, clientId, quality, listener);
+}
+
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     pImpl->setCallOnHold(chatid, setOnHold, listener);
