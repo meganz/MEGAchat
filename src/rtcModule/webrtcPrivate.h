@@ -203,6 +203,10 @@ public:
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
     void takeVideoDevice();
     void releaseVideoDevice();
+    bool hasVideoDevide();
+    void updateVideoDevice();
+    void freeTracks();
+    void updateVideoTracks();
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, int mod, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -284,7 +288,7 @@ protected:
     void removeSpeaker(Cid_t cid);
     const std::string &getCallKey() const;
     void updateAudioTracks();
-    void updateVideoTracks();
+
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
@@ -317,6 +321,9 @@ public:
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
     artc::VideoManager* getVideoDevice();
+    void changeDevide(const std::string& device);
+    void openDevice();
+    void closeDevice();
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;

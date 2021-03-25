@@ -1098,36 +1098,30 @@ void Call::releaseVideoDevice()
     }
 }
 
-const std::string& Call::getCallKey() const
+bool Call::hasVideoDevide()
 {
-    return mCallKey;
+    return mVideoManager ? true : false;
 }
 
-void Call::updateAudioTracks()
+void Call::updateVideoDevice()
 {
-    bool audio = mSpeakerState > SpeakerState::kNoSpeaker && mLocalAvFlags.audio();
-    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
-    if (audio && !mLocalAvFlags.isOnHold())
-    {
-        if (!track) // create audio track only if not exists
-        {
-            rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
-                    artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
+    mVideoManager = mRtc.getVideoDevice();
+}
 
-            mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
-            audioTrack->set_enabled(true);
-        }
-        else
-        {
-            track->set_enabled(true);
-        }
-
-    }
-    else if (track) // if no audio flags active, or call is onHold
+void Call::freeTracks()
+{
+    // disable hi-res track
+    if (mHiRes->getTransceiver()->sender()->track())
     {
-        track->set_enabled(false);
-        mAudio->getTransceiver()->sender()->SetTrack(nullptr);
+        mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
     }
+
+    // disable low-res track
+    if (mVThumb->getTransceiver()->sender()->track())
+    {
+        mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+
 }
 
 void Call::updateVideoTracks()
@@ -1165,19 +1159,40 @@ void Call::updateVideoTracks()
     }
     else
     {
-        // disable hi-res track
-        if (mHiRes->getTransceiver()->sender()->track())
-        {
-            mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
-        }
-
-        // disable low-res track
-        if (mVThumb->getTransceiver()->sender()->track())
-        {
-            mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
-        }
-
+        freeTracks();
         releaseVideoDevice();
+    }
+}
+
+const std::string& Call::getCallKey() const
+{
+    return mCallKey;
+}
+
+void Call::updateAudioTracks()
+{
+    bool audio = mSpeakerState > SpeakerState::kNoSpeaker && mLocalAvFlags.audio();
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
+    if (audio && !mLocalAvFlags.isOnHold())
+    {
+        if (!track) // create audio track only if not exists
+        {
+            rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
+                    artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
+
+            mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
+            audioTrack->set_enabled(true);
+        }
+        else
+        {
+            track->set_enabled(true);
+        }
+
+    }
+    else if (track) // if no audio flags active, or call is onHold
+    {
+        track->set_enabled(false);
+        mAudio->getTransceiver()->sender()->SetTrack(nullptr);
     }
 }
 
@@ -1233,11 +1248,24 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
     {
         if (!it->first.compare(device))
         {
-            mVideoDeviceSelected = it->second;
-            for (const auto& call : mCalls)
+            std::vector<Call*> calls;
+            for (auto& callIt : mCalls)
             {
-                call.second->updateVideoInDevice();
+                if (callIt.second->hasVideoDevide())
+                {
+                    calls.push_back(callIt.second.get());
+                    callIt.second->freeTracks();
+                    callIt.second->releaseVideoDevice();
+                }
             }
+
+            changeDevide(it->second);
+
+            for (auto& call : calls)
+            {
+                call->updateVideoTracks();
+            }
+
             return true;
         }
     }
@@ -1280,24 +1308,7 @@ void RtcModuleSfu::takeDevice()
 {
     if (!mDeviceCount)
     {
-        std::string videoDevice = mVideoDeviceSelected; // get default video device
-        if (videoDevice.empty())
-        {
-            RTCM_LOG_WARNING("Default video in device is not set");
-            assert(false);
-            std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
-            videoDevice = videoDevices.begin()->second;
-        }
-
-        webrtc::VideoCaptureCapability capabilities;
-        capabilities.width = RtcConstant::kHiResWidth;
-        capabilities.height = RtcConstant::kHiResHeight;
-        capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
-
-        mVideoDevice = artc::VideoManager::Create(capabilities, videoDevice, artc::gWorkerThread.get());
-        mVideoDevice->openDevice(videoDevice);
-        rtc::VideoSinkWants wants;
-        mVideoDevice->AddOrUpdateSink(this, wants);
+        openDevice();
     }
 
     mDeviceCount++;
@@ -1311,8 +1322,7 @@ void RtcModuleSfu::releaseDevice()
         if (mDeviceCount == 0)
         {
             assert(mVideoDevice);
-            mVideoDevice->RemoveSink(this);
-            mVideoDevice->releaseDevice();
+            closeDevice();
         }
     }
 }
@@ -1420,6 +1430,41 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
 artc::VideoManager *RtcModuleSfu::getVideoDevice()
 {
     return mVideoDevice;
+}
+
+void RtcModuleSfu::changeDevide(const std::string &device)
+{
+    closeDevice();
+    mVideoDeviceSelected = device;
+    openDevice();
+}
+
+void RtcModuleSfu::openDevice()
+{
+    std::string videoDevice = mVideoDeviceSelected; // get default video device
+    if (videoDevice.empty())
+    {
+        RTCM_LOG_WARNING("Default video in device is not set");
+        assert(false);
+        std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+        videoDevice = videoDevices.begin()->second;
+    }
+
+    webrtc::VideoCaptureCapability capabilities;
+    capabilities.width = RtcConstant::kHiResWidth;
+    capabilities.height = RtcConstant::kHiResHeight;
+    capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
+
+    mVideoDevice = artc::VideoManager::Create(capabilities, videoDevice, artc::gWorkerThread.get());
+    mVideoDevice->openDevice(videoDevice);
+    rtc::VideoSinkWants wants;
+    mVideoDevice->AddOrUpdateSink(this, wants);
+}
+
+void RtcModuleSfu::closeDevice()
+{
+    mVideoDevice->RemoveSink(this);
+    mVideoDevice->releaseDevice();
 }
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers)
