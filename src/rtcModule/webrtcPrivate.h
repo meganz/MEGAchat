@@ -200,7 +200,7 @@ public:
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
     void takeVideoDevice();
     void releaseVideoDevice();
-    bool hasVideoDevide();
+    bool hasVideoDevice();
     void updateVideoDevice();
     void freeTracks();
     void updateVideoTracks();
@@ -319,7 +319,7 @@ public:
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
     artc::VideoManager* getVideoDevice();
-    void changeDevide(const std::string& device);
+    void changeDevice(const std::string& device);
     void openDevice();
     void closeDevice();
 

@@ -1097,7 +1097,7 @@ void Call::releaseVideoDevice()
     }
 }
 
-bool Call::hasVideoDevide()
+bool Call::hasVideoDevice()
 {
     return mVideoManager ? true : false;
 }
@@ -1251,7 +1251,7 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
             std::vector<Call*> calls;
             for (auto& callIt : mCalls)
             {
-                if (callIt.second->hasVideoDevide())
+                if (callIt.second->hasVideoDevice())
                 {
                     calls.push_back(callIt.second.get());
                     callIt.second->freeTracks();
@@ -1259,7 +1259,7 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
                 }
             }
 
-            changeDevide(it->second);
+            changeDevice(it->second);
 
             for (auto& call : calls)
             {
@@ -1432,7 +1432,7 @@ artc::VideoManager *RtcModuleSfu::getVideoDevice()
     return mVideoDevice;
 }
 
-void RtcModuleSfu::changeDevide(const std::string &device)
+void RtcModuleSfu::changeDevice(const std::string &device)
 {
     closeDevice();
     mVideoDeviceSelected = device;
