@@ -26,7 +26,7 @@ std::string StatCommand::COMMAND_NAME = "STAT";
 std::string PeerJoinCommand::COMMAND_NAME = "PEERJOIN";
 std::string PeerLeftCommand::COMMAND_NAME = "PEERLEFT";
 std::string ErrorCommand::COMMAND_NAME = "ERR";
-std::string ModeratorCommand::COMMAND_NAME = "MOD";
+std::string ModeratorCommand::COMMAND_NAME = "MOD"; // only for testing purposes
 
 const std::string Sdp::endl = "\r\n";
 
@@ -665,8 +665,10 @@ bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
         parseTrackDescriptor(descriptor, audioIterator);
         return mComplete(cid, descriptor);
     }
-
-    return false;
+    else
+    {
+        return mComplete(cid, sfu::TrackDescriptor());
+    }
 }
 
 SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete)
