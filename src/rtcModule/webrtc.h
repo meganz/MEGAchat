@@ -68,7 +68,6 @@ public:
     virtual void onVThumbReceived(ISession& session) = 0;
     virtual void onHiResReceived(ISession& session) = 0;
     virtual void onDestroySession(ISession& session) = 0;
-    virtual void onModeratorChange(ISession& session) = 0;
     virtual void onAudioRequested(ISession& session) = 0;
     virtual void onRemoteFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
@@ -83,7 +82,6 @@ public:
     virtual Cid_t getClientid() const = 0;
     virtual karere::AvFlags getAvFlags() const = 0;
     virtual SessionState getState() const = 0;
-    virtual bool isModerator() const = 0;
     virtual bool isAudioDetected() const = 0;
     virtual bool hasRequestSpeak() const = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
@@ -132,6 +130,7 @@ public:
     virtual bool isIgnored() const = 0;
     virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
+    virtual int getNetworkQuality() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isModerator() const = 0;

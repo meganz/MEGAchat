@@ -179,7 +179,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                      reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
                      if (reply == QMessageBox::Yes)
                      {
-                        mMegaChatApi->answerChatCall(call->getChatid(), false);
+                        mMegaChatApi->answerChatCall(call->getChatid(), true);
                      }
                      else if (QMessageBox::Cancel)
                      {
@@ -224,7 +224,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
              reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
              if (reply == QMessageBox::Yes)
              {
-                mMegaChatApi->answerChatCall(call->getChatid(), false);
+                mMegaChatApi->answerChatCall(call->getChatid(), true);
              }
              else if (QMessageBox::Cancel)
              {

@@ -729,7 +729,7 @@ void ProtocolHandler::loadKeysFromDb()
             std::forward_as_tuple(key));
         assert(ret.second);
     }
-    STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu send keys from database", chatid, mKeys.size());
+    STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu send keys from database", chatid.val, mKeys.size());
 }
 
 void ProtocolHandler::loadUnconfirmedKeysFromDb()
@@ -779,7 +779,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
 
         if (!encryptedKey) // not found
         {
-            STRONGVELOPE_LOG_ERROR("(%" PRId64 "): own key not found in the keyblob from KeyCommand", chatid);
+            STRONGVELOPE_LOG_ERROR("(%" PRId64 "): own key not found in the keyblob from KeyCommand", chatid.val);
             assert(false);
             continue;
         }
@@ -801,7 +801,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
         });
     }
 
-    STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu unconfirmed keys from database", chatid, mUnconfirmedKeys.size());
+    STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu unconfirmed keys from database", chatid.val, mUnconfirmedKeys.size());
 }
 
 void ProtocolHandler::msgEncryptWithKey(const Message& src, MsgCommand& dest,

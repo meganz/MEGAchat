@@ -18,23 +18,20 @@ class Peer
 {
 public:
     Peer(); //default ctor
-    Peer(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod);
+    Peer(Cid_t cid, karere::Id peerid, unsigned avFlags);
     Peer(const Peer& peer);
     Cid_t getCid() const;
     karere::Id getPeerid() const;
     Keyid_t getCurrentKeyId() const;
     karere::AvFlags getAvFlags() const;
-    int getModerator() const;
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
-    void setModerator(bool moderator);
-    void init(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod);
+    void init(Cid_t cid, karere::Id peerid, unsigned avFlags);
 protected:
     Cid_t mCid = 0;
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = 0;
-    int mModerator = 1;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
 
