@@ -292,7 +292,9 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     submenu.addAction(requestThumb.c_str());
     submenu.addAction(requestHiRes.c_str());
     std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
-    if (call && call->isModerator())
+    std::unique_ptr<MegaChatRoom> chatRoom = std::unique_ptr<MegaChatRoom>(mMegaChatApi. getChatRoom(mChatid));
+    bool moderator = (chatRoom->getOwnPrivilege() == MegaChatRoom::PRIV_MODERATOR);
+    if (call && moderator)
     {
        megachat::MegaChatSession* session = call->getMegaChatSession(cid);
        if (session->hasRequestSpeak())

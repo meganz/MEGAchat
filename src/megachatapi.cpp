@@ -108,11 +108,6 @@ bool MegaChatSession::hasRequestSpeak() const
     return false;
 }
 
-bool MegaChatSession::isModerator() const
-{
-    return false;
-}
-
 bool MegaChatSession::isAudioDetected() const
 {
     return false;
@@ -257,14 +252,14 @@ bool MegaChatCall::isOnHold() const
     return false;
 }
 
-bool MegaChatCall::isModerator() const
+bool MegaChatCall::isSpeakAllow() const
 {
     return false;
 }
 
-bool MegaChatCall::isSpeakAllow() const
+int MegaChatCall::getNetworkQuality() const
 {
-    return false;
+    return 0;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)

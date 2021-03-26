@@ -31,12 +31,12 @@ std::string ModeratorCommand::COMMAND_NAME = "MOD";
 const std::string Sdp::endl = "\r\n";
 
 Peer::Peer()
-    : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0), mModerator(1)
+    : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0)
 {
 }
 
-Peer::Peer(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod)
-    : mCid(cid), mPeerid(peerid), mAvFlags(avFlags), mModerator(mod)
+Peer::Peer(Cid_t cid, karere::Id peerid, unsigned avFlags)
+    : mCid(cid), mPeerid(peerid), mAvFlags(avFlags)
 {
 }
 
@@ -44,17 +44,15 @@ Peer::Peer(const Peer &peer)
     : mCid(peer.mCid)
     , mPeerid(peer.mPeerid)
     , mAvFlags(peer.mAvFlags)
-    , mModerator(peer.mModerator)
 {
 
 }
 
-void Peer::init(Cid_t cid, karere::Id peerid, unsigned avFlags, int mod)
+void Peer::init(Cid_t cid, karere::Id peerid, unsigned avFlags)
 {
     mCid = cid;
     mPeerid = peerid;
     mAvFlags = avFlags;
-    mModerator = mod;
 }
 
 Cid_t Peer::getCid() const
@@ -77,12 +75,6 @@ karere::AvFlags Peer::getAvFlags() const
     return mAvFlags;
 }
 
-int Peer::getModerator() const
-{
-    return mModerator;
-}
-
-
 std::string Peer::getKey(Keyid_t keyid) const
 {
     std::string key;
@@ -104,11 +96,6 @@ void Peer::addKey(Keyid_t keyid, const std::string &key)
 void Peer::setAvFlags(karere::AvFlags flags)
 {
     mAvFlags = flags;
-}
-
-void Peer::setModerator(bool moderator)
-{
-    mModerator = moderator;
 }
 
 SpeakersDescriptor::SpeakersDescriptor()
@@ -385,7 +372,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
             }
 
 
-            peers.push_back(Peer(cid, userId, av, mod));
+            peers.push_back(Peer(cid, userId, av));
         }
         else
         {

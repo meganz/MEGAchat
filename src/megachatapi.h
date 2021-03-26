@@ -89,11 +89,10 @@ public:
         CHANGE_TYPE_STATUS = 0x01,                  /// Session status has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x02,          /// Remote audio/video flags has changed
         CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04, /// Session speak requested
-        CHANGE_TYPE_SESSION_MODERATOR = 0x08,       /// Session moderator requested
-        CHANGE_TYPE_SESSION_ON_LOWRES = 0x10,       /// Low-Res video received
-        CHANGE_TYPE_SESSION_ON_HIRES = 0x20,        /// Hi-Res video received
-        CHANGE_TYPE_SESSION_ON_HOLD = 0x40,         /// Session is on hold
-        CHANGE_TYPE_AUDIO_LEVEL = 0x80,             /// Indicates if peer is speaking
+        CHANGE_TYPE_SESSION_ON_LOWRES = 0x08,       /// Low-Res video received
+        CHANGE_TYPE_SESSION_ON_HIRES = 0x10,        /// Hi-Res video received
+        CHANGE_TYPE_SESSION_ON_HOLD = 0x20,         /// Session is on hold
+        CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
     };
 
 
@@ -254,13 +253,6 @@ public:
     virtual bool hasRequestSpeak() const;
 
     /**
-     * @brief Returns if session is moderator
-     *
-     * @return true if session is moderator
-     */
-    virtual bool isModerator() const;
-
-    /**
      * @brief Returns if audio is detected for this session
      *
      * @note The returned value is always false when audio level monitor is disabled
@@ -331,6 +323,7 @@ public:
         CHANGE_TYPE_CALL_MODERATOR = 0x20,          /// Moderator has been enabled
         CHANGE_TYPE_CALL_SPEAK = 0x40,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x80,             /// Indicates if we are speaking
+        CHANGE_TYPE_NETWORK_QUALITY = 0x100,         /// Network quality has change
     };
 
     enum
@@ -632,13 +625,6 @@ public:
     virtual bool isOnHold() const;
 
     /**
-     * @brief Returns if user is moderator in the call
-     *
-     * @return true if call is on hold
-     */
-    virtual bool isModerator() const;
-
-    /**
      * @brief Returns if user can speak in a call
      *
      * @note If there isn't a call in that chatroom, this method returns false
@@ -646,6 +632,19 @@ public:
      * @return True if user is allow to speak in the call
      */
     virtual bool isSpeakAllow() const;
+
+    /**
+     * @brief Returns network quality
+     *
+     * The valid network quality values are between 0 and 5
+     * 0 -> the worst quality
+     * 5 -> the best quality
+     *
+     * @note The app may want to show a "slow network" warning when the quality is <= 1.
+     *
+     * @return network quality
+     */
+    virtual int getNetworkQuality() const;
 };
 
 /**

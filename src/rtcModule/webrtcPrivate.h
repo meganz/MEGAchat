@@ -100,14 +100,12 @@ public:
     RemoteVideoSlot* getHiResSlot();
 
     void setSpeakRequested(bool requested);
-    bool setModerator(bool requested);
 
     // ISession methods
     karere::Id getPeerid() const override;
     Cid_t getClientid() const override;
     SessionState getState() const override;
     karere::AvFlags getAvFlags() const override;
-    bool isModerator() const override;
     bool isAudioDetected() const override;
     bool hasRequestSpeak() const override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
@@ -123,7 +121,6 @@ private:
     RemoteVideoSlot* mHiresSlot = nullptr;
     Slot* mAudioSlot = nullptr;
     std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
-    bool mIsModerator = false;
     bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
     SessionState mState = kSessStateInProgress;
@@ -161,6 +158,7 @@ public:
     bool isIgnored() const override;
     bool isAudioLevelMonitorEnabled() const override;
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
+    int getNetworkQuality() const override;
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
@@ -202,6 +200,10 @@ public:
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
     void takeVideoDevice();
     void releaseVideoDevice();
+    bool hasVideoDevice();
+    void updateVideoDevice();
+    void freeTracks();
+    void updateVideoTracks();
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, int mod, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -248,6 +250,7 @@ protected:
     bool mAudioDetected = false;
     bool mAudioLevelMonitorEnabled = false;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
+    int mNetworkQuality = kNetworkQualityDefault;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;
@@ -269,6 +272,7 @@ protected:
 
     // represents own peer
     sfu::Peer mMyPeer;
+    bool mModerator = false;
 
     // call key for public chats (128-bit key)
     std::string mCallKey;
@@ -282,7 +286,7 @@ protected:
     void removeSpeaker(Cid_t cid);
     const std::string &getCallKey() const;
     void updateAudioTracks();
-    void updateVideoTracks();
+
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
@@ -315,6 +319,9 @@ public:
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
     artc::VideoManager* getVideoDevice();
+    void changeDevice(const std::string& device);
+    void openDevice();
+    void closeDevice();
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;

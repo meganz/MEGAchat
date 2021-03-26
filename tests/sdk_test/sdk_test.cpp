@@ -3012,12 +3012,12 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 //    bool *audioVideoDeviceListLoaded0 = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded0 = false;
 //    megaChatApi[a1]->loadAudioVideoDeviceList();
 //    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded0), "Timeout expired for load audio video devices in account 1");
-//    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to load Devide list account 1: " + std::to_string(lastErrorChat[a1]));
+//    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to load Device list account 1: " + std::to_string(lastErrorChat[a1]));
 
 //    bool *audioVideoDeviceListLoaded1 = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded1 = false;
 //    megaChatApi[a2]->loadAudioVideoDeviceList();
 //    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded1), "Timeout expired for load audio video devices in account 2");
-//    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to load Devide list account 2: " + std::to_string(lastErrorChat[a2]));
+//    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to load Device list account 2: " + std::to_string(lastErrorChat[a2]));
 
     mLocalVideoListener[a1] = new TestChatVideoListener();
     mLocalVideoListener[a2] = new TestChatVideoListener();
