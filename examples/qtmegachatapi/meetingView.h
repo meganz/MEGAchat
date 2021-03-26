@@ -10,7 +10,9 @@
 #include <QListWidget>
 #include <QLabel>
 #include <map>
+#include "meetingSession.h"
 
+class MeetingSession;
 class MeetingView : public QWidget
 {
     Q_OBJECT
@@ -29,6 +31,7 @@ public:
     void updateVideoButtonText(MegaChatCall *call);
     void onRequestSpeakFinish();
     void setOnHold(bool mIsOnHold, MegaChatHandle cid);
+    std::string sessionToString(const megachat::MegaChatSession& session);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -57,12 +60,11 @@ protected:
     std::map<uint32_t, PeerWidget*> mThumbsWidget;
     std::map<uint32_t, PeerWidget*> mHiResWidget;
     PeerWidget* mLocalWidget = nullptr;
+    std::map<uint32_t, MeetingSession*> mSessionWidgets;
 
-    std::map<uint32_t, QListWidgetItem*> mSessionItems;
 
     void removeThumb(PeerWidget* widget);
     void removeHiRes(PeerWidget* widget);
-    std::string sessionToString(const megachat::MegaChatSession& session);
 
 public slots:
     void onHangUp();

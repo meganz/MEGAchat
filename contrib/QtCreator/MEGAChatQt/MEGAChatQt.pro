@@ -44,7 +44,8 @@ SOURCES +=  ../../../examples/qtmegachatapi/MegaChatApplication.cpp \
     ../../../examples/qtmegachatapi/SettingWindow.cpp \
     ../../../examples/qtmegachatapi/reaction.cpp \
     ../../../examples/qtmegachatapi/peerWidget.cpp \
-    ../../../examples/qtmegachatapi/meetingView.cpp
+    ../../../examples/qtmegachatapi/meetingView.cpp \
+    ../../../examples/qtmegachatapi/meetingSession.cpp
 
 HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
             ../../../examples/qtmegachatapi/MainWindow.h \
@@ -62,7 +63,8 @@ HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
     ../../../examples/qtmegachatapi/SettingWindow.h \
     ../../../examples/qtmegachatapi/reaction.h \
     ../../../examples/qtmegachatapi/peerWidget.h \
-    ../../../examples/qtmegachatapi/meetingView.h
+    ../../../examples/qtmegachatapi/meetingView.h \
+    ../../../examples/qtmegachatapi/meetingSession.h
 
 FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
             ../../../examples/qtmegachatapi/MainWindow.ui \

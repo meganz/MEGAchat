@@ -131,32 +131,39 @@ void MeetingView::removeHiRes(uint32_t cid)
 
 void MeetingView::addSession(const megachat::MegaChatSession &session)
 {
-    QListWidgetItem* item = new QListWidgetItem(sessionToString(session).c_str());
-    item->setIcon(QApplication::style()->standardPixmap(QStyle::SP_MediaPlay));
-    mListWidget->addItem(item);
-    assert(mSessionItems.find(session.getClientid()) == mSessionItems.end());
-    mSessionItems[session.getClientid()] = item;
+    QString cid(std::to_string(session.getClientid()).c_str());
+    QVariant data(cid);
+    MeetingSession *widget = new MeetingSession(this, session);
+    QListWidgetItem *item = new QListWidgetItem();
+    item->setData(Qt::UserRole, data);
+    item->setSizeHint(QSize(item->sizeHint().height(), 35));
+    widget->setWidgetItem(item);
+    mListWidget->insertItem(mSessionWidgets.size(), item);
+    mListWidget->setItemWidget(item, widget);
+    assert(mSessionWidgets.find(session.getClientid()) == mSessionWidgets.end());
+    mSessionWidgets[session.getClientid()] = widget;
 }
 
 void MeetingView::removeSession(const megachat::MegaChatSession& session)
 {
-    auto it = mSessionItems.find(session.getClientid());
-    if (it != mSessionItems.end())
+    auto it = mSessionWidgets.find(session.getClientid());
+    if (it != mSessionWidgets.end())
     {
-        QListWidgetItem* item = it->second;
+        MeetingSession *meetingSession = it->second;
+        QListWidgetItem *item = it->second->getWidgetItem();
         mListWidget->removeItemWidget(item);
-        mSessionItems.erase(it);
+        mSessionWidgets.erase(it);
         delete item;
+        delete meetingSession;
     }
 }
 
 void MeetingView::updateSession(const megachat::MegaChatSession &session)
 {
-    auto it = mSessionItems.find(session.getClientid());
-    if (it != mSessionItems.end())
+    auto it = mSessionWidgets.find(session.getClientid());
+    if (it != mSessionWidgets.end())
     {
-        QListWidgetItem* item = it->second;
-        item->setText(sessionToString(session).c_str());
+        it->second->updateWidget(session);
     }
 }
 
@@ -200,13 +207,10 @@ void MeetingView::setOnHold(bool isOnHold, MegaChatHandle cid)
     else
     {
         // update session item
-        auto sessIt = mSessionItems.find(cid);
-        if (sessIt != mSessionItems.end())
+        auto sessIt = mSessionWidgets.find(cid);
+        if (sessIt != mSessionWidgets.end())
         {
-            QListWidgetItem *item = sessIt->second;
-            isOnHold
-                    ? item->setIcon(QApplication::style()->standardPixmap(QStyle::SP_MediaPause))
-                    : item->setIcon(QApplication::style()->standardPixmap(QStyle::SP_MediaPlay));
+            sessIt->second->setOnHold(isOnHold);
         }
 
         // set low-res widget onHold
@@ -245,14 +249,8 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
         delete [] name;
     }
 
-    returnedString.append("/");
-
-    returnedString.append(std::to_string(session.getClientid())).append("/");
-
-    returnedString.append("A:").append(std::to_string(session.hasAudio())).append("/");
-    returnedString.append("V:").append(std::to_string(session.hasVideo())).append("/");
-    returnedString.append("ReqS:").append(std::to_string(session.hasRequestSpeak())).append("/");
-
+    returnedString.append(" [ClientId: ");
+    returnedString.append(std::to_string(session.getClientid())).append("]");
     return returnedString;
 }
 
@@ -280,9 +278,11 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         return;
     }
 
-    QString text = item->text();
-    QStringList textList = text.split('/');
-    uint32_t cid = textList[1].toUInt();
+    uint32_t cid = static_cast<uint32_t>(atoi(item->data(Qt::UserRole).toString().toStdString().c_str()));
+    if (mSessionWidgets.find(cid) == mSessionWidgets.end())
+    {
+        return;
+    }
 
     QMenu submenu;
     std::string requestThumb("Request vThumb");
