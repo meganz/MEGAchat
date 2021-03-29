@@ -52,6 +52,7 @@ protected:
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
     QPushButton* mAudioMonitor;
+    QPushButton* mRemOwnSpeaker;
     QPushButton* mSetOnHold;
     QLabel* mOnHoldLabel;
 
@@ -73,6 +74,7 @@ public slots:
     void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
+    void onRemoveSpeaker(uint32_t cid = MEGACHAT_INVALID_HANDLE);
     void onEnableAudioMonitor(bool audioMonitorEnable);
 };
 

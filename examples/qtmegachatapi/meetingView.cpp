@@ -36,6 +36,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 
     mAudioMonitor = new QPushButton("Audio monitor", this);
     connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
+    mRemOwnSpeaker = new QPushButton("Remove own speaker", this);
+    connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveSpeaker()));
     mSetOnHold = new QPushButton("onHold", this);
     connect(mSetOnHold, SIGNAL(released()), this, SLOT(onOnHold()));
     mOnHoldLabel = new QLabel("CALL ONHOLD", this);
@@ -62,6 +64,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 
     mButtonsLayout->addWidget(mHangup);
     mButtonsLayout->addWidget(mRequestSpeaker);
+    mButtonsLayout->addWidget(mRequestSpeakerCancel);
+    mButtonsLayout->addWidget(mRemOwnSpeaker);
     mButtonsLayout->addWidget(mRequestModerator);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
@@ -327,7 +331,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         }
         else if (rightClickItem->text().contains(requestDelSpeaker.c_str()))
         {
-            mMegaChatApi.removeSpeaker(mChatid, cid);
+            onRemoveSpeaker(cid);
         }
     }
 }
@@ -391,6 +395,11 @@ void MeetingView::onEnableVideo()
     {
         mMegaChatApi.enableVideo(mChatid);
     }
+}
+
+void MeetingView::onRemoveSpeaker(uint32_t cid)
+{
+    mMegaChatApi.removeSpeaker(mChatid, MEGACHAT_INVALID_HANDLE);
 }
 
 void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
