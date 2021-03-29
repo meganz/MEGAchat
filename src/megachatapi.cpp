@@ -920,6 +920,11 @@ void MegaChatApi::requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clie
     pImpl->requestHiresQuality(chatid, clientId, quality, listener);
 }
 
+void MegaChatApi::removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+{
+    pImpl->removeSpeaker(chatid, clientId, listener);
+}
+
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     pImpl->setCallOnHold(chatid, setOnHold, listener);

@@ -2276,6 +2276,41 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+        case MegaChatRequest::TYPE_DEL_SPEAKER:
+        {
+            handle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - Invalid chatid");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            rtcModule::ICall *call = findCall(chatid);
+            if (!call)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER  - There is not any call in that chatroom");
+                errorCode = MegaChatError::ERROR_NOENT;
+                assert(false);
+                break;
+            }
+
+            Cid_t cid = request->getUserHandle() != MEGACHAT_INVALID_HANDLE
+                    ? static_cast<Cid_t>(request->getUserHandle())
+                    : 0; // own user
+
+            if (!call->isModerator() && cid)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - You don't have enough permisions to remove the speaker");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            call->stopSpeak(cid);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
 
 #endif
         default:
@@ -4514,6 +4549,15 @@ void MegaChatApiImpl::requestHiresQuality(MegaChatHandle chatid, MegaChatHandle 
     waiter->notify();
 }
 
+void MegaChatApiImpl::removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DEL_SPEAKER, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(clientId);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CALL_ON_HOLD, listener);
@@ -5676,6 +5720,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_REQUEST_LOW_RES_VIDEO: return "REQUEST_LOW_RES_VIDEO";
         case TYPE_OPEN_VIDEO_DEVICE: return "OPEN_VIDEO_DEVICE";
         case TYPE_REQUEST_HIRES_QUALITY: return "REQUEST_HIRES_QUALITY";
+        case TYPE_DEL_SPEAKER: return "DEL_SPEAKER";
     }
     return "UNKNOWN";
 }

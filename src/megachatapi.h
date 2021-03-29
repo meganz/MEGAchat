@@ -1717,7 +1717,7 @@ public:
         TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TYPE_MANAGE_REACTION,
         TYPE_GET_PEER_ATTRIBUTES, TYPE_REQUEST_SPEAK, TYPE_APPROVE_SPEAK,
         TYPE_REQUEST_HIGH_RES_VIDEO, TYPE_REQUEST_LOW_RES_VIDEO,
-        TYPE_OPEN_VIDEO_DEVICE, TYPE_REQUEST_HIRES_QUALITY,
+        TYPE_OPEN_VIDEO_DEVICE, TYPE_REQUEST_HIRES_QUALITY, TYPE_DEL_SPEAKER,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -4761,6 +4761,26 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Requests that an active speaker stops being one. This can be a voluntary action of the actual speaker, or moderator action.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DEL_SPEAKER
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom
+     * - MegaChatError::ERROR_ACCESS - if clientid is not MEGACHAT_INVALID_HANDLE (own user),
+     * and our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientid MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Set/unset a call on hold
