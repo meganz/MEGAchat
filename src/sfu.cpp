@@ -1421,7 +1421,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
-    json.AddMember("mod", moderator, json.GetAllocator());
+    json.AddMember("mod", 1, json.GetAllocator());
 
     if (speaker)
     {

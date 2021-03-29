@@ -100,7 +100,6 @@ public:
     virtual void onCallStateChange(ICall& call) = 0;
     virtual void onCallRinging(ICall& call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
-    virtual void onModeratorChange(const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
     virtual void onLocalAudioDetected(const ICall& call) = 0;

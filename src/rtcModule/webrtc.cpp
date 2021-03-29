@@ -314,7 +314,6 @@ void Call::updateVideoInDevice()
 void Call::setModerator(bool moderator)
 {
     mModerator = moderator;
-    mCallHandler->onModeratorChange(*this);
 }
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)

@@ -244,7 +244,7 @@ protected:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
-    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
+    SpeakerState mSpeakerState = SpeakerState::kPending;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
     int64_t mInitialTs = 0;
     int64_t mFinalTs = 0;

@@ -186,25 +186,26 @@ public:
      *
      * @return The returned value is an OR combination of these flags:
      *
-     *  - CHANGE_TYPE_STATUS = 0x01
+     *  - MegaChatSession::CHANGE_TYPE_STATUS = 0x01
      * Check if the status of the session changed
      *
-     *  - CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
+     *  - MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
-     *  - CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
-     * Notify if speak requested has changed
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
+     * Check MegaChatSession::hasRequestSpeak
      *
-     *  - CHANGE_TYPE_SESSION_MODERATOR = 0x08
-     * Notify if moderator state has changed
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES = 0x08
+     * Check MegaChatSession::canRecvVideoLowRes
      *
-     *  - CHANGE_TYPE_SESSION_ON_LOWRES = 0x10
-     * Notify if one client has the possibility of send low resolution video
-     * It's possible that hasLowResVideo is false yet
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES = 0x10
+     * Check MegaChatSession::canRecvVideoHiRes
      *
-     * - CHANGE_TYPE_SESSION_ON_HIRES = 0x20
-     * Notify if one client has the possibility of send high resolution video
-     * It's possible that hasHighResVideo is false yet
+     * - MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD = 0x20
+     * Check MegaChatSession::isOnHold
+     *
+     * - MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL = 0x40
+     * Check MegaChatSession::isAudioDetected
      *
      */
     virtual int getChanges() const;
@@ -221,25 +222,26 @@ public:
      *
      * @param changeType The type of change to check. It can be one of the following values:
      *
-     *  - CHANGE_TYPE_STATUS = 0x01
+     *  - MegaChatSession::CHANGE_TYPE_STATUS = 0x01
      * Check if the status of the session changed
      *
-     *  - CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
+     *  - MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
-     *  - CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
-     * Notify if speak requested has changed
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
+     * Check MegaChatSession::hasRequestSpeak
      *
-     *  - CHANGE_TYPE_SESSION_MODERATOR = 0x08
-     * Notify if moderator state has changed
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES = 0x08
+     * Check MegaChatSession::canRecvVideoLowRes
      *
-     *  - CHANGE_TYPE_SESSION_ON_LOWRES = 0x10
-     * Notify if one client has the possibility of send low resolution video
-     * It's possible that hasLowResVideo is false yet
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES = 0x10
+     * Check MegaChatSession::canRecvVideoHiRes
      *
-     * - CHANGE_TYPE_SESSION_ON_HIRES = 0x20
-     * Notify if one client has the possibility of send high resolution video
-     * It's possible that hasHighResVideo is false yet
+     * - MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD = 0x20
+     * Check MegaChatSession::isOnHold
+     *
+     * - MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL = 0x40
+     * Check MegaChatSession::isAudioDetected
      *
      * @return true if this session has an specific change
      */
@@ -247,6 +249,8 @@ public:
 
     /**
      * @brief Returns if peer has request speak
+     *
+     * @note This functionality is ready but it shouldn't be used at this moment
      *
      * @return true if has request speak
      */
@@ -320,10 +324,9 @@ public:
         CHANGE_TYPE_RINGING_STATUS = 0x04,          /// Peer has changed its ringing state
         CHANGE_TYPE_CALL_COMPOSITION = 0x08,        /// Call composition has changed (User added or removed from call)
         CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
-        CHANGE_TYPE_CALL_MODERATOR = 0x20,          /// Moderator has been enabled
-        CHANGE_TYPE_CALL_SPEAK = 0x40,              /// Speak has been enabled
-        CHANGE_TYPE_AUDIO_LEVEL = 0x80,             /// Indicates if we are speaking
-        CHANGE_TYPE_NETWORK_QUALITY = 0x100,         /// Network quality has change
+        CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
+        CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
+        CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has change
     };
 
     enum
@@ -424,6 +427,18 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
      * @see MegaChatCall::getClientidCallCompositionChange value
+     *
+     * - MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD = 0x10
+     * Check MegaChatCall::isOnHold()
+     *
+     * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK = 0x20
+     * Check MegaChatCall::isAllowSpeak()
+     *
+     * - MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL = 0x40
+     * Check MegaChatCall::isAudioDetected()
+     *
+     * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
+     * Check MegaChatCall::getNetworkQuality()
      */
     virtual int getChanges() const;
 
@@ -450,6 +465,18 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION = 0x08
      * @see MegaChatCall::getClientidCallCompositionChange value
+     *
+     * - MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD = 0x10
+     * Check MegaChatCall::isOnHold()
+     *
+     * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK = 0x20
+     * Check MegaChatCall::isAllowSpeak()
+     *
+     * - MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL = 0x40
+     * Check MegaChatCall::isAudioDetected()
+     *
+     * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
+     * Check MegaChatCall::getNetworkQuality()
      *
      * @return true if this call has an specific change
      */
@@ -628,6 +655,7 @@ public:
      * @brief Returns if user can speak in a call
      *
      * @note If there isn't a call in that chatroom, this method returns false
+     * @note This functionality is ready but it shouldn't be used at this moment
      *
      * @return True if user is allow to speak in the call
      */
@@ -648,6 +676,8 @@ public:
 
     /**
      * @brief Returns if we have request speak
+     *
+     * @note This functionality is ready but it shouldn't be used at this moment
      *
      * @return true if we have request speak
      */
@@ -4776,6 +4806,8 @@ public:
      * - MegaChatError::ERROR_ACCESS - if clientid is not MEGACHAT_INVALID_HANDLE (own user),
      * and our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
      *
+     * @note This functionality is ready but it shouldn't be used at this moment
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param clientid MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
      * @param listener MegaChatRequestListener to track this request
@@ -4946,6 +4978,8 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that it is a enable request operation
      *
+     * @note This functionality is ready but it shouldn't be used at this moment
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
@@ -4958,6 +4992,8 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that it is a remove request operation
+     *
+     * @note This functionality is ready but it shouldn't be used at this moment
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -4972,6 +5008,8 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that approve the request
      * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     *
+     * @note This functionality is ready but it shouldn't be used at this moment
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param clientId MegaChatHandle that identifies client

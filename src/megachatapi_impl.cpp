@@ -8686,13 +8686,6 @@ void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModul
     mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());
 }
 
-void MegaChatCallHandler::onModeratorChange(const rtcModule::ICall &call)
-{
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_MODERATOR);
-    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
-}
-
 void MegaChatCallHandler::onAudioApproved(const rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
