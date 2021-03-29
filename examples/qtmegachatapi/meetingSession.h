@@ -30,11 +30,11 @@ private:
     MeetingView *mMeetingView;
     QListWidgetItem *mListWidgetItem;
     std::unique_ptr <QHBoxLayout> mLayout;
-    std::unique_ptr <QLabel> statusLabel;
-    std::unique_ptr <QLabel> titleLabel;
-    std::unique_ptr <QLabel> audioLabel;
-    std::unique_ptr <QLabel> videoLabel;
-    std::unique_ptr <QLabel> reqSpealLabel;
+    std::unique_ptr <QLabel> mStatusLabel;
+    std::unique_ptr <QLabel> mTitleLabel;
+    std::unique_ptr <QLabel> mAudioLabel;
+    std::unique_ptr <QLabel> mVideoLabel;
+    std::unique_ptr <QLabel> mReqSpealLabel;
 };
 
 #endif // MEETINGSESSION_H

@@ -14,11 +14,11 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     {
         // remove widgets from current layout if exists
         assert(layout());
-        if (statusLabel)    {layout()->removeWidget(statusLabel.get());     statusLabel->clear();}
-        if (titleLabel)     {layout()->removeWidget(titleLabel.get());      titleLabel->clear();}
-        if (audioLabel)     {layout()->removeWidget(audioLabel.get());      audioLabel->clear();}
-        if (videoLabel)     {layout()->removeWidget(videoLabel.get());      videoLabel->clear();}
-        if (reqSpealLabel)  {layout()->removeWidget(reqSpealLabel.get());   reqSpealLabel->clear();}
+        if (mStatusLabel)    {layout()->removeWidget(mStatusLabel.get());     mStatusLabel->clear();}
+        if (mTitleLabel)     {layout()->removeWidget(mTitleLabel.get());      mTitleLabel->clear();}
+        if (mAudioLabel)     {layout()->removeWidget(mAudioLabel.get());      mAudioLabel->clear();}
+        if (mVideoLabel)     {layout()->removeWidget(mVideoLabel.get());      mVideoLabel->clear();}
+        if (mReqSpealLabel)  {layout()->removeWidget(mReqSpealLabel.get());   mReqSpealLabel->clear();}
     }
 
     mLayout.reset(new QHBoxLayout());
@@ -31,14 +31,14 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
             ? QApplication::style()->standardPixmap(QStyle::SP_MediaPause)
             : QApplication::style()->standardPixmap(QStyle::SP_MediaPlay);
 
-    statusLabel.reset(new QLabel());
-    statusLabel->setPixmap(statusImg);
-    layout()->addWidget(statusLabel.get());
+    mStatusLabel.reset(new QLabel());
+    mStatusLabel->setPixmap(statusImg);
+    layout()->addWidget(mStatusLabel.get());
 
     // title lbl
     std::string title = mMeetingView->sessionToString(session);
-    titleLabel.reset(new QLabel(title.c_str()));
-    layout()->addWidget(titleLabel.get());
+    mTitleLabel.reset(new QLabel(title.c_str()));
+    layout()->addWidget(mTitleLabel.get());
 
     // audio lbl
     mAudio = session.hasAudio();
@@ -46,9 +46,9 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
            ? QApplication::style()->standardPixmap(QStyle::SP_MediaVolume)
            : QApplication::style()->standardPixmap(QStyle::SP_MediaVolumeMuted);
 
-    audioLabel.reset(new QLabel());
-    audioLabel->setPixmap(pixMap);
-    layout()->addWidget(audioLabel.get());
+    mAudioLabel.reset(new QLabel());
+    mAudioLabel->setPixmap(pixMap);
+    layout()->addWidget(mAudioLabel.get());
 
     // video lbl
     mVideo = session.hasVideo();
@@ -56,17 +56,17 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
            ? QApplication::style()->standardPixmap(QStyle::SP_DialogYesButton)
            : QApplication::style()->standardPixmap(QStyle::SP_DialogNoButton);
 
-    videoLabel.reset(new QLabel());
-    videoLabel->setPixmap(auxPixMap);
-    layout()->addWidget(videoLabel.get());
+    mVideoLabel.reset(new QLabel());
+    mVideoLabel->setPixmap(auxPixMap);
+    layout()->addWidget(mVideoLabel.get());
 
     // reqSpeak lbl
     mRequestSpeak = session.hasRequestSpeak();
     if (mRequestSpeak)
     {
-       reqSpealLabel.reset(new QLabel());
-       reqSpealLabel->setPixmap(QApplication::style()->standardPixmap(QStyle::SP_MessageBoxQuestion));
-       layout()->addWidget(reqSpealLabel.get());
+       mReqSpealLabel.reset(new QLabel());
+       mReqSpealLabel->setPixmap(QApplication::style()->standardPixmap(QStyle::SP_MessageBoxQuestion));
+       layout()->addWidget(mReqSpealLabel.get());
     }
 }
 
@@ -77,12 +77,12 @@ QListWidgetItem *MeetingSession::getWidgetItem() const
 
 void MeetingSession::setOnHold(bool isOnhold)
 {
-    assert(statusLabel);
+    assert(mStatusLabel);
     QPixmap statusImg = isOnhold
             ? QApplication::style()->standardPixmap(QStyle::SP_MediaPause)
             : QApplication::style()->standardPixmap(QStyle::SP_MediaPlay);
 
-    statusLabel->setPixmap(statusImg);
+    mStatusLabel->setPixmap(statusImg);
 }
 
 void MeetingSession::setWidgetItem(QListWidgetItem *listWidgetItem)
