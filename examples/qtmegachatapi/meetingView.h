@@ -36,7 +36,6 @@ public:
 protected:
     megachat::MegaChatApi &mMegaChatApi;
     mega::MegaHandle mChatid;
-    bool enableReqSpeaker;
 
     QGridLayout* mGridLayout;
     QHBoxLayout* mThumbLayout;
@@ -48,6 +47,7 @@ protected:
 
     QPushButton* mHangup;
     QPushButton* mRequestSpeaker;
+    QPushButton* mRequestSpeakerCancel;
     QPushButton* mRequestModerator;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
@@ -70,7 +70,7 @@ public slots:
     void onHangUp();
     void onOnHold();
     void onSessionContextMenu(const QPoint &);
-    void onRequestSpeak();
+    void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
     void onEnableAudioMonitor(bool audioMonitorEnable);
