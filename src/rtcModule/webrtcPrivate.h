@@ -159,6 +159,7 @@ public:
     bool isAudioLevelMonitorEnabled() const override;
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
+    bool hasRequestSpeak() const override;
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;

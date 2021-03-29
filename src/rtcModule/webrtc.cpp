@@ -245,6 +245,11 @@ int Call::getNetworkQuality() const
     return mNetworkQuality;
 }
 
+bool Call::hasRequestSpeak() const
+{
+    return mSpeakerState == SpeakerState::kPending;
+}
+
 void Call::setCallerId(karere::Id callerid)
 {
     mCallerId  = callerid;

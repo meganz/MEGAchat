@@ -262,6 +262,12 @@ int MegaChatCall::getNetworkQuality() const
     return 0;
 }
 
+
+bool MegaChatCall::hasRequestSpeak() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);

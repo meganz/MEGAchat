@@ -243,6 +243,7 @@ public:
     virtual bool isOnHold() const override;
     bool isSpeakAllow() const override;
     int getNetworkQuality() const override;
+    bool hasRequestSpeak() const override;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -281,6 +282,7 @@ protected:
     bool ringing = false;
     bool mIsCaller;
     bool mIsSpeakAllow = false;
+    bool mHasRequestSpeak = false;
     int mNetworkQuality = rtcModule::kNetworkQualityDefault;
 };
 

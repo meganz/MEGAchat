@@ -645,6 +645,13 @@ public:
      * @return network quality
      */
     virtual int getNetworkQuality() const;
+
+    /**
+     * @brief Returns if we have request speak
+     *
+     * @return true if we have request speak
+     */
+    virtual bool hasRequestSpeak() const;
 };
 
 /**

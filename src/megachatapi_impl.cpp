@@ -6044,6 +6044,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mFinalTs = call.getFinalTimeStamp();
     mAudioDetected = call.isAudioDetected();
     mNetworkQuality = call.getNetworkQuality();
+    mHasRequestSpeak = call.hasRequestSpeak();
 
     if (call.getState() == rtcModule::CallState::kStateInitial)
     {
@@ -6082,6 +6083,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->mIsSpeakAllow = call.isSpeakAllow();
     this->mAudioDetected = call.isAudioDetected();
     this->mNetworkQuality = call.getNetworkQuality();
+    this->mHasRequestSpeak = call.hasRequestSpeak();
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
@@ -6263,6 +6265,11 @@ bool MegaChatCallPrivate::isSpeakAllow() const
 int MegaChatCallPrivate::getNetworkQuality() const
 {
     return mNetworkQuality;
+}
+
+bool MegaChatCallPrivate::hasRequestSpeak() const
+{
+    return mHasRequestSpeak;
 }
 
 void MegaChatCallPrivate::setStatus(int status)
