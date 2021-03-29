@@ -159,6 +159,7 @@ public:
     bool isAudioLevelMonitorEnabled() const override;
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
+    bool hasRequestSpeak() const override;
 
     void setCallerId(karere::Id callerid) override;
     bool isModerator() const override;
@@ -243,7 +244,7 @@ protected:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
-    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
+    SpeakerState mSpeakerState = SpeakerState::kPending;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
     int64_t mInitialTs = 0;
     int64_t mFinalTs = 0;

@@ -262,6 +262,12 @@ int MegaChatCall::getNetworkQuality() const
     return 0;
 }
 
+
+bool MegaChatCall::hasRequestSpeak() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
@@ -912,6 +918,11 @@ void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *l
 void MegaChatApi::requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
 {
     pImpl->requestHiresQuality(chatid, clientId, quality, listener);
+}
+
+void MegaChatApi::removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+{
+    pImpl->removeSpeaker(chatid, clientId, listener);
 }
 
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)

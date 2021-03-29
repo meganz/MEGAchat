@@ -245,6 +245,11 @@ int Call::getNetworkQuality() const
     return mNetworkQuality;
 }
 
+bool Call::hasRequestSpeak() const
+{
+    return mSpeakerState == SpeakerState::kPending;
+}
+
 void Call::setCallerId(karere::Id callerid)
 {
     mCallerId  = callerid;
@@ -309,7 +314,6 @@ void Call::updateVideoInDevice()
 void Call::setModerator(bool moderator)
 {
     mModerator = moderator;
-    mCallHandler->onModeratorChange(*this);
 }
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
@@ -640,6 +644,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
 
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
+    // mod param will be ignored
     mMyPeer.init(cid, mSfuClient.myHandle(), 0);
 
     for (const sfu::Peer& peer : peers)
@@ -789,14 +794,16 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 
 bool Call::handleSpeakReqDelCommand(Cid_t cid)
 {
-    if (cid)
+    if (mMyPeer.getCid() != cid) // remote peer
     {
         assert(mSessions.find(cid) != mSessions.end());
         mSessions[cid]->setSpeakRequested(false);
     }
     else if (mSpeakerState == SpeakerState::kPending)
     {
+        // only update audio tracks if mSpeakerState is pending to be accepted
         mSpeakerState = SpeakerState::kNoSpeaker;
+        updateAudioTracks();
     }
 
     return true;

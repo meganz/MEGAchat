@@ -243,6 +243,7 @@ public:
     virtual bool isOnHold() const override;
     bool isSpeakAllow() const override;
     int getNetworkQuality() const override;
+    bool hasRequestSpeak() const override;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -281,6 +282,7 @@ protected:
     bool ringing = false;
     bool mIsCaller;
     bool mIsSpeakAllow = false;
+    bool mHasRequestSpeak = false;
     int mNetworkQuality = rtcModule::kNetworkQualityDefault;
 };
 
@@ -578,7 +580,6 @@ public:
     void onCallStateChange(rtcModule::ICall& call) override;
     void onCallRinging(rtcModule::ICall &call) override;
     void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
-    void onModeratorChange(const rtcModule::ICall& call) override;
     void onAudioApproved(const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call) override;
     void onLocalAudioDetected(const rtcModule::ICall& call) override;
@@ -1159,6 +1160,7 @@ public:
     void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
     void requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
+    void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);

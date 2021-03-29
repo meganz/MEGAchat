@@ -10,7 +10,9 @@
 #include <QListWidget>
 #include <QLabel>
 #include <map>
+#include "meetingSession.h"
 
+class MeetingSession;
 class MeetingView : public QWidget
 {
     Q_OBJECT
@@ -29,11 +31,11 @@ public:
     void updateVideoButtonText(MegaChatCall *call);
     void onRequestSpeakFinish();
     void setOnHold(bool mIsOnHold, MegaChatHandle cid);
+    std::string sessionToString(const megachat::MegaChatSession& session);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
     mega::MegaHandle mChatid;
-    bool enableReqSpeaker;
 
     QGridLayout* mGridLayout;
     QHBoxLayout* mThumbLayout;
@@ -45,10 +47,12 @@ protected:
 
     QPushButton* mHangup;
     QPushButton* mRequestSpeaker;
+    QPushButton* mRequestSpeakerCancel;
     QPushButton* mRequestModerator;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
     QPushButton* mAudioMonitor;
+    QPushButton* mRemOwnSpeaker;
     QPushButton* mSetOnHold;
     QLabel* mOnHoldLabel;
 
@@ -57,20 +61,20 @@ protected:
     std::map<uint32_t, PeerWidget*> mThumbsWidget;
     std::map<uint32_t, PeerWidget*> mHiResWidget;
     PeerWidget* mLocalWidget = nullptr;
+    std::map<uint32_t, MeetingSession*> mSessionWidgets;
 
-    std::map<uint32_t, QListWidgetItem*> mSessionItems;
 
     void removeThumb(PeerWidget* widget);
     void removeHiRes(PeerWidget* widget);
-    std::string sessionToString(const megachat::MegaChatSession& session);
 
 public slots:
     void onHangUp();
     void onOnHold();
     void onSessionContextMenu(const QPoint &);
-    void onRequestSpeak();
+    void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
+    void onRemoveSpeaker(uint32_t cid = MEGACHAT_INVALID_HANDLE);
     void onEnableAudioMonitor(bool audioMonitorEnable);
 };
 
