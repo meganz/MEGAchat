@@ -10,10 +10,21 @@ MeetingSession::MeetingSession(MeetingView *meetingView, const megachat::MegaCha
 
 void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
 {
-    mCid = session.getClientid();
+    if (mLayout)
+    {
+        // remove widgets from current layout if exists
+        assert(layout());
+        if (statusLabel)    {layout()->removeWidget(statusLabel.get());     statusLabel->clear();}
+        if (titleLabel)     {layout()->removeWidget(titleLabel.get());      titleLabel->clear();}
+        if (audioLabel)     {layout()->removeWidget(audioLabel.get());      audioLabel->clear();}
+        if (videoLabel)     {layout()->removeWidget(videoLabel.get());      videoLabel->clear();}
+        if (reqSpealLabel)  {layout()->removeWidget(reqSpealLabel.get());   reqSpealLabel->clear();}
+    }
+
     mLayout.reset(new QHBoxLayout());
     mLayout->setAlignment(Qt::AlignLeft);
     setLayout(mLayout.get());
+    mCid = session.getClientid();
 
     // status lbl
     QPixmap statusImg = session.isOnHold()

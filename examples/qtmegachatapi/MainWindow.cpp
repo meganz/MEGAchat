@@ -265,6 +265,8 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     assert(window);
     assert(window->mMeetingView);
 
+    window->mMeetingView->updateSession(*session);
+
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD))
     {
         window->mMeetingView->setOnHold(session->isOnHold(), session->getClientid());
@@ -294,10 +296,6 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
             window->mMeetingView->removeHiRes(session->getClientid());
             window->mMeetingView->removeSession(*session);
         }
-    }
-    else
-    {
-        window->mMeetingView->updateSession(*session);
     }
 }
 
