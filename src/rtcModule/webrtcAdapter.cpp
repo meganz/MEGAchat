@@ -501,9 +501,9 @@ bool MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> heade
 }
 
 /* frame IV format: <frameIv.12> = <frameCtr.4> <staticIv.8> */
-std::shared_ptr<byte []> MegaDecryptor::generateFrameIV()
+std::shared_ptr<byte> MegaDecryptor::generateFrameIV()
 {
-    std::shared_ptr<byte []>iv(new byte[FRAME_IV_LENGTH]);
+    std::shared_ptr<byte> iv(new byte[FRAME_IV_LENGTH], std::default_delete<byte []>());
     memcpy(iv.get(), &mCtr, FRAME_CTR_LENGTH);
     memcpy(iv.get()+FRAME_CTR_LENGTH, &mIv, FRAME_IV_LENGTH - FRAME_CTR_LENGTH);
     return iv;
@@ -536,7 +536,7 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
     }
 
     // re-build frame iv with staticIv and frame CTR
-    std::shared_ptr<byte[]> iv = generateFrameIV();
+    std::shared_ptr<byte> iv = generateFrameIV();
 
     // decrypt frame
     std::string plainFrame;
