@@ -3240,7 +3240,7 @@ void Chat::requestPendingRichLinks()
         }
         else
         {
-            CHATID_LOG_DEBUG("Failed to find message by id (id: %d)", ID_CSTR(msgid));
+            CHATID_LOG_DEBUG("Failed to find message by id (id: %s)", ID_CSTR(msgid));
         }
     }
 
