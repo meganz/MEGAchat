@@ -860,12 +860,14 @@ bool Call::handlePeerLeft(Cid_t cid)
     slot->enableAudioMonitor(false); // disable audio monitor
     slot->enableTrack(false);
     mSessions.erase(cid);
+    return true;
 }
 
 bool Call::handleError(unsigned int code, const std::string reason)
 {
     RTCM_LOG_ERROR("SFU error (Remove call ) -> code: %d, reason: %s", code, reason.c_str());
     disconnect(static_cast<TermCode>(code), reason);
+    return true;
 }
 
 bool Call::handleModerator(Cid_t cid, bool moderator)
@@ -1332,7 +1334,7 @@ void RtcModuleSfu::addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *vide
     mRenderers[chatid] = std::unique_ptr<IVideoRenderer>(videoRederer);
 }
 
-bool RtcModuleSfu::removeLocalVideoRenderer(karere::Id chatid)
+void RtcModuleSfu::removeLocalVideoRenderer(karere::Id chatid)
 {
     mRenderers.erase(chatid);
 }
