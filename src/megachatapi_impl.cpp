@@ -4750,7 +4750,21 @@ int MegaChatApiImpl::getMaxVideoCallParticipants()
 
 bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
 {
-    assert(false);
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("isAudioLevelMonitorEnabled - Invalid chatId");
+        return false;
+    }
+
+    SdkMutexGuard g(sdkMutex);
+    rtcModule::ICall *call = findCall(chatid);
+    if (!call)
+    {
+       API_LOG_ERROR("isAudioLevelMonitorEnabled - Failed to get the call associated to chat room");
+       return false;
+    }
+
+    return call->isAudioLevelMonitorEnabled();
 }
 
 void MegaChatApiImpl::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener* listener)

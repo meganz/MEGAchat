@@ -24,11 +24,11 @@ class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
 {
     public:
     AudioLevelMonitor(Call &call, int32_t cid = -1);
-    virtual void OnData(const void *audio_data,
+    void OnData(const void *audio_data,
                         int bits_per_sample,
                         int sample_rate,
                         size_t number_of_channels,
-                        size_t number_of_frames);
+                        size_t number_of_frames) override;
     bool hasAudio();
     void onAudioDetected(bool audioDetected);
 

@@ -166,7 +166,17 @@ void Call::enableAudioLevelMonitor(bool enable)
         return;
     }
 
-    // Todo: implement local audio level monitor management
+    assert(mAudioLevelMonitor);
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mAudio->getTransceiver()->receiver()->track();
+    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
+    assert(audioTrack);
+
+    mAudioLevelMonitorEnabled = enable;
+    enable
+        ? audioTrack->AddSink(mAudioLevelMonitor.get())
+        : audioTrack->RemoveSink(mAudioLevelMonitor.get());
+
+    RTCM_LOG_DEBUG("audio level monitor %s", enable ? "enabled" : "disabled");
 }
 
 void Call::ignoreCall()
