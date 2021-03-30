@@ -2483,8 +2483,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                     if (!call)
                     {
                         auto& chat = mChatdClient.chats(chatid);
-                        bool moderator = chat.getOwnprivilege() == PRIV_OPER;
-
                         promise::Promise<std::shared_ptr<std::string>> pms;
                         if (chat.isPublic())
                         {
@@ -2495,9 +2493,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                             pms.resolve(std::make_shared<string>());
                         }
 
-                        pms.then([this, chatid, callid, moderator] (shared_ptr<string> unifiedKey)
+                        pms.then([this, chatid, callid] (shared_ptr<string> unifiedKey)
                         {
-                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, moderator, unifiedKey);
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, unifiedKey);
                         })
                         .fail([] (const ::promise::Error &err)
                         {
@@ -2522,8 +2520,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                     if (!call)
                     {
                         auto& chat = mChatdClient.chats(chatid);
-                        bool moderator = chat.getOwnprivilege() == PRIV_OPER;
-
                         promise::Promise<std::shared_ptr<std::string>> pms;
                         if (chat.isPublic())
                         {
@@ -2534,9 +2530,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                             pms.resolve(std::make_shared<string>());
                         }
 
-                        pms.then([this, chatid, callid, userid, ringing, moderator] (shared_ptr<string> unifiedKey)
+                        pms.then([this, chatid, callid, userid, ringing] (shared_ptr<string> unifiedKey)
                         {
-                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing, moderator, unifiedKey);
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing, unifiedKey);
                         })
                         .fail([] (const ::promise::Error &err)
                         {
@@ -5430,10 +5426,6 @@ void Chat::onUserJoin(Id userid, Priv priv)
     {
         mOwnPrivilege = priv;
         ::rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatId());
-        if (call)
-        {
-            call->setModerator(mOwnPrivilege);
-        }
     }
 
     mUsers.insert(userid);
