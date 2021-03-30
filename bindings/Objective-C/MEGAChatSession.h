@@ -29,9 +29,6 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionChange) {
 @property (nonatomic, readonly) uint64_t clientId;
 @property (nonatomic, readonly) BOOL audioDetected;
 @property (nonatomic, readonly, getter=isOnHold) BOOL onHold;
-@property (nonatomic, readonly) NSInteger networkQuality;
-@property (nonatomic, readonly) NSInteger termCode;
-@property (nonatomic, readonly) BOOL isLocalTermCode;
 @property (nonatomic, readonly) NSInteger changes;
 
 - (BOOL)hasChanged:(MEGAChatSessionChange)change;

@@ -303,7 +303,7 @@ public:
     void takeDevice() override;
     void releaseDevice() override;
     void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) override;
-    bool removeLocalVideoRenderer(karere::Id chatid) override;
+    void removeLocalVideoRenderer(karere::Id chatid) override;
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;

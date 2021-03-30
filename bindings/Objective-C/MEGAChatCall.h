@@ -71,18 +71,13 @@ typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
 @property (nonatomic, readonly) int64_t finalTimeStamp;
 @property (nonatomic, readonly, getter=hasLocalAudio) BOOL localAudio;
 @property (nonatomic, readonly, getter=hasLocalVideo) BOOL localVideo;
-@property (nonatomic, readonly, getter=hasAudioInitialCall) BOOL audioInitialCall;
-@property (nonatomic, readonly, getter=hasVideoInitialCall) BOOL videoInitialCall;
 @property (nonatomic, readonly) MEGAChatCallTermCode termCode;
-@property (nonatomic, readonly, getter=isLocalTermCode) BOOL localTermCode;
 @property (nonatomic, readonly, getter=isRinging) BOOL ringing;
-@property (nonatomic, readonly) uint64_t peeridCallCompositionChange;
 @property (nonatomic, readonly) uint64_t clientidCallCompositionChange;
 @property (nonatomic, readonly) uint64_t callCompositionChange;
 
 @property (nonatomic, readonly) NSInteger numParticipants;
 @property (nonatomic, readonly, getter=isOnHold) BOOL onHold;
-@property (nonatomic, readonly) MEGAHandleList *sessionsPeerId;
 @property (nonatomic, readonly) MEGAHandleList *sessionsClientId;
 
 @property (nonatomic, readonly) MEGAHandleList *participants;
@@ -90,8 +85,6 @@ typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
 @property (nonatomic, readonly) NSUUID *uuid;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
-
-- (NSInteger)numParticipantsWithCallConfiguration:(MEGAChatCallConfiguration)callConfiguration;
 
 - (MEGAChatSession *)sessionForPeer:(uint64_t)peerId clientId:(uint64_t)clientId;
 
