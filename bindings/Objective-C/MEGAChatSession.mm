@@ -60,24 +60,12 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->getClientid() : 0;
 }
 
-- (NSInteger)networkQuality {
-    return self.megaChatSession ? self.megaChatSession->getNetworkQuality() : 0;
-}
-
 - (BOOL)audioDetected {
-    return self.megaChatSession ? self.megaChatSession->getAudioDetected() : NO;
+    return self.megaChatSession ? self.megaChatSession->isAudioDetected() : NO;
 }
 
 - (BOOL)isOnHold {
     return self.megaChatSession ? self.megaChatSession->isOnHold() : NO;
-}
-
-- (NSInteger)termCode {
-    return self.megaChatSession ? self.megaChatSession->getTermCode() : 0;
-}
-
-- (BOOL)isLocalTermCode {
-    return self.megaChatSession ? self.megaChatSession->isLocalTermCode() : NO;
 }
 
 - (NSInteger)changes {
@@ -91,13 +79,11 @@ using namespace megachat;
 - (NSString *)description {
     NSString *peerId = [MEGASdk base64HandleForUserHandle:self.peerId];
     NSString *clientId = [MEGASdk base64HandleForUserHandle:self.clientId];
-    NSString *termCode = [MEGAChatCall stringForTermCode:(MEGAChatCallTermCode)self.termCode];
     NSString *hasAudio = self.hasAudio ? @"ON" : @"OFF";
     NSString *hasVideo = self.hasVideo ? @"ON" : @"OFF";
-    NSString *localTermCode = self.isLocalTermCode ? @"YES" : @"NO";
     NSString *audioDetected = self.audioDetected ? @"YES" : @"NO";
     NSString *changes = [self stringForChanges];
-    return [NSString stringWithFormat:@"<%@: peerId=%@; clientId=%@; hasAudio=%@; hasVideo=%@; changes=%@; audioDetected=%@; networkQuality=%ld; termCode=%@; is local term code %@>", self.class, peerId, clientId, hasAudio, hasVideo, changes, audioDetected, self.networkQuality, termCode, localTermCode];
+    return [NSString stringWithFormat:@"<%@: peerId=%@; clientId=%@; hasAudio=%@; hasVideo=%@; changes=%@; audioDetected=%@>", self.class, peerId, clientId, hasAudio, hasVideo, changes, audioDetected];
 }
 
 - (NSString *)stringForChanges {

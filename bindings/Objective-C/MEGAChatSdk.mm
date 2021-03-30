@@ -1028,14 +1028,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->hangChatCall(chatId);
 }
 
-- (void)hangAllChatCallsWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->hangAllChatCalls([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
-}
-
-- (void)hangAllChatCalls {
-    self.megaChatApi->hangAllChatCalls();
-}
-
 - (void)enableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->enableAudio(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
@@ -1074,14 +1066,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold {
     self.megaChatApi->setCallOnHold(chatId, onHold);
-}
-
-- (void)loadAudioVideoDeviceListWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->loadAudioVideoDeviceList([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
-}
-
-- (void)loadAudioVideoDeviceList {
-    self.megaChatApi->loadAudioVideoDeviceList();
 }
 
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId {

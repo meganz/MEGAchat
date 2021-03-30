@@ -309,8 +309,6 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
 - (void)hangChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)hangChatCall:(uint64_t)chatId;
-- (void)hangAllChatCallsWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)hangAllChatCalls;
 - (void)enableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)enableAudioForChat:(uint64_t)chatId;
 - (void)disableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -321,8 +319,6 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)disableVideoForChat:(uint64_t)chatId;
 - (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold;
-- (void)loadAudioVideoDeviceListWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)loadAudioVideoDeviceList;
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
 @property (nonatomic, readonly) NSInteger numCalls;
