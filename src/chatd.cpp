@@ -1200,7 +1200,7 @@ promise::Promise<void> Connection::fetchUrl()
 
         if (!result->getLink())
         {
-            CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, *mChatIds.begin());
+            CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, ID_CSTR(karere::Id(*mChatIds.begin())));
             return;
         }
 
@@ -3235,12 +3235,12 @@ void Chat::requestPendingRichLinks()
             }
             else
             {
-                CHATID_LOG_DEBUG("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+                CHATID_LOG_DEBUG("Failed to find message by index, being index retrieved from message id (index: %d, id: %s)", index, ID_CSTR(msgid));
             }
         }
         else
         {
-            CHATID_LOG_DEBUG("Failed to find message by id (id: %d)", msgid);
+            CHATID_LOG_DEBUG("Failed to find message by id (id: %d)", ID_CSTR(msgid));
         }
     }
 
@@ -4218,7 +4218,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
     {
         int countDb = mDbInterface->updateSendingItemsMsgidAndOpcode(msgxid, msgid);
         assert(countDb == count);
-        CHATD_LOG_DEBUG("msgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%u to msgid=%u of %d message/s in the sending queue", msgxid, msgid, count);
+        CHATD_LOG_DEBUG("msgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%s to msgid=%s of %d message/s in the sending queue", ID_CSTR(msgxid), ID_CSTR(msgid), count);
     }
 
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx, tsUpdated);
