@@ -535,7 +535,7 @@ void Call::connectSfu(const std::string &sfuUrl)
             ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
             ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
             ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-            mSfuConnection->joinSfu(sdp, ivs, mModerator, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
+            mSfuConnection->joinSfu(sdp, ivs, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
@@ -652,7 +652,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
+bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
     // mod param will be ignored
     mMyPeer.init(cid, mSfuClient.myHandle(), 0);
