@@ -404,6 +404,8 @@ void MeetingView::onRemoveSpeaker(uint32_t cid)
 
 void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
 {
-    mMegaChatApi.enableAudioLevelMonitor(true, mChatid);
+    mMegaChatApi.isAudioLevelMonitorEnabled(mChatid)
+           ? mMegaChatApi.enableAudioLevelMonitor(false, mChatid)
+           : mMegaChatApi.enableAudioLevelMonitor(true, mChatid);
 }
 

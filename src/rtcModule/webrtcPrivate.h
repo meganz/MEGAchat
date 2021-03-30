@@ -24,11 +24,11 @@ class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
 {
     public:
     AudioLevelMonitor(Call &call, int32_t cid = -1);
-    virtual void OnData(const void *audio_data,
+    void OnData(const void *audio_data,
                         int bits_per_sample,
                         int sample_rate,
                         size_t number_of_channels,
-                        size_t number_of_frames);
+                        size_t number_of_frames) override;
     bool hasAudio();
     void onAudioDetected(bool audioDetected);
 
@@ -136,7 +136,7 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool moderator, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
@@ -162,7 +162,6 @@ public:
     bool hasRequestSpeak() const override;
 
     void setCallerId(karere::Id callerid) override;
-    bool isModerator() const override;
     void requestSpeaker(bool add = true) override;
     bool isSpeakAllow() const override;
     void approveSpeakRequest(Cid_t cid, bool allow) override;
@@ -188,7 +187,6 @@ public:
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setAudioDetected(bool audioDetected) override;
     void updateVideoInDevice() override;
-    void setModerator(bool moderator) override;
     void setState(CallState newState);
     void connectSfu(const std::string& sfuUrl);
     void createTranceiver();
@@ -207,7 +205,7 @@ public:
     void updateVideoTracks();
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, int mod, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
@@ -273,7 +271,6 @@ protected:
 
     // represents own peer
     sfu::Peer mMyPeer;
-    bool mModerator = false;
 
     // call key for public chats (128-bit key)
     std::string mCallKey;
@@ -299,7 +296,7 @@ public:
     ICall* findCallByChatid(karere::Id chatid) override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
-    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool moderator, std::shared_ptr<std::string> unifiedKey = nullptr) override;
+    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) override;
     void takeDevice() override;
     void releaseDevice() override;
     void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) override;
@@ -315,7 +312,7 @@ public:
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
     void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) override;
-    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool moderator, std::shared_ptr<std::string> callKey = nullptr) override;
+    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
 

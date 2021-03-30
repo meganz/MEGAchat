@@ -274,14 +274,6 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     }
 
     Cid_t cid = cidIterator->value.GetUint();
-
-    int isModerator = 0;
-    rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
-    if (modIterator != command.MemberEnd() && modIterator->value.IsInt())
-    {
-        isModerator = modIterator->value.GetInt();
-    }
-
     rapidjson::Value::ConstMemberIterator sdpIterator = command.FindMember("sdp");
     if (sdpIterator == command.MemberEnd() || !sdpIterator->value.IsObject())
     {
@@ -322,7 +314,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         parseTracks(peers, vthumbs, vthumbsIterator);
     }
 
-    return mComplete(cid, sdp, ts, isModerator, peers, vthumbs, speakers);
+    return mComplete(cid, sdp, ts, peers, vthumbs, speakers);
 }
 
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::ConstMemberIterator &it) const
@@ -359,19 +351,6 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
             }
 
             unsigned av = avIterator->value.GetUint();
-
-            int mod = 0;
-            rapidjson::Value::ConstMemberIterator modIterator = it->value[j].FindMember("mod");
-            if (modIterator != it->value[j].MemberEnd() && modIterator->value.IsUint())
-            {
-                 mod = modIterator->value.GetUint();
-            }
-            else
-            {
-                SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid 'mod' value");
-            }
-
-
             peers.push_back(Peer(cid, userId, av));
         }
         else
@@ -1131,7 +1110,7 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     , mCall(call)
 {
     mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2));
-    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7));
+    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
     mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1));
     mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call));
@@ -1342,7 +1321,7 @@ promise::Promise<void> SfuConnection::getPromiseConnection()
     return mConnectPromise;
 }
 
-bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, bool moderator, int avFlags, int speaker, int vthumbs)
+bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker, int vthumbs)
 {
     rapidjson::Document json(rapidjson::kObjectType);
 
@@ -1421,7 +1400,6 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
-    json.AddMember("mod", 1, json.GetAllocator());
 
     if (speaker)
     {

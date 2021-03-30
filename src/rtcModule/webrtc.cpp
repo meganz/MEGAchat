@@ -8,7 +8,7 @@
 namespace rtcModule
 {
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool moderator, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
@@ -20,7 +20,6 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mSfuClient(rtc.getSfuClient())
     , mMyPeer()
     , mRtc(rtc)
-    , mModerator(moderator)
 {
     mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, -1)); // -1 represent local
     mCallKey = callKey ? (*callKey.get()) : std::string();
@@ -105,11 +104,6 @@ void Call::removeParticipant(karere::Id peer)
 
 promise::Promise<void> Call::endCall()
 {
-    if (!isModerator())
-    {
-        return promise::_Void();
-    }
-
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
     .then([](ReqResult /*result*/)
@@ -122,11 +116,6 @@ promise::Promise<void> Call::hangup()
 {
     if (mState == kStateClientNoParticipating && mIsRinging)
     {
-        if (!isModerator())
-        {
-            return promise::_Void();
-        }
-
         auto wptr = weakHandle();
         return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
         .then([](ReqResult /*result*/)
@@ -166,7 +155,17 @@ void Call::enableAudioLevelMonitor(bool enable)
         return;
     }
 
-    // Todo: implement local audio level monitor management
+    assert(mAudioLevelMonitor);
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mAudio->getTransceiver()->receiver()->track();
+    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
+    assert(audioTrack);
+
+    mAudioLevelMonitorEnabled = enable;
+    enable
+        ? audioTrack->AddSink(mAudioLevelMonitor.get())
+        : audioTrack->RemoveSink(mAudioLevelMonitor.get());
+
+    RTCM_LOG_DEBUG("audio level monitor %s", enable ? "enabled" : "disabled");
 }
 
 void Call::ignoreCall()
@@ -260,11 +259,6 @@ bool Call::isRinging() const
     return mIsRinging && mCallerId != mSfuClient.myHandle();
 }
 
-bool Call::isModerator() const
-{
-    return mModerator;
-}
-
 bool Call::isOutgoing() const
 {
     return mCallerId == mSfuClient.myHandle();
@@ -309,11 +303,6 @@ void Call::updateVideoInDevice()
 {
     // todo implement
     RTCM_LOG_DEBUG("updateVideoInDevice");
-}
-
-void Call::setModerator(bool moderator)
-{
-    mModerator = moderator;
 }
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
@@ -376,7 +365,6 @@ bool Call::isSpeakAllow() const
 
 void Call::approveSpeakRequest(Cid_t cid, bool allow)
 {
-    assert(mModerator);
     if (allow)
     {
         mSfuConnection->sendSpeakReq(cid);
@@ -391,7 +379,6 @@ void Call::stopSpeak(Cid_t cid)
 {
     if (cid)
     {
-        assert(mModerator);
         assert(mSessions.find(cid) != mSessions.end());
         mSfuConnection->sendSpeakDel(cid);
         return;
@@ -525,7 +512,7 @@ void Call::connectSfu(const std::string &sfuUrl)
             ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
             ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
             ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-            mSfuConnection->joinSfu(sdp, ivs, mModerator, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
+            mSfuConnection->joinSfu(sdp, ivs, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
@@ -642,7 +629,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, int mod, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
+bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
     // mod param will be ignored
     mMyPeer.init(cid, mSfuClient.myHandle(), 0);
@@ -1195,7 +1182,6 @@ void Call::updateAudioTracks()
         {
             track->set_enabled(true);
         }
-
     }
     else if (track) // if no audio flags active, or call is onHold
     {
@@ -1290,13 +1276,13 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
     }
 }
 
-promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool moderator, std::shared_ptr<std::string> unifiedKey)
+promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey)
 {
     // we need a temp string to avoid issues with lambda shared pointer capture
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-    .then([wptr, this, chatid, avFlags, auxCallKey, moderator](ReqResult result)
+    .then([wptr, this, chatid, avFlags, auxCallKey](ReqResult result)
     {
         std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
                 ? std::make_shared<std::string>(auxCallKey)
@@ -1307,7 +1293,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), moderator, sharedUnifiedKey, avFlags);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), sharedUnifiedKey, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });
@@ -1402,9 +1388,9 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
     mCalls.erase(callid);
 }
 
-void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool moderator, std::shared_ptr<std::string> callKey)
+void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), moderator, callKey);
+    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 

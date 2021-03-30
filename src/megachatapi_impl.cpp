@@ -1517,10 +1517,9 @@ void MegaChatApiImpl::sendPendingRequests()
                    pms.resolve(std::make_shared<string>());
                }
 
-               bool moderator = chatroom->ownPriv() == Priv::PRIV_OPER;
-               pms.then([request, this, chatid, avFlags, moderator] (shared_ptr<string> unifiedKey)
+               pms.then([request, this, chatid, avFlags] (shared_ptr<string> unifiedKey)
                {
-                   mClient->rtc->startCall(chatid, avFlags, moderator, unifiedKey)
+                   mClient->rtc->startCall(chatid, avFlags, unifiedKey)
                    .then([request, this]()
                    {
                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2299,7 +2298,15 @@ void MegaChatApiImpl::sendPendingRequests()
                     ? static_cast<Cid_t>(request->getUserHandle())
                     : 0; // own user
 
-            if (!call->isModerator() && cid)
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            if (chatroom->ownPriv() != MegaChatPeerList::PRIV_MODERATOR
+                    && cid)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - You don't have enough permisions to remove the speaker");
                 errorCode = MegaChatError::ERROR_ACCESS;
@@ -4750,7 +4757,21 @@ int MegaChatApiImpl::getMaxVideoCallParticipants()
 
 bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
 {
-    assert(false);
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("isAudioLevelMonitorEnabled - Invalid chatId");
+        return false;
+    }
+
+    SdkMutexGuard g(sdkMutex);
+    rtcModule::ICall *call = findCall(chatid);
+    if (!call)
+    {
+       API_LOG_ERROR("isAudioLevelMonitorEnabled - Failed to get the call associated to chat room");
+       return false;
+    }
+
+    return call->isAudioLevelMonitorEnabled();
 }
 
 void MegaChatApiImpl::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener* listener)
