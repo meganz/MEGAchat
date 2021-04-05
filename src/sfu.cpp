@@ -1699,12 +1699,6 @@ void SfuConnection::wsSendMsgCb(const char *, size_t)
 
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
 {
-//    if (mKarereClient.isTerminated())
-//    {
-//        SFU_LOG_WARNING("Socket close but karere client was terminated.");
-//        return;
-//    }
-
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     auto oldState = mConnState;
@@ -1775,12 +1769,6 @@ promise::Promise<void> SfuConnection::reconnect()
                     SFU_LOG_DEBUG("DNS resolution completed, but sfu client was deleted.");
                     return;
                 }
-
-//                if (mKarereClient.isTerminated())
-//                {
-//                    SFU_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
-//                    return;
-//                }
 
                 if (!mRetryCtrl)
                 {
