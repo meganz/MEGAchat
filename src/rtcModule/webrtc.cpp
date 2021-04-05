@@ -908,7 +908,6 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 
 void Call::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
 {
-    RTCM_LOG_DEBUG("onIceConnectionChange newstate: %d", state);
 }
 
 void Call::onError()
@@ -1663,11 +1662,25 @@ void Session::setSessionHandler(SessionHandler* sessionHandler)
 
 void Session::setVideoRendererVthumb(IVideoRenderer *videoRederer)
 {
+    if (!mVthumSlot)
+    {
+        RTCM_LOG_WARNING("setVideoRendererVthumb: There's no low-res slot associated to this session");
+        assert(false);
+        return;
+    }
+
     mVthumSlot->setVideoRender(videoRederer);
 }
 
 void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
 {
+    if (!mHiresSlot)
+    {
+        RTCM_LOG_WARNING("setVideoRendererHiRes: There's no hi-res slot associated to this session");
+        assert(false);
+        return;
+    }
+
     mHiresSlot->setVideoRender(videoRederer);
 }
 
