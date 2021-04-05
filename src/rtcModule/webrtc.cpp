@@ -935,6 +935,19 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
     }
 }
 
+void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState)
+{
+    RTCM_LOG_DEBUG("onConnectionChange newstate: %d", newState);
+    if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed)
+    {
+        if (mSfuConnection)
+        {
+            RTCM_LOG_DEBUG("WebRTC connection failed, forcing full reconnect of client");
+            mSfuConnection->retryPendingConnection(true); // force reconnect
+        }
+    }
+}
+
 void Call::onRenegotiationNeeded()
 {
 

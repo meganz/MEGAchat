@@ -227,6 +227,7 @@ public:
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
     void onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
     void onIceCandidate(std::shared_ptr<artc::IceCandText> cand);
+    void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
     void onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state);
     void onIceComplete();
     void onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState);
