@@ -869,11 +869,6 @@ bool Call::handleModerator(Cid_t cid, bool moderator)
     return true;
 }
 
-void Call::onError()
-{
-
-}
-
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
     mVThumb->createDecryptor();
@@ -884,38 +879,6 @@ void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 
     mAudio->createDecryptor();
     mAudio->createEncryptor(getMyPeer());
-}
-
-void Call::onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
-{
-}
-
-void Call::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
-{
-
-}
-
-void Call::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
-{
-    if (state == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionFailed)
-    {
-        // force reconnect
-    }
-}
-
-void Call::onIceComplete()
-{
-
-}
-
-void Call::onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
-{
-
-}
-
-void Call::onDataChannel(webrtc::DataChannelInterface *data_channel)
-{
-
 }
 
 void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -948,9 +911,37 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     }
 }
 
+void Call::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
+{
+    RTCM_LOG_DEBUG("onIceConnectionChange newstate: %d", state);
+}
+
+void Call::onError()
+{
+}
+
+void Call::onIceComplete()
+{
+}
+
+void Call::onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
+{
+}
+
+void Call::onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
+{
+}
+
+void Call::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
+{
+}
+
 void Call::onRenegotiationNeeded()
 {
+}
 
+void Call::onDataChannel(webrtc::DataChannelInterface *data_channel)
+{
 }
 
 void Call::generateAndSendNewkey()

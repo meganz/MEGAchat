@@ -223,17 +223,21 @@ public:
     bool handleError(unsigned int code, const std::string reason) override;
     bool handleModerator(Cid_t cid, bool moderator) override;
 
-    void onError();
+    // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
-    void onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
-    void onIceCandidate(std::shared_ptr<artc::IceCandText> cand);
+    void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
     void onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state);
+
+    // PeerConnectionInterface events (EMPTY)
+    void onError();
     void onIceComplete();
     void onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState);
-    void onDataChannel(webrtc::DataChannelInterface* data_channel);
-    void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
+    void onIceCandidate(std::shared_ptr<artc::IceCandText> cand);
     void onRenegotiationNeeded();
+    void onDataChannel(webrtc::DataChannelInterface* data_channel);
+
 
 protected:
     std::vector<karere::Id> mParticipants;
