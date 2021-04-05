@@ -581,10 +581,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
 
     for (const auto& session : mSessions)
     {
-        Slot *slot = session.second->getAudioSlot();
-        slot->enableAudioMonitor(false); // disable audio monitor
-        slot->enableTrack(false);
-        session.second->setAudioSlot(nullptr);
+        session.second->disableAudioSlot();
     }
 
     mSessions.clear();
@@ -850,9 +847,7 @@ bool Call::handlePeerLeft(Cid_t cid)
         return false;
     }
 
-    Slot *slot = it->second->getAudioSlot();
-    slot->enableAudioMonitor(false); // disable audio monitor
-    slot->enableTrack(false);
+    it->second->disableAudioSlot();
     mSessions.erase(cid);
     return true;
 }
@@ -1058,10 +1053,7 @@ void Call::removeSpeaker(Cid_t cid)
         return;
     }
 
-    Slot *slot = it->second->getAudioSlot();
-    slot->enableAudioMonitor(false); // disable audio monitor
-    slot->enableTrack(false);
-    it->second->setAudioSlot(nullptr);
+    it->second->disableAudioSlot();
 }
 
 sfu::Peer& Call::getMyPeer()
@@ -1752,6 +1744,17 @@ RemoteVideoSlot *Session::getVthumSlot()
 RemoteVideoSlot *Session::getHiResSlot()
 {
     return mHiresSlot;
+}
+
+void Session::disableAudioSlot()
+{
+    Slot *slot = getAudioSlot();
+    if (slot)
+    {
+        slot->enableAudioMonitor(false); // disable audio monitor
+        slot->enableTrack(false);
+        setAudioSlot(nullptr);
+    }
 }
 
 void Session::setSpeakRequested(bool requested)

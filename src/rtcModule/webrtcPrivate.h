@@ -99,6 +99,7 @@ public:
     RemoteVideoSlot* getVthumSlot();
     RemoteVideoSlot* getHiResSlot();
 
+    void disableAudioSlot();
     void setSpeakRequested(bool requested);
 
     // ISession methods
