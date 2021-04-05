@@ -1839,7 +1839,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
                 }
 
-                if (mIpsv4 != ipsv4 && mIpsv6 != ipsv6)
+                if (mIpsv4 == ipsv4 && mIpsv6 == ipsv6)
                 {
                     SFU_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
