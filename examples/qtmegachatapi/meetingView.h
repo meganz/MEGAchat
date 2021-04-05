@@ -19,11 +19,7 @@ class MeetingView : public QWidget
 public:
     MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget* parent);
     ~MeetingView();
-    void addVthumb(PeerWidget* widget);
-    void addHiRes(PeerWidget* widget);
     void addLocalVideo(PeerWidget* widget);
-    void removeThumb(uint32_t cid);
-    void removeHiRes(uint32_t cid);
     void addSession(const megachat::MegaChatSession& session);
     void removeSession(const megachat::MegaChatSession& session);
     void updateSession(const megachat::MegaChatSession& session);
@@ -32,6 +28,13 @@ public:
     void onRequestSpeakFinish();
     void setOnHold(bool mIsOnHold, MegaChatHandle cid);
     std::string sessionToString(const megachat::MegaChatSession& session);
+    void updateAudioMonitor(bool enabled);
+
+    // methods to add/remove video widgets
+    void addLowResByCid(MegaChatHandle chatid, uint32_t cid);
+    void addHiResByCid(MegaChatHandle chatid, uint32_t cid);
+    void removeLowResByCid(uint32_t cid);
+    void removeHiResByCid(uint32_t cid);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -48,7 +51,6 @@ protected:
     QPushButton* mHangup;
     QPushButton* mRequestSpeaker;
     QPushButton* mRequestSpeakerCancel;
-    QPushButton* mRequestModerator;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
     QPushButton* mAudioMonitor;
@@ -62,10 +64,6 @@ protected:
     std::map<uint32_t, PeerWidget*> mHiResWidget;
     PeerWidget* mLocalWidget = nullptr;
     std::map<uint32_t, MeetingSession*> mSessionWidgets;
-
-
-    void removeThumb(PeerWidget* widget);
-    void removeHiRes(PeerWidget* widget);
 
 public slots:
     void onHangUp();

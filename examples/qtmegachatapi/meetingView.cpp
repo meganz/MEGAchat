@@ -26,16 +26,17 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mHangup, SIGNAL(released()), this, SLOT(onHangUp()));
     mRequestSpeaker = new QPushButton("ReqSpeaker", this);
     connect(mRequestSpeaker, &QAbstractButton::clicked, this, [=](){onRequestSpeak(true);});
-    mRequestSpeakerCancel = new QPushButton("ReqSpeaker (Cancel)", this);
+    mRequestSpeakerCancel = new QPushButton("Cancel ReqSpeaker", this);
     connect(mRequestSpeakerCancel, &QAbstractButton::clicked, this, [=](){onRequestSpeak(false);});
-    mRequestModerator = new QPushButton("Moderator", this);
     mEnableAudio = new QPushButton("Audio-disable", this);
     connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
     mEnableVideo = new QPushButton("Video-disable", this);
     connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
 
-    mAudioMonitor = new QPushButton("Audio monitor", this);
+    QString audioMonTex = mMegaChatApi.isAudioLevelMonitorEnabled(mChatid) ? "Audio monitor (is enabled)" : "Audio monitor (is disabled)";
+    mAudioMonitor = new QPushButton(audioMonTex.toStdString().c_str(), this);
     connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
+
     mRemOwnSpeaker = new QPushButton("Remove own speaker", this);
     connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveSpeaker()));
     mSetOnHold = new QPushButton("onHold", this);
@@ -66,7 +67,6 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mRequestSpeaker);
     mButtonsLayout->addWidget(mRequestSpeakerCancel);
     mButtonsLayout->addWidget(mRemOwnSpeaker);
-    mButtonsLayout->addWidget(mRequestModerator);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
     mButtonsLayout->addWidget(mAudioMonitor);
@@ -83,51 +83,59 @@ MeetingView::~MeetingView()
 {
 }
 
-void MeetingView::addVthumb(PeerWidget *widget)
+void MeetingView::updateAudioMonitor(bool enabled)
 {
-    mThumbLayout->addWidget(widget);
-    widget->show();
-    mThumbsWidget[widget->getCid()] = widget;
+    QString audioMonTex = enabled ? "Audio monitor (is enabled)" : "Audio monitor (is disabled)";
+    mAudioMonitor->setText(audioMonTex.toStdString().c_str());
 }
 
-void MeetingView::addHiRes(PeerWidget *widget)
+void MeetingView::addLowResByCid(MegaChatHandle chatid, uint32_t cid)
 {
-    mHiResLayout->addWidget(widget, 1);
-    widget->show();
-    mHiResWidget[widget->getCid()] = widget;
+    PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false);
+    mThumbLayout->addWidget(peerWidget);
+    peerWidget->show();
+    mThumbsWidget[peerWidget->getCid()] = peerWidget;
+}
+
+void MeetingView::addHiResByCid(MegaChatHandle chatid, uint32_t cid)
+{
+    PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true);
+    mHiResLayout->addWidget(peerWidget);
+    peerWidget->show();
+    mHiResWidget[peerWidget->getCid()] = peerWidget;
+}
+
+void MeetingView::removeLowResByCid(uint32_t cid)
+{
+    auto it = mThumbsWidget.find(cid);
+    if (it != mThumbsWidget.end())
+    {
+        PeerWidget* widget = it->second;
+        mThumbLayout->removeWidget(widget);
+        mThumbsWidget.erase(it);
+        delete widget;
+    }
+}
+
+void MeetingView::removeHiResByCid(uint32_t cid)
+{
+    auto it = mHiResWidget.find(cid);
+    if (it != mHiResWidget.end())
+    {
+        PeerWidget* widget = it->second;
+        mHiResLayout->removeWidget(widget);
+        mHiResWidget.erase(it);
+        delete widget;
+    }
 }
 
 void MeetingView::addLocalVideo(PeerWidget *widget)
 {
     assert(!mLocalWidget);
     mLocalWidget = widget;
-    QHBoxLayout * localLayout = new QHBoxLayout();
+    QHBoxLayout *localLayout = new QHBoxLayout();
     localLayout->addWidget(widget);
     mLocalLayout->addLayout(localLayout);
-}
-
-void MeetingView::removeThumb(uint32_t cid)
-{
-    auto it = mThumbsWidget.find(cid);
-    if (it != mThumbsWidget.end())
-    {
-        PeerWidget* widget = it->second;
-        removeThumb(it->second);
-        mThumbsWidget.erase(it);
-        delete widget;
-    }
-}
-
-void MeetingView::removeHiRes(uint32_t cid)
-{
-    auto it = mHiResWidget.find(cid);
-    if (it != mHiResWidget.end())
-    {
-        PeerWidget* widget = it->second;
-        removeHiRes(it->second);
-        mHiResWidget.erase(it);
-        delete widget;
-    }
 }
 
 void MeetingView::addSession(const megachat::MegaChatSession &session)
@@ -228,16 +236,6 @@ void MeetingView::setOnHold(bool isOnHold, MegaChatHandle cid)
             auxit->second->setOnHold(isOnHold);
         }
     }
-}
-
-void MeetingView::removeThumb(PeerWidget *widget)
-{
-    mThumbLayout->removeWidget(widget);
-}
-
-void MeetingView::removeHiRes(PeerWidget *widget)
-{
-    mHiResLayout->removeWidget(widget);
 }
 
 std::string MeetingView::sessionToString(const megachat::MegaChatSession &session)

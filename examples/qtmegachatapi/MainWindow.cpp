@@ -164,7 +164,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL))
     {
-        std::cout << "CHANGE_TYPE_AUDIO_LEVEL";
+        window->mMeetingView->updateAudioMonitor(mMegaChatApi->isAudioLevelMonitorEnabled(call->getChatid()));
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
@@ -231,7 +231,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                  mMegaChatApi->hangChatCall(call->getChatid());
              }
         }
-
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
@@ -274,14 +273,18 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES) && window->mMeetingView)
     {
-        PeerWidget *peerWidget = new PeerWidget(*mMegaChatApi, chatid, session->getClientid(), true);
-        window->mMeetingView->addHiRes(peerWidget);
+        // add or remove hiRes video widget
+        session->isHiResVideo()
+                ? window->mMeetingView->addHiResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
+                : window->mMeetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES) && window->mMeetingView)
     {
-        PeerWidget *peerWidget = new PeerWidget(*mMegaChatApi, chatid, session->getClientid(), false);
-        window->mMeetingView->addVthumb(peerWidget);
+        // add or remove lowRes video widget
+        session->isLowResVideo()
+            ? window->mMeetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
+            : window->mMeetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
@@ -292,8 +295,8 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         }
         else
         {
-            window->mMeetingView->removeThumb(session->getClientid());
-            window->mMeetingView->removeHiRes(session->getClientid());
+            window->mMeetingView->removeLowResByCid(session->getClientid());
+            window->mMeetingView->removeHiResByCid(session->getClientid());
             window->mMeetingView->removeSession(*session);
         }
     }
