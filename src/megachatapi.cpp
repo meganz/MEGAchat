@@ -885,9 +885,9 @@ void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool e
     pImpl->answerChatCall(chatid, enableVideo, enableAudio, listener);
 }
 
-void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApi::hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)
 {
-    pImpl->hangChatCall(chatid, listener);
+    pImpl->hangChatCall(callid, listener);
 }
 
 void MegaChatApi::endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)

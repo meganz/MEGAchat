@@ -1152,7 +1152,7 @@ public:
     // Calls
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
-    void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
     void endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);

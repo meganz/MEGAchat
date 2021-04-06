@@ -1280,7 +1280,11 @@ void ChatWindow::on_mCancelReconnection(QAbstractButton *)
 {
     mReconnectingDlg->deleteLater();
     mReconnectingDlg = nullptr;
-    mMegaChatApi->hangChatCall(mChatRoom->getChatId());
+    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi->getChatCall(mChatRoom->getChatId()));
+    if (call)
+    {
+        mMegaChatApi->hangChatCall(call->getCallId());
+    }
 }
 
 void ChatWindow::onAttachmentsClosed(QObject *)

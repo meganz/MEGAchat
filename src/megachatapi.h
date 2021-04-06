@@ -277,7 +277,7 @@ public:
     virtual bool canRecvVideoHiRes() const;
 
     /**
-     *  @brief Returns if our client is ready to receive low resolution video from the participant of this session
+     * @brief Returns if our client is ready to receive low resolution video from the participant of this session
      *
      * @note If this method returns true doesn't mean that we receive video in low resolution, maybe
      * client has their video disable but we are ready to receive it
@@ -4683,17 +4683,17 @@ public:
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Hang a call in a chat room
+     * @brief Hang up a call
      *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns false
      *
-     * @param chatid MegaChatHandle that identifies the chat room
+     * @param callid MegaChatHandle that identifies the call
      * @param listener MegaChatRequestListener to track this request
      */
-    void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief End a call in a chat room (user must be moderator)

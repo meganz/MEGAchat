@@ -150,7 +150,7 @@ void PeerWidget::showMenu(const QPoint &pos)
 
 void PeerWidget::onHiResStop()
 {
-    mMegaChatApi.stoptHiResVideo(mChatid, mCid);
+    mMegaChatApi.stopHiResVideo(mChatid, mCid);
 }
 
 void PeerWidget::onHiResRequest()
