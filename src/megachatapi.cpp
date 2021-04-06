@@ -885,14 +885,14 @@ void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool e
     pImpl->answerChatCall(chatid, enableVideo, enableAudio, listener);
 }
 
-void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApi::hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)
 {
-    pImpl->hangChatCall(chatid, listener);
+    pImpl->hangChatCall(callid, listener);
 }
 
-void MegaChatApi::endChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApi::endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)
 {
-    pImpl->endChatCall(chatid, listener);
+    pImpl->endChatCall(callid, listener);
 }
 
 void MegaChatApi::enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener)
@@ -915,9 +915,9 @@ void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *l
     pImpl->setVideoEnable(chatid,false, listener);
 }
 
-void MegaChatApi::requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
+void MegaChatApi::requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
 {
-    pImpl->requestHiresQuality(chatid, clientId, quality, listener);
+    pImpl->requestHiResQuality(chatid, clientId, quality, listener);
 }
 
 void MegaChatApi::removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
@@ -1020,9 +1020,9 @@ void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle client
     pImpl->requestHiResVideo(chatid, clientId, listener);
 }
 
-void MegaChatApi::stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+void MegaChatApi::stopHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
-    pImpl->stoptHiResVideo(chatid, clientId, listener);
+    pImpl->stopHiResVideo(chatid, clientId, listener);
 }
 
 void MegaChatApi::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
@@ -1030,9 +1030,9 @@ void MegaChatApi::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *clie
     pImpl->requestLowResVideo(chatid, clientIds, listener);
 }
 
-void MegaChatApi::stoptLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
+void MegaChatApi::stopLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
-    pImpl->stoptLowResVideo(chatid, clientIds, listener);
+    pImpl->stopLowResVideo(chatid, clientIds, listener);
 }
 
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)

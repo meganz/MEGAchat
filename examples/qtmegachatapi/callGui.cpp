@@ -195,7 +195,7 @@ void CallGui::drawAvatar(QImage &image, QChar letter, uint64_t userid)
 
 void CallGui::onHangCall(bool)
 {
-     mChatWindow->mMegaChatApi->hangChatCall(mChatWindow->mChatRoom->getChatId());
+     mChatWindow->mMegaChatApi->hangChatCall(mCall->getCallId());
 }
 
 void CallGui::hangCall()

@@ -168,7 +168,7 @@ public:
     void stopSpeak(Cid_t cid = 0) override;
     std::vector<Cid_t> getSpeakerRequested() override;
     void requestHighResolutionVideo(Cid_t cid) override;
-    void requestHiresQuality(Cid_t cid, int quality) override;
+    void requestHiResQuality(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(Cid_t cid) override;
     void requestLowResolutionVideo(const std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(const std::vector<Cid_t> &cids) override;

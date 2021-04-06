@@ -258,7 +258,11 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
 void MeetingView::onHangUp()
 {
     mLocalWidget->removeVideoListener();
-    mMegaChatApi.hangChatCall(mChatid);
+    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (call)
+    {
+        mMegaChatApi.hangChatCall(call->getCallId());
+    }
 }
 
 void MeetingView::onOnHold()

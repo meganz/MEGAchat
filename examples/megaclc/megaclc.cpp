@@ -2438,8 +2438,8 @@ void exec_answerchatcall(ac::ACState& s)
 void exec_hangchatcall(ac::ACState& s)
 {
     c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
-    c::MegaChatHandle room = s_ch(s.words[1].s);
-    g_chatApi->hangChatCall(room, listener);
+    c::MegaChatHandle call = s_ch(s.words[1].s);
+    g_chatApi->hangChatCall(call, listener);
 }
 
 void exec_enableaudio(ac::ACState& s)

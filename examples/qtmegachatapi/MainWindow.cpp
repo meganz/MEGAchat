@@ -179,11 +179,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                      reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
                      if (reply == QMessageBox::Yes)
                      {
-                        mMegaChatApi->answerChatCall(call->getChatid(), true);
+                        mMegaChatApi->answerChatCall(call->getCallId(), true);
                      }
                      else if (QMessageBox::Cancel)
                      {
-                         mMegaChatApi->hangChatCall(call->getChatid());
+                         mMegaChatApi->hangChatCall(call->getCallId());
                      }
                 }
 

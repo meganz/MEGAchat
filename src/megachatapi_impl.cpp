@@ -1630,15 +1630,25 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            MegaChatHandle chatid = request->getChatHandle();
-            if (chatid == MEGACHAT_INVALID_HANDLE)
+            MegaChatHandle callid = request->getChatHandle();
+            if (callid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("Hang up call - invalid chatid");
+                API_LOG_ERROR("Hang up call - invalid callid");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
-            ChatRoom *chatroom = findChatRoom(chatid);
+            rtcModule::ICall* call = mClient->rtc->findCall(callid);
+
+            if (!call)
+            {
+                API_LOG_ERROR("Hang up call - There is not any call with that callid");
+                errorCode = MegaChatError::ERROR_NOENT;
+                assert(false);
+                break;
+            }
+
+            ChatRoom *chatroom = findChatRoom(call->getChatid());
             if (!chatroom)
             {
                 API_LOG_ERROR("Hang up call- Chatroom has not been found");
@@ -1646,17 +1656,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            rtcModule::ICall* call = findCall(chatid);
-            if (!call)
-            {
-                API_LOG_ERROR("Hang up call - There is not any call in that chatroom");
-                errorCode = MegaChatError::ERROR_NOENT;
-                assert(false);
-                break;
-            }
-
-            bool endCall = request->getFlag();
             bool moderator = chatroom->chat().getOwnprivilege() == PRIV_OPER;
+            bool endCall = request->getFlag();
             if (endCall && !moderator)
             {
                 API_LOG_ERROR("End call withouth enough privileges");
@@ -2270,7 +2271,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            call->requestHiresQuality(cid, quality);
+            call->requestHiResQuality(cid, quality);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             break;
@@ -4493,18 +4494,18 @@ void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool enableVideo, bo
     waiter->notify();
 }
 
-void MegaChatApiImpl::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
-    request->setChatHandle(chatid);
+    request->setChatHandle(callid);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::endChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
-    request->setChatHandle(chatid);
+    request->setChatHandle(callid);
     request->setFlag(true);
     requestQueue.push(request);
     waiter->notify();
@@ -4546,7 +4547,7 @@ void MegaChatApiImpl::releaseVideoDevice(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
-void MegaChatApiImpl::requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
+void MegaChatApiImpl::requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY, listener);
     request->setChatHandle(chatid);
@@ -4831,7 +4832,7 @@ void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cl
     waiter->notify();
 }
 
-void MegaChatApiImpl::stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+void MegaChatApiImpl::stopHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO, listener);
     request->setChatHandle(chatid);
@@ -4851,7 +4852,7 @@ void MegaChatApiImpl::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *
     waiter->notify();
 }
 
-void MegaChatApiImpl::stoptLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
+void MegaChatApiImpl::stopLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO, listener);
     request->setChatHandle(chatid);

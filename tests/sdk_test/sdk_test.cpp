@@ -3053,7 +3053,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     sleep(5);
 
-    megaChatApi[a2]->hangChatCall(chatid);
+    megaChatApi[a2]->hangChatCall(call->getCallId());
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
@@ -3095,7 +3095,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     sleep(5);
 
-    megaChatApi[a1]->hangChatCall(chatid);
+    megaChatApi[a1]->hangChatCall(call->getCallId());
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a1]));
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
@@ -3140,7 +3140,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     sleep(5);
 
-    megaChatApi[a2]->hangChatCall(chatid);
+    megaChatApi[a2]->hangChatCall(call->getCallId());
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
@@ -3307,7 +3307,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     sleep(5);
     std::cerr << "Finish Call" << std::endl;
     sleep(2);
-    megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
+    megaChatApi[a1]->hangChatCall(chatCall->getCallId());
     std::cout << "Call finished." << std::endl;
 
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
@@ -3324,16 +3324,16 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
 
     sleep(5);
     std::cerr << "Mute Call" << std::endl;
-    megaChatApi[a1]->disableAudio(mChatIdInProgressCall[a1]);
+    megaChatApi[a1]->disableAudio(chatCall->getCallId());
     sleep(5);
     std::cerr << "Disable Video" << std::endl;
-    megaChatApi[a1]->disableVideo(mChatIdInProgressCall[a1]);
+    megaChatApi[a1]->disableVideo(chatCall->getCallId());
     sleep(5);
     std::cerr << "Unmute Call" << std::endl;
-    megaChatApi[a1]->enableAudio(mChatIdInProgressCall[a1]);
+    megaChatApi[a1]->enableAudio(chatCall->getCallId());
     sleep(5);
     std::cerr << "Enable Video" << std::endl;
-    megaChatApi[a1]->enableVideo(mChatIdInProgressCall[a1]);
+    megaChatApi[a1]->enableVideo(chatCall->getCallId());
 
     sleep(10);
     std::cerr << "Finish Call" << std::endl;
@@ -4603,7 +4603,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 //                api->answerChatCall(call->getChatid());
 
             // Hangup in coming call
-            api->hangChatCall(call->getChatid());
+            api->hangChatCall(call->getCallId());
         }
 
         mCallReceived[apiIndex] = true;
