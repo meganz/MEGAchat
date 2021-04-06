@@ -1737,6 +1737,9 @@ promise::Promise<void> SfuConnection::reconnect()
         if (mConnState >= kResolving) //would be good to just log and return, but we have to return a promise
             return ::promise::Error(std::string("Already connecting/connected"));
 
+        if (mSfuUrl.empty())
+            return ::promise::Error("SFU reconnect: Current URL is not valid");
+
         setConnState(kResolving);
 
         // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
