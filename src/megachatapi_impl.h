@@ -1153,12 +1153,12 @@ public:
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-    void endChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void openVideoDevice(MegaChatRequestListener *listener = NULL);
     void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
-    void requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
+    void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
@@ -1177,9 +1177,9 @@ public:
     void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
-    void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void stopHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
-    void stoptLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
+    void stopLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
 
     void onNewCall(rtcModule::ICall& call) override;
     void onAddPeer(rtcModule::ICall& call, karere::Id peer) override;

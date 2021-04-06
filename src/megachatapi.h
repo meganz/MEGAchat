@@ -266,7 +266,8 @@ public:
      */
     virtual bool isAudioDetected() const;
 
-    /** @brief Returns if we are ready to receive high resolution video from this client
+    /**
+     * @brief Returns if our client is ready to receive high resolution video from the participant of this session
      *
      * @note If this method returns true doesn't mean that we receive video in high resolution, maybe
      * client has their video disable but we are ready to receive it
@@ -276,7 +277,7 @@ public:
     virtual bool canRecvVideoHiRes() const;
 
     /**
-     * @brief Returns if we are ready to receive low resolution video from this client
+     *  @brief Returns if our client is ready to receive low resolution video from the participant of this session
      *
      * @note If this method returns true doesn't mean that we receive video in low resolution, maybe
      * client has their video disable but we are ready to receive it
@@ -326,7 +327,7 @@ public:
         CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
         CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
-        CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has change
+        CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
     };
 
     enum
@@ -518,8 +519,6 @@ public:
     /**
      * @brief Returns the termination code for this call
      *
-     * To check if the call was terminated
-     *
      * @return termination code for the call
      */
     virtual int getTermCode() const;
@@ -549,16 +548,16 @@ public:
     virtual mega::MegaHandleList *getSessionsClientid() const;
 
     /**
-     * @brief Returns the session for a peer
+     * @brief Returns the session for a client
      *
-     * If pair \c peerid and \c clientid has not any session in the call NULL will be returned
+     * If \c clientid has not any session in the call NULL will be returned
      *
      * The MegaChatCall retains the ownership of the returned MegaChatSession. It will be only
      * valid until the MegaChatCall is deleted. If you want to save the MegaChatSession,
      * use MegaChatSession::copy
      *
      * @param clientid MegaChatHandle that identifies the clientid
-     * @return Session for \c peerid and \c clientid
+     * @return Session for \c clientid
      */
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientid);
 
@@ -657,7 +656,7 @@ public:
      * @note If there isn't a call in that chatroom, this method returns false
      * @note This functionality is ready but it shouldn't be used at this moment
      *
-     * @return True if user is allow to speak in the call
+     * @return True if user is allowed to speak in the call
      */
     virtual bool isSpeakAllow() const;
 
@@ -4701,13 +4700,13 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns true
      *
-     * @param chatid MegaChatHandle that identifies the chat room
+     * @param callid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    void endChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Enable audio for a call that is in progress
@@ -4772,7 +4771,7 @@ public:
     void disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Request a high resolution quality level from a client
+     * @brief Request a high resolution quality level from a session
      *
      * Valid values for quality param are:
      *  + MegaChatCall::CALL_QUALITY_HIGH_DEF = 0,     // Default hi-res quality
@@ -4790,10 +4789,12 @@ public:
      * @param quality The quality level requested
      * @param listener MegaChatRequestListener to track this request
      */
-    void requestHiresQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
+    void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Requests that an active speaker stops being one. This can be a voluntary action of the actual speaker, or moderator action.
+     * @brief Remove an active speaker from the call
+     *
+     * This method can be called by the speaker itself (voluntary action) or by any moderator of the groupchat.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DEL_SPEAKER
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -5003,6 +5004,8 @@ public:
     /**
      * @brief Approve speak request
      *
+     * This method has to be called only by a user with moderator role
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
@@ -5019,6 +5022,8 @@ public:
 
     /**
      * @brief Reject speak request
+     *
+     * This method has to be called only by a user with moderator role
      *
      * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -5060,7 +5065,7 @@ public:
      * @param clientId MegaChatHandle that identifies client
      * @param listener MegaChatRequestListener to track this request
      */
-    void stoptHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void stopHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Request low resolution video from a list of clients
@@ -5090,7 +5095,7 @@ public:
      * @param clientIds List of clients Ids
      * @param listener MegaChatRequestListener to track this request
      */
-    void stoptLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
+    void stopLowResVideo(MegaChatHandle chatid, ::mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
 
 #endif
 
