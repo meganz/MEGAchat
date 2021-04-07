@@ -33,11 +33,7 @@ class DelegateMegaChatCallListener extends MegaChatCallListener{
     public void onChatCallUpdate(MegaChatApi api, MegaChatCall call) {
         if (listener != null) {
             final MegaChatCall megaChatCall = call.copy();
-            megaChatApi.runCallback(new Runnable() {
-                public void run() {
-                    listener.onChatCallUpdate(megaChatApi, megaChatCall);
-                }
-            });
+            megaChatApi.runCallback(() -> listener.onChatCallUpdate(megaChatApi, megaChatCall));
         }
     }
 
@@ -45,11 +41,7 @@ class DelegateMegaChatCallListener extends MegaChatCallListener{
     public void onChatSessionUpdate(MegaChatApi api, long chatid, long callid, MegaChatSession session) {
         if (listener != null) {
             final MegaChatSession megaChatSession = session.copy();
-            megaChatApi.runCallback(new Runnable() {
-                public void run() {
-                    listener.onChatSessionUpdate(megaChatApi, chatid, callid, megaChatSession);
-                }
-            });
+            megaChatApi.runCallback(() -> listener.onChatSessionUpdate(megaChatApi, chatid, callid, megaChatSession));
         }
     }
 }

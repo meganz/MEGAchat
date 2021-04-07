@@ -493,7 +493,7 @@ public:
     /**
      * @brief Return call duration
      *
-     * @note If the call is not finished yet, the returned value representes the elapsed time
+     * @note If the call is not finished yet, the returned value represents the elapsed time
      * since the beginning of the call until now.
      *
      * @return Call duration
@@ -550,16 +550,16 @@ public:
     /**
      * @brief Returns the session for a client
      *
-     * If \c clientid has not any session in the call NULL will be returned
+     * If \c clientId has not any session in the call NULL will be returned
      *
      * The MegaChatCall retains the ownership of the returned MegaChatSession. It will be only
      * valid until the MegaChatCall is deleted. If you want to save the MegaChatSession,
      * use MegaChatSession::copy
      *
-     * @param clientid MegaChatHandle that identifies the clientid
-     * @return Session for \c clientid
+     * @param clientId MegaChatHandle that identifies the clientId
+     * @return Session for \c clientId
      */
-    virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientid);
+    virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientId);
 
     /**
      * @brief Returns the handle of the peer that has been added/removed to call
@@ -687,7 +687,7 @@ public:
  * @brief Interface to get video frames from calls
  *
  * The same interface is used to receive local or remote video, but it has to be un/registered
- * by differents functions:
+ * by different functions:
  *
  *  - MegaChatApi::addChatLocalVideoListener / MegaChatApi::removeChatLocalVideoListener
  *  - MegaChatApi::addChatRemoteVideoListener / MegaChatApi::removeChatRemoteVideoListener
@@ -3092,7 +3092,7 @@ public:
     /**
      * @brief Returns the client id handle of the logged in user for a chatroom
      *
-     * The clientid is not the same for all chatrooms. If \c chatid is invalid, this function
+     * The clientId is not the same for all chatrooms. If \c chatid is invalid, this function
      * returns 0
      *
      * In offline mode (MegaChatApi::INIT_OFFLINE_SESSION), this function returns 0
@@ -4785,7 +4785,7 @@ public:
      * - MegaChatRequest::getParamType  - Returns the quality level requested
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientid MegaChatHandle that identifies the client
+     * @param clientId MegaChatHandle that identifies the client
      * @param quality The quality level requested
      * @param listener MegaChatRequestListener to track this request
      */
@@ -4804,13 +4804,13 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
      * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom
-     * - MegaChatError::ERROR_ACCESS - if clientid is not MEGACHAT_INVALID_HANDLE (own user),
+     * - MegaChatError::ERROR_ACCESS - if clientId is not MEGACHAT_INVALID_HANDLE (own user),
      * and our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
      *
      * @note This functionality is ready but it shouldn't be used at this moment
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientid MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
+     * @param clientId MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
      * @param listener MegaChatRequestListener to track this request
      */
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
@@ -4955,7 +4955,7 @@ public:
     /**
      * @brief Enable or disable audio level monitor
      *
-     * It's false by default and it's app responsability to enable it
+     * It's false by default and it's app responsibility to enable it
      *
      * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -5333,11 +5333,11 @@ public:
      * You can use MegaChatApi::removeChatRemoteVideoListener to stop receiving events.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientid MegaChatHandle that identifies the client
+     * @param clientId MegaChatHandle that identifies the client
      * @param hiRes boolean that identify if video is high resolution or low resolution
      * @param listener MegaChatVideoListener that will receive remote video
      */
-    void addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientid, bool hiRes, MegaChatVideoListener *listener);
+    void addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener);
 
     /**
      * @brief Unregister a MegaChatVideoListener
@@ -5345,11 +5345,11 @@ public:
      * This listener won't receive more events.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientid MegaChatHandle that identifies the client
+     * @param clientId MegaChatHandle that identifies the client
      * @param hiRes boolean that identify if video is high resolution or low resolution
      * @param listener Object that is unregistered
      */
-    void removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientid, bool hiRes, MegaChatVideoListener *listener);
+    void removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener);
 #endif
 
     static void setCatchException(bool enable);

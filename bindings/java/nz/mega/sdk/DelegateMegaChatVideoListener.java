@@ -61,12 +61,10 @@ class DelegateMegaChatVideoListener extends MegaChatVideoListener{
             final int megaWidth = width;
             final int megaHeigth = height;
             final DelegateMegaChatVideoListener delegate = this;
-            megaChatApi.runCallback(new Runnable() {
-                public void run() {
-                    if (!delegate.removed) {
-                        delegate.pendingFrames.decrementAndGet();
-                        listener.onChatVideoData(megaChatApi, megaChatid, megaWidth, megaHeigth, megaByteBuffer);
-                    }
+            megaChatApi.runCallback(() -> {
+                if (!delegate.removed) {
+                    delegate.pendingFrames.decrementAndGet();
+                    listener.onChatVideoData(megaChatApi, megaChatid, megaWidth, megaHeigth, megaByteBuffer);
                 }
             });
         }
