@@ -3921,7 +3921,7 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %s)", index, ID_CSTR(msgid));
             }
         }
         else    // message still not confirmed, search in sending-queue
@@ -3933,13 +3933,13 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by temporal id (id: %d)", msgid);
+                API_LOG_ERROR("Failed to find message by temporal id (id: %s)", ID_CSTR(msgid));
             }
         }
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -3965,12 +3965,12 @@ MegaChatMessage *MegaChatApiImpl::getMessageFromNodeHistory(MegaChatHandle chati
         }
         else
         {
-            API_LOG_ERROR("Failed to find message at node history (id: %d)",  msgid);
+            API_LOG_ERROR("Failed to find message at node history (id: %s)", ID_CSTR(msgid));
         }
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -4005,7 +4005,7 @@ MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid,
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
