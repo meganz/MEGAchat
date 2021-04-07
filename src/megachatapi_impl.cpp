@@ -2851,12 +2851,12 @@ void MegaChatApiImpl::fireOnChatSessionUpdate(MegaChatHandle chatid, MegaChatHan
     session->removeChanges();
 }
 
-void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientid, int width, int height, char *buffer, bool hiRes)
+void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, char *buffer, bool hiRes)
 {
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator it;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator itEnd;
 
-    if (clientid == 0)
+    if (clientId == 0)
     {
         for( MegaChatVideoListener_set::iterator videoListenerIterator = mLocalVideoListeners[chatid].begin();
              videoListenerIterator != mLocalVideoListeners[chatid].end();
@@ -2875,14 +2875,14 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
     }
     else
     {
-        assert(clientid); // local video listeners can't be un/registered into this map
+        assert(clientId); // local video listeners can't be un/registered into this map
         it = mVideoListenersLowRes.find(chatid);
         itEnd = mVideoListenersLowRes.end();
     }
 
     if (it != itEnd)
     {
-        MegaChatPeerVideoListener_map::iterator peerVideoIterator = it->second.find(clientid);
+        MegaChatPeerVideoListener_map::iterator peerVideoIterator = it->second.find(clientId);
         if (peerVideoIterator != it->second.end())
         {
             for( MegaChatVideoListener_set::iterator videoListenerIterator = peerVideoIterator->second.begin();
@@ -3921,7 +3921,7 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %s)", index, ID_CSTR(msgid));
             }
         }
         else    // message still not confirmed, search in sending-queue
@@ -3933,13 +3933,13 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by temporal id (id: %d)", msgid);
+                API_LOG_ERROR("Failed to find message by temporal id (id: %s)", ID_CSTR(msgid));
             }
         }
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -3965,12 +3965,12 @@ MegaChatMessage *MegaChatApiImpl::getMessageFromNodeHistory(MegaChatHandle chati
         }
         else
         {
-            API_LOG_ERROR("Failed to find message at node history (id: %d)",  msgid);
+            API_LOG_ERROR("Failed to find message at node history (id: %s)", ID_CSTR(msgid));
         }
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -4005,7 +4005,7 @@ MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid,
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -4982,7 +4982,7 @@ void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientid, bool hiRes, MegaChatVideoListener *listener)
+void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
 {
     if (!listener)
     {
@@ -4990,24 +4990,24 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
     }
 
     videoMutex.lock();
-    if (clientid == 0)
+    if (clientId == 0)
     {
         mLocalVideoListeners[chatid].insert(listener);
         mClient->rtc->addLocalVideoRenderer(chatid, new MegaChatVideoReceiver(this, chatid, true));
     }
     else if (hiRes)
     {
-        mVideoListenersHiRes[chatid][clientid].insert(listener);
+        mVideoListenersHiRes[chatid][clientId].insert(listener);
     }
     else
     {
-        mVideoListenersLowRes[chatid][clientid].insert(listener);
+        mVideoListenersLowRes[chatid][clientId].insert(listener);
     }
 
     videoMutex.unlock();
 }
 
-void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientid, bool hiRes, MegaChatVideoListener *listener)
+void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
 {
     if (!listener)
     {
@@ -5016,7 +5016,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
 
     videoMutex.lock();
 
-    if (clientid == 0)
+    if (clientId == 0)
     {
         auto it = mLocalVideoListeners.find(chatid);
         if (it != mLocalVideoListeners.end())
@@ -5037,7 +5037,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
         if (itHiRes != mVideoListenersHiRes.end())
         {
             MegaChatPeerVideoListener_map &videoListenersMap = itHiRes->second;
-            auto auxit = videoListenersMap.find(clientid);
+            auto auxit = videoListenersMap.find(clientId);
             if (auxit != videoListenersMap.end())
             {
                 // remove listener from MegaChatVideoListener_set
@@ -5046,7 +5046,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
                 if (videoListener_set.empty())
                 {
                     // if MegaChatVideoListener_set is empty, remove entry from MegaChatPeerVideoListener_map
-                    videoListenersMap.erase(clientid);
+                    videoListenersMap.erase(clientId);
                 }
             }
 
@@ -5059,12 +5059,12 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
     }
     else
     {
-        assert(clientid); // local video listeners can't be un/registered into this map
+        assert(clientId); // local video listeners can't be un/registered into this map
         auto itLowRes = mVideoListenersLowRes.find(chatid);
         if (itLowRes != mVideoListenersLowRes.end())
         {
             MegaChatPeerVideoListener_map &videoListenersMap = itLowRes->second;
-            auto auxit = videoListenersMap.find(clientid);
+            auto auxit = videoListenersMap.find(clientId);
             if (auxit != videoListenersMap.end())
             {
                 // remove listener from MegaChatVideoListener_set
@@ -5073,7 +5073,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
                 if (videoListener_set.empty())
                 {
                     // if MegaChatVideoListener_set is empty, remove entry from MegaChatPeerVideoListener_map
-                    videoListenersMap.erase(clientid);
+                    videoListenersMap.erase(clientId);
                 }
             }
 
@@ -5960,7 +5960,7 @@ void MegaChatRequestPrivate::setParamType(int paramType)
 MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &session)
     : state(session.getState())
     , peerid(session.getPeerid())
-    , clientid(session.getClientid())
+    , clientId(session.getClientid())
     , mAvFlags(session.getAvFlags())
     , mChanged(CHANGE_TYPE_NO_CHANGES)
     , mAVFlags(session.getAvFlags())
@@ -5974,7 +5974,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
 MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &session)
     : state(session.getStatus())
     , peerid(session.getPeerid())
-    , clientid(session.getClientid())
+    , clientId(session.getClientid())
     , mAvFlags(session.getAvFlags())
     , mChanged(session.getChanges())
     , mAVFlags(session.mAVFlags)
@@ -6006,7 +6006,7 @@ MegaChatHandle MegaChatSessionPrivate::getPeerid() const
 
 MegaChatHandle MegaChatSessionPrivate::getClientid() const
 {
-    return clientid;
+    return clientId;
 }
 
 bool MegaChatSessionPrivate::hasAudio() const
@@ -6261,7 +6261,7 @@ MegaHandleList *MegaChatCallPrivate::getSessionsClientid() const
     return sessionList;
 }
 
-MegaChatHandle MegaChatCallPrivate::getClientidCallCompositionChange() const
+MegaChatHandle MegaChatCallPrivate::getPeeridCallCompositionChange() const
 {
     return mPeerId;
 }
@@ -6271,9 +6271,9 @@ int MegaChatCallPrivate::getCallCompositionChange() const
     return callCompositionChange;
 }
 
-MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle clientid)
+MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle clientId)
 {
-    auto it = mSessions.find(clientid);
+    auto it = mSessions.find(clientId);
     if (it != mSessions.end())
     {
         return it->second.get();
@@ -6467,12 +6467,12 @@ void MegaChatCallPrivate::setAudioDetected(bool audioDetected)
     this->mChanged |= MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL;
 }
 
-MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, bool hiRes, uint32_t clientid)
+MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, bool hiRes, uint32_t clientId)
 {
     this->mChatApi = chatApi;
     this->mChatid = chatid;
     this->mHiRes = hiRes;
-    this->mClientid = clientid;
+    this->mClientId = clientId;
 }
 
 MegaChatVideoReceiver::~MegaChatVideoReceiver()
@@ -6493,7 +6493,7 @@ void MegaChatVideoReceiver::frameComplete(void *userData)
 {
     mChatApi->videoMutex.lock();
     MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
-    mChatApi->fireOnChatVideoData(mChatid, mClientid, frame->width, frame->height, (char *)frame->buffer, mClientid ? mHiRes : true);
+    mChatApi->fireOnChatVideoData(mChatid, mClientId, frame->width, frame->height, (char *)frame->buffer, mClientId ? mHiRes : true);
     mChatApi->videoMutex.unlock();
     delete [] frame->buffer;
     delete frame;
