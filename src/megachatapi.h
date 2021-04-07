@@ -569,7 +569,7 @@ public:
      *
      * @return Handle of the peer which has been added/removed to call
      */
-    virtual MegaChatHandle getClientidCallCompositionChange() const;
+    virtual MegaChatHandle getPeeridCallCompositionChange() const;
 
     /**
      * @brief Returns if peer has been added or removed from the call
@@ -586,7 +586,7 @@ public:
      * in the call have left the call and have joined again. When status change to In-progres again,
      * the GUI can be adapted to all participants in the call
      *
-     * @return if peer with peerid-clientid has been added/removed from call
+     * @return if peer with peerid has been added/removed from call
      */
     virtual int  getCallCompositionChange() const;
 

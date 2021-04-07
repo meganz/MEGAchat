@@ -207,7 +207,7 @@ MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle /*clientid*/)
     return NULL;
 }
 
-MegaChatHandle MegaChatCall::getClientidCallCompositionChange() const
+MegaChatHandle MegaChatCall::getPeeridCallCompositionChange() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
@@ -1055,14 +1055,14 @@ void MegaChatApi::removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVi
     pImpl->removeChatVideoListener(chatid, 0, true, listener);
 }
 
-void MegaChatApi::addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientid, bool hiRes, MegaChatVideoListener *listener)
+void MegaChatApi::addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
 {
-    pImpl->addChatVideoListener(chatid, clientid, hiRes, listener);
+    pImpl->addChatVideoListener(chatid, clientId, hiRes, listener);
 }
 
-void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientid, bool hiRes, MegaChatVideoListener *listener)
+void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
 {
-    pImpl->removeChatVideoListener(chatid, clientid, hiRes, listener);
+    pImpl->removeChatVideoListener(chatid, clientId, hiRes, listener);
 }
 
 #endif

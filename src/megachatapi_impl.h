@@ -194,7 +194,7 @@ public:
 private:
     uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id peerid;
-    uint32_t clientid;
+    uint32_t clientId;
     karere::AvFlags mAvFlags = 0;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     karere::AvFlags mAVFlags;
@@ -231,9 +231,9 @@ public:
     virtual int getTermCode() const override;
     virtual bool isRinging() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
-    virtual MegaChatHandle getClientidCallCompositionChange() const override;
+    virtual MegaChatHandle getPeeridCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;
-    virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientid) override;
+    virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientId) override;
     virtual int getNumParticipants() const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
     virtual bool isIgnored() const override;
@@ -298,7 +298,7 @@ class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
     // no peerid --> local video from own user
-    MegaChatVideoReceiver(MegaChatApiImpl *mChatApi, karere::Id mChatid, bool hiRes, uint32_t mClientid = 0);
+    MegaChatVideoReceiver(MegaChatApiImpl *mChatApi, karere::Id mChatid, bool hiRes, uint32_t clientId = 0);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);
@@ -316,7 +316,7 @@ protected:
     MegaChatApiImpl *mChatApi;
     MegaChatHandle mChatid;
     bool mHiRes = false;
-    uint32_t mClientid;
+    uint32_t mClientId;
 };
 
 #endif
@@ -1000,8 +1000,8 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
-    void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientid, bool hiRes, MegaChatVideoListener *listener);
-    void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientid, bool hiRes, MegaChatVideoListener *listener);
+    void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener);
+    void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener);
 #endif
 
     // MegaChatRequestListener callbacks
@@ -1016,7 +1016,7 @@ public:
     void fireOnChatSessionUpdate(MegaChatHandle chatid, MegaChatHandle callid, MegaChatSessionPrivate *session);
 
     // MegaChatVideoListener callbacks
-    void fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientid, int width, int height, char*buffer, bool hiRes);
+    void fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, char*buffer, bool hiRes);
 #endif
 
     // MegaChatListener callbacks (specific ones)
