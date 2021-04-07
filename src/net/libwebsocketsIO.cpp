@@ -290,6 +290,12 @@ void LibwebsocketsClient::resetOutputBuffer()
 
 static bool check_public_key(X509_STORE_CTX* ctx)
 {
+    if (!::WebsocketsClient::publicKeyPinning)
+    {
+        // if public key pinning is disabled, avoid cert's public key checkups
+        return true;
+    }
+
     unsigned char buf[sizeof(APISSLMODULUS1) - 1];
     EVP_PKEY* evp;
     if ((evp = X509_PUBKEY_get(X509_get_X509_PUBKEY(X509_STORE_CTX_get0_cert(ctx)))))

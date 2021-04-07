@@ -4836,6 +4836,12 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
     return userList;
 }
 
+void MegaChatApiImpl::setPublicKeyPinning(bool enable)
+{
+    SdkMutexGuard g(sdkMutex);
+    ::WebsocketsClient::publicKeyPinning = enable;
+}
+
 IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
 {
     return getChatRoomHandler(room.chatid());
