@@ -189,7 +189,7 @@ public:
     void setAudioDetected(bool audioDetected) override;
     void updateVideoInDevice() override;
     void setState(CallState newState);
-    void connectSfu(const std::string& sfuUrl);
+    void connectSfu(const std::string& sfuUrl, bool reconnect = false);
     void createTranceiver();
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
