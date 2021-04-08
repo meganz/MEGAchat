@@ -126,24 +126,20 @@ void PeerWidget::myImageCleanupHandler(void *info)
 
 void PeerWidget::showMenu(const QPoint &pos)
 {
-    if (mHiRes)
+    if (mHiRes) // hi-res video
     {
         QMenu contextMenu(tr("High Resolution Menu"), this);
-
         QAction action1("Stop HiRes", this);
         connect(&action1, SIGNAL(triggered()), this, SLOT(onHiResStop()));
         contextMenu.addAction(&action1);
-
         contextMenu.exec(mapToGlobal(pos));
     }
-    else
+    else // low-res video
     {
         QMenu contextMenu(tr("VThumb Menu"), this);
-
         QAction action1("Request HiRes", this);
         connect(&action1, SIGNAL(triggered()), this, SLOT(onHiResRequest()));
         contextMenu.addAction(&action1);
-
         contextMenu.exec(mapToGlobal(pos));
     }
 }

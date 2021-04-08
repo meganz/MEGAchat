@@ -1699,12 +1699,6 @@ void SfuConnection::wsSendMsgCb(const char *, size_t)
 
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
 {
-//    if (mKarereClient.isTerminated())
-//    {
-//        SFU_LOG_WARNING("Socket close but karere client was terminated.");
-//        return;
-//    }
-
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     auto oldState = mConnState;
@@ -1743,6 +1737,9 @@ promise::Promise<void> SfuConnection::reconnect()
         if (mConnState >= kResolving) //would be good to just log and return, but we have to return a promise
             return ::promise::Error(std::string("Already connecting/connected"));
 
+        if (mSfuUrl.empty())
+            return ::promise::Error("SFU reconnect: Current URL is not valid");
+
         setConnState(kResolving);
 
         // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
@@ -1775,12 +1772,6 @@ promise::Promise<void> SfuConnection::reconnect()
                     SFU_LOG_DEBUG("DNS resolution completed, but sfu client was deleted.");
                     return;
                 }
-
-//                if (mKarereClient.isTerminated())
-//                {
-//                    SFU_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
-//                    return;
-//                }
 
                 if (!mRetryCtrl)
                 {
@@ -1839,7 +1830,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
                 }
 
-                if (mIpsv4 != ipsv4 && mIpsv6 != ipsv6)
+                if (mIpsv4 == ipsv4 && mIpsv6 == ipsv6)
                 {
                     SFU_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }

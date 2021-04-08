@@ -581,10 +581,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
 
     for (const auto& session : mSessions)
     {
-        Slot *slot = session.second->getAudioSlot();
-        slot->enableAudioMonitor(false); // disable audio monitor
-        slot->enableTrack(false);
-        session.second->setAudioSlot(nullptr);
+        session.second->disableAudioSlot();
     }
 
     mSessions.clear();
@@ -850,9 +847,7 @@ bool Call::handlePeerLeft(Cid_t cid)
         return false;
     }
 
-    Slot *slot = it->second->getAudioSlot();
-    slot->enableAudioMonitor(false); // disable audio monitor
-    slot->enableTrack(false);
+    it->second->disableAudioSlot();
     mSessions.erase(cid);
     return true;
 }
@@ -869,11 +864,6 @@ bool Call::handleModerator(Cid_t cid, bool moderator)
     return true;
 }
 
-void Call::onError()
-{
-
-}
-
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
     mVThumb->createDecryptor();
@@ -884,38 +874,6 @@ void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 
     mAudio->createDecryptor();
     mAudio->createEncryptor(getMyPeer());
-}
-
-void Call::onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
-{
-}
-
-void Call::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
-{
-
-}
-
-void Call::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
-{
-    if (state == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionFailed)
-    {
-        // force reconnect
-    }
-}
-
-void Call::onIceComplete()
-{
-
-}
-
-void Call::onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
-{
-
-}
-
-void Call::onDataChannel(webrtc::DataChannelInterface *data_channel)
-{
-
 }
 
 void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -935,9 +893,49 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
     }
 }
 
+void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState)
+{
+    RTCM_LOG_DEBUG("onConnectionChange newstate: %d", newState);
+    if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed)
+    {
+        if (mSfuConnection)
+        {
+            RTCM_LOG_DEBUG("WebRTC connection failed, forcing full reconnect of client");
+            mSfuConnection->retryPendingConnection(true); // force reconnect
+        }
+    }
+}
+
+void Call::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
+{
+}
+
+void Call::onError()
+{
+}
+
+void Call::onIceComplete()
+{
+}
+
+void Call::onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
+{
+}
+
+void Call::onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
+{
+}
+
+void Call::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
+{
+}
+
 void Call::onRenegotiationNeeded()
 {
+}
 
+void Call::onDataChannel(webrtc::DataChannelInterface *data_channel)
+{
 }
 
 void Call::generateAndSendNewkey()
@@ -1054,10 +1052,7 @@ void Call::removeSpeaker(Cid_t cid)
         return;
     }
 
-    Slot *slot = it->second->getAudioSlot();
-    slot->enableAudioMonitor(false); // disable audio monitor
-    slot->enableTrack(false);
-    it->second->setAudioSlot(nullptr);
+    it->second->disableAudioSlot();
 }
 
 sfu::Peer& Call::getMyPeer()
@@ -1667,11 +1662,25 @@ void Session::setSessionHandler(SessionHandler* sessionHandler)
 
 void Session::setVideoRendererVthumb(IVideoRenderer *videoRederer)
 {
+    if (!mVthumSlot)
+    {
+        RTCM_LOG_WARNING("setVideoRendererVthumb: There's no low-res slot associated to this session");
+        assert(false);
+        return;
+    }
+
     mVthumSlot->setVideoRender(videoRederer);
 }
 
 void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
 {
+    if (!mHiresSlot)
+    {
+        RTCM_LOG_WARNING("setVideoRendererHiRes: There's no hi-res slot associated to this session");
+        assert(false);
+        return;
+    }
+
     mHiresSlot->setVideoRender(videoRederer);
 }
 
@@ -1748,6 +1757,17 @@ RemoteVideoSlot *Session::getVthumSlot()
 RemoteVideoSlot *Session::getHiResSlot()
 {
     return mHiresSlot;
+}
+
+void Session::disableAudioSlot()
+{
+    Slot *slot = getAudioSlot();
+    if (slot)
+    {
+        slot->enableAudioMonitor(false); // disable audio monitor
+        slot->enableTrack(false);
+        setAudioSlot(nullptr);
+    }
 }
 
 void Session::setSpeakRequested(bool requested)

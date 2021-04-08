@@ -222,6 +222,11 @@ protected:
             RTCM_DO_CALLBACK(mHandler.onTrack(transceiver), this, transceiver);
         }
 
+        virtual void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state)
+        {
+            RTCM_DO_CALLBACK(mHandler.onConnectionChange(new_state), this, new_state);
+        }
+
     protected:
         /** own callback interface, always called by the GUI thread */
         C& mHandler;
