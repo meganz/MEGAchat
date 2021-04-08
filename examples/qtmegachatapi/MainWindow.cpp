@@ -273,18 +273,12 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES) && window->mMeetingView)
     {
-        // add or remove hiRes video widget
-        session->isHiResVideo()
-                ? window->mMeetingView->addHiResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
-                : window->mMeetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
+        window->mMeetingView->addHiResByCid(chatid, static_cast<uint32_t>(session->getClientid()));
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES) && window->mMeetingView)
     {
-        // add or remove lowRes video widget
-        session->isLowResVideo()
-            ? window->mMeetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
-            : window->mMeetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
+        window->mMeetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()));
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
