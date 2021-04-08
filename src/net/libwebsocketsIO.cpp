@@ -293,6 +293,7 @@ static bool check_public_key(X509_STORE_CTX* ctx)
     if (!::WebsocketsClient::publicKeyPinning)
     {
         // if public key pinning is disabled, avoid cert's public key checkups
+        WEBSOCKETS_LOG_WARNING("Public key pinning is disabled");
         return true;
     }
 
