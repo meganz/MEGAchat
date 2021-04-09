@@ -1487,7 +1487,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (chatroom->ownPriv() <= Priv::PRIV_RDONLY)
             {
-                API_LOG_ERROR("Start call - Refusing start a call in an empty chatroom");
+                API_LOG_ERROR("Start call - Refusing start a call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
