@@ -1376,7 +1376,7 @@ void RtcModuleSfu::handleJoinedCall(karere::Id chatid, karere::Id callid, const 
     }
 }
 
-void RtcModuleSfu::handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id> &usersLeft)
+void RtcModuleSfu::handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id> &usersLeft)
 {
     for (karere::Id peer : usersLeft)
     {

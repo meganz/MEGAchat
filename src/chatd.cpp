@@ -5482,7 +5482,7 @@ void Chat::onUserLeave(Id userid)
             ::rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatId());
             if (call)
             {
-                mChatdClient.mKarereClient->rtc->handleLefCall(chatId(), call->getCallid(), users);
+                mChatdClient.mKarereClient->rtc->handleLeftCall(chatId(), call->getCallid(), users);
             }
         }
     }
