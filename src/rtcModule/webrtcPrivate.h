@@ -241,7 +241,7 @@ public:
 
 
 protected:
-    std::vector<karere::Id> mParticipants;
+    std::vector<karere::Id> mParticipants; // managed exclusively by meetings related chatd commands
     karere::Id mCallid;
     karere::Id mChatid;
     karere::Id mCallerId;
