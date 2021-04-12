@@ -169,6 +169,18 @@ public class MegaChatApiJava {
         return megaChatApi.getReactionUsers(chatid, msgid, reaction);
     }
 
+    /**
+     * Enable / disable the public key pinning
+     *
+     * Public key pinning is enabled by default for all sensible communications.
+     * It is strongly discouraged to disable this feature.
+     *
+     * @param enable true to keep public key pinning enabled, false to disable it
+     */
+    public void setPublicKeyPinning(boolean enable) {
+        megaChatApi.setPublicKeyPinning(enable);
+    }
+
     public void addChatRequestListener(MegaChatRequestListenerInterface listener)
     {
         megaChatApi.addChatRequestListener(createDelegateRequestListener(listener, false));
