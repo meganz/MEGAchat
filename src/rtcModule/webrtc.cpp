@@ -993,7 +993,10 @@ void Call::generateAndSendNewkey()
             keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
         }
 
-        mSfuConnection->sendKey(currentKeyId, keys);
+        if (keys.size())
+        {
+            mSfuConnection->sendKey(currentKeyId, keys);
+        }
     });
 }
 
