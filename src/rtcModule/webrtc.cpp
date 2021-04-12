@@ -1674,7 +1674,6 @@ void Session::setVideoRendererVthumb(IVideoRenderer *videoRederer)
     if (!mVthumSlot)
     {
         RTCM_LOG_WARNING("setVideoRendererVthumb: There's no low-res slot associated to this session");
-        assert(false);
         return;
     }
 
@@ -1686,7 +1685,6 @@ void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
     if (!mHiresSlot)
     {
         RTCM_LOG_WARNING("setVideoRendererHiRes: There's no hi-res slot associated to this session");
-        assert(false);
         return;
     }
 
