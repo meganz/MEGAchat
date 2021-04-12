@@ -997,6 +997,7 @@ public:
     int getMessageReactionCount(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
     mega::MegaStringList* getMessageReactions(MegaChatHandle chatid, MegaChatHandle msgid);
     mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
+    void setPublicKeyPinning(bool enable);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);

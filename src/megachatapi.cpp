@@ -1172,6 +1172,11 @@ MegaHandleList* MegaChatApi::getReactionUsers(MegaChatHandle chatid, MegaChatHan
     return pImpl->getReactionUsers(chatid, msgid, reaction);
 }
 
+void MegaChatApi::setPublicKeyPinning(bool enable)
+{
+    pImpl->setPublicKeyPinning(enable);
+}
+
 MegaChatRequest::~MegaChatRequest() { }
 MegaChatRequest *MegaChatRequest::copy()
 {
