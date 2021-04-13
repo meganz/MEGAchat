@@ -1045,11 +1045,11 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::createCallGui(MegaChatHandle peerid, MegaChatHandle clientid, bool onHold)
+void ChatWindow::createCallGui(MegaChatHandle peerid, MegaChatHandle clientid, bool onHold, unsigned numParticipants)
 {
     assert(!mMeetingView);
     //auto layout = qobject_cast <QGridLayout*> (ui->mCentralWidget->layout());
-    mMeetingView = new MeetingView(*mMegaChatApi, mChatRoom->getChatId(), this);
+    mMeetingView = new MeetingView(*mMegaChatApi, mChatRoom->getChatId(), this, numParticipants);
     mMeetingView->setVisible(true);
     ui->mCentralWidget->layout()->addWidget(mMeetingView);
     PeerWidget* peerWidget = new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, true, true);

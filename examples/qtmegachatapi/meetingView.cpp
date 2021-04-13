@@ -2,7 +2,7 @@
 #include <QMenu>
 #include <QApplication>
 
-MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent)
+MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent, unsigned numParticipants)
     : QWidget(parent)
     , mMegaChatApi(megaChatApi)
     , mChatid(chatid)
@@ -59,7 +59,12 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mHiResView->setWidgetResizable(true);
     mHiResView->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
 
-    mGridLayout->addWidget(mListWidget, 0, 0, 3, 1);
+    mParticipantsLabel = new QLabel("");
+    mParticipantsLabel->setStyleSheet("border: 1px solid #C5C5C5; color:#000000; font-weight:bold;");
+    mParticipantsLabel->setAlignment(Qt::AlignCenter);
+    updateNumParticipants(numParticipants);
+    mGridLayout->addWidget(mParticipantsLabel, 0, 0, 1, 1);
+    mGridLayout->addWidget(mListWidget, 1, 0, 3, 1);
     mGridLayout->addWidget(mThumbView, 0, 1, 1, 1);
     mGridLayout->addWidget(mHiResView, 1, 1, 1, 1);
 
@@ -87,6 +92,13 @@ void MeetingView::updateAudioMonitor(bool enabled)
 {
     QString audioMonTex = enabled ? "Audio monitor (is enabled)" : "Audio monitor (is disabled)";
     mAudioMonitor->setText(audioMonTex.toStdString().c_str());
+}
+
+void MeetingView::updateNumParticipants(unsigned participants)
+{
+    std::string txt = "Participants: ";
+    txt.append(std::to_string(participants));
+    mParticipantsLabel->setText(txt.c_str());
 }
 
 void MeetingView::addLowResByCid(MegaChatHandle chatid, uint32_t cid)
