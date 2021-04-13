@@ -1534,7 +1534,11 @@ void Slot::createDecryptor(Cid_t cid, IvStatic_t iv)
     mCid = cid;
     mIv = iv;
     createDecryptor();
-    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
+
+    if (mTransceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
+    {
+        mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
+    }
 }
 
 void Slot::enableAudioMonitor(bool enable)
