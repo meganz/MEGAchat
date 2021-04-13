@@ -2467,15 +2467,18 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
-                const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
-                CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s", tmpStr, ID_CSTR(chatid), ID_CSTR(callid));
                 READ_8(userListCount, 16);
+                const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
                 std::vector<karere::Id> users;
+                std::string userListStr;
                 for (unsigned int i = 0; i < userListCount; i++)
                 {
                     READ_ID(user, 17 + i * 8);
                     users.push_back(user);
+                    userListStr.append(ID_CSTR(user)).append(", ");
                 }
+                userListStr.erase(userListStr.size() -2);
+                CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s userList: [%s]", tmpStr, ID_CSTR(chatid), ID_CSTR(callid), userListStr.c_str());
 
                 if (mChatdClient.mKarereClient->rtc)
                 {

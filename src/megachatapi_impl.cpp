@@ -6112,6 +6112,11 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
 
+    for (auto participant: call.getParticipants())
+    {
+        participants[participant]; // init with empty flags by default
+    }
+
     if (call.getState() == rtcModule::CallState::kStateInitial)
     {
         mChanged = CHANGE_TYPE_STATUS;
