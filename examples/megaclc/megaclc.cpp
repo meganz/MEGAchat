@@ -66,8 +66,9 @@ using m::logWarning;
 using m::logInfo;
 using m::logDebug;
 
-#ifdef WIN32
-#define strdup _strdup
+#ifndef WIN32
+// avoid warning C4996 : 'strdup' : The POSIX name for this item is deprecated.Instead, use the ISO Cand C++ conformant name : _strdup.See online help for details.
+inline char* _strdup(char const* _Source) { return strdup(_Source); }
 #endif
 
 #if (__cplusplus >= 201700L)
@@ -181,7 +182,6 @@ void WaitMillisec(unsigned n)
 {
 #ifdef WIN32
     Sleep(n);
-    #define strdup _strdup
 #else
     usleep(n*1000);
 #endif
@@ -485,7 +485,6 @@ static prompttype prompt = COMMAND;
 
 #if defined(WIN32) && defined(NO_READLINE)
 static char pw_buf[512];  // double space for unicode
-#define strdup _strdup
 #else
 static char pw_buf[256];
 #endif
@@ -507,7 +506,7 @@ static void setprompt(prompttype p)
     if (p == COMMAND)
     {
         console->setecho(true);
-        line = strdup("");  // causes main loop to iterate and update the prompt
+        line = _strdup("");  // causes main loop to iterate and update the prompt
     }
     else
     {
@@ -3983,15 +3982,233 @@ void exec_generatetestfilesfolders(ac::ACState& s)
     {
         int totalfilecount = 0, totalfoldercount = 0;
         buildLocalFolders(p, nameprefix, folderwidth, folderdepth, filecount, filesize, totalfilecount, totalfoldercount);
-        cout << "created " << totalfilecount << " files and " << totalfoldercount << " folders" << endl;
+        conlock(cout) << "created " << totalfilecount << " files and " << totalfoldercount << " folders" << endl;
     }
     else
     {
-        cout << "invalid directory: " << p.u8string() << endl;
+        conlock(cout) << "invalid directory: " << p.u8string() << endl;
     }
 }
 
+void exec_syncadd(ac::ACState& s)
+{
 
+    string drive, name;
+    bool backup = s.extractflag("-backup");
+    bool external = s.extractflagparam("-external", drive);
+    bool named = s.extractflagparam("-name", name);
+
+    // sync add source target
+    string drivePath = drive;
+    string sourcePath = s.words[2].s;
+    string targetPath = s.words[3].s;
+
+    // Does the target node exist?
+    unique_ptr<m::MegaNode> targetNode(g_megaApi->getNodeByPath(targetPath.c_str()));
+
+    if (!targetNode)
+    {
+        cerr << targetPath
+            << ": Not found."
+            << endl;
+        return;
+    }
+
+    // Try and add the new sync.
+    g_megaApi->syncFolder(backup ? m::MegaSync::TYPE_BACKUP : m::MegaSync::TYPE_TWOWAY,
+        sourcePath.c_str(),
+        named ? name.c_str() : nullptr,
+        targetNode->getHandle(),
+        external ? drive.c_str() : nullptr,
+        nullptr, // regexps
+        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            {
+                conlock(cout) << "syncFolder result: " << e->getErrorString() << endl;
+            })
+        );
+}
+
+void exec_syncclosedrive(ac::ACState& s)
+{
+    string drive = s.words[2].s;
+    g_megaApi->closeExternalBackupSyncsFromExternalDrive(drive.c_str(),
+        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            {
+                conlock(cout) << "closeExternalBackupSyncsFromExternalDrive result: " << e->getErrorString() << endl;
+            }));
+}
+
+void exec_syncopendrive(ac::ACState& s)
+{
+    string drive= s.words[2].s;
+    g_megaApi->loadExternalBackupSyncsFromExternalDrive(drive.c_str(),
+        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            {
+                conlock(cout) << "loadExternalBackupSyncsFromExternalDrive result: " << e->getErrorString() << endl;
+            }));
+}
+
+void exec_synclist(ac::ACState& s)
+{
+    unique_ptr<m::MegaSyncList> syncs(g_megaApi->getSyncs());
+
+    for (int i = 0; i < syncs->size(); ++i)
+    {
+        auto sync = syncs->get(i);
+
+        // Display name.
+        conlock(cout) << "Sync "
+            << ch_s(sync->getBackupId())
+            << ": "
+            << sync->getName()
+            << "\n";
+
+        unique_ptr<m::MegaNode> node(g_megaApi->getNodeByHandle(sync->getMegaHandle()));
+        unique_ptr<char[]> nodepath(node ? g_megaApi->getNodePath(node.get()) : g_megaApi->strdup(""));
+
+        // Display source/target mapping.
+        conlock(cout) << "  Mapping: "
+            << sync->getLocalFolder()
+            << " -> "
+            << (strlen(nodepath.get()) ? nodepath.get() : sync->getLastKnownMegaFolder())
+            << "\n";
+
+        if (sync)
+        {
+            //// Display status info.
+            //conlock(cout) << "  State: "
+            //    << SyncConfig::syncstatename(sync->state)
+            //    << "\n";
+
+            //// Display some usage stats.
+            //conlock(cout) << "  Statistics: "
+            //    << sync->localbytes
+            //    << " byte(s) across "
+            //    << sync->localnodes[FILENODE]
+            //    << " file(s) and "
+            //    << sync->localnodes[FOLDERNODE]
+            //    << " folder(s).\n";
+        }
+        else
+        {
+            // Display what status info we can.
+            conlock(cout) << "  Enabled: "
+                << sync->isEnabled()
+                << "\n"
+                << "  Last Error: "
+                << sync->getMegaSyncErrorCode(sync->getError())
+                << "\n";
+        }
+
+        // Display sync type.
+        conlock(cout)
+            //<< (config.isExternal() ? "EX" : "IN")
+            //<< "TERNAL "
+            << " type " << sync->getType()
+            << "\n"
+            << endl;
+    }
+    conlock(cout) << syncs->size() << " syncs listed." << endl;
+}
+
+void exec_syncremove(ac::ACState& s)
+{
+
+    string id, path;
+    bool byId = s.extractflagparam("-id", id);
+    bool byPath = s.extractflagparam("-path", path);
+
+    if (byPath)
+    {
+        unique_ptr<m::MegaNode> targetNode(g_megaApi->getNodeByPath(path.c_str()));
+        if (!targetNode)
+        {
+            conlock(cout) << "cloud folder not found" << endl;
+            return;
+        }
+
+        g_megaApi->removeSync(targetNode.get(),
+            new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            {
+                conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
+            }));
+    }
+    else if (byId)
+    {
+        g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()),
+            new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+                {
+                    conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
+                }));
+    }
+
+}
+
+void exec_syncxable(ac::ACState& s)
+{
+    //const auto command = s.words[1].s;
+
+    //handle backupId = 0;
+    //Base64::atob(s.words[2].s.c_str(), (byte*)&backupId, sizeof(handle));
+
+    //if (command == "enable")
+    //{
+    //    // sync enable id
+    //    UnifiedSync* unifiedSync;
+    //    error result =
+    //        client->syncs.enableSyncByBackupId(backupId, false, unifiedSync);
+
+    //    if (result)
+    //    {
+    //        cerr << "Unable to enable sync: "
+    //            << errorstring(result)
+    //            << endl;
+    //    }
+
+    //    return;
+    //}
+
+    //// sync disable id [error]
+    //// sync fail id [error]
+
+    //int error = NO_SYNC_ERROR;
+
+    //// Has the user provided a specific error code?
+    //if (s.words.size() > 3)
+    //{
+    //    // Yep, use it.
+    //    error = atoi(s.words[3].s.c_str());
+    //}
+
+    //// Disable or fail?
+    //if (command == "fail")
+    //{
+    //    // Find the specified sync.
+    //    auto* sync = client->syncs.runningSyncByBackupId(backupId);
+
+    //    // Have we found the backup sync?
+    //    if (!sync)
+    //    {
+    //        cerr << "No sync found with the id "
+    //            << Base64Str<sizeof(handle)>(backupId)
+    //            << endl;
+    //        return;
+    //    }
+
+    //    client->failSync(sync, static_cast<SyncError>(error));
+    //    return;
+    //}
+    //else    // command == "disable"
+    //{
+    //    client->syncs.disableSelectedSyncs(
+    //        [&backupId](SyncConfig& config, Sync*)
+    //        {
+    //            return config.getBackupId() == backupId;
+    //        },
+    //        static_cast<SyncError>(error),
+    //            false);
+    //}
+}
 
 ac::ACN autocompleteSyntax()
 {
@@ -4173,6 +4390,41 @@ ac::ACN autocompleteSyntax()
         sequence(flag("-nameprefix"), param("prefix")))), localFSFolder("parent")));
 
 
+    p->Add(exec_syncadd,
+        sequence(text("sync"),
+            text("add"),
+            opt(flag("-backup")),
+            opt(sequence(flag("-external"), param("drivePath"))),
+            localFSFolder("source"),
+            param("remotetarget")));
+
+    p->Add(exec_syncclosedrive,
+        sequence(text("sync"),
+            text("closedrive"),
+            localFSFolder("drive")));
+
+    p->Add(exec_syncopendrive,
+        sequence(text("sync"),
+            text("opendrive"),
+            localFSFolder("drive")));
+
+    p->Add(exec_synclist,
+        sequence(text("sync"), text("list")));
+
+    p->Add(exec_syncremove,
+        sequence(text("sync"),
+            text("remove"),
+            either(
+                sequence(flag("-id"), param("backupId")),
+                sequence(flag("-path"), param("targetpath")))));
+
+    p->Add(exec_syncxable,
+        sequence(text("sync"),
+            either(sequence(either(text("disable"), text("fail")),
+                param("id"),
+                opt(param("error"))),
+                sequence(text("enable"),
+                    param("id")))));
     return p;
 }
 
@@ -4238,7 +4490,7 @@ char* longestCommonPrefix(ac::CompletionState& acs)
             }
         }
     }
-    return strdup(s.c_str());
+    return _strdup(s.c_str());
 }
 
 char** my_rl_completion(const char *, int , int end)
@@ -4261,7 +4513,7 @@ char** my_rl_completion(const char *, int , int end)
     char** result = (char**)malloc((sizeof(char*)*(2 + acs.completions.size())));
     for (int i = acs.completions.size(); i--; )
     {
-        result[i + 1] = strdup(acs.completions[i].s.c_str());
+        result[i + 1] = _strdup(acs.completions[i].s.c_str());
     }
     result[acs.completions.size() + 1] = NULL;
     result[0] = longestCommonPrefix(acs);
@@ -4271,7 +4523,7 @@ char** my_rl_completion(const char *, int , int end)
     //}
     rl_completion_suppress_append = true;
     rl_basic_word_break_characters = " \r\n";
-    rl_completer_word_break_characters = strdup(" \r\n");
+    rl_completer_word_break_characters = _strdup(" \r\n");
     rl_completer_quote_characters = "";
     rl_special_prefixes = "";
     return result;
