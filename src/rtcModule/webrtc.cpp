@@ -1429,9 +1429,18 @@ artc::VideoManager *RtcModuleSfu::getVideoDevice()
 
 void RtcModuleSfu::changeDevice(const std::string &device)
 {
-    closeDevice();
+    bool shouldOpen = false;
+    if (mVideoDevice)
+    {
+        shouldOpen = true;
+        closeDevice();
+    }
+
     mVideoDeviceSelected = device;
-    openDevice();
+    if (shouldOpen)
+    {
+        openDevice();
+    }
 }
 
 void RtcModuleSfu::openDevice()
