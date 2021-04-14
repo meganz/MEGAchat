@@ -17,7 +17,7 @@ if (WIN32)
         SET(build_64_bit 0)
     endif()
 else()
-    set (build_64_bit 1 CACHE TYPE BOOL)
+    set (build_64_bit 1 CACHE BOOL "True if building for 64bit.")
 endif()
 
 # create these cache variables first, these must be on for MEGAchat.  The default in the SDK is off, but it will see they are already on in the CMakeCache.txt
