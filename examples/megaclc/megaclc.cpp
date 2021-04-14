@@ -4210,6 +4210,38 @@ void exec_syncxable(ac::ACState& s)
     //}
 }
 
+
+void exec_getmybackupsfolder(ac::ACState& s)
+{
+    g_megaApi->getMyBackupsFolder(new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        {
+            if (e->getErrorCode() != m::MegaError::API_OK)
+            {
+                conlock(cout) << "getMyBackupsFolder result: " << e->getErrorString() << endl;
+            }
+            else
+            {
+
+                conlock(cout) << "getMyBackupsFolder result: " << OwnStr(g_megaApi->getNodePathByNodeHandle(request->getNodeHandle())) << endl;
+            }
+        }));
+}
+
+void exec_setmybackupsfolder(ac::ACState& s)
+{
+    unique_ptr<m::MegaNode> targetNode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
+    if (!targetNode)
+    {
+        conlock(cout) << "Path not found" << endl;
+        return;
+    }
+
+    g_megaApi->setMyBackupsFolder(targetNode->getHandle(), new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        {
+            conlock(cout) << "getMyBackupsFolder result: " << e->getErrorString() << endl;
+        }));
+}
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -4425,6 +4457,10 @@ ac::ACN autocompleteSyntax()
                 opt(param("error"))),
                 sequence(text("enable"),
                     param("id")))));
+
+    p->Add(exec_setmybackupsfolder, sequence(text("setmybackupsfolder"), param("remotefolder")));
+    p->Add(exec_getmybackupsfolder, sequence(text("getmybackupsfolder")));
+
     return p;
 }
 
