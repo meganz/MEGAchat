@@ -130,7 +130,7 @@ promise::Promise<void> Call::hangup()
     }
 }
 
-promise::Promise<void> Call::join(bool moderator, karere::AvFlags avFlags)
+promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
     mLocalAvFlags = avFlags;
     auto wptr = weakHandle();

@@ -1540,8 +1540,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (!call->participate())
             {
-                bool moderator = chatroom->ownPriv() == Priv::PRIV_OPER;
-                call->join(moderator, avFlags)
+                call->join(avFlags)
                 .then([request, this]()
                 {
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1599,11 +1598,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool moderator = chatroom->ownPriv() == Priv::PRIV_OPER;
             bool enableVideo = request->getFlag();
             bool enableAudio = request->getParamType();
             karere::AvFlags avFlags(enableAudio, enableVideo);
-            call->join(moderator, avFlags)
+            call->join(avFlags)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
