@@ -5318,6 +5318,12 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
 {
     for (auto refid: msg.backRefs)
     {
+        if (!refid)
+        {
+            CHATID_LOG_WARNING("verifyMsgOrder: invalid message backRefId [%d]", refid);
+            continue;
+        }
+
         auto it = mRefidToIdxMap.find(refid);
         if (it == mRefidToIdxMap.end())
             continue;
