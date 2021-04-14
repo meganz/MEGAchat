@@ -130,7 +130,7 @@ promise::Promise<void> Call::hangup()
     }
 }
 
-promise::Promise<void> Call::join(bool moderator, karere::AvFlags avFlags)
+promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
     mLocalAvFlags = avFlags;
     auto wptr = weakHandle();
@@ -1329,8 +1329,13 @@ void RtcModuleSfu::removeLocalVideoRenderer(karere::Id chatid)
 
 std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
 {
-    std::vector<karere::Id> v;
-    return v;
+    std::vector<karere::Id> chats;
+    for (const auto& call : mCalls)
+    {
+        chats.push_back(call.second->getChatid());
+    }
+
+    return chats;
 }
 
 unsigned int RtcModuleSfu::getNumCalls()
@@ -1424,9 +1429,18 @@ artc::VideoManager *RtcModuleSfu::getVideoDevice()
 
 void RtcModuleSfu::changeDevice(const std::string &device)
 {
-    closeDevice();
+    bool shouldOpen = false;
+    if (mVideoDevice)
+    {
+        shouldOpen = true;
+        closeDevice();
+    }
+
     mVideoDeviceSelected = device;
-    openDevice();
+    if (shouldOpen)
+    {
+        openDevice();
+    }
 }
 
 void RtcModuleSfu::openDevice()
@@ -1579,7 +1593,7 @@ RemoteVideoSlot::~RemoteVideoSlot()
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
     videoTrack->set_enabled(false);
 
-    if (videoTrack)
+    if (videoTrack && mSinkAdded)
     {
         videoTrack->RemoveSink(this);
     }
@@ -1633,6 +1647,7 @@ void RemoteVideoSlot::addSinkToTrack()
     {
         rtc::VideoSinkWants wants;
         videoTrack->AddOrUpdateSink(this, wants);
+        mSinkAdded = true;
     }
 }
 

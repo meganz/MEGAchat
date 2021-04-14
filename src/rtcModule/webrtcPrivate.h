@@ -80,6 +80,9 @@ public:
     RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     ~RemoteVideoSlot();
     void addSinkToTrack();
+
+private:
+    bool mSinkAdded = false;
 };
 
 class Session : public ISession
@@ -148,7 +151,7 @@ public:
     void removeParticipant(karere::Id peer) override;
     promise::Promise<void> hangup() override;
     promise::Promise<void> endCall() override;
-    promise::Promise<void> join(bool moderator, karere::AvFlags avFlags) override;
+    promise::Promise<void> join(karere::AvFlags avFlags) override;
     bool participate() override;
     void enableAudioLevelMonitor(bool enable) override;
     void ignoreCall() override;
