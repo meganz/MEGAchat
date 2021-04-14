@@ -4496,6 +4496,7 @@ void MegaChatApiImpl::hangChatCall(MegaChatHandle callid, MegaChatRequestListene
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_HANG_CHAT_CALL, listener);
     request->setChatHandle(callid);
+    request->setFlag(false);
     requestQueue.push(request);
     waiter->notify();
 }
