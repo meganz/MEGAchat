@@ -1584,7 +1584,7 @@ RemoteVideoSlot::~RemoteVideoSlot()
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
     videoTrack->set_enabled(false);
 
-    if (videoTrack)
+    if (videoTrack && mSinkAdded)
     {
         videoTrack->RemoveSink(this);
     }
@@ -1638,6 +1638,7 @@ void RemoteVideoSlot::addSinkToTrack()
     {
         rtc::VideoSinkWants wants;
         videoTrack->AddOrUpdateSink(this, wants);
+        mSinkAdded = true;
     }
 }
 

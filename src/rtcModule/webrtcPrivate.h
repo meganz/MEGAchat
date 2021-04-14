@@ -80,6 +80,9 @@ public:
     RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     ~RemoteVideoSlot();
     void addSinkToTrack();
+
+private:
+    bool mSinkAdded = false;
 };
 
 class Session : public ISession
