@@ -1329,8 +1329,13 @@ void RtcModuleSfu::removeLocalVideoRenderer(karere::Id chatid)
 
 std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
 {
-    std::vector<karere::Id> v;
-    return v;
+    std::vector<karere::Id> chats;
+    for (const auto& call : mCalls)
+    {
+        chats.push_back(call.second->getChatid());
+    }
+
+    return chats;
 }
 
 unsigned int RtcModuleSfu::getNumCalls()
