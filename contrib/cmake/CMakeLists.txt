@@ -49,19 +49,29 @@ if (NOT ENABLE_CHAT OR NOT USE_OPENSSL)
     message(FATAL_ERROR "ENABLE_CHAT must be enabled in the SDK build, also USE_OPENSSL as libwebsockets requires it")
 endif()
 
+# The WebSocket's library is named differently depending on platform.
+#
+# Assume we're building for Windows.
+set(WebsocketsName websockets)
 
 if (WIN32)
-    ImportStdVcpkgLibrary(websockets websockets websockets websockets websockets)
-
     if (USE_WEBRTC)
         # additional directories used in this project, after the main one incluced by the MEGA SDK
         include_directories( "${WebRtcDir}/include/webrtc" )
         include_directories( "${WebRtcDir}/webrtc/src/third_party/libyuv/include" )
     endif()
 else(WIN32)
+    # Correct name of WebSockets library.
+    #
+    # Assume the library is named identically on OSX.
+    set(WebsocketsName libwebsockets)
+
     include_directories("${Mega3rdPartyDir}/include")
     link_directories("${Mega3rdPartyDir}/lib")
 endif(WIN32)
+
+# Import suitable named WebSockets library.
+ImportStdVcpkgLibrary(${WebsocketsName} ${WebsocketsName} ${WebsocketsName} ${WebsocketsName} ${WebsocketsName})
 
 add_definitions( -DUSE_LIBWEBSOCKETS )
 
@@ -104,7 +114,7 @@ target_include_directories(karere PRIVATE ${KarereDir}/src/base rapidjson)
 target_include_directories(karere PUBLIC ${KarereDir}/src )
 target_include_directories(karere PUBLIC $<${USE_WEBRTC}:${KarereDir}/src/rtcModule>  )
 target_compile_definitions(karere PUBLIC MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC> )
-target_link_libraries(karere PUBLIC Mega rapidjson websockets uv $<${USE_WEBRTC}:webrtc> )
+target_link_libraries(karere PUBLIC Mega rapidjson ${WebsocketsName} uv $<${USE_WEBRTC}:webrtc> )
 if (WIN32)
 target_link_libraries(karere PUBLIC Iphlpapi.lib Psapi.lib Userenv.lib Msdmo.lib Strmiids.lib Dmoguids.lib Winmm.dll wmcodecdspuuid.lib Wldap32.lib)
 endif()
