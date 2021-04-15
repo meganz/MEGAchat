@@ -192,7 +192,7 @@ public:
     void setAudioDetected(bool audioDetected) override;
     void updateVideoInDevice() override;
     void setState(CallState newState);
-    void connectSfu(const std::string& sfuUrl);
+    void connectSfu(const std::string& sfuUrl, bool reconnect = false);
     void createTranceiver();
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
@@ -244,7 +244,7 @@ public:
 
 
 protected:
-    std::vector<karere::Id> mParticipants;
+    std::vector<karere::Id> mParticipants; // managed exclusively by meetings related chatd commands
     karere::Id mCallid;
     karere::Id mChatid;
     karere::Id mCallerId;
@@ -319,7 +319,7 @@ public:
     void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
-    void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
+    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
     void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) override;
     void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey = nullptr) override;
 

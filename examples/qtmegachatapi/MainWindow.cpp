@@ -194,7 +194,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 window->ui->mTitlebar->hide();
                 window->ui->mTextChatWidget->hide();
-                window->createCallGui(0, 0);
+                window->createCallGui(0, 0, call->getNumParticipants());
 
                 break;
             }
@@ -240,10 +240,17 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         updateVideoParticipants(call->getChatid());
     }
 
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION) &&
-            call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION))
     {
-        updateVideoParticipants(call->getChatid());
+        if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+        {
+            updateVideoParticipants(call->getChatid());
+        }
+
+        if (window->mMeetingView)
+        {
+            window->mMeetingView->updateNumParticipants(call->getNumParticipants());
+        }
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))

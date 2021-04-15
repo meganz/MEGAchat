@@ -181,7 +181,7 @@ public:
     virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
-    virtual void handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
+    virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
     virtual void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) = 0;
     virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };

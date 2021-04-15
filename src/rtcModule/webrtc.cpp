@@ -464,11 +464,21 @@ ISession* Call::getSession(Cid_t cid) const
         : nullptr;
 }
 
-void Call::connectSfu(const std::string &sfuUrl)
+void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
 {
     setState(CallState::kStateConnecting);
-    mSfuUrl = sfuUrl;
-    mSfuConnection = mSfuClient.generateSfuConnection(mChatid, sfuUrl, *this);
+    if (reconnect)
+    {
+        RTCM_LOG_DEBUG("trying to reconnect to SFU");
+        mSfuConnection->retryPendingConnection(false); // if reconnection is in progress skip
+    }
+    else
+    {
+        mSfuUrl = sfuUrl;
+        mSfuConnection = mSfuClient.generateSfuConnection(mChatid, sfuUrl, *this);
+        RTCM_LOG_DEBUG("trying to connect to SFU");
+    }
+
     auto wptr = weakHandle();
     mSfuConnection->getPromiseConnection()
     .then([wptr, this]()
@@ -898,11 +908,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     RTCM_LOG_DEBUG("onConnectionChange newstate: %d", newState);
     if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed)
     {
-        if (mSfuConnection)
-        {
-            RTCM_LOG_DEBUG("WebRTC connection failed, forcing full reconnect of client");
-            mSfuConnection->retryPendingConnection(true); // force reconnect
-        }
+        connectSfu(std::string(), true); // reconnect to SFU
     }
 }
 
@@ -987,7 +993,10 @@ void Call::generateAndSendNewkey()
             keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
         }
 
-        mSfuConnection->sendKey(currentKeyId, keys);
+        if (keys.size())
+        {
+            mSfuConnection->sendKey(currentKeyId, keys);
+        }
     });
 }
 
@@ -1375,7 +1384,7 @@ void RtcModuleSfu::handleJoinedCall(karere::Id chatid, karere::Id callid, const 
     }
 }
 
-void RtcModuleSfu::handleLefCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id> &usersLeft)
+void RtcModuleSfu::handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id> &usersLeft)
 {
     for (karere::Id peer : usersLeft)
     {
@@ -1539,7 +1548,11 @@ void Slot::createDecryptor(Cid_t cid, IvStatic_t iv)
     mCid = cid;
     mIv = iv;
     createDecryptor();
-    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
+
+    if (mTransceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
+    {
+        mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
+    }
 }
 
 void Slot::enableAudioMonitor(bool enable)
@@ -1680,7 +1693,6 @@ void Session::setVideoRendererVthumb(IVideoRenderer *videoRederer)
     if (!mVthumSlot)
     {
         RTCM_LOG_WARNING("setVideoRendererVthumb: There's no low-res slot associated to this session");
-        assert(false);
         return;
     }
 
@@ -1692,7 +1704,6 @@ void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
     if (!mHiresSlot)
     {
         RTCM_LOG_WARNING("setVideoRendererHiRes: There's no hi-res slot associated to this session");
-        assert(false);
         return;
     }
 

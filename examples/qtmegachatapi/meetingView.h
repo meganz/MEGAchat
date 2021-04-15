@@ -17,7 +17,7 @@ class MeetingView : public QWidget
 {
     Q_OBJECT
 public:
-    MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget* parent);
+    MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget* parent, unsigned numParticipants = 0);
     ~MeetingView();
     void addLocalVideo(PeerWidget* widget);
     void addSession(const megachat::MegaChatSession& session);
@@ -29,6 +29,7 @@ public:
     void setOnHold(bool mIsOnHold, MegaChatHandle cid);
     std::string sessionToString(const megachat::MegaChatSession& session);
     void updateAudioMonitor(bool enabled);
+    void updateNumParticipants(unsigned participants);
 
     // methods to add/remove video widgets
     void addLowResByCid(MegaChatHandle chatid, uint32_t cid);
@@ -57,6 +58,7 @@ protected:
     QPushButton* mRemOwnSpeaker;
     QPushButton* mSetOnHold;
     QLabel* mOnHoldLabel;
+    QLabel* mParticipantsLabel;
 
     QListWidget* mListWidget;
 

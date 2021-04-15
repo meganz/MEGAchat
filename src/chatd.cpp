@@ -2467,19 +2467,22 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
-                const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
-                CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s", tmpStr, ID_CSTR(chatid), ID_CSTR(callid));
                 READ_8(userListCount, 16);
+                const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
                 std::vector<karere::Id> users;
+                std::string userListStr;
                 for (unsigned int i = 0; i < userListCount; i++)
                 {
                     READ_ID(user, 17 + i * 8);
                     users.push_back(user);
+                    userListStr.append(ID_CSTR(user)).append(", ");
                 }
+                userListStr.erase(userListStr.size() -2);
+                CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s userList: [%s]", tmpStr, ID_CSTR(chatid), ID_CSTR(callid), userListStr.c_str());
 
                 if (mChatdClient.mKarereClient->rtc)
                 {
-                    rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
+                    rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
                         auto& chat = mChatdClient.chats(chatid);
@@ -2493,15 +2496,27 @@ void Connection::execCommand(const StaticBuffer& buf)
                             pms.resolve(std::make_shared<string>());
                         }
 
-                        pms.then([this, chatid, callid] (shared_ptr<string> unifiedKey)
+                        pms.then([this, chatid, callid, opcode, users] (shared_ptr<string> unifiedKey)
                         {
                             mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, unifiedKey);
+                            rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCall(callid);
+                            assert(call);
+                            opcode == OP_JOINEDCALL
+                                    ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, call->getCallid(), users)
+                                    : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, call->getCallid(), users);
+
                         })
                         .fail([] (const ::promise::Error &err)
                         {
                             // Todo: check if it's necessary to throw an exception
                             throw std::runtime_error("Failed to decrypt unified key");
                         });
+                    }
+                    else // if call already exists.
+                    {
+                        opcode == OP_JOINEDCALL
+                                ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, call->getCallid(), users)
+                                : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, call->getCallid(), users);
                     }
                 }
 
@@ -5463,6 +5478,7 @@ void Chat::onUserLeave(Id userid)
         mUsers.clear();
             mChatdClient.mKarereClient->setCommitMode(commitEach);
 
+        // remove call associated to chatRoom if our own user is not an active participant
         if (mChatdClient.mKarereClient->rtc && !previewMode())
         {
             mChatdClient.mKarereClient->rtc->removeCall(mChatId);
@@ -5473,18 +5489,6 @@ void Chat::onUserLeave(Id userid)
         mUsers.erase(userid);
         CALL_CRYPTO(onUserLeave, userid);
         CALL_LISTENER(onUserLeave, userid);
-
-        if (mChatdClient.mKarereClient->rtc && !previewMode())
-        {
-            // the call will usually be terminated by the kicked user, but just in case
-            // the client doesn't do it properly, we notify the user left the call
-            std::vector<karere::Id> users = {userid};
-            ::rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatId());
-            if (call)
-            {
-                mChatdClient.mKarereClient->rtc->handleLefCall(chatId(), call->getCallid(), users);
-            }
-        }
     }
 }
 
