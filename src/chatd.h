@@ -412,7 +412,7 @@ struct EndpointId
 class Client;
 
 // need DeleteTrackable for graceful disconnect timeout
-class Connection: public karere::DeleteTrackable, public WebsocketsClient
+class Connection: public karere::DeleteTrackable, public WebsocketsClientWithDnsCache
 {
 public:
     enum State
@@ -440,7 +440,6 @@ protected:
     Connection(Client& chatdClient, int shardNo);
 
     Client& mChatdClient;
-    DNScache &mDnsCache;
 
     /** Shard number for which the Connection is configured */
     int mShardNo;

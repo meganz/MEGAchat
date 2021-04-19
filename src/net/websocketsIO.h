@@ -20,6 +20,14 @@
 class WebsocketsClient;
 class WebsocketsClientImpl;
 
+struct CachedSession
+{
+    std::string             hostname;    // host.domain
+    int                     port = 0;    // 443 usually
+    std::shared_ptr<Buffer> blob;        // session data
+    size_t                  bloblen = 0; // byte length of session data
+};
+
 class DNScache
 {
 public:
@@ -28,7 +36,7 @@ public:
 
     DNScache(SqliteDb &db, int chatdVersion);
     void loadFromDb();
-    void addRecord(int shard, const std::string &url, bool saveToDb = true);
+    void addRecord(int shard, const std::string &url, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true);
     void removeRecord(int shard);
     void updateRecord(int shard, const std::string &url, bool saveToDb);
     bool hasRecord(int shard);
@@ -45,6 +53,9 @@ public:
     time_t age(int shard);
     const karere::Url &getUrl(int shard);
 
+    bool updateTlsSession(const CachedSession &sess);
+    std::vector<CachedSession> getTlsSessions();
+
 private:
     struct DNSrecord
     {
@@ -54,6 +65,8 @@ private:
         time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
         time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
         time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
+        std::shared_ptr<Buffer> blob; // tls session data
+        size_t bloblen = 0;         // byte length of session data
     };
 
     // Maps shard to DNSrecord
@@ -85,6 +98,9 @@ public:
             delete cb;
         }
     };
+
+    virtual bool hasSessionCache() const { return false; }
+    virtual void restoreSessions(std::vector<CachedSession> &&) { }
 
 protected:
     Mutex &mutex;
@@ -127,10 +143,25 @@ public:
     bool wsIsConnected();
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
 
+    virtual bool wsUpdateStoredSession(const CachedSession &) { return false; }
+
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
     virtual void wsSendMsgCb(const char *data, size_t len) = 0;
+};
+
+
+class WebsocketsClientWithDnsCache : public WebsocketsClient
+{
+public:
+    WebsocketsClientWithDnsCache(DNScache &dc);
+
+protected:
+    DNScache &mDnsCache;
+
+private:
+    bool wsUpdateStoredSession(const CachedSession &) override;
 };
 
 

@@ -309,7 +309,7 @@ public:
 
 class Listener;
 
-class Client: public karere::DeleteTrackable, public WebsocketsClient,
+class Client: public karere::DeleteTrackable, public WebsocketsClientWithDnsCache,
         public ::mega::MegaGlobalListener
 {
 public:
@@ -339,7 +339,6 @@ public:
 protected:
     MyMegaApi *mApi;
     karere::Client *mKarereClient;
-    DNScache &mDnsCache;
     Listener* mListener;
     uint8_t mCapabilities;
 

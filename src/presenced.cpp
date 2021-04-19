@@ -33,9 +33,9 @@ namespace presenced
 {
 
 Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
-    : mApi(api),
+    : WebsocketsClientWithDnsCache(client->mDnsCache),
+      mApi(api),
       mKarereClient(client),
-      mDnsCache(client->mDnsCache),
       mListener(&listener),
       mCapabilities(caps),
       mTsConnSuceeded(time(nullptr))

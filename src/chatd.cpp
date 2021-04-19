@@ -518,10 +518,10 @@ void Chat::login()
 }
 
 Connection::Connection(Client& chatdClient, int shardNo)
-    : mChatdClient(chatdClient),
+    : WebsocketsClientWithDnsCache(chatdClient.mKarereClient->mDnsCache),
+      mChatdClient(chatdClient),
       mShardNo(shardNo),
       mSendPromise(promise::_Void()),
-      mDnsCache(chatdClient.mKarereClient->mDnsCache),
       mTsConnSuceeded(time(nullptr))
 {
 }
