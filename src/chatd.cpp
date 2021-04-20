@@ -2496,15 +2496,21 @@ void Connection::execCommand(const StaticBuffer& buf)
                             pms.resolve(std::make_shared<string>());
                         }
 
-                        pms.then([this, chatid, callid, opcode, users] (shared_ptr<string> unifiedKey)
+                        auto wptr = weakHandle();
+                        pms.then([wptr, this, chatid, callid, opcode, users] (shared_ptr<string> unifiedKey)
                         {
-                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, unifiedKey);
+                            if (wptr.deleted())
+                            {
+                                return;
+                            }
+
+                            auto& chat = mChatdClient.chats(chatid);
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, chat.isGroup(), unifiedKey);
                             rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCall(callid);
                             assert(call);
                             opcode == OP_JOINEDCALL
                                     ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, call->getCallid(), users)
                                     : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, call->getCallid(), users);
-
                         })
                         .fail([] (const ::promise::Error &err)
                         {
@@ -2547,7 +2553,8 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                         pms.then([this, chatid, callid, userid, ringing] (shared_ptr<string> unifiedKey)
                         {
-                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing, unifiedKey);
+                            auto& chat = mChatdClient.chats(chatid);
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing, chat.isGroup(), unifiedKey);
                         })
                         .fail([] (const ::promise::Error &err)
                         {
@@ -2569,7 +2576,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
-                READ_8(reason, 16);
+                //READ_8(reason, 16);
                 if (mChatdClient.mKarereClient->rtc)
                 {
                     mChatdClient.mKarereClient->rtc->removeCall(chatid);
@@ -3871,8 +3878,8 @@ void Chat::onLastSeen(Id msgid, bool resend)
             if (resend)
             {
                 // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
-                CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
-                sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
+                //CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
+                //sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
             }
             return; // `mLastSeenId` is newer than the received `msgid`
         }
@@ -3940,8 +3947,8 @@ bool Chat::setMessageSeen(Idx idx)
         if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx <= mLastSeenIdx))
             return;
 
-        CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
-        sendCommand(Command(OP_SEEN) + mChatId + id);
+        //CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
+        //sendCommand(Command(OP_SEEN) + mChatId + id);
 
         Idx notifyStart;
         if (mLastSeenIdx == CHATD_IDX_INVALID)

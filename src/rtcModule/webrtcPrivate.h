@@ -140,7 +140,7 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
     karere::Id getChatid() const override;
@@ -259,6 +259,7 @@ protected:
     bool mAudioLevelMonitorEnabled = false;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     int mNetworkQuality = kNetworkQualityDefault;
+    bool mIsGroup = false;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;
@@ -305,7 +306,7 @@ public:
     ICall* findCallByChatid(karere::Id chatid) override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
-    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, std::shared_ptr<std::string> unifiedKey = nullptr) override;
+    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) override;
     void takeDevice() override;
     void releaseDevice() override;
     void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) override;
@@ -321,7 +322,7 @@ public:
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
     void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) override;
-    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, std::shared_ptr<std::string> callKey = nullptr) override;
+    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
 

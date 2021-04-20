@@ -1519,9 +1519,10 @@ void MegaChatApiImpl::sendPendingRequests()
                    pms.resolve(std::make_shared<string>());
                }
 
-               pms.then([request, this, chatid, avFlags] (shared_ptr<string> unifiedKey)
+               bool isGroup = chatroom->isGroup();
+               pms.then([request, this, chatid, avFlags, isGroup] (shared_ptr<string> unifiedKey)
                {
-                   mClient->rtc->startCall(chatid, avFlags, unifiedKey)
+                   mClient->rtc->startCall(chatid, avFlags, isGroup, unifiedKey)
                    .then([request, this]()
                    {
                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);

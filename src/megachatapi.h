@@ -4707,6 +4707,8 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns true
      *
+     * @note This method shouldn't be used in this first meeting phase
+     *
      * @param callid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
