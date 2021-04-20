@@ -1574,12 +1574,16 @@ promise::Promise<void> Client::doConnect()
         heartbeat();
     }, kHeartbeatTimeout, appCtx);
 
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this), myHandle());
+#endif
 
     if (anonymousMode())
     {
         // avoid to connect to presenced (no user, no peerstatus)
         // avoid to retrieve own user-attributes (no user, no attributes)
-        // avoid to initialize WebRTC (no user, no calls)
         setConnState(kConnected);
         return ::promise::_Void();
     }
@@ -1593,12 +1597,6 @@ promise::Promise<void> Client::doConnect()
         name.assign(buf->buf(), buf->dataSize());
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
-
-#ifndef KARERE_DISABLE_WEBRTC
-// Create the rtc module
-    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
-    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this), myHandle());
-#endif
 
     auto pms = mPresencedClient.connect()
     .then([this, wptr]()

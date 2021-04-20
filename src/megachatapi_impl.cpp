@@ -875,6 +875,10 @@ void MegaChatApiImpl::sendPendingRequests()
                    request->setChatHandle(chatId);
                    request->setNumber(numPeers);
                    request->setText(decryptedTitle.c_str());
+                   if (request->getMegaHandleList())
+                   {
+                       request->setMegaHandleList(result->getMegaHandleList());
+                   }
 
                    //Check chat link
                    if (!createChat)

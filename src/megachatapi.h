@@ -1924,6 +1924,8 @@ public:
      *
      * This value is valid for these requests:
      * - MegaChatApi::pushReceived - Returns the list of chatids with unread messages
+     * - MegaChatApi::openChatPreview - Returns a vector with one element (callid), if call doesn't exit it will be NULL
+     * - MegaChatApi::checkChatPreview - Returns a vector with one element (callid), if call doesn't exit it will be NULL
      *
      * @return mega::MegaHandleList of handles for a given chatid
      */
@@ -3747,6 +3749,7 @@ public:
      * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
+     * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat
@@ -3765,6 +3768,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
+     * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
