@@ -116,7 +116,11 @@ public:
 
 class MyMegaLogger: public ::mega::MegaLogger
 {
-    virtual void log(const char * /*time*/, int loglevel, const char *source, const char *message)
+    virtual void log(const char * /*time*/, int loglevel, const char *source, const char *message
+#ifdef ENABLE_LOG_PERFORMANCE
+        , const char** directMessages = nullptr, size_t* directMessagesSizes = nullptr, int numberMessages = 0
+#endif
+    ) override
     {
         static krLogLevel sdkToKarereLogLevels[::mega::MegaApi::LOG_LEVEL_MAX+1] =
         {

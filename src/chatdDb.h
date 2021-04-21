@@ -155,7 +155,7 @@ public:
     {
         if (msg.type == chatd::Message::kMsgTruncate)
         {
-            mDb.query("update history set type = ?, data = ?, ts = ?, update = 0, userid = ?, keyid = ? where chatid = ? and msgid = ?",
+            mDb.query("update history set type = ?, data = ?, ts = ?, updated = 0, userid = ?, keyid = ? where chatid = ? and msgid = ?",
                 msg.type, msg, msg.ts, msg.userid, msg.keyid, mChat.chatId(), msgid);
         }
         else    // "updated" instead of "ts"

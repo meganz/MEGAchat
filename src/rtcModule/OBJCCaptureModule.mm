@@ -54,7 +54,7 @@ namespace artc
         
         [mCameraVideoCapturer startCaptureWithDevice:mCaptureDevice format:selectedFormat fps:capabilities.maxFPS];
         mRunning = true;
-        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraVideoCapturer, gAsyncWaiter->guiThread(), gAsyncWaiter->guiThread());
+        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraVideoCapturer, gSignalingThread.get(), gWorkerThread.get());
     }
 
     std::set<std::pair<std::string, std::string>> OBJCCaptureModule::getVideoDevices()
@@ -137,5 +137,25 @@ namespace artc
     void OBJCCaptureModule::UnregisterObserver(webrtc::ObserverInterface* observer)
     {
         mVideoSource->UnregisterObserver(observer);
+    }
+
+    bool OBJCCaptureModule::SupportsEncodedOutput() const
+    {
+        return false;
+    }
+
+    void OBJCCaptureModule::GenerateKeyFrame()
+    {
+
+    }
+
+    void OBJCCaptureModule::AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink)
+    {
+
+    }
+
+    void OBJCCaptureModule::RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink)
+    {
+
     }
 }

@@ -38,14 +38,14 @@ struct TimerMsg: public megaMessage
         :megaMessage(aFunc),
           handle(services_hstore_add_handle(MEGA_HTYPE_TIMER, this))
     {}
-   ~TimerMsg()
+   virtual ~TimerMsg()
     {
         services_hstore_remove_handle(MEGA_HTYPE_TIMER, handle);
         if (timerEvent)
-        {            
-            uv_close((uv_handle_t *)timerEvent, [](uv_handle_t* handle)
+        {
+            uv_close((uv_handle_t *)timerEvent, [](uv_handle_t* var)
             {
-                delete handle;
+                delete (timerevent*)var;
             });
         }
     }
@@ -69,14 +69,14 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
         int loop;
     };
     megaMessageFunc cfunc = persist
-        ? (megaMessageFunc) [](void* arg)
+        ? (megaMessageFunc) [](megaMessage* arg)
           {
               Msg* msg = static_cast<Msg*>(arg);
               if (msg->canceled)
                   return;
               msg->cb();
           }
-        : (megaMessageFunc) [](void* arg)
+        : (megaMessageFunc) [](megaMessage* arg)
           {
               timerMutex.lock();
               Msg* msg = static_cast<Msg*>(arg);
@@ -101,7 +101,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
 
     pMsg->appCtx = ctx;
     pMsg->time = time;
-    pMsg->loop = persist;  
+    pMsg->loop = persist;
     marshallCall([pMsg, ctx]()
     {
         pMsg->timerEvent = new uv_timer_t();
@@ -110,9 +110,10 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
         uv_timer_start(pMsg->timerEvent,
                        [](uv_timer_t* handle)
                        {
-                           megaPostMessageToGui(handle->data, ((Msg*)handle->data)->appCtx);
+                           Msg* message = static_cast<Msg*>(handle->data);
+                           megaPostMessageToGui(message, message->appCtx);
                        }, pMsg->time, pMsg->loop ? pMsg->time : 0);
-    }, ctx);    
+    }, ctx);
     return pMsg->handle;
 }
 /** Cancels a previously set timeout with setTimeout()
@@ -137,12 +138,12 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
 //we first stop the timer, and only then post a call to delete the timer.
 //That call should be processed after all timer messages
     timer->canceled = true; //disable timer callback being called by possibly queued messages, and message freeing in one-shot timer handler
-    timerMutex.unlock();    
+    timerMutex.unlock();
     marshallCall([timer, ctx]()
     {
         uv_timer_stop(timer->timerEvent);
 
-        marshallCall([timer, ctx]()
+        marshallCall([timer]()
         {
             delete timer;
         }, ctx);

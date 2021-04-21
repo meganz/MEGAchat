@@ -20,7 +20,7 @@
  */
 
 // This program is intended for exploring the chat API, performing testing and so on.
-// It's not well tested and should be considered alpha at best. 
+// It's not well tested and should be considered alpha at best.
 
 #if defined(WIN32)
 #include <windows.h>
@@ -66,8 +66,9 @@ using m::logWarning;
 using m::logInfo;
 using m::logDebug;
 
-#ifdef WIN32
-#define strdup _strdup
+#ifndef WIN32
+// avoid warning C4996 : 'strdup' : The POSIX name for this item is deprecated.Instead, use the ISO Cand C++ conformant name : _strdup.See online help for details.
+inline char* _strdup(char const* _Source) { return strdup(_Source); }
 #endif
 
 #if (__cplusplus >= 201700L)
@@ -181,7 +182,6 @@ void WaitMillisec(unsigned n)
 {
 #ifdef WIN32
     Sleep(n);
-    #define strdup _strdup
 #else
     usleep(n*1000);
 #endif
@@ -217,7 +217,7 @@ public:
     void onTransferFinish(m::MegaApi* api, m::MegaTransfer *request, m::MegaError* e) override
     {
         if (onTransferFinishFunc) onTransferFinishFunc(api, request, e);
-        delete this;  // one-shot is done so auto-delete
+        //delete this;  // one-shot is done so auto-delete
     }
 };
 
@@ -315,7 +315,11 @@ public:
     }
 
 private:
-    void log(const char* time, int loglevel, const char*, const char *message) override
+    void log(const char* time, int loglevel, const char*, const char *message
+#ifdef ENABLE_LOG_PERFORMANCE
+        , const char** directMessages = nullptr, size_t* directMessagesSizes = nullptr, unsigned numberMessages = 0
+#endif
+    ) override
     {
 #ifdef _WIN32
         OutputDebugStringA(message);
@@ -481,9 +485,8 @@ static prompttype prompt = COMMAND;
 
 #if defined(WIN32) && defined(NO_READLINE)
 static char pw_buf[512];  // double space for unicode
-#define strdup _strdup
 #else
-static char pw_buf[256];  
+static char pw_buf[256];
 #endif
 
 static int pw_buf_pos;
@@ -503,7 +506,7 @@ static void setprompt(prompttype p)
     if (p == COMMAND)
     {
         console->setecho(true);
-        line = strdup("");  // causes main loop to iterate and update the prompt
+        line = _strdup("");  // causes main loop to iterate and update the prompt
     }
     else
     {
@@ -1033,7 +1036,9 @@ std::string msgTypeToString(const int msgType)
         case c::MegaChatMessage::TYPE_VOICE_CLIP: return "TYPE_VOICE_CLIP";
         default: assert(false); return "Invalid Msg Type (" + std::to_string(msgType) + ")";
     }
-    return {};
+#ifndef WIN32
+    return {}; // warning C4702: unreachable code
+#endif
 }
 
 std::string msgStatusToString(const int msgStatus)
@@ -1050,7 +1055,9 @@ std::string msgStatusToString(const int msgStatus)
         case c::MegaChatMessage::STATUS_SEEN: return "STATUS_SEEN";
         default: assert(false); return "Invalid Msg Status (" + std::to_string(msgStatus) + ")";
     }
-    return {};
+#ifndef WIN32
+    return {}; // warning C4702: unreachable code
+#endif
 }
 
 std::string callTermCodeToString(const int termCode)
@@ -1064,7 +1071,9 @@ std::string callTermCodeToString(const int termCode)
         case c::MegaChatMessage::END_CALL_REASON_CANCELLED: return "END_CALL_REASON_CANCELLED";
         default: assert(false); return "Invalid Call Term Code (" + std::to_string(termCode) + ")";
     }
-    return {};
+#ifndef WIN32
+    return {}; // warning C4702: unreachable code
+#endif
 }
 
 void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
@@ -1509,7 +1518,7 @@ void exec_session(ac::ACState& s)
             conlock(cout) << "Your (secret) session is: " << session.get() << endl;
         }
     }
-    else 
+    else
     {
         conlock(cout) << "Not logged in." << endl;
     }
@@ -1582,7 +1591,7 @@ void exec_getonlinestatus(ac::ACState&)
 
 void exec_setbackgroundstatus(ac::ACState& s)
 {
-    g_chatListener.onFinish(c::MegaChatRequest::TYPE_SET_BACKGROUND_STATUS, [](finishInfo& f) 
+    g_chatListener.onFinish(c::MegaChatRequest::TYPE_SET_BACKGROUND_STATUS, [](finishInfo& f)
     {
         if (check_err("SetBackgroundStatus", f.e))
         {
@@ -1692,7 +1701,7 @@ string chatDetails(const c::MegaChatRoom& cr)
 {
     ostringstream s;
 
-    s << "title: " << (cr.getTitle() ? cr.getTitle() : "") << " handle: " << ch_s(cr.getChatId()) 
+    s << "title: " << (cr.getTitle() ? cr.getTitle() : "") << " handle: " << ch_s(cr.getChatId())
       << " priv:" << cr.privToString(cr.getOwnPrivilege()) << " s:" << (cr.isGroup() ? " isGroup " : " ")
       << "peers: ";
     for (unsigned i = 0; i < cr.getPeerCount(); ++i)
@@ -1745,10 +1754,10 @@ string chatlistDetails(const c::MegaChatListItem& cli)
 {
     ostringstream s;
 
-    s << "title: " << (cli.getTitle() ? cli.getTitle() : "") 
+    s << "title: " << (cli.getTitle() ? cli.getTitle() : "")
         << " handle: " << ch_s(cli.getChatId())
-        << " priv:" << c::MegaChatRoom::privToString(cli.getOwnPrivilege()) 
-        << " " << (cli.isGroup() ? " isGroup " : " ") 
+        << " priv:" << c::MegaChatRoom::privToString(cli.getOwnPrivilege())
+        << " " << (cli.isGroup() ? " isGroup " : " ")
         << " " << (cli.isActive() ? " isActive " : " ");
 
     if (cli.getPeerHandle() != c::MEGACHAT_INVALID_HANDLE)
@@ -1891,12 +1900,12 @@ void exec_createchat(ac::ACState& s)
     });
 
     bool group = s.words[1].s == "-group";
-    auto pl = c::MegaChatPeerList::createInstance();  
+    auto pl = c::MegaChatPeerList::createInstance();
     for (unsigned i = group ? 2 : 1; i < s.words.size(); ++i)
     {
         pl->addPeer(s_ch(s.words[i].s), c::MegaChatPeerList::PRIV_STANDARD); // todo: accept privilege flags
     }
-    g_chatApi->createChat(group, pl, &g_chatListener);  
+    g_chatApi->createChat(group, pl, &g_chatListener);
 }
 
 void exec_invitetochat(ac::ACState& s)
@@ -1922,7 +1931,7 @@ void exec_removefromchat(ac::ACState& s)
         }
     });
 
-    g_chatApi->removeFromChat(s_ch(s.words[1].s), s_ch(s.words[2].s), &g_chatListener);  
+    g_chatApi->removeFromChat(s_ch(s.words[1].s), s_ch(s.words[2].s), &g_chatListener);
 }
 
 void exec_leavechat(ac::ACState& s)
@@ -1935,7 +1944,7 @@ void exec_leavechat(ac::ACState& s)
         }
     });
 
-    g_chatApi->removeFromChat(s_ch(s.words[1].s), s_ch(s.words[2].s), &g_chatListener);  
+    g_chatApi->removeFromChat(s_ch(s.words[1].s), s_ch(s.words[2].s), &g_chatListener);
 }
 
 void exec_updatechatpermissions(ac::ACState& s)
@@ -1961,7 +1970,7 @@ void exec_truncatechat(ac::ACState& s)
         }
     });
 
-    g_chatApi->truncateChat(s_ch(s.words[1].s), s_ch(s.words[2].s), &g_chatListener);  
+    g_chatApi->truncateChat(s_ch(s.words[1].s), s_ch(s.words[2].s), &g_chatListener);
 }
 
 void exec_clearchathistory(ac::ACState& s)
@@ -1974,7 +1983,7 @@ void exec_clearchathistory(ac::ACState& s)
         }
     });
 
-    g_chatApi->clearChatHistory(s_ch(s.words[1].s), &g_chatListener);  
+    g_chatApi->clearChatHistory(s_ch(s.words[1].s), &g_chatListener);
 }
 
 void exec_setRetentionTime(ac::ACState& s)
@@ -2422,7 +2431,7 @@ void exec_startchatcall(ac::ACState& s)
 {
     c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
     c::MegaChatHandle room = s_ch(s.words[1].s);
-    bool enableVideo = s.words.size() > 2 && s.words[2].s == "true";  
+    bool enableVideo = s.words.size() > 2 && s.words[2].s == "true";
     g_chatApi->startChatCall(room, enableVideo, listener);
 }
 
@@ -2550,8 +2559,8 @@ void exec_smsverify(ac::ACState& s)
     if (s.words[1].s == "send")
     {
         auto listener = new OneShotRequestListener;
-        listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) 
-            { 
+        listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+            {
                 conlock(cout) << "SMS Verify Text Result: " << e->getErrorString() << endl;
             };
         g_megaApi->sendSMSVerificationCode(s.words[2].s.c_str(), listener, s.words.size() > 3 && s.words[3].s == "to");
@@ -2886,8 +2895,8 @@ void exec_backgroundupload(ac::ACState& s)
     else if (s.words[1].s == "geturl" && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
         auto ln = new OneShotRequestListener;
-        ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) 
-        { 
+        ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+        {
             if (check_err("Get upload URL", e))
             {
                 conlock(cout) << "Upload URL: " << OwnStr(request->getMegaBackgroundMediaUploadPtr()->getUploadURL()) << endl;
@@ -3101,7 +3110,7 @@ void exec_recentactions(ac::ACState& s)
     {
         ra.reset(g_megaApi->getRecentActions());
     }
-    
+
     auto l = conlock(cout);
     for (int b = 0; b < ra->size(); ++b)
     {
@@ -3113,7 +3122,7 @@ void exec_recentactions(ac::ACState& s)
         bool isupdate = bucket->isUpdate();
         bool ismedia = bucket->isMedia();
         const m::MegaNodeList* nodes = bucket->getNodes();
-        
+
         cout << "Bucket " << ts << " email " << (em ? em : "NULL") << " parent " << ph << (isupdate ? " update" : "") << (ismedia ? " media" : " files") << " count: " << nodes->size() << endl;
 
         for (int i = 0; i < nodes->size(); ++i)
@@ -3376,10 +3385,21 @@ void exec_renamenode(ac::ACState& s)
 {
     if (auto node = GetNodeByPath(s.words[1].s))
     {
-        g_megaApi->renameNode(node.get(), s.words[2].s.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
-        {
-            check_err("renamenode", e, ReportResult);
-        }));
+        g_megaApi->renameNode(node.get(), s.words[2].s.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
+            {
+                check_err("renamenode", e, ReportResult);
+            }));
+    }
+}
+
+void exec_createfolder(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[2].s))
+    {
+        g_megaApi->createFolder(s.words[1].s.c_str(), node.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
+            {
+                check_err("createfolder", e, ReportResult);
+            }));
     }
 }
 
@@ -3388,9 +3408,81 @@ void exec_startupload(ac::ACState& s)
     if (auto node = GetNodeByPath(s.words[2].s))
     {
         g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+            {
+                check_err("startUpload", e, ReportResult);
+            }));
+    }
+}
+
+void exec_startdownload(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+            {
+                check_err("startDownload", e, ReportResult);
+            }));
+    }
+}
+
+void exec_exportNode(ac::ACState& s)
+{
+    string expire, writable;
+    bool specifyWritable = s.extractflagparam("-writable", writable);
+    bool specifyExpire = s.extractflagparam("-expire", expire);
+
+    int64_t expireTime = atoll(expire.c_str());
+    bool writableFlag = writable == "true";
+
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        if (specifyWritable)
         {
-            check_err("startUpload", e, ReportResult);
-        }));
+            if (specifyExpire)
+            {
+                g_megaApi->exportNode(node.get(), expireTime, writableFlag, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                    {
+                        if (check_err("exportnode", e, ReportFailure))
+                        {
+                            conlock(cout) << "Exported link: " << r->getLink() << " and auth: " << r->getPrivateKey() << endl;
+
+                        }
+                    }));
+            }
+            else
+            {
+                g_megaApi->exportNode(node.get(), writableFlag, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                    {
+                        if (check_err("exportnode", e, ReportFailure))
+                        {
+                            conlock(cout) << "Exported link: " << r->getLink() << " and auth: " << r->getPrivateKey() << endl;
+                        }
+                    }));
+            }
+        }
+        else
+        {
+            if (specifyExpire)
+            {
+                g_megaApi->exportNode(node.get(), expireTime, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                    {
+                        if (check_err("exportnode", e, ReportFailure))
+                        {
+                            conlock(cout) << "Exported link: " << r->getLink() << endl;
+                        }
+                    }));
+            }
+            else
+            {
+                g_megaApi->exportNode(node.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                    {
+                        if (check_err("exportnode", e, ReportFailure))
+                        {
+                            conlock(cout) << "Exported link: " << r->getLink() << endl;
+                        }
+                    }));
+            }
+        }
     }
 }
 
@@ -3458,7 +3550,7 @@ void exec_mv(ac::ACState& s)
 
     std::unique_ptr<m::MegaNode> srcnode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
     std::unique_ptr<m::MegaNode> dstnode(g_megaApi->getNodeByPath(s.words[2].s.c_str()));
-                                                                                                                                                     
+
     if (!srcnode)
     {
         conlock(cout) << "source not found" << endl;
@@ -3496,10 +3588,10 @@ void PrintAchievements(m::MegaAchievementsDetails & ad)
 
     cl << "getBaseStorage: " << ad.getBaseStorage() << endl;
 
-    int classes[] = {   m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_WELCOME, 
-                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_INVITE, 
-                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_DESKTOP_INSTALL, 
-                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_MOBILE_INSTALL, 
+    int classes[] = {   m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_WELCOME,
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_INVITE,
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_DESKTOP_INSTALL,
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_MOBILE_INSTALL,
                         m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_ADD_PHONE };
 
     for (int i = 0; i < sizeof(classes) / sizeof(*classes); ++i)
@@ -3579,7 +3671,7 @@ void exec_getmegaachievements(ac::ACState& s)
 void exec_setCameraUploadsFolder(ac::ACState& s)
 {
     std::unique_ptr<m::MegaNode> srcnode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
-    
+
     if (!srcnode)
     {
         conlock(cout) << "Folder not found.";
@@ -3742,7 +3834,413 @@ void exec_setGeolocOn(ac::ACState& s)
     g_megaApi->enableGeolocation(listener);
 }
 
+fs::path pathFromLocalPath(const string& s, bool mustexist)
+{
+    fs::path p = s.empty() ? fs::current_path() : fs::u8path(s);
+#ifdef WIN32
+    p = fs::u8path("\\\\?\\" + p.u8string());
+#endif
+    if (mustexist && !fs::exists(p))
+    {
+        cout << "local path not found: '" << s << "'";
+        return fs::path();
+    }
+    return p;
+}
 
+bool typematchesnodetype(int pathtype, int nodetype)
+{
+    switch (pathtype)
+    {
+    case m::MegaNode::TYPE_FOLDER:
+    case m::MegaNode::TYPE_FILE: return nodetype == pathtype;
+    default: return false;
+    }
+}
+
+
+bool recursiveCompare(m::MegaNode& mn, fs::path p)
+{
+    auto pathtype = fs::is_directory(p) ? m::MegaNode::TYPE_FOLDER : fs::is_regular_file(p) ? m::MegaNode::TYPE_FILE : m::MegaNode::TYPE_UNKNOWN;
+    if (!typematchesnodetype(pathtype, mn.getType()))
+    {
+        cout << "Path type mismatch: " << OwnStr(g_megaApi->getNodePath(&mn)) << ":" << mn.getType() << " " << p.u8string() << ":" << pathtype << endl;
+        return false;
+    }
+
+    if (pathtype == m::MegaNode::TYPE_FILE)
+    {
+        int64_t size = (int64_t)fs::file_size(p);
+        if (size != (int64_t)mn.getSize())
+        {
+            cout << "File size mismatch: " << OwnStr(g_megaApi->getNodePath(&mn)) << ":" << mn.getType() << " " << p.u8string() << ":" << size << endl;
+        }
+    }
+
+    if (pathtype != m::MegaNode::TYPE_FOLDER)
+    {
+        return true;
+    }
+
+
+    unique_ptr<m::MegaNodeList> children(g_megaApi->getChildren(&mn, 0));
+
+    multimap<string, m::MegaNode*> ms;
+    multimap<string, fs::path> ps;
+    for (auto i = children->size(); i--; )
+    {
+        ms.emplace(children->get(i)->getName(), children->get(i));
+    }
+    for (fs::directory_iterator pi(p); pi != fs::directory_iterator(); ++pi)
+    {
+        ps.emplace(pi->path().filename().u8string(), pi->path());
+    }
+
+    for (auto p_iter = ps.begin(); p_iter != ps.end(); )
+    {
+        auto er = ms.equal_range(p_iter->first);
+        auto next_p = p_iter;
+        ++next_p;
+        for (auto i = er.first; i != er.second; ++i)
+        {
+            if (recursiveCompare(*i->second, p_iter->second))
+            {
+                ms.erase(i);
+                ps.erase(p_iter);
+                break;
+            }
+        }
+        p_iter = next_p;
+    }
+    if (ps.empty() && ms.empty())
+    {
+        return true;
+    }
+    else
+    {
+        cout << "Extra content detected between " << OwnStr(g_megaApi->getNodePath(&mn)) << " and " << p.u8string() << endl;
+        for (auto& mi : ms) cout << "Extra remote: " << mi.first << endl;
+        for (auto& pi : ps) cout << "Extra local: " << pi.second << endl;
+        return false;
+    };
+}
+
+void exec_treecompare(ac::ACState& s)
+{
+    fs::path p = pathFromLocalPath(s.words[1].s, true);
+    unique_ptr<m::MegaNode> n(g_megaApi->getNodeByPath(s.words[2].s.c_str()));
+    if (n && !p.empty())
+    {
+        recursiveCompare(*n, p);
+    }
+}
+
+
+bool buildLocalFolders(fs::path targetfolder, const string& prefix, int foldersperfolder, int recurselevel, int filesperfolder, int filesize, int& totalfilecount, int& totalfoldercount)
+{
+    fs::path p = targetfolder / fs::u8path(prefix);
+    if (!fs::is_directory(p) && !fs::create_directory(p))
+        return false;
+    ++totalfoldercount;
+
+    for (int i = 0; i < filesperfolder; ++i)
+    {
+        string filename = prefix + "_file_" + std::to_string(++totalfilecount);
+        fs::path fp = p / fs::u8path(filename);
+        ofstream fs(fp.u8string(), std::ios::binary);
+
+        for (unsigned j = filesize / sizeof(int); j--; )
+        {
+            fs.write((char*)&totalfilecount, sizeof(int));
+        }
+        fs.write((char*)&totalfilecount, filesize % sizeof(int));
+    }
+
+    if (recurselevel > 1)
+    {
+        for (int i = 0; i < foldersperfolder; ++i)
+        {
+            if (!buildLocalFolders(p, prefix + "_" + std::to_string(i), foldersperfolder, recurselevel - 1, filesperfolder, filesize, totalfilecount, totalfoldercount))
+                return false;
+        }
+    }
+    return true;
+}
+
+void exec_generatetestfilesfolders(ac::ACState& s)
+{
+    string param, nameprefix = "test";
+    int folderdepth = 1, folderwidth = 1, filecount = 100, filesize = 1024;
+    if (s.extractflagparam("-folderdepth", param)) folderdepth = atoi(param.c_str());
+    if (s.extractflagparam("-folderwidth", param)) folderwidth = atoi(param.c_str());
+    if (s.extractflagparam("-filecount", param)) filecount = atoi(param.c_str());
+    if (s.extractflagparam("-filesize", param)) filesize = atoi(param.c_str());
+    if (s.extractflagparam("-nameprefix", param)) nameprefix = param;
+
+    fs::path p = pathFromLocalPath(s.words[1].s, true);
+    if (!p.empty())
+    {
+        int totalfilecount = 0, totalfoldercount = 0;
+        buildLocalFolders(p, nameprefix, folderwidth, folderdepth, filecount, filesize, totalfilecount, totalfoldercount);
+        conlock(cout) << "created " << totalfilecount << " files and " << totalfoldercount << " folders" << endl;
+    }
+    else
+    {
+        conlock(cout) << "invalid directory: " << p.u8string() << endl;
+    }
+}
+
+void exec_syncadd(ac::ACState& s)
+{
+
+    string drive, name;
+    bool backup = s.extractflag("-backup");
+    bool external = s.extractflagparam("-external", drive);
+    bool named = s.extractflagparam("-name", name);
+
+    // sync add source target
+    string drivePath = drive;
+    string sourcePath = s.words[2].s;
+    string targetPath = s.words[3].s;
+
+    // Does the target node exist?
+    unique_ptr<m::MegaNode> targetNode(g_megaApi->getNodeByPath(targetPath.c_str()));
+
+    if (!targetNode)
+    {
+        cerr << targetPath
+            << ": Not found."
+            << endl;
+        return;
+    }
+
+    // Try and add the new sync.
+    g_megaApi->syncFolder(backup ? m::MegaSync::TYPE_BACKUP : m::MegaSync::TYPE_TWOWAY,
+        sourcePath.c_str(),
+        named ? name.c_str() : nullptr,
+        targetNode->getHandle(),
+        external ? drive.c_str() : nullptr,
+        nullptr, // regexps
+        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            {
+                conlock(cout) << "syncFolder result: " << e->getErrorString() << endl;
+            })
+        );
+}
+
+void exec_syncclosedrive(ac::ACState& s)
+{
+    string drive = s.words[2].s;
+    g_megaApi->closeExternalBackupSyncsFromExternalDrive(drive.c_str(),
+        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            {
+                conlock(cout) << "closeExternalBackupSyncsFromExternalDrive result: " << e->getErrorString() << endl;
+            }));
+}
+
+void exec_syncopendrive(ac::ACState& s)
+{
+    string drive= s.words[2].s;
+    g_megaApi->loadExternalBackupSyncsFromExternalDrive(drive.c_str(),
+        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            {
+                conlock(cout) << "loadExternalBackupSyncsFromExternalDrive result: " << e->getErrorString() << endl;
+            }));
+}
+
+void exec_synclist(ac::ACState& s)
+{
+    unique_ptr<m::MegaSyncList> syncs(g_megaApi->getSyncs());
+
+    for (int i = 0; i < syncs->size(); ++i)
+    {
+        auto sync = syncs->get(i);
+
+        // Display name.
+        conlock(cout) << "Sync "
+            << ch_s(sync->getBackupId())
+            << ": "
+            << sync->getName()
+            << "\n";
+
+        unique_ptr<m::MegaNode> node(g_megaApi->getNodeByHandle(sync->getMegaHandle()));
+        unique_ptr<char[]> nodepath(node ? g_megaApi->getNodePath(node.get()) : g_megaApi->strdup(""));
+
+        // Display source/target mapping.
+        conlock(cout) << "  Mapping: "
+            << sync->getLocalFolder()
+            << " -> "
+            << (strlen(nodepath.get()) ? nodepath.get() : sync->getLastKnownMegaFolder())
+            << "\n";
+
+        if (sync)
+        {
+            //// Display status info.
+            //conlock(cout) << "  State: "
+            //    << SyncConfig::syncstatename(sync->state)
+            //    << "\n";
+
+            //// Display some usage stats.
+            //conlock(cout) << "  Statistics: "
+            //    << sync->localbytes
+            //    << " byte(s) across "
+            //    << sync->localnodes[FILENODE]
+            //    << " file(s) and "
+            //    << sync->localnodes[FOLDERNODE]
+            //    << " folder(s).\n";
+        }
+        else
+        {
+            // Display what status info we can.
+            conlock(cout) << "  Enabled: "
+                << sync->isEnabled()
+                << "\n"
+                << "  Last Error: "
+                << sync->getMegaSyncErrorCode(sync->getError())
+                << "\n";
+        }
+
+        // Display sync type.
+        conlock(cout)
+            //<< (config.isExternal() ? "EX" : "IN")
+            //<< "TERNAL "
+            << " type " << sync->getType()
+            << "\n"
+            << endl;
+    }
+    conlock(cout) << syncs->size() << " syncs listed." << endl;
+}
+
+void exec_syncremove(ac::ACState& s)
+{
+
+    string id, path;
+    bool byId = s.extractflagparam("-id", id);
+    bool byPath = s.extractflagparam("-path", path);
+
+    if (byPath)
+    {
+        unique_ptr<m::MegaNode> targetNode(g_megaApi->getNodeByPath(path.c_str()));
+        if (!targetNode)
+        {
+            conlock(cout) << "cloud folder not found" << endl;
+            return;
+        }
+
+        g_megaApi->removeSync(targetNode.get(),
+            new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            {
+                conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
+            }));
+    }
+    else if (byId)
+    {
+        g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()),
+            new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+                {
+                    conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
+                }));
+    }
+
+}
+
+void exec_syncxable(ac::ACState& s)
+{
+    //const auto command = s.words[1].s;
+
+    //handle backupId = 0;
+    //Base64::atob(s.words[2].s.c_str(), (byte*)&backupId, sizeof(handle));
+
+    //if (command == "enable")
+    //{
+    //    // sync enable id
+    //    UnifiedSync* unifiedSync;
+    //    error result =
+    //        client->syncs.enableSyncByBackupId(backupId, false, unifiedSync);
+
+    //    if (result)
+    //    {
+    //        cerr << "Unable to enable sync: "
+    //            << errorstring(result)
+    //            << endl;
+    //    }
+
+    //    return;
+    //}
+
+    //// sync disable id [error]
+    //// sync fail id [error]
+
+    //int error = NO_SYNC_ERROR;
+
+    //// Has the user provided a specific error code?
+    //if (s.words.size() > 3)
+    //{
+    //    // Yep, use it.
+    //    error = atoi(s.words[3].s.c_str());
+    //}
+
+    //// Disable or fail?
+    //if (command == "fail")
+    //{
+    //    // Find the specified sync.
+    //    auto* sync = client->syncs.runningSyncByBackupId(backupId);
+
+    //    // Have we found the backup sync?
+    //    if (!sync)
+    //    {
+    //        cerr << "No sync found with the id "
+    //            << Base64Str<sizeof(handle)>(backupId)
+    //            << endl;
+    //        return;
+    //    }
+
+    //    client->failSync(sync, static_cast<SyncError>(error));
+    //    return;
+    //}
+    //else    // command == "disable"
+    //{
+    //    client->syncs.disableSelectedSyncs(
+    //        [&backupId](SyncConfig& config, Sync*)
+    //        {
+    //            return config.getBackupId() == backupId;
+    //        },
+    //        static_cast<SyncError>(error),
+    //            false);
+    //}
+}
+
+
+void exec_getmybackupsfolder(ac::ACState& s)
+{
+    g_megaApi->getMyBackupsFolder(new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        {
+            if (e->getErrorCode() != m::MegaError::API_OK)
+            {
+                conlock(cout) << "getMyBackupsFolder result: " << e->getErrorString() << endl;
+            }
+            else
+            {
+
+                conlock(cout) << "getMyBackupsFolder result: " << OwnStr(g_megaApi->getNodePathByNodeHandle(request->getNodeHandle())) << endl;
+            }
+        }));
+}
+
+void exec_setmybackupsfolder(ac::ACState& s)
+{
+    unique_ptr<m::MegaNode> targetNode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
+    if (!targetNode)
+    {
+        conlock(cout) << "Path not found" << endl;
+        return;
+    }
+
+    g_megaApi->setMyBackupsFolder(targetNode->getHandle(), new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        {
+            conlock(cout) << "getMyBackupsFolder result: " << e->getErrorString() << endl;
+        }));
+}
 
 ac::ACN autocompleteSyntax()
 {
@@ -3814,7 +4312,7 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_openchatpreview,    sequence(text("openchatpreview"), param("chatlink")));
     p->Add(exec_closechatpreview,   sequence(text("closechatpreview"), param("chatid")));
-     
+
 #ifndef KARERE_DISABLE_WEBRTC
     p->Add(exec_getchatvideoindevices, sequence(text("getchatvideoindevices")));
     p->Add(exec_setchatvideoindevice, sequence(text("setchatvideoindevice"), param("device")));
@@ -3889,8 +4387,13 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_testAllocation, sequence(text("testAllocation"), param("count"), param("size")));
     p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
     p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-order"), param("order")), sequence(flag("-refilter"), param("regex")))), param("path")));
+    p->Add(exec_createfolder, sequence(text("createfolder"), param("name"), param("remotepath")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
-    p->Add(exec_startupload, sequence(text("startupload"), param("localpath"), param("remotepath")));
+    p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath")));
+    p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath()));
+
+    p->Add(exec_exportNode, sequence(text("exportnode"), opt(sequence(flag("-writable"), either(text("true"), text("false")))), opt(sequence(flag("-expiry"), param("time_t"))), param("remotepath")));
+
 
     p->Add(exec_pushreceived, sequence(text("pushreceived"), opt(flag("-beep")), opt(param("chatid"))));
     p->Add(exec_getcloudstorageused, sequence(text("getcloudstorageused")));
@@ -3908,6 +4411,55 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getDefaultTZ, sequence(text("getdefaulttz")));
     p->Add(exec_isGeolocOn, sequence(text("isgeolocationenabled")));
     p->Add(exec_setGeolocOn, sequence(text("setgeolocation"), text("on")));
+
+
+    // Helpers
+    p->Add(exec_treecompare, sequence(text("treecompare"), localFSPath(), param("remotepath")/*remoteFSPath(client, &cwd)*/));
+    p->Add(exec_generatetestfilesfolders, sequence(text("generatetestfilesfolders"), repeat(either(sequence(flag("-folderdepth"), param("depth")),
+        sequence(flag("-folderwidth"), param("width")),
+        sequence(flag("-filecount"), param("count")),
+        sequence(flag("-filesize"), param("size")),
+        sequence(flag("-nameprefix"), param("prefix")))), localFSFolder("parent")));
+
+
+    p->Add(exec_syncadd,
+        sequence(text("sync"),
+            text("add"),
+            opt(flag("-backup")),
+            opt(sequence(flag("-external"), param("drivePath"))),
+            localFSFolder("source"),
+            param("remotetarget")));
+
+    p->Add(exec_syncclosedrive,
+        sequence(text("sync"),
+            text("closedrive"),
+            localFSFolder("drive")));
+
+    p->Add(exec_syncopendrive,
+        sequence(text("sync"),
+            text("opendrive"),
+            localFSFolder("drive")));
+
+    p->Add(exec_synclist,
+        sequence(text("sync"), text("list")));
+
+    p->Add(exec_syncremove,
+        sequence(text("sync"),
+            text("remove"),
+            either(
+                sequence(flag("-id"), param("backupId")),
+                sequence(flag("-path"), param("targetpath")))));
+
+    p->Add(exec_syncxable,
+        sequence(text("sync"),
+            either(sequence(either(text("disable"), text("fail")),
+                param("id"),
+                opt(param("error"))),
+                sequence(text("enable"),
+                    param("id")))));
+
+    p->Add(exec_setmybackupsfolder, sequence(text("setmybackupsfolder"), param("remotefolder")));
+    p->Add(exec_getmybackupsfolder, sequence(text("getmybackupsfolder")));
 
     return p;
 }
@@ -3974,7 +4526,7 @@ char* longestCommonPrefix(ac::CompletionState& acs)
             }
         }
     }
-    return strdup(s.c_str());
+    return _strdup(s.c_str());
 }
 
 char** my_rl_completion(const char *, int , int end)
@@ -3997,7 +4549,7 @@ char** my_rl_completion(const char *, int , int end)
     char** result = (char**)malloc((sizeof(char*)*(2 + acs.completions.size())));
     for (int i = acs.completions.size(); i--; )
     {
-        result[i + 1] = strdup(acs.completions[i].s.c_str());
+        result[i + 1] = _strdup(acs.completions[i].s.c_str());
     }
     result[acs.completions.size() + 1] = NULL;
     result[0] = longestCommonPrefix(acs);
@@ -4007,7 +4559,7 @@ char** my_rl_completion(const char *, int , int end)
     //}
     rl_completion_suppress_append = true;
     rl_basic_word_break_characters = " \r\n";
-    rl_completer_word_break_characters = strdup(" \r\n");
+    rl_completer_word_break_characters = _strdup(" \r\n");
     rl_completer_quote_characters = "";
     rl_special_prefixes = "";
     return result;
