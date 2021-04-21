@@ -12,7 +12,7 @@ namespace artc
 {
 typedef rtcModule::IVideoRenderer IVideoRenderer;
 
-class StreamPlayer: public rtc::VideoSinkInterface<webrtc::VideoFrame>
+class StreamPlayer: public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
 {
 protected:
     void *appCtx;
@@ -139,42 +139,52 @@ public:
 //rtc::VideoSinkInterface<webrtc::VideoFrame> implementation
     virtual void OnFrame(const webrtc::VideoFrame& frame)
     {
-        std::unique_lock<std::mutex> locker(mMutex);
-        if (!mMediaStartSignalled)
+        auto wptr = weakHandle();
+        karere::marshallCall([this, frame, wptr]()
         {
-            mMediaStartSignalled = true;
-            if (mOnMediaStart)
+            if (wptr.deleted())
             {
-                auto callback = mOnMediaStart;
-                karere::marshallCall([callback]()
-                {
-                    callback();
-                }, appCtx);
-            }
-        }
-
-        if (!mRenderer)
-            return; //no renderer
-
-        if (mVideoEnable)
-        {
-            void* userData = NULL;
-            auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
-            if (frame.rotation() != webrtc::kVideoRotation_0)
-            {
-                buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
-            }
-            unsigned short width = (unsigned short)buffer->width();
-            unsigned short height = (unsigned short)buffer->height();
-            void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
-            if (!frameBuf) //image is frozen or app is minimized/covered
                 return;
-            libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
-                               buffer->DataU(), buffer->StrideU(),
-                               buffer->DataV(), buffer->StrideV(),
-                               (uint8_t*)frameBuf, width * 4, width, height);
-            mRenderer->frameComplete(userData);
-        }
+            }
+
+            std::unique_lock<std::mutex> locker(mMutex);
+            if (!mMediaStartSignalled)
+            {
+                mMediaStartSignalled = true;
+                if (mOnMediaStart)
+                {
+                    auto callback = mOnMediaStart;
+                    karere::marshallCall([callback]()
+                    {
+                        callback();
+                    }, appCtx);
+                }
+            }
+
+            if (!mRenderer)
+                return; //no renderer
+
+            if (mVideoEnable)
+            {
+                void* userData = NULL;
+                auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
+                if (frame.rotation() != webrtc::kVideoRotation_0)
+                {
+                    buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+                }
+                unsigned short width = (unsigned short)buffer->width();
+                unsigned short height = (unsigned short)buffer->height();
+                void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
+                if (!frameBuf) //image is frozen or app is minimized/covered
+                    return;
+                libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+                                   buffer->DataU(), buffer->StrideU(),
+                                   buffer->DataV(), buffer->StrideV(),
+                                   (uint8_t*)frameBuf, width * 4, width, height);
+                mRenderer->frameComplete(userData);
+            }
+        }, appCtx);
+
     }
 
     webrtc::AudioTrackInterface *getAudioTrack()

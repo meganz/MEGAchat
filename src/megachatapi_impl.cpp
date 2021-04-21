@@ -41,7 +41,7 @@
 
 #ifdef _WIN32
 #pragma warning(push)
-#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.)
 #endif
 
 #include <rapidjson/stringbuffer.h>
@@ -169,7 +169,7 @@ void MegaChatApiImpl::loop()
 #endif
 }
 
-void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
+void MegaChatApiImpl::megaApiPostMessage(megaMessage* msg, void* ctx)
 {
     MegaChatApiImpl *megaChatApi = (MegaChatApiImpl *)ctx;
     if (megaChatApi)
@@ -186,7 +186,7 @@ void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
     }
 }
 
-void MegaChatApiImpl::postMessage(void *msg)
+void MegaChatApiImpl::postMessage(megaMessage* msg)
 {
     eventQueue.push(msg);
     waiter->notify();
@@ -1351,7 +1351,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 fireOnChatRequestFinish(request, megaChatError);
             });
             break;
-        }            
+        }
         case MegaChatRequest::TYPE_PUSH_RECEIVED:
         {
             MegaChatHandle chatid = request->getChatHandle();
@@ -2130,7 +2130,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
 void MegaChatApiImpl::sendPendingEvents()
 {
-    void *msg;
+    megaMessage* msg;
     while ((msg = eventQueue.pop()))
     {
         megaProcessMessage(msg);
@@ -3620,7 +3620,7 @@ void MegaChatApiImpl::closeChatPreview(MegaChatHandle chatid)
 {
     if (!mClient)
         return;
-        
+
     SdkMutexGuard g(sdkMutex);
 
    mClient->chats->removeRoomPreview(chatid);
@@ -4836,6 +4836,12 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
     return userList;
 }
 
+void MegaChatApiImpl::setPublicKeyPinning(bool enable)
+{
+    SdkMutexGuard g(sdkMutex);
+    ::WebsocketsClient::publicKeyPinning = enable;
+}
+
 IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
 {
     return getChatRoomHandler(room.chatid());
@@ -5173,21 +5179,21 @@ void ChatRequestQueue::removeListener(MegaChatRequestListener *listener)
     mutex.unlock();
 }
 
-void EventQueue::push(void *transfer)
+void EventQueue::push(megaMessage* transfer)
 {
     mutex.lock();
     events.push_back(transfer);
     mutex.unlock();
 }
 
-void EventQueue::push_front(void *event)
+void EventQueue::push_front(megaMessage* event)
 {
     mutex.lock();
     events.push_front(event);
     mutex.unlock();
 }
 
-void* EventQueue::pop()
+megaMessage* EventQueue::pop()
 {
     mutex.lock();
     if(events.empty())
@@ -5195,7 +5201,8 @@ void* EventQueue::pop()
         mutex.unlock();
         return NULL;
     }
-    void* event = events.front();
+
+    megaMessage* event = events.front();
     events.pop_front();
     mutex.unlock();
     return event;
@@ -6100,7 +6107,7 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, int &meg
     {
         case rtcModule::TermCode::kUserHangup:
             megaTermCode = MegaChatCall::TERM_CODE_USER_HANGUP;
-            break;        
+            break;
         case rtcModule::TermCode::kCallReqCancel:
             megaTermCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
             break;
@@ -9593,7 +9600,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 
         std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, &fa, sdkFingerprint, 
+                             megaHandle, &key, &attrstring, &fa, sdkFingerprint,
                              NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
@@ -10128,7 +10135,7 @@ std::unique_ptr<MegaChatGiphy> JSonUtils::parseGiphy(rapidjson::Document& docume
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"s\" field not found");
         return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
-    
+
     auto webpsizeIterator = document.FindMember("s_webp");
     long webpSize = 0;
     if (webpsizeIterator != document.MemberEnd() && webpsizeIterator->value.IsString())

@@ -17,13 +17,14 @@ if (WIN32)
         SET(build_64_bit 0)
     endif()
 else()
-    set (build_64_bit 1 CACHE TYPE BOOL)
+    set (build_64_bit 1 CACHE BOOL "True if building for 64bit.")
 endif()
 
 # create these cache variables first, these must be on for MEGAchat.  The default in the SDK is off, but it will see they are already on in the CMakeCache.txt
 set (USE_SODIUM 1 CACHE STRING "Sodium is a requirement for MEGAchat, turn on in the MEGA SDK")
 set (ENABLE_CHAT 1 CACHE STRING "Turn on ENBABLE_CHAT in the MEGA SDK")
 set (USE_WEBRTC 1 CACHE STRING "Turn on WEBRTC to support voice and/or video calls, turn off for much simpler dependencies")
+set (USE_LIBUV 1 CACHE STRING "Libwebsocketes needs libuv")
 
 if (WIN32)
 set (UNCHECKED_ITERATORS 0 CACHE STRING "Turn off UNCHECKED_ITERATORS if your third party dependencies were built without them (only relevant for DEBUG)")  # to use libwebrtc on windows with checked iterators turned off in the debug VC++ runtime, modify your stl headers first to disable that, and then build it
@@ -36,7 +37,7 @@ set(KarereDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 message("CONFIG: ${CONFIG}")
 
 IF (build_64_bit)
-    set(WebRtcDir "${Mega3rdPartyDir}/libwebrtc/build64debug") 
+    set(WebRtcDir "${Mega3rdPartyDir}/libwebrtc/build64debug")
 ELSE()
     set(WebRtcDir "${Mega3rdPartyDir}/libwebrtc/build32debug")    #todo: figure out if we can have debug/release at the same path
 ENDIF()
@@ -48,10 +49,10 @@ if (NOT ENABLE_CHAT OR NOT USE_OPENSSL)
     message(FATAL_ERROR "ENABLE_CHAT must be enabled in the SDK build, also USE_OPENSSL as libwebsockets requires it")
 endif()
 
+# Import websockets.
+ImportStdVcpkgLibrary(websockets websockets websockets libwebsockets libwebsockets)
 
 if (WIN32)
-    ImportStdVcpkgLibrary(websockets websockets websockets websockets websockets)
-
     if (USE_WEBRTC)
         # additional directories used in this project, after the main one incluced by the MEGA SDK
         include_directories( "${WebRtcDir}/include/webrtc" )
@@ -65,8 +66,8 @@ endif(WIN32)
 add_definitions( -DUSE_LIBWEBSOCKETS )
 
 ImportHeaderLibrary(rapidjson    "${KarereDir}/third-party")
- 
-set (SRCS 
+
+set (SRCS
     ${KarereDir}/src/karereCommon.cpp
     ${KarereDir}/src/base64url.cpp
     ${KarereDir}/src/chatClient.cpp
@@ -77,19 +78,19 @@ set (SRCS
     ${KarereDir}/src/strongvelope/strongvelope.cpp
     ${KarereDir}/src/presenced.cpp
     ${KarereDir}/src/megachatapi.cpp
-    ${KarereDir}/src/megachatapi_impl.cpp 
+    ${KarereDir}/src/megachatapi_impl.cpp
 
     ${KarereDir}/src/base/logger.cpp
     ${KarereDir}/src/net/websocketsIO.cpp
     ${KarereDir}/src/net/libwebsocketsIO.cpp
-    ${KarereDir}/src/waiter/libuvWaiter.cpp 
+    ${KarereDir}/src/waiter/libuvWaiter.cpp
 
     $<${USE_WEBRTC}:${KarereDir}/src/rtcModule/webrtc.cpp>
     $<${USE_WEBRTC}:${KarereDir}/src/rtcModule/webrtcAdapter.cpp>
     $<${USE_WEBRTC}:${KarereDir}/src/rtcModule/rtcStats.cpp>
     $<${USE_WEBRTC}:${KarereDir}/src/rtcCrypto.cpp>
 )
- 
+
 set(KARERE_DEFINES -DHAVE_KARERE_LOGGER ${LIBMEGA_DEFINES})
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
@@ -103,7 +104,7 @@ target_include_directories(karere PRIVATE ${KarereDir}/src/base rapidjson)
 target_include_directories(karere PUBLIC ${KarereDir}/src )
 target_include_directories(karere PUBLIC $<${USE_WEBRTC}:${KarereDir}/src/rtcModule>  )
 target_compile_definitions(karere PUBLIC MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC> )
-target_link_libraries(karere PUBLIC Mega $<$<NOT:${USE_PREBUILT_3RDPARTY}>:sqlite3> rapidjson websockets uv $<${USE_WEBRTC}:webrtc> )
+target_link_libraries(karere PUBLIC Mega rapidjson websockets uv $<${USE_WEBRTC}:webrtc> )
 if (WIN32)
 target_link_libraries(karere PUBLIC Iphlpapi.lib Psapi.lib Userenv.lib Msdmo.lib Strmiids.lib Dmoguids.lib Winmm.dll wmcodecdspuuid.lib Wldap32.lib)
 endif()
@@ -114,4 +115,13 @@ target_compile_definitions(megaclc PRIVATE MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC
 if (NOT NO_READLINE)
     target_link_libraries(megaclc PUBLIC readline dl pthread)
 endif (NOT NO_READLINE)
+
+if (WIN32)
+    set_property(TARGET karere PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>$<${MEGA_LINK_DYNAMIC_CRT}:DLL>")
+    set_property(TARGET megaclc PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>$<${MEGA_LINK_DYNAMIC_CRT}:DLL>")
+
+    target_compile_options(karere PRIVATE /WX-)  # tackling the sheer number of warnings in this project is a big job
+
+endif()
+
 

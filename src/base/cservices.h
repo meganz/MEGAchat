@@ -45,24 +45,7 @@ extern "C" {
 /** Options bitmask for log flags */
 enum {SVC_OPTIONS_LOGFLAGS = 0x000000ff};
 
-/** The global, singleton eventloop object. */
-extern MEGAIO_IMPEXP eventloop* services_eventloop;
-
-/**
- * @brief Initialize and start the services engine
- * @param postFunc The function that posts a void* to the application's message loop
- * @param options Misc flags. The LS byte is reserved for logging bits
- * (SVC_OPTIONS_LOGFLAGS mask).
- */
-MEGAIO_IMPEXP int services_init(void(*postFunc)(void*, void*), unsigned options);
-
-MEGAIO_IMPEXP eventloop* services_get_event_loop();
-
-/** @brief Shuts down the services engine. Call this before terminating the application */
-MEGAIO_IMPEXP int services_shutdown();
-
 //Handle store
-
 typedef unsigned int megaHandle; //invalid handle value is 0
 
 enum

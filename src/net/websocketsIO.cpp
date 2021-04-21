@@ -1,5 +1,7 @@
 #include "net/websocketsIO.h"
 
+bool WebsocketsClient::publicKeyPinning = true; // needs to be defined here
+
 WebsocketsIO::WebsocketsIO(Mutex &m, ::mega::MegaApi *megaApi, void *ctx)
     : mApi(*megaApi, ctx, false), mutex(m)
 {

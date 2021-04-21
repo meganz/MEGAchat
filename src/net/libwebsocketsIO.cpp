@@ -331,43 +331,15 @@ void LibwebsocketsClient::resetOutputBuffer()
 #define EVP_PKEY_get0_RSA(_pkey_) ((_pkey_)->pkey.rsa)
 #endif
 
-#ifndef WIN32
-const BIGNUM *RSA_get0_n(const RSA *rsa)
-{
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-    return rsa->n;
-#else
-    const BIGNUM *result;
-    RSA_get0_key(rsa, &result, NULL, NULL);
-    return result;
-#endif
-}
-
-const BIGNUM *RSA_get0_e(const RSA *rsa)
-{
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-    return rsa->e;
-#else
-    const BIGNUM *result;
-    RSA_get0_key(rsa, NULL, &result, NULL);
-    return result;
-#endif
-}
-
-const BIGNUM *RSA_get0_d(const RSA *rsa)
-{
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-    return rsa->d;
-#else
-    const BIGNUM *result;
-    RSA_get0_key(rsa, NULL, NULL, &result);
-    return result;
-#endif
-}
-#endif
-
 static bool check_public_key(X509_STORE_CTX* ctx)
 {
+    if (!::WebsocketsClient::publicKeyPinning)
+    {
+        // if public key pinning is disabled, avoid cert's public key checkups
+        WEBSOCKETS_LOG_WARNING("Public key pinning is disabled");
+        return true;
+    }
+
     unsigned char buf[sizeof(APISSLMODULUS1) - 1];
     EVP_PKEY* evp;
     if ((evp = X509_PUBKEY_get(X509_get_X509_PUBKEY(X509_STORE_CTX_get0_cert(ctx)))))

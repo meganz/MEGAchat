@@ -1,5 +1,5 @@
 # WebRTC for Android #
-We provide pre-built binaries and headers for arm32, arm64, x86 and x64. You can download them from [here](https://mega.nz/file/t81HSYJI#KQNzSEqmGVSXfwmQx2HMJy3Jo2AcDfYm4oiMP_CFW6s).
+We provide pre-built binaries and headers for arm32, arm64, x86 and x64. You can download them from [here](https://mega.nz/file/RsMEgZqA#s0P754Ua7AqvWwamCeyrvNcyhmPjHTQQIxtqziSU4HI).
 We strongly recommend to user the pre-built library, rather than build it by yourself. In case you want to build your own version, please, follow these steps:
 * Install the [Chromium depot tools](http://dev.chromium.org/developers/how-tos/install-depot-tools)
 * Download WebRTC and compile for all architectures
@@ -9,7 +9,7 @@ We strongly recommend to user the pre-built library, rather than build it by you
     cd webrtcAndroid
     fetch --nohooks webrtcAndroid
     cd src
-    git checkout 9863f3d246e2da7a2e1f42bbc5757f6af5ec5682`    (branch-heads/m76)
+    git checkout 41bfcf4a63611409220fcd458a03deaa2cd23619
     gclient sync
 ```
 Before compile, you need to modify the file `buildtools/third_party/libc++/trunk/include/__config`
@@ -20,6 +20,11 @@ Before compile, you need to modify the file `buildtools/third_party/libc++/trunk
 - _LIBCPP_CONCAT(__,_LIBCPP_ABI_VERSION)
 + _LIBCPP_CONCAT(__ndk,_LIBCPP_ABI_VERSION)
 #endif
+```
+
+and apply patch in webrtc source directory
+```
+git apply ${MEGA_SDK_PATH}/patches/webRtcPatch.patch
 ```
 
 Now, you are ready to start building the library. We recommend to compile every architecture in different console in order to reset the environment variable `LD_LIBRARY_PATH`.
@@ -57,7 +62,7 @@ The resulting libraries `libwebrtc.a` for each platform should be located in eac
 
 Furthermore, you need to copy the following folders from `<webRTCAndroid>/src` as below:
 
-  `cp -R third_party/abseil-cpp <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/third_party/`  
+  `cp -R third_party/abseil-cpp <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R third_party/boringssl <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/third_party/`  
   `cp -R third_party/libyuv <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/third_party/`  
   `cp -R api <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
@@ -72,12 +77,10 @@ Furthermore, you need to copy the following folders from `<webRTCAndroid>/src` a
   `cp -R video <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R audio <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R call <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
-  `cp -R crypto <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R modules <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R p2p <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R pc <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R sdk <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R system_wrappers <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
-  `cp common_types.h <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
  
 Should you have any question about the Android project, you can check https://github.com/meganz/android.

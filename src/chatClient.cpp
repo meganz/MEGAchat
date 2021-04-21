@@ -1,10 +1,3 @@
-//we need the POSIX version of strerror_r, not the GNU one
-#ifdef _GNU_SOURCE
-    #undef _GNU_SOURCE
-    #define _POSIX_C_SOURCE 201512L
-#endif
-#include <string.h>
-
 #include "chatClient.h"
 #ifdef _WIN32
     #include <winsock2.h>
@@ -121,14 +114,7 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
         ret = mkdir(path.c_str(), 0700);
         if (ret)
         {
-            char buf[512];
-#ifdef _WIN32
-            strerror_s(buf, 511, ret);
-#else
-            (void)strerror_r(ret, buf, 511);
-#endif
-            buf[511] = 0; //just in case
-            throw std::runtime_error(std::string("Error creating application directory: ")+buf);
+            throw std::runtime_error("Error creating application directory.");
         }
     }
     return path;
