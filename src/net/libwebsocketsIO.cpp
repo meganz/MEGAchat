@@ -458,6 +458,35 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                                          s->hostname.c_str(), s->port);
                 }
             }
+
+            else // webrtc ssl lib did not call session-new-cb
+            {
+                // get the session info ourselves, and push it into the cache
+                SSL *nativeSSL = lws_get_ssl(wsi);
+                SSL_SESSION *sslSess = SSL_get_session(nativeSSL);
+                s->bloblen = i2d_SSL_SESSION(sslSess, nullptr);
+                s->blob = make_shared<Buffer>(s->bloblen);
+                auto pp = s->blob->typedBuf<uint8_t>();
+                i2d_SSL_SESSION(sslSess, &pp);
+                s->blob->setDataSize(s->bloblen);
+
+                if (LwsCache::load(vhost, s))
+                {
+                    WEBSOCKETS_LOG_DEBUG("Added TLS session to LWS cache for %s:%d (ssl callback not executed)",
+                                         s->hostname.c_str(), s->port);
+
+                    if (!client->client->wsUpdateStoredSession(*s))
+                    {
+                        WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d (ssl callback not executed)",
+                                             s->hostname.c_str(), s->port);
+                    }
+                }
+                else
+                {
+                    WEBSOCKETS_LOG_ERROR("Failed to add TLS session to LWS cache for %s:%d (ssl callback not executed)",
+                                         s->hostname.c_str(), s->port);
+                }
+            }
             break;
         }
         case LWS_CALLBACK_CLOSED:
