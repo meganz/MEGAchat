@@ -436,11 +436,11 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 // get the session info ourselves, and push it into the cache
                 SSL *nativeSSL = lws_get_ssl(wsi);
                 SSL_SESSION *sslSess = SSL_get_session(nativeSSL);
-                s->bloblen = i2d_SSL_SESSION(sslSess, nullptr);
-                s->blob = make_shared<Buffer>(s->bloblen);
+                auto bloblen = i2d_SSL_SESSION(sslSess, nullptr);
+                s->blob = make_shared<Buffer>(bloblen);
                 auto pp = s->blob->typedBuf<uint8_t>();
                 i2d_SSL_SESSION(sslSess, &pp);
-                s->blob->setDataSize(s->bloblen);
+                s->blob->setDataSize(bloblen);
 
                 if (LwsCache::load(vhost, s))
                 {
@@ -575,7 +575,6 @@ int LwsCache::dumpCb(lws_context *, lws_tls_session_dump *info)
 
     sess->blob = make_shared<Buffer>(info->blob_len);
     sess->blob->write(0, info->blob, info->blob_len);
-    sess->bloblen = info->blob_len;
 
     return 0;
 }
@@ -595,9 +594,9 @@ int LwsCache::loadCb(lws_context *, lws_tls_session_dump *info)
     CachedSession *sess = reinterpret_cast<CachedSession*>(info->opaque);
     if (!sess)  return 1;
 
-    info->blob = malloc(sess->bloblen); // will be deleted by LWS
-    memcpy(info->blob, sess->blob->buf(), sess->bloblen);
-    info->blob_len = sess->bloblen;
+    info->blob = malloc(sess->blob->dataSize()); // will be deleted by LWS
+    memcpy(info->blob, sess->blob->buf(), sess->blob->dataSize());
+    info->blob_len = sess->blob->dataSize();
 
     return 0;
 }

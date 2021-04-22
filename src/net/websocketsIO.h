@@ -25,7 +25,6 @@ struct CachedSession
     std::string             hostname;    // host.domain
     int                     port = 0;    // 443 usually
     std::shared_ptr<Buffer> blob;        // session data
-    size_t                  bloblen = 0; // byte length of session data
 };
 
 class DNScache
@@ -66,7 +65,6 @@ private:
         time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
         time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
         std::shared_ptr<Buffer> blob; // tls session data
-        size_t bloblen = 0;         // byte length of session data
     };
 
     // Maps shard to DNSrecord
