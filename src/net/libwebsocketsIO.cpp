@@ -406,7 +406,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             // deal with the TLS session
 
             CachedSession *s = &client->mTlsSession;
-            if (!s->hostname.empty()) // filter non-SSL connections, if any
+            if (s->hostname.empty()) // filter non-SSL connections, if any
                 break;
 
             if (lws_tls_session_is_reused(wsi))
