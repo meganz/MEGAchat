@@ -64,7 +64,7 @@ private:
         time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
         time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
         time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
-        std::shared_ptr<Buffer> blob; // tls session data
+        std::shared_ptr<Buffer> tlsBlob; // tls session data
     };
 
     // Maps shard to DNSrecord

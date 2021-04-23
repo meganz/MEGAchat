@@ -419,7 +419,11 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             // save new TLS session to persistent storage
             lws_vhost *vhost = lws_get_vhost(wsi);
             if (!vhost) // should never be null
+            {
+                WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d (null default vhost)",
+                                     s->hostname.c_str(), s->port);
                 break;
+            }
 
             // fill in the session data
             if (LwsCache::dump(vhost, s))
@@ -574,7 +578,7 @@ int LwsCache::dumpCb(lws_context *, lws_tls_session_dump *info)
     if (!sess)  return 1;
 
     sess->blob = make_shared<Buffer>(info->blob_len);
-    sess->blob->write(0, info->blob, info->blob_len);
+    sess->blob->assign(info->blob, info->blob_len);
 
     return 0;
 }

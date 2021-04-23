@@ -226,7 +226,7 @@ void DNScache::addRecord(int shard, const std::string &url, std::shared_ptr<Buff
     }
     if (sess && !sess->empty())
     {
-        record.blob = sess;
+        record.tlsBlob = sess;
     }
     mRecords[shard] = record;
 
@@ -448,13 +448,13 @@ std::vector<CachedSession> DNScache::getTlsSessions()
     for (auto &i : mRecords)
     {
         DNSrecord &r = i.second;
-        if (!r.blob)  continue;
+        if (!r.tlsBlob)  continue;
 
         CachedSession ts;
         ts.hostname = r.mUrl.host;
         ts.port = r.mUrl.port;
-        ts.blob = r.blob;
-        r.blob = nullptr; // no need to keep a copy here
+        ts.blob = r.tlsBlob;
+        r.tlsBlob = nullptr; // no need to keep a copy here
         sessions.emplace_back(std::move(ts));
     }
 
