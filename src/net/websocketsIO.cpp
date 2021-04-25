@@ -62,6 +62,14 @@ void WebsocketsClientImpl::wsSendMsgCb(const char *data, size_t len)
     client->wsSendMsgCb(data, len);
 }
 
+bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
+{
+    WebsocketsIO::MutexGuard lock(this->mutex);
+    WEBSOCKETS_LOG_DEBUG("SSL session update for %s:%d",
+                         sess.hostname.c_str(), sess.port);
+    return client->wsSSLsessionUpdateCb(sess);
+}
+
 WebsocketsClient::WebsocketsClient()
 {
     ctx = NULL;
@@ -190,16 +198,6 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
     WEBSOCKETS_LOG_DEBUG("Socket was closed gracefully or by server");
 
     wsCloseCb(errcode, errtype, preason, reason_len);
-}
-
-WebsocketsClientWithDnsCache::WebsocketsClientWithDnsCache(DNScache &dc)
-    : mDnsCache(dc)
-{
-}
-
-bool WebsocketsClientWithDnsCache::wsUpdateStoredSession(const CachedSession &sess)
-{
-    return mDnsCache.updateTlsSession(sess);
 }
 
 DNScache::DNScache(SqliteDb &db, int chatdVersion)

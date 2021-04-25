@@ -518,10 +518,10 @@ void Chat::login()
 }
 
 Connection::Connection(Client& chatdClient, int shardNo)
-    : WebsocketsClientWithDnsCache(chatdClient.mKarereClient->mDnsCache),
-      mChatdClient(chatdClient),
+    : mChatdClient(chatdClient),
       mShardNo(shardNo),
       mSendPromise(promise::_Void()),
+      mDnsCache(chatdClient.mKarereClient->mDnsCache),
       mTsConnSuceeded(time(nullptr))
 {
 }
@@ -2040,6 +2040,12 @@ void Connection::wsSendMsgCb(const char *, size_t)
 {
     assert(!mSendPromise.done());
     mSendPromise.resolve();
+}
+
+bool Connection::wsSSLsessionUpdateCb(const CachedSession &sess)
+{
+    // update the session's data in the DNS cache
+    return mDnsCache.updateTlsSession(sess);
 }
 
 // inbound command processing

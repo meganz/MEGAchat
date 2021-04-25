@@ -412,7 +412,7 @@ struct EndpointId
 class Client;
 
 // need DeleteTrackable for graceful disconnect timeout
-class Connection: public karere::DeleteTrackable, public WebsocketsClientWithDnsCache
+class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
     enum State
@@ -440,6 +440,7 @@ protected:
     Connection(Client& chatdClient, int shardNo);
 
     Client& mChatdClient;
+    DNScache &mDnsCache;
 
     /** Shard number for which the Connection is configured */
     int mShardNo;
@@ -496,6 +497,7 @@ protected:
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     virtual void wsHandleMsgCb(char *data, size_t len);
     virtual void wsSendMsgCb(const char *data, size_t len);
+    bool wsSSLsessionUpdateCb(const CachedSession &sess) override;
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();

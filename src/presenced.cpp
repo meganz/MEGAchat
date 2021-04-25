@@ -33,9 +33,9 @@ namespace presenced
 {
 
 Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
-    : WebsocketsClientWithDnsCache(client->mDnsCache),
-      mApi(api),
+    : mApi(api),
       mKarereClient(client),
+      mDnsCache(client->mDnsCache),
       mListener(&listener),
       mCapabilities(caps),
       mTsConnSuceeded(time(nullptr))
@@ -224,6 +224,12 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
             mConnectPromise.reject(reason, errcode, errtype);
         }
     }
+}
+
+bool Client::wsSSLsessionUpdateCb(const CachedSession &sess)
+{
+    // update the session's data in the DNS cache
+    return mDnsCache.updateTlsSession(sess);
 }
 
 std::string Config::toString() const

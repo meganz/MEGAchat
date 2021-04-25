@@ -428,7 +428,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             // fill in the session data
             if (LwsCache::dump(vhost, s))
             {
-                if (!client->client->wsUpdateStoredSession(*s))
+                if (!client->wsSSLsessionUpdateCb(*s))
                 {
                     WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d",
                                          s->hostname.c_str(), s->port);
@@ -451,7 +451,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                     WEBSOCKETS_LOG_DEBUG("Added TLS session to LWS cache for %s:%d (ssl callback not executed)",
                                          s->hostname.c_str(), s->port);
 
-                    if (!client->client->wsUpdateStoredSession(*s))
+                    if (!client->wsSSLsessionUpdateCb(*s))
                     {
                         WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d (ssl callback not executed)",
                                              s->hostname.c_str(), s->port);

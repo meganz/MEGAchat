@@ -141,30 +141,15 @@ public:
     bool wsIsConnected();
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
 
-    virtual bool wsUpdateStoredSession(const CachedSession &) { return false; }
-
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
     virtual void wsSendMsgCb(const char *data, size_t len) = 0;
+    virtual bool wsSSLsessionUpdateCb(const CachedSession &) { return false; }
 
     /* Public key pinning, by default this flag is enabled (true), it only should be disabled for testing purposes */
     static bool publicKeyPinning;
 };
-
-
-class WebsocketsClientWithDnsCache : public WebsocketsClient
-{
-public:
-    WebsocketsClientWithDnsCache(DNScache &dc);
-
-protected:
-    DNScache &mDnsCache;
-
-private:
-    bool wsUpdateStoredSession(const CachedSession &) override;
-};
-
 
 class WebsocketsClientImpl
 {
@@ -180,6 +165,7 @@ public:
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     void wsHandleMsgCb(char *data, size_t len);
     void wsSendMsgCb(const char *data, size_t len);
+    bool wsSSLsessionUpdateCb(const CachedSession &sess);
     
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;
