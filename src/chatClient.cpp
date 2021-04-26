@@ -340,6 +340,23 @@ bool Client::openDb(const std::string& sid)
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
                 }
             }
+            else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
+            {
+                KR_LOG_WARNING("Purging oldest message per chat...");
+                SqliteStmt stmt(db, "select msgid, min(idx), c.chatid from history as h INNER JOIN chat_vars as c on h.chatid = c.chatid where c.name = 'have_all_history' GROUP BY c.chatid;");
+                while (stmt.step())
+                {
+                   karere::Id msgid = stmt.int64Col(0);
+                   karere::Id chatid = stmt.int64Col(2);
+                   db.query("delete from history where chatid = ? and msgid = ?", chatid, msgid);
+                   db.query("delete from chat_vars where chatid = ? and name = 'have_all_history'", chatid);
+                }
+
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
