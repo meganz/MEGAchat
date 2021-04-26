@@ -463,6 +463,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                                          s->hostname.c_str(), s->port);
                 }
             }
+            s->blob = nullptr; // stored or not, don't keep it in memory
             break;
         }
         case LWS_CALLBACK_CLOSED:
@@ -587,7 +588,7 @@ bool LwsCache::load(lws_vhost *vh, CachedSession *s)
 {
     return vh && s &&
             // fill in the session data
-            // (dump callback will be called synchronously)
+            // (load callback will be called synchronously)
             !lws_tls_session_dump_load(vh, s->hostname.c_str(), (uint16_t)s->port, &loadCb, s); // 0: success
 }
 
