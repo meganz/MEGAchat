@@ -343,7 +343,7 @@ bool Client::openDb(const std::string& sid)
             else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
             {
                 KR_LOG_WARNING("Purging oldest message per chat...");
-                SqliteStmt stmt(db, "select msgid, min(idx), c.chatid from history as h INNER JOIN chat_vars as c on h.chatid = c.chatid where c.name = 'have_all_history';");
+                SqliteStmt stmt(db, "select msgid, min(idx), c.chatid from history as h INNER JOIN chat_vars as c on h.chatid = c.chatid where c.name = 'have_all_history' GROUP BY c.chatid;");
                 while (stmt.step())
                 {
                    karere::Id msgid = stmt.int64Col(0);
