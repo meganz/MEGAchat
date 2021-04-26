@@ -342,7 +342,7 @@ bool Client::openDb(const std::string& sid)
             }
             else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
             {
-                KR_LOG_WARNING("Removing last messages...");
+                KR_LOG_WARNING("Purging oldest message per chat...");
                 SqliteStmt stmtGetChats(db, "select chatid from chat_vars where name = 'have_all_history'");
                 while (stmtGetChats.step())
                 {
