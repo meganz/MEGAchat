@@ -311,7 +311,8 @@ protected:
             track.throwIfDeleted();
             if (attempt != mCurrentAttemptId)
             {
-                RETRY_LOG("A previous timed-out/aborted attempt returned success");
+                RETRY_LOG("A previous timed-out/aborted attempt returned success previous(%d) current(%d)", attempt, mCurrentAttemptId);
+                mPromise.reject("Retry controller previous attempt succeeded", promise::kErrAbort, promise::kErrorAlreadyExist);
                 return;
             }
             cancelTimer();
@@ -396,6 +397,7 @@ protected:
         }
         mCurrentAttemptNo++; //always increment, to mark the end of the previous attempt
         mCurrentAttemptId++;
+        RETRY_LOG("Incrementing mCurrentAttemptId(%d) at schedNextRetry", mCurrentAttemptId);
         if (mMaxAttemptCount && (mCurrentAttemptNo > mMaxAttemptCount)) //give up
         {
             RETRY_LOG("Maximum number of attempts (%u) has been reached. RetryController will give up now.");
