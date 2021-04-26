@@ -46,6 +46,7 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     info.options |= LWS_SERVER_OPTION_LIBUV;
     info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
     info.foreign_loops = (void**)&(libuvWaiter->eventloop);
+    info.tls_session_timeout = TLS_SESSION_TIMEOUT; // default: 300 (seconds); (default cache size is 10, should be fine)
     
     // For extra log messages add the following levels:
     // LLL_NOTICE | LLL_INFO | LLL_DEBUG | LLL_PARSER | LLL_HEADER | LLL_EXT | LLL_CLIENT | LLL_LATENCY | LLL_USER | LLL_THREAD
@@ -59,6 +60,32 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
 LibwebsocketsIO::~LibwebsocketsIO()
 {
     lws_context_destroy(wscontext);
+}
+
+void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
+{
+    if (sessions.empty())  return;
+
+    lws_vhost *vh = lws_get_vhost_by_name(wscontext, DEFAULT_VHOST);
+    if (!vh) // should never happen, as "default vhost is created along with the context"
+    {
+        WEBSOCKETS_LOG_ERROR("Missing default vhost for current LWS context");
+        return;
+    }
+
+    for (auto& s : sessions)
+    {
+        if (LwsCache::load(vh, &s))
+        {
+            WEBSOCKETS_LOG_DEBUG("Loaded TLS session into LWS cache for %s:%d",
+                                 s.hostname.c_str(), s.port);
+        }
+        else
+        {
+            WEBSOCKETS_LOG_ERROR("Failed to load TLS session into LWS cache for %s:%d",
+                                 s.hostname.c_str(), s.port);
+        }
+    }
 }
 
 void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
@@ -125,28 +152,7 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
 {
     LibwebsocketsClient *libwebsocketsClient = new LibwebsocketsClient(mutex, client);
     
-    std::string cip = ip;
-    if (cip[0] == '[')
-    {
-        // remove brackets in IPv6 addresses
-        cip = cip.substr(1, cip.size() - 2);
-    }
-    
-    struct lws_client_connect_info i;
-    memset(&i, 0, sizeof(i));
-    i.context = wscontext;
-    i.address = cip.c_str();
-    i.port = port;
-    i.ssl_connection = ssl ? LCCSCF_USE_SSL : 0;
-    string urlpath = "/";
-    urlpath.append(path);
-    i.path = urlpath.c_str();
-    i.host = host;
-    i.ietf_version_or_minus_one = -1;
-    i.userdata = libwebsocketsClient;
-    
-    libwebsocketsClient->wsi = lws_client_connect_via_info(&i);
-    if (!libwebsocketsClient->wsi)
+    if (!libwebsocketsClient->connectViaClientInfo(ip, host, port, path, ssl, wscontext))
     {
         delete libwebsocketsClient;
         return NULL;
@@ -223,6 +229,39 @@ bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
         return false;
     }
     return true;
+}
+
+bool LibwebsocketsClient::connectViaClientInfo(const char *ip, const char *host, int port, const char *path, bool ssl, lws_context *wscontext)
+{
+    std::string cip = ip;
+    if (cip[0] == '[')
+    {
+        // remove brackets in IPv6 addresses
+        cip = cip.substr(1, cip.size() - 2);
+    }
+
+    struct lws_client_connect_info i;
+    memset(&i, 0, sizeof(i));
+    i.context = wscontext;
+    i.address = cip.c_str();
+    i.port = port;
+    i.ssl_connection = ssl ? LCCSCF_USE_SSL : 0;
+    string urlpath = "/";
+    urlpath.append(path);
+    i.path = urlpath.c_str();
+    i.host = host;
+    i.ietf_version_or_minus_one = -1;
+    i.userdata = this;
+
+    if (ssl)
+    {
+        mTlsSession.hostname = host;
+        mTlsSession.port = port;
+    }
+
+    wsi = lws_client_connect_via_info(&i);
+
+    return wsi != nullptr;
 }
 
 void LibwebsocketsClient::wsDisconnect(bool immediate)
@@ -360,8 +399,71 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             {
                 return -1;
             }
-            
+
             client->wsConnectCb();
+
+            //
+            // deal with the TLS session
+
+            CachedSession *s = &client->mTlsSession;
+            if (s->hostname.empty()) // filter non-SSL connections, if any
+                break;
+
+            if (lws_tls_session_is_reused(wsi))
+            {
+                WEBSOCKETS_LOG_DEBUG("Reused TLS session for %s:%d",
+                                     s->hostname.c_str(), s->port);
+                break;
+            }
+
+            // save new TLS session to persistent storage
+            lws_vhost *vhost = lws_get_vhost(wsi);
+            if (!vhost) // should never be null
+            {
+                WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d (null default vhost)",
+                                     s->hostname.c_str(), s->port);
+                break;
+            }
+
+            // fill in the session data
+            if (LwsCache::dump(vhost, s))
+            {
+                if (!client->wsSSLsessionUpdateCb(*s))
+                {
+                    WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d",
+                                         s->hostname.c_str(), s->port);
+                }
+            }
+
+            else // webrtc ssl lib did not call session-new-cb
+            {
+                // get the session info ourselves, and push it into the cache
+                SSL *nativeSSL = lws_get_ssl(wsi);
+                SSL_SESSION *sslSess = SSL_get_session(nativeSSL);
+                auto bloblen = i2d_SSL_SESSION(sslSess, nullptr);
+                s->blob = make_shared<Buffer>(bloblen);
+                auto pp = s->blob->typedBuf<uint8_t>();
+                i2d_SSL_SESSION(sslSess, &pp);
+                s->blob->setDataSize(bloblen);
+
+                if (LwsCache::load(vhost, s))
+                {
+                    WEBSOCKETS_LOG_DEBUG("Added TLS session to LWS cache for %s:%d (ssl callback not executed)",
+                                         s->hostname.c_str(), s->port);
+
+                    if (!client->wsSSLsessionUpdateCb(*s))
+                    {
+                        WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d (ssl callback not executed)",
+                                             s->hostname.c_str(), s->port);
+                    }
+                }
+                else
+                {
+                    WEBSOCKETS_LOG_ERROR("Failed to add TLS session to LWS cache for %s:%d (ssl callback not executed)",
+                                         s->hostname.c_str(), s->port);
+                }
+            }
+            s->blob = nullptr; // stored or not, don't keep it in memory
             break;
         }
         case LWS_CALLBACK_CLOSED:
@@ -457,5 +559,49 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             break;
     }
     
+    return 0;
+}
+
+
+bool LwsCache::dump(lws_vhost *vh, CachedSession *s)
+{
+    return vh && s &&
+            // fill in the session data
+            // (dump callback will be called synchronously)
+            !lws_tls_session_dump_save(vh, s->hostname.c_str(), (uint16_t)s->port, &dumpCb, s); // 0: success
+}
+
+int LwsCache::dumpCb(lws_context *, lws_tls_session_dump *info)
+{
+    if (!info)  return 1;
+
+    CachedSession *sess = reinterpret_cast<CachedSession*>(info->opaque);
+    if (!sess)  return 1;
+
+    sess->blob = make_shared<Buffer>(info->blob_len);
+    sess->blob->assign(info->blob, info->blob_len);
+
+    return 0;
+}
+
+bool LwsCache::load(lws_vhost *vh, CachedSession *s)
+{
+    return vh && s &&
+            // fill in the session data
+            // (load callback will be called synchronously)
+            !lws_tls_session_dump_load(vh, s->hostname.c_str(), (uint16_t)s->port, &loadCb, s); // 0: success
+}
+
+int LwsCache::loadCb(lws_context *, lws_tls_session_dump *info)
+{
+    if (!info)  return 1;
+
+    CachedSession *sess = reinterpret_cast<CachedSession*>(info->opaque);
+    if (!sess)  return 1;
+
+    info->blob = malloc(sess->blob->dataSize()); // will be deleted by LWS
+    memcpy(info->blob, sess->blob->buf(), sess->blob->dataSize());
+    info->blob_len = sess->blob->dataSize();
+
     return 0;
 }
