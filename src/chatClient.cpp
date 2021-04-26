@@ -343,25 +343,13 @@ bool Client::openDb(const std::string& sid)
             else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
             {
                 KR_LOG_WARNING("Purging oldest message per chat...");
-                SqliteStmt stmtGetChats(db, "select chatid from chat_vars where name = 'have_all_history'");
-                while (stmtGetChats.step())
+                SqliteStmt stmt(db, "select msgid, min(idx), c.chatid from history as h INNER JOIN chat_vars as c on h.chatid = c.chatid where c.name = 'have_all_history';");
+                while (stmt.step())
                 {
-                   karere::Id chatid = stmtGetChats.int64Col(0);
-                   SqliteStmt stmt(db, "select min(idx) from history where chatid = ?");
-                   stmt << chatid;
-                   if (stmt.step())
-                   {
-                       int minIdx = stmt.intCol(0);
-                       SqliteStmt stmt2(db, "select msgid from history where chatid = ? and idx = ?");
-                       stmt2 << chatid;
-                       stmt2 << minIdx;
-                       if (stmt2.step())
-                       {
-                           karere::Id msgid = stmt2.uint64Col(0);
-                           db.query("delete from history where chatid = ? and msgid = ?", chatid, msgid);
-                           db.query("delete from chat_vars where chatid = ? and name = 'have_all_history'", chatid);
-                       }
-                   }
+                   karere::Id msgid = stmt.int64Col(0);
+                   karere::Id chatid = stmt.int64Col(2);
+                   db.query("delete from history where chatid = ? and msgid = ?", chatid, msgid);
+                   db.query("delete from chat_vars where chatid = ? and name = 'have_all_history'", chatid);
                 }
 
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
