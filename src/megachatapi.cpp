@@ -687,7 +687,7 @@ void MegaChatApi::archiveChat(MegaChatHandle chatid, bool archive, MegaChatReque
     pImpl->archiveChat(chatid, archive, listener);
 }
 
-void MegaChatApi::setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener)
+void MegaChatApi::setChatRetentionTime(MegaChatHandle chatid, unsigned int period, MegaChatRequestListener *listener)
 {
     pImpl->setChatRetentionTime(chatid, period, listener);
 }
@@ -1124,6 +1124,11 @@ MegaStringList* MegaChatApi::getMessageReactions(MegaChatHandle chatid, MegaChat
 MegaHandleList* MegaChatApi::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
 {
     return pImpl->getReactionUsers(chatid, msgid, reaction);
+}
+
+void MegaChatApi::setPublicKeyPinning(bool enable)
+{
+    pImpl->setPublicKeyPinning(enable);
 }
 
 MegaChatRequest::~MegaChatRequest() { }
@@ -1850,7 +1855,7 @@ int MegaChatMessage::getDuration() const
     return 0;
 }
 
-int MegaChatMessage::getRetentionTime() const
+unsigned int MegaChatMessage::getRetentionTime() const
 {
     return 0;
 }

@@ -22,8 +22,6 @@
     #define MEGA_GCM_IMPEXP MEGA_GCM_DLLIMPORT
 #endif
 
-typedef void(*megaMessageFunc)(void*);
-
 /** The Gui Call Marshaller mechanism supports marshalling of a plain C function
  * call with signature \c void(void*) together with an arbitrary data stuct.
  * The function pointer is the first member of the struct, and a C struct having
@@ -42,6 +40,8 @@ typedef void(*megaMessageFunc)(void*);
  * DLL boundary - the one that posts the message. It is that side that allocated
  * the memory for the message object, and only it knows its exact type.
 */
+struct megaMessage;
+typedef void(*megaMessageFunc)(megaMessage*);
 
 struct megaMessage
 {
@@ -64,7 +64,7 @@ extern "C" {
 #endif
 
 /** This is the type of the function that posts a megaMessage to the GUI thread */
-typedef void (*GcmPostFunc)(void*, void*);
+typedef void (*GcmPostFunc)(struct megaMessage*, void*);
 
 /** This function posts an opaque \c void* to the application's (GUI) message loop.
 * That message is then received by the application's main (GUI) thread and
@@ -82,10 +82,9 @@ extern MEGA_GCM_IMPEXP GcmPostFunc megaPostMessageToGui;
  * called by a handler in the app's (GUI) event/message loop (or equivalent).
 * \warning Must be called only from the GUI thread
 */
-static inline void megaProcessMessage(void* vptr)
+static inline void megaProcessMessage(megaMessage* msg)
 {
-    struct megaMessage* msg = (struct megaMessage*)vptr;
-    msg->func(vptr);
+    msg->func(msg);
 }
 
 #ifdef __cplusplus

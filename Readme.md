@@ -18,7 +18,8 @@ You may need to install the following packages in your system
  - `python`  
  - `g++`  
  - `qt` (for QtApp example) 
- - `gtests` (for automated tests) 
+ - `gtest` (for automated tests)
+ - `libglib2.0-dev`  `libgtk-3-dev`  `libpulse-dev`  `libasound2-dev`  `libuv1-dev`  `libcap-dev`  `libfreeimage-dev`  `ffmpeg`  (Ubuntu 20.04.2)
 
 *NOTE: `gtests` are only needed if you want to compile and execute MEGAchat automatic tests. Versions under 1.7.0 could cause incompatibilities. 
  
@@ -36,7 +37,7 @@ Create a directory to download Webrtc (webrtc_dir) and add it to $PATH
  - `fetch --nohooks webrtc`  
  - `gclient sync`  
  - `cd ./src`  
- - `git checkout 9863f3d246e2da7a2e1f42bbc5757f6af5ec5682`
+ - `git checkout 41bfcf4a63611409220fcd458a03deaa2cd23619`
  - `gclient sync`  
 
 ### Chromium build system ###
@@ -54,7 +55,7 @@ For more information about WebRTC compilation for Android, you can visit this li
 
 Checkout the MEGAchat repository:    
 
- - `git clone --recursive https://github.com/meganz/MEGAchat.git`    
+ - `git clone --recursive https://github.com/meganz/MEGAchat.git`
 
 The MEGAchat sources are at `MEGAchat/src`
 
@@ -88,6 +89,11 @@ In order to build MEGAchat, simply execute the script `build_with_webrtc.sh`, wh
 Now that you're ready, you can open `<MEGAchat>/contrib/qt/MEGAchat.pro` in QtCreator and hit `Build` button, edit sources and play around.
 
 You may need to change the "Build directory" in the project setting to `<MEGAchat>/build` if building complains about files not found.
+
+*NOTE: When building with
+./configure --enable-debug --enable-chat --enable-tests --with-gtest=<path_to_gtest>
+./build_with_webrtc.sh all withExamples
+linking failed due to missing symbols, which was resolved by additional linker options `-lavformat -lavcodec -lavutil -lswscale` in `sdk.pri` (in need of a proper fix).
 
 MacOS disclaimer:
 

@@ -5,10 +5,11 @@
 
 using namespace megachat;
 
-DelegateMEGAChatRequestListener::DelegateMEGAChatRequestListener(MEGAChatSdk *megaChatSDK, id<MEGAChatRequestDelegate>listener, bool singleListener) {
+DelegateMEGAChatRequestListener::DelegateMEGAChatRequestListener(MEGAChatSdk *megaChatSDK, id<MEGAChatRequestDelegate>listener, bool singleListener, ListenerQueueType queueType) {
     this->megaChatSDK = megaChatSDK;
     this->listener = listener;
     this->singleListener = singleListener;
+    this->queueType = queueType;
 }
 
 id<MEGAChatRequestDelegate>DelegateMEGAChatRequestListener::getUserListener() {
@@ -20,7 +21,7 @@ void DelegateMEGAChatRequestListener::onRequestStart(MegaChatApi *api, MegaChatR
         MegaChatRequest *tempRequest = request->copy();
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRequestDelegate> tempListener = this->listener;
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch(this->queueType, ^{
             [tempListener onChatRequestStart:tempMegaChatSDK request:[[MEGAChatRequest alloc]initWithMegaChatRequest:tempRequest cMemoryOwn:YES]];
         });
     }
@@ -33,10 +34,10 @@ void DelegateMEGAChatRequestListener::onRequestFinish(MegaChatApi *api, MegaChat
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRequestDelegate> tempListener = this->listener;
         bool tempSingleListener = this->singleListener;
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch(this->queueType, ^{
             [tempListener onChatRequestFinish:tempMegaChatSDK request:[[MEGAChatRequest alloc]initWithMegaChatRequest:tempRequest cMemoryOwn:YES] error:[[MEGAChatError alloc] initWithMegaChatError:tempError cMemoryOwn:YES]];
             if (tempSingleListener) {
-                [megaChatSDK freeRequestListener:this];
+                [tempMegaChatSDK freeRequestListener:this];
             }
         });
     }
@@ -47,7 +48,7 @@ void DelegateMEGAChatRequestListener::onRequestUpdate(MegaChatApi *api, MegaChat
         MegaChatRequest *tempRequest = request->copy();
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRequestDelegate> tempListener = this->listener;
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch(this->queueType, ^{
             [tempListener onChatRequestUpdate:tempMegaChatSDK request:[[MEGAChatRequest alloc] initWithMegaChatRequest:tempRequest cMemoryOwn:YES]];
         });
     }
@@ -59,7 +60,7 @@ void DelegateMEGAChatRequestListener::onRequestTemporaryError(MegaChatApi *api, 
         MegaChatError *tempError = e->copy();
         MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
         id<MEGAChatRequestDelegate> tempListener = this->listener;
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch(this->queueType, ^{
             [tempListener onChatRequestTemporaryError:tempMegaChatSDK request:[[MEGAChatRequest alloc] initWithMegaChatRequest:tempRequest cMemoryOwn:YES] error:[[MEGAChatError alloc] initWithMegaChatError:tempError cMemoryOwn:YES]];
         });
     }

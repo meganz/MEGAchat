@@ -7,9 +7,9 @@
 #include "base/gcmpp.h"
 #include "karereCommon.h" //only for std::string on android
 #include "base/promise.h"
-#include "webrtcAsyncWaiter.h"
 #include "rtcmPrivate.h"
 #include <rtc_base/ref_counter.h>
+#include <base/trackDelete.h>
 
 #ifdef __OBJC__
 @class AVCaptureDevice;
@@ -35,7 +35,9 @@ namespace artc
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 
 extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
-extern AsyncWaiter* gAsyncWaiter;
+extern std::unique_ptr<rtc::Thread> gWorkerThread;
+extern std::unique_ptr<rtc::Thread> gSignalingThread;
+extern void* gAppCtx;
 
 struct Identity
 {
@@ -71,19 +73,22 @@ enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
 // and using that mechanism webrtc marshalls the calls on the main/GUI thread by itself,
 // thus we don't need to do that. Define RTCM_MARSHALL_CALLBACKS if you want the callbacks
 // marshalled by Karere. This should not be needed.
-
+#define RTCM_MARSHALL_CALLBACKS
 #ifdef RTCM_MARSHALL_CALLBACKS
 #define RTCM_DO_CALLBACK(code,...)      \
-    ::mega::marshallCall([__VA_ARGS__]() mutable { \
+    auto wptr = weakHandle();   \
+    karere::marshallCall([wptr, __VA_ARGS__](){ \
+        if (wptr.deleted())   \
+            return; \
         code;                                    \
-    })
+    }, gAppCtx)
 #else
 #define RTCM_DO_CALLBACK(code,...)                              \
     assert(rtc::Thread::Current() == gAsyncWaiter->guiThread()); \
     code
 #endif
 
-class SdpCreateCallbacks : public webrtc::CreateSessionDescriptionObserver
+class SdpCreateCallbacks : public webrtc::CreateSessionDescriptionObserver, public karere::DeleteTrackable
 {
 public:
   // The implementation of the CreateSessionDescriptionObserver takes
@@ -95,12 +100,13 @@ public:
     {
         RTCM_DO_CALLBACK(mPromise.resolve(desc); Release(), this, desc);
     }
-    virtual void OnFailure(const std::string& error)
+    void OnFailure(webrtc::RTCError error) override
     {
         RTCM_DO_CALLBACK(
-           mPromise.reject(::promise::Error(error, kCreateSdpFailed, ERRTYPE_RTC));
+           mPromise.reject(::promise::Error(error.message(), kCreateSdpFailed, ERRTYPE_RTC));
            Release();
         , this, error);
+
     }
 
 protected:
@@ -131,7 +137,7 @@ struct IceCandText
     }
 };
 
-class SdpSetCallbacks : public webrtc::SetSessionDescriptionObserver
+class SdpSetCallbacks : public webrtc::SetSessionDescriptionObserver, public karere::DeleteTrackable
 {
 public:
     typedef promise::Promise<void> PromiseType;
@@ -147,9 +153,7 @@ public:
     virtual void OnFailure(webrtc::RTCError error)
     {
         RTCM_DO_CALLBACK(
-            mPromise.reject(::promise::Error(error.message(), kSetSdpDescriptionFailed, ERRTYPE_RTC));
-            Release();
-        , this, error.message());
+            mPromise.reject(::promise::Error(error.message(), kSetSdpDescriptionFailed, ERRTYPE_RTC)); Release();, this, error);
     }
 
 protected:
@@ -157,12 +161,12 @@ protected:
 };
 
 template <class C>
-class myPeerConnection: public
-        rtc::scoped_refptr<webrtc::PeerConnectionInterface>
+class myPeerConnection: public rtc::scoped_refptr<webrtc::PeerConnectionInterface>
 {
 protected:
     //PeerConnectionObserver implementation
-    struct Observer: public webrtc::PeerConnectionObserver
+    struct Observer: public webrtc::PeerConnectionObserver,
+                     public karere::DeleteTrackable    // required to use weakHandle() at RTCM_DO_CALLBACK()
     {
         Observer(C& handler):mHandler(handler){}
         virtual void OnError()
@@ -216,7 +220,7 @@ protected:
 
         virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
         {
-            RTCM_DO_CALLBACK(mHandler.onTrack(transceiver));
+            RTCM_DO_CALLBACK(mHandler.onTrack(transceiver), this, transceiver);
         }
 
     protected:
@@ -326,6 +330,9 @@ public:
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
 
+    bool SupportsEncodedOutput() const override { return  false; }
+    void GenerateKeyFrame() override {}
+
     bool GetStats(webrtc::VideoTrackSourceInterface::Stats* stats) override;
 
     webrtc::MediaSourceInterface::SourceState state() const override;
@@ -333,6 +340,10 @@ public:
 
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
+
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
+
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
@@ -373,6 +384,12 @@ public:
 
     void RegisterObserver(webrtc::ObserverInterface* observer) override;
     void UnregisterObserver(webrtc::ObserverInterface* observer) override;
+
+    bool SupportsEncodedOutput() const override;
+    void GenerateKeyFrame() override;
+
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override;
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override;
     
 private:
     bool mRunning = false;
@@ -408,12 +425,19 @@ public:
     void RegisterObserver(webrtc::ObserverInterface* observer) override;
     void UnregisterObserver(webrtc::ObserverInterface* observer) override;
 
+    bool SupportsEncodedOutput() const override { return false; }
+    void GenerateKeyFrame() override {}
+
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
+
 private:
     bool mRunning = false;
     rtc::scoped_refptr<webrtc::JavaVideoTrackSourceInterface> mVideoSource;
     webrtc::VideoCaptureCapability mCapabilities;
     JNIEnv* mEnv;
 };
+
 #endif
 
 }

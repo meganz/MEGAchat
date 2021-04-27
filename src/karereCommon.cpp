@@ -14,7 +14,7 @@ namespace rtcModule {void globalCleanup(); }
 
 namespace karere
 {
-const char* gDbSchemaVersionSuffix = "10";
+const char* gDbSchemaVersionSuffix = "11";
 /*
     2 --> +3: invalidate cached chats to reload history (so call-history msgs are fetched)
     3 --> +4: invalidate both caches, SDK + MEGAchat, if there's at least one chat (so deleted chats are re-fetched from API)
@@ -25,25 +25,16 @@ const char* gDbSchemaVersionSuffix = "10";
     7 --> +8: modify chats and create a new table chat_reactions
     8 --> +9: create table DNS cache
     9 --> +10: create table chat_pending_reactions and modify sendkeys table
+    10 -> +11: Solve issue with truncate messages
 */
 
 bool gCatchException = true;
-
-void globalInit(void(*postFunc)(void*, void*), uint32_t options, const char* logPath, size_t logSize)
-{
-    if (logPath)
-    {
-        karere::gLogger.logToFile(logPath, logSize);
-    }
-    services_init(postFunc, options);
-}
 
 void globalCleanup()
 {
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::globalCleanup();
 #endif
-    services_shutdown();
 }
 
 void init_uv_timer(void *ctx, uv_timer_t *timer)

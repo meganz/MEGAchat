@@ -131,6 +131,9 @@ public:
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
     virtual void wsSendMsgCb(const char *data, size_t len) = 0;
+
+    /* Public key pinning, by default this flag is enabled (true), it only should be disabled for testing purposes */
+    static bool publicKeyPinning;
 };
 
 

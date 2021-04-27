@@ -41,7 +41,7 @@
 
 #ifdef _WIN32
 #pragma warning(push)
-#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.)
 #endif
 
 #include <rapidjson/stringbuffer.h>
@@ -169,7 +169,7 @@ void MegaChatApiImpl::loop()
 #endif
 }
 
-void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
+void MegaChatApiImpl::megaApiPostMessage(megaMessage* msg, void* ctx)
 {
     MegaChatApiImpl *megaChatApi = (MegaChatApiImpl *)ctx;
     if (megaChatApi)
@@ -186,7 +186,7 @@ void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
     }
 }
 
-void MegaChatApiImpl::postMessage(void *msg)
+void MegaChatApiImpl::postMessage(megaMessage* msg)
 {
     eventQueue.push(msg);
     waiter->notify();
@@ -1351,7 +1351,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 fireOnChatRequestFinish(request, megaChatError);
             });
             break;
-        }            
+        }
         case MegaChatRequest::TYPE_PUSH_RECEIVED:
         {
             MegaChatHandle chatid = request->getChatHandle();
@@ -1937,12 +1937,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_SET_RETENTION_TIME:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            int period = request->getParamType();
-            if (period < 0)
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
+            unsigned period = static_cast <unsigned>(request->getNumber());
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
@@ -2135,7 +2130,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
 void MegaChatApiImpl::sendPendingEvents()
 {
-    void *msg;
+    megaMessage* msg;
     while ((msg = eventQueue.pop()))
     {
         megaProcessMessage(msg);
@@ -3572,11 +3567,11 @@ void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatR
     waiter->notify();
 }
 
-void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, int period, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setChatRetentionTime(MegaChatHandle chatid, unsigned period, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_RETENTION_TIME, listener);
     request->setChatHandle(chatid);
-    request->setParamType(period);
+    request->setNumber(period);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3625,7 +3620,7 @@ void MegaChatApiImpl::closeChatPreview(MegaChatHandle chatid)
 {
     if (!mClient)
         return;
-        
+
     SdkMutexGuard g(sdkMutex);
 
    mClient->chats->removeRoomPreview(chatid);
@@ -3693,7 +3688,7 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %s)", index, ID_CSTR(msgid));
             }
         }
         else    // message still not confirmed, search in sending-queue
@@ -3705,13 +3700,13 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by temporal id (id: %d)", msgid);
+                API_LOG_ERROR("Failed to find message by temporal id (id: %s)", ID_CSTR(msgid));
             }
         }
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -3737,12 +3732,12 @@ MegaChatMessage *MegaChatApiImpl::getMessageFromNodeHistory(MegaChatHandle chati
         }
         else
         {
-            API_LOG_ERROR("Failed to find message at node history (id: %d)",  msgid);
+            API_LOG_ERROR("Failed to find message at node history (id: %s)", ID_CSTR(msgid));
         }
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -3777,7 +3772,7 @@ MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid,
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -4751,7 +4746,7 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
         return new MegaStringListPrivate();
     }
 
-    vector<char *> reactList;
+    string_vector reactions;
     const std::vector<Message::Reaction> &confirmedReactions = msg->getReactions();
     const Chat::PendingReactions& pendingReactions = (findChatRoom(chatid))->chat().getPendingReactions();
 
@@ -4776,7 +4771,7 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
 
          if (reactUsers > 0)
          {
-             reactList.emplace_back(MegaApi::strdup(auxReact.mReaction.c_str()));
+             reactions.emplace_back(auxReact.mReaction);
          }
     }
 
@@ -4787,11 +4782,11 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
                 && !msg->getReactionCount(pendingReact.mReactionString)
                 && pendingReact.mStatus == OP_ADDREACTION)
         {
-            reactList.emplace_back (MegaApi::strdup(pendingReact.mReactionString.c_str()));
+            reactions.emplace_back(pendingReact.mReactionString);
         }
     }
 
-    return new MegaStringListPrivate(reactList.data(), static_cast<int>(reactList.size()));
+    return new MegaStringListPrivate(move(reactions));
 }
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
@@ -4841,6 +4836,12 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
     return userList;
 }
 
+void MegaChatApiImpl::setPublicKeyPinning(bool enable)
+{
+    SdkMutexGuard g(sdkMutex);
+    ::WebsocketsClient::publicKeyPinning = enable;
+}
+
 IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
 {
     return getChatRoomHandler(room.chatid());
@@ -4884,13 +4885,13 @@ rtcModule::ICallHandler *MegaChatApiImpl::onGroupCallActive(Id chatid, Id callid
 
 MegaStringList *MegaChatApiImpl::getChatInDevices(const std::set<string> &devices)
 {
-    std::vector<char*> buffer;
+    string_vector buffer;
     for (const std::string &device : devices)
     {
-        buffer.push_back(MegaApi::strdup(device.c_str()));
+        buffer.push_back(device);
     }
 
-    return new MegaStringListPrivate(buffer.data(), static_cast<int>(buffer.size()));
+    return new MegaStringListPrivate(move(buffer));
 }
 
 void MegaChatApiImpl::cleanCallHandlerMap()
@@ -5178,21 +5179,21 @@ void ChatRequestQueue::removeListener(MegaChatRequestListener *listener)
     mutex.unlock();
 }
 
-void EventQueue::push(void *transfer)
+void EventQueue::push(megaMessage* transfer)
 {
     mutex.lock();
     events.push_back(transfer);
     mutex.unlock();
 }
 
-void EventQueue::push_front(void *event)
+void EventQueue::push_front(megaMessage* event)
 {
     mutex.lock();
     events.push_front(event);
     mutex.unlock();
 }
 
-void* EventQueue::pop()
+megaMessage* EventQueue::pop()
 {
     mutex.lock();
     if(events.empty())
@@ -5200,7 +5201,8 @@ void* EventQueue::pop()
         mutex.unlock();
         return NULL;
     }
-    void* event = events.front();
+
+    megaMessage* event = events.front();
     events.pop_front();
     mutex.unlock();
     return event;
@@ -6105,7 +6107,7 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, int &meg
     {
         case rtcModule::TermCode::kUserHangup:
             megaTermCode = MegaChatCall::TERM_CODE_USER_HANGUP;
-            break;        
+            break;
         case rtcModule::TermCode::kCallReqCancel:
             megaTermCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
             break;
@@ -6376,7 +6378,7 @@ void MegaChatRoomHandler::fireOnChatRoomUpdate(MegaChatRoom *chat)
 
 void MegaChatRoomHandler::fireOnMessageLoaded(MegaChatMessage *msg)
 {
-    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end(); it++)
     {
         (*it)->onMessageLoaded(chatApi, msg);
     }
@@ -7484,7 +7486,7 @@ char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
     return ret;
 }
 
-unsigned int MegaChatRoomPrivate::getRetentionTime() const
+unsigned MegaChatRoomPrivate::getRetentionTime() const
 {
     return mRetentionTime;
 }
@@ -8404,9 +8406,9 @@ int MegaChatMessagePrivate::getDuration() const
     return priv;
 }
 
-int MegaChatMessagePrivate::getRetentionTime() const
+unsigned MegaChatMessagePrivate::getRetentionTime() const
 {
-    return priv;
+    return static_cast<unsigned>(priv);
 }
 
 int MegaChatMessagePrivate::getTermCode() const
@@ -9598,7 +9600,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 
         std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, &fa, sdkFingerprint, 
+                             megaHandle, &key, &attrstring, &fa, sdkFingerprint,
                              NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
@@ -10133,7 +10135,7 @@ std::unique_ptr<MegaChatGiphy> JSonUtils::parseGiphy(rapidjson::Document& docume
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"s\" field not found");
         return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
-    
+
     auto webpsizeIterator = document.FindMember("s_webp");
     long webpSize = 0;
     if (webpsizeIterator != document.MemberEnd() && webpsizeIterator->value.IsString())

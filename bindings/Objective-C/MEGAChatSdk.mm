@@ -41,8 +41,6 @@ using namespace megachat;
 @property (nonatomic, assign) std::set<DelegateMEGAChatNotificationListener *>activeChatNotificationListeners;
 @property (nonatomic, assign) std::set<DelegateMEGAChatNodeHistoryListener *>activeChatNodeHistoryListeners;
 
-- (MegaChatRequestListener *)createDelegateMEGAChatRequestListener:(id<MEGAChatRequestDelegate>)delegate singleListener:(BOOL)singleListener;
-
 @property MegaChatApi *megaChatApi;
 - (MegaChatApi *)getCPtr;
 
@@ -150,6 +148,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     pthread_mutex_destroy(&listenerMutex);
 }
 
+- (void)deleteMegaChatApi {
+    delete _megaChatApi;
+    pthread_mutex_destroy(&listenerMutex);
+}
+
 - (MegaChatApi *)getCPtr {
     return _megaChatApi;
 }
@@ -169,7 +172,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)localLogoutWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->localLogout([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    self.megaChatApi->localLogout([self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:ListenerQueueTypeCurrent]);
 }
 
 - (void)localLogout {
@@ -496,7 +499,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatRoom *)chatRoomByUser:(uint64_t)userHandle {
-    return self.megaChatApi->getChatRoomByUser(userHandle) ? [[MEGAChatRoom alloc] initWithMegaChatRoom:self.megaChatApi->getChatRoomByUser(userHandle) cMemoryOwn:YES] : nil;
+    MegaChatRoom *chatRoom = self.megaChatApi->getChatRoomByUser(userHandle);
+    return chatRoom ? [[MEGAChatRoom alloc] initWithMegaChatRoom:chatRoom cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatListItemList *)chatListItems {
@@ -520,7 +524,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatListItem *)chatListItemForChatId:(uint64_t)chatId {
-    return self.megaChatApi->getChatListItem(chatId) ? [[MEGAChatListItem alloc] initWithMegaChatListItem:self.megaChatApi->getChatListItem(chatId) cMemoryOwn:YES] : nil;
+    MegaChatListItem *item = self.megaChatApi->getChatListItem(chatId);
+    return item ? [[MEGAChatListItem alloc] initWithMegaChatListItem:item cMemoryOwn:YES] : nil;
 }
 
 - (uint64_t)chatIdByUserHandle:(uint64_t)userHandle {
@@ -781,14 +786,22 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->archiveChat(chatId, archive);
 }
 
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setChatRetentionTime(chatID, (unsigned)period, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setChatRetentionTime:(uint64_t)chatID period:(NSUInteger)period {
+    self.megaChatApi->setChatRetentionTime(chatID, (unsigned)period);
+}
+
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
     return self.megaChatApi->openChatRoom(chatId, [self createDelegateMEGAChatRoomListener:delegate singleListener:YES]);
 }
 
 - (void)closeChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
-    for (std::set<DelegateMEGAChatRoomListener *>::iterator it = _activeChatRoomListeners.begin() ; it != _activeChatRoomListeners.end() ; it++) {        
+    for (std::set<DelegateMEGAChatRoomListener *>::iterator it = _activeChatRoomListeners.begin() ; it != _activeChatRoomListeners.end() ; it++) {
+        self.megaChatApi->closeChatRoom(chatId, (*it));
         if ((*it)->getUserListener() == delegate) {
-            self.megaChatApi->closeChatRoom(chatId, (*it));
             [self freeChatRoomListener:(*it)];
             break;
         }
@@ -808,11 +821,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatMessage *)messageForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
-    return self.megaChatApi->getMessage(chatId, messageId) ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->getMessage(chatId, messageId) cMemoryOwn:YES] : nil;
+    MegaChatMessage *message = self.megaChatApi->getMessage(chatId, messageId);
+    return message ? [[MEGAChatMessage alloc] initWithMegaChatMessage:message cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatMessage *)messageFromNodeHistoryForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
-    return self.megaChatApi->getMessageFromNodeHistory(chatId, messageId) ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->getMessageFromNodeHistory(chatId, messageId) cMemoryOwn:YES] : nil;
+    MegaChatMessage *message = self.megaChatApi->getMessageFromNodeHistory(chatId, messageId);
+    return message ? [[MEGAChatMessage alloc] initWithMegaChatMessage:message cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatMessage *)sendMessageToChat:(uint64_t)chatId message:(NSString *)message {
@@ -853,6 +868,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
     
     self.megaChatApi->attachNodes(chatId, (nodeList != nil) ? [nodeList getCPtr] : NULL);
+}
+
+- (MEGAChatMessage *)sendGiphyToChat:(uint64_t)chatId srcMp4:(NSString *)srcMp4 srcWebp:(NSString *)srcWebp sizeMp4:(uint64_t)sizeMp4 sizeWebp:(uint64_t)sizeWebp  width:(int)width height:(int)height title:(NSString *)title {
+    MegaChatMessage *message = self.megaChatApi->sendGiphy(chatId, srcMp4.UTF8String, srcWebp.UTF8String, sizeMp4, sizeWebp, width, height, title.UTF8String);
+        return message ? [[MEGAChatMessage alloc] initWithMegaChatMessage:message cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatMessage *)sendGeolocationToChat:(uint64_t)chatId longitude:(float)longitude latitude:(float)latitude image:(NSString *)image {
@@ -914,7 +934,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatMessage *)lastChatMessageSeenForChat:(uint64_t)chatId {
-    return self.megaChatApi->getLastMessageSeen(chatId) ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->getLastMessageSeen(chatId) cMemoryOwn:YES] : nil;
+    MegaChatMessage *message = self.megaChatApi->getLastMessageSeen(chatId);
+    return message ? [[MEGAChatMessage alloc] initWithMegaChatMessage:message cMemoryOwn:YES] : nil;
 }
 
 - (void)removeUnsentMessageForChat:(uint64_t)chatId rowId:(uint64_t)rowId {
@@ -1141,9 +1162,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 #pragma mark - Private methods
 
 - (MegaChatRequestListener *)createDelegateMEGAChatRequestListener:(id<MEGAChatRequestDelegate>)delegate singleListener:(BOOL)singleListener {
+    return [self createDelegateMEGAChatRequestListener:delegate singleListener:singleListener queueType:ListenerQueueTypeMain];
+}
+
+- (MegaChatRequestListener *)createDelegateMEGAChatRequestListener:(id<MEGAChatRequestDelegate>)delegate singleListener:(BOOL)singleListener queueType:(ListenerQueueType)queueType {
     if (delegate == nil) return nil;
     
-    DelegateMEGAChatRequestListener *delegateListener = new DelegateMEGAChatRequestListener(self, delegate, singleListener);
+    DelegateMEGAChatRequestListener *delegateListener = new DelegateMEGAChatRequestListener(self, delegate, singleListener, queueType);
     pthread_mutex_lock(&listenerMutex);
     _activeRequestListeners.insert(delegateListener);
     pthread_mutex_unlock(&listenerMutex);
