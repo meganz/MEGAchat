@@ -674,7 +674,7 @@ void MainWindow::on_bSettings_clicked()
     actBackground->setCheckable(true);
     actBackground->setChecked(mMegaChatApi->getBackgroundStatus());
 
-    if (mMegaApi->getSessionType() == 4)
+    if (mMegaApi->getSessionType() == mega::MegaApi::SESSION_TYPE_EPHEMERALACCOUNTPLUSPLUS)
     {
         menu.addSeparator();
         auto confirmAccount = menu.addAction("Confirm account");

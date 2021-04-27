@@ -1663,8 +1663,7 @@ std::string Client::getMyEmailFromSdk()
     {
         if (api.sdk.getSessionType() == ::mega::MegaApi::SESSION_TYPE_EPHEMERALACCOUNTPLUSPLUS)
         {
-
-            return std::string("Ephemeral account plus plus");
+            return std::string("No email - Ephemeral account");
         }
 
         throw std::runtime_error("Could not get our own email from API");
