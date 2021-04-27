@@ -65,7 +65,7 @@ void WebsocketsClientImpl::wsSendMsgCb(const char *data, size_t len)
 bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
-    WEBSOCKETS_LOG_DEBUG("SSL session update for %s:%d",
+    WEBSOCKETS_LOG_DEBUG("SSL session updated for %s:%d",
                          sess.hostname.c_str(), sess.port);
     return client->wsSSLsessionUpdateCb(sess);
 }
@@ -431,8 +431,9 @@ bool DNScache::updateTlsSession(const CachedSession &sess)
         const DNSrecord &r = i.second;
         if (r.mUrl.host == sess.hostname && r.mUrl.port == sess.port)
         {
-            // update session data for that session
-            return mDb.query("update dns_cache set sess_data=? where shard=?", *sess.blob, i.first);
+            // update session data for that connection
+            mDb.query("update dns_cache set sess_data=? where shard=?", *sess.blob, i.first);
+            return true;
         }
     }
 
