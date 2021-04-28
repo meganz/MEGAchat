@@ -4020,7 +4020,6 @@ void exec_syncadd(ac::ACState& s)
         named ? name.c_str() : nullptr,
         targetNode->getHandle(),
         external ? drive.c_str() : nullptr,
-        nullptr, // regexps
         new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
             {
                 conlock(cout) << "syncFolder result: " << e->getErrorString() << endl;
