@@ -1,6 +1,7 @@
 #ifndef SFU_H
 #define SFU_H
 
+#include <thread>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
 #include <karereId.h>
@@ -374,6 +375,9 @@ public:
         void retryPendingConnection(bool disconnect);
         bool sendCommand(const std::string& command);
         bool handleIncomingData(const char* data, size_t len);
+        void addNewCommand(const std::string &command);
+        void processNextCommand(bool resetSending = false);
+        void checkThreadId();
 
         promise::Promise<void> getPromiseConnection();
         bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
@@ -429,6 +433,8 @@ public:
 
         std::map<std::string, std::unique_ptr<Command>> mCommands;
         SfuInterface& mCall;
+        CommandsQueue mCommandsQueue;
+        std::thread::id mMainThreadId; // thread id to ensure that CommandsQueue is accessed from a single thread
     };
 
     class SfuClient

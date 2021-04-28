@@ -1145,6 +1145,7 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     , mWebsocketIO(websocketIO)
     , mAppCtx(appCtx)
     , mCall(call)
+    , mMainThreadId(std::this_thread::get_id())
 {
     mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2));
     mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
@@ -1303,6 +1304,35 @@ bool SfuConnection::sendCommand(const std::string &command)
         });
     }
 
+    addNewCommand(command);
+    return true;
+}
+
+void SfuConnection::addNewCommand(const std::string &command)
+{
+    checkThreadId();                // Check that commandsQueue is always accessed from a single thread
+    mCommandsQueue.push(command);   // push command in the queue
+    processNextCommand();
+}
+
+void SfuConnection::processNextCommand(bool resetSending)
+{
+    checkThreadId(); // Check that commandsQueue is always accessed from a single thread
+
+    if (resetSending)
+    {
+        // upon wsSendMsgCb we need to reset isSending flag
+        mCommandsQueue.setSending(false);
+    }
+
+    if (mCommandsQueue.isEmpty() || mCommandsQueue.sending())
+    {
+        return;
+    }
+
+    mCommandsQueue.setSending(true);
+    std::string command = mCommandsQueue.pop();
+    assert(!command.empty());
     SFU_LOG_DEBUG("Send command: %s", command.c_str());
     std::unique_ptr<char[]> buffer(mega::MegaApi::strdup(command.c_str()));
     bool rc = wsSendMessage(buffer.get(), command.length());
@@ -1310,9 +1340,17 @@ bool SfuConnection::sendCommand(const std::string &command)
     if (!rc)
     {
         mSendPromise.reject("Socket is not ready");
+        processNextCommand(true);
     }
+}
 
-    return rc;
+void SfuConnection::checkThreadId()
+{
+    if (mMainThreadId != std::this_thread::get_id())
+    {
+        SFU_LOG_ERROR("Current thread id doesn't match with expected");
+        assert(false);
+    }
 }
 
 bool SfuConnection::handleIncomingData(const char* data, size_t len)
@@ -1732,6 +1770,7 @@ void SfuConnection::wsSendMsgCb(const char *, size_t)
 {
     assert(!mSendPromise.done());
     mSendPromise.resolve();
+    processNextCommand(true);
 }
 
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
