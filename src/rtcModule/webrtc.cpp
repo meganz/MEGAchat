@@ -1014,6 +1014,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         rtc::VideoSinkWants opts;
         RemoteVideoSlot* slot = static_cast<RemoteVideoSlot*>(it->second.get());
         Cid_t cid = trackDescriptor.first;
+        if (!getSession(cid))
+        {
+            RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
+            continue;
+        }
+
         slot->createDecryptor(cid, trackDescriptor.second.mIv);
         slot->enableTrack(true);
         slot->addSinkToTrack();
@@ -1574,12 +1580,14 @@ void Slot::enableAudioMonitor(bool enable)
 
 void Slot::enableTrack(bool enable)
 {
+    assert(mTransceiver);
     if (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kRecvOnly)
     {
         mTransceiver->receiver()->track()->set_enabled(enable);
     }
     else if(mTransceiver->direction() == webrtc::RtpTransceiverDirection::kSendRecv)
     {
+        assert(mTransceiver->sender()->track() != nullptr);
         mTransceiver->receiver()->track()->set_enabled(enable);
         mTransceiver->sender()->track()->set_enabled(enable);
     }
