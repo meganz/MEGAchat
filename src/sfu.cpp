@@ -30,6 +30,43 @@ std::string ModeratorCommand::COMMAND_NAME = "MOD"; // only for testing purposes
 
 const std::string Sdp::endl = "\r\n";
 
+CommandsQueue::CommandsQueue():
+    isSending(false)
+{
+}
+
+bool CommandsQueue::sending()
+{
+    return isSending;
+}
+
+void CommandsQueue::setSending(bool sending)
+{
+    isSending = sending;
+}
+
+void CommandsQueue::push(const std::string& command)
+{
+    commands.push_back(command);
+}
+
+std::string CommandsQueue::pop()
+{
+    if (commands.empty())
+    {
+        return std::string();
+    }
+
+    std::string command = std::move(commands.front());
+    commands.pop_front();
+    return command;
+}
+
+bool CommandsQueue::isEmpty()
+{
+    return commands.empty();
+}
+
 Peer::Peer()
     : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0)
 {

@@ -13,6 +13,24 @@
 #define SFU_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 namespace sfu
 {
+// NOTE: This queue, must be always managed from a single thread.
+// The classes that instanciates it, are responsible to ensure that.
+// In case we need to access to it from another thread, we would need to implement
+// a synchronization mechanism (like a mutex).
+class CommandsQueue
+{
+protected:
+    std::deque<std::string> commands;
+    bool isSending = false;
+
+public:
+    CommandsQueue();
+    bool sending();
+    void setSending(bool sending);
+    void push(const std::string &);
+    std::string pop();
+    bool isEmpty();
+};
 
 class Peer
 {
