@@ -169,6 +169,7 @@ class MainWindow :
         MegaChatApplication* getApp() const;
 
         void confirmAccount(const std::string& password);
+        void setEpheralAccount(bool ephemeralAccount);
 
     protected:
         MegaLoggerApplication *mLogger;
@@ -196,6 +197,8 @@ class MainWindow :
 
         SettingWindow *mSettings = NULL;
         ConfirmAccount* mConfirmAccount = nullptr;
+
+        bool mIsEphemeraAccount = false;
 
         void updateVideoParticipants(megachat::MegaChatHandle chatid);
 

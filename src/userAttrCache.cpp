@@ -440,8 +440,7 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
 void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE) &&
-            !mClient.anonymousMode() &&
-            mClient.api.sdk.getSessionType() != ::mega::MegaApi::SESSION_TYPE_EPHEMERALACCOUNTPLUSPLUS)
+            !mClient.anonymousMode())
     {
         return;
     }

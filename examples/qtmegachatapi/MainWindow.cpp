@@ -372,6 +372,11 @@ void MainWindow::confirmAccount(const std::string &password)
     }
 }
 
+void MainWindow::setEpheralAccount(bool ephemeralAccount)
+{
+    mIsEphemeraAccount = ephemeralAccount;
+}
+
 void MainWindow::updateVideoParticipants(MegaChatHandle chatid)
 {
     ChatListItemController *itemController = getChatControllerById(chatid);
@@ -674,7 +679,7 @@ void MainWindow::on_bSettings_clicked()
     actBackground->setCheckable(true);
     actBackground->setChecked(mMegaChatApi->getBackgroundStatus());
 
-    if (mMegaApi->getSessionType() == mega::MegaApi::SESSION_TYPE_EPHEMERALACCOUNTPLUSPLUS)
+    if (mIsEphemeraAccount)
     {
         menu.addSeparator();
         auto confirmAccount = menu.addAction("Confirm account");
