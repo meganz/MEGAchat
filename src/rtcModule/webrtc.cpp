@@ -1549,6 +1549,16 @@ Cid_t Slot::getCid() const
     return mCid;
 }
 
+void Slot::reassign(Cid_t cid, IvStatic_t iv)
+{
+    createDecryptor(cid, iv);
+    enableTrack(true);
+    if (mTransceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
+    {
+        enableAudioMonitor(true); // enable audio monitor
+    }
+}
+
 void Slot::createDecryptor(Cid_t cid, IvStatic_t iv)
 {
     mCid = cid;
@@ -1656,6 +1666,12 @@ void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
                            (uint8_t*)frameBuf, width * 4, width, height);
         mRenderer->frameComplete(userData);
     }
+}
+
+void RemoteVideoSlot::reassignVideoSlot(Cid_t cid, IvStatic_t iv)
+{
+    reassign(cid, iv);
+    addSinkToTrack();
 }
 
 void RemoteVideoSlot::addSinkToTrack()

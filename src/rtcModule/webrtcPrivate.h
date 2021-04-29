@@ -48,6 +48,7 @@ public:
     void createDecryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
+    void reassign(Cid_t cid, IvStatic_t iv);
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
     void enableTrack(bool enable);
@@ -80,6 +81,7 @@ public:
     RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     ~RemoteVideoSlot();
     void addSinkToTrack();
+    void reassignVideoSlot(Cid_t cid, IvStatic_t iv);
 
 private:
     bool mSinkAdded = false;
