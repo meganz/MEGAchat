@@ -411,6 +411,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            bool isMeeting = request->getNumber();
             bool publicChat = request->getPrivilege();
             bool group = request->getFlag();
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
@@ -450,13 +451,13 @@ void MegaChatApiImpl::sendPendingRequests()
                     title = request->getText();
                 }
 
-                mClient->createGroupChat(peers, publicChat, title)
-                .then([request,this](Id chatid)
+                mClient->createGroupChat(peers, publicChat, isMeeting, title)
+                .then([request, this](Id chatid)
                 {
                     request->setChatHandle(chatid);
-
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
+
                 })
                 .fail([request,this](const ::promise::Error& err)
                 {
@@ -465,7 +466,6 @@ void MegaChatApiImpl::sendPendingRequests()
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                     fireOnChatRequestFinish(request, megaChatError);
                 });
-
             }
             else    // 1on1 chat
             {
@@ -875,10 +875,12 @@ void MegaChatApiImpl::sendPendingRequests()
                    request->setChatHandle(chatId);
                    request->setNumber(numPeers);
                    request->setText(decryptedTitle.c_str());
-                   if (request->getMegaHandleList())
+                   if (result->getMegaHandleList())
                    {
                        request->setMegaHandleList(result->getMegaHandleList());
                    }
+
+                   request->setFlag(result->getFlag());
 
                    //Check chat link
                    if (!createChat)
@@ -3681,13 +3683,14 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, const c
     waiter->notify();
 }
 
-void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener)
+void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
     request->setFlag(true);
     request->setPrivilege(1);
     request->setMegaChatPeerList(peerList);
     request->setText(title);
+    request->setNumber(meeting);
     requestQueue.push(request);
     waiter->notify();
 }
