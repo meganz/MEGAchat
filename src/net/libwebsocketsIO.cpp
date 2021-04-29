@@ -271,6 +271,13 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
         return;
     }
 
+    // save the TLS session [again], just in case on-the-fly attempt failed
+    if (LwsCache::dump(lws_get_vhost(wsi), &mTlsSession))
+    {
+        wsSSLsessionUpdateCb(mTlsSession);
+        mTlsSession.blob = nullptr;
+    }
+
     if (immediate)
     {
         struct lws *dwsi = wsi;
