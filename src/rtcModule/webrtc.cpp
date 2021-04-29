@@ -1818,7 +1818,9 @@ void Session::setVThumSlot(RemoteVideoSlot *slot, bool reuse)
     if (reuse)
     {
         mHiresSlot = nullptr;
+        mSessionHandler->onHiResReceived(*this);
     }
+    mSessionHandler->onVThumbReceived(*this);
 }
 
 void Session::setHiResSlot(RemoteVideoSlot *slot, bool reuse)
@@ -1829,7 +1831,9 @@ void Session::setHiResSlot(RemoteVideoSlot *slot, bool reuse)
     if (reuse)
     {
         mVthumSlot = nullptr;
+        mSessionHandler->onVThumbReceived(*this);
     }
+    mSessionHandler->onHiResReceived(*this);
 }
 
 void Session::setAudioSlot(Slot *slot)
