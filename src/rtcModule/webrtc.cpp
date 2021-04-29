@@ -464,6 +464,14 @@ ISession* Call::getIsession(Cid_t cid) const
         : nullptr;
 }
 
+Session* Call::getSession(Cid_t cid)
+{
+    auto it = mSessions.find(cid);
+    return (it != mSessions.end())
+        ? it->second.get()
+        : nullptr;
+}
+
 void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
 {
     setState(CallState::kStateConnecting);
