@@ -6140,7 +6140,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     std::vector<Cid_t> sessionCids = call.getSessionsCids();
     for (Cid_t cid : sessionCids)
     {
-        mSessions[cid] = ::mega::make_unique<MegaChatSessionPrivate>(*call.getSession(cid));
+        mSessions[cid] = ::mega::make_unique<MegaChatSessionPrivate>(*call.getIsession(cid));
     }
 }
 

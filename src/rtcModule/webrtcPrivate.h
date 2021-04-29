@@ -181,7 +181,7 @@ public:
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
-    ISession* getSession(Cid_t cid) const override;
+    ISession* getIsession(Cid_t cid) const override;
     bool isOutgoing() const override;
     virtual int64_t getInitialTimeStamp() const override;
     virtual int64_t getFinalTimeStamp() const override;

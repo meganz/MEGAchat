@@ -456,7 +456,7 @@ std::vector<Cid_t> Call::getSessionsCids() const
     return returnedValue;
 }
 
-ISession* Call::getSession(Cid_t cid) const
+ISession* Call::getIsession(Cid_t cid) const
 {
     auto it = mSessions.find(cid);
     return (it != mSessions.end())
@@ -841,7 +841,7 @@ bool Call::handleStatCommand()
 bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 {
     sfu::Peer peer(cid, userid, av);
-
+    ISession *sess = getIsession(cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler->onNewSession(*mSessions[cid], *this);
     generateAndSendNewkey();
@@ -1014,7 +1014,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         rtc::VideoSinkWants opts;
         RemoteVideoSlot* slot = static_cast<RemoteVideoSlot*>(it->second.get());
         Cid_t cid = trackDescriptor.first;
-        if (!getSession(cid))
+        if (!getIsession(cid))
         {
             RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
             continue;
@@ -1027,7 +1027,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
 
 void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, bool reuse)
 {
-    assert(getSession(cid));
+    assert(getIsession(cid));
     if (audio)
     {
         mSessions[cid]->setAudioSlot(slot);
@@ -1932,7 +1932,7 @@ bool AudioLevelMonitor::hasAudio()
     }
     else
     {
-        ISession *sess = mCall.getSession(mCid);
+        ISession *sess = mCall.getIsession(mCid);
         if (sess)
         {
             return sess->getAvFlags().audio();
@@ -1950,8 +1950,8 @@ void AudioLevelMonitor::onAudioDetected(bool audioDetected)
     }
     else // remote
     {
-        assert(mCall.getSession(mCid));
-        ISession *sess = mCall.getSession(mCid);
+        assert(mCall.getIsession(mCid));
+        ISession *sess = mCall.getIsession(mCid);
         sess->setAudioDetected(mAudioDetected);
     }
 }
