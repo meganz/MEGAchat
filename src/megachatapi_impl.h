@@ -602,6 +602,8 @@ public:
     void onRemoteFlagsChanged(rtcModule::ISession& session) override;
     void onOnHold(rtcModule::ISession& session) override;
     void onRemoteAudioDetected(rtcModule::ISession& session) override;
+    void onVThumbReused(rtcModule::ISession& session) override;
+    void onHiResReused(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;

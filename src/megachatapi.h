@@ -93,6 +93,8 @@ public:
         CHANGE_TYPE_SESSION_ON_HIRES = 0x10,        /// Hi-Res video received
         CHANGE_TYPE_SESSION_ON_HOLD = 0x20,         /// Session is on hold
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
+        CHANGE_TYPE_SESSION_ON_LOWRES_REUSE = 0x80, /// Low-Res video received but slot is reused
+        CHANGE_TYPE_SESSION_ON_HIRES_REUSE = 0x100, /// Hi-Res video received but slot is reused
     };
 
 

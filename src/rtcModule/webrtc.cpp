@@ -1814,10 +1814,14 @@ void Session::setVThumSlot(RemoteVideoSlot *slot, bool reuse)
 {
     assert(slot);
     mVthumSlot = slot;
-    mSessionHandler->onVThumbReceived(*this);
     if (reuse)
     {
-        mHiresSlot = nullptr;
+        mHiresSlot = nullptr; // clean HiresSlot as we are going to reuse the same slot
+        mSessionHandler->onVThumbReused(*this);
+    }
+    else
+    {
+        mSessionHandler->onVThumbReceived(*this);
     }
 }
 
@@ -1825,10 +1829,14 @@ void Session::setHiResSlot(RemoteVideoSlot *slot, bool reuse)
 {
     assert(slot);
     mHiresSlot = slot;
-    mSessionHandler->onHiResReceived(*this);
     if (reuse)
     {
-        mVthumSlot = nullptr;
+        mVthumSlot = nullptr; // clean LowResSlot as we are going to reuse the same slot
+        mSessionHandler->onHiResReused(*this);
+    }
+    else
+    {
+        mSessionHandler->onHiResReceived(*this);
     }
 }
 
