@@ -416,52 +416,36 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 break;
             }
 
-            // save new TLS session to persistent storage
-            lws_vhost *vhost = lws_get_vhost(wsi);
-            if (!vhost) // should never be null
+            // LWS cache might be updated later, asynchronously. Trying to get the session
+            // from there now, would either not find it, or get old data. So instead, let's
+            // get the session ourselves
+            SSL *nativeSSL = lws_get_ssl(wsi);
+            SSL_SESSION *sslSess = SSL_get_session(nativeSSL);
+            if (!sslSess) // should never happen in this cb
             {
-                WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d (null default vhost)",
-                                     s->hostname.c_str(), s->port);
+                WEBSOCKETS_LOG_ERROR("TLS session was NULL for %s:%d", s->hostname.c_str(), s->port);
+                break;
+            }
+            if (!SSL_SESSION_is_resumable(sslSess)) // invalid session, not worth storing
+            {
+                // This never happened so far, but the possibility exists, so for this case, a later dump
+                // from LWS cache could be a solution. Unfortunately "later" cannot be defined.
+                WEBSOCKETS_LOG_WARNING("TLS session was invalid (not resumable); not stored for %s:%d",
+                                       s->hostname.c_str(), s->port);
                 break;
             }
 
-            // fill in the session data
-            if (LwsCache::dump(vhost, s))
+            // serialize session data
+            auto bloblen = i2d_SSL_SESSION(sslSess, nullptr);
+            s->blob = make_shared<Buffer>(bloblen);
+            uint8_t *pp = s->blob->typedBuf<uint8_t>();
+            i2d_SSL_SESSION(sslSess, &pp);
+            s->blob->setDataSize(bloblen);
+
+            if (!client->wsSSLsessionUpdateCb(*s))
             {
-                if (!client->wsSSLsessionUpdateCb(*s))
-                {
-                    WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d",
-                                         s->hostname.c_str(), s->port);
-                }
-            }
-
-            else // webrtc ssl lib did not call session-new-cb
-            {
-                // get the session info ourselves, and push it into the cache
-                SSL *nativeSSL = lws_get_ssl(wsi);
-                SSL_SESSION *sslSess = SSL_get_session(nativeSSL);
-                auto bloblen = i2d_SSL_SESSION(sslSess, nullptr);
-                s->blob = make_shared<Buffer>(bloblen);
-                auto pp = s->blob->typedBuf<uint8_t>();
-                i2d_SSL_SESSION(sslSess, &pp);
-                s->blob->setDataSize(bloblen);
-
-                if (LwsCache::load(vhost, s))
-                {
-                    WEBSOCKETS_LOG_DEBUG("Added TLS session to LWS cache for %s:%d (ssl callback not executed)",
-                                         s->hostname.c_str(), s->port);
-
-                    if (!client->wsSSLsessionUpdateCb(*s))
-                    {
-                        WEBSOCKETS_LOG_ERROR("Failed to save TLS session to persistent storage for %s:%d (ssl callback not executed)",
-                                             s->hostname.c_str(), s->port);
-                    }
-                }
-                else
-                {
-                    WEBSOCKETS_LOG_ERROR("Failed to add TLS session to LWS cache for %s:%d (ssl callback not executed)",
-                                         s->hostname.c_str(), s->port);
-                }
+                WEBSOCKETS_LOG_ERROR("TLS session save to persistent storage failed for %s:%d",
+                                     s->hostname.c_str(), s->port);
             }
             s->blob = nullptr; // stored or not, don't keep it in memory
             break;
