@@ -1606,9 +1606,11 @@ void Slot::enableTrack(bool enable)
     }
     else if(mTransceiver->direction() == webrtc::RtpTransceiverDirection::kSendRecv)
     {
-        assert(mTransceiver->sender()->track() != nullptr);
         mTransceiver->receiver()->track()->set_enabled(enable);
-        mTransceiver->sender()->track()->set_enabled(enable);
+        if (mTransceiver->sender()->track())
+        {
+            mTransceiver->sender()->track()->set_enabled(enable);
+        }
     }
 }
 
