@@ -1020,18 +1020,30 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             continue;
         }
 
-        slot->createDecryptor(cid, trackDescriptor.second.mIv);
-        slot->enableTrack(true);
-        slot->addSinkToTrack();
+        slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
+        attachSlotToSession(cid, slot, false, hiRes, trackDescriptor.second.mReuse);
+    }
+}
 
-        if (hiRes)
+void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, bool reuse)
+{
+    assert(getSession(cid));
+    if (audio)
+    {
+        mSessions[cid]->setAudioSlot(slot);
+    }
+    else
+    {
+        if (reuse && slot->getCid() != cid)
         {
-            mSessions[cid]->setHiResSlot(slot);
+            RTCM_LOG_WARNING("attachSlotToSession: trying to reuse slot, but cid has changed");
+            assert(false);
+            return;
         }
-        else
-        {
-            mSessions[cid]->setVThumSlot(slot);
-        }
+
+        hiRes
+            ? mSessions[cid]->setHiResSlot(static_cast<RemoteVideoSlot *>(slot), reuse)
+            : mSessions[cid]->setVThumSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
     }
 }
 
@@ -1051,11 +1063,8 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
     }
 
     Slot* slot = it->second.get();
-    slot->enableTrack(true);
-    slot->createDecryptor(cid, speaker.mIv);
-    slot->enableAudioMonitor(true); // enable audio monitor
-
-    mSessions[cid]->setAudioSlot(slot);
+    slot->reassign(cid, speaker.mIv);
+    attachSlotToSession(cid, slot, true, false, false);
 }
 
 void Call::removeSpeaker(Cid_t cid)
@@ -1755,16 +1764,26 @@ const sfu::Peer& Session::getPeer() const
     return mPeer;
 }
 
-void Session::setVThumSlot(RemoteVideoSlot *slot)
+void Session::setVThumSlot(RemoteVideoSlot *slot, bool reuse)
 {
+    assert(slot);
     mVthumSlot = slot;
     mSessionHandler->onVThumbReceived(*this);
+    if (reuse)
+    {
+        mHiresSlot = nullptr;
+    }
 }
 
-void Session::setHiResSlot(RemoteVideoSlot *slot)
+void Session::setHiResSlot(RemoteVideoSlot *slot, bool reuse)
 {
+    assert(slot);
     mHiresSlot = slot;
     mSessionHandler->onHiResReceived(*this);
+    if (reuse)
+    {
+        mVthumSlot = nullptr;
+    }
 }
 
 void Session::setAudioSlot(Slot *slot)

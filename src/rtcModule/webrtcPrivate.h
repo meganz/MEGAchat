@@ -94,8 +94,8 @@ public:
     ~Session();
 
     const sfu::Peer &getPeer() const;
-    void setVThumSlot(RemoteVideoSlot* slot);
-    void setHiResSlot(RemoteVideoSlot* slot);
+    void setVThumSlot(RemoteVideoSlot* slot, bool reuse = false);
+    void setHiResSlot(RemoteVideoSlot* slot, bool reuse = false);
     void setAudioSlot(Slot* slot);
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
@@ -296,6 +296,7 @@ protected:
     void removeSpeaker(Cid_t cid);
     const std::string &getCallKey() const;
     void updateAudioTracks();
+    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, bool hiRes, bool reuse);
 
 };
 
