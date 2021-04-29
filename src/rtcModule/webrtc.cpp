@@ -617,7 +617,10 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
 
 std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
 {
-    return mSessions[cid]->getPeer().getKey(keyid);
+    Session *session = getSession(cid);
+    return session
+            ? session->getPeer().getKey(keyid)
+            : std::string();
 }
 
 bool Call::hasCallKey()
@@ -633,14 +636,15 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
         return false;
     }
 
-    if (mSessions.find(cid) == mSessions.end())
+    Session *session = getSession(cid);
+    if (!session)
     {
         RTCM_LOG_WARNING("handleAvCommand: Received AV flags for unknown peer cid %d", cid);
         return false;
     }
 
     // update session flags
-    mSessions[cid]->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
+    session->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
     return true;
 }
 
@@ -706,7 +710,14 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
 
 bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
-    karere::Id peerid = mSessions[cid]->getPeer().getPeerid();
+    Session *session = getSession(cid);
+    if (!session)
+    {
+        RTCM_LOG_WARNING("handleKeyCommand: Received key for unknown peer cid %d", cid);
+        return false;
+    }
+
+    karere::Id peerid = session->getPeer().getPeerid();
     auto wptr = weakHandle();
     mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peerid)
     .then([wptr, keyid, cid, key, this](Buffer*)
@@ -716,13 +727,20 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
             return;
         }
 
+        Session *session = getSession(cid);
+        if (!session)
+        {
+            RTCM_LOG_WARNING("handleKeyCommand: Received key for unknown peer cid %d", cid);
+            return;
+        }
+
         // decrypt received key
         strongvelope::SendKey plainKey;
         std::string binaryKey = mega::Base64::atob(key);
 
 
         strongvelope::SendKey encryptedKey = mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey);
-        mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(mSessions[cid]->getPeer().getPeerid(), encryptedKey, plainKey);
+        mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(session->getPeer().getPeerid(), encryptedKey, plainKey);
 
         // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
         if (hasCallKey())
@@ -733,8 +751,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 
         // add new key to peer key map
         std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
-        assert(mSessions.find(cid) != mSessions.end());
-        mSessions[cid]->addKey(keyid, newKey);
+        session->addKey(keyid, newKey);
     });
 
     return true;
@@ -786,8 +803,14 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
     {
         if (cid != mMyPeer.getCid())
         {
-            assert(mSessions.find(cid) != mSessions.end());
-            mSessions[cid]->setSpeakRequested(true);
+            Session *session = getSession(cid);
+            assert(session);
+            if (!session)
+            {
+                RTCM_LOG_WARNING("handleSpeakReqsCommand: Received speakRequest for unknown peer cid %d", cid);
+                return false;
+            }
+            session->setSpeakRequested(true);
         }
     }
 
@@ -798,8 +821,14 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
 {
     if (mMyPeer.getCid() != cid) // remote peer
     {
-        assert(mSessions.find(cid) != mSessions.end());
-        mSessions[cid]->setSpeakRequested(false);
+        Session *session = getSession(cid);
+        assert(session);
+        if (!session)
+        {
+            RTCM_LOG_WARNING("handleSpeakReqDelCommand: Received delSpeakRequest for unknown peer cid %d", cid);
+            return false;
+        }
+        session->setSpeakRequested(false);
     }
     else if (mSpeakerState == SpeakerState::kPending)
     {
@@ -1035,10 +1064,17 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
 
 void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, bool reuse)
 {
-    assert(getIsession(cid));
+    Session *session = getSession(cid);
+    assert(session);
+    if (!session)
+    {
+        RTCM_LOG_WARNING("attachSlotToSession: unknown peer cid %d", cid);
+        return;
+    }
+
     if (audio)
     {
-        mSessions[cid]->setAudioSlot(slot);
+        session->setAudioSlot(slot);
     }
     else
     {
@@ -1050,8 +1086,8 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, b
         }
 
         hiRes
-            ? mSessions[cid]->setHiResSlot(static_cast<RemoteVideoSlot *>(slot), reuse)
-            : mSessions[cid]->setVThumSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
+            ? session->setHiResSlot(static_cast<RemoteVideoSlot *>(slot), reuse)
+            : session->setVThumSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
     }
 }
 
