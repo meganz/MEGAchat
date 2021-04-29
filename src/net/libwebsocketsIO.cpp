@@ -77,12 +77,12 @@ void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
     {
         if (LwsCache::load(vh, &s))
         {
-            WEBSOCKETS_LOG_DEBUG("Loaded TLS session into LWS cache for %s:%d",
+            WEBSOCKETS_LOG_DEBUG("TLS session loaded into LWS cache for %s:%d",
                                  s.hostname.c_str(), s.port);
         }
         else
         {
-            WEBSOCKETS_LOG_ERROR("Failed to load TLS session into LWS cache for %s:%d",
+            WEBSOCKETS_LOG_ERROR("TLS session failed to load into LWS cache for %s:%d",
                                  s.hostname.c_str(), s.port);
         }
     }
@@ -411,7 +411,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
 
             if (lws_tls_session_is_reused(wsi))
             {
-                WEBSOCKETS_LOG_DEBUG("Reused TLS session for %s:%d",
+                WEBSOCKETS_LOG_DEBUG("TLS session reused for %s:%d",
                                      s->hostname.c_str(), s->port);
                 break;
             }

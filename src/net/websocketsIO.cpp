@@ -65,7 +65,7 @@ void WebsocketsClientImpl::wsSendMsgCb(const char *data, size_t len)
 bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
-    WEBSOCKETS_LOG_DEBUG("SSL session updated for %s:%d",
+    WEBSOCKETS_LOG_DEBUG("TLS session updated for %s:%d",
                          sess.hostname.c_str(), sess.port);
     return client->wsSSLsessionUpdateCb(sess);
 }
