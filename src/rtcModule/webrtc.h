@@ -72,8 +72,6 @@ public:
     virtual void onRemoteFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
     virtual void onRemoteAudioDetected(ISession& session) = 0;
-    virtual void onVThumbReused(ISession& session) = 0;
-    virtual void onHiResReused(ISession& session) = 0;
 };
 
 class ISession

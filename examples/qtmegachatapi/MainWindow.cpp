@@ -288,20 +288,6 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         window->mMeetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()));
     }
 
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES_REUSE) && window->mMeetingView)
-    {
-        // remove HiRes widget as we are going to reuse the slot
-        window->mMeetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
-        window->mMeetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()));
-    }
-
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES_REUSE) && window->mMeetingView)
-    {
-        // remove LowRes widget as we are going to reuse the slot
-        window->mMeetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
-        window->mMeetingView->addHiResByCid(chatid, static_cast<uint32_t>(session->getClientid()));
-    }
-
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
     {
         if (session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
