@@ -5275,7 +5275,6 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setMegaChatMessage(request.getMegaChatMessage());
     this->setMegaNodeList(request.getMegaNodeList());
     this->setMegaHandleList(request.getMegaHandleList());
-    this->setParamType(request.getParamType());
     if (mMegaHandleList)
     {
         for (unsigned int i = 0; i < mMegaHandleList->size(); i++)
@@ -5284,6 +5283,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
             this->setMegaHandleListByChat(chatid, request.getMegaHandleListByChat(chatid));
         }
     }
+
+    this->setParamType(request.getParamType());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
