@@ -1612,6 +1612,21 @@ void Slot::reassign(Cid_t cid, IvStatic_t iv)
     }
 }
 
+bool Slot::hasTrack(bool send)
+{
+    assert(mTransceiver);
+
+    if ((send && (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kRecvOnly))  ||
+     (!send && (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kSendOnly)))
+    {
+        return false;
+    }
+
+    return send
+            ? mTransceiver->sender()->track()
+            : mTransceiver->receiver()->track();
+}
+
 void Slot::createDecryptor(Cid_t cid, IvStatic_t iv)
 {
     mCid = cid;
@@ -1797,12 +1812,12 @@ void Session::setAudioDetected(bool audioDetected)
 
 bool Session::hasHighResolutionTrack() const
 {
-    return mHiresSlot && mHiresSlot->getTransceiver()->sender()->track() ? true : false;
+    return mHiresSlot && mHiresSlot->hasTrack(false);
 }
 
 bool Session::hasLowResolutionTrack() const
 {
-    return mVthumSlot && mVthumSlot->getTransceiver()->sender()->track() ? true : false;
+    return mVthumSlot && mVthumSlot->hasTrack(false);
 }
 
 const sfu::Peer& Session::getPeer() const
@@ -1814,7 +1829,6 @@ void Session::setVThumSlot(RemoteVideoSlot *slot, bool reuse)
 {
     assert(slot);
     mVthumSlot = slot;
-    mSessionHandler->onVThumbReceived(*this);
     if (reuse)
     {
         mHiresSlot = nullptr;
@@ -1827,7 +1841,6 @@ void Session::setHiResSlot(RemoteVideoSlot *slot, bool reuse)
 {
     assert(slot);
     mHiresSlot = slot;
-    mSessionHandler->onHiResReceived(*this);
     if (reuse)
     {
         mVthumSlot = nullptr;

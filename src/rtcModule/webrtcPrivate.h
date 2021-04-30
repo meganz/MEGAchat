@@ -49,6 +49,7 @@ public:
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
     void reassign(Cid_t cid, IvStatic_t iv);
+    bool hasTrack(bool send);
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
     void enableTrack(bool enable);
