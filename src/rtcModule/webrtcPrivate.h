@@ -164,6 +164,7 @@ public:
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
     bool hasRequestSpeak() const override;
+    TermCode getTermCode() const override;
 
     void setCallerId(karere::Id callerid) override;
     void requestSpeaker(bool add = true) override;
@@ -260,6 +261,7 @@ protected:
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
+    TermCode mTermCode = kInvalidTermCode;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;

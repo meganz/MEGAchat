@@ -261,6 +261,7 @@ public:
     void setOnHold(bool onHold);
     void setAudioDetected(bool mAudioDetected);
     static int convertCallState(rtcModule::CallState newState);
+    int convertTermCode(rtcModule::TermCode termCode, bool isReject);
 
 protected:
     MegaChatHandle chatid;
@@ -276,8 +277,8 @@ protected:
     int callCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle callerId;
 
-    int termCode;
     bool mIgnored;
+    int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     bool mAudioDetected = false;
     bool ringing = false;
     bool mIsCaller;

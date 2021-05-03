@@ -6126,6 +6126,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mAudioDetected = call.isAudioDetected();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
+    mTermCode = convertTermCode(call.getTermCode(), call.isRejected());
 
     for (auto participant: call.getParticipants())
     {
@@ -6160,7 +6161,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->mChanged = call.mChanged;
     this->mInitialTs = call.mInitialTs;
     this->mFinalTs = call.mFinalTs;
-    this->termCode = call.termCode;
+    this->mTermCode = call.mTermCode;
     this->ringing = call.ringing;
     this->mIgnored = call.mIgnored;
     this->mPeerId = call.mPeerId;
@@ -6260,7 +6261,7 @@ int64_t MegaChatCallPrivate::getFinalTimeStamp() const
 
 int MegaChatCallPrivate::getTermCode() const
 {
-    return 0;
+    return mTermCode;
 }
 
 bool MegaChatCallPrivate::isRinging() const
@@ -6422,6 +6423,29 @@ int MegaChatCallPrivate::convertCallState(rtcModule::CallState newState)
             break;
     }
     return state;
+}
+
+int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, bool isReject)
+{
+    switch (termCode)
+    {
+        case rtcModule::TermCode::kErrSdp:
+        case rtcModule::TermCode::kErrNoCall:
+        case rtcModule::TermCode::kRtcDisconn:
+        case rtcModule::TermCode::kSigDisconn:
+        case rtcModule::TermCode::kErrSignaling:
+        case rtcModule::TermCode::kSvrShuttingDown:
+        case rtcModule::TermCode::kUnKnownTermCode:
+            return TERM_CODE_ERROR;
+
+        case rtcModule::TermCode::kUserHangup:
+            return TERM_CODE_HANGUP;
+
+       case rtcModule::TermCode::kInvalidTermCode:
+            return TERM_CODE_INVALID;
+    }
+
+    return TERM_CODE_INVALID;
 }
 
 void MegaChatCallPrivate::setIsRinging(bool ringing)

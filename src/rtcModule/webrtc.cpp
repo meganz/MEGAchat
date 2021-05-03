@@ -31,6 +31,10 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
 Call::~Call()
 {
     mState = kStateDestroyed;
+    if (mTermCode == kInvalidTermCode)
+    {
+        mTermCode = kUnKnownTermCode;
+    }
     mGlobalCallHandler.onEndCall(*this);
 }
 
@@ -247,6 +251,11 @@ int Call::getNetworkQuality() const
 bool Call::hasRequestSpeak() const
 {
     return mSpeakerState == SpeakerState::kPending;
+}
+
+TermCode Call::getTermCode() const
+{
+    return mTermCode;
 }
 
 void Call::setCallerId(karere::Id callerid)
@@ -599,6 +608,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
     mHiRes.reset(nullptr);
     mAudio.reset(nullptr);
     mReceiverTracks.clear();
+    mTermCode = termCode;
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
     {
