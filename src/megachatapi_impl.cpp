@@ -6124,7 +6124,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mAudioDetected = call.isAudioDetected();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
-    mTermCode = convertTermCode(call.getTermCode(), call.isRejected());
+    mTermCode = convertTermCode(call.getTermCode(), false);
 
     for (auto participant: call.getParticipants())
     {
