@@ -197,7 +197,6 @@ private:
     uint32_t clientId;
     karere::AvFlags mAvFlags = 0;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
-    karere::AvFlags mAVFlags;
     bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
     bool mHasHiResTrack = false;
@@ -261,26 +260,27 @@ public:
     void setOnHold(bool onHold);
     void setAudioDetected(bool mAudioDetected);
     static int convertCallState(rtcModule::CallState newState);
+    int convertTermCode(rtcModule::TermCode termCode, bool isReject);
 
 protected:
-    MegaChatHandle chatid;
+    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;;
     int status = MegaChatCall::CALL_STATUS_INITIAL;
-    MegaChatHandle callid;
+    MegaChatHandle callid = MEGACHAT_INVALID_HANDLE;;
     karere::AvFlags localAVFlags;
     int mChanged = MegaChatCall::CHANGE_TYPE_NO_CHANGES;
-    int64_t mInitialTs;
-    int64_t mFinalTs;
+    int64_t mInitialTs = 0;
+    int64_t mFinalTs = 0;
     std::map<MegaChatHandle, std::unique_ptr<MegaChatSession>> mSessions;
     std::map<MegaChatHandle, karere::AvFlags> participants;
-    MegaChatHandle mPeerId;
+    MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
     int callCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle callerId;
 
-    int termCode;
-    bool mIgnored;
+    int mTermCode = MegaChatCall::TERM_CODE_INVALID;
+    bool mIgnored = false;;
     bool mAudioDetected = false;
     bool ringing = false;
-    bool mIsCaller;
+    bool mIsCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
     int mNetworkQuality = rtcModule::kNetworkQualityDefault;

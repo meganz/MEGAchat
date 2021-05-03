@@ -349,6 +349,13 @@ public:
         PEER_ADDED = 1,
     };
 
+    enum {
+        TERM_CODE_INVALID = -1,     // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
+        TERM_CODE_HANGUP = 0,       // Call has been finished by user
+        TERM_CODE_ERROR = 1,        // Call has been finished by error
+        TERM_CODE_REJECT = 2,       // Caller has hang up the call before no body answer the call
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -518,6 +525,12 @@ public:
 
     /**
      * @brief Returns the termination code for this call
+     *
+     * Valid values are:
+     *  - TERM_CODE_INVALID
+     *  - TERM_CODE_HANGUP
+     *  - TERM_CODE_ERROR
+     *  - TERM_CODE_REJECT
      *
      * @return termination code for the call
      */

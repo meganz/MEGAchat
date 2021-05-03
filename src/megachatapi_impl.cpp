@@ -5977,7 +5977,6 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , clientId(session.getClientid())
     , mAvFlags(session.getAvFlags())
     , mChanged(CHANGE_TYPE_NO_CHANGES)
-    , mAVFlags(session.getAvFlags())
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mAudioDetected(session.isAudioDetected())
     , mHasHiResTrack(session.hasHighResolutionTrack())
@@ -5991,7 +5990,6 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , clientId(session.getClientid())
     , mAvFlags(session.getAvFlags())
     , mChanged(session.getChanges())
-    , mAVFlags(session.mAVFlags)
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mAudioDetected(session.isAudioDetected())
     , mHasHiResTrack(session.mHasHiResTrack)
@@ -6045,7 +6043,7 @@ bool MegaChatSessionPrivate::isLowResVideo() const
 
 bool MegaChatSessionPrivate::isOnHold() const
 {
-    return mAVFlags.isOnHold();
+    return mAvFlags.isOnHold();
 }
 
 int MegaChatSessionPrivate::getChanges() const
@@ -6097,7 +6095,7 @@ void MegaChatSessionPrivate::setAudioDetected(bool audioDetected)
 
 void MegaChatSessionPrivate::setOnHold(bool onHold)
 {
-    mAVFlags.setOnHold(onHold);
+    mAvFlags.setOnHold(onHold);
     mChanged |= CHANGE_TYPE_SESSION_ON_HOLD;
 }
 
@@ -6126,6 +6124,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mAudioDetected = call.isAudioDetected();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
+    mTermCode = convertTermCode(call.getTermCode(), false);
 
     for (auto participant: call.getParticipants())
     {
@@ -6160,7 +6159,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->mChanged = call.mChanged;
     this->mInitialTs = call.mInitialTs;
     this->mFinalTs = call.mFinalTs;
-    this->termCode = call.termCode;
+    this->mTermCode = call.mTermCode;
     this->ringing = call.ringing;
     this->mIgnored = call.mIgnored;
     this->mPeerId = call.mPeerId;
@@ -6260,7 +6259,7 @@ int64_t MegaChatCallPrivate::getFinalTimeStamp() const
 
 int MegaChatCallPrivate::getTermCode() const
 {
-    return 0;
+    return mTermCode;
 }
 
 bool MegaChatCallPrivate::isRinging() const
@@ -6422,6 +6421,29 @@ int MegaChatCallPrivate::convertCallState(rtcModule::CallState newState)
             break;
     }
     return state;
+}
+
+int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode, bool isReject)
+{
+    switch (termCode)
+    {
+        case rtcModule::TermCode::kErrSdp:
+        case rtcModule::TermCode::kErrNoCall:
+        case rtcModule::TermCode::kRtcDisconn:
+        case rtcModule::TermCode::kSigDisconn:
+        case rtcModule::TermCode::kErrSignaling:
+        case rtcModule::TermCode::kSvrShuttingDown:
+        case rtcModule::TermCode::kUnKnownTermCode:
+            return TERM_CODE_ERROR;
+
+        case rtcModule::TermCode::kUserHangup:
+            return TERM_CODE_HANGUP;
+
+       case rtcModule::TermCode::kInvalidTermCode:
+            return TERM_CODE_INVALID;
+    }
+
+    return TERM_CODE_INVALID;
 }
 
 void MegaChatCallPrivate::setIsRinging(bool ringing)

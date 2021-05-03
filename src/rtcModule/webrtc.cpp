@@ -31,6 +31,10 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
 Call::~Call()
 {
     mState = kStateDestroyed;
+    if (mTermCode == kInvalidTermCode)
+    {
+        mTermCode = kUnKnownTermCode;
+    }
     mGlobalCallHandler.onEndCall(*this);
 }
 
@@ -247,6 +251,11 @@ int Call::getNetworkQuality() const
 bool Call::hasRequestSpeak() const
 {
     return mSpeakerState == SpeakerState::kPending;
+}
+
+TermCode Call::getTermCode() const
+{
+    return mTermCode;
 }
 
 void Call::setCallerId(karere::Id callerid)
@@ -599,12 +608,17 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
     mHiRes.reset(nullptr);
     mAudio.reset(nullptr);
     mReceiverTracks.clear();
+    mTermCode = termCode;
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
     {
         mSfuClient.closeManagerProtocol(mChatid);
         mSfuConnection = nullptr;
     }
+
+    mRtcConn->Close();
+    mRtcConn = nullptr;
+    setState(CallState::kStateClientNoParticipating);
 }
 
 std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
@@ -1367,7 +1381,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
     Call* call = static_cast<Call*>(findCallByChatid(chatid));
     if (call)
     {
-        if (call->getState() <= CallState::kStateInProgress)
+        if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
             call->disconnect(termCode);
         }
