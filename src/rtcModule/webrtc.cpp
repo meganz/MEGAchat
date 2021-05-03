@@ -1381,7 +1381,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
     Call* call = static_cast<Call*>(findCallByChatid(chatid));
     if (call)
     {
-        if (call->getState() <= CallState::kStateInProgress)
+        if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
             call->disconnect(termCode);
         }
