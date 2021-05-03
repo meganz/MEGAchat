@@ -67,6 +67,11 @@ bool CommandsQueue::isEmpty()
     return commands.empty();
 }
 
+void CommandsQueue::clear()
+{
+    commands.clear();
+}
+
 Peer::Peer()
     : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0)
 {
@@ -1342,6 +1347,13 @@ void SfuConnection::processNextCommand(bool resetSending)
         mSendPromise.reject("Socket is not ready");
         processNextCommand(true);
     }
+}
+
+void SfuConnection::clearCommandsQueue()
+{
+    checkThreadId(); // Check that commandsQueue is always accessed from a single thread
+    mCommandsQueue.clear();
+    mCommandsQueue.setSending(false);
 }
 
 void SfuConnection::checkThreadId()

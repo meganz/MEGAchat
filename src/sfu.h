@@ -31,6 +31,7 @@ public:
     void push(const std::string &);
     std::string pop();
     bool isEmpty();
+    void clear();
 };
 
 class Peer
@@ -377,6 +378,7 @@ public:
         bool handleIncomingData(const char* data, size_t len);
         void addNewCommand(const std::string &command);
         void processNextCommand(bool resetSending = false);
+        void clearCommandsQueue();
         void checkThreadId();
 
         promise::Promise<void> getPromiseConnection();

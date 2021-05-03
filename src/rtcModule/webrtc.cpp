@@ -479,6 +479,7 @@ void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
     {
         RTCM_LOG_DEBUG("trying to reconnect to SFU");
         mSfuConnection->retryPendingConnection(false); // if reconnection is in progress skip
+        mSfuConnection->clearCommandsQueue();
     }
     else
     {
