@@ -605,6 +605,10 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         mSfuClient.closeManagerProtocol(mChatid);
         mSfuConnection = nullptr;
     }
+
+    mRtcConn->Close();
+    mRtcConn = nullptr;
+    setState(CallState::kStateClientNoParticipating);
 }
 
 std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
