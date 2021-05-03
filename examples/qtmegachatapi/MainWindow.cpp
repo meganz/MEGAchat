@@ -228,7 +228,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
              }
              else if (QMessageBox::Cancel)
              {
-                 mMegaChatApi->hangChatCall(call->getChatid());
+                 mMegaChatApi->hangChatCall(call->getCallId());
              }
         }
     }

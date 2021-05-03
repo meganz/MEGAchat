@@ -5977,7 +5977,6 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , clientId(session.getClientid())
     , mAvFlags(session.getAvFlags())
     , mChanged(CHANGE_TYPE_NO_CHANGES)
-    , mAVFlags(session.getAvFlags())
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mAudioDetected(session.isAudioDetected())
     , mHasHiResTrack(session.hasHighResolutionTrack())
@@ -5991,7 +5990,6 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , clientId(session.getClientid())
     , mAvFlags(session.getAvFlags())
     , mChanged(session.getChanges())
-    , mAVFlags(session.mAVFlags)
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mAudioDetected(session.isAudioDetected())
     , mHasHiResTrack(session.mHasHiResTrack)
@@ -6045,7 +6043,7 @@ bool MegaChatSessionPrivate::isLowResVideo() const
 
 bool MegaChatSessionPrivate::isOnHold() const
 {
-    return mAVFlags.isOnHold();
+    return mAvFlags.isOnHold();
 }
 
 int MegaChatSessionPrivate::getChanges() const
@@ -6097,7 +6095,7 @@ void MegaChatSessionPrivate::setAudioDetected(bool audioDetected)
 
 void MegaChatSessionPrivate::setOnHold(bool onHold)
 {
-    mAVFlags.setOnHold(onHold);
+    mAvFlags.setOnHold(onHold);
     mChanged |= CHANGE_TYPE_SESSION_ON_HOLD;
 }
 

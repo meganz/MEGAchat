@@ -3808,7 +3808,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_setchatvideoindevice, sequence(text("setchatvideoindevice"), param("device")));
     p->Add(exec_startchatcall, sequence(text("startchatcall"), param("roomid"), opt(either(text("true"), text("false")))));
     p->Add(exec_answerchatcall, sequence(text("answerchatcall"), param("roomid"), opt(either(text("true"), text("false")))));
-    p->Add(exec_hangchatcall, sequence(text("hangchatcall"), param("roomid")));
+    p->Add(exec_hangchatcall, sequence(text("hangchatcall"), param("callid")));
     p->Add(exec_enableaudio, sequence(text("enableaudio"), param("roomid")));
     p->Add(exec_disableaudio, sequence(text("disableaudio"), param("roomid")));
     p->Add(exec_enablevideo, sequence(text("enablevideo"), param("roomid")));
