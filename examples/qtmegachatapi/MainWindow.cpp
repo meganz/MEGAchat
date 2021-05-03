@@ -1455,7 +1455,7 @@ void MainWindow::onConfirmAccountClicked()
     {
         mConfirmAccount = new ConfirmAccount();
         connect(mConfirmAccount, SIGNAL(onConfirmAccount(const std::string&, const std::string&)), this, SLOT(onAccountConfirmation(const std::string&, const std::string&)));
-        connect(mConfirmAccount, SIGNAL(onCancel()), this, SLOT(onCancel()));
+        connect(mConfirmAccount, SIGNAL(onCancel()), this, SLOT(onCancelAccountConfirmation()));
     }
 
     mConfirmAccount->show();
