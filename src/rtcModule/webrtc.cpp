@@ -1058,6 +1058,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             continue;
         }
 
+        if (slot->getCid() == cid && slot->getIv() == trackDescriptor.second.mIv)
+        {
+            RTCM_LOG_DEBUG("handleIncomingVideo: slot CID and IV has not changed, skipping track descriptor");
+            continue;
+        }
+
         slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
         attachSlotToSession(cid, slot, false, hiRes, trackDescriptor.second.mReuse);
     }
@@ -1108,6 +1114,11 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
     }
 
     Slot* slot = it->second.get();
+    if (slot->getCid() == cid && slot->getIv() == speaker.mIv)
+    {
+        RTCM_LOG_DEBUG("addSpeaker: slot CID and IV has not changed, skipping track descriptor");
+        return;
+    }
     slot->reassign(cid, speaker.mIv);
     attachSlotToSession(cid, slot, true, false, false);
 }
