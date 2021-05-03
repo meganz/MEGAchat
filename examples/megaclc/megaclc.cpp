@@ -4241,6 +4241,41 @@ void exec_setmybackupsfolder(ac::ACState& s)
         }));
 }
 
+void exec_logUserPathVariations(ac::ACState& s)
+{
+    struct Receiver
+      : public mega::MegaLogger
+    {
+#ifdef ENABLE_LOG_PERFORMANCE
+        void log(const char*, int, const char*, const char* message, const char**, size_t*, unsigned) override
+#else // ENABLE_LOG_PERFORMANCE
+        void log(const char*, int, const char*, const char* message) override
+#endif // ! ENABLE_LOG_PERFORMANCE
+        {
+            cout << "user-path-variation: " << message << endl;
+        }
+    }; // Receiver
+
+    static Receiver receiver;
+
+    // loguserpathvariations on|off
+    auto on = s.words[1].s == "on";
+
+    if (on)
+    {
+        g_megaApi->setUserPathVariationsReceiver(&receiver);
+    }
+    else
+    {
+        g_megaApi->setUserPathVariationsReceiver(nullptr);
+    }
+
+    cout << "Logging of user path variations is "
+         << (on ? "enabled" : "disabled")
+         << "."
+         << endl;
+}
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -4459,6 +4494,9 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_setmybackupsfolder, sequence(text("setmybackupsfolder"), param("remotefolder")));
     p->Add(exec_getmybackupsfolder, sequence(text("getmybackupsfolder")));
+
+    p->Add(exec_logUserPathVariations,
+           sequence(text("loguserpathvariations"), either(text("on"), text("off"))));
 
     return p;
 }
