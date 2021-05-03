@@ -2640,8 +2640,8 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::setFlag - Returns true if force disconnect
-     * - MegaChatRequest::setParamType - Returns one for refresh url
+     * - MegaChatRequest::getFlag - Returns true if force disconnect
+     * - MegaChatRequest::getParamType - Returns one for refresh url
      *
      * @param disconnect False to simply abort any backoff, true to disconnect and reconnect from scratch.
      * @param listener MegaChatRequestListener to track this request
