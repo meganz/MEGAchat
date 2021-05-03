@@ -169,7 +169,7 @@ class MainWindow :
         MegaChatApplication* getApp() const;
 
         void confirmAccount(const std::string& password);
-        void setEpheralAccount(bool ephemeralAccount);
+        void setEphemeralAccount(bool ephemeralAccount);
 
     protected:
         MegaLoggerApplication *mLogger;

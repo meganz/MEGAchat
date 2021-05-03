@@ -372,7 +372,7 @@ void MainWindow::confirmAccount(const std::string &password)
     }
 }
 
-void MainWindow::setEpheralAccount(bool ephemeralAccount)
+void MainWindow::setEphemeralAccount(bool ephemeralAccount)
 {
     mIsEphemeraAccount = ephemeralAccount;
 }

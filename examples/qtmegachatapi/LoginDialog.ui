@@ -178,7 +178,7 @@
      <item>
       <widget class="QPushButton" name="bEphimeralAccount">
        <property name="text">
-        <string>Ephimeral account ++</string>
+        <string>Ephemeral account ++</string>
        </property>
       </widget>
      </item>

@@ -84,7 +84,6 @@ void MegaChatApplication::init()
 
     mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
 
-
     mSid = readSid();
     if (!mSid)
     {
@@ -255,15 +254,15 @@ void MegaChatApplication::createEphemeralFile()
 
 bool MegaChatApplication::existsEphemeralFile()
 {
-    std::string ephemalFile = mAppDir + "/EphemeralSession";
-    ifstream f(ephemalFile.c_str());
+    std::string ephemeralFile = mAppDir + "/EphemeralSession";
+    ifstream f(ephemeralFile.c_str());
     return f.good();
 }
 
 void MegaChatApplication::removeEphemeralFile()
 {
-    std::string ephemalFile = mAppDir + "/EphemeralSession";
-    std::remove(ephemalFile.c_str());
+    std::string ephemeralFile = mAppDir + "/EphemeralSession";
+    std::remove(ephemeralFile.c_str());
 }
 
 
@@ -692,8 +691,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 }
 
                 api->fetchNodes();
-
-                mMainWin->setEpheralAccount(true);
+                mMainWin->setEphemeralAccount(true);
             }
             else if (error != MegaError::API_OK)
             {
