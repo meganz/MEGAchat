@@ -603,9 +603,15 @@ void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, const char *ti
     pImpl->createChat(group, peers, title, listener);
 }
 
+void MegaChatApi::createMeeting(const char *title, MegaChatRequestListener *listener)
+{
+    std::unique_ptr<MegaChatPeerList> peers = std::unique_ptr<MegaChatPeerList>(MegaChatPeerList::createInstance());
+    pImpl->createPublicChat(peers.get(), true, title, listener);
+}
+
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
-    pImpl->createPublicChat(peers, title, listener);
+    pImpl->createPublicChat(peers, false, title, listener);
 }
 
 void MegaChatApi::queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)

@@ -1,6 +1,7 @@
 #ifndef SFU_H
 #define SFU_H
 
+#include <thread>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
 #include <karereId.h>
@@ -13,6 +14,24 @@
 #define SFU_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 namespace sfu
 {
+// NOTE: This queue, must be always managed from a single thread.
+// The classes that instanciates it, are responsible to ensure that.
+// In case we need to access to it from another thread, we would need to implement
+// a synchronization mechanism (like a mutex).
+class CommandsQueue
+{
+protected:
+    std::deque<std::string> commands;
+    bool isSending = false;
+
+public:
+    CommandsQueue();
+    bool sending();
+    void setSending(bool sending);
+    void push(const std::string &);
+    std::string pop();
+    bool isEmpty();
+};
 
 class Peer
 {
@@ -356,6 +375,9 @@ public:
         void retryPendingConnection(bool disconnect);
         bool sendCommand(const std::string& command);
         bool handleIncomingData(const char* data, size_t len);
+        void addNewCommand(const std::string &command);
+        void processNextCommand(bool resetSending = false);
+        void checkThreadId();
 
         promise::Promise<void> getPromiseConnection();
         bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
@@ -411,6 +433,8 @@ public:
 
         std::map<std::string, std::unique_ptr<Command>> mCommands;
         SfuInterface& mCall;
+        CommandsQueue mCommandsQueue;
+        std::thread::id mMainThreadId; // thread id to ensure that CommandsQueue is accessed from a single thread
     };
 
     class SfuClient
