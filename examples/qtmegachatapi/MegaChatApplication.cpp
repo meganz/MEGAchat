@@ -350,7 +350,6 @@ void MegaChatApplication::enableStaging(bool enable)
     useStaging = enable;
     if (enable)
     {
-        //mMegaApi->changeApiUrl("https://api-sandbox3.developers.mega.co.nz/");
         mMegaApi->changeApiUrl("https://staging.api.mega.co.nz/");
     }
     else
