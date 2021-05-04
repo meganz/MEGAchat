@@ -329,7 +329,7 @@ public:
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
     artc::VideoManager* getVideoDevice();
-    void changeDevice(const std::string& device);
+    void changeDevice(const std::string& device, bool shouldOpen);
     void openDevice();
     void closeDevice();
 

@@ -1257,6 +1257,7 @@ ICall *RtcModuleSfu::findCallByChatid(karere::Id chatid)
 bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
 {
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    bool shouldOpen = false;
     for (auto it = videoDevices.begin(); it != videoDevices.end(); it++)
     {
         if (!it->first.compare(device))
@@ -1269,10 +1270,11 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
                     calls.push_back(callIt.second.get());
                     callIt.second->freeTracks();
                     callIt.second->releaseVideoDevice();
+                    shouldOpen = true;
                 }
             }
 
-            changeDevice(it->second);
+            changeDevice(it->second, shouldOpen);
 
             for (auto& call : calls)
             {
@@ -1450,9 +1452,8 @@ artc::VideoManager *RtcModuleSfu::getVideoDevice()
     return mVideoDevice;
 }
 
-void RtcModuleSfu::changeDevice(const std::string &device)
+void RtcModuleSfu::changeDevice(const std::string &device, bool shouldOpen)
 {
-    bool shouldOpen = false;
     if (mVideoDevice)
     {
         shouldOpen = true;
@@ -1490,8 +1491,12 @@ void RtcModuleSfu::openDevice()
 
 void RtcModuleSfu::closeDevice()
 {
-    mVideoDevice->RemoveSink(this);
-    mVideoDevice->releaseDevice();
+    if (mVideoDevice)
+    {
+        mVideoDevice->RemoveSink(this);
+        mVideoDevice->releaseDevice();
+        mVideoDevice = nullptr;
+    }
 }
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers)
