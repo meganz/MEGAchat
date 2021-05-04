@@ -103,18 +103,26 @@ void MeetingView::updateNumParticipants(unsigned participants)
 
 void MeetingView::addLowResByCid(MegaChatHandle chatid, uint32_t cid)
 {
-    PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false);
-    mThumbLayout->addWidget(peerWidget);
-    peerWidget->show();
-    mThumbsWidget[peerWidget->getCid()] = peerWidget;
+    auto it = mThumbsWidget.find(cid);
+    if (it == mThumbsWidget.end())
+    {
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false);
+        mThumbLayout->addWidget(peerWidget);
+        peerWidget->show();
+        mThumbsWidget[peerWidget->getCid()] = peerWidget;
+    }
 }
 
 void MeetingView::addHiResByCid(MegaChatHandle chatid, uint32_t cid)
 {
-    PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true);
-    mHiResLayout->addWidget(peerWidget);
-    peerWidget->show();
-    mHiResWidget[peerWidget->getCid()] = peerWidget;
+    auto it = mHiResWidget.find(cid);
+    if (it == mHiResWidget.end())
+    {
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true);
+        mHiResLayout->addWidget(peerWidget);
+        peerWidget->show();
+        mHiResWidget[peerWidget->getCid()] = peerWidget;
+    }
 }
 
 void MeetingView::removeLowResByCid(uint32_t cid)

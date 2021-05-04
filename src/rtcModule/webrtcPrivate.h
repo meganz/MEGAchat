@@ -121,6 +121,8 @@ public:
     void setAudioDetected(bool audioDetected) override;
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
+    void notifyHiResReceived() override;
+    void notifyLowResReceived() override;
 
 private:
     sfu::Peer mPeer;
@@ -177,8 +179,8 @@ public:
     void requestHighResolutionVideo(Cid_t cid) override;
     void requestHiResQuality(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(Cid_t cid) override;
-    void requestLowResolutionVideo(const std::vector<Cid_t> &cids) override;
-    void stopLowResolutionVideo(const std::vector<Cid_t> &cids) override;
+    void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
+    void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;

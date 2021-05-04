@@ -90,6 +90,8 @@ public:
     virtual void setAudioDetected(bool audioDetected) = 0;
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
+    virtual void notifyHiResReceived() = 0;
+    virtual void notifyLowResReceived() = 0;
 };
 
 class ICall;
@@ -141,8 +143,8 @@ public:
     virtual void requestHighResolutionVideo(Cid_t cid) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
     virtual void stopHighResolutionVideo(Cid_t cid) = 0;
-    virtual void requestLowResolutionVideo(const std::vector<Cid_t> &cids) = 0;
-    virtual void stopLowResolutionVideo(const std::vector<Cid_t> &cids) = 0;
+    virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
+    virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;

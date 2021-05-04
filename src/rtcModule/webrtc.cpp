@@ -404,7 +404,20 @@ std::vector<Cid_t> Call::getSpeakerRequested()
 
 void Call::requestHighResolutionVideo(Cid_t cid)
 {
-    mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false));
+    ISession *sess= getIsession(cid);
+    if (!sess)
+    {
+        return;
+    }
+
+    if (sess->hasHighResolutionTrack())
+    {
+        sess->notifyHiResReceived();
+    }
+    else
+    {
+        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false));
+    }
 }
 
 void Call::requestHiResQuality(Cid_t cid, int quality)
@@ -426,17 +439,64 @@ void Call::requestHiResQuality(Cid_t cid, int quality)
 
 void Call::stopHighResolutionVideo(Cid_t cid)
 {
-    mSfuConnection->sendDelHiRes(cid);
+    ISession *sess= getIsession(cid);
+    if (!sess)
+    {
+        return;
+    }
+
+    if (!sess->hasHighResolutionTrack())
+    {
+        sess->notifyHiResReceived();
+    }
+    else
+    {
+        mSfuConnection->sendDelHiRes(cid);
+    }
 }
 
-void Call::requestLowResolutionVideo(const std::vector<Cid_t> &cids)
+void Call::requestLowResolutionVideo(std::vector<Cid_t> &cids)
 {
-    mSfuConnection->sendGetVtumbs(cids);
+    for (auto it = cids.begin(); it != cids.end();)
+    {
+        auto auxit = it++;
+        ISession *sess= getIsession(*auxit);
+        if (!sess)
+        {
+            continue;
+        }
+        if (sess->hasLowResolutionTrack())
+        {
+            it = cids.erase(auxit);
+            sess->notifyLowResReceived();
+        }
+    }
+    if (!cids.empty())
+    {
+        mSfuConnection->sendGetVtumbs(cids);
+    }
 }
 
-void Call::stopLowResolutionVideo(const std::vector<Cid_t> &cids)
+void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
 {
-    mSfuConnection->sendDelVthumbs(cids);
+    for (auto it = cids.begin(); it != cids.end();)
+    {
+        auto auxit = it++;
+        ISession *sess= getIsession(*auxit);
+        if (!sess)
+        {
+            continue;
+        }
+        if (!sess->hasLowResolutionTrack())
+        {
+            it = cids.erase(auxit);
+            sess->notifyLowResReceived();
+        }
+    }
+    if (!cids.empty())
+    {
+        mSfuConnection->sendDelVthumbs(cids);
+    }
 }
 
 std::vector<karere::Id> Call::getParticipants() const
@@ -1830,6 +1890,16 @@ bool Session::hasHighResolutionTrack() const
 bool Session::hasLowResolutionTrack() const
 {
     return mVthumSlot && mVthumSlot->hasTrack(false);
+}
+
+void Session::notifyHiResReceived()
+{
+    mSessionHandler->onHiResReceived(*this);
+}
+
+void Session::notifyLowResReceived()
+{
+    mSessionHandler->onVThumbReceived(*this);
 }
 
 const sfu::Peer& Session::getPeer() const
