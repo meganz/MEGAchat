@@ -4244,7 +4244,7 @@ void exec_setmybackupsfolder(ac::ACState& s)
 void exec_logUserPathVariations(ac::ACState& s)
 {
     struct Receiver
-      : public mega::MegaLogger
+      : public m::MegaLogger
     {
 #ifdef ENABLE_LOG_PERFORMANCE
         void log(const char*, int, const char*, const char* message, const char**, size_t*, unsigned) override
