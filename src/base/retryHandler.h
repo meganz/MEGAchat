@@ -303,29 +303,6 @@ protected:
         mTimer = 0;
     }
 
-    template <class P>
-    void attachThenHandler(P& promise, unsigned attempt)
-    {
-        auto wptr = getDelTracker();
-        promise.then([wptr, this, attempt](const RetType& ret)
-        {
-            wptr.throwIfDeleted();
-            if (attempt != mCurrentAttemptId)
-            {
-                RETRY_LOG("A previous timed-out/aborted attempt returned success");
-                return ret;
-            }
-            RETRY_LOG("Input promise succeed. RetryController will be deleted now");
-            cancelTimer();
-            mState = kStateFinished;
-            mPromise.resolve(ret);
-            mPromise = promise::Promise<RetType>(); //we must release previous promise as it may hold references captured in its lambdas
-            if (mAutoDestruct)
-                delete this;
-            return ret;
-        });
-    }
-
     void attachThenHandler(promise::Promise<void>& promise, unsigned attempt)
     {
         auto track = getDelTracker();
@@ -334,7 +311,8 @@ protected:
             track.throwIfDeleted();
             if (attempt != mCurrentAttemptId)
             {
-                RETRY_LOG("A previous timed-out/aborted attempt returned success");
+                RETRY_LOG("A previous timed-out/aborted attempt returned success previous(%d) current(%d)", attempt, mCurrentAttemptId);
+                mPromise.reject("Retry controller previous attempt succeeded", promise::kErrAbort, promise::kErrorAlreadyExist);
                 return;
             }
             cancelTimer();
@@ -419,6 +397,7 @@ protected:
         }
         mCurrentAttemptNo++; //always increment, to mark the end of the previous attempt
         mCurrentAttemptId++;
+        RETRY_LOG("Incrementing mCurrentAttemptId(%d) at schedNextRetry", mCurrentAttemptId);
         if (mMaxAttemptCount && (mCurrentAttemptNo > mMaxAttemptCount)) //give up
         {
             RETRY_LOG("Maximum number of attempts (%u) has been reached. RetryController will give up now.");
