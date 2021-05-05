@@ -17,6 +17,7 @@ class MeetingSession : public QWidget
     Q_OBJECT
 public:
     explicit MeetingSession(MeetingView *parent, const megachat::MegaChatSession &session);
+    virtual ~MeetingSession();
     void setWidgetItem(QListWidgetItem *listWidgetItem);
     QListWidgetItem *getWidgetItem() const;
     void setOnHold(bool isOnhold);

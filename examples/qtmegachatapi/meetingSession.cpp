@@ -8,6 +8,11 @@ MeetingSession::MeetingSession(MeetingView *meetingView, const megachat::MegaCha
     show();
 }
 
+MeetingSession::~MeetingSession()
+{
+
+}
+
 void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
 {
     if (mLayout)
