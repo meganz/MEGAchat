@@ -616,8 +616,12 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         mSfuConnection = nullptr;
     }
 
-    mRtcConn->Close();
-    mRtcConn = nullptr;
+    if (mRtcConn)
+    {
+        mRtcConn->Close();
+        mRtcConn = nullptr;
+    }
+
     setState(CallState::kStateClientNoParticipating);
 }
 
