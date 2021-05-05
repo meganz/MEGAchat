@@ -1266,13 +1266,11 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             continue;
         }
 
-        if (slot->getCid() == cid && slot->getIv() == trackDescriptor.second.mIv)
+        if (slot->getCid() != cid || slot->getIv() != trackDescriptor.second.mIv)
         {
-            RTCM_LOG_DEBUG("handleIncomingVideo: slot CID and IV has not changed, skipping track descriptor");
-            continue;
+            slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
         }
 
-        slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
         attachSlotToSession(cid, slot, false, hiRes, trackDescriptor.second.mReuse);
     }
 }
