@@ -801,19 +801,61 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
+void Call::requestPeerTracks(std::set<Cid_t>& cids)
+{
+    std::vector<Cid_t> lowResCids;
+
+    // compare stored cids with received ones upon ANSWER command
+    std::map<Cid_t, karere::AvFlags> &availableTracks = mAvailableTracks.getTracks();
+    for (auto it = availableTracks.begin(); it != availableTracks.end();)
+    {
+        auto auxit = it++;
+        Cid_t auxCid = auxit->first;
+        if (cids.find(auxCid) == cids.end()) // peer(CID) doesn't exists anymore
+        {
+            mAvailableTracks.removeCid(auxCid);
+        }
+        else // peer(CID) exists
+        {
+            if (mAvailableTracks.hasHiresTrack(auxCid)) // request HIRES video for that peer
+            {
+                requestHighResolutionVideo(auxCid);
+            }
+            if (mAvailableTracks.hasLowresTrack(auxCid)) // add peer(CID) to lowResCids vector
+            {
+                lowResCids.emplace_back(auxCid);
+            }
+        }
+    }
+
+    // add new peers(CID) and request LowRes video by default
+    for (auto cid: cids)
+    {
+        if (!mAvailableTracks.hasCid(cid))
+        {
+            mAvailableTracks.addCid(cid);
+            lowResCids.emplace_back(cid);   // add peer(CID) to lowResCids vector
+        }
+    }
+
+    requestLowResolutionVideo(lowResCids);
+}
+
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
     // mod param will be ignored
     mMyPeer.init(cid, mSfuClient.myHandle(), 0);
 
+    std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers)
     {
+        cids.insert(peer.getCid());
         mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
         mCallHandler->onNewSession(*mSessions[peer.getCid()], *this);
     }
 
+    requestPeerTracks(cids);
     generateAndSendNewkey();
-
     std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
     webrtc::SessionDescriptionInterface *sdpInterface = webrtc::CreateSessionDescription("answer", sdpUncompress, &error);
