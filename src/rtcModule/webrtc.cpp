@@ -1285,8 +1285,10 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, b
         return;
     }
 
+    assert(mAvailableTracks.hasCid(cid));
     if (audio)
     {
+        mAvailableTracks.updateSpeakTrack(cid, true);
         session->setAudioSlot(slot);
     }
     else
@@ -1298,9 +1300,24 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, b
             return;
         }
 
-        hiRes
-            ? session->setHiResSlot(static_cast<RemoteVideoSlot *>(slot), reuse)
-            : session->setVThumSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
+        if (hiRes)
+        {
+            mAvailableTracks.updateHiresTrack(cid, true);
+            if (reuse)
+            {
+                mAvailableTracks.updateLowresTrack(cid, false);
+            }
+            session->setHiResSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
+        }
+        else
+        {
+            mAvailableTracks.updateLowresTrack(cid, true);
+            if (reuse)
+            {
+                mAvailableTracks.updateHiresTrack(cid, false);
+            }
+            session->setVThumSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
+        }
     }
 }
 
