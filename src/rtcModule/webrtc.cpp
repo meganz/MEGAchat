@@ -1265,12 +1265,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
             continue;
         }
-
-        if (slot->getCid() != cid || slot->getIv() != trackDescriptor.second.mIv)
-        {
-            slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
-        }
-
+        slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
         attachSlotToSession(cid, slot, false, hiRes, trackDescriptor.second.mReuse);
     }
 }
