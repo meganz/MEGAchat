@@ -478,6 +478,7 @@ protected:
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     virtual void wsHandleMsgCb(char *data, size_t len);
     virtual void wsSendMsgCb(const char *data, size_t len);
+    virtual void wsProcessNextMsgCb();
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();

@@ -1780,8 +1780,14 @@ void SfuConnection::wsHandleMsgCb(char *data, size_t len)
 
 void SfuConnection::wsSendMsgCb(const char *, size_t)
 {
-    assert(!mSendPromise.done());
-    mSendPromise.resolve();
+    if (!mSendPromise.done())
+    {
+        mSendPromise.resolve();
+    }
+}
+
+void SfuConnection::wsProcessNextMsgCb()
+{
     processNextCommand(true);
 }
 

@@ -452,6 +452,9 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 lws_write(wsi, (unsigned char *)data, len, writeProtocol);
                 client->wsSendMsgCb((const char *)data, len);
                 client->resetOutputBuffer();
+
+                // This cb will only be implemented in those clients that require messages to be sent individually
+                client->wsProcessNextMsgCb();
             }
             break;
         }

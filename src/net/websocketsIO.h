@@ -135,6 +135,7 @@ public:
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
     virtual void wsSendMsgCb(const char *data, size_t len) = 0;
+    virtual void wsProcessNextMsgCb() = 0;
 
     /* Public key pinning, by default this flag is enabled (true), it only should be disabled for testing purposes */
     static bool publicKeyPinning;
@@ -155,6 +156,7 @@ public:
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     void wsHandleMsgCb(char *data, size_t len);
     void wsSendMsgCb(const char *data, size_t len);
+    void wsProcessNextMsgCb();
     
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;
