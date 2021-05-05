@@ -1355,6 +1355,8 @@ void Call::removeSpeaker(Cid_t cid)
         return;
     }
 
+    assert(mAvailableTracks.hasCid(cid));
+    mAvailableTracks.updateSpeakTrack(cid, false);
     it->second->disableAudioSlot();
 }
 
