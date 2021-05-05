@@ -67,7 +67,6 @@ void cleanup()
     if (!gIsInitialized)
         return;
     gWebrtcContext = nullptr;
-    gIsInitialized = false;
     rtc::CleanupSSL();
     rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
     gIsInitialized = false;

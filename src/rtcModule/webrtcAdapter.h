@@ -242,7 +242,6 @@ public:
         config.servers = servers;
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
 
-        // I think it's not necessary
         webrtc::CryptoOptions cryptoOptions;
         cryptoOptions.sframe.require_frame_encryption = true;
         config.crypto_options = cryptoOptions;
