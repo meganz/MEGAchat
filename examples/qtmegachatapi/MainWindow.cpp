@@ -237,16 +237,10 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         window->mMeetingView->updateAudioButtonText(call);
         window->mMeetingView->updateVideoButtonText(call);
-        updateVideoParticipants(call->getChatid());
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION))
     {
-        if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
-        {
-            updateVideoParticipants(call->getChatid());
-        }
-
         if (window->mMeetingView)
         {
             window->mMeetingView->updateNumParticipants(call->getNumParticipants());
@@ -306,10 +300,6 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
 MegaChatApplication* MainWindow::getApp() const
 {
     return mApp;
-}
-
-void MainWindow::updateVideoParticipants(MegaChatHandle chatid)
-{
 }
 
 #endif
