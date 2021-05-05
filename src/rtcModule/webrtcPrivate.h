@@ -204,7 +204,6 @@ public:
     void takeVideoDevice();
     void releaseVideoDevice();
     bool hasVideoDevice();
-    void updateVideoDevice();
     void freeTracks();
     void updateVideoTracks();
 

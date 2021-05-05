@@ -1114,11 +1114,6 @@ bool Call::hasVideoDevice()
     return mVideoManager ? true : false;
 }
 
-void Call::updateVideoDevice()
-{
-    mVideoManager = mRtc.getVideoDevice();
-}
-
 void Call::freeTracks()
 {
     // disable hi-res track

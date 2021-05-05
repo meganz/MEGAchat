@@ -18,10 +18,7 @@
 namespace rtcModule
 {
 #ifdef KARERE_DISABLE_WEBRTC
-class
 
-{
-};
 #else
 
 enum TermCode: uint8_t
