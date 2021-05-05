@@ -92,6 +92,7 @@ public:
     virtual bool hasLowResolutionTrack() const = 0;
     virtual void notifyHiResReceived() = 0;
     virtual void notifyLowResReceived() = 0;
+    virtual void disableVideoSlot(bool hires) = 0;
 };
 
 class ICall;

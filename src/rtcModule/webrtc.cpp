@@ -542,6 +542,9 @@ void Call::stopHighResolutionVideo(Cid_t cid)
     }
     else
     {
+        assert(mAvailableTracks.hasCid(cid));
+        mAvailableTracks.updateHiresTrack(cid, false);
+        sess->disableVideoSlot(true);
         mSfuConnection->sendDelHiRes(cid);
     }
 }
@@ -586,6 +589,14 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
     if (!cids.empty())
     {
+        for (auto cid: cids)
+        {
+            ISession *sess= getIsession(cid);
+            assert(mAvailableTracks.hasCid(cid));
+            mAvailableTracks.updateLowresTrack(cid, false);
+            sess->disableVideoSlot(false);
+        }
+
         mSfuConnection->sendDelVthumbs(cids);
     }
 }
@@ -2141,6 +2152,27 @@ void Session::disableAudioSlot()
         slot->enableAudioMonitor(false); // disable audio monitor
         slot->enableTrack(false);
         setAudioSlot(nullptr);
+    }
+}
+
+void Session::disableVideoSlot(bool hires)
+{
+    if ((hires && !mHiresSlot) || (!hires && !mVthumSlot))
+    {
+        return;
+    }
+
+    if (hires)
+    {
+        mHiresSlot->enableTrack(false);
+        mHiresSlot = nullptr;
+        mSessionHandler->onHiResReceived(*this);
+    }
+    else
+    {
+        mVthumSlot->enableTrack(false);
+        mVthumSlot = nullptr;
+        mSessionHandler->onVThumbReceived(*this);
     }
 }
 

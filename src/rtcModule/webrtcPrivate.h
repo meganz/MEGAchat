@@ -123,6 +123,7 @@ public:
     bool hasLowResolutionTrack() const override;
     void notifyHiResReceived() override;
     void notifyLowResReceived() override;
+    void disableVideoSlot(bool hires) override;
 
 private:
     sfu::Peer mPeer;
