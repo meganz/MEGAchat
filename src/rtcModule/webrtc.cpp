@@ -8,6 +8,96 @@
 namespace rtcModule
 {
 
+bool Call::AvailableTracks::hasHiresTrack(Cid_t cid)
+{
+    return hasCid(cid) && getTracksByCid(cid).has(karere::AvFlags::kHiResVideo);
+}
+
+bool Call::AvailableTracks::hasLowresTrack(Cid_t cid)
+{
+    return hasCid(cid) && getTracksByCid(cid).has(karere::AvFlags::kLowResVideo);
+}
+
+bool Call::AvailableTracks::hasVoiceTrack(Cid_t cid)
+{
+    return hasCid(cid) && getTracksByCid(cid).has(karere::AvFlags::kAudio);
+}
+
+void Call::AvailableTracks::updateHiresTrack(Cid_t cid, bool add)
+{
+    if (!hasCid(cid))
+    {
+        return;
+    }
+
+    karere::AvFlags& flags = getTracksByCid(cid);
+    add
+        ? flags.add(karere::AvFlags::kHiResVideo)
+        : flags.remove(karere::AvFlags::kHiResVideo);
+}
+
+void Call::AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
+{
+    if (!hasCid(cid))
+    {
+        return;
+    }
+
+    karere::AvFlags& flags = getTracksByCid(cid);
+    add
+        ? flags.add(karere::AvFlags::kLowResVideo)
+        : flags.remove(karere::AvFlags::kLowResVideo);
+}
+
+void Call::AvailableTracks::updateSpeakTrack(Cid_t cid, bool add)
+{
+    if (!hasCid(cid))
+    {
+        return;
+    }
+
+    karere::AvFlags& flags = getTracksByCid(cid);
+    add
+        ? flags.add(karere::AvFlags::kAudio)
+        : flags.remove(karere::AvFlags::kAudio);
+}
+
+karere::AvFlags& Call::AvailableTracks::getTracksByCid(Cid_t cid)
+{
+    if (hasCid(cid))
+    {
+        return mTracks[cid];
+    }
+}
+
+karere::AvFlags& Call::AvailableTracks::addCid(Cid_t cid)
+{
+    if (!hasCid(cid))
+    {
+        mTracks[cid] = 0;
+    }
+}
+
+karere::AvFlags& Call::AvailableTracks::removeCid(Cid_t cid)
+{
+    mTracks.erase(cid);
+}
+
+bool Call::AvailableTracks::hasCid(Cid_t cid)
+{
+    return (mTracks.find(cid) != mTracks.end());
+}
+
+void Call::AvailableTracks::clear()
+{
+    mTracks.clear();
+}
+
+std::map<Cid_t, karere::AvFlags>& Call::AvailableTracks::getTracks()
+{
+    return mTracks;
+}
+
 Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
@@ -26,6 +116,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mGlobalCallHandler.onNewCall(*this);
     mSessions.clear();
+    mAvailableTracks.clear();
 }
 
 Call::~Call()
@@ -664,6 +755,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
     }
 
     mSessions.clear();
+    mAvailableTracks.clear();
     mVThumb.reset(nullptr);
     mHiRes.reset(nullptr);
     mAudio.reset(nullptr);

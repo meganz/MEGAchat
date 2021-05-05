@@ -145,6 +145,23 @@ public:
         kActive = 2,
     };
 
+    typedef struct AvailableTracks
+    {
+        bool hasHiresTrack(Cid_t cid);
+        bool hasLowresTrack(Cid_t cid);
+        bool hasVoiceTrack(Cid_t cid);
+        void updateHiresTrack(Cid_t cid, bool add);
+        void updateLowresTrack(Cid_t cid, bool add);
+        void updateSpeakTrack(Cid_t cid, bool add);
+        karere::AvFlags& getTracksByCid(Cid_t cid);
+        karere::AvFlags& addCid(Cid_t cid);
+        karere::AvFlags& removeCid(Cid_t cid);
+        bool hasCid(Cid_t cid);
+        void clear();
+        std::map<Cid_t, karere::AvFlags>& getTracks();
+        std::map<Cid_t, karere::AvFlags> mTracks;
+    } AvailableTracks_t;
+
     Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
     virtual ~Call();
     karere::Id getCallid() const override;
@@ -282,6 +299,7 @@ protected:
     bool mHiResActive = false;
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
+    AvailableTracks_t mAvailableTracks;
 
     std::unique_ptr<CallHandler> mCallHandler;
 
