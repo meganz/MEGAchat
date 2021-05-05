@@ -191,7 +191,6 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setAudioDetected(bool audioDetected) override;
-    void updateVideoInDevice() override;
     void setState(CallState newState);
     void connectSfu(const std::string& sfuUrl, bool reconnect = false);
     void createTranceiver();

@@ -158,7 +158,6 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual void setAudioDetected(bool audioDetected) = 0;
-    virtual void updateVideoInDevice() = 0;
 };
 
 class RtcModule

@@ -308,12 +308,6 @@ karere::AvFlags Call::getLocalAvFlags() const
     return mLocalAvFlags;
 }
 
-void Call::updateVideoInDevice()
-{
-    // todo implement
-    RTCM_LOG_DEBUG("updateVideoInDevice");
-}
-
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 {
     if (flags == mLocalAvFlags)
