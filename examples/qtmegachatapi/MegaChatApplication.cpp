@@ -1117,6 +1117,20 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
         }
         break;
     }
+    case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
+    {
+        ChatListItemController *itemController = mMainWin->getChatControllerById(request->getChatHandle());
+        if (itemController)
+        {
+            ChatWindow *window = itemController->showChatWindow();
+            if (window)
+            {
+                window->getMeetingView()->updateAudioMonitor(mMegaChatApi->isAudioLevelMonitorEnabled(request->getChatHandle()));
+            }
+        }
+
+        break;
+    }
     default:
         break;
     }

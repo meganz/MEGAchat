@@ -164,7 +164,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL))
     {
-        window->mMeetingView->updateAudioMonitor(mMegaChatApi->isAudioLevelMonitorEnabled(call->getChatid()));
+        // TODO add notification that audio is detecete for us
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
