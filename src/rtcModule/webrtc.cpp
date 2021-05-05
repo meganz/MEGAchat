@@ -1264,18 +1264,20 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         auto it = mReceiverTracks.find(trackDescriptor.second.mMid);
         if (it == mReceiverTracks.end())
         {
-            RTCM_LOG_ERROR("Unknown vtrack mid %d", trackDescriptor.second.mMid);
+            RTCM_LOG_WARNING("Unknown vtrack mid %d", trackDescriptor.second.mMid);
             return;
         }
 
-        rtc::VideoSinkWants opts;
-        RemoteVideoSlot* slot = static_cast<RemoteVideoSlot*>(it->second.get());
         Cid_t cid = trackDescriptor.first;
         if (!getIsession(cid))
         {
             RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
             continue;
         }
+
+        RemoteVideoSlot *slot = static_cast<RemoteVideoSlot*>(it->second.get());
+        // if CID has changed, session with old CID should not exists
+        assert((slot->getCid() == cid) || !getSession(slot->getCid()));
         slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
         attachSlotToSession(cid, slot, false, hiRes, trackDescriptor.second.mReuse);
     }
@@ -1329,25 +1331,22 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, b
 
 void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
 {
-    if (mSessions.find(cid) == mSessions.end())
-    {
-        RTCM_LOG_ERROR("AddSpeaker: unknown cid");
-        return;
-    }
-
     auto it = mReceiverTracks.find(speaker.mMid);
     if (it == mReceiverTracks.end())
     {
-        RTCM_LOG_ERROR("AddSpeaker: unknown mid");
+        RTCM_LOG_WARNING("AddSpeaker: unknown track mid %d", speaker.mMid);
         return;
     }
 
-    Slot* slot = it->second.get();
-    if (slot->getCid() == cid && slot->getIv() == speaker.mIv)
+    if (!getIsession(cid))
     {
-        RTCM_LOG_DEBUG("addSpeaker: slot CID and IV has not changed, skipping track descriptor");
+        RTCM_LOG_WARNING("AddSpeaker: unknown cid");
         return;
     }
+
+    Slot *slot = it->second.get();
+    // if CID has changed, session with old CID should not exists
+    assert((slot->getCid() == cid) || !getSession(slot->getCid()));
     slot->reassign(cid, speaker.mIv);
     attachSlotToSession(cid, slot, true, false, false);
 }
