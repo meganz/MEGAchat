@@ -30,7 +30,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
 
 Call::~Call()
 {
-    mState = kStateDestroyed;
+    setState(CallState::kStateDestroyed);
     if (mTermCode == kInvalidTermCode)
     {
         mTermCode = kUnKnownTermCode;
@@ -687,7 +687,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         }
 
         setState(CallState::kStateInProgress);
-        mInitialTs -= (ts / 1000); // subtract ts received in ANSWER command, from ts captured upon setState kStateInProgress
+        mInitialTs -= ts; // subtract ts received in ANSWER command, from ts captured upon setState kStateInProgress
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
