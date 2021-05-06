@@ -327,7 +327,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    // call start ts
+    // call start ts (ms)
     uint64_t ts = tsIterator->value.GetUint64();
 
     std::vector<Peer> peers;
