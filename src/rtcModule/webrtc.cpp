@@ -1201,7 +1201,7 @@ void Call::updateAudioTracks()
     }
 }
 
-RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler, IRtcCrypto *crypto, const char *iceServers)
+RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler)
     : mCallHandler(callhandler)
     , mMegaApi(megaApi)
 {
@@ -1492,9 +1492,9 @@ void RtcModuleSfu::closeDevice()
     }
 }
 
-RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers)
+RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler)
 {
-    return new RtcModuleSfu(megaApi, callhandler, crypto, iceServers);
+    return new RtcModuleSfu(megaApi, callhandler);
 }
 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)

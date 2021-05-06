@@ -202,7 +202,7 @@ public:
     virtual void onEndCall(ICall& call) = 0;
 };
 
-RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler, IRtcCrypto* crypto, const char* iceServers);
+RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler);
 
 enum RtcConstant {
    kMaxCallReceivers = 20,

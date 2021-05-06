@@ -300,7 +300,7 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers);
+    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;
