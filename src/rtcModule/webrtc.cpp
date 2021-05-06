@@ -495,7 +495,7 @@ std::vector<Cid_t> Call::getSpeakerRequested()
 
 void Call::requestHighResolutionVideo(Cid_t cid)
 {
-    ISession *sess= getIsession(cid);
+    Session *sess= getSession(cid);
     if (!sess)
     {
         return;
@@ -530,7 +530,7 @@ void Call::requestHiResQuality(Cid_t cid, int quality)
 
 void Call::stopHighResolutionVideo(Cid_t cid)
 {
-    ISession *sess= getIsession(cid);
+    Session *sess= getSession(cid);
     if (!sess)
     {
         return;
@@ -554,7 +554,7 @@ void Call::requestLowResolutionVideo(std::vector<Cid_t> &cids)
     for (auto it = cids.begin(); it != cids.end();)
     {
         auto auxit = it++;
-        ISession *sess= getIsession(*auxit);
+        Session *sess= getSession(*auxit);
         if (!sess)
         {
             continue;
@@ -576,7 +576,7 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     for (auto it = cids.begin(); it != cids.end();)
     {
         auto auxit = it++;
-        ISession *sess= getIsession(*auxit);
+        Session *sess= getSession(*auxit);
         if (!sess)
         {
             continue;
@@ -591,7 +591,7 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     {
         for (auto cid: cids)
         {
-            ISession *sess= getIsession(cid);
+            Session *sess= getSession(cid);
             assert(mAvailableTracks.hasCid(cid));
             mAvailableTracks.updateLowresTrack(cid, false);
             sess->disableVideoSlot(false);
@@ -1269,7 +1269,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         Cid_t cid = trackDescriptor.first;
-        if (!getIsession(cid))
+        if (!getSession(cid))
         {
             RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
             continue;
@@ -1338,7 +1338,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
-    if (!getIsession(cid))
+    if (!getSession(cid))
     {
         RTCM_LOG_WARNING("AddSpeaker: unknown cid");
         return;
@@ -2266,7 +2266,7 @@ bool AudioLevelMonitor::hasAudio()
     }
     else
     {
-        ISession *sess = mCall.getIsession(mCid);
+        Session *sess = mCall.getSession(mCid);
         if (sess)
         {
             return sess->getAvFlags().audio();
@@ -2284,8 +2284,8 @@ void AudioLevelMonitor::onAudioDetected(bool audioDetected)
     }
     else // remote
     {
-        assert(mCall.getIsession(mCid));
-        ISession *sess = mCall.getIsession(mCid);
+        assert(mCall.getSession(mCid));
+        Session *sess = mCall.getSession(mCid);
         sess->setAudioDetected(mAudioDetected);
     }
 }
