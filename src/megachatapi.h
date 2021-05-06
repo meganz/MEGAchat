@@ -3823,7 +3823,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
-     * - MegaChatRequest::getFlag - Returns flase (checkChatLink)
+     * - MegaChatRequest::getFlag - Returns false (checkChatLink)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
