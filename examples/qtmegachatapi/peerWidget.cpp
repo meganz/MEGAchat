@@ -132,6 +132,10 @@ void PeerWidget::showMenu(const QPoint &pos)
         QAction action1("Stop HiRes", this);
         connect(&action1, SIGNAL(triggered()), this, SLOT(onHiResStop()));
         contextMenu.addAction(&action1);
+
+        QAction action2("Request LowRes", this);
+        connect(&action2, SIGNAL(triggered()), this, SLOT(onLowResRequest()));
+        contextMenu.addAction(&action2);
         contextMenu.exec(mapToGlobal(pos));
     }
     else // low-res video
@@ -140,6 +144,10 @@ void PeerWidget::showMenu(const QPoint &pos)
         QAction action1("Request HiRes", this);
         connect(&action1, SIGNAL(triggered()), this, SLOT(onHiResRequest()));
         contextMenu.addAction(&action1);
+
+        QAction action2("Stop LowRes", this);
+        connect(&action2, SIGNAL(triggered()), this, SLOT(onLowResStop()));
+        contextMenu.addAction(&action2);
         contextMenu.exec(mapToGlobal(pos));
     }
 }
@@ -152,6 +160,20 @@ void PeerWidget::onHiResStop()
 void PeerWidget::onHiResRequest()
 {
     mMegaChatApi.requestHiResVideo(mChatid, mCid);
+}
+
+void PeerWidget::onLowResStop()
+{
+    std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+    handleList->addMegaHandle(mCid);
+    mMegaChatApi.stopLowResVideo(mChatid, handleList.get());
+}
+
+void PeerWidget::onLowResRequest()
+{
+    std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+    handleList->addMegaHandle(mCid);
+    mMegaChatApi.requestLowResVideo(mChatid, handleList.get());
 }
 
 void PeerWidget::drawPeerAvatar(QImage &image)
