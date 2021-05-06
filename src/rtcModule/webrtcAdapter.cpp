@@ -19,6 +19,8 @@ extern jmethodID deviceListMID;
 extern jobject surfaceTextureHelper;
 #endif
 
+using namespace CryptoPP;
+
 namespace artc
 {
 
