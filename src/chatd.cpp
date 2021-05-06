@@ -2059,6 +2059,10 @@ void Connection::wsSendMsgCb(const char *, size_t)
     mSendPromise.resolve();
 }
 
+void Connection::wsProcessNextMsgCb()
+{
+}
+
 // inbound command processing
 // multiple commands can appear as one WebSocket frame, but commands never cross frame boundaries
 // CHECK: is this assumption correct on all browsers and under all circumstances?

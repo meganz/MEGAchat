@@ -1047,8 +1047,14 @@ void ChatWindow::onAudioCallBtn(bool)
 
 void ChatWindow::createCallGui(MegaChatHandle peerid, MegaChatHandle clientid, bool onHold, unsigned numParticipants)
 {
-    assert(!mMeetingView);
-    //auto layout = qobject_cast <QGridLayout*> (ui->mCentralWidget->layout());
+    if (mMeetingView)
+    {
+        std::string msg = "createCallGui: unknown peer cid ";
+        msg.append(std::to_string(clientid));
+        mLogger->postLog(msg.c_str());
+        return;
+    }
+
     mMeetingView = new MeetingView(*mMegaChatApi, mChatRoom->getChatId(), this, numParticipants);
     mMeetingView->setVisible(true);
     ui->mCentralWidget->layout()->addWidget(mMeetingView);

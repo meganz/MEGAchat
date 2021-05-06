@@ -48,6 +48,8 @@ public:
     void createDecryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
+    void reassign(Cid_t cid, IvStatic_t iv);
+    bool hasTrack(bool send);
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
     void enableTrack(bool enable);
@@ -80,6 +82,7 @@ public:
     RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     ~RemoteVideoSlot();
     void addSinkToTrack();
+    void reassignVideoSlot(Cid_t cid, IvStatic_t iv);
 
 private:
     bool mSinkAdded = false;
@@ -92,8 +95,8 @@ public:
     ~Session();
 
     const sfu::Peer &getPeer() const;
-    void setVThumSlot(RemoteVideoSlot* slot);
-    void setHiResSlot(RemoteVideoSlot* slot);
+    void setVThumSlot(RemoteVideoSlot* slot, bool reuse = false);
+    void setHiResSlot(RemoteVideoSlot* slot, bool reuse = false);
     void setAudioSlot(Slot* slot);
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
@@ -118,6 +121,9 @@ public:
     void setAudioDetected(bool audioDetected) override;
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
+    void notifyHiResReceived() override;
+    void notifyLowResReceived() override;
+    void disableVideoSlot(bool hires) override;
 
 private:
     sfu::Peer mPeer;
@@ -139,6 +145,23 @@ public:
         kPending = 1,
         kActive = 2,
     };
+
+    typedef struct AvailableTracks
+    {
+        bool hasHiresTrack(Cid_t cid);
+        bool hasLowresTrack(Cid_t cid);
+        bool hasVoiceTrack(Cid_t cid);
+        void updateHiresTrack(Cid_t cid, bool add);
+        void updateLowresTrack(Cid_t cid, bool add);
+        void updateSpeakTrack(Cid_t cid, bool add);
+        karere::AvFlags& getTracksByCid(Cid_t cid);
+        karere::AvFlags& addCid(Cid_t cid);
+        karere::AvFlags& removeCid(Cid_t cid);
+        bool hasCid(Cid_t cid);
+        void clear();
+        std::map<Cid_t, karere::AvFlags>& getTracks();
+        std::map<Cid_t, karere::AvFlags> mTracks;
+    } AvailableTracks_t;
 
     Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
     virtual ~Call();
@@ -175,12 +198,13 @@ public:
     void requestHighResolutionVideo(Cid_t cid) override;
     void requestHiResQuality(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(Cid_t cid) override;
-    void requestLowResolutionVideo(const std::vector<Cid_t> &cids) override;
-    void stopLowResolutionVideo(const std::vector<Cid_t> &cids) override;
+    void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
+    void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
-    ISession* getSession(Cid_t cid) const override;
+    ISession* getIsession(Cid_t cid) const override;
+    Session* getSession(Cid_t cid);
     bool isOutgoing() const override;
     virtual int64_t getInitialTimeStamp() const override;
     virtual int64_t getFinalTimeStamp() const override;
@@ -206,6 +230,7 @@ public:
     bool hasVideoDevice();
     void freeTracks();
     void updateVideoTracks();
+    void requestPeerTracks(std::set<Cid_t>& cids);
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -276,6 +301,7 @@ protected:
     bool mHiResActive = false;
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
+    AvailableTracks_t mAvailableTracks;
 
     std::unique_ptr<CallHandler> mCallHandler;
 
@@ -294,6 +320,7 @@ protected:
     void removeSpeaker(Cid_t cid);
     const std::string &getCallKey() const;
     void updateAudioTracks();
+    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, bool hiRes, bool reuse);
 
 };
 

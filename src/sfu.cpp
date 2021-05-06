@@ -67,6 +67,11 @@ bool CommandsQueue::isEmpty()
     return commands.empty();
 }
 
+void CommandsQueue::clear()
+{
+    commands.clear();
+}
+
 Peer::Peer()
     : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0)
 {
@@ -1344,6 +1349,13 @@ void SfuConnection::processNextCommand(bool resetSending)
     }
 }
 
+void SfuConnection::clearCommandsQueue()
+{
+    checkThreadId(); // Check that commandsQueue is always accessed from a single thread
+    mCommandsQueue.clear();
+    mCommandsQueue.setSending(false);
+}
+
 void SfuConnection::checkThreadId()
 {
     if (mMainThreadId != std::this_thread::get_id())
@@ -1768,8 +1780,14 @@ void SfuConnection::wsHandleMsgCb(char *data, size_t len)
 
 void SfuConnection::wsSendMsgCb(const char *, size_t)
 {
-    assert(!mSendPromise.done());
-    mSendPromise.resolve();
+    if (!mSendPromise.done())
+    {
+        mSendPromise.resolve();
+    }
+}
+
+void SfuConnection::wsProcessNextMsgCb()
+{
     processNextCommand(true);
 }
 

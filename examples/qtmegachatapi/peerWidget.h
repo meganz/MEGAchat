@@ -40,6 +40,8 @@ protected:
 protected slots:
     void onHiResStop();
     void onHiResRequest();
+    void onLowResStop();
+    void onLowResRequest();
 };
 
 #endif // PEERWIDGET_H

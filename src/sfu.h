@@ -31,6 +31,7 @@ public:
     void push(const std::string &);
     std::string pop();
     bool isEmpty();
+    void clear();
 };
 
 class Peer
@@ -377,6 +378,7 @@ public:
         bool handleIncomingData(const char* data, size_t len);
         void addNewCommand(const std::string &command);
         void processNextCommand(bool resetSending = false);
+        void clearCommandsQueue();
         void checkThreadId();
 
         promise::Promise<void> getPromiseConnection();
@@ -425,6 +427,7 @@ public:
         void wsCloseCb(int errcode, int errtype, const char *preason, size_t preason_len) override;
         void wsHandleMsgCb(char *data, size_t len) override;
         void wsSendMsgCb(const char *, size_t) override;
+        void wsProcessNextMsgCb() override;
         promise::Promise<void> mSendPromise;
 
         void onSocketClose(int errcode, int errtype, const std::string& reason);

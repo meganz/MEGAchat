@@ -62,6 +62,11 @@ void WebsocketsClientImpl::wsSendMsgCb(const char *data, size_t len)
     client->wsSendMsgCb(data, len);
 }
 
+void WebsocketsClientImpl::wsProcessNextMsgCb()
+{
+    client->wsProcessNextMsgCb();
+}
+
 WebsocketsClient::WebsocketsClient(bool writeBinary)
     : mWriteBinary(writeBinary)
 {

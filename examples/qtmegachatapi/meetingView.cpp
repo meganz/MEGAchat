@@ -103,18 +103,26 @@ void MeetingView::updateNumParticipants(unsigned participants)
 
 void MeetingView::addLowResByCid(MegaChatHandle chatid, uint32_t cid)
 {
-    PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false);
-    mThumbLayout->addWidget(peerWidget);
-    peerWidget->show();
-    mThumbsWidget[peerWidget->getCid()] = peerWidget;
+    auto it = mThumbsWidget.find(cid);
+    if (it == mThumbsWidget.end())
+    {
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false);
+        mThumbLayout->addWidget(peerWidget);
+        peerWidget->show();
+        mThumbsWidget[peerWidget->getCid()] = peerWidget;
+    }
 }
 
 void MeetingView::addHiResByCid(MegaChatHandle chatid, uint32_t cid)
 {
-    PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true);
-    mHiResLayout->addWidget(peerWidget);
-    peerWidget->show();
-    mHiResWidget[peerWidget->getCid()] = peerWidget;
+    auto it = mHiResWidget.find(cid);
+    if (it == mHiResWidget.end())
+    {
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true);
+        mHiResLayout->addWidget(peerWidget);
+        peerWidget->show();
+        mHiResWidget[peerWidget->getCid()] = peerWidget;
+    }
 }
 
 void MeetingView::removeLowResByCid(uint32_t cid)
@@ -303,10 +311,14 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string requestDelSpeaker("Remove speaker");
     std::string requestThumb("Request vThumb");
     std::string requestHiRes("Request hiRes");
+    std::string stopThumb("Stop vThumb");
+    std::string stopHiRes("Stop hiRes");
     std::string approveSpeak("Approve Speak");
     std::string rejectSpeak("Reject Speak");
     submenu.addAction(requestThumb.c_str());
     submenu.addAction(requestHiRes.c_str());
+    submenu.addAction(stopThumb.c_str());
+    submenu.addAction(stopHiRes.c_str());
 
     std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
     std::unique_ptr<MegaChatRoom> chatRoom = std::unique_ptr<MegaChatRoom>(mMegaChatApi. getChatRoom(mChatid));
@@ -346,6 +358,16 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         else if (rightClickItem->text().contains(requestDelSpeaker.c_str()))
         {
             onRemoveSpeaker(cid);
+        }
+        else if (rightClickItem->text().contains(stopThumb.c_str()))
+        {
+            std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+            handleList->addMegaHandle(cid);
+            mMegaChatApi.stopLowResVideo(mChatid, handleList.get());
+        }
+        else if (rightClickItem->text().contains(stopHiRes.c_str()))
+        {
+            mMegaChatApi.stopHiResVideo(mChatid, cid);
         }
     }
 }

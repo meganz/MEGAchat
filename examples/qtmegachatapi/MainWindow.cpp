@@ -272,14 +272,21 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         window->mMeetingView->setOnHold(session->isOnHold(), session->getClientid());
     }
 
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES) && window->mMeetingView)
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES)
+            && window->mMeetingView)
     {
-        window->mMeetingView->addHiResByCid(chatid, static_cast<uint32_t>(session->getClientid()));
+        session->canRecvVideoHiRes()
+            ? window->mMeetingView->addHiResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
+            : window->mMeetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
     }
 
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES) && window->mMeetingView)
+
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES)
+            && window->mMeetingView)
     {
-        window->mMeetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()));
+        session->canRecvVideoLowRes()
+            ? window->mMeetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
+            : window->mMeetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
