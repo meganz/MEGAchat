@@ -17,7 +17,6 @@
 #include <string.h>
 #ifndef KARERE_DISABLE_WEBRTC
     #include "rtcCrypto.h"
-    #include "dummyCrypto.h" //for makeRandomString
 #endif
 #include "base/services.h"
 #include "sdkApi.h"
@@ -1576,7 +1575,7 @@ promise::Promise<void> Client::doConnect()
 
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
     rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this), myHandle());
 #endif
 

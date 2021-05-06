@@ -350,7 +350,6 @@ void MegaChatApplication::enableStaging(bool enable)
     useStaging = enable;
     if (enable)
     {
-        //mMegaApi->changeApiUrl("https://api-sandbox3.developers.mega.co.nz/");
         mMegaApi->changeApiUrl("https://staging.api.mega.co.nz/");
     }
     else
@@ -635,7 +634,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         break;
         case MegaRequest::TYPE_SET_ATTR_USER:
         {
-        }            
+        }
         break;
 
         default:
@@ -1116,6 +1115,20 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 window->getMeetingView()->onRequestSpeakFinish();
             }
         }
+        break;
+    }
+    case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
+    {
+        ChatListItemController *itemController = mMainWin->getChatControllerById(request->getChatHandle());
+        if (itemController)
+        {
+            ChatWindow *window = itemController->showChatWindow();
+            if (window)
+            {
+                window->getMeetingView()->updateAudioMonitor(mMegaChatApi->isAudioLevelMonitorEnabled(request->getChatHandle()));
+            }
+        }
+
         break;
     }
     default:

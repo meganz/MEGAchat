@@ -1143,13 +1143,7 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::onCallBtn(bool video)
 {
-//   createCallGui(video, mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()));
-//   MegaChatCall *auxCall = mMegaChatApi->getChatCall(mChatRoom->getChatId());
-//   if (auxCall == NULL || (auxCall && auxCall->getStatus() == megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT))
-//   {
-       mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
-//       delete auxCall;
-//   }
+    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
 }
 
 void ChatWindow::hangCall()

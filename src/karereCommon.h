@@ -56,14 +56,6 @@ typedef uint32_t Ctr_t;         // packet Ctr (4 bytes)
 #define KARERE_RECONNECT_ATTEMPT_TIMEOUT 1000   // starts with 1s (+2s bias), but increments exponentially: 3, 4, 6, 10...
 #define KARERE_RECONNECT_MAX_ATTEMPT_TIMEOUT 10000
 
-#define KARERE_DEFAULT_TURN_SERVERS \
-   "[{\"host\":\"turn:trn270n001.karere.mega.nz:3478?transport=udp\"}," \
-    "{\"host\":\"turn:trn302n001.karere.mega.nz:3478?transport=udp\"}," \
-    "{\"host\":\"turn:trn530n001.karere.mega.nz:3478?transport=udp\"}]"
-
-#define KARERE_TURN_USERNAME "inoo20jdnH"
-#define KARERE_TURN_PASSWORD "02nNKDBkkS"
-
 #if defined(__ANDROID__) && !defined(HAVE_STD_TO_STRING)
 //Android is missing std::to_string
 #define HAVE_STD_TO_STRING 1

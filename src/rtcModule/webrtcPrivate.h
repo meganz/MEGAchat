@@ -191,7 +191,6 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setAudioDetected(bool audioDetected) override;
-    void updateVideoInDevice() override;
     void setState(CallState newState);
     void connectSfu(const std::string& sfuUrl, bool reconnect = false);
     void createTranceiver();
@@ -205,7 +204,6 @@ public:
     void takeVideoDevice();
     void releaseVideoDevice();
     bool hasVideoDevice();
-    void updateVideoDevice();
     void freeTracks();
     void updateVideoTracks();
 
@@ -302,7 +300,7 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers);
+    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;
@@ -329,7 +327,7 @@ public:
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
     artc::VideoManager* getVideoDevice();
-    void changeDevice(const std::string& device);
+    void changeDevice(const std::string& device, bool shouldOpen);
     void openDevice();
     void closeDevice();
 

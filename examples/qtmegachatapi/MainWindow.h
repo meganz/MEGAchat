@@ -193,8 +193,6 @@ class MainWindow :
 
         SettingWindow *mSettings = NULL;
 
-        void updateVideoParticipants(megachat::MegaChatHandle chatid);
-
     private slots:
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();

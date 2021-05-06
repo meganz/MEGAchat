@@ -94,7 +94,6 @@ HEADERS  += asyncTest-framework.h \
             autoHandle.h \
             chatCommon.h  \
             chatdMsg.h \
-            dummyCrypto.h  \
             megachatapi.h  \
             rtcCrypto.h \
             stringUtils.h \

@@ -880,7 +880,7 @@ void MegaChatApiImpl::sendPendingRequests()
                        request->setMegaHandleList(result->getMegaHandleList());
                    }
 
-                   request->setFlag(result->getFlag());
+                   request->setParamType(result->getFlag());
 
                    //Check chat link
                    if (!createChat)

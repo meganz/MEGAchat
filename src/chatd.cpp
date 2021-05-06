@@ -685,11 +685,6 @@ void Connection::sendEcho()
     sendBuf(Command(OP_ECHO));
 }
 
-void Connection::sendCallReqDeclineNoSupport(Id chatid, Id callid)
-{
-
-}
-
 void Connection::resetConnSuceededAttempts(const time_t &t)
 {
     mTsConnSuceeded = t;
@@ -2320,7 +2315,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
-                CHATDS_LOG_DEBUG("%s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
+                CHATDS_LOG_DEBUG("(Deprecated) %s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 break;
             }
             case OP_ENDCALL:
@@ -2329,7 +2324,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
-                CHATDS_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
+                CHATDS_LOG_DEBUG("(Deprecated) %s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 break;
             }
             case OP_CALLDATA:
@@ -2338,7 +2333,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 READ_16(payloadLen, 20);
-                CHATDS_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
+                CHATDS_LOG_DEBUG("(Deprecated) %s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
                 pos += payloadLen; // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
                 break;
             }
@@ -2431,7 +2426,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 READ_32(duration, 8);
-                CHATDS_LOG_DEBUG("%s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
+                CHATDS_LOG_DEBUG("(Deprecated) %s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
                 break;
             }
             case OP_NUMBYHANDLE:
@@ -3878,8 +3873,8 @@ void Chat::onLastSeen(Id msgid, bool resend)
             if (resend)
             {
                 // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
-                //CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
-                //sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
+                CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
+                sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
             }
             return; // `mLastSeenId` is newer than the received `msgid`
         }
@@ -3947,8 +3942,8 @@ bool Chat::setMessageSeen(Idx idx)
         if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx <= mLastSeenIdx))
             return;
 
-        //CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
-        //sendCommand(Command(OP_SEEN) + mChatId + id);
+        CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
+        sendCommand(Command(OP_SEEN) + mChatId + id);
 
         Idx notifyStart;
         if (mLastSeenIdx == CHATD_IDX_INVALID)
@@ -5447,7 +5442,6 @@ void Chat::onUserJoin(Id userid, Priv priv)
     if (userid == client().myHandle())
     {
         mOwnPrivilege = priv;
-        ::rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatId());
     }
 
     mUsers.insert(userid);

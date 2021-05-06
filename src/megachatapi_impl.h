@@ -298,7 +298,7 @@ class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
     // no peerid --> local video from own user
-    MegaChatVideoReceiver(MegaChatApiImpl *mChatApi, karere::Id mChatid, bool hiRes, uint32_t clientId = 0);
+    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, bool hiRes, uint32_t clientId = 0);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);

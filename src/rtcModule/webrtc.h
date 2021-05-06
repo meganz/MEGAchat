@@ -18,10 +18,7 @@
 namespace rtcModule
 {
 #ifdef KARERE_DISABLE_WEBRTC
-class
 
-{
-};
 #else
 
 enum TermCode: uint8_t
@@ -158,7 +155,6 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual void setAudioDetected(bool audioDetected) = 0;
-    virtual void updateVideoInDevice() = 0;
 };
 
 class RtcModule
@@ -206,7 +202,7 @@ public:
     virtual void onEndCall(ICall& call) = 0;
 };
 
-RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler, IRtcCrypto* crypto, const char* iceServers);
+RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler);
 
 enum RtcConstant {
    kMaxCallReceivers = 20,

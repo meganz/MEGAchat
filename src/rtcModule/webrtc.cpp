@@ -30,7 +30,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
 
 Call::~Call()
 {
-    mState = kStateDestroyed;
+    setState(CallState::kStateDestroyed);
     if (mTermCode == kInvalidTermCode)
     {
         mTermCode = kUnKnownTermCode;
@@ -71,7 +71,7 @@ void Call::setState(CallState newState)
         // initial ts is set when user has joined to the call
         mInitialTs = time(nullptr);
     }
-    if (newState == CallState::kStateTerminatingUserParticipation)
+    if (newState == CallState::kStateDestroyed)
     {
         mFinalTs = time(nullptr);
     }
@@ -109,11 +109,9 @@ void Call::removeParticipant(karere::Id peer)
 
 promise::Promise<void> Call::endCall()
 {
-    auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
     .then([](ReqResult /*result*/)
     {
-
     });
 }
 
@@ -121,12 +119,7 @@ promise::Promise<void> Call::hangup()
 {
     if (mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
-        auto wptr = weakHandle();
-        return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
-        .then([](ReqResult /*result*/)
-        {
-
-        });
+        return endCall();
     }
     else
     {
@@ -306,12 +299,6 @@ void Call::setCallHandler(CallHandler* callHanlder)
 karere::AvFlags Call::getLocalAvFlags() const
 {
     return mLocalAvFlags;
-}
-
-void Call::updateVideoInDevice()
-{
-    // todo implement
-    RTCM_LOG_DEBUG("updateVideoInDevice");
 }
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
@@ -616,8 +603,12 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         mSfuConnection = nullptr;
     }
 
-    mRtcConn->Close();
-    mRtcConn = nullptr;
+    if (mRtcConn)
+    {
+        mRtcConn->Close();
+        mRtcConn = nullptr;
+    }
+
     setState(CallState::kStateClientNoParticipating);
 }
 
@@ -696,7 +687,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         }
 
         setState(CallState::kStateInProgress);
-        mInitialTs -= ts; // subtract ts received in ANSWER command, from ts captured upon setState kStateInProgress
+        mInitialTs -= (ts / 1000); // subtract ts(ms) received in ANSWER command, from ts captured upon setState kStateInProgress
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -1116,11 +1107,6 @@ bool Call::hasVideoDevice()
     return mVideoManager ? true : false;
 }
 
-void Call::updateVideoDevice()
-{
-    mVideoManager = mRtc.getVideoDevice();
-}
-
 void Call::freeTracks()
 {
     // disable hi-res track
@@ -1208,7 +1194,7 @@ void Call::updateAudioTracks()
     }
 }
 
-RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler, IRtcCrypto *crypto, const char *iceServers)
+RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler)
     : mCallHandler(callhandler)
     , mMegaApi(megaApi)
 {
@@ -1257,6 +1243,7 @@ ICall *RtcModuleSfu::findCallByChatid(karere::Id chatid)
 bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
 {
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    bool shouldOpen = false;
     for (auto it = videoDevices.begin(); it != videoDevices.end(); it++)
     {
         if (!it->first.compare(device))
@@ -1269,10 +1256,11 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
                     calls.push_back(callIt.second.get());
                     callIt.second->freeTracks();
                     callIt.second->releaseVideoDevice();
+                    shouldOpen = true;
                 }
             }
 
-            changeDevice(it->second);
+            changeDevice(it->second, shouldOpen);
 
             for (auto& call : calls)
             {
@@ -1450,9 +1438,8 @@ artc::VideoManager *RtcModuleSfu::getVideoDevice()
     return mVideoDevice;
 }
 
-void RtcModuleSfu::changeDevice(const std::string &device)
+void RtcModuleSfu::changeDevice(const std::string &device, bool shouldOpen)
 {
-    bool shouldOpen = false;
     if (mVideoDevice)
     {
         shouldOpen = true;
@@ -1490,13 +1477,17 @@ void RtcModuleSfu::openDevice()
 
 void RtcModuleSfu::closeDevice()
 {
-    mVideoDevice->RemoveSink(this);
-    mVideoDevice->releaseDevice();
+    if (mVideoDevice)
+    {
+        mVideoDevice->RemoveSink(this);
+        mVideoDevice->releaseDevice();
+        mVideoDevice = nullptr;
+    }
 }
 
-RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers)
+RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler)
 {
-    return new RtcModuleSfu(megaApi, callhandler, crypto, iceServers);
+    return new RtcModuleSfu(megaApi, callhandler);
 }
 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)

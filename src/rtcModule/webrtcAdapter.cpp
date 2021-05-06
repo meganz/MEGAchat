@@ -19,6 +19,8 @@ extern jmethodID deviceListMID;
 extern jobject surfaceTextureHelper;
 #endif
 
+using namespace CryptoPP;
+
 namespace artc
 {
 
@@ -67,7 +69,6 @@ void cleanup()
     if (!gIsInitialized)
         return;
     gWebrtcContext = nullptr;
-    gIsInitialized = false;
     rtc::CleanupSSL();
     rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
     gIsInitialized = false;

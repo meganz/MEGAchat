@@ -3783,6 +3783,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
+     * - MegaChatRequest::getFlag - Returns true (openChatPreview)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
@@ -3803,7 +3804,7 @@ public:
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
-     * - MegaChatRequest::getFlag - Returns true if it's a meeting room
+     * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat
@@ -3822,6 +3823,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
+     * - MegaChatRequest::getFlag - Returns false (checkChatLink)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
@@ -3833,7 +3835,7 @@ public:
      * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
-     * - MegaChatRequest::getFlag - Returns true if it's a meeting room
+     * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
      *
      * @param link Null-terminated character string with the public chat link
      * @param listener MegaChatRequestListener to track this request
