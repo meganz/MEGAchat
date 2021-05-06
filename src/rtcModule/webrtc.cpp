@@ -109,11 +109,9 @@ void Call::removeParticipant(karere::Id peer)
 
 promise::Promise<void> Call::endCall()
 {
-    auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
     .then([](ReqResult /*result*/)
     {
-
     });
 }
 
@@ -121,12 +119,7 @@ promise::Promise<void> Call::hangup()
 {
     if (mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
-        auto wptr = weakHandle();
-        return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
-        .then([](ReqResult /*result*/)
-        {
-
-        });
+        return endCall();
     }
     else
     {
