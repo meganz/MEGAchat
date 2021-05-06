@@ -2574,12 +2574,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 //READ_8(reason, 16);
                 if (mChatdClient.mKarereClient->rtc)
                 {
-                    rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
-                    if (call->getCallerid() == mChatdClient.mKarereClient->myHandle() && call->getState() == rtcModule::CallState::kStateInProgress)
-                    {
-                        call->setRejected(true);
-                    }
-
                     mChatdClient.mKarereClient->rtc->removeCall(chatid);
                 }
                 break;
