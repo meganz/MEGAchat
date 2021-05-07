@@ -64,13 +64,11 @@ void Call::AvailableTracks::updateSpeakTrack(Cid_t cid, bool add)
 
 karere::AvFlags& Call::AvailableTracks::getTracksByCid(Cid_t cid)
 {
-    if (hasCid(cid))
-    {
-        return mTracks[cid];
-    }
+    assert(hasCid(cid));
+    return mTracks[cid];
 }
 
-karere::AvFlags& Call::AvailableTracks::addCid(Cid_t cid)
+void Call::AvailableTracks::addCid(Cid_t cid)
 {
     if (!hasCid(cid))
     {
@@ -78,7 +76,7 @@ karere::AvFlags& Call::AvailableTracks::addCid(Cid_t cid)
     }
 }
 
-karere::AvFlags& Call::AvailableTracks::removeCid(Cid_t cid)
+void Call::AvailableTracks::removeCid(Cid_t cid)
 {
     mTracks.erase(cid);
 }

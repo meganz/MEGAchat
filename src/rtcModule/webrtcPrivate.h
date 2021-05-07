@@ -155,8 +155,8 @@ public:
         void updateLowresTrack(Cid_t cid, bool add);
         void updateSpeakTrack(Cid_t cid, bool add);
         karere::AvFlags& getTracksByCid(Cid_t cid);
-        karere::AvFlags& addCid(Cid_t cid);
-        karere::AvFlags& removeCid(Cid_t cid);
+        void addCid(Cid_t cid);
+        void removeCid(Cid_t cid);
         bool hasCid(Cid_t cid);
         void clear();
         std::map<Cid_t, karere::AvFlags>& getTracks();
