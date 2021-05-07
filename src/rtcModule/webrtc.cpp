@@ -1136,6 +1136,7 @@ bool Call::handlePeerLeft(Cid_t cid)
         return false;
     }
 
+    mAvailableTracks->removeCid(cid);
     it->second->disableAudioSlot();
     it->second->disableVideoSlot(true);
     it->second->disableVideoSlot(false);
