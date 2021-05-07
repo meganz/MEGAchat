@@ -8,67 +8,91 @@
 namespace rtcModule
 {
 
-bool Call::AvailableTracks::hasHiresTrack(Cid_t cid)
+AvailableTracks::AvailableTracks()
 {
-    return hasCid(cid) && getTracksByCid(cid).has(karere::AvFlags::kHiResVideo);
 }
 
-bool Call::AvailableTracks::hasLowresTrack(Cid_t cid)
+AvailableTracks::~AvailableTracks()
 {
-    return hasCid(cid) && getTracksByCid(cid).has(karere::AvFlags::kLowResVideo);
 }
 
-bool Call::AvailableTracks::hasVoiceTrack(Cid_t cid)
+bool AvailableTracks::hasHiresTrack(Cid_t cid)
 {
-    return hasCid(cid) && getTracksByCid(cid).has(karere::AvFlags::kAudio);
+    karere::AvFlags flags;
+    if (!getTracksByCid(cid, flags))
+    {
+        return false;
+    }
+    return flags.has(karere::AvFlags::kHiResVideo);
 }
 
-void Call::AvailableTracks::updateHiresTrack(Cid_t cid, bool add)
+bool AvailableTracks::hasLowresTrack(Cid_t cid)
 {
-    if (!hasCid(cid))
+    karere::AvFlags flags;
+    if (!getTracksByCid(cid, flags))
+    {
+        return false;
+    }
+    return flags.has(karere::AvFlags::kLowResVideo);
+}
+
+bool AvailableTracks::hasVoiceTrack(Cid_t cid)
+{
+    karere::AvFlags flags;
+    if (!getTracksByCid(cid, flags))
+    {
+        return false;
+    }
+    return flags.has(karere::AvFlags::kAudio);
+}
+
+void AvailableTracks::updateHiresTrack(Cid_t cid, bool add)
+{
+    karere::AvFlags flags;
+    if (!getTracksByCid(cid, flags))
     {
         return;
     }
-
-    karere::AvFlags& flags = getTracksByCid(cid);
     add
         ? flags.add(karere::AvFlags::kHiResVideo)
         : flags.remove(karere::AvFlags::kHiResVideo);
 }
 
-void Call::AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
+void AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
 {
-    if (!hasCid(cid))
+    karere::AvFlags flags;
+    if (!getTracksByCid(cid, flags))
     {
         return;
     }
-
-    karere::AvFlags& flags = getTracksByCid(cid);
     add
         ? flags.add(karere::AvFlags::kLowResVideo)
         : flags.remove(karere::AvFlags::kLowResVideo);
 }
 
-void Call::AvailableTracks::updateSpeakTrack(Cid_t cid, bool add)
+void AvailableTracks::updateSpeakTrack(Cid_t cid, bool add)
 {
-    if (!hasCid(cid))
+    karere::AvFlags flags;
+    if (!getTracksByCid(cid, flags))
     {
         return;
     }
-
-    karere::AvFlags& flags = getTracksByCid(cid);
     add
         ? flags.add(karere::AvFlags::kAudio)
         : flags.remove(karere::AvFlags::kAudio);
 }
 
-karere::AvFlags& Call::AvailableTracks::getTracksByCid(Cid_t cid)
+bool AvailableTracks::getTracksByCid(Cid_t cid, karere::AvFlags& flags)
 {
-    assert(hasCid(cid));
-    return mTracks[cid];
+    if (!hasCid(cid))
+    {
+        return false;
+    }
+    flags = mTracks[cid];
+    return true;
 }
 
-void Call::AvailableTracks::addCid(Cid_t cid)
+void AvailableTracks::addCid(Cid_t cid)
 {
     if (!hasCid(cid))
     {
@@ -76,22 +100,22 @@ void Call::AvailableTracks::addCid(Cid_t cid)
     }
 }
 
-void Call::AvailableTracks::removeCid(Cid_t cid)
+void AvailableTracks::removeCid(Cid_t cid)
 {
     mTracks.erase(cid);
 }
 
-bool Call::AvailableTracks::hasCid(Cid_t cid)
+bool AvailableTracks::hasCid(Cid_t cid)
 {
     return (mTracks.find(cid) != mTracks.end());
 }
 
-void Call::AvailableTracks::clear()
+void AvailableTracks::clear()
 {
     mTracks.clear();
 }
 
-std::map<Cid_t, karere::AvFlags>& Call::AvailableTracks::getTracks()
+std::map<Cid_t, karere::AvFlags>& AvailableTracks::getTracks()
 {
     return mTracks;
 }
@@ -110,11 +134,11 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mMyPeer()
     , mRtc(rtc)
 {
+    mAvailableTracks.reset(new AvailableTracks());
     mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, -1)); // -1 represent local
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mGlobalCallHandler.onNewCall(*this);
     mSessions.clear();
-    mAvailableTracks.clear();
 }
 
 Call::~Call()
@@ -536,8 +560,8 @@ void Call::stopHighResolutionVideo(Cid_t cid)
     }
     else
     {
-        assert(mAvailableTracks.hasCid(cid));
-        mAvailableTracks.updateHiresTrack(cid, false);
+        assert(mAvailableTracks->hasCid(cid));
+        mAvailableTracks->updateHiresTrack(cid, false);
         sess->disableVideoSlot(true);
         mSfuConnection->sendDelHiRes(cid);
     }
@@ -586,8 +610,8 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
         for (auto cid: cids)
         {
             Session *sess= getSession(cid);
-            assert(mAvailableTracks.hasCid(cid));
-            mAvailableTracks.updateLowresTrack(cid, false);
+            assert(mAvailableTracks->hasCid(cid));
+            mAvailableTracks->updateLowresTrack(cid, false);
             sess->disableVideoSlot(false);
         }
 
@@ -760,7 +784,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
     }
 
     mSessions.clear();
-    mAvailableTracks.clear();
+    mAvailableTracks->clear();
     mVThumb.reset(nullptr);
     mHiRes.reset(nullptr);
     mAudio.reset(nullptr);
@@ -820,22 +844,22 @@ void Call::requestPeerTracks(std::set<Cid_t>& cids)
     std::vector<Cid_t> lowResCids;
 
     // compare stored cids with received ones upon ANSWER command
-    std::map<Cid_t, karere::AvFlags> &availableTracks = mAvailableTracks.getTracks();
+    std::map<Cid_t, karere::AvFlags> &availableTracks = mAvailableTracks->getTracks();
     for (auto it = availableTracks.begin(); it != availableTracks.end();)
     {
         auto auxit = it++;
         Cid_t auxCid = auxit->first;
         if (cids.find(auxCid) == cids.end()) // peer(CID) doesn't exists anymore
         {
-            mAvailableTracks.removeCid(auxCid);
+            mAvailableTracks->removeCid(auxCid);
         }
         else // peer(CID) exists
         {
-            if (mAvailableTracks.hasHiresTrack(auxCid)) // request HIRES video for that peer
+            if (mAvailableTracks->hasHiresTrack(auxCid)) // request HIRES video for that peer
             {
                 requestHighResolutionVideo(auxCid);
             }
-            if (mAvailableTracks.hasLowresTrack(auxCid)) // add peer(CID) to lowResCids vector
+            if (mAvailableTracks->hasLowresTrack(auxCid)) // add peer(CID) to lowResCids vector
             {
                 lowResCids.emplace_back(auxCid);
             }
@@ -845,9 +869,9 @@ void Call::requestPeerTracks(std::set<Cid_t>& cids)
     // add new peers(CID) and request LowRes video by default
     for (auto cid: cids)
     {
-        if (!mAvailableTracks.hasCid(cid))
+        if (!mAvailableTracks->hasCid(cid))
         {
-            mAvailableTracks.addCid(cid);
+            mAvailableTracks->addCid(cid);
             lowResCids.emplace_back(cid);   // add peer(CID) to lowResCids vector
         }
     }
@@ -1093,8 +1117,8 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 
     // We shouldn't receive a handlePeerJoin with an existing CID in mAvailableTracks
     // Upon reconnect SFU assign a new CID to the peer.
-    assert(!mAvailableTracks.hasCid(cid));
-    mAvailableTracks.addCid(cid);
+    assert(!mAvailableTracks->hasCid(cid));
+    mAvailableTracks->addCid(cid);
 
     ISession *sess = getSession(cid);
     if (sess && sess->getAvFlags().videoLowRes())
@@ -1117,7 +1141,10 @@ bool Call::handlePeerLeft(Cid_t cid)
         return false;
     }
 
+    mAvailableTracks->removeCid(cid);
     it->second->disableAudioSlot();
+    it->second->disableVideoSlot(true);
+    it->second->disableVideoSlot(false);
     mSessions.erase(cid);
     return true;
 }
@@ -1272,15 +1299,37 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         Cid_t cid = trackDescriptor.first;
-        if (!getSession(cid))
+
+
+        RemoteVideoSlot *slot = static_cast<RemoteVideoSlot*>(it->second.get());
+        if (slot->getCid() != cid)
+        {
+            if (trackDescriptor.second.mReuse)
+            {
+                RTCM_LOG_WARNING("attachSlotToSession: trying to reuse slot, but cid has changed");
+                assert(false);
+                continue;
+            }
+            else
+            {
+                Session *oldSess = getSession(slot->getCid());
+                if (oldSess)
+                {
+                    // In case of Slot reassign for another peer (CID) we need to notify app about that
+                    hiRes
+                        ? mAvailableTracks->updateHiresTrack(slot->getCid(), false)
+                        : mAvailableTracks->updateLowresTrack(slot->getCid(), false);
+                    oldSess->disableVideoSlot(hiRes);
+                }
+            }
+        }
+
+        Session *sess = getSession(cid);
+        if (!sess)
         {
             RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
             continue;
         }
-
-        RemoteVideoSlot *slot = static_cast<RemoteVideoSlot*>(it->second.get());
-        // if CID has changed, session with old CID should not exists
-        assert((slot->getCid() == cid) || !getSession(slot->getCid()));
         slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
         attachSlotToSession(cid, slot, false, hiRes, trackDescriptor.second.mReuse);
     }
@@ -1296,36 +1345,29 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, b
         return;
     }
 
-    assert(mAvailableTracks.hasCid(cid));
+    assert(mAvailableTracks->hasCid(cid));
     if (audio)
     {
-        mAvailableTracks.updateSpeakTrack(cid, true);
+        mAvailableTracks->updateSpeakTrack(cid, true);
         session->setAudioSlot(slot);
     }
     else
     {
-        if (reuse && slot->getCid() != cid)
-        {
-            RTCM_LOG_WARNING("attachSlotToSession: trying to reuse slot, but cid has changed");
-            assert(false);
-            return;
-        }
-
         if (hiRes)
         {
-            mAvailableTracks.updateHiresTrack(cid, true);
+            mAvailableTracks->updateHiresTrack(cid, true);
             if (reuse)
             {
-                mAvailableTracks.updateLowresTrack(cid, false);
+                mAvailableTracks->updateLowresTrack(cid, false);
             }
             session->setHiResSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
         }
         else
         {
-            mAvailableTracks.updateLowresTrack(cid, true);
+            mAvailableTracks->updateLowresTrack(cid, true);
             if (reuse)
             {
-                mAvailableTracks.updateHiresTrack(cid, false);
+                mAvailableTracks->updateHiresTrack(cid, false);
             }
             session->setVThumSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
         }
@@ -1341,15 +1383,24 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
-    if (!getSession(cid))
+    Slot *slot = it->second.get();
+    if (slot->getCid() != cid)
+    {
+        Session *oldSess = getSession(slot->getCid());
+        if (oldSess)
+        {
+            // In case of Slot reassign for another peer (CID) we need to notify app about that
+            mAvailableTracks->updateSpeakTrack(slot->getCid(), false);
+            oldSess->disableAudioSlot();
+        }
+    }
+
+    Session *sess = getSession(cid);
+    if (!sess)
     {
         RTCM_LOG_WARNING("AddSpeaker: unknown cid");
         return;
     }
-
-    Slot *slot = it->second.get();
-    // if CID has changed, session with old CID should not exists
-    assert((slot->getCid() == cid) || !getSession(slot->getCid()));
     slot->reassign(cid, speaker.mIv);
     attachSlotToSession(cid, slot, true, false, false);
 }
@@ -1363,8 +1414,8 @@ void Call::removeSpeaker(Cid_t cid)
         return;
     }
 
-    assert(mAvailableTracks.hasCid(cid));
-    mAvailableTracks.updateSpeakTrack(cid, false);
+    assert(mAvailableTracks->hasCid(cid));
+    mAvailableTracks->updateSpeakTrack(cid, false);
     it->second->disableAudioSlot();
 }
 
