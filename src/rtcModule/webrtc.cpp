@@ -1293,12 +1293,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         Cid_t cid = trackDescriptor.first;
-        Session *sess = getSession(cid);
-        if (!sess)
-        {
-            RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
-            continue;
-        }
+
 
         RemoteVideoSlot *slot = static_cast<RemoteVideoSlot*>(it->second.get());
         if (slot->getCid() != cid)
@@ -1311,14 +1306,24 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             }
             else
             {
-                // In case of Slot reassign for another peer (CID) we need to notify app about that
-                hiRes
-                    ? mAvailableTracks->updateHiresTrack(slot->getCid(), false)
-                    : mAvailableTracks->updateLowresTrack(slot->getCid(), false);
-                sess->disableVideoSlot(hiRes);
+                Session *oldSess = getSession(slot->getCid());
+                if (oldSess)
+                {
+                    // In case of Slot reassign for another peer (CID) we need to notify app about that
+                    hiRes
+                        ? mAvailableTracks->updateHiresTrack(slot->getCid(), false)
+                        : mAvailableTracks->updateLowresTrack(slot->getCid(), false);
+                    oldSess->disableVideoSlot(hiRes);
+                }
             }
         }
 
+        Session *sess = getSession(cid);
+        if (!sess)
+        {
+            RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
+            continue;
+        }
         slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
         attachSlotToSession(cid, slot, false, hiRes, trackDescriptor.second.mReuse);
     }
@@ -1372,19 +1377,23 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
+    Slot *slot = it->second.get();
+    if (slot->getCid() != cid)
+    {
+        Session *oldSess = getSession(slot->getCid());
+        if (oldSess)
+        {
+            // In case of Slot reassign for another peer (CID) we need to notify app about that
+            mAvailableTracks->updateSpeakTrack(slot->getCid(), false);
+            oldSess->disableAudioSlot();
+        }
+    }
+
     Session *sess = getSession(cid);
     if (!sess)
     {
         RTCM_LOG_WARNING("AddSpeaker: unknown cid");
         return;
-    }
-
-    Slot *slot = it->second.get();
-    if (slot->getCid() != cid)
-    {
-        // In case of Slot reassign for another peer (CID) we need to notify app about that
-        mAvailableTracks->updateSpeakTrack(slot->getCid(), false);
-        sess->disableAudioSlot();
     }
     slot->reassign(cid, speaker.mIv);
     attachSlotToSession(cid, slot, true, false, false);
