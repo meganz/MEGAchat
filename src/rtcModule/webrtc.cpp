@@ -1291,15 +1291,32 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         Cid_t cid = trackDescriptor.first;
-        if (!getSession(cid))
+        Session *sess = getSession(cid);
+        if (!sess)
         {
             RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
             continue;
         }
 
         RemoteVideoSlot *slot = static_cast<RemoteVideoSlot*>(it->second.get());
-        // if CID has changed, session with old CID should not exists
-        assert((slot->getCid() == cid) || !getSession(slot->getCid()));
+        if (slot->getCid() != cid)
+        {
+            if (trackDescriptor.second.mReuse)
+            {
+                RTCM_LOG_WARNING("attachSlotToSession: trying to reuse slot, but cid has changed");
+                assert(false);
+                continue;
+            }
+            else
+            {
+                // In case of Slot reassign for another peer (CID) we need to notify app about that
+                hiRes
+                    ? mAvailableTracks->updateHiresTrack(slot->getCid(), false)
+                    : mAvailableTracks->updateLowresTrack(slot->getCid(), false);
+                sess->disableVideoSlot(hiRes);
+            }
+        }
+
         slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
         attachSlotToSession(cid, slot, false, hiRes, trackDescriptor.second.mReuse);
     }
@@ -1323,13 +1340,6 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, b
     }
     else
     {
-        if (reuse && slot->getCid() != cid)
-        {
-            RTCM_LOG_WARNING("attachSlotToSession: trying to reuse slot, but cid has changed");
-            assert(false);
-            return;
-        }
-
         if (hiRes)
         {
             mAvailableTracks->updateHiresTrack(cid, true);
@@ -1360,15 +1370,20 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
-    if (!getSession(cid))
+    Session *sess = getSession(cid);
+    if (!sess)
     {
         RTCM_LOG_WARNING("AddSpeaker: unknown cid");
         return;
     }
 
     Slot *slot = it->second.get();
-    // if CID has changed, session with old CID should not exists
-    assert((slot->getCid() == cid) || !getSession(slot->getCid()));
+    if (slot->getCid() != cid)
+    {
+        // In case of Slot reassign for another peer (CID) we need to notify app about that
+        mAvailableTracks->updateSpeakTrack(slot->getCid(), false);
+        sess->disableAudioSlot();
+    }
     slot->reassign(cid, speaker.mIv);
     attachSlotToSession(cid, slot, true, false, false);
 }
