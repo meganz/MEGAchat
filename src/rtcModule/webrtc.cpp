@@ -2069,6 +2069,9 @@ Session::Session(const sfu::Peer& peer)
 
 Session::~Session()
 {
+    disableAudioSlot();
+    disableVideoSlot(true);
+    disableVideoSlot(false);
     mState = kSessStateDestroyed;
     mSessionHandler->onDestroySession(*this);
 }
@@ -2199,11 +2202,11 @@ RemoteVideoSlot *Session::getHiResSlot()
 
 void Session::disableAudioSlot()
 {
-    Slot *slot = getAudioSlot();
-    if (slot)
+    if (mAudioSlot)
     {
-        slot->enableAudioMonitor(false); // disable audio monitor
-        slot->enableTrack(false);
+        mAudioSlot->enableAudioMonitor(false); // disable audio monitor
+        mAudioSlot->enableTrack(false);
+        mAudioSlot->getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
         setAudioSlot(nullptr);
     }
 }
@@ -2218,12 +2221,14 @@ void Session::disableVideoSlot(bool hires)
     if (hires)
     {
         mHiresSlot->enableTrack(false);
+        mHiresSlot->getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
         mHiresSlot = nullptr;
         mSessionHandler->onHiResReceived(*this);
     }
     else
     {
         mVthumSlot->enableTrack(false);
+        mVthumSlot->getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
         mVthumSlot = nullptr;
         mSessionHandler->onVThumbReceived(*this);
     }
