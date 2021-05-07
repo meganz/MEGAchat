@@ -481,8 +481,8 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
-    void previewCleanup(karere::Id chatid);
-    void onChatsUpdate(mega::MegaTextChatList& chats);
+    void deleteRoomFromDb(const Id &chatid);
+    void onChatsUpdate(mega::MegaTextChatList& chats, bool checkDeleted = false);
 /** @endcond PRIVATE */
 };
 

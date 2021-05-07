@@ -1021,7 +1021,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         mContactList->syncWithApi(*contactList);
         mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
-        chats->onChatsUpdate(*chatList);
+        chats->onChatsUpdate(*chatList, true);
         commit(scsn);
 
         // Get aliases from cache
@@ -1445,7 +1445,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
     mContactList->syncWithApi(aContactList);
 
     // sync the chatroom list
-    chats->onChatsUpdate(chatList);
+    chats->onChatsUpdate(chatList, true);
 
     // commit the snapshot
     commit(scsn);
@@ -2773,7 +2773,7 @@ void ChatRoomList::loadFromDb()
     while(stmtPreviews.step())
     {
         Id chatid = stmtPreviews.uint64Col(0);
-        previewCleanup(chatid);
+        deleteRoomFromDb(chatid);
     }
 
     SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key from chats");
@@ -2961,11 +2961,11 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
             return;
         }
 
-        chats->onChatsUpdate(*copy);
+        chats->onChatsUpdate(*copy, false);
     }, appCtx);
 }
 
-void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
+void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms, bool checkDeleted)
 {
     SetOfIds added; // out-param: records the new rooms added to the list
     addMissingRoomsFromApi(rooms, added);
@@ -2979,6 +2979,32 @@ void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
 
         ChatRoom *room = at(chatid);
         room->syncWithApi(*apiRoom);
+    }
+
+    if (checkDeleted)   // true only when list of rooms is complete, not for partial updates
+    {
+        SetOfIds removed;
+        for (auto &room : *this)
+        {
+            bool deleted = true;
+            for (int i = 0; i < rooms.size(); i++)
+            {
+                if (rooms.get(i)->getHandle() == room.first)
+                {
+                    deleted = false;
+                    break;
+                }
+            }
+            if (deleted)
+            {
+                removed.insert(room.first);
+            }
+        }
+        for (auto &chatid : removed)
+        {
+            delete find(chatid)->second;
+            deleteRoomFromDb(chatid);
+        }
     }
 }
 
@@ -3151,7 +3177,7 @@ GroupChatRoom::~GroupChatRoom()
 
     if (previewMode())
     {
-        parent.previewCleanup(mChatid);
+        parent.deleteRoomFromDb(mChatid);
     }
 
     if (parent.mKarereClient.mChatdClient)
@@ -3614,7 +3640,7 @@ bool GroupChatRoom::previewMode() const
     return mChat->previewMode();
 }
 
-void ChatRoomList::previewCleanup(Id chatid)
+void ChatRoomList::deleteRoomFromDb(const Id &chatid)
 {
     auto db = mKarereClient.db;
     if (db.isOpen())   // upon karere::Client destruction, DB is already closed
