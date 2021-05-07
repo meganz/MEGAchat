@@ -1354,9 +1354,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                     api.sdk.resumeActionPackets();
                 });
             }
-            else
+            else    // a full reload happened (triggered by API or by the user)
             {
                 assert(state == kInitHasOnlineSession);
+                checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 api.sdk.resumeActionPackets();
             }
         }, appCtx);
