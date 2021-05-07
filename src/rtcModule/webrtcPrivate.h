@@ -192,6 +192,7 @@ public:
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
     bool hasRequestSpeak() const override;
+    TermCode getTermCode() const override;
 
     void setCallerId(karere::Id callerid) override;
     void requestSpeaker(bool add = true) override;
@@ -219,7 +220,6 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setAudioDetected(bool audioDetected) override;
-    void updateVideoInDevice() override;
     void setState(CallState newState);
     void connectSfu(const std::string& sfuUrl, bool reconnect = false);
     void createTranceiver();
@@ -233,7 +233,6 @@ public:
     void takeVideoDevice();
     void releaseVideoDevice();
     bool hasVideoDevice();
-    void updateVideoDevice();
     void freeTracks();
     void updateVideoTracks();
     void requestPeerTracks(std::set<Cid_t>& cids);
@@ -290,6 +289,7 @@ protected:
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
+    TermCode mTermCode = kInvalidTermCode;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;
@@ -332,7 +332,7 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, IRtcCrypto* crypto, const char* iceServers);
+    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;
@@ -359,7 +359,7 @@ public:
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
     artc::VideoManager* getVideoDevice();
-    void changeDevice(const std::string& device);
+    void changeDevice(const std::string& device, bool shouldOpen);
     void openDevice();
     void closeDevice();
 

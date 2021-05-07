@@ -10,20 +10,6 @@ namespace karere { class Client; }
 namespace strongvelope { template<size_t L> class Key; typedef Key<16> SendKey; }
 namespace rtcModule
 {
-class RtcCrypto: public rtcModule::IRtcCrypto
-{
-protected:
-    karere::Client& mClient;
-    void computeSymmetricKey(karere::Id peer, strongvelope::SendKey& output);
-public:
-    RtcCrypto(karere::Client& client);
-    virtual void mac(const std::string& data, const SdpKey& key, SdpKey& output);
-    virtual void decryptKeyFrom(karere::Id peer, const SdpKey& data, SdpKey& output);
-    virtual void encryptKeyTo(karere::Id peer, const SdpKey& data, SdpKey& output);
-    virtual karere::Id anonymizeId(karere::Id userid);
-    virtual void random(char* buf, size_t len);
-};
-
 class RtcCryptoMeetings: public rtcModule::IRtcCryptoMeetings
 {
 protected:

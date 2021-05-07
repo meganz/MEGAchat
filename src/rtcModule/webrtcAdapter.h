@@ -25,7 +25,6 @@ typedef struct objc_object RTCCameraVideoCapturer;
 #include <sdk/android/native_api/video/video_source.h>
 #endif
 
-using namespace CryptoPP;
 namespace std
 {
     template< bool B, class T = void >
@@ -242,7 +241,6 @@ public:
         config.servers = servers;
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
 
-        // I think it's not necessary
         webrtc::CryptoOptions cryptoOptions;
         cryptoOptions.sframe.require_frame_encryption = true;
         config.crypto_options = cryptoOptions;
@@ -299,10 +297,10 @@ public:
     void incrementPacketCtr();
 
     // generates a header for a new frame, you take the ownership of returned value
-    byte *generateHeader();
+    CryptoPP::byte *generateHeader();
 
     // generates an IV for a new frame, you take the ownership of returned value
-    byte *generateFrameIV();
+    CryptoPP::byte *generateFrameIV();
 
     // encrypts a received frame
     int Encrypt(cricket::MediaType media_type,
@@ -353,7 +351,7 @@ public:
     bool validateAndProcessHeader(rtc::ArrayView<const uint8_t> header);
 
     // rebuild the IV for a received frame, you take the ownership of returned value
-    std::shared_ptr<byte> generateFrameIV();
+    std::shared_ptr<CryptoPP::byte> generateFrameIV();
 
     // decrypts a received frame
     Result Decrypt(cricket::MediaType media_type,

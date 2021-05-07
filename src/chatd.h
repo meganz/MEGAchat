@@ -495,7 +495,6 @@ protected:
     void execCommand(const StaticBuffer& buf);
     promise::Promise<void> sendKeepalive();
     void sendEcho();
-    void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
 
     /** @brief reset number of succeeded connection attempts and update ts for last check **/
     void resetConnSuceededAttempts(const time_t &t);

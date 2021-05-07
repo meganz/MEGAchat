@@ -18,14 +18,12 @@
 namespace rtcModule
 {
 #ifdef KARERE_DISABLE_WEBRTC
-class
 
-{
-};
 #else
 
 enum TermCode: uint8_t
 {
+    kInvalidTermCode = 255,
     kUserHangup = 0,            // < Normal user hangup
     kErrSdp = 32,               // < error generating or setting SDP description
     kRtcDisconn = 64,
@@ -33,6 +31,7 @@ enum TermCode: uint8_t
     kSvrShuttingDown = 66,      // < Server is shutting down
     kErrSignaling = 128,
     kErrNoCall = 129,           // < Attempted to join non-existing call
+    kUnKnownTermCode = 130,
 };
 
 enum CallState: uint8_t
@@ -134,6 +133,7 @@ public:
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
     virtual bool hasRequestSpeak() const = 0;
+    virtual TermCode getTermCode() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual void requestSpeaker(bool add = true) = 0;
@@ -158,7 +158,6 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual void setAudioDetected(bool audioDetected) = 0;
-    virtual void updateVideoInDevice() = 0;
 };
 
 class RtcModule
@@ -206,7 +205,7 @@ public:
     virtual void onEndCall(ICall& call) = 0;
 };
 
-RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler, IRtcCrypto* crypto, const char* iceServers);
+RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler);
 
 enum RtcConstant {
    kMaxCallReceivers = 20,

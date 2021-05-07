@@ -349,6 +349,13 @@ public:
         PEER_ADDED = 1,
     };
 
+    enum {
+        TERM_CODE_INVALID = -1,     // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
+        TERM_CODE_HANGUP = 0,       // Call has been finished by user
+        TERM_CODE_ERROR = 1,        // Call has been finished by error
+        TERM_CODE_REJECT = 2,       // Caller has hang up the call before no body answer the call
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -518,6 +525,12 @@ public:
 
     /**
      * @brief Returns the termination code for this call
+     *
+     * Valid values are:
+     *  - TERM_CODE_INVALID
+     *  - TERM_CODE_HANGUP
+     *  - TERM_CODE_ERROR
+     *  - TERM_CODE_REJECT
      *
      * @return termination code for the call
      */
@@ -3484,8 +3497,8 @@ public:
     /**
      * @brief Check if there is an existing chat-link for an public chat
      *
-     * This function allows moderators to check whether a public handle for public chats exist and,
-     * if any, it returns a chat-link that any user can use to preview or join the chatroom.
+     * This function allows any chat participant to check whether a public handle for public
+     * chats exist and, if any, it returns a chat-link that any user can use to preview or join the chatroom.
      *
      * @see \c MegaChatApi::createPublicChat for more details.
      *
@@ -3770,6 +3783,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
+     * - MegaChatRequest::getFlag - Returns true (openChatPreview)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
@@ -3790,7 +3804,7 @@ public:
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
-     * - MegaChatRequest::getFlag - Returns true if it's a meeting room
+     * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat
@@ -3809,6 +3823,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
+     * - MegaChatRequest::getFlag - Returns false (checkChatLink)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
@@ -3820,7 +3835,7 @@ public:
      * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
-     * - MegaChatRequest::getFlag - Returns true if it's a meeting room
+     * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
      *
      * @param link Null-terminated character string with the public chat link
      * @param listener MegaChatRequestListener to track this request

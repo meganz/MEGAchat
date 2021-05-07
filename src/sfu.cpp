@@ -332,7 +332,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    // call start ts
+    // call start ts (ms)
     uint64_t ts = tsIterator->value.GetUint64();
 
     std::vector<Peer> peers;
@@ -487,7 +487,7 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator idIterator = command.FindMember("id");
     if (idIterator == command.MemberEnd() || !idIterator->value.IsUint())
     {
-        SFU_LOG_ERROR("Received data doesn't have 'id' field");
+        SFU_LOG_ERROR("KeyCommand: Received data doesn't have 'id' field");
         return false;
     }
 
@@ -497,7 +497,7 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("from");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
-        SFU_LOG_ERROR("Received data doesn't have 'from' field");
+        SFU_LOG_ERROR("KeyCommand: Received data doesn't have 'from' field");
         return false;
     }
 
@@ -506,7 +506,7 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator keyIterator = command.FindMember("key");
     if (keyIterator == command.MemberEnd() || !keyIterator->value.IsString())
     {
-        SFU_LOG_ERROR("Received data doesn't have 'key' field");
+        SFU_LOG_ERROR("KeyCommand: Received data doesn't have 'key' field");
         return false;
     }
 
@@ -652,7 +652,7 @@ bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
-        SFU_LOG_ERROR("Received data doesn't have 'cid' field");
+        SFU_LOG_ERROR("SpeakReqDelCommand: Received data doesn't have 'cid' field");
         return false;
     }
 
@@ -731,7 +731,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
-        SFU_LOG_ERROR("Received data doesn't have 'cid' field");
+        SFU_LOG_ERROR("PeerJoinCommand: Received data doesn't have 'cid' field");
         return false;
     }
 
@@ -740,7 +740,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator userIdIterator = command.FindMember("userId");
     if (userIdIterator == command.MemberEnd() || !userIdIterator->value.IsString())
     {
-        SFU_LOG_ERROR("Received data doesn't have 'userId' field");
+        SFU_LOG_ERROR("PeerJoinCommand: Received data doesn't have 'userId' field");
         return false;
     }
 
@@ -750,7 +750,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator avIterator = command.FindMember("av");
     if (avIterator == command.MemberEnd() || !avIterator->value.IsUint())
     {
-        SFU_LOG_ERROR("Received data doesn't have 'av' field");
+        SFU_LOG_ERROR("PeerJoinCommand: Received data doesn't have 'av' field");
         return false;
     }
 
