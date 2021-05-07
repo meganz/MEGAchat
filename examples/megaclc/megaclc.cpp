@@ -4241,36 +4241,56 @@ void exec_setmybackupsfolder(ac::ACState& s)
         }));
 }
 
-void exec_logUserPathVariations(ac::ACState& s)
+void exec_logFilenameAnomalies(ac::ACState& s)
 {
-    struct Receiver
-      : public m::MegaLogger
+    struct Reporter
+      : public m::MegaFilenameAnomalyReporter
     {
-#ifdef ENABLE_LOG_PERFORMANCE
-        void log(const char*, int, const char*, const char* message, const char**, size_t*, unsigned) override
-#else // ENABLE_LOG_PERFORMANCE
-        void log(const char*, int, const char*, const char* message) override
-#endif // ! ENABLE_LOG_PERFORMANCE
+        void anomalyDetected(AnomalyType type,
+                             const char* localPath,
+                             const char* remotePath) override
         {
-            cout << "user-path-variation: " << message << endl;
+            string typeName;
+
+            switch (type)
+            {
+            case ANOMALY_NAME_MISMATCH:
+                typeName = "NAME_MISMATCH";
+                break;
+            case ANOMALY_NAME_RESERVED:
+                typeName = "NAME_RESERVED";
+                break;
+            default:
+                assert(!"Unknown anomaly type!");
+                typeName = "UNKNOWN";
+                break;
+            }
+
+            cout << "Filename anomaly detected: type: "
+                 << typeName
+                 << ": local path: "
+                 << localPath
+                 << ": remote path: "
+                 << remotePath
+                 << endl;
         }
     }; // Receiver
 
-    static Receiver receiver;
+    static Reporter reporter;
 
-    // loguserpathvariations on|off
+    // logfilenameanomalies on|off
     auto on = s.words[1].s == "on";
 
     if (on)
     {
-        g_megaApi->setUserPathVariationsReceiver(&receiver);
+        g_megaApi->setFilenameAnomalyReporter(&reporter);
     }
     else
     {
-        g_megaApi->setUserPathVariationsReceiver(nullptr);
+        g_megaApi->setFilenameAnomalyReporter(nullptr);
     }
 
-    cout << "Logging of user path variations is "
+    cout << "Logging of filename anomalies is "
          << (on ? "enabled" : "disabled")
          << "."
          << endl;
@@ -4495,8 +4515,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_setmybackupsfolder, sequence(text("setmybackupsfolder"), param("remotefolder")));
     p->Add(exec_getmybackupsfolder, sequence(text("getmybackupsfolder")));
 
-    p->Add(exec_logUserPathVariations,
-           sequence(text("loguserpathvariations"), either(text("on"), text("off"))));
+    p->Add(exec_logFilenameAnomalies,
+           sequence(text("logfilenameanomalies"), either(text("on"), text("off"))));
 
     return p;
 }
