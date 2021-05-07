@@ -3497,8 +3497,8 @@ public:
     /**
      * @brief Check if there is an existing chat-link for an public chat
      *
-     * This function allows moderators to check whether a public handle for public chats exist and,
-     * if any, it returns a chat-link that any user can use to preview or join the chatroom.
+     * This function allows any chat participant to check whether a public handle for public
+     * chats exist and, if any, it returns a chat-link that any user can use to preview or join the chatroom.
      *
      * @see \c MegaChatApi::createPublicChat for more details.
      *
