@@ -1137,6 +1137,8 @@ bool Call::handlePeerLeft(Cid_t cid)
     }
 
     it->second->disableAudioSlot();
+    it->second->disableVideoSlot(true);
+    it->second->disableVideoSlot(false);
     mSessions.erase(cid);
     return true;
 }
