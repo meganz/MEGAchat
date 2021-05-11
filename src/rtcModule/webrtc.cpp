@@ -282,7 +282,7 @@ void Call::enableAudioLevelMonitor(bool enable)
 
             webrtc::AudioProcessingStats audioStats = artc::gAudioProcessing->GetStatistics(false);
 
-            if (mAudioDetected != audioStats.voice_detected.value())
+            if (audioStats.voice_detected && mAudioDetected != audioStats.voice_detected.value())
             {
                 mAudioDetected = audioStats.voice_detected.value();
                setAudioDetected(mAudioDetected);
