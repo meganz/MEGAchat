@@ -478,13 +478,19 @@ bool MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> heade
     // extract keyId from header
     Keyid_t auxKeyId = 0;
     memcpy(&auxKeyId, headerData, FRAME_KEYID_LENGTH);
+
+    // extract CID from header, and check if matches with expected one
+    uint8_t offset = FRAME_KEYID_LENGTH;
+    Cid_t peerCid = 0;
+    memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
+
     if (!mSymCipher || (auxKeyId != mKeyId))
     {
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
         {
-            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d", auxKeyId);
+            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d -- Mypeerid: %d --- peerid received: %d", auxKeyId, mPeer.getCid(), peerCid);
             return false;
         }
 
@@ -492,10 +498,6 @@ bool MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> heade
         setDecryptionKey(decryptionKey);
     }
 
-    // extract CID from header, and check if matches with expected one
-    uint8_t offset = FRAME_KEYID_LENGTH;
-    Cid_t peerCid = 0;
-    memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
     if (peerCid != mPeer.getCid())
     {
         RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);
