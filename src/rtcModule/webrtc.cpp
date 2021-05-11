@@ -2233,6 +2233,8 @@ void Session::disableAudioSlot()
     {
         mAudioSlot->enableAudioMonitor(false); // disable audio monitor
         mAudioSlot->enableTrack(false);
+        rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mAudioSlot->getTransceiver()->receiver()->GetFrameDecryptor();
+        static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
         mAudioSlot->getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
         setAudioSlot(nullptr);
     }
@@ -2248,6 +2250,8 @@ void Session::disableVideoSlot(bool hires)
     if (hires)
     {
         mHiresSlot->enableTrack(false);
+        rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mHiresSlot->getTransceiver()->receiver()->GetFrameDecryptor();
+        static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
         mHiresSlot->getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
         mHiresSlot = nullptr;
         mSessionHandler->onHiResReceived(*this);
@@ -2255,6 +2259,8 @@ void Session::disableVideoSlot(bool hires)
     else
     {
         mVthumSlot->enableTrack(false);
+        rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mVthumSlot->getTransceiver()->receiver()->GetFrameDecryptor();
+        static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
         mVthumSlot->getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
         mVthumSlot = nullptr;
         mSessionHandler->onVThumbReceived(*this);
