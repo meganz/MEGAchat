@@ -135,7 +135,6 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mRtc(rtc)
 {
     mAvailableTracks.reset(new AvailableTracks());
-    mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, -1)); // -1 represent local
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mGlobalCallHandler.onNewCall(*this);
     mSessions.clear();
@@ -261,22 +260,42 @@ bool Call::participate()
 
 void Call::enableAudioLevelMonitor(bool enable)
 {
-    if (mAudioLevelMonitorEnabled == enable)
+    if (mVoiceDetectionTimer != 0 && enable)
+    {
+        return;
+    }
+    else if (mVoiceDetectionTimer == 0 && !enable)
     {
         return;
     }
 
-    assert(mAudioLevelMonitor);
-    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mAudio->getTransceiver()->receiver()->track();
-    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
-    assert(audioTrack);
+    RTCM_LOG_DEBUG("Audio level monitor %s", enable ? "enabled" : "disabled");
 
-    mAudioLevelMonitorEnabled = enable;
-    enable
-        ? audioTrack->AddSink(mAudioLevelMonitor.get())
-        : audioTrack->RemoveSink(mAudioLevelMonitor.get());
+    if (enable)
+    {
+        mAudioDetected = false;
+        auto wptr = weakHandle();
+        mVoiceDetectionTimer = karere::setInterval([this, wptr]()
+        {
+            if (wptr.deleted())
+                return;
 
-    RTCM_LOG_DEBUG("audio level monitor %s", enable ? "enabled" : "disabled");
+            webrtc::AudioProcessingStats audioStats = artc::gAudioProcessing->GetStatistics(false);
+
+            if (mAudioDetected != audioStats.voice_detected.value())
+            {
+                mAudioDetected = audioStats.voice_detected.value();
+               setAudioDetected(mAudioDetected);
+            }
+        }, kAudioMonitorTimeout, mRtc.getAppCtx());
+    }
+    else
+    {
+        setAudioDetected(false);
+        mAudioDetected = false;
+        karere::cancelInterval(mVoiceDetectionTimer, mRtc.getAppCtx());
+        mVoiceDetectionTimer = 0;
+    }
 }
 
 void Call::ignoreCall()
@@ -330,7 +349,7 @@ bool Call::isIgnored() const
 
 bool Call::isAudioLevelMonitorEnabled() const
 {
-    return mAudioLevelMonitorEnabled;
+    return mVoiceDetectionTimer;
 }
 
 bool Call::hasVideoSlot(Cid_t cid, bool highRes) const
@@ -796,6 +815,8 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         mSfuClient.closeManagerProtocol(mChatid);
         mSfuConnection = nullptr;
     }
+
+    enableAudioLevelMonitor(false);
 
     if (mRtcConn)
     {
@@ -1552,6 +1573,7 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler)
 
 void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings, const karere::Id& myHandle)
 {
+    mAppCtx = appCtx;
     mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings, myHandle);
     if (!artc::isInitialized())
     {
@@ -1833,6 +1855,11 @@ void RtcModuleSfu::closeDevice()
         mVideoDevice->releaseDevice();
         mVideoDevice = nullptr;
     }
+}
+
+void *RtcModuleSfu::getAppCtx()
+{
+    return mAppCtx;
 }
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler)
@@ -2319,33 +2346,19 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
 
 bool AudioLevelMonitor::hasAudio()
 {
-    if (mCid < 0)
+    Session *sess = mCall.getSession(mCid);
+    if (sess)
     {
-        return mCall.getLocalAvFlags().audio();
+        return sess->getAvFlags().audio();
     }
-    else
-    {
-        Session *sess = mCall.getSession(mCid);
-        if (sess)
-        {
-            return sess->getAvFlags().audio();
-        }
-        return false;
-    }
+    return false;
 }
 
 void AudioLevelMonitor::onAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
-    if (mCid < 0) // local
-    {
-        mCall.setAudioDetected(mAudioDetected);
-    }
-    else // remote
-    {
-        assert(mCall.getSession(mCid));
-        Session *sess = mCall.getSession(mCid);
-        sess->setAudioDetected(mAudioDetected);
-    }
+    assert(mCall.getSession(mCid));
+    Session *sess = mCall.getSession(mCid);
+    sess->setAudioDetected(mAudioDetected);
 }
 }

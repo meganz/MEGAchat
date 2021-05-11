@@ -6,6 +6,7 @@
 #include <api/video_codecs/builtin_video_encoder_factory.h>
 #include <api/video_codecs/builtin_video_decoder_factory.h>
 #include <modules/video_capture/video_capture_factory.h>
+#include <modules/audio_processing/include/audio_processing.h>
 #include <rtc_base/ssl_adapter.h>
 #include <system_wrappers/include/field_trial.h>
 
@@ -28,6 +29,7 @@ namespace artc
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = nullptr;
 std::unique_ptr<rtc::Thread> gWorkerThread = nullptr;
 std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
+rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing = nullptr;
 void *gAppCtx = nullptr;
 
 static bool gIsInitialized = false;
@@ -47,6 +49,12 @@ bool init(void *appCtx)
         gWorkerThread->Start();
         gSignalingThread = rtc::Thread::Create();
         gSignalingThread->Start();
+
+        gAudioProcessing = rtc::scoped_refptr<webrtc::AudioProcessing>(webrtc::AudioProcessingBuilder().Create());
+        webrtc::AudioProcessing::Config audioConfig = gAudioProcessing->GetConfig();
+        audioConfig.voice_detection.enabled = true;
+        gAudioProcessing->ApplyConfig(audioConfig);
+
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
                     nullptr /*networThread*/, gWorkerThread.get() /*workThread*/,
                     gSignalingThread.get() /*signaledThread*/, nullptr,
@@ -54,8 +62,7 @@ bool init(void *appCtx)
                     webrtc::CreateBuiltinAudioDecoderFactory(),
                     webrtc::CreateBuiltinVideoEncoderFactory(),
                     webrtc::CreateBuiltinVideoDecoderFactory(),
-                    nullptr /* audio_mixer */, nullptr /* audio_processing */);
-
+                    nullptr /* audio_mixer */, gAudioProcessing);
     }
 
     if (!gWebrtcContext)

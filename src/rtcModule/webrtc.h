@@ -216,6 +216,7 @@ enum RtcConstant {
    kHiResHeight = 540,
    kHiResMaxFPS = 30,
    kVthumbWidth = 160,
+   kAudioMonitorTimeout = 2000,
 };
 
 #endif

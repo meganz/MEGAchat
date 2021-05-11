@@ -58,7 +58,7 @@ private:
     time_t mPreviousTime = 0;
     Call &mCall;
     bool mAudioDetected = false;
-    int32_t mCid; // -1 represents local audio monitor
+    int32_t mCid;
 };
 
 class Slot
@@ -285,8 +285,7 @@ protected:
     int64_t mInitialTs = 0;
     int64_t mFinalTs = 0;
     bool mAudioDetected = false;
-    bool mAudioLevelMonitorEnabled = false;
-    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
+    megaHandle mVoiceDetectionTimer = 0;
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
@@ -363,6 +362,8 @@ public:
     void openDevice();
     void closeDevice();
 
+    void* getAppCtx();
+
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
     IGlobalCallHandler& mCallHandler;
@@ -373,6 +374,7 @@ private:
     unsigned int mDeviceCount = 0;
     std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
     std::map<karere::Id, VideoSink> mVideoSink;
+    void* mAppCtx = nullptr;
 };
 
 void globalCleanup();
