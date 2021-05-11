@@ -1184,13 +1184,8 @@ bool Call::handleModerator(Cid_t cid, bool moderator)
 
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
-    mVThumb->createDecryptor();
     mVThumb->createEncryptor(getMyPeer());
-
-    mHiRes->createDecryptor();
     mHiRes->createEncryptor(getMyPeer());
-
-    mAudio->createDecryptor();
     mAudio->createEncryptor(getMyPeer());
 }
 
