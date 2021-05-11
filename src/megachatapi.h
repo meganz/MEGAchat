@@ -5145,6 +5145,16 @@ public:
       */
     ::mega::MegaHandleList* getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction);
 
+    /**
+     * @brief Enable / disable the public key pinning
+     *
+     * Public key pinning is enabled by default for all sensible communications.
+     * It is strongly discouraged to disable this feature.
+     *
+     * @param enable true to keep public key pinning enabled, false to disable it
+     */
+    void setPublicKeyPinning(bool enable);
+
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Register a listener to receive all events about calls
