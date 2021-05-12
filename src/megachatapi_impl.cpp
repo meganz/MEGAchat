@@ -1547,6 +1547,13 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (!call->participate())
             {
+                if (call->getParticipants().size() > rtcModule::kMaxCallReceivers)
+                {
+                    API_LOG_ERROR("Start call - There are too many participants in the call");
+                    errorCode = MegaChatError::ERROR_TOOMANY;
+                    break;
+                }
+
                 call->join(avFlags)
                 .then([request, this]()
                 {
@@ -1602,6 +1609,13 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Answer call - There is not any call in that chatroom");
                 errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            if (call->getParticipants().size() > rtcModule::kMaxCallReceivers)
+            {
+                API_LOG_ERROR("Answer call - There are too many participants in the call");
+                errorCode = MegaChatError::ERROR_TOOMANY;
                 break;
             }
 
@@ -8797,7 +8811,15 @@ void MegaChatSessionHandler::onSpeakRequest(rtcModule::ISession &session, bool r
 
 void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
 {
-    session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
+    if (session.hasLowResolutionTrack())
+    {
+        session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
+    }
+    else
+    {
+        session.setVideoRendererVthumb(nullptr);
+    }
+
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
@@ -8805,7 +8827,15 @@ void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
 
 void MegaChatSessionHandler::onHiResReceived(rtcModule::ISession& session)
 {
-    session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, true, session.getClientid()));
+    if (session.hasHighResolutionTrack())
+    {
+        session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, true, session.getClientid()));
+    }
+    else
+    {
+        session.setVideoRendererHiRes(nullptr);
+    }
+
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());

@@ -6,6 +6,7 @@
 #include <api/video_codecs/builtin_video_encoder_factory.h>
 #include <api/video_codecs/builtin_video_decoder_factory.h>
 #include <modules/video_capture/video_capture_factory.h>
+#include <modules/audio_processing/include/audio_processing.h>
 #include <rtc_base/ssl_adapter.h>
 #include <system_wrappers/include/field_trial.h>
 
@@ -28,6 +29,7 @@ namespace artc
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = nullptr;
 std::unique_ptr<rtc::Thread> gWorkerThread = nullptr;
 std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
+rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing = nullptr;
 void *gAppCtx = nullptr;
 
 static bool gIsInitialized = false;
@@ -47,6 +49,12 @@ bool init(void *appCtx)
         gWorkerThread->Start();
         gSignalingThread = rtc::Thread::Create();
         gSignalingThread->Start();
+
+        gAudioProcessing = rtc::scoped_refptr<webrtc::AudioProcessing>(webrtc::AudioProcessingBuilder().Create());
+        webrtc::AudioProcessing::Config audioConfig = gAudioProcessing->GetConfig();
+        audioConfig.voice_detection.enabled = true;
+        gAudioProcessing->ApplyConfig(audioConfig);
+
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
                     nullptr /*networThread*/, gWorkerThread.get() /*workThread*/,
                     gSignalingThread.get() /*signaledThread*/, nullptr,
@@ -54,8 +62,7 @@ bool init(void *appCtx)
                     webrtc::CreateBuiltinAudioDecoderFactory(),
                     webrtc::CreateBuiltinVideoEncoderFactory(),
                     webrtc::CreateBuiltinVideoDecoderFactory(),
-                    nullptr /* audio_mixer */, nullptr /* audio_processing */);
-
+                    nullptr /* audio_mixer */, gAudioProcessing);
     }
 
     if (!gWebrtcContext)
@@ -471,13 +478,19 @@ bool MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> heade
     // extract keyId from header
     Keyid_t auxKeyId = 0;
     memcpy(&auxKeyId, headerData, FRAME_KEYID_LENGTH);
+
+    // extract CID from header, and check if matches with expected one
+    uint8_t offset = FRAME_KEYID_LENGTH;
+    Cid_t peerCid = 0;
+    memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
+
     if (!mSymCipher || (auxKeyId != mKeyId))
     {
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
         {
-            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d", auxKeyId);
+            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d -- Mypeerid: %d --- peerid received: %d", auxKeyId, mPeer.getCid(), peerCid);
             return false;
         }
 
@@ -485,10 +498,6 @@ bool MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> heade
         setDecryptionKey(decryptionKey);
     }
 
-    // extract CID from header, and check if matches with expected one
-    uint8_t offset = FRAME_KEYID_LENGTH;
-    Cid_t peerCid = 0;
-    memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
     if (peerCid != mPeer.getCid())
     {
         RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);

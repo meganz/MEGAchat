@@ -38,6 +38,7 @@ namespace artc
 extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
 extern std::unique_ptr<rtc::Thread> gWorkerThread;
 extern std::unique_ptr<rtc::Thread> gSignalingThread;
+extern rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing;
 extern void* gAppCtx;
 
 /** Globally initializes the library */
