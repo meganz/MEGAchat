@@ -594,9 +594,9 @@ void Call::requestLowResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
-            continue;
+            it = cids.erase(auxit);
         }
-        if (sess->hasLowResolutionTrack())
+        else if (sess->hasLowResolutionTrack())
         {
             it = cids.erase(auxit);
             sess->notifyLowResReceived();
@@ -616,9 +616,9 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
-            continue;
+            it = cids.erase(auxit);
         }
-        if (!sess->hasLowResolutionTrack())
+        else if (!sess->hasLowResolutionTrack())
         {
             it = cids.erase(auxit);
             sess->notifyLowResReceived();
