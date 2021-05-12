@@ -8811,7 +8811,15 @@ void MegaChatSessionHandler::onSpeakRequest(rtcModule::ISession &session, bool r
 
 void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
 {
-    session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
+    if (session.hasLowResolutionTrack())
+    {
+        session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
+    }
+    else
+    {
+        session.setVideoRendererVthumb(nullptr);
+    }
+
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
@@ -8819,7 +8827,15 @@ void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
 
 void MegaChatSessionHandler::onHiResReceived(rtcModule::ISession& session)
 {
-    session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, true, session.getClientid()));
+    if (session.hasHighResolutionTrack())
+    {
+        session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, true, session.getClientid()));
+    }
+    else
+    {
+        session.setVideoRendererHiRes(nullptr);
+    }
+
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());

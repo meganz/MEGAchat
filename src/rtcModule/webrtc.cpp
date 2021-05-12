@@ -581,8 +581,8 @@ void Call::stopHighResolutionVideo(Cid_t cid)
     {
         assert(mAvailableTracks->hasCid(cid));
         mAvailableTracks->updateHiresTrack(cid, false);
-        sess->disableVideoSlot(true);
         mSfuConnection->sendDelHiRes(cid);
+        sess->disableVideoSlot(kHiRes);
     }
 }
 
@@ -631,7 +631,7 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
             Session *sess= getSession(cid);
             assert(mAvailableTracks->hasCid(cid));
             mAvailableTracks->updateLowresTrack(cid, false);
-            sess->disableVideoSlot(false);
+            sess->disableVideoSlot(kLowRes);
         }
 
         mSfuConnection->sendDelVthumbs(cids);
@@ -937,20 +937,13 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         parameters.encodings[0].max_bitrate_bps = 100 * 1024;
         mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
 
-        handleIncomingVideo(vthumbs);
-        std::set<Cid_t> requestVThumbCids;
-        for (const auto& vthumb : vthumbs)
+        for (auto const vthumb : vthumbs)
         {
-            if (cids.find(vthumb.first) == cids.end())
-            {
-                requestVThumbCids.insert(vthumb.first);
-            }
+            mAvailableTracks->addCid(vthumb.first);
         }
 
-        if (requestVThumbCids.size())
-        {
-            requestPeerTracks(requestVThumbCids);
-        }
+        handleIncomingVideo(vthumbs);
+        requestPeerTracks(cids);
 
         for(auto speak : speakers)
         {
@@ -1045,7 +1038,7 @@ bool Call::handleVThumbsStopCommand()
 
 bool Call::handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor>& videoTrackDescriptors)
 {
-    handleIncomingVideo(videoTrackDescriptors, true);
+    handleIncomingVideo(videoTrackDescriptors, kHiRes);
     return true;
 }
 
@@ -1176,8 +1169,8 @@ bool Call::handlePeerLeft(Cid_t cid)
 
     mAvailableTracks->removeCid(cid);
     it->second->disableAudioSlot();
-    it->second->disableVideoSlot(true);
-    it->second->disableVideoSlot(false);
+    it->second->disableVideoSlot(kHiRes);
+    it->second->disableVideoSlot(kLowRes);
     mSessions.erase(cid);
     return true;
 }
@@ -1315,7 +1308,7 @@ void Call::generateAndSendNewkey()
     });
 }
 
-void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, bool hiRes)
+void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution)
 {
     for (auto trackDescriptor : videotrackDescriptors)
     {
@@ -1327,29 +1320,31 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         Cid_t cid = trackDescriptor.first;
-
-
         RemoteVideoSlot *slot = static_cast<RemoteVideoSlot*>(it->second.get());
-        if (slot->getCid() != cid)
+        if (slot->getCid() == cid && slot->getVideoResolution() == videoResolution)
         {
-            if (trackDescriptor.second.mReuse)
+            RTCM_LOG_WARNING("Follow same cid with same resolution over same track");
+            assert(false);
+            continue;
+        }
+
+        if (slot->getCid() != 0)
+        {
+            if (trackDescriptor.second.mReuse && slot->getCid() != cid)
             {
                 RTCM_LOG_WARNING("attachSlotToSession: trying to reuse slot, but cid has changed");
-                assert(false);
-                continue;
             }
-            else
+
+            Session *oldSess = getSession(slot->getCid());
+            if (oldSess)
             {
-                Session *oldSess = getSession(slot->getCid());
-                if (oldSess)
-                {
-                    // In case of Slot reassign for another peer (CID) we need to notify app about that
-                    hiRes
+                // In case of Slot reassign for another peer (CID) we need to notify app about that
+                (videoResolution == kHiRes)
                         ? mAvailableTracks->updateHiresTrack(slot->getCid(), false)
                         : mAvailableTracks->updateLowresTrack(slot->getCid(), false);
-                    oldSess->disableVideoSlot(hiRes);
-                }
+                oldSess->disableVideoSlot(videoResolution);
             }
+
         }
 
         Session *sess = getSession(cid);
@@ -1358,12 +1353,13 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
             continue;
         }
-        slot->reassignVideoSlot(cid, trackDescriptor.second.mIv);
-        attachSlotToSession(cid, slot, false, hiRes, trackDescriptor.second.mReuse);
+
+        slot->assignVideoSlot(cid, trackDescriptor.second.mIv, videoResolution);
+        attachSlotToSession(cid, slot, false, videoResolution, trackDescriptor.second.mReuse);
     }
 }
 
-void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, bool hiRes, bool reuse)
+void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResolution hiRes, bool reuse)
 {
     Session *session = getSession(cid);
     assert(session);
@@ -1429,8 +1425,8 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         RTCM_LOG_WARNING("AddSpeaker: unknown cid");
         return;
     }
-    slot->reassign(cid, speaker.mIv);
-    attachSlotToSession(cid, slot, true, false, false);
+    slot->assign(cid, speaker.mIv);
+    attachSlotToSession(cid, slot, true, kUndefined, false);
 }
 
 void Call::removeSpeaker(Cid_t cid)
@@ -1932,8 +1928,9 @@ Cid_t Slot::getCid() const
     return mCid;
 }
 
-void Slot::reassign(Cid_t cid, IvStatic_t iv)
+void Slot::assign(Cid_t cid, IvStatic_t iv)
 {
+    assert(!mCid);
     createDecryptor(cid, iv);
     enableTrack(true);
     if (mTransceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
@@ -2013,9 +2010,38 @@ void Slot::generateRandomIv()
     randombytes_buf(&mIv, sizeof(mIv));
 }
 
+void Slot::release()
+{
+    if (!mCid)
+    {
+        return;
+    }
+
+    mIv = 0;
+    mCid = 0;
+
+    if (mAudioLevelMonitor)
+    {
+        enableAudioMonitor(false);
+        mAudioLevelMonitor = nullptr;
+        mAudioLevelMonitorEnabled = false;
+    }
+
+    enableTrack(false);
+    rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = getTransceiver()->receiver()->GetFrameDecryptor();
+    static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
+    getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
+}
+
 RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : Slot(call, transceiver)
 {
+    webrtc::VideoTrackInterface* videoTrack =
+            static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
+
+    assert(videoTrack);
+    rtc::VideoSinkWants wants;
+    videoTrack->AddOrUpdateSink(this, wants);
 }
 
 RemoteVideoSlot::~RemoteVideoSlot()
@@ -2024,7 +2050,7 @@ RemoteVideoSlot::~RemoteVideoSlot()
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
     videoTrack->set_enabled(false);
 
-    if (videoTrack && mSinkAdded)
+    if (videoTrack)
     {
         videoTrack->RemoveSink(this);
     }
@@ -2068,24 +2094,30 @@ void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
     }
 }
 
-void RemoteVideoSlot::reassignVideoSlot(Cid_t cid, IvStatic_t iv)
+void RemoteVideoSlot::assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution)
 {
-    reassign(cid, iv);
-    addSinkToTrack();
+    assert(mVideoResolution == -1);
+    assign(cid, iv);
+    enableTrack();
+    mVideoResolution = videoResolution;
 }
 
-void RemoteVideoSlot::addSinkToTrack()
+void RemoteVideoSlot::release()
+{
+    Slot::release();
+    mVideoResolution = VideoResolution::kUndefined;
+}
+
+VideoResolution RemoteVideoSlot::getVideoResolution() const
+{
+    return mVideoResolution;
+}
+
+void RemoteVideoSlot::enableTrack()
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
     videoTrack->set_enabled(true);
-
-    if (videoTrack)
-    {
-        rtc::VideoSinkWants wants;
-        videoTrack->AddOrUpdateSink(this, wants);
-        mSinkAdded = true;
-    }
 }
 
 void globalCleanup()
@@ -2104,8 +2136,8 @@ Session::Session(const sfu::Peer& peer)
 Session::~Session()
 {
     disableAudioSlot();
-    disableVideoSlot(true);
-    disableVideoSlot(false);
+    disableVideoSlot(kHiRes);
+    disableVideoSlot(kLowRes);
     mState = kSessStateDestroyed;
     mSessionHandler->onDestroySession(*this);
 }
@@ -2238,37 +2270,27 @@ void Session::disableAudioSlot()
 {
     if (mAudioSlot)
     {
-        mAudioSlot->enableAudioMonitor(false); // disable audio monitor
-        mAudioSlot->enableTrack(false);
-        rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mAudioSlot->getTransceiver()->receiver()->GetFrameDecryptor();
-        static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
-        mAudioSlot->getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
+        mAudioSlot->release();
         setAudioSlot(nullptr);
     }
 }
 
-void Session::disableVideoSlot(bool hires)
+void Session::disableVideoSlot(VideoResolution videoResolution)
 {
-    if ((hires && !mHiresSlot) || (!hires && !mVthumSlot))
+    if ((videoResolution == kHiRes && !mHiresSlot) || (videoResolution == kLowRes && !mVthumSlot))
     {
         return;
     }
 
-    if (hires)
+    if (videoResolution == kHiRes)
     {
-        mHiresSlot->enableTrack(false);
-        rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mHiresSlot->getTransceiver()->receiver()->GetFrameDecryptor();
-        static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
-        mHiresSlot->getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
+        mHiresSlot->release();
         mHiresSlot = nullptr;
         mSessionHandler->onHiResReceived(*this);
     }
     else
     {
-        mVthumSlot->enableTrack(false);
-        rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = mVthumSlot->getTransceiver()->receiver()->GetFrameDecryptor();
-        static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
-        mVthumSlot->getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
+        mVthumSlot->release();
         mVthumSlot = nullptr;
         mSessionHandler->onVThumbReceived(*this);
     }

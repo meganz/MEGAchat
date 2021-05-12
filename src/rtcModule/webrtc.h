@@ -58,6 +58,13 @@ enum CallQuality
     kCallQualityHighLow = 2,        // 2 layers lower (4x lower resolution)
 };
 
+enum VideoResolution
+{
+    kUndefined = -1,
+    kLowRes = 0,
+    kHiRes = 1,
+};
+
 class ISession;
 class SessionHandler
 {
@@ -91,7 +98,7 @@ public:
     virtual bool hasLowResolutionTrack() const = 0;
     virtual void notifyHiResReceived() = 0;
     virtual void notifyLowResReceived() = 0;
-    virtual void disableVideoSlot(bool hires) = 0;
+    virtual void disableVideoSlot(VideoResolution hires) = 0;
 };
 
 class ICall;

@@ -70,13 +70,14 @@ public:
     void createDecryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
-    void reassign(Cid_t cid, IvStatic_t iv);
+    void assign(Cid_t cid, IvStatic_t iv);
     bool hasTrack(bool send);
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
     void enableTrack(bool enable);
     IvStatic_t getIv() const;
     void generateRandomIv();
+    virtual void release();
 
 protected:
     Call &mCall;
@@ -103,11 +104,13 @@ class RemoteVideoSlot : public Slot, public VideoSink
 public:
     RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     ~RemoteVideoSlot();
-    void addSinkToTrack();
-    void reassignVideoSlot(Cid_t cid, IvStatic_t iv);
+    void enableTrack();
+    void assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution);
+    void release() override;
+    VideoResolution getVideoResolution() const;
 
 private:
-    bool mSinkAdded = false;
+    VideoResolution mVideoResolution = kUndefined;
 };
 
 class Session : public ISession
@@ -145,7 +148,7 @@ public:
     bool hasLowResolutionTrack() const override;
     void notifyHiResReceived() override;
     void notifyLowResReceived() override;
-    void disableVideoSlot(bool hires) override;
+    void disableVideoSlot(VideoResolution videoResolution) override;
 
 private:
     sfu::Peer mPeer;
@@ -319,13 +322,12 @@ protected:
     artc::VideoManager* mVideoManager = nullptr;
 
     void generateAndSendNewkey();
-    void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, bool hiRes = false);
+    void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution = kLowRes);
     void addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker);
     void removeSpeaker(Cid_t cid);
     const std::string &getCallKey() const;
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, bool hiRes, bool reuse);
-
+    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
