@@ -74,7 +74,7 @@ public:
     bool hasTrack(bool send);
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
-    void enableTrack(bool enable);
+    void enableTrack(bool enable, TrackDirection direction);
     IvStatic_t getIv() const;
     void generateRandomIv();
     virtual void release();

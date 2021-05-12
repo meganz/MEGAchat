@@ -65,6 +65,12 @@ enum VideoResolution
     kHiRes = 1,
 };
 
+enum TrackDirection
+{
+    kSend = 0,
+    kRecv = 1,
+};
+
 class ISession;
 class SessionHandler
 {

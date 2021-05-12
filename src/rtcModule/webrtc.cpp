@@ -1932,7 +1932,7 @@ void Slot::assign(Cid_t cid, IvStatic_t iv)
 {
     assert(!mCid);
     createDecryptor(cid, iv);
-    enableTrack(true);
+    enableTrack(true, kRecv);
     if (mTransceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
     {
         enableAudioMonitor(true); // enable audio monitor
@@ -1983,20 +1983,16 @@ void Slot::enableAudioMonitor(bool enable)
     }
 }
 
-void Slot::enableTrack(bool enable)
+void Slot::enableTrack(bool enable, TrackDirection direction)
 {
     assert(mTransceiver);
-    if (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kRecvOnly)
+    if (direction == kRecv)
     {
         mTransceiver->receiver()->track()->set_enabled(enable);
     }
-    else if(mTransceiver->direction() == webrtc::RtpTransceiverDirection::kSendRecv)
+    else if (direction == kSend)
     {
-        mTransceiver->receiver()->track()->set_enabled(enable);
-        if (mTransceiver->sender()->track())
-        {
-            mTransceiver->sender()->track()->set_enabled(enable);
-        }
+        mTransceiver->sender()->track()->set_enabled(enable);
     }
 }
 
@@ -2027,7 +2023,7 @@ void Slot::release()
         mAudioLevelMonitorEnabled = false;
     }
 
-    enableTrack(false);
+    enableTrack(false, kRecv);
     rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = getTransceiver()->receiver()->GetFrameDecryptor();
     static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
     getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
@@ -2098,7 +2094,6 @@ void RemoteVideoSlot::assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution 
 {
     assert(mVideoResolution == -1);
     assign(cid, iv);
-    enableTrack();
     mVideoResolution = videoResolution;
 }
 
