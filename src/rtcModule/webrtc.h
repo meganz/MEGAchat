@@ -210,7 +210,7 @@ RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler);
 enum RtcConstant {
    kMaxCallReceivers = 20,
    kMaxCallAudioSenders = 20,
-   kMaxCallVideoSenders = 6,
+   kMaxCallVideoSenders = 30,
    kInitialvthumbCount = 10,
    kHiResWidth = 960,
    kHiResHeight = 540,
