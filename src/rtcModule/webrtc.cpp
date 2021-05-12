@@ -1342,9 +1342,9 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                 (videoResolution == kHiRes)
                         ? mAvailableTracks->updateHiresTrack(slot->getCid(), false)
                         : mAvailableTracks->updateLowresTrack(slot->getCid(), false);
-                oldSess->disableVideoSlot(videoResolution);
-            }
 
+                oldSess->disableVideoSlot(slot->getVideoResolution());
+            }
         }
 
         Session *sess = getSession(cid);
@@ -2092,7 +2092,7 @@ void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
 
 void RemoteVideoSlot::assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution)
 {
-    assert(mVideoResolution == -1);
+    assert(mVideoResolution == kUndefined);
     assign(cid, iv);
     mVideoResolution = videoResolution;
 }
