@@ -235,7 +235,7 @@ public:
     bool hasVideoDevice();
     void freeTracks();
     void updateVideoTracks();
-    void requestPeerTracks(std::set<Cid_t>& cids);
+    void requestPeerTracks(const std::set<Cid_t> &cids);
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;

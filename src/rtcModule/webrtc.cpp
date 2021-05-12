@@ -860,7 +860,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
-void Call::requestPeerTracks(std::set<Cid_t>& cids)
+void Call::requestPeerTracks(const std::set<Cid_t>& cids)
 {
     std::vector<Cid_t> lowResCids;
 
@@ -913,7 +913,6 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         mCallHandler->onNewSession(*mSessions[peer.getCid()], *this);
     }
 
-    requestPeerTracks(cids);
     generateAndSendNewkey();
     std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
@@ -926,7 +925,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
 
     auto wptr = weakHandle();
     mRtcConn.setRemoteDescription(sdpInterface)
-    .then([wptr, this, vthumbs, speakers, ts]()
+    .then([wptr, this, vthumbs, speakers, ts, cids]()
     {
         if (wptr.deleted())
             return;
@@ -939,6 +938,19 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
 
         handleIncomingVideo(vthumbs);
+        std::set<Cid_t> requestVThumbCids;
+        for (const auto& vthumb : vthumbs)
+        {
+            if (cids.find(vthumb.first) == cids.end())
+            {
+                requestVThumbCids.insert(vthumb.first);
+            }
+        }
+
+        if (requestVThumbCids.size())
+        {
+            requestPeerTracks(requestVThumbCids);
+        }
 
         for(auto speak : speakers)
         {
