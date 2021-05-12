@@ -1289,7 +1289,6 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         break;
     }
-
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
@@ -1394,7 +1393,6 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }, appCtx);
         break;
     }
-
     default:    // no action to be taken for other type of requests
     {
         break;
@@ -1660,7 +1658,10 @@ std::string Client::getMyEmailFromSdk()
 {
     SdkString myEmail = api.sdk.getMyEmail();
     if (!myEmail.c_str() || !myEmail.c_str()[0])
-        throw std::runtime_error("Could not get our own email from API");
+    {
+        // For ephemeral accounts email isn't set
+        return std::string("");
+    }
     KR_LOG_INFO("Our email address is %s", myEmail.c_str());
     return myEmail.c_str();
 }

@@ -45,10 +45,12 @@ class LoginDialog : public QDialog
         void on_ePassword_textChanged(const QString &arg1);
         void on_bAnonymousText_clicked();
         void on_bAnonymous_clicked();
+        void on_bEphimeralAccount_clicked();
 
     signals:
         void onLoginClicked();
         void onPreviewClicked();
+        void onEphemeralAccountPlusPlus();
 };
 
 #endif // LOGINDIALOG_H
