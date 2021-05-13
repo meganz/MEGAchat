@@ -261,11 +261,25 @@ void MeetingView::setOnHold(bool isOnHold, MegaChatHandle cid)
 std::string MeetingView::sessionToString(const megachat::MegaChatSession &session)
 {
     std::string returnedString;
-    const char* name = mMegaChatApi.getUserFirstnameFromCache(session.getPeerid());
-    if (name)
+    std::unique_ptr<MegaChatRoom> chatRoom(mMegaChatApi.getChatRoom(mChatid));
+    for (size_t i = 0; i < chatRoom->getPeerCount(); i++)
     {
-        returnedString.append(name);
-        delete [] name;
+        if (chatRoom->getPeerHandle(i) == session.getPeerid())
+        {
+            const char *firstName = chatRoom->getPeerFirstname(i);
+            if (firstName)
+            {
+                returnedString.append(firstName);
+            }
+
+            const char *email = chatRoom->getPeerEmail(i);
+            if (email)
+            {
+                returnedString.append(" (");
+                returnedString.append(email);
+                returnedString.append(" )");
+            }
+        }
     }
 
     returnedString.append(" [ClientId: ");
