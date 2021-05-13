@@ -45,7 +45,8 @@ SOURCES +=  ../../../examples/qtmegachatapi/MegaChatApplication.cpp \
     ../../../examples/qtmegachatapi/reaction.cpp \
     ../../../examples/qtmegachatapi/peerWidget.cpp \
     ../../../examples/qtmegachatapi/meetingView.cpp \
-    ../../../examples/qtmegachatapi/meetingSession.cpp
+    ../../../examples/qtmegachatapi/meetingSession.cpp \
+    ../../../examples/qtmegachatapi/confirmAccount.cpp
 
 HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
             ../../../examples/qtmegachatapi/MainWindow.h \
@@ -64,7 +65,8 @@ HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
     ../../../examples/qtmegachatapi/reaction.h \
     ../../../examples/qtmegachatapi/peerWidget.h \
     ../../../examples/qtmegachatapi/meetingView.h \
-    ../../../examples/qtmegachatapi/meetingSession.h
+    ../../../examples/qtmegachatapi/meetingSession.h \
+    ../../../examples/qtmegachatapi/confirmAccount.h
 
 FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
             ../../../examples/qtmegachatapi/MainWindow.ui \
@@ -74,7 +76,8 @@ FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
     ../../../examples/qtmegachatapi/chatMessageWidget.ui \
     ../../../examples/qtmegachatapi/chatGroupDialog.ui \
     ../../../examples/qtmegachatapi/SettingWindow.ui \
-    ../../../examples/qtmegachatapi/reaction.ui
+    ../../../examples/qtmegachatapi/reaction.ui \
+    ../../../examples/qtmegachatapi/confirmAccount.ui
 
 CONFIG(USE_WEBRTC) {
     SOURCES +=  ../../../examples/qtmegachatapi/callGui.cpp \

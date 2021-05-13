@@ -1954,8 +1954,10 @@ public:
      * - MegaChatApi::disableAudio - Returns MegaChatRequest::AUDIO
      * - MegaChatApi::enableVideo - Returns MegaChatRequest::VIDEO
      * - MegaChatApi::disableVideo - Returns MegaChatRequest::VIDEO
-     * - MegaChatApi::answerChatCall - Returns one
-     * - MegaChatApi::rejectChatCall - Returns zero
+     * - MegaChatApi::attachVoiceMessage - Returns one
+     * - MegaChatApi::attachNode - Returns zero
+     * - MegaChatApi::retryPendingConnections - Returns one for refreshUrl
+     * - MegaChatApi::pushReceived - Returns zero Android, one IOS
      *
      * @return Type of parameter related to the request
      */
@@ -2628,6 +2630,9 @@ public:
      * @brief Refresh DNS servers and retry pending connections
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns true if force disconnect
+     * - MegaChatRequest::getParamType - Returns one for refresh url
      *
      * @param disconnect False to simply abort any backoff, true to disconnect and reconnect from scratch.
      * @param listener MegaChatRequestListener to track this request

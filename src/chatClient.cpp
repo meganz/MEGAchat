@@ -1,10 +1,3 @@
-//we need the POSIX version of strerror_r, not the GNU one
-#ifdef _GNU_SOURCE
-    #undef _GNU_SOURCE
-    #define _POSIX_C_SOURCE 201512L
-#endif
-#include <string.h>
-
 #include "chatClient.h"
 #ifdef _WIN32
     #include <winsock2.h>
@@ -137,14 +130,7 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
         ret = mkdir(path.c_str(), 0700);
         if (ret)
         {
-            char buf[512];
-#ifdef _WIN32
-            strerror_s(buf, 511, ret);
-#else
-            (void)strerror_r(ret, buf, 511);
-#endif
-            buf[511] = 0; //just in case
-            throw std::runtime_error(std::string("Error creating application directory: ")+buf);
+            throw std::runtime_error("Error creating application directory.");
         }
     }
     return path;
@@ -369,6 +355,23 @@ bool Client::openDb(const std::string& sid)
                     ok = true;
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
                 }
+            }
+            else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
+            {
+                KR_LOG_WARNING("Purging oldest message per chat...");
+                SqliteStmt stmt(db, "select msgid, min(idx), c.chatid from history as h INNER JOIN chat_vars as c on h.chatid = c.chatid where c.name = 'have_all_history' GROUP BY c.chatid;");
+                while (stmt.step())
+                {
+                   karere::Id msgid = stmt.int64Col(0);
+                   karere::Id chatid = stmt.int64Col(2);
+                   db.query("delete from history where chatid = ? and msgid = ?", chatid, msgid);
+                   db.query("delete from chat_vars where chatid = ? and name = 'have_all_history'", chatid);
+                }
+
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
         }
     }
@@ -1299,7 +1302,6 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         break;
     }
-
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
@@ -1404,7 +1406,6 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }, appCtx);
         break;
     }
-
     default:    // no action to be taken for other type of requests
     {
         break;
@@ -1668,7 +1669,10 @@ std::string Client::getMyEmailFromSdk()
 {
     SdkString myEmail = api.sdk.getMyEmail();
     if (!myEmail.c_str() || !myEmail.c_str()[0])
-        throw std::runtime_error("Could not get our own email from API");
+    {
+        // For ephemeral accounts email isn't set
+        return std::string("");
+    }
     KR_LOG_INFO("Our email address is %s", myEmail.c_str());
     return myEmail.c_str();
 }

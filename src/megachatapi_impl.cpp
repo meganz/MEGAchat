@@ -41,7 +41,7 @@
 
 #ifdef _WIN32
 #pragma warning(push)
-#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.)
 #endif
 
 #include <rapidjson/stringbuffer.h>
@@ -1357,7 +1357,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 fireOnChatRequestFinish(request, megaChatError);
             });
             break;
-        }            
+        }
         case MegaChatRequest::TYPE_PUSH_RECEIVED:
         {
             MegaChatHandle chatid = request->getChatHandle();
@@ -3871,7 +3871,7 @@ void MegaChatApiImpl::closeChatPreview(MegaChatHandle chatid)
 {
     if (!mClient)
         return;
-        
+
     SdkMutexGuard g(sdkMutex);
 
    mClient->chats->removeRoomPreview(chatid);
@@ -9451,7 +9451,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 
         std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, &fa, sdkFingerprint, 
+                             megaHandle, &key, &attrstring, &fa, sdkFingerprint,
                              NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
@@ -9986,7 +9986,7 @@ std::unique_ptr<MegaChatGiphy> JSonUtils::parseGiphy(rapidjson::Document& docume
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"s\" field not found");
         return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
-    
+
     auto webpsizeIterator = document.FindMember("s_webp");
     long webpSize = 0;
     if (webpsizeIterator != document.MemberEnd() && webpsizeIterator->value.IsString())
