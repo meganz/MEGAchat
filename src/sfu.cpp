@@ -1622,14 +1622,20 @@ bool SfuConnection::sendGetHiRes(Cid_t cid, int r, int lo)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendDelHiRes(Cid_t cid)
+bool SfuConnection::sendDelHiRes(const std::vector<Cid_t> &cids)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(CSFU_DEL_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
-    json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
+    rapidjson::Value cidsValue(rapidjson::kArrayType);
+    for(Cid_t cid : cids)
+    {
+        cidsValue.PushBack(rapidjson::Value(cid), json.GetAllocator());
+    }
+    json.AddMember("cids", cidsValue, json.GetAllocator());
+
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);

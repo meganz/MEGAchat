@@ -156,7 +156,7 @@ public:
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
-    virtual void stopHighResolutionVideo(Cid_t cid) = 0;
+    virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
 

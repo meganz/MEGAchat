@@ -367,7 +367,9 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         }
         else if (rightClickItem->text().contains(stopHiRes.c_str()))
         {
-            mMegaChatApi.stopHiResVideo(mChatid, cid);
+            std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+            handleList->addMegaHandle(cid);
+            mMegaChatApi.stopHiResVideo(mChatid, handleList.get());
         }
     }
 }
