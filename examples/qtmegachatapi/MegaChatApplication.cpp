@@ -1188,19 +1188,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
         chatWidget->onUpdateTooltip();
         break;
     }
-    case MegaChatRequest::TYPE_REQUEST_SPEAK:
-    {
-        ChatListItemController *itemController = mMainWin->getChatControllerById(request->getChatHandle());
-        if (itemController)
-        {
-            ChatWindow *window = itemController->showChatWindow();
-            if (window)
-            {
-                window->getMeetingView()->onRequestSpeakFinish();
-            }
-        }
-        break;
-    }
     case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
     {
         ChatListItemController *itemController = mMainWin->getChatControllerById(request->getChatHandle());

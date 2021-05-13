@@ -398,15 +398,6 @@ void MeetingView::onRequestSpeak(bool request)
     request
             ? mMegaChatApi.requestSpeak(mChatid)
             : mMegaChatApi.removeRequestSpeak(mChatid);
-
-    mRequestSpeaker->setEnabled(false);
-    mRequestSpeakerCancel->setEnabled(false);
-}
-
-void MeetingView::onRequestSpeakFinish()
-{
-    mRequestSpeaker->setEnabled(true);
-    mRequestSpeakerCancel->setEnabled(true);
 }
 
 void MeetingView::onEnableAudio()

@@ -25,7 +25,6 @@ public:
     void updateSession(const megachat::MegaChatSession& session);
     void updateAudioButtonText(MegaChatCall *call);
     void updateVideoButtonText(MegaChatCall *call);
-    void onRequestSpeakFinish();
     void setOnHold(bool mIsOnHold, MegaChatHandle cid);
     std::string sessionToString(const megachat::MegaChatSession& session);
     void updateAudioMonitor(bool enabled);
