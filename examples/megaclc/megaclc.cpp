@@ -4037,6 +4037,32 @@ void exec_syncclosedrive(ac::ACState& s)
             }));
 }
 
+void exec_syncexport(ac::ACState& s)
+{
+    auto configs = std::unique_ptr<const char[]>(g_megaApi->exportSyncConfigs());
+
+    if (s.words.size() == 2)
+    {
+        conlock(cout) << "Configs exported as: "
+                      << configs.get()
+                      << endl;
+        return;
+    }
+
+    auto flags = std::ios::binary | std::ios::out | std::ios::trunc;
+    std::ofstream ostream(s.words[2].s, flags);
+
+    ostream.write(configs.get(), strlen(configs.get()));
+    ostream.close();
+
+    if (!ostream.good())
+    {
+        conlock(cout) << "Failed to write exported configs to: "
+                      << s.words[2].s
+                      << endl;
+    }
+}
+
 void exec_syncopendrive(ac::ACState& s)
 {
     string drive= s.words[2].s;
@@ -4485,9 +4511,14 @@ ac::ACN autocompleteSyntax()
             param("remotetarget")));
 
     p->Add(exec_syncclosedrive,
-        sequence(text("sync"),
-            text("closedrive"),
-            localFSFolder("drive")));
+           sequence(text("sync"),
+                    text("closedrive"),
+                    localFSFolder("drive")));
+
+    p->Add(exec_syncexport,
+           sequence(text("sync"),
+                    text("export"),
+                    opt(localFSFile("outputFile"))));
 
     p->Add(exec_syncopendrive,
         sequence(text("sync"),
