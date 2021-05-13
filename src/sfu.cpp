@@ -1629,7 +1629,10 @@ bool SfuConnection::sendDelHiRes(Cid_t cid)
     cmdValue.SetString(CSFU_DEL_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
-    json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
+    rapidjson::Value cidsValue(rapidjson::kArrayType);
+    cidsValue.PushBack(rapidjson::Value(cid), json.GetAllocator());
+    json.AddMember("cids", cidsValue, json.GetAllocator());
+
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
