@@ -699,7 +699,7 @@ void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
         webrtc::PeerConnectionInterface::IceServers iceServer;
         mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
 
-        createTranceiver();
+        createTransceiver();
         mSpeakerState = SpeakerState::kPending;
         getLocalStreams();
         setState(CallState::kStateJoining);
@@ -741,7 +741,7 @@ void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
     });
 }
 
-void Call::createTranceiver()
+void Call::createTransceiver()
 {
     webrtc::RtpTransceiverInit transceiverInitVThumb;
     transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
