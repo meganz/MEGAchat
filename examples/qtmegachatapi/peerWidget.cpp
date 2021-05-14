@@ -27,8 +27,6 @@ PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHan
     {
         mMegaChatApi.addChatRemoteVideoListener(mChatid, mCid, isHiRes(), mMegaChatVideoListenerDelegate);
     }
-
-    setMinimumSize(minimumSizeHint());
 }
 
 PeerWidget::~PeerWidget()

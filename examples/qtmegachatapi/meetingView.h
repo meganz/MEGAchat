@@ -35,6 +35,7 @@ public:
     void addHiResByCid(MegaChatHandle chatid, uint32_t cid);
     void removeLowResByCid(uint32_t cid);
     void removeHiResByCid(uint32_t cid);
+    void localAudioDetected(bool audio);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -57,6 +58,7 @@ protected:
     QPushButton* mRemOwnSpeaker;
     QPushButton* mSetOnHold;
     QLabel* mOnHoldLabel;
+    QLabel* mLocalAudioDetected;
     QLabel* mParticipantsLabel;
 
     QListWidget* mListWidget;
