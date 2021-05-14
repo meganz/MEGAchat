@@ -120,8 +120,8 @@ public:
     ~Session();
 
     const sfu::Peer &getPeer() const;
-    void setVThumSlot(RemoteVideoSlot* slot, bool reuse = false);
-    void setHiResSlot(RemoteVideoSlot* slot, bool reuse = false);
+    void setVThumSlot(RemoteVideoSlot* slot);
+    void setHiResSlot(RemoteVideoSlot* slot);
     void setAudioSlot(Slot* slot);
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);

@@ -1333,7 +1333,6 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         if (slot->getCid() == cid && slot->getVideoResolution() == videoResolution)
         {
             RTCM_LOG_WARNING("Follow same cid with same resolution over same track");
-            assert(false);
             continue;
         }
 
@@ -1393,7 +1392,8 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResoluti
             {
                 mAvailableTracks->updateLowresTrack(cid, false);
             }
-            session->setHiResSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
+
+            session->setHiResSlot(static_cast<RemoteVideoSlot *>(slot));
         }
         else
         {
@@ -1402,7 +1402,8 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResoluti
             {
                 mAvailableTracks->updateHiresTrack(cid, false);
             }
-            session->setVThumSlot(static_cast<RemoteVideoSlot *>(slot), reuse);
+
+            session->setVThumSlot(static_cast<RemoteVideoSlot *>(slot));
         }
     }
 }
@@ -2204,27 +2205,17 @@ const sfu::Peer& Session::getPeer() const
     return mPeer;
 }
 
-void Session::setVThumSlot(RemoteVideoSlot *slot, bool reuse)
+void Session::setVThumSlot(RemoteVideoSlot *slot)
 {
     assert(slot);
     mVthumSlot = slot;
-    if (reuse)
-    {
-        mHiresSlot = nullptr;
-        mSessionHandler->onHiResReceived(*this);
-    }
     mSessionHandler->onVThumbReceived(*this);
 }
 
-void Session::setHiResSlot(RemoteVideoSlot *slot, bool reuse)
+void Session::setHiResSlot(RemoteVideoSlot *slot)
 {
     assert(slot);
     mHiresSlot = slot;
-    if (reuse)
-    {
-        mVthumSlot = nullptr;
-        mSessionHandler->onVThumbReceived(*this);
-    }
     mSessionHandler->onHiResReceived(*this);
 }
 
