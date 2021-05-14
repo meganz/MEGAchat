@@ -2868,11 +2868,11 @@ void MegaChatApiImpl::fireOnChatSessionUpdate(MegaChatHandle chatid, MegaChatHan
     session->removeChanges();
 }
 
-void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, char *buffer, bool hiRes)
+void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, char *buffer, rtcModule::VideoResolution videoResolution)
 {
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator it;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator itEnd;
-
+    assert(videoResolution != rtcModule::VideoResolution::kUndefined);
     if (clientId == 0)
     {
         for( MegaChatVideoListener_set::iterator videoListenerIterator = mLocalVideoListeners[chatid].begin();
@@ -2885,7 +2885,7 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
         return;
     }
 
-    if (hiRes)
+    if (videoResolution == rtcModule::VideoResolution::kHiRes)
     {
          it = mVideoListenersHiRes.find(chatid);
          itEnd = mVideoListenersHiRes.end();
@@ -5001,24 +5001,25 @@ void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
+void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener)
 {
     if (!listener)
     {
         return;
     }
 
+    assert(videoResolution != rtcModule::VideoResolution::kUndefined);
     videoMutex.lock();
     if (clientId == 0)
     {
         mLocalVideoListeners[chatid].insert(listener);
-        mClient->rtc->addLocalVideoRenderer(chatid, new MegaChatVideoReceiver(this, chatid, true));
+        mClient->rtc->addLocalVideoRenderer(chatid, new MegaChatVideoReceiver(this, chatid, rtcModule::VideoResolution::kHiRes));
     }
-    else if (hiRes)
+    else if (videoResolution == rtcModule::VideoResolution::kHiRes)
     {
         mVideoListenersHiRes[chatid][clientId].insert(listener);
     }
-    else
+    else if (videoResolution == rtcModule::VideoResolution::kLowRes)
     {
         mVideoListenersLowRes[chatid][clientId].insert(listener);
     }
@@ -5026,15 +5027,15 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
     videoMutex.unlock();
 }
 
-void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
+void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener)
 {
     if (!listener)
     {
         return;
     }
 
+    assert(videoResolution != rtcModule::VideoResolution::kUndefined);
     videoMutex.lock();
-
     if (clientId == 0)
     {
         auto it = mLocalVideoListeners.find(chatid);
@@ -5050,7 +5051,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
             }
         }
     }
-    else if (hiRes)
+    else if (videoResolution == rtcModule::VideoResolution::kHiRes)
     {
         auto itHiRes = mVideoListenersHiRes.find(chatid);
         if (itHiRes != mVideoListenersHiRes.end())
@@ -5076,7 +5077,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
             }
         }
     }
-    else
+    else if (videoResolution == rtcModule::VideoResolution::kLowRes)
     {
         assert(clientId); // local video listeners can't be un/registered into this map
         auto itLowRes = mVideoListenersLowRes.find(chatid);
@@ -6522,11 +6523,11 @@ void MegaChatCallPrivate::setAudioDetected(bool audioDetected)
     this->mChanged |= MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL;
 }
 
-MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, bool hiRes, uint32_t clientId)
+MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, rtcModule::VideoResolution videoResolution, uint32_t clientId)
 {
     this->mChatApi = chatApi;
     this->mChatid = chatid;
-    this->mHiRes = hiRes;
+    this->mVideoResolution = videoResolution;
     this->mClientId = clientId;
 }
 
@@ -6548,7 +6549,7 @@ void MegaChatVideoReceiver::frameComplete(void *userData)
 {
     mChatApi->videoMutex.lock();
     MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
-    mChatApi->fireOnChatVideoData(mChatid, mClientId, frame->width, frame->height, (char *)frame->buffer, mClientId ? mHiRes : true);
+    mChatApi->fireOnChatVideoData(mChatid, mClientId, frame->width, frame->height, (char *)frame->buffer, mClientId ? mVideoResolution : rtcModule::VideoResolution::kHiRes);
     mChatApi->videoMutex.unlock();
     delete [] frame->buffer;
     delete frame;
@@ -8813,7 +8814,7 @@ void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
 {
     if (session.hasLowResolutionTrack())
     {
-        session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
+        session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, rtcModule::VideoResolution::kLowRes, session.getClientid()));
     }
     else
     {
@@ -8829,7 +8830,7 @@ void MegaChatSessionHandler::onHiResReceived(rtcModule::ISession& session)
 {
     if (session.hasHighResolutionTrack())
     {
-        session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, true, session.getClientid()));
+        session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, rtcModule::VideoResolution::kHiRes, session.getClientid()));
     }
     else
     {

@@ -106,7 +106,7 @@ void MeetingView::addLowResByCid(MegaChatHandle chatid, uint32_t cid)
     auto it = mThumbsWidget.find(cid);
     if (it == mThumbsWidget.end())
     {
-        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false);
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, rtcModule::VideoResolution::kLowRes);
         mThumbLayout->addWidget(peerWidget);
         peerWidget->show();
         mThumbsWidget[peerWidget->getCid()] = peerWidget;
@@ -118,7 +118,7 @@ void MeetingView::addHiResByCid(MegaChatHandle chatid, uint32_t cid)
     auto it = mHiResWidget.find(cid);
     if (it == mHiResWidget.end())
     {
-        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true);
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, rtcModule::VideoResolution::kHiRes);
         mHiResLayout->addWidget(peerWidget);
         peerWidget->show();
         mHiResWidget[peerWidget->getCid()] = peerWidget;
