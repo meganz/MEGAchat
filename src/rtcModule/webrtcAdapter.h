@@ -222,6 +222,11 @@ protected:
             RTCM_DO_CALLBACK(mHandler.onTrack(transceiver), this, transceiver);
         }
 
+        virtual void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
+        {
+            RTCM_DO_CALLBACK(mHandler.onRemoveTrack(receiver), this, receiver);
+        }
+
         virtual void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state)
         {
             RTCM_DO_CALLBACK(mHandler.onConnectionChange(new_state), this, new_state);

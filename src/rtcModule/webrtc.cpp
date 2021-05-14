@@ -1211,6 +1211,11 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
     }
 }
 
+void Call::onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
+{
+    RTCM_LOG_DEBUG("onRemoveTrack received");
+}
+
 void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState)
 {
     RTCM_LOG_DEBUG("onConnectionChange newstate: %d", newState);
