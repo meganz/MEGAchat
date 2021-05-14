@@ -142,11 +142,13 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
 
 Call::~Call()
 {
+    disableStats();
     setState(CallState::kStateDestroyed);
     if (mTermCode == kInvalidTermCode)
     {
         mTermCode = kUnKnownTermCode;
     }
+
     mGlobalCallHandler.onEndCall(*this);
 }
 
@@ -406,6 +408,11 @@ int64_t Call::getInitialTimeStamp() const
 int64_t Call::getFinalTimeStamp() const
 {
     return mFinalTs;
+}
+
+int64_t Call::getInitialOffset() const
+{
+    return mOffset;
 }
 
 const char *Call::stateToStr(uint8_t state)
@@ -792,6 +799,13 @@ void Call::getLocalStreams()
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
+    Stats::mConnStatsReady = true;
+    mStats.mTerCode = static_cast<int32_t>(termCode);
+    mStats.mDuration = time(nullptr) - mInitialTs;
+    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str(), 1378);
+
+    mStats.clear();
+    disableStats();
     if (mLocalAvFlags.video())
     {
         releaseVideoDevice();
@@ -954,6 +968,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
 
         setState(CallState::kStateInProgress);
         mInitialTs -= (ts / 1000); // subtract ts(ms) received in ANSWER command, from ts captured upon setState kStateInProgress
+        enableStats();
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -1495,6 +1510,92 @@ void Call::freeTracks()
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
+}
+
+void Call::enableStats()
+{
+    for (auto& slot : mReceiverTracks)
+    {
+        if (slot.second->getTransceiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
+        {
+            RxStat rxStats;
+            RxStat prevRxStats;
+            mRemoteRxStats[slot.second->getTransceiver()->receiver()->id()] = rxStats;
+            mPrevRemoteRxStas[slot.second->getTransceiver()->receiver()->id()] = prevRxStats;
+        }
+    }
+
+    mStats.mPeerId = mMyPeer.getPeerid();
+    mStats.mCid = mMyPeer.getCid();
+    mStats.mCallid = mCallid;
+    mStats.mTimeOffset = mOffset;
+    mStats.mIsGroup = mIsGroup;
+
+    auto wptr = weakHandle();
+    mStatsTimer = karere::setInterval([this, wptr]()
+    {
+        if (wptr.deleted())
+          return;
+
+
+        int audioSession = 0;
+        int vThumbSession = 0;
+        int hiResSession = 0;
+        for (const auto& session : mSessions)
+        {
+            if (session.second->getAudioSlot())
+            {
+                audioSession++;
+            }
+
+            if (session.second->getVthumSlot())
+            {
+                vThumbSession++;
+            }
+
+            if (session.second->getHiResSlot())
+            {
+                hiResSession++;
+            }
+        }
+
+        mStats.mSamples.mPacketLost.push_back(0);
+        mStats.mSamples.mNrxa.push_back(audioSession);
+        mStats.mSamples.mNrxl.push_back(vThumbSession);
+        mStats.mSamples.mNrxh.push_back(hiResSession);
+        mStats.mSamples.mAv.push_back(mLocalAvFlags.value());
+
+        Stats::mConnStatsReady = true;
+        mStatVideoReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteVideoStatsCallBack(&mStats));
+        for (auto& slot : mReceiverTracks)
+        {
+            if (slot.second->getTransceiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
+            {
+                mRtcConn->GetStats(slot.second->getTransceiver()->receiver(), mStatVideoReceiverCallback);
+            }
+        }
+
+        mStatHiResSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, true));
+        mRtcConn->GetStats(mHiRes->getTransceiver()->sender(), mStatHiResSenderCallBack);
+
+        mStatVThumbSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, false));
+        mRtcConn->GetStats(mVThumb->getTransceiver()->sender(), mStatVThumbSenderCallBack);
+
+    }, RtcConstant::kStatsInterval, mRtc.getAppCtx());
+}
+
+void Call::disableStats()
+{
+    if (mStatsTimer != 0)
+    {
+        karere::cancelInterval(mStatsTimer, mRtc.getAppCtx());
+        mStatsTimer = 0;
+        mRemoteRxStats.clear();
+        mPrevRemoteRxStas.clear();
+        static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
+        static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
+        static_cast<RemoteVideoStatsCallBack*>(mStatVideoReceiverCallback.get())->removeStats();
+    }
 }
 
 void Call::updateVideoTracks()

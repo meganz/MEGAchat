@@ -166,6 +166,7 @@ public:
     virtual bool isOutgoing() const = 0;
     virtual int64_t getInitialTimeStamp() const = 0;
     virtual int64_t getFinalTimeStamp() const = 0;
+    virtual int64_t getInitialOffset() const = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
@@ -230,6 +231,7 @@ enum RtcConstant {
    kHiResMaxFPS = 30,
    kVthumbWidth = 160,
    kAudioMonitorTimeout = 2000,
+   kStatsInterval = 1000,
 };
 
 #endif

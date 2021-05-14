@@ -4,6 +4,7 @@
 #include <logger.h>
 #include <rtcModule/webrtcAdapter.h>
 #include <rtcModule/webrtc.h>
+#include <rtcModule/rtcStats.h>
 #include <sfu.h>
 #include <IVideoRenderer.h>
 
@@ -216,6 +217,7 @@ public:
     bool isOutgoing() const override;
     virtual int64_t getInitialTimeStamp() const override;
     virtual int64_t getFinalTimeStamp() const override;
+    int64_t getInitialOffset() const override;
     static const char *stateToStr(uint8_t state);
 
     void setCallHandler(CallHandler* callHanlder) override;
@@ -286,6 +288,7 @@ protected:
     SpeakerState mSpeakerState = SpeakerState::kPending;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
     int64_t mInitialTs = 0;
+    int64_t mOffset;
     int64_t mFinalTs = 0;
     bool mAudioDetected = false;
     megaHandle mVoiceDetectionTimer = 0;
@@ -321,6 +324,16 @@ protected:
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
 
+    megaHandle mStatsTimer = 0;
+    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatVideoReceiverCallback;
+    std::map<std::string, RxStat> mRemoteRxStats;
+    std::map<std::string, RxStat> mPrevRemoteRxStas;
+    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatVThumbSenderCallBack;
+    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatHiResSenderCallBack;
+    TxStat mHiResTxStats;
+    TxStat mPrevHiResTxStats;
+    Stats mStats;
+
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution = kLowRes);
     void addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker);
@@ -328,6 +341,8 @@ protected:
     const std::string &getCallKey() const;
     void updateAudioTracks();
     void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
+    void enableStats();
+    void disableStats();
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
