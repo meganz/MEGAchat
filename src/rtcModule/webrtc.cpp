@@ -967,7 +967,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         }
 
         setState(CallState::kStateInProgress);
-        mInitialTs -= (ts / 1000); // subtract ts(ms) received in ANSWER command, from ts captured upon setState kStateInProgress
+        mOffset = ts / 1000;
         enableStats();
     })
     .fail([wptr, this](const ::promise::Error& err)
