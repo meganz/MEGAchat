@@ -165,7 +165,10 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL))
     {
-        window->mMeetingView->localAudioDetected(call->isAudioDetected());
+        if (window->mMeetingView)
+        {
+            window->mMeetingView->localAudioDetected(call->isAudioDetected());
+        }
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
@@ -201,8 +204,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             }
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
-                window->mMeetingView->updateAudioButtonText(call);
-                window->mMeetingView->updateVideoButtonText(call);
+                if (window->mMeetingView)
+                {
+                    window->mMeetingView->updateAudioButtonText(call);
+                    window->mMeetingView->updateVideoButtonText(call);
+                }
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
@@ -236,8 +242,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
     {
-        window->mMeetingView->updateAudioButtonText(call);
-        window->mMeetingView->updateVideoButtonText(call);
+        if (window->mMeetingView)
+        {
+            window->mMeetingView->updateAudioButtonText(call);
+            window->mMeetingView->updateVideoButtonText(call);
+        }
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION))
@@ -250,7 +259,10 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
     {
-        window->mMeetingView->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
+        if (window->mMeetingView)
+        {
+            window->mMeetingView->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
+        }
     }
 }
 
