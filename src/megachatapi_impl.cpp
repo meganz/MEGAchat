@@ -5248,6 +5248,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->mMessage = NULL;
     this->mMegaNodeList = NULL;
     this->mMegaHandleList = NULL;
+    this->mParamType = 0;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -5282,6 +5283,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
             this->setMegaHandleListByChat(chatid, request.getMegaHandleListByChat(chatid));
         }
     }
+
+    this->setParamType(request.getParamType());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
