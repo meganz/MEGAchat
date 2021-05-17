@@ -492,11 +492,19 @@ enum Opcode
 
     /**
       * @brief
+      * S->C: Notify the call is finished (Deprecated)
+      *
+      * Receive: <chatid.8> <callid.8>
+      */
+    OP_CALLEND = 54,
+
+    /**
+      * @brief
       * S->C: Notify the call is finished
       *
       * Receive: <chatid.8> <callid.8> <reason.1>
       */
-    OP_CALLEND = 54,
+    OP_DELCALLREASON = 55,
 
     OP_LAST = OP_CALLEND,
     OP_INVALIDCODE = 0xFF

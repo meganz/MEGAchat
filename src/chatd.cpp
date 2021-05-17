@@ -2572,13 +2572,23 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
                 break;
             case OP_CALLEND:
+            case OP_DELCALLREASON:
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
-                //READ_8(reason, 16);
+                rtcModule::TermCode termCode = rtcModule::TermCode::kUserHangup;
+                if (opcode == OP_DELCALLREASON)
+                {
+                    READ_8(reason, 16);
+                    termCode = static_cast<rtcModule::TermCode>(reason);
+                }
+
+                CHATDS_LOG_DEBUG("recv %s chatid: %s, callid %s - reason %d", opcode == OP_CALLEND ? "CALLEND" : "DELCALLREASON",
+                                 ID_CSTR(chatid), ID_CSTR(callid), opcode == OP_CALLEND ? -1 : termCode);
+
                 if (mChatdClient.mKarereClient->rtc)
                 {
-                    mChatdClient.mKarereClient->rtc->removeCall(chatid);
+                    mChatdClient.mKarereClient->rtc->removeCall(chatid, termCode);
                 }
                 break;
             }

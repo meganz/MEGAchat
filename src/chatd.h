@@ -1538,7 +1538,9 @@ public:
     // - Version 8:
     //  * Solves several bugs related to missing RETENTION time upon re-joins, anonymous previewers and others
     // - Version 9:
-    //  * Add commands OP_JOINEDCALL, OP_LEFTCALL, OP_CALLSTATE, OP_CALLEND
+    //  * Add commands JOINEDCALL, LEFTCALL, CALLSTATE, CALLEND
+    // - Version 10:
+    //  * Add commands DELCALLREASON
     static const unsigned chatdVersion = 9;
 
     // Minimum retention history check period (in seconds)
