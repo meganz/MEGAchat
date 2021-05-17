@@ -150,6 +150,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)deleteMegaChatApi {
     delete _megaChatApi;
+    _megaChatApi = nil;
     pthread_mutex_destroy(&listenerMutex);
 }
 
