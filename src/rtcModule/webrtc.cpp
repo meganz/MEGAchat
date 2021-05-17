@@ -824,6 +824,12 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         mRtcConn = nullptr;
     }
 
+    // I'm the last one participant, it isn't necessary set kStateClientNoParticipating
+    if (mParticipants.size() == 0 ||  (mParticipants.size() == 1 && mParticipants.at(0) == mMyPeer.getPeerid()))
+    {
+        return;
+    }
+
     setState(CallState::kStateClientNoParticipating);
 }
 
