@@ -4063,6 +4063,63 @@ void exec_syncexport(ac::ACState& s)
     }
 }
 
+void exec_syncimport(ac::ACState& s)
+{
+    auto flags = std::ios::binary | std::ios::in;
+    std::ifstream istream(s.words[2].s, flags);
+
+    if (!istream)
+    {
+        conlock(cout) << "Unable to open "
+                      << s.words[2].s
+                      << " for reading.";
+        return;
+    }
+
+    string data;
+
+    for (char buffer[512]; istream; )
+    {
+        istream.read(buffer, sizeof(buffer));
+
+        if (auto nRead = istream.gcount())
+        {
+            data.append(buffer, nRead);
+        }
+    }
+
+    if (!istream.eof())
+    {
+        conlock(cout) << "Unable to read "
+                      << s.words[2].s
+                      << endl;
+        return;
+    }
+
+    auto completion =
+      [](m::MegaApi*, m::MegaRequest*, m::MegaError* result)
+      {
+          assert(result);
+
+          if (result->getErrorCode())
+          {
+              conlock(cout) << "Unable to import sync configs: "
+                            << result->getErrorString()
+                            << endl;
+              return;
+          }
+
+          conlock(cout) << "Syncs configs successfully imported."
+                        << endl;
+      };
+
+    conlock(cout) << "Importing sync configs..."
+                  << endl;
+
+    auto* listener = new OneShotRequestListener(std::move(completion));
+    g_megaApi->importSyncConfigs(data.c_str(), listener);
+}
+
 void exec_syncopendrive(ac::ACState& s)
 {
     string drive= s.words[2].s;
@@ -4519,6 +4576,11 @@ ac::ACN autocompleteSyntax()
            sequence(text("sync"),
                     text("export"),
                     opt(localFSFile("outputFile"))));
+
+    p->Add(exec_syncimport,
+           sequence(text("sync"),
+                    text("import"),
+                    localFSFile("inputFile")));
 
     p->Add(exec_syncopendrive,
         sequence(text("sync"),
