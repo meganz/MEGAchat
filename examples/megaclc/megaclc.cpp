@@ -4228,68 +4228,69 @@ void exec_syncremove(ac::ACState& s)
 
 void exec_syncxable(ac::ACState& s)
 {
-    //const auto command = s.words[1].s;
+    const auto command = s.words[1].s;
+    const auto id = s.words[2].s;
 
-    //handle backupId = 0;
-    //Base64::atob(s.words[2].s.c_str(), (byte*)&backupId, sizeof(handle));
+    auto backupId = m::MegaApi::base64ToBackupId(id.c_str());
 
-    //if (command == "enable")
-    //{
-    //    // sync enable id
-    //    UnifiedSync* unifiedSync;
-    //    error result =
-    //        client->syncs.enableSyncByBackupId(backupId, false, unifiedSync);
+    if (command == "enable")
+    {
+        auto completion =
+          [id](m::MegaApi*, m::MegaRequest*, m::MegaError* result)
+          {
+              if (result->getErrorCode())
+              {
+                  conlock(cout) << "Unable to enable sync "
+                                << id
+                                << ": "
+                                << result->getErrorString()
+                                << endl;
+                  return;
+              }
 
-    //    if (result)
-    //    {
-    //        cerr << "Unable to enable sync: "
-    //            << errorstring(result)
-    //            << endl;
-    //    }
+              conlock(cout) << "Sync "
+                            << id
+                            << " enabled."
+                            << endl;
+          };
 
-    //    return;
-    //}
+        conlock(cout) << "Enabling sync "
+                      << id
+                      << "..."
+                      << endl;
 
-    //// sync disable id [error]
-    //// sync fail id [error]
+        auto* listener = new OneShotRequestListener(std::move(completion));
+        g_megaApi->enableSync(backupId, listener);
 
-    //int error = NO_SYNC_ERROR;
+        return;
+    }
 
-    //// Has the user provided a specific error code?
-    //if (s.words.size() > 3)
-    //{
-    //    // Yep, use it.
-    //    error = atoi(s.words[3].s.c_str());
-    //}
+    auto completion =
+      [id](m::MegaApi*, m::MegaRequest*, m::MegaError* result)
+      {
+          if (result->getErrorCode())
+          {
+              conlock(cout) << "Unable to disable sync "
+                            << id
+                            << ": "
+                            << result->getErrorCode()
+                            << endl;
+              return;
+          }
 
-    //// Disable or fail?
-    //if (command == "fail")
-    //{
-    //    // Find the specified sync.
-    //    auto* sync = client->syncs.runningSyncByBackupId(backupId);
+          conlock(cout) << "Sync "
+                        << id
+                        << " disabled."
+                        << endl;
+      };
 
-    //    // Have we found the backup sync?
-    //    if (!sync)
-    //    {
-    //        cerr << "No sync found with the id "
-    //            << Base64Str<sizeof(handle)>(backupId)
-    //            << endl;
-    //        return;
-    //    }
+    conlock(cout) << "Disabling sync "
+                  << id
+                  << "..."
+                  << endl;
 
-    //    client->failSync(sync, static_cast<SyncError>(error));
-    //    return;
-    //}
-    //else    // command == "disable"
-    //{
-    //    client->syncs.disableSelectedSyncs(
-    //        [&backupId](SyncConfig& config, Sync*)
-    //        {
-    //            return config.getBackupId() == backupId;
-    //        },
-    //        static_cast<SyncError>(error),
-    //            false);
-    //}
+    auto* listener = new OneShotRequestListener(std::move(completion));
+    g_megaApi->disableSync(backupId, listener);
 }
 
 
@@ -4598,12 +4599,9 @@ ac::ACN autocompleteSyntax()
                 sequence(flag("-path"), param("targetpath")))));
 
     p->Add(exec_syncxable,
-        sequence(text("sync"),
-            either(sequence(either(text("disable"), text("fail")),
-                param("id"),
-                opt(param("error"))),
-                sequence(text("enable"),
-                    param("id")))));
+           sequence(text("sync"),
+                    either(text("disable"), text("enable")),
+                    param("id")));
 
     p->Add(exec_setmybackupsfolder, sequence(text("setmybackupsfolder"), param("remotefolder")));
     p->Add(exec_getmybackupsfolder, sequence(text("getmybackupsfolder")));
