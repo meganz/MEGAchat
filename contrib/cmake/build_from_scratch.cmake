@@ -1,6 +1,7 @@
 #[[
     Run this file from its current folder in script mode, with triplet as a defined parameter:
-        cmake -DTRIPLET=<triplet> [-DTARGET=<target>[;<targets>...] ] -P build_from_scratch.cmake
+        cmake -DTRIPLET=<triplet> [-DEXTRA_ARGS="-D<abnormal settings for project generaton>"] [-DTARGET=<target>[;<targets>...] ] -P build_from_scratch.cmake
+		eg. cmake -DTRIPLET=x64-windows-mega -DEXTRA_ARGS="-DUSE_WEBRTC=0" -P build_from_scratch.cmake
     It will set up and build 3rdparty in a folder next to the MEGAchat repo, and also
     build MEGAchat against those 3rd party libraries.
     pdfium must be supplied manually, or it can be commented out in preferred-ports-megacmd.txt
@@ -29,6 +30,14 @@ endif()
 if(NOT TRIPLET)
     usage_exit("Triplet was not provided")
 endif()
+
+if (NOT EXTRA_ARGS)
+	message(STATUS "no extra args")
+else ()
+	set(_extra_cmake_args ${EXTRA_ARGS})
+	message(STATUS "extra args: ${_extra_cmake_args}")
+endif()
+
 
 set(_triplet ${TRIPLET})
 set(_chat_dir "${_script_cwd}/../..")
@@ -146,7 +155,7 @@ endif()
 
 if(WIN32)
     if(_triplet MATCHES "staticdev$")
-        set(_extra_cmake_args -DMEGA_LINK_DYNAMIC_CRT=0 -DUNCHECKED_ITERATORS=1)
+        set(_extra_cmake_args ${_extra_cmake_args} -DMEGA_LINK_DYNAMIC_CRT=0 -DUNCHECKED_ITERATORS=1)
     endif()
 
     if(VCPKG_TARGET_ARCHITECTURE STREQUAL "x86")
@@ -187,6 +196,7 @@ else()
         execute_checked_command(
             COMMAND ${_cmake}
                 ${_common_cmake_args}
+				${_extra_cmake_args}
                 -B ${_build_dir}
                 "-DCMAKE_BUILD_TYPE=${_config}"
         )

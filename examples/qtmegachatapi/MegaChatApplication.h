@@ -34,6 +34,9 @@ class MegaChatApplication : public QApplication,
         const char *sid() const;
         void saveSid(const char *sid);
         void removeSid();
+        void createEphemeralFile();
+        bool existsEphemeralFile();
+        void removeEphemeralFile();
         LoginDialog *loginDialog() const;
         void resetLoginDialog();
         std::string base64ToBinary(const char *base64);
@@ -79,6 +82,7 @@ protected:
         void onAnonymousLogout();
         void onLoginClicked();
         void onPreviewClicked();
+        void onEphemeral();
 
 };
 #endif // MEGACHATAPPLICATION_H
