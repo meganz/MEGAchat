@@ -1185,6 +1185,11 @@ bool SfuConnection::isOnline() const
     return (mConnState >= kConnected);
 }
 
+bool SfuConnection::isDisconnected() const
+{
+    return (mConnState <= kDisconnected);
+}
+
 promise::Promise<void> SfuConnection::connect()
 {
     assert (mConnState == kConnNew);
@@ -2020,6 +2025,14 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
 const karere::Id& SfuClient::myHandle()
 {
     return mMyHandle;
+}
+
+void SfuClient::reconnectAllToSFU()
+{
+    for (auto it = mConnections.begin(); it != mConnections.end(); it++)
+    {
+        it->second->retryPendingConnection(true);
+    }
 }
 
 PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete)

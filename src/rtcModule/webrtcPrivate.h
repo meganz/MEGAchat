@@ -224,8 +224,8 @@ public:
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setAudioDetected(bool audioDetected) override;
     void setState(CallState newState);
-    void connectSfu(const std::string& sfuUrl, bool reconnect = false);
-    void createTranceiver();
+    void connectSfu(const std::string& sfuUrl, bool forceReconnect = false);
+    void createTransceiver();
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);

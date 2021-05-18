@@ -370,6 +370,7 @@ public:
         SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call);
         ~SfuConnection();
         bool isOnline() const;
+        bool isDisconnected() const;
         promise::Promise<void> connect();
         void disconnect();
         void doConnect();
@@ -449,6 +450,7 @@ public:
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
         const karere::Id& myHandle();
         void setDefVideoDevice(const std::string& device);
+        void reconnectAllToSFU();
 
     private:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;

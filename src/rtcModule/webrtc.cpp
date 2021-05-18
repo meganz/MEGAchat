@@ -671,19 +671,39 @@ Session* Call::getSession(Cid_t cid)
         : nullptr;
 }
 
-void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
+void Call::connectSfu(const std::string &sfuUrl, bool forceReconnect)
 {
     setState(CallState::kStateConnecting);
-    if (reconnect)
+    if (forceReconnect)
     {
         RTCM_LOG_DEBUG("trying to reconnect to SFU");
-        mSfuConnection->retryPendingConnection(false); // if reconnection is in progress skip
+        mSfuConnection->retryPendingConnection(true); // if reconnection is in progress skip
         mSfuConnection->clearCommandsQueue();
     }
     else
     {
-        mSfuUrl = sfuUrl;
-        mSfuConnection = mSfuClient.generateSfuConnection(mChatid, sfuUrl, *this);
+        if (!sfuUrl.empty())
+        {
+            mSfuUrl = sfuUrl;
+        }
+        else if (mSfuUrl.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
+        {
+            RTCM_LOG_DEBUG("trying to connect to SFU with an Empty URL");
+            assert(false);
+            return;
+        }
+
+        if (!mSfuConnection) // Generate a new connection to SFU
+        {
+            mSfuConnection = mSfuClient.generateSfuConnection(mChatid, mSfuUrl, *this);
+        }
+        else if (mSfuConnection->isDisconnected())
+        {
+            // For reconnection scenarios, ensure that we are connected to SFU, before JOIN
+            RTCM_LOG_DEBUG("trying to JOIN to SFU without beign connected");
+            mSfuConnection->retryPendingConnection(false);
+        }
+
         RTCM_LOG_DEBUG("trying to connect to SFU");
     }
 
@@ -699,7 +719,7 @@ void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
         webrtc::PeerConnectionInterface::IceServers iceServer;
         mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
 
-        createTranceiver();
+        createTransceiver();
         mSpeakerState = SpeakerState::kPending;
         getLocalStreams();
         setState(CallState::kStateJoining);
@@ -741,7 +761,7 @@ void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
     });
 }
 
-void Call::createTranceiver()
+void Call::createTransceiver()
 {
     webrtc::RtpTransceiverInit transceiverInitVThumb;
     transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
@@ -1220,9 +1240,12 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
 void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState)
 {
     RTCM_LOG_DEBUG("onConnectionChange newstate: %d", newState);
-    if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed)
+    if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
+        || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
     {
-        connectSfu(std::string(), true); // reconnect to SFU
+        mSfuConnection->isDisconnected()
+            ? connectSfu(std::string(), true)   // force reconnect SFU
+            : connectSfu(std::string(), false); // resume SFU connection
     }
 }
 
