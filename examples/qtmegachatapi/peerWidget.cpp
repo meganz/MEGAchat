@@ -154,7 +154,9 @@ void PeerWidget::showMenu(const QPoint &pos)
 
 void PeerWidget::onHiResStop()
 {
-    mMegaChatApi.stopHiResVideo(mChatid, mCid);
+    std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+    handleList->addMegaHandle(mCid);
+    mMegaChatApi.stopHiResVideo(mChatid, handleList.get());
 }
 
 void PeerWidget::onHiResRequest()

@@ -1028,9 +1028,9 @@ void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle client
     pImpl->requestHiResVideo(chatid, clientId, listener);
 }
 
-void MegaChatApi::stopHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+void MegaChatApi::stopHiResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
-    pImpl->stopHiResVideo(chatid, clientId, listener);
+    pImpl->stopHiResVideo(chatid, clientIds, listener);
 }
 
 void MegaChatApi::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)

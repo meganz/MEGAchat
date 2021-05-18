@@ -2169,14 +2169,27 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
-            if (request->getFlag())
+            if (!request->getFlag() && (!request->getMegaHandleList() || !request->getMegaHandleList()->size()))
             {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid list of Cids for removal");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (request->getFlag()) // HI-RES request only accepts a single peer CID
+            {
+                Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
                 call->requestHighResolutionVideo(cid);
             }
-            else
+            else // HI-RES del accepts a list of peers CIDs
             {
-                call->stopHighResolutionVideo(cid);
+                std::vector<Cid_t> cids;
+                const MegaHandleList *auxcids = request->getMegaHandleList();
+                for (size_t i = 0; i < auxcids->size(); i++)
+                {
+                    cids.emplace_back(static_cast<Cid_t>(auxcids->get(static_cast<unsigned>(i))));
+                }
+                call->stopHighResolutionVideo(cids);
             }
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -4851,12 +4864,12 @@ void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cl
     waiter->notify();
 }
 
-void MegaChatApiImpl::stopHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+void MegaChatApiImpl::stopHiResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO, listener);
     request->setChatHandle(chatid);
     request->setFlag(false);
-    request->setUserHandle(clientId);
+    request->setMegaHandleList(clientIds);
     requestQueue.push(request);
     waiter->notify();
 }
