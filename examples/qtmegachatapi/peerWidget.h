@@ -11,7 +11,7 @@ class PeerWidget : public QWidget, public megachat::MegaChatVideoListener
 {
     Q_OBJECT
 public:
-    PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, rtcModule::VideoResolution videoResolution, bool local = false);
+    PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, bool hiRes, bool local = false);
     ~PeerWidget();
     void setOnHold(bool isOnHold);
     void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size) override;
@@ -23,14 +23,13 @@ public:
     bool event(QEvent *event) override;
     QTMegaChatVideoListener *mMegaChatVideoListenerDelegate;
     void removeVideoListener();
-    bool isHiRes() const;
 
 protected:
     VideoRendererQt* mVideoRender;
     megachat::MegaChatApi &mMegaChatApi;
     megachat::MegaChatHandle mChatid;
     Cid_t mCid;
-    rtcModule::VideoResolution mVideoResolution;
+    bool mHiRes = false;
     bool mLocal = false;
 
     QImage* CreateFrame(int width, int height, char *buffer, size_t size);

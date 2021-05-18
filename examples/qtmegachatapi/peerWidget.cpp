@@ -5,14 +5,13 @@
 #include <QMouseEvent>
 #include <QMenu>
 
-PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, rtcModule::VideoResolution videoResolution, bool local)
+PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, bool hiRes, bool local)
     : mMegaChatApi(megaChatApi)
     , mChatid(chatid)
     , mCid(cid)
-    , mVideoResolution(videoResolution)
+    , mHiRes(hiRes)
     , mLocal(local)
 {
-    assert(videoResolution != rtcModule::VideoResolution::kUndefined);
     mMegaChatVideoListenerDelegate = new QTMegaChatVideoListener(&mMegaChatApi, this);
     mVideoRender = new VideoRendererQt(this);
     QHBoxLayout* layout = new QHBoxLayout();
@@ -25,7 +24,7 @@ PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHan
     }
     else
     {
-        mMegaChatApi.addChatRemoteVideoListener(mChatid, mCid, isHiRes(), mMegaChatVideoListenerDelegate);
+        mMegaChatApi.addChatRemoteVideoListener(mChatid, mCid, mHiRes, mMegaChatVideoListenerDelegate);
     }
 }
 
@@ -69,7 +68,7 @@ QSize PeerWidget::sizeHint() const
         return QSize(200, 150);
     }
 
-    if (isHiRes())
+    if (mHiRes)
     {
         return QSize(960, 540);
     }
@@ -86,7 +85,7 @@ QSize PeerWidget::minimumSizeHint() const
         return QSize(200, 150);
     }
 
-    if (isHiRes())
+    if (mHiRes)
     {
         return QSize(200, 150);
     }
@@ -125,7 +124,7 @@ void PeerWidget::myImageCleanupHandler(void *info)
 
 void PeerWidget::showMenu(const QPoint &pos)
 {
-    if (isHiRes()) // hi-res video
+    if (mHiRes) // hi-res video
     {
         QMenu contextMenu(tr("High Resolution Menu"), this);
         QAction action1("Stop HiRes", this);
@@ -269,14 +268,9 @@ void PeerWidget::removeVideoListener()
     }
     else
     {
-        mMegaChatApi.removeChatRemoteVideoListener(mChatid, mCid, isHiRes(), mMegaChatVideoListenerDelegate);
+        mMegaChatApi.removeChatRemoteVideoListener(mChatid, mCid, mHiRes, mMegaChatVideoListenerDelegate);
     }
 
     delete mMegaChatVideoListenerDelegate;
     mMegaChatVideoListenerDelegate = nullptr;
-}
-
-bool PeerWidget::isHiRes() const
-{
-    return mVideoResolution == rtcModule::VideoResolution::kHiRes;
 }

@@ -1058,7 +1058,7 @@ void ChatWindow::createCallGui(MegaChatHandle peerid, MegaChatHandle clientid, b
     mMeetingView = new MeetingView(*mMegaChatApi, mChatRoom->getChatId(), this, numParticipants);
     mMeetingView->setVisible(true);
     ui->mCentralWidget->layout()->addWidget(mMeetingView);
-    PeerWidget* peerWidget = new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, rtcModule::VideoResolution::kHiRes, true);
+    PeerWidget* peerWidget = new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, true, true);
     mMeetingView->addLocalVideo(peerWidget);
 }
 
