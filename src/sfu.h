@@ -136,6 +136,7 @@ public:
     virtual bool handlePeerLeft(Cid_t cid) = 0;
     virtual bool handleError(unsigned int , const std::string) = 0;
     virtual bool handleModerator(Cid_t cid, bool moderator) = 0;
+    virtual void handleSfuConnected() = 0;
 };
 
     class Command

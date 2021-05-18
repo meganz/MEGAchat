@@ -224,7 +224,8 @@ public:
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setAudioDetected(bool audioDetected) override;
     void setState(CallState newState);
-    void connectSfu(const std::string& sfuUrl, bool forceReconnect = false);
+    void connectSfu(const std::string& sfuUrl);
+    void joinSfu();
     void createTransceiver();
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
@@ -258,6 +259,7 @@ public:
     bool handlePeerLeft(Cid_t cid) override;
     bool handleError(unsigned int code, const std::string reason) override;
     bool handleModerator(Cid_t cid, bool moderator) override;
+    void handleSfuConnected() override;
 
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);

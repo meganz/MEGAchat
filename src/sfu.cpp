@@ -1970,6 +1970,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
 
                 assert(isOnline());
+                mCall.handleSfuConnected();
             });
 
         }, wptr, mAppCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));

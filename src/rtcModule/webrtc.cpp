@@ -671,44 +671,45 @@ Session* Call::getSession(Cid_t cid)
         : nullptr;
 }
 
-void Call::connectSfu(const std::string &sfuUrl, bool forceReconnect)
+void Call::connectSfu(const std::string& sfuUrl)
 {
+    if (!sfuUrl.empty())
+    {
+        mSfuUrl = sfuUrl;
+    }
+    else if (mSfuUrl.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
+    {
+        RTCM_LOG_DEBUG("trying to connect to SFU with an Empty URL");
+        assert(false);
+        return;
+    }
     setState(CallState::kStateConnecting);
-    if (forceReconnect)
-    {
-        RTCM_LOG_DEBUG("trying to reconnect to SFU");
-        mSfuConnection->retryPendingConnection(true); // if reconnection is in progress skip
-        mSfuConnection->clearCommandsQueue();
-    }
-    else
-    {
-        if (!sfuUrl.empty())
-        {
-            mSfuUrl = sfuUrl;
-        }
-        else if (mSfuUrl.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
-        {
-            RTCM_LOG_DEBUG("trying to connect to SFU with an Empty URL");
-            assert(false);
-            return;
-        }
+    mSfuConnection = mSfuClient.generateSfuConnection(mChatid, mSfuUrl, *this);
+}
 
-        if (!mSfuConnection) // Generate a new connection to SFU
-        {
-            mSfuConnection = mSfuClient.generateSfuConnection(mChatid, mSfuUrl, *this);
-        }
-        else if (mSfuConnection->isDisconnected())
-        {
-            // For reconnection scenarios, ensure that we are connected to SFU, before JOIN
-            RTCM_LOG_DEBUG("trying to JOIN to SFU without beign connected");
-            mSfuConnection->retryPendingConnection(false);
-        }
+void Call::joinSfu()
+{
+    webrtc::PeerConnectionInterface::IceServers iceServer;
+    mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
 
-        RTCM_LOG_DEBUG("trying to connect to SFU");
-    }
+    createTransceiver();
+    mSpeakerState = SpeakerState::kPending;
+    getLocalStreams();
+    setState(CallState::kStateJoining);
 
+    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
+    options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
+    options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     auto wptr = weakHandle();
-    mSfuConnection->getPromiseConnection()
+    mRtcConn.createOffer(options)
+    .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
+    {
+        if (wptr.deleted())
+            return ::promise::_Void();
+
+        KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
+        return mRtcConn.setLocalDescription(sdp);
+    })
     .then([wptr, this]()
     {
         if (wptr.deleted())
@@ -716,48 +717,19 @@ void Call::connectSfu(const std::string &sfuUrl, bool forceReconnect)
             return;
         }
 
-        webrtc::PeerConnectionInterface::IceServers iceServer;
-        mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
+        sfu::Sdp sdp(mSdp);
 
-        createTransceiver();
-        mSpeakerState = SpeakerState::kPending;
-        getLocalStreams();
-        setState(CallState::kStateJoining);
-
-        webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
-        options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
-        options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
-        auto wptr = weakHandle();
-        mRtcConn.createOffer(options)
-        .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
-        {
-            if (wptr.deleted())
-                return ::promise::_Void();
-
-            KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
-            return mRtcConn.setLocalDescription(sdp);
-        })
-        .then([wptr, this]()
-        {
-            if (wptr.deleted())
-            {
-                return;
-            }
-
-            sfu::Sdp sdp(mSdp);
-
-            std::map<std::string, std::string> ivs;
-            ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
-            ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
-            ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-            mSfuConnection->joinSfu(sdp, ivs, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
-        })
-        .fail([wptr, this](const ::promise::Error& err)
-        {
-            if (wptr.deleted())
-                return;
-            disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
-        });
+        std::map<std::string, std::string> ivs;
+        ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
+        ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
+        ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
+        mSfuConnection->joinSfu(sdp, ivs, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
+    })
+    .fail([wptr, this](const ::promise::Error& err)
+    {
+        if (wptr.deleted())
+            return;
+        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
     });
 }
 
@@ -1213,6 +1185,11 @@ bool Call::handleModerator(Cid_t cid, bool moderator)
     return true;
 }
 
+void Call::handleSfuConnected()
+{
+    joinSfu();
+}
+
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
     mVThumb->createEncryptor(getMyPeer());
@@ -1243,9 +1220,12 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
         || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
     {
-        mSfuConnection->isDisconnected()
-            ? connectSfu(std::string(), true)   // force reconnect SFU
-            : connectSfu(std::string(), false); // resume SFU connection
+        if (mState != CallState::kStateConnecting) // avoid interrupting a reconnection in progress
+        {
+            setState(CallState::kStateConnecting);
+            mSfuConnection->retryPendingConnection(true);
+            mSfuConnection->clearCommandsQueue();
+        }
     }
 }
 
