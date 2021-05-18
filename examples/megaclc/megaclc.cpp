@@ -4037,6 +4037,89 @@ void exec_syncclosedrive(ac::ACState& s)
             }));
 }
 
+void exec_syncexport(ac::ACState& s)
+{
+    auto configs = std::unique_ptr<const char[]>(g_megaApi->exportSyncConfigs());
+
+    if (s.words.size() == 2)
+    {
+        conlock(cout) << "Configs exported as: "
+                      << configs.get()
+                      << endl;
+        return;
+    }
+
+    auto flags = std::ios::binary | std::ios::out | std::ios::trunc;
+    std::ofstream ostream(s.words[2].s, flags);
+
+    ostream.write(configs.get(), strlen(configs.get()));
+    ostream.close();
+
+    if (!ostream.good())
+    {
+        conlock(cout) << "Failed to write exported configs to: "
+                      << s.words[2].s
+                      << endl;
+    }
+}
+
+void exec_syncimport(ac::ACState& s)
+{
+    auto flags = std::ios::binary | std::ios::in;
+    std::ifstream istream(s.words[2].s, flags);
+
+    if (!istream)
+    {
+        conlock(cout) << "Unable to open "
+                      << s.words[2].s
+                      << " for reading.";
+        return;
+    }
+
+    string data;
+
+    for (char buffer[512]; istream; )
+    {
+        istream.read(buffer, sizeof(buffer));
+
+        if (auto nRead = istream.gcount())
+        {
+            data.append(buffer, nRead);
+        }
+    }
+
+    if (!istream.eof())
+    {
+        conlock(cout) << "Unable to read "
+                      << s.words[2].s
+                      << endl;
+        return;
+    }
+
+    auto completion =
+      [](m::MegaApi*, m::MegaRequest*, m::MegaError* result)
+      {
+          assert(result);
+
+          if (result->getErrorCode())
+          {
+              conlock(cout) << "Unable to import sync configs: "
+                            << result->getErrorString()
+                            << endl;
+              return;
+          }
+
+          conlock(cout) << "Syncs configs successfully imported."
+                        << endl;
+      };
+
+    conlock(cout) << "Importing sync configs..."
+                  << endl;
+
+    auto* listener = new OneShotRequestListener(std::move(completion));
+    g_megaApi->importSyncConfigs(data.c_str(), listener);
+}
+
 void exec_syncopendrive(ac::ACState& s)
 {
     string drive= s.words[2].s;
@@ -4145,68 +4228,69 @@ void exec_syncremove(ac::ACState& s)
 
 void exec_syncxable(ac::ACState& s)
 {
-    //const auto command = s.words[1].s;
+    const auto command = s.words[1].s;
+    const auto id = s.words[2].s;
 
-    //handle backupId = 0;
-    //Base64::atob(s.words[2].s.c_str(), (byte*)&backupId, sizeof(handle));
+    auto backupId = m::MegaApi::base64ToBackupId(id.c_str());
 
-    //if (command == "enable")
-    //{
-    //    // sync enable id
-    //    UnifiedSync* unifiedSync;
-    //    error result =
-    //        client->syncs.enableSyncByBackupId(backupId, false, unifiedSync);
+    if (command == "enable")
+    {
+        auto completion =
+          [id](m::MegaApi*, m::MegaRequest*, m::MegaError* result)
+          {
+              if (result->getErrorCode())
+              {
+                  conlock(cout) << "Unable to enable sync "
+                                << id
+                                << ": "
+                                << result->getErrorString()
+                                << endl;
+                  return;
+              }
 
-    //    if (result)
-    //    {
-    //        cerr << "Unable to enable sync: "
-    //            << errorstring(result)
-    //            << endl;
-    //    }
+              conlock(cout) << "Sync "
+                            << id
+                            << " enabled."
+                            << endl;
+          };
 
-    //    return;
-    //}
+        conlock(cout) << "Enabling sync "
+                      << id
+                      << "..."
+                      << endl;
 
-    //// sync disable id [error]
-    //// sync fail id [error]
+        auto* listener = new OneShotRequestListener(std::move(completion));
+        g_megaApi->enableSync(backupId, listener);
 
-    //int error = NO_SYNC_ERROR;
+        return;
+    }
 
-    //// Has the user provided a specific error code?
-    //if (s.words.size() > 3)
-    //{
-    //    // Yep, use it.
-    //    error = atoi(s.words[3].s.c_str());
-    //}
+    auto completion =
+      [id](m::MegaApi*, m::MegaRequest*, m::MegaError* result)
+      {
+          if (result->getErrorCode())
+          {
+              conlock(cout) << "Unable to disable sync "
+                            << id
+                            << ": "
+                            << result->getErrorCode()
+                            << endl;
+              return;
+          }
 
-    //// Disable or fail?
-    //if (command == "fail")
-    //{
-    //    // Find the specified sync.
-    //    auto* sync = client->syncs.runningSyncByBackupId(backupId);
+          conlock(cout) << "Sync "
+                        << id
+                        << " disabled."
+                        << endl;
+      };
 
-    //    // Have we found the backup sync?
-    //    if (!sync)
-    //    {
-    //        cerr << "No sync found with the id "
-    //            << Base64Str<sizeof(handle)>(backupId)
-    //            << endl;
-    //        return;
-    //    }
+    conlock(cout) << "Disabling sync "
+                  << id
+                  << "..."
+                  << endl;
 
-    //    client->failSync(sync, static_cast<SyncError>(error));
-    //    return;
-    //}
-    //else    // command == "disable"
-    //{
-    //    client->syncs.disableSelectedSyncs(
-    //        [&backupId](SyncConfig& config, Sync*)
-    //        {
-    //            return config.getBackupId() == backupId;
-    //        },
-    //        static_cast<SyncError>(error),
-    //            false);
-    //}
+    auto* listener = new OneShotRequestListener(std::move(completion));
+    g_megaApi->disableSync(backupId, listener);
 }
 
 
@@ -4485,9 +4569,19 @@ ac::ACN autocompleteSyntax()
             param("remotetarget")));
 
     p->Add(exec_syncclosedrive,
-        sequence(text("sync"),
-            text("closedrive"),
-            localFSFolder("drive")));
+           sequence(text("sync"),
+                    text("closedrive"),
+                    localFSFolder("drive")));
+
+    p->Add(exec_syncexport,
+           sequence(text("sync"),
+                    text("export"),
+                    opt(localFSFile("outputFile"))));
+
+    p->Add(exec_syncimport,
+           sequence(text("sync"),
+                    text("import"),
+                    localFSFile("inputFile")));
 
     p->Add(exec_syncopendrive,
         sequence(text("sync"),
@@ -4505,12 +4599,9 @@ ac::ACN autocompleteSyntax()
                 sequence(flag("-path"), param("targetpath")))));
 
     p->Add(exec_syncxable,
-        sequence(text("sync"),
-            either(sequence(either(text("disable"), text("fail")),
-                param("id"),
-                opt(param("error"))),
-                sequence(text("enable"),
-                    param("id")))));
+           sequence(text("sync"),
+                    either(text("disable"), text("enable")),
+                    param("id")));
 
     p->Add(exec_setmybackupsfolder, sequence(text("setmybackupsfolder"), param("remotefolder")));
     p->Add(exec_getmybackupsfolder, sequence(text("getmybackupsfolder")));
