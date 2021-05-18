@@ -1541,7 +1541,7 @@ public:
     //  * Add commands JOINEDCALL, LEFTCALL, CALLSTATE, CALLEND
     // - Version 10:
     //  * Add commands DELCALLREASON
-    static const unsigned chatdVersion = 9;
+    static const unsigned chatdVersion = 10;
 
     // Minimum retention history check period (in seconds)
     static const unsigned kMinRetentionTimeout = 60;
