@@ -47,6 +47,11 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mOnHoldLabel->setContentsMargins(0, 0, 0, 0);
     mOnHoldLabel->setVisible(false);
 
+    mLocalAudioDetected = new QLabel("AUDIO DETECTED", this);
+    mLocalAudioDetected->setStyleSheet("background-color:#088529 ;color:#FFFFFF; font-weight:bold;");
+    mLocalAudioDetected->setAlignment(Qt::AlignCenter);
+    mLocalAudioDetected->setContentsMargins(0, 0, 0, 0);
+    mLocalAudioDetected->setVisible(false);
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -77,6 +82,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mAudioMonitor);
     mButtonsLayout->addWidget(mSetOnHold);
     mButtonsLayout->addWidget(mOnHoldLabel);
+    mButtonsLayout->addWidget(mLocalAudioDetected);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -149,11 +155,16 @@ void MeetingView::removeHiResByCid(uint32_t cid)
     }
 }
 
+void MeetingView::localAudioDetected(bool audio)
+{
+    mLocalAudioDetected->setVisible(audio);
+}
+
 void MeetingView::addLocalVideo(PeerWidget *widget)
 {
     assert(!mLocalWidget);
     mLocalWidget = widget;
-    QHBoxLayout *localLayout = new QHBoxLayout();
+    QVBoxLayout *localLayout = new QVBoxLayout();
     localLayout->addWidget(widget);
     mLocalLayout->addLayout(localLayout);
 }
@@ -261,11 +272,25 @@ void MeetingView::setOnHold(bool isOnHold, MegaChatHandle cid)
 std::string MeetingView::sessionToString(const megachat::MegaChatSession &session)
 {
     std::string returnedString;
-    const char* name = mMegaChatApi.getUserFirstnameFromCache(session.getPeerid());
-    if (name)
+    std::unique_ptr<MegaChatRoom> chatRoom(mMegaChatApi.getChatRoom(mChatid));
+    for (size_t i = 0; i < chatRoom->getPeerCount(); i++)
     {
-        returnedString.append(name);
-        delete [] name;
+        if (chatRoom->getPeerHandle(i) == session.getPeerid())
+        {
+            const char *firstName = chatRoom->getPeerFirstname(i);
+            if (firstName)
+            {
+                returnedString.append(firstName);
+            }
+
+            const char *email = chatRoom->getPeerEmail(i);
+            if (email)
+            {
+                returnedString.append(" (");
+                returnedString.append(email);
+                returnedString.append(" )");
+            }
+        }
     }
 
     returnedString.append(" [ClientId: ");
@@ -386,15 +411,6 @@ void MeetingView::onRequestSpeak(bool request)
     request
             ? mMegaChatApi.requestSpeak(mChatid)
             : mMegaChatApi.removeRequestSpeak(mChatid);
-
-    mRequestSpeaker->setEnabled(false);
-    mRequestSpeakerCancel->setEnabled(false);
-}
-
-void MeetingView::onRequestSpeakFinish()
-{
-    mRequestSpeaker->setEnabled(true);
-    mRequestSpeakerCancel->setEnabled(true);
 }
 
 void MeetingView::onEnableAudio()

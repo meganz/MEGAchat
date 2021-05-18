@@ -44,6 +44,7 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     std::string title = mMeetingView->sessionToString(session);
     mTitleLabel.reset(new QLabel(title.c_str()));
     layout()->addWidget(mTitleLabel.get());
+    setToolTip(title.c_str());
 
     // audio lbl
     mAudio = session.hasAudio();

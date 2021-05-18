@@ -225,7 +225,7 @@ public:
     void setAudioDetected(bool audioDetected) override;
     void setState(CallState newState);
     void connectSfu(const std::string& sfuUrl, bool reconnect = false);
-    void createTranceiver();
+    void createTransceiver();
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
@@ -262,6 +262,7 @@ public:
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
     void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver);
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
     void onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state);
 

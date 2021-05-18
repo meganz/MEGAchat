@@ -708,7 +708,7 @@ void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
         webrtc::PeerConnectionInterface::IceServers iceServer;
         mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
 
-        createTranceiver();
+        createTransceiver();
         mSpeakerState = SpeakerState::kPending;
         getLocalStreams();
         setState(CallState::kStateJoining);
@@ -750,7 +750,7 @@ void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
     });
 }
 
-void Call::createTranceiver()
+void Call::createTransceiver()
 {
     webrtc::RtpTransceiverInit transceiverInitVThumb;
     transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
@@ -1224,6 +1224,11 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
             mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver);
         }
     }
+}
+
+void Call::onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
+{
+    RTCM_LOG_DEBUG("onRemoveTrack received");
 }
 
 void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState)

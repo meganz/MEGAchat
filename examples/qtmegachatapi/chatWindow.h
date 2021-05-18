@@ -81,7 +81,6 @@ class ChatWindow : public QDialog,
         megachat::MegaChatApi *getMegaChatApi();
         void onAttachLocation();
         void onAttachGiphy();
-        void enableCallReconnect(bool enable);
 
         ChatListItemController *getChatItemController();
         MainWindow *getMainWin() const;
@@ -112,7 +111,6 @@ class ChatWindow : public QDialog,
         MyMessageList *mAttachmentList = NULL;
         QWidget *mFrameAttachments = NULL;
         QMessageBox *mUploadDlg;
-        QMessageBox *mReconnectingDlg = NULL;
 
     protected slots:
         void onMsgListRequestHistory();
@@ -125,7 +123,6 @@ class ChatWindow : public QDialog,
         void onAttachmentRequestHistory();
         void on_mAttachBtn_clicked();
         void on_mCancelTransfer(QAbstractButton *);
-        void on_mCancelReconnection(QAbstractButton *);
         void onAttachmentsClosed(QObject*);
         void on_mSettingsBtn_clicked();
         void onAttachNode(bool isVoiceClip);
