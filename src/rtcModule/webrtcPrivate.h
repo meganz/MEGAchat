@@ -203,7 +203,7 @@ public:
     void approveSpeakRequest(Cid_t cid, bool allow) override;
     void stopSpeak(Cid_t cid = 0) override;
     std::vector<Cid_t> getSpeakerRequested() override;
-    void requestHighResolutionVideo(Cid_t cid) override;
+    void requestHighResolutionVideo(Cid_t cid, int quality) override;
     void requestHiResQuality(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;

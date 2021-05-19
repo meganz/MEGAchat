@@ -2153,9 +2153,18 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO:
         {
             handle chatid = request->getChatHandle();
+            int quality = request->getPrivilege(); // by default MegaChatCall::CALL_QUALITY_HIGH_DEF
+
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid chatid");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (request->getFlag() && (quality < MegaChatCall::CALL_QUALITY_HIGH_DEF || quality > MegaChatCall::CALL_QUALITY_HIGH_LOW))
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO  - Invalid resolution quality");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
@@ -2179,7 +2188,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (request->getFlag()) // HI-RES request only accepts a single peer CID
             {
                 Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
-                call->requestHighResolutionVideo(cid);
+                call->requestHighResolutionVideo(cid, quality);
             }
             else // HI-RES del accepts a list of peers CIDs
             {
@@ -2286,7 +2295,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
-            if (call->hasVideoSlot(cid))
+            if (!call->hasVideoSlot(cid, true))
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - Currently not receiving a hi-res stream for this peer");
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -4854,12 +4863,13 @@ void MegaChatApiImpl::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle c
     waiter->notify();
 }
 
-void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO, listener);
     request->setChatHandle(chatid);
     request->setFlag(true);
     request->setUserHandle(clientId);
+    request->setPrivilege(quality);
     requestQueue.push(request);
     waiter->notify();
 }

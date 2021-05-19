@@ -5121,6 +5121,27 @@ public:
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Request high resolution video from a client with a specified resolution quality level
+     *
+     * Valid values for quality param are:
+     *  + MegaChatCall::CALL_QUALITY_HIGH_DEF = 0,     // Default hi-res quality
+     *  + MegaChatCall::CALL_QUALITY_HIGH_MEDIUM = 1,  // 2x lower resolution
+     *  + MegaChatCall::CALL_QUALITY_HIGH_LOW = 2,     // 4x lower resolution
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicate that request high resolution video
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientId MegaChatHandle that identifies client
+     * @param quality resolution quality level for received video
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void requestHiResVideoWithQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Stop high resolution video from a list of clients
      *
      * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO

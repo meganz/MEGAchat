@@ -341,7 +341,40 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string approveSpeak("Approve Speak");
     std::string rejectSpeak("Reject Speak");
     submenu.addAction(requestThumb.c_str());
-    submenu.addAction(requestHiRes.c_str());
+
+    QMenu *hiResMenuQuality = submenu.addMenu("Request hiRes with quality");
+    QAction action3("Default", this);
+    connect(&action3, &QAction::triggered, this, [=](){
+        mMegaChatApi.requestHiResVideoWithQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_DEF);});
+    hiResMenuQuality->addAction(&action3);
+
+    QAction action4("2x lower", this);
+    connect(&action4, &QAction::triggered, this, [=](){
+        mMegaChatApi.requestHiResVideoWithQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
+    hiResMenuQuality->addAction(&action4);
+
+    QAction action5("4x lower", this);
+    connect(&action5, &QAction::triggered, this, [=](){
+        mMegaChatApi.requestHiResVideoWithQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_LOW);});
+    hiResMenuQuality->addAction(&action5);
+
+    QMenu *hiResMenu = submenu.addMenu("Adjust High Resolution");
+    QAction action6("Default", this);
+    connect(&action6, &QAction::triggered, this, [=](){
+        mMegaChatApi.requestHiResQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_DEF);});
+    hiResMenu->addAction(&action6);
+
+    QAction action7("2x lower", this);
+    connect(&action7, &QAction::triggered, this, [=](){
+        mMegaChatApi.requestHiResQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
+    hiResMenu->addAction(&action7);
+
+    QAction action8("4x lower", this);
+    connect(&action8, &QAction::triggered, this, [=](){
+        mMegaChatApi.requestHiResQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_LOW);});
+    hiResMenu->addAction(&action8);
+
+    //submenu.addAction(requestHiRes.c_str());
     submenu.addAction(stopThumb.c_str());
     submenu.addAction(stopHiRes.c_str());
 

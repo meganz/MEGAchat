@@ -134,14 +134,42 @@ void PeerWidget::showMenu(const QPoint &pos)
         QAction action2("Request LowRes", this);
         connect(&action2, SIGNAL(triggered()), this, SLOT(onLowResRequest()));
         contextMenu.addAction(&action2);
+
+        QMenu *hiResMenu = contextMenu.addMenu("Adjust High Resolution");
+        QAction action3("Default", this);
+        connect(&action3, &QAction::triggered, this, [=](){
+            mMegaChatApi.requestHiResQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_DEF);});
+        hiResMenu->addAction(&action3);
+
+        QAction action4("2x lower", this);
+        connect(&action4, &QAction::triggered, this, [=](){
+            mMegaChatApi.requestHiResQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
+        hiResMenu->addAction(&action4);
+
+        QAction action5("4x lower", this);
+        connect(&action5, &QAction::triggered, this, [=](){
+            mMegaChatApi.requestHiResQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_LOW);});
+        hiResMenu->addAction(&action5);
         contextMenu.exec(mapToGlobal(pos));
     }
     else // low-res video
     {
         QMenu contextMenu(tr("VThumb Menu"), this);
-        QAction action1("Request HiRes", this);
-        connect(&action1, SIGNAL(triggered()), this, SLOT(onHiResRequest()));
-        contextMenu.addAction(&action1);
+        QMenu *hiResMenuQuality = contextMenu.addMenu("Request hiRes");
+        QAction action3("Default", this);
+        connect(&action3, &QAction::triggered, this, [=](){
+            mMegaChatApi.requestHiResVideoWithQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_DEF);});
+        hiResMenuQuality->addAction(&action3);
+
+        QAction action4("2x lower", this);
+        connect(&action4, &QAction::triggered, this, [=](){
+            mMegaChatApi.requestHiResVideoWithQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
+        hiResMenuQuality->addAction(&action4);
+
+        QAction action5("4x lower", this);
+        connect(&action5, &QAction::triggered, this, [=](){
+            mMegaChatApi.requestHiResVideoWithQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_LOW);});
+        hiResMenuQuality->addAction(&action5);
 
         QAction action2("Stop LowRes", this);
         connect(&action2, SIGNAL(triggered()), this, SLOT(onLowResStop()));

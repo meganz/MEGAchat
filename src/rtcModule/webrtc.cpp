@@ -530,11 +530,17 @@ std::vector<Cid_t> Call::getSpeakerRequested()
     return speakerRequested;
 }
 
-void Call::requestHighResolutionVideo(Cid_t cid)
+void Call::requestHighResolutionVideo(Cid_t cid, int quality)
 {
     Session *sess= getSession(cid);
     if (!sess)
     {
+        return;
+    }
+
+    if (quality < kCallQualityHighDef || quality > kCallQualityHighLow)
+    {
+        RTCM_LOG_WARNING("requestHighResolutionVideo: invalid resolution divider value (spatial layer offset).");
         return;
     }
 
@@ -544,7 +550,7 @@ void Call::requestHighResolutionVideo(Cid_t cid)
     }
     else
     {
-        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false));
+        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false), quality);
     }
 }
 
@@ -893,7 +899,7 @@ void Call::requestPeerTracks(const std::set<Cid_t>& cids)
         {
             if (mAvailableTracks->hasHiresTrack(auxCid)) // request HIRES video for that peer
             {
-                requestHighResolutionVideo(auxCid);
+                requestHighResolutionVideo(auxCid, kCallQualityHighDef); // request default resolution quality
             }
             if (mAvailableTracks->hasLowresTrack(auxCid)) // add peer(CID) to lowResCids vector
             {
