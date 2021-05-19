@@ -298,7 +298,7 @@ class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
     // no peerid --> local video from own user
-    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, bool hiRes, uint32_t clientId = 0);
+    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, rtcModule::VideoResolution videoResolution, uint32_t clientId = 0);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);
@@ -315,7 +315,7 @@ public:
 protected:
     MegaChatApiImpl *mChatApi;
     MegaChatHandle mChatid;
-    bool mHiRes = false;
+    rtcModule::VideoResolution mVideoResolution;
     uint32_t mClientId;
 };
 
@@ -1001,8 +1001,8 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
-    void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener);
-    void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener);
+    void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
+    void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
 #endif
 
     // MegaChatRequestListener callbacks
@@ -1017,7 +1017,7 @@ public:
     void fireOnChatSessionUpdate(MegaChatHandle chatid, MegaChatHandle callid, MegaChatSessionPrivate *session);
 
     // MegaChatVideoListener callbacks
-    void fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, char*buffer, bool hiRes);
+    void fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, char*buffer, rtcModule::VideoResolution videoResolution);
 #endif
 
     // MegaChatListener callbacks (specific ones)
@@ -1178,7 +1178,7 @@ public:
     void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
-    void stopHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void stopLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
 

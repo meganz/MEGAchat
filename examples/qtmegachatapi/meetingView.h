@@ -25,7 +25,6 @@ public:
     void updateSession(const megachat::MegaChatSession& session);
     void updateAudioButtonText(MegaChatCall *call);
     void updateVideoButtonText(MegaChatCall *call);
-    void onRequestSpeakFinish();
     void setOnHold(bool mIsOnHold, MegaChatHandle cid);
     std::string sessionToString(const megachat::MegaChatSession& session);
     void updateAudioMonitor(bool enabled);
@@ -36,6 +35,7 @@ public:
     void addHiResByCid(MegaChatHandle chatid, uint32_t cid);
     void removeLowResByCid(uint32_t cid);
     void removeHiResByCid(uint32_t cid);
+    void localAudioDetected(bool audio);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -58,6 +58,7 @@ protected:
     QPushButton* mRemOwnSpeaker;
     QPushButton* mSetOnHold;
     QLabel* mOnHoldLabel;
+    QLabel* mLocalAudioDetected;
     QLabel* mParticipantsLabel;
 
     QListWidget* mListWidget;

@@ -3358,20 +3358,20 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Stop high resolution video from a client
+     * Stop high resolution video from a list of clients
      *
      * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that stop high resolution video
-     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Ids
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientId MegaChatHandle that identifies client
+     * @param clientIds List of clients Ids
      * @param listener MegaChatRequestListener to track this request
      */
-    public void stopHiResVideo(long chatid, long clientId, MegaChatRequestListenerInterface listener) {
-        megaChatApi.stopHiResVideo(chatid, clientId, createDelegateRequestListener(listener));
+    public void stopHiResVideo(long chatid, MegaHandleList clientIds, MegaChatRequestListenerInterface listener) {
+        megaChatApi.stopHiResVideo(chatid, clientIds, createDelegateRequestListener(listener));
     }
 
     /**

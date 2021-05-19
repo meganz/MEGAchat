@@ -390,7 +390,7 @@ public:
         bool sendGetVtumbs(const std::vector<Cid_t>& cids);
         bool sendDelVthumbs(const std::vector<Cid_t>& cids);
         bool sendGetHiRes(Cid_t cid, int r, int lo = -1);
-        bool sendDelHiRes(Cid_t cid);
+        bool sendDelHiRes(const std::vector<Cid_t>& cids);
         bool sendHiResSetLo(Cid_t cid, int lo = -1);
         bool sendLayer(int spt, int tmp, int stmp);
         bool sendSpeakReq(Cid_t cid = 0);

@@ -565,24 +565,33 @@ void Call::requestHiResQuality(Cid_t cid, int quality)
     mSfuConnection->sendHiResSetLo(cid, quality);
 }
 
-void Call::stopHighResolutionVideo(Cid_t cid)
+void Call::stopHighResolutionVideo(std::vector<Cid_t> &cids)
 {
-    Session *sess= getSession(cid);
-    if (!sess)
+    for (auto it = cids.begin(); it != cids.end();)
     {
-        return;
+        auto auxit = it++;
+        Session *sess= getSession(*auxit);
+        if (!sess)
+        {
+            it = cids.erase(auxit);
+        }
+        else if (!sess->hasHighResolutionTrack())
+        {
+            it = cids.erase(auxit);
+            sess->notifyHiResReceived();
+        }
     }
+    if (!cids.empty())
+    {
+        for (auto cid: cids)
+        {
+            Session *sess= getSession(cid);
+            assert(mAvailableTracks->hasCid(cid));
+            mAvailableTracks->updateHiresTrack(cid, false);
+            sess->disableVideoSlot(kHiRes);
+        }
 
-    if (!sess->hasHighResolutionTrack())
-    {
-        sess->notifyHiResReceived();
-    }
-    else
-    {
-        assert(mAvailableTracks->hasCid(cid));
-        mAvailableTracks->updateHiresTrack(cid, false);
-        mSfuConnection->sendDelHiRes(cid);
-        sess->disableVideoSlot(kHiRes);
+        mSfuConnection->sendDelHiRes(cids);
     }
 }
 
@@ -1212,6 +1221,11 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
             mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver);
         }
     }
+}
+
+void Call::onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
+{
+    RTCM_LOG_DEBUG("onRemoveTrack received");
 }
 
 void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState)

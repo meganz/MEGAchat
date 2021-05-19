@@ -2,9 +2,8 @@
 #include "callGui.h"
 #include <QImage>
 
-LocalCallListener::LocalCallListener(MegaChatApi *megaChatApi, CallGui *callGui, bool hiRes)
+LocalCallListener::LocalCallListener(MegaChatApi *megaChatApi, CallGui *callGui)
     : CallListener(megaChatApi, callGui, MEGACHAT_INVALID_HANDLE, 0)
-    , mHiRes(hiRes)
 {
     mMegaChatApi->addChatLocalVideoListener(mCallGui->getCall()->getChatid(), megaChatVideoListenerDelegate);
 }

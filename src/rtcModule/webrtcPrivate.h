@@ -205,7 +205,7 @@ public:
     std::vector<Cid_t> getSpeakerRequested() override;
     void requestHighResolutionVideo(Cid_t cid) override;
     void requestHiResQuality(Cid_t cid, int quality) override;
-    void stopHighResolutionVideo(Cid_t cid) override;
+    void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
 
@@ -226,6 +226,7 @@ public:
     void setState(CallState newState);
     void connectSfu(const std::string& sfuUrl);
     void joinSfu();
+
     void createTransceiver();
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
@@ -264,6 +265,7 @@ public:
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
     void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver);
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
     void onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state);
 

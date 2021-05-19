@@ -1217,29 +1217,6 @@ void ChatWindow::onAttachGiphy()
     mMegaChatApi->sendGiphy(mChatRoom->getChatId(), srcMp4, srcWebp, sizeMp4, sizeWebp, giphyWidth, giphyHeight, giphyTitle);
 }
 
-void ChatWindow::enableCallReconnect(bool enable)
-{
-    if (enable)
-    {
-        if (!mReconnectingDlg)
-        {
-            mReconnectingDlg = new QMessageBox;
-            mReconnectingDlg->setWindowTitle((tr("Call reconnection...")));
-            mReconnectingDlg->setIcon(QMessageBox::Information);
-            mReconnectingDlg->setText(tr("Please, wait.\nReconnection in progress."));
-            mReconnectingDlg->setStandardButtons(QMessageBox::Cancel);
-            mReconnectingDlg->setModal(true);
-            connect(mReconnectingDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelReconnection(QAbstractButton*)));
-            mReconnectingDlg->show();
-        }
-    }
-    else if (mReconnectingDlg)
-    {
-        delete mReconnectingDlg;
-        mReconnectingDlg = NULL;
-    }
-}
-
 void ChatWindow::onAttachNode(bool isVoiceClip)
 {
     QString node = QFileDialog::getOpenFileName(this, tr("All Files (*)"));
@@ -1274,17 +1251,6 @@ void ChatWindow::on_mCancelTransfer(QAbstractButton*)
     mUploadDlg->hide();
     delete mUploadDlg;
     mUploadDlg = NULL;
-}
-
-void ChatWindow::on_mCancelReconnection(QAbstractButton *)
-{
-    mReconnectingDlg->deleteLater();
-    mReconnectingDlg = nullptr;
-    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi->getChatCall(mChatRoom->getChatId()));
-    if (call)
-    {
-        mMegaChatApi->hangChatCall(call->getCallId());
-    }
 }
 
 void ChatWindow::onAttachmentsClosed(QObject *)
