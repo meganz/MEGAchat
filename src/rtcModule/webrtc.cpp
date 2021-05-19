@@ -680,24 +680,45 @@ Session* Call::getSession(Cid_t cid)
         : nullptr;
 }
 
-void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
+void Call::connectSfu(const std::string& sfuUrl)
 {
-    setState(CallState::kStateConnecting);
-    if (reconnect)
-    {
-        RTCM_LOG_DEBUG("trying to reconnect to SFU");
-        mSfuConnection->retryPendingConnection(false); // if reconnection is in progress skip
-        mSfuConnection->clearCommandsQueue();
-    }
-    else
+    if (!sfuUrl.empty())
     {
         mSfuUrl = sfuUrl;
-        mSfuConnection = mSfuClient.generateSfuConnection(mChatid, sfuUrl, *this);
-        RTCM_LOG_DEBUG("trying to connect to SFU");
     }
+    else if (mSfuUrl.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
+    {
+        RTCM_LOG_DEBUG("trying to connect to SFU with an Empty URL");
+        assert(false);
+        return;
+    }
+    setState(CallState::kStateConnecting);
+    mSfuConnection = mSfuClient.generateSfuConnection(mChatid, mSfuUrl, *this);
+}
 
+void Call::joinSfu()
+{
+    webrtc::PeerConnectionInterface::IceServers iceServer;
+    mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
+
+    createTransceiver();
+    mSpeakerState = SpeakerState::kPending;
+    getLocalStreams();
+    setState(CallState::kStateJoining);
+
+    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
+    options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
+    options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     auto wptr = weakHandle();
-    mSfuConnection->getPromiseConnection()
+    mRtcConn.createOffer(options)
+    .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
+    {
+        if (wptr.deleted())
+            return ::promise::_Void();
+
+        KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
+        return mRtcConn.setLocalDescription(sdp);
+    })
     .then([wptr, this]()
     {
         if (wptr.deleted())
@@ -705,48 +726,19 @@ void Call::connectSfu(const std::string &sfuUrl, bool reconnect)
             return;
         }
 
-        webrtc::PeerConnectionInterface::IceServers iceServer;
-        mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
+        sfu::Sdp sdp(mSdp);
 
-        createTransceiver();
-        mSpeakerState = SpeakerState::kPending;
-        getLocalStreams();
-        setState(CallState::kStateJoining);
-
-        webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
-        options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
-        options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
-        auto wptr = weakHandle();
-        mRtcConn.createOffer(options)
-        .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
-        {
-            if (wptr.deleted())
-                return ::promise::_Void();
-
-            KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
-            return mRtcConn.setLocalDescription(sdp);
-        })
-        .then([wptr, this]()
-        {
-            if (wptr.deleted())
-            {
-                return;
-            }
-
-            sfu::Sdp sdp(mSdp);
-
-            std::map<std::string, std::string> ivs;
-            ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
-            ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
-            ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-            mSfuConnection->joinSfu(sdp, ivs, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
-        })
-        .fail([wptr, this](const ::promise::Error& err)
-        {
-            if (wptr.deleted())
-                return;
-            disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
-        });
+        std::map<std::string, std::string> ivs;
+        ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
+        ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
+        ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
+        mSfuConnection->joinSfu(sdp, ivs, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
+    })
+    .fail([wptr, this](const ::promise::Error& err)
+    {
+        if (wptr.deleted())
+            return;
+        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
     });
 }
 
@@ -1202,6 +1194,11 @@ bool Call::handleModerator(Cid_t cid, bool moderator)
     return true;
 }
 
+void Call::handleSfuConnected()
+{
+    joinSfu();
+}
+
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
     mVThumb->createEncryptor(getMyPeer());
@@ -1234,9 +1231,15 @@ void Call::onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiv
 void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState)
 {
     RTCM_LOG_DEBUG("onConnectionChange newstate: %d", newState);
-    if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed)
+    if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
+        || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
     {
-        connectSfu(std::string(), true); // reconnect to SFU
+        if (mState != CallState::kStateConnecting) // avoid interrupting a reconnection in progress
+        {
+            setState(CallState::kStateConnecting);
+            mSfuConnection->retryPendingConnection(true);
+            mSfuConnection->clearCommandsQueue();
+        }
     }
 }
 

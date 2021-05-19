@@ -1185,6 +1185,11 @@ bool SfuConnection::isOnline() const
     return (mConnState >= kConnected);
 }
 
+bool SfuConnection::isDisconnected() const
+{
+    return (mConnState <= kDisconnected);
+}
+
 promise::Promise<void> SfuConnection::connect()
 {
     assert (mConnState == kConnNew);
@@ -1968,6 +1973,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
 
                 assert(isOnline());
+                mCall.handleSfuConnected();
             });
 
         }, wptr, mAppCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
@@ -2023,6 +2029,14 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
 const karere::Id& SfuClient::myHandle()
 {
     return mMyHandle;
+}
+
+void SfuClient::reconnectAllToSFU()
+{
+    for (auto it = mConnections.begin(); it != mConnections.end(); it++)
+    {
+        it->second->retryPendingConnection(true);
+    }
 }
 
 PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete)
