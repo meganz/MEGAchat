@@ -159,6 +159,7 @@ public:
     virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
+    virtual void requestSvcLayers(Cid_t cid, int layerIndex) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;

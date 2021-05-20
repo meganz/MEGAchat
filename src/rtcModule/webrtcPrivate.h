@@ -208,6 +208,7 @@ public:
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
+    void requestSvcLayers(Cid_t cid, int layerIndex) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
@@ -239,6 +240,7 @@ public:
     void freeTracks();
     void updateVideoTracks();
     void requestPeerTracks(const std::set<Cid_t> &cids);
+    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -321,6 +323,9 @@ protected:
 
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
+
+    // Current SVC layer index
+    int mCurrentSvcLayerIndex = 0;
 
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution = kLowRes);

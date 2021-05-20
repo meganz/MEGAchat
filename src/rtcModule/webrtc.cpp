@@ -653,6 +653,28 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
 }
 
+void Call::requestSvcLayers(Cid_t cid, int layerIndex)
+{
+    if (!hasVideoSlot(cid, true))
+    {
+        RTCM_LOG_WARNING("setLayerSettings: Currently not receiving a hi-res stream for this peer");
+        return;
+    }
+
+    // layer: spatial, temporal, screen-temporal
+    int spt = 0;
+    int tmp = 0;
+    int stmp = 0;
+    if (!getLayerByIndex(layerIndex, spt, tmp, stmp))
+    {
+        RTCM_LOG_WARNING("setLayerSettings: Invalid layer index");
+        return;
+    }
+
+    mCurrentSvcLayerIndex = layerIndex;
+    mSfuConnection->sendLayer(spt, tmp, stmp);
+}
+
 std::vector<karere::Id> Call::getParticipants() const
 {
     return mParticipants;
@@ -919,6 +941,24 @@ void Call::requestPeerTracks(const std::set<Cid_t>& cids)
     }
 
     requestLowResolutionVideo(lowResCids);
+}
+
+bool Call::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
+{
+    // we want to provide a linear quality scale,
+    // layers are defined for each of the 7 "quality" steps
+    // layer: spatial (resolution), temporal (FPS), screen-temporal (temporal layer for screen video)
+    switch (index)
+    {
+        case 0: { stp = 0; tmp = 0; stmp = 0; return true; }
+        case 1: { stp = 0; tmp = 1; stmp = 0; return true; }
+        case 2: { stp = 0; tmp = 2; stmp = 0; return true; }
+        case 3: { stp = 1; tmp = 1; stmp = 0; return true; }
+        case 4: { stp = 1; tmp = 2; stmp = 1; return true; }
+        case 5: { stp = 2; tmp = 1; stmp = 1; return true; }
+        case 6: { stp = 2; tmp = 2; stmp = 2; return true; }
+        default: return false;
+    }
 }
 
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
