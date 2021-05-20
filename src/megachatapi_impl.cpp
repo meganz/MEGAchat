@@ -6124,17 +6124,17 @@ bool MegaChatSessionPrivate::hasAudio() const
 
 bool MegaChatSessionPrivate::hasVideo() const
 {
-    return mAvFlags.videoCam();
+    return mAvFlags.video();
 }
 
 bool MegaChatSessionPrivate::isHiResVideo() const
 {
-    return mAvFlags.videoCamHiRes();
+    return mAvFlags.videoHiRes();
 }
 
 bool MegaChatSessionPrivate::isLowResVideo() const
 {
-    return mAvFlags.videoCamLowRes();
+    return mAvFlags.videoLowRes();
 }
 
 bool MegaChatSessionPrivate::isOnHold() const
