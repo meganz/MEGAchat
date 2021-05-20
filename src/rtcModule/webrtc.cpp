@@ -18,77 +18,77 @@ AvailableTracks::~AvailableTracks()
 
 bool AvailableTracks::hasHiresTrack(Cid_t cid)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return false;
     }
-    return flags.videoCamHiRes();
+    return tracksFlags.videoCamHiRes();
 }
 
 bool AvailableTracks::hasLowresTrack(Cid_t cid)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return false;
     }
-    return flags.videoCamLowRes();
+    return tracksFlags.videoCamLowRes();
 }
 
 bool AvailableTracks::hasVoiceTrack(Cid_t cid)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return false;
     }
-    return flags.has(karere::AvFlags::kAudio);
+    return tracksFlags.has(karere::AvFlags::kAudio);
 }
 
 void AvailableTracks::updateHiresTrack(Cid_t cid, bool add)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return;
     }
     add
-        ? flags.add(karere::AvFlags::kCameraHiRes)
-        : flags.remove(karere::AvFlags::kCameraHiRes);
+        ? tracksFlags.add(karere::AvFlags::kCameraHiRes)
+        : tracksFlags.remove(karere::AvFlags::kCameraHiRes);
 }
 
 void AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return;
     }
     add
-        ? flags.add(karere::AvFlags::kCameraLowRes)
-        : flags.remove(karere::AvFlags::kCameraLowRes);
+        ? tracksFlags.add(karere::AvFlags::kCameraLowRes)
+        : tracksFlags.remove(karere::AvFlags::kCameraLowRes);
 }
 
 void AvailableTracks::updateSpeakTrack(Cid_t cid, bool add)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return;
     }
     add
-        ? flags.add(karere::AvFlags::kAudio)
-        : flags.remove(karere::AvFlags::kAudio);
+        ? tracksFlags.add(karere::AvFlags::kAudio)
+        : tracksFlags.remove(karere::AvFlags::kAudio);
 }
 
-bool AvailableTracks::getTracksByCid(Cid_t cid, karere::AvFlags& flags)
+bool AvailableTracks::getTracksByCid(Cid_t cid, karere::AvFlags& tracksFlags)
 {
     if (!hasCid(cid))
     {
         return false;
     }
-    flags = mTracks[cid];
+    tracksFlags = mTracksFlags[cid];
     return true;
 }
 
@@ -96,28 +96,28 @@ void AvailableTracks::addCid(Cid_t cid)
 {
     if (!hasCid(cid))
     {
-        mTracks[cid] = 0;
+        mTracksFlags[cid] = 0;
     }
 }
 
 void AvailableTracks::removeCid(Cid_t cid)
 {
-    mTracks.erase(cid);
+    mTracksFlags.erase(cid);
 }
 
 bool AvailableTracks::hasCid(Cid_t cid)
 {
-    return (mTracks.find(cid) != mTracks.end());
+    return (mTracksFlags.find(cid) != mTracksFlags.end());
 }
 
 void AvailableTracks::clear()
 {
-    mTracks.clear();
+    mTracksFlags.clear();
 }
 
 std::map<Cid_t, karere::AvFlags>& AvailableTracks::getTracks()
 {
-    return mTracks;
+    return mTracksFlags;
 }
 
 Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)

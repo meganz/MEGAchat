@@ -21,6 +21,16 @@ class RtcModuleSfu;
 class Call;
 class Session;
 
+/*
+ * This class represents the current available tracks keyed by peer CID.
+ * Available tracks information is stored into a karere::AvFlags struct (due to efficiency)
+ *
+ * When a track is enabled/disabled we will update CID flags, and when we want to query which tracks
+ * are available, we will check if CID flags contains these values:
+ *  - HI-RES  track -> kCameraHiRes
+ *  - LOW-RES track -> kCameraLowRes
+ *  - AUDIO   track -> kAudio
+ */
 class AvailableTracks
 {
 public:
@@ -33,13 +43,13 @@ public:
     void updateLowresTrack(Cid_t cid, bool add);
     void updateSpeakTrack(Cid_t cid, bool add);
     std::map<Cid_t, karere::AvFlags>& getTracks();
-    bool getTracksByCid(Cid_t cid, karere::AvFlags& flags);
+    bool getTracksByCid(Cid_t cid, karere::AvFlags& tracksFlags);
     void addCid(Cid_t cid);
     void removeCid(Cid_t cid);
     bool hasCid(Cid_t cid);
     void clear();
 private:
-    std::map<Cid_t, karere::AvFlags> mTracks;
+    std::map<Cid_t, karere::AvFlags> mTracksFlags;
 };
 
 class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
