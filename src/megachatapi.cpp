@@ -1025,7 +1025,12 @@ void MegaChatApi::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clien
 
 void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
-    pImpl->requestHiResVideo(chatid, clientId, listener);
+    pImpl->requestHiResVideo(chatid, clientId, MegaChatCall::CALL_QUALITY_HIGH_DEF, listener);
+}
+
+void MegaChatApi::requestHiResVideoWithQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
+{
+    pImpl->requestHiResVideo(chatid, clientId, quality, listener);
 }
 
 void MegaChatApi::stopHiResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)

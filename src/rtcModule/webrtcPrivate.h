@@ -21,6 +21,16 @@ class RtcModuleSfu;
 class Call;
 class Session;
 
+/*
+ * This class represents the current available tracks keyed by peer CID.
+ * Available tracks information is stored into a karere::AvFlags struct (due to efficiency)
+ *
+ * When a track is enabled/disabled we will update CID flags, and when we want to query which tracks
+ * are available, we will check if CID flags contains these values:
+ *  - HI-RES  track -> kCameraHiRes
+ *  - LOW-RES track -> kCameraLowRes
+ *  - AUDIO   track -> kAudio
+ */
 class AvailableTracks
 {
 public:
@@ -33,13 +43,13 @@ public:
     void updateLowresTrack(Cid_t cid, bool add);
     void updateSpeakTrack(Cid_t cid, bool add);
     std::map<Cid_t, karere::AvFlags>& getTracks();
-    bool getTracksByCid(Cid_t cid, karere::AvFlags& flags);
+    bool getTracksByCid(Cid_t cid, karere::AvFlags& tracksFlags);
     void addCid(Cid_t cid);
     void removeCid(Cid_t cid);
     bool hasCid(Cid_t cid);
     void clear();
 private:
-    std::map<Cid_t, karere::AvFlags> mTracks;
+    std::map<Cid_t, karere::AvFlags> mTracksFlags;
 };
 
 class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
@@ -203,11 +213,12 @@ public:
     void approveSpeakRequest(Cid_t cid, bool allow) override;
     void stopSpeak(Cid_t cid = 0) override;
     std::vector<Cid_t> getSpeakerRequested() override;
-    void requestHighResolutionVideo(Cid_t cid) override;
+    void requestHighResolutionVideo(Cid_t cid, int quality) override;
     void requestHiResQuality(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
+    void requestSvcLayers(Cid_t cid, int layerIndex) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
@@ -241,6 +252,7 @@ public:
     void freeTracks();
     void updateVideoTracks();
     void requestPeerTracks(const std::set<Cid_t> &cids);
+    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -324,6 +336,9 @@ protected:
 
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
+
+    // Current SVC layer index
+    int mCurrentSvcLayerIndex = 0;
 
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution = kLowRes);

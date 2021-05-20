@@ -18,77 +18,77 @@ AvailableTracks::~AvailableTracks()
 
 bool AvailableTracks::hasHiresTrack(Cid_t cid)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return false;
     }
-    return flags.has(karere::AvFlags::kHiResVideo);
+    return tracksFlags.videoHiRes(); // kHiResVideo => (camera and screen)
 }
 
 bool AvailableTracks::hasLowresTrack(Cid_t cid)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return false;
     }
-    return flags.has(karere::AvFlags::kLowResVideo);
+    return tracksFlags.videoLowRes();  // kLowResVideo => (camera and screen)
 }
 
 bool AvailableTracks::hasVoiceTrack(Cid_t cid)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return false;
     }
-    return flags.has(karere::AvFlags::kAudio);
+    return tracksFlags.has(karere::AvFlags::kAudio);
 }
 
 void AvailableTracks::updateHiresTrack(Cid_t cid, bool add)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return;
     }
     add
-        ? flags.add(karere::AvFlags::kHiResVideo)
-        : flags.remove(karere::AvFlags::kHiResVideo);
+        ? tracksFlags.add(karere::AvFlags::kHiResVideo)
+        : tracksFlags.remove(karere::AvFlags::kHiResVideo);
 }
 
 void AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return;
     }
     add
-        ? flags.add(karere::AvFlags::kLowResVideo)
-        : flags.remove(karere::AvFlags::kLowResVideo);
+        ? tracksFlags.add(karere::AvFlags::kLowResVideo)
+        : tracksFlags.remove(karere::AvFlags::kLowResVideo);
 }
 
 void AvailableTracks::updateSpeakTrack(Cid_t cid, bool add)
 {
-    karere::AvFlags flags;
-    if (!getTracksByCid(cid, flags))
+    karere::AvFlags tracksFlags;
+    if (!getTracksByCid(cid, tracksFlags))
     {
         return;
     }
     add
-        ? flags.add(karere::AvFlags::kAudio)
-        : flags.remove(karere::AvFlags::kAudio);
+        ? tracksFlags.add(karere::AvFlags::kAudio)
+        : tracksFlags.remove(karere::AvFlags::kAudio);
 }
 
-bool AvailableTracks::getTracksByCid(Cid_t cid, karere::AvFlags& flags)
+bool AvailableTracks::getTracksByCid(Cid_t cid, karere::AvFlags& tracksFlags)
 {
     if (!hasCid(cid))
     {
         return false;
     }
-    flags = mTracks[cid];
+    tracksFlags = mTracksFlags[cid];
     return true;
 }
 
@@ -96,28 +96,28 @@ void AvailableTracks::addCid(Cid_t cid)
 {
     if (!hasCid(cid))
     {
-        mTracks[cid] = 0;
+        mTracksFlags[cid] = 0;
     }
 }
 
 void AvailableTracks::removeCid(Cid_t cid)
 {
-    mTracks.erase(cid);
+    mTracksFlags.erase(cid);
 }
 
 bool AvailableTracks::hasCid(Cid_t cid)
 {
-    return (mTracks.find(cid) != mTracks.end());
+    return (mTracksFlags.find(cid) != mTracksFlags.end());
 }
 
 void AvailableTracks::clear()
 {
-    mTracks.clear();
+    mTracksFlags.clear();
 }
 
 std::map<Cid_t, karere::AvFlags>& AvailableTracks::getTracks()
 {
-    return mTracks;
+    return mTracksFlags;
 }
 
 Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
@@ -530,11 +530,17 @@ std::vector<Cid_t> Call::getSpeakerRequested()
     return speakerRequested;
 }
 
-void Call::requestHighResolutionVideo(Cid_t cid)
+void Call::requestHighResolutionVideo(Cid_t cid, int quality)
 {
     Session *sess= getSession(cid);
     if (!sess)
     {
+        return;
+    }
+
+    if (quality < kCallQualityHighDef || quality > kCallQualityHighLow)
+    {
+        RTCM_LOG_WARNING("requestHighResolutionVideo: invalid resolution divider value (spatial layer offset).");
         return;
     }
 
@@ -544,13 +550,13 @@ void Call::requestHighResolutionVideo(Cid_t cid)
     }
     else
     {
-        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false));
+        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false), quality);
     }
 }
 
 void Call::requestHiResQuality(Cid_t cid, int quality)
 {
-    if (!hasVideoSlot(cid))
+    if (!hasVideoSlot(cid, true))
     {
         RTCM_LOG_WARNING("setHighResolutionDivider: Currently not receiving a hi-res stream for this peer");
         return;
@@ -645,6 +651,28 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
 
         mSfuConnection->sendDelVthumbs(cids);
     }
+}
+
+void Call::requestSvcLayers(Cid_t cid, int layerIndex)
+{
+    if (!hasVideoSlot(cid, true))
+    {
+        RTCM_LOG_WARNING("setLayerSettings: Currently not receiving a hi-res stream for this peer");
+        return;
+    }
+
+    // layer: spatial, temporal, screen-temporal
+    int spt = 0;
+    int tmp = 0;
+    int stmp = 0;
+    if (!getLayerByIndex(layerIndex, spt, tmp, stmp))
+    {
+        RTCM_LOG_WARNING("setLayerSettings: Invalid layer index");
+        return;
+    }
+
+    mCurrentSvcLayerIndex = layerIndex;
+    mSfuConnection->sendLayer(spt, tmp, stmp);
 }
 
 std::vector<karere::Id> Call::getParticipants() const
@@ -785,7 +813,7 @@ void Call::createTransceiver()
 void Call::getLocalStreams()
 {
     updateAudioTracks();
-    if (mLocalAvFlags.video())
+    if (mLocalAvFlags.videoCam())
     {
         updateVideoTracks();
     }
@@ -793,7 +821,7 @@ void Call::getLocalStreams()
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
-    if (mLocalAvFlags.video())
+    if (mLocalAvFlags.videoCam())
     {
         releaseVideoDevice();
     }
@@ -885,7 +913,7 @@ void Call::requestPeerTracks(const std::set<Cid_t>& cids)
         {
             if (mAvailableTracks->hasHiresTrack(auxCid)) // request HIRES video for that peer
             {
-                requestHighResolutionVideo(auxCid);
+                requestHighResolutionVideo(auxCid, kCallQualityHighDef); // request default resolution quality
             }
             if (mAvailableTracks->hasLowresTrack(auxCid)) // add peer(CID) to lowResCids vector
             {
@@ -905,6 +933,24 @@ void Call::requestPeerTracks(const std::set<Cid_t>& cids)
     }
 
     requestLowResolutionVideo(lowResCids);
+}
+
+bool Call::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
+{
+    // we want to provide a linear quality scale,
+    // layers are defined for each of the 7 "quality" steps
+    // layer: spatial (resolution), temporal (FPS), screen-temporal (temporal layer for screen video)
+    switch (index)
+    {
+        case 0: { stp = 0; tmp = 0; stmp = 0; return true; }
+        case 1: { stp = 0; tmp = 1; stmp = 0; return true; }
+        case 2: { stp = 0; tmp = 2; stmp = 0; return true; }
+        case 3: { stp = 1; tmp = 1; stmp = 0; return true; }
+        case 4: { stp = 1; tmp = 2; stmp = 1; return true; }
+        case 5: { stp = 2; tmp = 1; stmp = 1; return true; }
+        case 6: { stp = 2; tmp = 2; stmp = 2; return true; }
+        default: return false;
+    }
 }
 
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
@@ -1524,7 +1570,7 @@ void Call::freeTracks()
 void Call::updateVideoTracks()
 {
     bool isOnHold = mLocalAvFlags.isOnHold();
-    if (mLocalAvFlags.video() && !isOnHold)
+    if (mLocalAvFlags.videoCam() && !isOnHold)
     {
         takeVideoDevice();
 
@@ -1809,7 +1855,7 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
     for (auto& render : mRenderers)
     {
         ICall* call = findCallByChatid(render.first);
-        if ((call && call->getLocalAvFlags().video() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+        if ((call && call->getLocalAvFlags().videoCam() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
         {
             void* userData = NULL;
             auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
