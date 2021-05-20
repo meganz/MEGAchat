@@ -451,7 +451,7 @@ public:
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
         const karere::Id& myHandle();
         void setDefVideoDevice(const std::string& device);
-        void reconnectAllToSFU();
+        void reconnectAllToSFU(bool disconnect);
 
     private:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;

@@ -708,7 +708,7 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     }
 
     // force reconnect all SFU connections
-    rtc->getSfuClient().reconnectAllToSFU();
+    rtc->getSfuClient().reconnectAllToSFU(disconnect);
 #endif
 }
 
