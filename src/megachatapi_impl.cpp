@@ -1738,11 +1738,11 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 if (enable)
                 {
-                    requestedFlags.add(karere::AvFlags::kVideo);
+                    requestedFlags.add(karere::AvFlags::kCamera);
                 }
                 else
                 {
-                    requestedFlags.remove(karere::AvFlags::kVideo);
+                    requestedFlags.remove(karere::AvFlags::kCamera);
                 }
             }
 
@@ -6124,17 +6124,17 @@ bool MegaChatSessionPrivate::hasAudio() const
 
 bool MegaChatSessionPrivate::hasVideo() const
 {
-    return mAvFlags.video();
+    return mAvFlags.videoCam();
 }
 
 bool MegaChatSessionPrivate::isHiResVideo() const
 {
-    return mAvFlags.videoHiRes();
+    return mAvFlags.videoCamHiRes();
 }
 
 bool MegaChatSessionPrivate::isLowResVideo() const
 {
-    return mAvFlags.videoLowRes();
+    return mAvFlags.videoCamLowRes();
 }
 
 bool MegaChatSessionPrivate::isOnHold() const
@@ -6306,7 +6306,7 @@ bool MegaChatCallPrivate::hasLocalAudio() const
 
 bool MegaChatCallPrivate::hasLocalVideo() const
 {
-    return localAVFlags.video();
+    return localAVFlags.videoCam();
 }
 
 int MegaChatCallPrivate::getChanges() const

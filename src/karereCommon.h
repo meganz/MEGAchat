@@ -93,6 +93,9 @@ void globalCleanup();
 
 /** @cond PRIVATE */
 
+// Note: You can't send camera and screen simultaneously, but you can
+// send i.e camera in hi-res and low-res over two tracks
+// screen sharing is not used at this moment in native
 struct AvFlags
 {
 protected:
@@ -103,23 +106,30 @@ public:
                     kScreenLowRes = 8, kScreenHiRes = 16, kScreen = 24,
                     kLowResVideo = 10, kHiResVideo = 20, kVideo = 30, kOnHold = 128};
     AvFlags(uint8_t flags): mFlags(flags){}
-    AvFlags(bool audio, bool video)
-    : mFlags((audio ? kAudio : 0) | (video ? kVideo : 0)){}
+    AvFlags(bool audio, bool video) : mFlags((audio ? kAudio : 0) | (video ? kCamera : 0)) {}
     AvFlags(): mFlags(0){}
-    uint8_t value() const { return mFlags; }
-    void set(uint8_t val) { mFlags = val; }
-    bool audio() const { return mFlags & kAudio; }
-    bool video() const { return mFlags & kVideo; }
-    bool videoLowRes() const { return mFlags & kLowResVideo; }
-    bool videoHiRes() const { return mFlags & kHiResVideo; }
-    bool isOnHold() const { return mFlags & kOnHold; }
-    bool operator==(AvFlags other) { return (mFlags == other.mFlags); }
-    bool operator!=(AvFlags other) { return (mFlags != other.mFlags); }
-    bool any() const { return mFlags != 0; }
-    bool has(uint8_t val) const { return mFlags & val; }
-    void add(uint8_t val) { mFlags = mFlags | val; }
-    void remove(uint8_t val) { mFlags = mFlags & ~val; }
-    operator bool() const { return mFlags != 0; }
+
+    // setters/modifiers
+    void set(uint8_t val)       { mFlags = val; }
+    void add(uint8_t val)       { mFlags = mFlags | val; }
+    void remove(uint8_t val)    { mFlags = mFlags & ~val; }
+    void setOnHold(bool enable) { enable ? add(kOnHold) : remove(kOnHold); }
+
+    // getters
+    uint8_t value() const       { return mFlags; }
+    bool audio() const          { return mFlags & kAudio; }
+    bool videoCam() const       { return mFlags & kCamera; }
+    bool videoCamLowRes() const { return mFlags & kCameraLowRes; }
+    bool videoCamHiRes() const  { return mFlags & kCameraHiRes; }
+    bool isOnHold() const       { return mFlags & kOnHold; }
+
+    // check methods
+    operator bool() const           { return mFlags != 0; }
+    bool operator==(AvFlags other)  { return (mFlags == other.mFlags); }
+    bool operator!=(AvFlags other)  { return (mFlags != other.mFlags); }
+    bool any() const                { return mFlags != 0; }
+    bool has(uint8_t val) const     { return mFlags & val; }
+
     std::string toString() const
     {
         std::string result;
@@ -138,11 +148,6 @@ public:
         if (result.empty())
             result='-';
         return result;
-    }
-
-    void setOnHold(bool enable)
-    {
-        enable ? add(kOnHold) : remove(kOnHold);
     }
 };
 

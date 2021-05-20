@@ -234,7 +234,7 @@ void LocalStreamHandle::setAv(karere::AvFlags av)
         mAudio->set_enabled(audio);
     }
 
-    bool video = av.video();
+    bool video = av.videoCam();
     if (mVideo && mVideo->enabled() != video)
     {
         mVideo->set_enabled(video);

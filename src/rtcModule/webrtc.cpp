@@ -23,7 +23,7 @@ bool AvailableTracks::hasHiresTrack(Cid_t cid)
     {
         return false;
     }
-    return flags.has(karere::AvFlags::kHiResVideo);
+    return flags.videoCamHiRes();
 }
 
 bool AvailableTracks::hasLowresTrack(Cid_t cid)
@@ -33,7 +33,7 @@ bool AvailableTracks::hasLowresTrack(Cid_t cid)
     {
         return false;
     }
-    return flags.has(karere::AvFlags::kLowResVideo);
+    return flags.videoCamLowRes();
 }
 
 bool AvailableTracks::hasVoiceTrack(Cid_t cid)
@@ -54,8 +54,8 @@ void AvailableTracks::updateHiresTrack(Cid_t cid, bool add)
         return;
     }
     add
-        ? flags.add(karere::AvFlags::kHiResVideo)
-        : flags.remove(karere::AvFlags::kHiResVideo);
+        ? flags.add(karere::AvFlags::kCameraHiRes)
+        : flags.remove(karere::AvFlags::kCameraHiRes);
 }
 
 void AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
@@ -66,8 +66,8 @@ void AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
         return;
     }
     add
-        ? flags.add(karere::AvFlags::kLowResVideo)
-        : flags.remove(karere::AvFlags::kLowResVideo);
+        ? flags.add(karere::AvFlags::kCameraLowRes)
+        : flags.remove(karere::AvFlags::kCameraLowRes);
 }
 
 void AvailableTracks::updateSpeakTrack(Cid_t cid, bool add)
@@ -821,7 +821,7 @@ void Call::createTransceiver()
 void Call::getLocalStreams()
 {
     updateAudioTracks();
-    if (mLocalAvFlags.video())
+    if (mLocalAvFlags.videoCam())
     {
         updateVideoTracks();
     }
@@ -829,7 +829,7 @@ void Call::getLocalStreams()
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
-    if (mLocalAvFlags.video())
+    if (mLocalAvFlags.videoCam())
     {
         releaseVideoDevice();
     }
@@ -1208,7 +1208,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     mAvailableTracks->addCid(cid);
 
     ISession *sess = getSession(cid);
-    if (sess && sess->getAvFlags().videoLowRes())
+    if (sess && sess->getAvFlags().videoCamLowRes())
     {
         // request low-res video by default for a new peer joined
         std::vector<Cid_t> cids;
@@ -1567,7 +1567,7 @@ void Call::freeTracks()
 void Call::updateVideoTracks()
 {
     bool isOnHold = mLocalAvFlags.isOnHold();
-    if (mLocalAvFlags.video() && !isOnHold)
+    if (mLocalAvFlags.videoCam() && !isOnHold)
     {
         takeVideoDevice();
 
@@ -1852,7 +1852,7 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
     for (auto& render : mRenderers)
     {
         ICall* call = findCallByChatid(render.first);
-        if ((call && call->getLocalAvFlags().video() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+        if ((call && call->getLocalAvFlags().videoCam() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
         {
             void* userData = NULL;
             auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
