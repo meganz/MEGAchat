@@ -556,7 +556,7 @@ void Call::requestHighResolutionVideo(Cid_t cid, int quality)
 
 void Call::requestHiResQuality(Cid_t cid, int quality)
 {
-    if (!hasVideoSlot(cid))
+    if (!hasVideoSlot(cid, true))
     {
         RTCM_LOG_WARNING("setHighResolutionDivider: Currently not receiving a hi-res stream for this peer");
         return;

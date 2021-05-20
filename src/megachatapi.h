@@ -5114,6 +5114,7 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that request high resolution video
      * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     * - MegaChatRequest::getPrivilege - Returns MegaChatCall::CALL_QUALITY_HIGH_DEF
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param clientId MegaChatHandle that identifies client
@@ -5134,6 +5135,7 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that request high resolution video
      * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     * - MegaChatRequest::getPrivilege - Returns the resolution quality level for received video
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param clientId MegaChatHandle that identifies client
