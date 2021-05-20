@@ -1538,8 +1538,10 @@ public:
     // - Version 8:
     //  * Solves several bugs related to missing RETENTION time upon re-joins, anonymous previewers and others
     // - Version 9:
-    //  * Add commands OP_JOINEDCALL, OP_LEFTCALL, OP_CALLSTATE, OP_CALLEND
-    static const unsigned chatdVersion = 9;
+    //  * Add commands JOINEDCALL, LEFTCALL, CALLSTATE, CALLEND
+    // - Version 10:
+    //  * Add commands DELCALLREASON
+    static const unsigned chatdVersion = 10;
 
     // Minimum retention history check period (in seconds)
     static const unsigned kMinRetentionTimeout = 60;

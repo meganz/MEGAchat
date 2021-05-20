@@ -1738,11 +1738,11 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 if (enable)
                 {
-                    requestedFlags.add(karere::AvFlags::kVideo);
+                    requestedFlags.add(karere::AvFlags::kCamera);
                 }
                 else
                 {
-                    requestedFlags.remove(karere::AvFlags::kVideo);
+                    requestedFlags.remove(karere::AvFlags::kCamera);
                 }
             }
 
@@ -2153,9 +2153,18 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO:
         {
             handle chatid = request->getChatHandle();
+            int quality = request->getPrivilege(); // by default MegaChatCall::CALL_QUALITY_HIGH_DEF
+
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid chatid");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (request->getFlag() && (quality < MegaChatCall::CALL_QUALITY_HIGH_DEF || quality > MegaChatCall::CALL_QUALITY_HIGH_LOW))
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO  - Invalid resolution quality");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
@@ -2169,14 +2178,27 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
-            if (request->getFlag())
+            if (!request->getFlag() && (!request->getMegaHandleList() || !request->getMegaHandleList()->size()))
             {
-                call->requestHighResolutionVideo(cid);
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid list of Cids for removal");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
             }
-            else
+
+            if (request->getFlag()) // HI-RES request only accepts a single peer CID
             {
-                call->stopHighResolutionVideo(cid);
+                Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
+                call->requestHighResolutionVideo(cid, quality);
+            }
+            else // HI-RES del accepts a list of peers CIDs
+            {
+                std::vector<Cid_t> cids;
+                const MegaHandleList *auxcids = request->getMegaHandleList();
+                for (size_t i = 0; i < auxcids->size(); i++)
+                {
+                    cids.emplace_back(static_cast<Cid_t>(auxcids->get(static_cast<unsigned>(i))));
+                }
+                call->stopHighResolutionVideo(cids);
             }
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2273,7 +2295,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
-            if (call->hasVideoSlot(cid))
+            if (!call->hasVideoSlot(cid, true))
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - Currently not receiving a hi-res stream for this peer");
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -2332,6 +2354,53 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             call->stopSpeak(cid);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
+        case MegaChatRequest::TYPE_REQUEST_SVC_LAYERS:
+        {
+            handle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS - Invalid chatid");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
+            if (request->getUserHandle() == MEGACHAT_INVALID_HANDLE)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS  - Invalid ClientId");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            int layerIndex = request->getPrivilege();
+            if (layerIndex < 0 || layerIndex > 6)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS  - Invalid layer index");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            rtcModule::ICall *call = findCall(chatid);
+            if (!call)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS  - There is not any call in that chatroom");
+                errorCode = MegaChatError::ERROR_NOENT;
+                assert(false);
+                break;
+            }
+
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            call->requestSvcLayers(cid, layerIndex);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             break;
@@ -2868,11 +2937,11 @@ void MegaChatApiImpl::fireOnChatSessionUpdate(MegaChatHandle chatid, MegaChatHan
     session->removeChanges();
 }
 
-void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, char *buffer, bool hiRes)
+void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, char *buffer, rtcModule::VideoResolution videoResolution)
 {
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator it;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator itEnd;
-
+    assert(videoResolution != rtcModule::VideoResolution::kUndefined);
     if (clientId == 0)
     {
         for( MegaChatVideoListener_set::iterator videoListenerIterator = mLocalVideoListeners[chatid].begin();
@@ -2885,7 +2954,7 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
         return;
     }
 
-    if (hiRes)
+    if (videoResolution == rtcModule::VideoResolution::kHiRes)
     {
          it = mVideoListenersHiRes.find(chatid);
          itEnd = mVideoListenersHiRes.end();
@@ -4585,6 +4654,16 @@ void MegaChatApiImpl::removeSpeaker(MegaChatHandle chatid, MegaChatHandle client
     waiter->notify();
 }
 
+void MegaChatApiImpl::requestSvcLayers(MegaChatHandle chatid, MegaChatHandle clientId, int layerIndex, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_SVC_LAYERS, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(clientId);
+    request->setPrivilege(layerIndex);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CALL_ON_HOLD, listener);
@@ -4841,22 +4920,23 @@ void MegaChatApiImpl::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle c
     waiter->notify();
 }
 
-void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO, listener);
     request->setChatHandle(chatid);
     request->setFlag(true);
     request->setUserHandle(clientId);
+    request->setPrivilege(quality);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::stopHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
+void MegaChatApiImpl::stopHiResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO, listener);
     request->setChatHandle(chatid);
     request->setFlag(false);
-    request->setUserHandle(clientId);
+    request->setMegaHandleList(clientIds);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5001,24 +5081,25 @@ void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
+void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener)
 {
     if (!listener)
     {
         return;
     }
 
+    assert(videoResolution != rtcModule::VideoResolution::kUndefined);
     videoMutex.lock();
     if (clientId == 0)
     {
         mLocalVideoListeners[chatid].insert(listener);
-        mClient->rtc->addLocalVideoRenderer(chatid, new MegaChatVideoReceiver(this, chatid, true));
+        mClient->rtc->addLocalVideoRenderer(chatid, new MegaChatVideoReceiver(this, chatid, rtcModule::VideoResolution::kHiRes));
     }
-    else if (hiRes)
+    else if (videoResolution == rtcModule::VideoResolution::kHiRes)
     {
         mVideoListenersHiRes[chatid][clientId].insert(listener);
     }
-    else
+    else if (videoResolution == rtcModule::VideoResolution::kLowRes)
     {
         mVideoListenersLowRes[chatid][clientId].insert(listener);
     }
@@ -5026,15 +5107,15 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
     videoMutex.unlock();
 }
 
-void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
+void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener)
 {
     if (!listener)
     {
         return;
     }
 
+    assert(videoResolution != rtcModule::VideoResolution::kUndefined);
     videoMutex.lock();
-
     if (clientId == 0)
     {
         auto it = mLocalVideoListeners.find(chatid);
@@ -5050,7 +5131,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
             }
         }
     }
-    else if (hiRes)
+    else if (videoResolution == rtcModule::VideoResolution::kHiRes)
     {
         auto itHiRes = mVideoListenersHiRes.find(chatid);
         if (itHiRes != mVideoListenersHiRes.end())
@@ -5076,7 +5157,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
             }
         }
     }
-    else
+    else if (videoResolution == rtcModule::VideoResolution::kLowRes)
     {
         assert(clientId); // local video listeners can't be un/registered into this map
         auto itLowRes = mVideoListenersLowRes.find(chatid);
@@ -5771,6 +5852,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_OPEN_VIDEO_DEVICE: return "OPEN_VIDEO_DEVICE";
         case TYPE_REQUEST_HIRES_QUALITY: return "REQUEST_HIRES_QUALITY";
         case TYPE_DEL_SPEAKER: return "DEL_SPEAKER";
+        case TYPE_REQUEST_SVC_LAYERS: return "SVC_LAYERS";
     }
     return "UNKNOWN";
 }
@@ -6224,7 +6306,7 @@ bool MegaChatCallPrivate::hasLocalAudio() const
 
 bool MegaChatCallPrivate::hasLocalVideo() const
 {
-    return localAVFlags.video();
+    return localAVFlags.videoCam();
 }
 
 int MegaChatCallPrivate::getChanges() const
@@ -6522,11 +6604,11 @@ void MegaChatCallPrivate::setAudioDetected(bool audioDetected)
     this->mChanged |= MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL;
 }
 
-MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, bool hiRes, uint32_t clientId)
+MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, rtcModule::VideoResolution videoResolution, uint32_t clientId)
 {
     this->mChatApi = chatApi;
     this->mChatid = chatid;
-    this->mHiRes = hiRes;
+    this->mVideoResolution = videoResolution;
     this->mClientId = clientId;
 }
 
@@ -6548,7 +6630,7 @@ void MegaChatVideoReceiver::frameComplete(void *userData)
 {
     mChatApi->videoMutex.lock();
     MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
-    mChatApi->fireOnChatVideoData(mChatid, mClientId, frame->width, frame->height, (char *)frame->buffer, mClientId ? mHiRes : true);
+    mChatApi->fireOnChatVideoData(mChatid, mClientId, frame->width, frame->height, (char *)frame->buffer, mClientId ? mVideoResolution : rtcModule::VideoResolution::kHiRes);
     mChatApi->videoMutex.unlock();
     delete [] frame->buffer;
     delete frame;
@@ -8813,7 +8895,7 @@ void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
 {
     if (session.hasLowResolutionTrack())
     {
-        session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, false, session.getClientid()));
+        session.setVideoRendererVthumb(new MegaChatVideoReceiver(mMegaChatApi, mChatid, rtcModule::VideoResolution::kLowRes, session.getClientid()));
     }
     else
     {
@@ -8829,7 +8911,7 @@ void MegaChatSessionHandler::onHiResReceived(rtcModule::ISession& session)
 {
     if (session.hasHighResolutionTrack())
     {
-        session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, true, session.getClientid()));
+        session.setVideoRendererHiRes(new MegaChatVideoReceiver(mMegaChatApi, mChatid, rtcModule::VideoResolution::kHiRes, session.getClientid()));
     }
     else
     {

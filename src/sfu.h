@@ -136,6 +136,7 @@ public:
     virtual bool handlePeerLeft(Cid_t cid) = 0;
     virtual bool handleError(unsigned int , const std::string) = 0;
     virtual bool handleModerator(Cid_t cid, bool moderator) = 0;
+    virtual void handleSfuConnected() = 0;
 };
 
     class Command
@@ -370,6 +371,7 @@ public:
         SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call);
         ~SfuConnection();
         bool isOnline() const;
+        bool isDisconnected() const;
         promise::Promise<void> connect();
         void disconnect();
         void doConnect();
@@ -388,7 +390,7 @@ public:
         bool sendGetVtumbs(const std::vector<Cid_t>& cids);
         bool sendDelVthumbs(const std::vector<Cid_t>& cids);
         bool sendGetHiRes(Cid_t cid, int r, int lo = -1);
-        bool sendDelHiRes(Cid_t cid);
+        bool sendDelHiRes(const std::vector<Cid_t>& cids);
         bool sendHiResSetLo(Cid_t cid, int lo = -1);
         bool sendLayer(int spt, int tmp, int stmp);
         bool sendSpeakReq(Cid_t cid = 0);
@@ -449,6 +451,7 @@ public:
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
         const karere::Id& myHandle();
         void setDefVideoDevice(const std::string& device);
+        void reconnectAllToSFU(bool disconnect);
 
     private:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;

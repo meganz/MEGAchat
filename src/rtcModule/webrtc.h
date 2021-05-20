@@ -154,11 +154,12 @@ public:
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
     virtual void stopSpeak(Cid_t cid = 0) = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
-    virtual void requestHighResolutionVideo(Cid_t cid) = 0;
+    virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
-    virtual void stopHighResolutionVideo(Cid_t cid) = 0;
+    virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
+    virtual void requestSvcLayers(Cid_t cid, int layerIndex) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
