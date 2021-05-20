@@ -23,7 +23,7 @@ bool AvailableTracks::hasHiresTrack(Cid_t cid)
     {
         return false;
     }
-    return tracksFlags.videoCamHiRes();
+    return tracksFlags.videoHiRes(); // kHiResVideo => (camera and screen)
 }
 
 bool AvailableTracks::hasLowresTrack(Cid_t cid)
@@ -33,7 +33,7 @@ bool AvailableTracks::hasLowresTrack(Cid_t cid)
     {
         return false;
     }
-    return tracksFlags.videoCamLowRes();
+    return tracksFlags.videoLowRes();  // kLowResVideo => (camera and screen)
 }
 
 bool AvailableTracks::hasVoiceTrack(Cid_t cid)
@@ -54,8 +54,8 @@ void AvailableTracks::updateHiresTrack(Cid_t cid, bool add)
         return;
     }
     add
-        ? tracksFlags.add(karere::AvFlags::kCameraHiRes)
-        : tracksFlags.remove(karere::AvFlags::kCameraHiRes);
+        ? tracksFlags.add(karere::AvFlags::kHiResVideo)
+        : tracksFlags.remove(karere::AvFlags::kHiResVideo);
 }
 
 void AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
@@ -66,8 +66,8 @@ void AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
         return;
     }
     add
-        ? tracksFlags.add(karere::AvFlags::kCameraLowRes)
-        : tracksFlags.remove(karere::AvFlags::kCameraLowRes);
+        ? tracksFlags.add(karere::AvFlags::kLowResVideo)
+        : tracksFlags.remove(karere::AvFlags::kLowResVideo);
 }
 
 void AvailableTracks::updateSpeakTrack(Cid_t cid, bool add)
@@ -1208,7 +1208,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     mAvailableTracks->addCid(cid);
 
     ISession *sess = getSession(cid);
-    if (sess && sess->getAvFlags().videoCamLowRes())
+    if (sess && sess->getAvFlags().videoLowRes())
     {
         // request low-res video by default for a new peer joined
         std::vector<Cid_t> cids;
