@@ -252,8 +252,8 @@ void CallGui::onDestroy(rtcModule::TermCode code, bool byPeer, const std::string
 
 void CallGui::onPeerMute(AvFlags state, AvFlags oldState)
 {
-    bool hasVideo = state.videoCam();
-    if (hasVideo == oldState.videoCam())
+    bool hasVideo = state.video();
+    if (hasVideo == oldState.video())
     {
         return;
     }

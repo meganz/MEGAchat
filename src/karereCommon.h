@@ -118,11 +118,11 @@ public:
     // getters
     uint8_t value() const       { return mFlags; }
     bool audio() const          { return mFlags & kAudio; }
-    bool video() const          { return mFlags & kVideo; }
     bool videoHiRes() const     { return mFlags & kHiResVideo; }  //  kCameraHiRes  | kScreenHiRes
     bool videoLowRes() const    { return mFlags & kLowResVideo; } //  kCameraLowRes | kScreenLowRes
     bool videoCam() const       { return mFlags & kCamera; }
     bool isOnHold() const       { return mFlags & kOnHold; }
+    bool video() const          { return videoHiRes() || videoLowRes(); }
 
     // check methods
     operator bool() const           { return mFlags != 0; }
