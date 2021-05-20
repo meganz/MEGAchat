@@ -44,7 +44,9 @@ bool init(void *appCtx)
 
     if (gWebrtcContext == nullptr)
     {
-        webrtc::field_trial::InitFieldTrialsFromString("WebRTC-GenericDescriptorAuth/Disabled/");
+        // Note: trials_string must never be destroyed.
+        std::string *fieldTrial = new std::string(webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/", "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/"));
+        webrtc::field_trial::InitFieldTrialsFromString(fieldTrial->c_str());
         gWorkerThread = rtc::Thread::Create();
         gWorkerThread->Start();
         gSignalingThread = rtc::Thread::Create();
