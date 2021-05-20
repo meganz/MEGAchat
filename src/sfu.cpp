@@ -2031,11 +2031,11 @@ const karere::Id& SfuClient::myHandle()
     return mMyHandle;
 }
 
-void SfuClient::reconnectAllToSFU()
+void SfuClient::reconnectAllToSFU(bool disconnect)
 {
     for (auto it = mConnections.begin(); it != mConnections.end(); it++)
     {
-        it->second->retryPendingConnection(true);
+        it->second->retryPendingConnection(disconnect);
     }
 }
 
