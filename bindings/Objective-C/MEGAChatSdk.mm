@@ -41,7 +41,7 @@ using namespace megachat;
 @property (nonatomic, assign) std::set<DelegateMEGAChatNotificationListener *>activeChatNotificationListeners;
 @property (nonatomic, assign) std::set<DelegateMEGAChatNodeHistoryListener *>activeChatNodeHistoryListeners;
 
-@property (nonatomic, nonnull) MegaChatApi *megaChatApi;
+@property (nonatomic, nullable) MegaChatApi *megaChatApi;
 - (MegaChatApi *)getCPtr;
 
 @end
