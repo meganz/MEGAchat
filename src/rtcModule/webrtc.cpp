@@ -1857,6 +1857,7 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
         ICall* call = findCallByChatid(render.first);
         if ((call && call->getLocalAvFlags().videoCam() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
         {
+            assert(render.second != nullptr);
             void* userData = NULL;
             auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
             if (frame.rotation() != webrtc::kVideoRotation_0)

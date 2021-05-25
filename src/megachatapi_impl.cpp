@@ -2948,6 +2948,11 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
              videoListenerIterator != mLocalVideoListeners[chatid].end();
              videoListenerIterator++)
         {
+            if (*videoListenerIterator == nullptr)
+            {
+                API_LOG_WARNING("local videoListener does not exists");
+                continue;
+            }
             (*videoListenerIterator)->onChatVideoData(chatApi, chatid, width, height, buffer, width * height * 4);
         }
 
@@ -2975,6 +2980,12 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
                  videoListenerIterator != peerVideoIterator->second.end();
                  videoListenerIterator++)
             {
+                if (*videoListenerIterator == nullptr)
+                {
+                    API_LOG_WARNING("remote videoListener with CID %d does not exists ", clientId);
+                    continue;
+                }
+
                 (*videoListenerIterator)->onChatVideoData(chatApi, chatid, width, height, buffer, width * height * 4);
             }
         }
