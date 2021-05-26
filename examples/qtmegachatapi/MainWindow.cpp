@@ -630,6 +630,13 @@ void MainWindow::on_bSettings_clicked()
 
     }
 
+    if (mMegaChatApi->getInitState() == MegaChatApi::INIT_ANONYMOUS)
+    {
+        menu.addSeparator();
+        auto joinAsGuest = menu.addAction("Join as guest");
+        connect(joinAsGuest, SIGNAL(triggered()), this, SLOT(onJoinAsGuest()));
+    }
+
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
     pos.setY(pos.y() + ui->bSettings->height());
@@ -1426,4 +1433,17 @@ void MainWindow::onCancelAccountConfirmation()
 {
     mConfirmAccount->deleteLater();
     mConfirmAccount = nullptr;
+}
+
+void MainWindow::onJoinAsGuest()
+{
+    mApp->setJoinAsGuest(true);
+    QString text = QInputDialog::getText(this, tr("Guest user name"), tr("Enter the guest user name: "));
+    if (text == "")
+    {
+        return;
+    }
+
+    mApp->setGuestName(text.toStdString());
+    mMegaChatApi->logout();
 }

@@ -225,6 +225,7 @@ class MainWindow :
         void onImportMessages();
         void onAccountConfirmation(const std::string& email, const std::string& password);
         void onCancelAccountConfirmation();
+        void onJoinAsGuest();
 
     signals:
         void esidLogout();

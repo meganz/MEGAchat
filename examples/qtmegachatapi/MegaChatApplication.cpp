@@ -191,6 +191,7 @@ bool MegaChatApplication::initAnonymous(std::string chatlink)
     connect(mMainWin, SIGNAL(onAnonymousLogout()), this, SLOT(onAnonymousLogout()));
     mMainWin->show();
     mMainWin->activeControls(false);
+    setChatLink(chatlink);
     return true;
 }
 
@@ -427,6 +428,36 @@ MainWindow *MegaChatApplication::mainWindow() const
 megachat::MegaChatApi *MegaChatApplication::megaChatApi() const
 {
     return mMegaChatApi;
+}
+
+void MegaChatApplication::setJoinAsGuest(bool joinAsGuest)
+{
+    mJoinAsGuest = joinAsGuest;
+}
+
+bool MegaChatApplication::getJoinAsGuest() const
+{
+    return mJoinAsGuest;
+}
+
+void MegaChatApplication::setGuestName(const string &name)
+{
+    mGuestUserName = name;
+}
+
+string MegaChatApplication::getGuestName() const
+{
+    return mGuestUserName;
+}
+
+void MegaChatApplication::setChatLink(const string &chatLink)
+{
+    mMeetingLink = chatLink;
+}
+
+string MegaChatApplication::getChatLink() const
+{
+    return mMeetingLink;
 }
 
 const char *MegaChatApplication::sid() const
@@ -688,9 +719,13 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                         mSid = mMegaApi->dumpSession();
                         saveSid(mSid);
                     }
+
+                    if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
+                    {
+                        mMegaChatApi->connect();
+                    }
                 }
 
-                api->fetchNodes();
                 mMainWin->setEphemeralAccount(true);
             }
             else if (error != MegaError::API_OK)
@@ -750,6 +785,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 //Fetch alias attr
                 mMegaApi->getUserAttribute(::mega::MegaApi::USER_ATTR_ALIAS);
                 delete contactList;
+
+                if (mJoinAsGuest)
+                {
+                    mMegaChatApi->openChatPreview(getChatLink().c_str());
+                }
             }
             break;
           case MegaChatRequest::TYPE_LOGOUT:
@@ -758,6 +798,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 removeSid();
                 removeEphemeralFile();
                 init();
+                if (mJoinAsGuest)
+                {
+                    mMegaChatApi->init(nullptr);
+                    mMegaApi->createEphemeralAccountPlusPlus(mGuestUserName.c_str(), mGuestUserName.c_str());
+                }
             }
             break;
          case MegaChatRequest::TYPE_GET_FIRSTNAME:
@@ -1046,6 +1091,14 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                             auxWin->previewUpdate(mMegaChatApi->getChatRoom(request->getChatHandle()));
                         }
                         delete chatListItem;
+
+                        if (mJoinAsGuest)
+                        {
+                            mMegaChatApi->autojoinPublicChat(chatid);
+                            mJoinAsGuest = false;
+                            mGuestUserName = "";
+                            mMeetingLink = "";
+                        }
                     }
                     else
                     {
