@@ -297,15 +297,18 @@ public:
       auto observer = new rtc::RefCountedObject<SdpSetLocalCallbacks>(promise);
       observer->AddRef();
       get()->SetLocalDescription(desc->Clone(), observer);
+      delete desc;
       return promise;
   }
 
+  /** Takes ownership of \c desc */
   SdpSetRemoteCallbacks::PromiseType setRemoteDescription(webrtc::SessionDescriptionInterface* desc)
   {
       SdpSetRemoteCallbacks::PromiseType promise;
       auto observer = new rtc::RefCountedObject<SdpSetRemoteCallbacks>(promise);
       observer->AddRef();
       get()->SetRemoteDescription(desc->Clone(), observer);
+      delete desc;
       return promise;
   }
 };
