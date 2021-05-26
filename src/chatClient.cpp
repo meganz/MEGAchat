@@ -1663,8 +1663,6 @@ std::string Client::getMyEmailFromDb()
 
     std::string email = stmt.stringCol(0);
 
-    if (email.length() < 5)
-        throw std::runtime_error("loadOwnEmailFromDb: Own email in db is invalid");
     return email;
 }
 

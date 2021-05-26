@@ -630,6 +630,13 @@ void MainWindow::on_bSettings_clicked()
 
     }
 
+    if (mMegaChatApi->getInitState() == MegaChatApi::INIT_ANONYMOUS)
+    {
+        menu.addSeparator();
+        auto joinAsGuest = menu.addAction("Join as guest");
+        connect(joinAsGuest, SIGNAL(triggered()), this, SLOT(onJoinAsGuest()));
+    }
+
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
     pos.setY(pos.y() + ui->bSettings->height());
