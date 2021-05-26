@@ -725,6 +725,10 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                         mMegaChatApi->connect();
                     }
                 }
+                else // --> request->getParamType() == 4
+                {
+                    mMegaApi->fetchNodes();
+                }
 
                 mMainWin->setEphemeralAccount(true);
             }
