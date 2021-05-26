@@ -719,9 +719,13 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                         mSid = mMegaApi->dumpSession();
                         saveSid(mSid);
                     }
+
+                    if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
+                    {
+                        mMegaChatApi->connect();
+                    }
                 }
 
-                api->fetchNodes();
                 mMainWin->setEphemeralAccount(true);
             }
             else if (error != MegaError::API_OK)
