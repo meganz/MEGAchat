@@ -1434,3 +1434,16 @@ void MainWindow::onCancelAccountConfirmation()
     mConfirmAccount->deleteLater();
     mConfirmAccount = nullptr;
 }
+
+void MainWindow::onJoinAsGuest()
+{
+    mApp->setJoinAsGuest(true);
+    QString text = QInputDialog::getText(this, tr("Guest user name"), tr("Enter the guest user name: "));
+    if (text == "")
+    {
+        return;
+    }
+
+    mApp->setGuestName(text.toStdString());
+    mMegaChatApi->logout();
+}
