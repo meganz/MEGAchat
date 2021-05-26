@@ -1316,8 +1316,6 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_CREATE_ACCOUNT:  // fall-through
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
-        api.sdk.pauseActionPackets();
-
         if (reqType == ::mega::MegaRequest::TYPE_CREATE_ACCOUNT)  // if not creating E++ account, do nothing
         {
             if (request->getParamType() != 3)     // if not creating E++ account, do nothing
@@ -1334,6 +1332,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             mInitStats.stageEnd(InitStats::kStatsFetchNodes);
         }
 
+        api.sdk.pauseActionPackets();
         mInitStats.stageStart(InitStats::kStatsPostFetchNodes);
 
         auto state = mInitState;
