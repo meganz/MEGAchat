@@ -159,8 +159,8 @@ void MegaChatApplication::onEphemeral()
     QString name = QInputDialog::getText(mLoginDialog, tr("Insert ephemeral account name"), tr("Name"));
     if (name.size())
     {
-        mMegaApi->createEphemeralAccountPlusPlus(name.toStdString().c_str(), name.toStdString().c_str());
         mMegaChatApi->init(nullptr);
+        mMegaApi->createEphemeralAccountPlusPlus(name.toStdString().c_str(), name.toStdString().c_str());
     }
 }
 

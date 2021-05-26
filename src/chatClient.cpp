@@ -4228,7 +4228,8 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
         updateTitle(email);
-        assert(!mTitleString.empty());
+        assert(!mTitleString.empty()
+               || mClist.client.api.sdk.isLoggedIn() == ::mega::EPHEMERALACCOUNTPLUSPLUS);
     }
 
     mIsInitializing = false;
