@@ -1241,6 +1241,14 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
     int reqType = request->getType();
     switch (reqType)
     {
+        case ::mega::MegaRequest::TYPE_CREATE_ACCOUNT:
+        {
+            if (request->getParamType() == 3)     // if creating E++ account...
+            {
+                mInitStats.stageStart(InitStats::kStatsCreateAccount);
+            }
+            break;
+        }
         case ::mega::MegaRequest::TYPE_LOGIN:
         {
             mInitStats.stageStart(InitStats::kStatsLogin);
@@ -1308,15 +1316,24 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_CREATE_ACCOUNT:  // fall-through
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
-        if (reqType == ::mega::MegaRequest::TYPE_CREATE_ACCOUNT)
+        api.sdk.pauseActionPackets();
+
+        if (reqType == ::mega::MegaRequest::TYPE_CREATE_ACCOUNT)  // if not creating E++ account, do nothing
         {
             if (request->getParamType() != 3)     // if not creating E++ account, do nothing
             {
                 break;
             }
+            else    // -> create account E++ includes the fetchnodes (but not only, so new stage)
+            {
+                mInitStats.stageEnd(InitStats::kStatsCreateAccount);
+            }
         }
-        api.sdk.pauseActionPackets();
-        mInitStats.stageEnd(InitStats::kStatsFetchNodes);
+        else
+        {
+            mInitStats.stageEnd(InitStats::kStatsFetchNodes);
+        }
+
         mInitStats.stageStart(InitStats::kStatsPostFetchNodes);
 
         auto state = mInitState;
@@ -4703,6 +4720,7 @@ std::string InitStats::stageToString(uint8_t stage)
         case kStatsFetchNodes: return "Fetch nodes";
         case kStatsPostFetchNodes: return "Post fetch nodes";
         case kStatsConnection: return "Connection";
+        case kStatsCreateAccount: return "Create account";
         default: return "(unknown)";
     }
 }
