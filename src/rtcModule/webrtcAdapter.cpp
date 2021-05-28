@@ -413,7 +413,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
     }
 
     // add header to the output
-    const CryptoPP::byte *headerPtr= header.get();
+    const byte *headerPtr= header.get();
     for (size_t i = 0; i < FRAME_HEADER_LENGTH; i++)
     {
         encrypted_frame[i] = static_cast<uint8_t>(headerPtr[i]);
