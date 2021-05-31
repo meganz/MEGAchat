@@ -1241,6 +1241,14 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
     int reqType = request->getType();
     switch (reqType)
     {
+        case ::mega::MegaRequest::TYPE_CREATE_ACCOUNT:
+        {
+            if (request->getParamType() == 3)     // if creating E++ account...
+            {
+                mInitStats.stageStart(InitStats::kStatsCreateAccount);
+            }
+            break;
+        }
         case ::mega::MegaRequest::TYPE_LOGIN:
         {
             mInitStats.stageStart(InitStats::kStatsLogin);
@@ -1305,10 +1313,26 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         break;
     }
+    case ::mega::MegaRequest::TYPE_CREATE_ACCOUNT:  // fall-through
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
+        if (reqType == ::mega::MegaRequest::TYPE_CREATE_ACCOUNT)  // if not creating E++ account, do nothing
+        {
+            if (request->getParamType() != 3)     // if not creating E++ account, do nothing
+            {
+                break;
+            }
+            else    // -> create account E++ includes the fetchnodes (but not only, so new stage)
+            {
+                mInitStats.stageEnd(InitStats::kStatsCreateAccount);
+            }
+        }
+        else
+        {
+            mInitStats.stageEnd(InitStats::kStatsFetchNodes);
+        }
+
         api.sdk.pauseActionPackets();
-        mInitStats.stageEnd(InitStats::kStatsFetchNodes);
         mInitStats.stageStart(InitStats::kStatsPostFetchNodes);
 
         auto state = mInitState;
@@ -1663,8 +1687,6 @@ std::string Client::getMyEmailFromDb()
 
     std::string email = stmt.stringCol(0);
 
-    if (email.length() < 5)
-        throw std::runtime_error("loadOwnEmailFromDb: Own email in db is invalid");
     return email;
 }
 
@@ -4206,7 +4228,8 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     if (mTitleString.empty()) // user attrib fetch was not synchornous
     {
         updateTitle(email);
-        assert(!mTitleString.empty());
+        assert(!mTitleString.empty()
+               || mClist.client.api.sdk.isLoggedIn() == ::mega::EPHEMERALACCOUNTPLUSPLUS);
     }
 
     mIsInitializing = false;
@@ -4697,6 +4720,7 @@ std::string InitStats::stageToString(uint8_t stage)
         case kStatsFetchNodes: return "Fetch nodes";
         case kStatsPostFetchNodes: return "Post fetch nodes";
         case kStatsConnection: return "Connection";
+        case kStatsCreateAccount: return "Create account";
         default: return "(unknown)";
     }
 }

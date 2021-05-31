@@ -665,7 +665,8 @@ class InitStats
             kStatsLogin             = 1,
             kStatsFetchNodes        = 2,
             kStatsPostFetchNodes    = 3,
-            kStatsConnection        = 4
+            kStatsConnection        = 4,
+            kStatsCreateAccount     = 5
         };
 
 
