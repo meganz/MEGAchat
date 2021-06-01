@@ -307,18 +307,38 @@ static bool check_public_key(X509_STORE_CTX* ctx)
             return false;
         }
 
+        // get common name from cert
+        char auxbuf[256];
+        X509_NAME_oneline(X509_get_subject_name(ctx->cert), auxbuf, 256);
+        std::string commonName (auxbuf, 256);
+
         if (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLMODULUS1 - 1
             && BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLEXPONENT - 1)
         {
             BN_bn2bin(RSA_get0_n(EVP_PKEY_get0_RSA(evp)), buf);
-            
-            if (!memcmp(buf, CHATSSLMODULUS, sizeof CHATSSLMODULUS - 1))
+            if (commonName.find("*.karere.mega.nz") != std::string::npos) // CONNECTING TO CHATD/PRESENCED
             {
-                BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
-                if (!memcmp(buf, APISSLEXPONENT, sizeof APISSLEXPONENT - 1))
+                if (!memcmp(buf, CHATSSLMODULUS, sizeof CHATSSLMODULUS - 1))
                 {
-                    EVP_PKEY_free(evp);
-                    return true;
+                    BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
+                    if (!memcmp(buf, APISSLEXPONENT, sizeof APISSLEXPONENT - 1))
+                    {
+                        EVP_PKEY_free(evp);
+                        return true;
+                    }
+                }
+            }
+
+            if (commonName.find("*.sfu.mega.co.nz") != std::string::npos) // CONNECTING TO SFU
+            {
+                if (!memcmp(buf,SFUSSLMODULUS, sizeof SFUSSLMODULUS - 1))
+                {
+                    BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
+                    if (!memcmp(buf, SFUSSLEXPONENT, sizeof SFUSSLEXPONENT - 1))
+                    {
+                        EVP_PKEY_free(evp);
+                        return true;
+                    }
                 }
             }
         }
