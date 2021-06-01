@@ -1657,7 +1657,11 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
 
     // set default video in device
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
-    mVideoDeviceSelected = videoDevices.begin()->second;
+    if (videoDevices.size())
+    {
+        mVideoDeviceSelected = videoDevices.begin()->second;
+    }
+
     mDeviceCount = 0;
 }
 
