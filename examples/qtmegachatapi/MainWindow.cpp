@@ -1445,5 +1445,5 @@ void MainWindow::onJoinAsGuest()
     }
 
     mApp->setGuestName(text.toStdString());
-    mMegaChatApi->logout();
+    mMegaChatApi->logout(); // upon onRequestFinish, it calls createEphemeralAccountPlusPlus()
 }

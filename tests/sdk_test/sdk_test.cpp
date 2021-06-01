@@ -240,7 +240,7 @@ void MegaChatApiTest::init()
     MegaChatApi::setLogToConsole(false);
     MegaChatApi::setCatchException(false);
 
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
     {
         // get credentials from environment variables
         std::string varName = "MEGA_EMAIL";

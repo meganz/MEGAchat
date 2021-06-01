@@ -1852,16 +1852,26 @@ void exec_getunreadchatlistitems(ac::ACState&)
     }
 }
 
-void exec_chatinfo(ac::ACState& s)
+void printChatInfo(const c::MegaChatRoom *room)
 {
-    c::MegaChatHandle chatid = s_ch(s.words[1].s);
-    c::MegaChatRoom *room = g_chatApi->getChatRoom(chatid);
-    if (room)
+    if (!room)
     {
-        conlock(cout) << room->getPeerCount() << " participants in chat " << s.words[1].s << endl;
+        conlock(cout) << "Room not found" << endl;
+    }
+    else
+    {
+        conlock(cout) << "Chat ID: " << ch_s(room->getChatId()) << endl;
+        conlock(cout) << "\tTitle: " << room->getTitle() << endl;
+        conlock(cout) << "\tGroup chat: " << ((room->isGroup()) ? "yes" : "no") << endl;
+        conlock(cout) << "\tPublic chat: " << ((room->isPublic()) ? "yes" : "no") << endl;
+        conlock(cout) << "\tPreview mode: " << ((room->isPreview()) ? "yes" : "no") << endl;
+        conlock(cout) << "\tOwn privilege: " << c::MegaChatRoom::privToString(room->getOwnPrivilege()) << endl;
+        conlock(cout) << "\tCreation ts: " << room->getCreationTs() << endl;
+        conlock(cout) << "\tArchived: " << ((room->isArchived()) ? "yes" : "no") << endl;
+        conlock(cout) << "\t" << room->getPeerCount() << " participants in chat:" << endl;
         for (unsigned i = 0; i < room->getPeerCount(); i++)
         {
-            conlock(cout) << ch_s(room->getPeerHandle(i)) << "\t" << room->getPeerFullname(i);
+            conlock(cout) << "\t\t" << ch_s(room->getPeerHandle(i)) << "\t" << room->getPeerFullname(i);
             if (room->getPeerEmail(i))
             {
                 conlock(cout) << " (" << room->getPeerEmail(i) << ")";
@@ -1869,9 +1879,23 @@ void exec_chatinfo(ac::ACState& s)
             conlock(cout) << "\tPriv: " << c::MegaChatRoom::privToString(room->getPeerPrivilege(i)) << endl;
         }
     }
-    else
+}
+
+void exec_chatinfo(ac::ACState& s)
+{
+    if (s.words.size() == 1)    // print all chats
     {
-         conlock(cout) << "Room not found" << endl;
+        std::unique_ptr<c::MegaChatRoomList> chats = std::unique_ptr<c::MegaChatRoomList>(g_chatApi->getChatRooms());
+        for (unsigned int i = 0; i < chats->size(); i++)
+        {
+            printChatInfo(chats->get(i));
+        }
+    }
+    if (s.words.size() == 2)
+    {
+        c::MegaChatHandle chatid = s_ch(s.words[1].s);
+        std::unique_ptr<c::MegaChatRoom> room = std::unique_ptr<c::MegaChatRoom>(g_chatApi->getChatRoom(chatid));
+        printChatInfo(room.get());
     }
 }
 
@@ -4404,7 +4428,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getinactivechatlistitems, sequence(text("getinactivechatlistitems"), param("roomid")));
     p->Add(exec_getunreadchatlistitems, sequence(text("getunreadchatlistitems"), param("roomid")));
     p->Add(exec_getchathandlebyuser, sequence(text("getchathandlebyuser"), param("userid")));
-    p->Add(exec_chatinfo,           sequence(text("chatinfo"), param("roomid")));
+    p->Add(exec_chatinfo,           sequence(text("chatinfo"), opt(param("roomid"))));
 
     p->Add(exec_createchat,         sequence(text("createchat"), opt(flag("-group")), repeat(param("userid"))));
     p->Add(exec_invitetochat,       sequence(text("invitetochat"), param("roomid"), param("userid")));
