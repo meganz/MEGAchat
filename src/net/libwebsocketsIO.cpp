@@ -297,7 +297,7 @@ static bool check_public_key(X509_STORE_CTX* ctx)
         return true;
     }
 
-    unsigned char buf[sizeof(APISSLMODULUS1) - 1];
+    unsigned char buf[sizeof(CHATSSLMODULUS) - 1];
     EVP_PKEY* evp;
     if ((evp = X509_PUBKEY_get(X509_get_X509_PUBKEY(X509_STORE_CTX_get0_cert(ctx)))))
     {
@@ -312,8 +312,8 @@ static bool check_public_key(X509_STORE_CTX* ctx)
         X509_NAME_oneline(X509_get_subject_name(ctx->cert), auxbuf, 256);
         std::string commonName (auxbuf, 256);
 
-        if (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLMODULUS1 - 1
-            && BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLEXPONENT - 1)
+        if (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLMODULUS - 1
+            && BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLEXPONENT - 1)
         {
             BN_bn2bin(RSA_get0_n(EVP_PKEY_get0_RSA(evp)), buf);
             if (commonName.find("*.karere.mega.nz") != std::string::npos) // CONNECTING TO CHATD/PRESENCED
@@ -321,7 +321,7 @@ static bool check_public_key(X509_STORE_CTX* ctx)
                 if (!memcmp(buf, CHATSSLMODULUS, sizeof CHATSSLMODULUS - 1))
                 {
                     BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
-                    if (!memcmp(buf, APISSLEXPONENT, sizeof APISSLEXPONENT - 1))
+                    if (!memcmp(buf, CHATSSLEXPONENT, sizeof CHATSSLEXPONENT - 1))
                     {
                         EVP_PKEY_free(evp);
                         return true;
