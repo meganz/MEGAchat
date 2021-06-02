@@ -331,7 +331,8 @@ static bool check_public_key(X509_STORE_CTX* ctx)
 
             if (commonName.find("*.sfu.mega.co.nz") != std::string::npos) // CONNECTING TO SFU
             {
-                if (!memcmp(buf,SFUSSLMODULUS, sizeof SFUSSLMODULUS - 1))
+                if (!memcmp(buf,SFUSSLMODULUS, sizeof SFUSSLMODULUS - 1)            // check main key
+                    || !memcmp(buf,SFUSSLMODULUS2, sizeof SFUSSLMODULUS2 - 1))      // check backup key
                 {
                     BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
                     if (!memcmp(buf, SFUSSLEXPONENT, sizeof SFUSSLEXPONENT - 1))
