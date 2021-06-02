@@ -1051,13 +1051,15 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
         std::string binaryKey = mega::Base64::atob(key);
 
 
-        strongvelope::SendKey encryptedKey = mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey);
+        strongvelope::SendKey encryptedKey;
+        mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey, encryptedKey);
         mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(session->getPeer().getPeerid(), encryptedKey, plainKey);
 
         // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
         if (hasCallKey())
         {
-            strongvelope::SendKey callKey = mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey);
+            strongvelope::SendKey callKey;
+            mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey, callKey);
             mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
         }
 
@@ -1334,7 +1336,8 @@ void Call::generateAndSendNewkey()
     // in case of a call in a public chatroom, XORs new key with the call key for additional authentication
     if (hasCallKey())
     {
-        strongvelope::SendKey callKey = mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey);
+        strongvelope::SendKey callKey;
+        mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey, callKey);
         mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, *newPlainKey.get());
     }
 
