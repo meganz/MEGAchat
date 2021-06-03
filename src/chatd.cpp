@@ -1702,6 +1702,19 @@ void Chat::onDisconnect()
 
     mServerFetchState = kHistNotFetching;
     setOnlineState(kChatStateOffline);
+
+    if (mChatdClient.mKarereClient->rtc)
+    {
+        rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+        if (call)
+        {
+            std::vector<karere::Id> participants = call->getParticipants();
+            for (const karere::Id& participant : participants)
+            {
+                call->removeParticipant(participant);
+            }
+        }
+    }
 }
 
 HistSource Chat::getHistory(unsigned count)
