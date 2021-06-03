@@ -44,7 +44,12 @@ bool init(void *appCtx)
 
     if (gWebrtcContext == nullptr)
     {
-        webrtc::field_trial::InitFieldTrialsFromString("WebRTC-GenericDescriptorAuth/Disabled/");
+        // Enable SVC encoding with the following configuration (3 spatial Layers | 3 temporal Layers)
+        std::string fieldTrialStr = (webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/", "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/"));
+        fieldTrialStr = webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-Video-DisableAutomaticResize/Enabled/", fieldTrialStr.c_str());
+        std::string *trials_string = new std::string(fieldTrialStr); // trials_string must never be destroyed.
+        webrtc::field_trial::InitFieldTrialsFromString(trials_string->c_str());
+
         gWorkerThread = rtc::Thread::Create();
         gWorkerThread->Start();
         gSignalingThread = rtc::Thread::Create();
