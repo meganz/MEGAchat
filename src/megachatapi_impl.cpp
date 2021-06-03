@@ -880,7 +880,8 @@ void MegaChatApiImpl::sendPendingRequests()
                        request->setMegaHandleList(result->getMegaHandleList());
                    }
 
-                   request->setParamType(result->getFlag());
+                   bool meeting = result->getFlag();
+                   request->setParamType(meeting);
 
                    //Check chat link
                    if (!createChat)
@@ -916,7 +917,7 @@ void MegaChatApiImpl::sendPendingRequests()
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
                            uint32_t ts = result->getNumber();
 
-                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts);
+                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting);
                            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                            fireOnChatRequestFinish(request, megaChatError);
                        }
