@@ -6236,7 +6236,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
 
     for (auto participant: call.getParticipants())
     {
-        participants[participant]; // init with empty flags by default
+        participants.push_back(participant);
     }
 
     if (call.getState() == rtcModule::CallState::kStateInitial)
@@ -6417,9 +6417,9 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
 {
     MegaHandleListPrivate *participantsList = new MegaHandleListPrivate();
 
-    for (auto it = participants.begin(); it != participants.end(); it++)
+    for (const MegaChatHandle& participant : participants)
     {
-        participantsList->addMegaHandle(it->first);
+        participantsList->addMegaHandle(participant);
     }
 
     return participantsList;
@@ -6591,7 +6591,15 @@ void MegaChatCallPrivate::setPeerid(Id peerid, bool added)
 
 bool MegaChatCallPrivate::isParticipating(Id userid)
 {
-    return participants.find(userid) != participants.end();
+    for (const MegaChatHandle& participant : participants)
+    {
+        if (userid == participant)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void MegaChatCallPrivate::setId(Id callid)

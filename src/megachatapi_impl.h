@@ -271,7 +271,7 @@ protected:
     int64_t mInitialTs = 0;
     int64_t mFinalTs = 0;
     std::map<MegaChatHandle, std::unique_ptr<MegaChatSession>> mSessions;
-    std::map<MegaChatHandle, karere::AvFlags> participants;
+    std::vector<MegaChatHandle> participants;
     MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
     int callCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle callerId;
