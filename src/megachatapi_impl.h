@@ -704,6 +704,7 @@ public:
     virtual bool isActive() const;
     virtual bool isArchived() const;
     virtual int64_t getCreationTs() const;
+    bool isMeeting() const override;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -741,6 +742,7 @@ private:
     bool archived;
     bool mHasCustomTitle;
     int64_t mCreationTs;
+    bool mMeeting = false;
 
     std::string title;
     int unreadCount;

@@ -7383,6 +7383,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->mNumPreviewers = chat->getNumPreviewers();
     this->mRetentionTime = chat->getRetentionTime();
     this->mCreationTs = chat->getCreationTs();
+    this->mMeeting = chat->isMeeting();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -7403,6 +7404,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->mNumPreviewers = chat.chat().getNumPreviewers();
     this->mRetentionTime = chat.getRetentionTime();
     this->mCreationTs = chat.getCreationTs();
+    this->mMeeting = chat.isMeeting();
 
     if (group)
     {
@@ -7675,6 +7677,11 @@ bool MegaChatRoomPrivate::isArchived() const
 int64_t MegaChatRoomPrivate::getCreationTs() const
 {
     return mCreationTs;
+}
+
+bool MegaChatRoomPrivate::isMeeting() const
+{
+    return mMeeting;
 }
 
 int MegaChatRoomPrivate::getChanges() const
