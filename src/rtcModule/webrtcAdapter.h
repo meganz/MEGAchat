@@ -46,6 +46,7 @@ extern std::unique_ptr<rtc::Thread> gWorkerThread;
 extern std::unique_ptr<rtc::Thread> gSignalingThread;
 extern rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing;
 extern void* gAppCtx;
+extern std::string gFieldTrialStr;
 
 /** Globally initializes the library */
 bool init(void *appCtx);

@@ -30,6 +30,8 @@ rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = null
 std::unique_ptr<rtc::Thread> gWorkerThread = nullptr;
 std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
 rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing = nullptr;
+std::string gFieldTrialStr;
+
 void *gAppCtx = nullptr;
 
 static bool gIsInitialized = false;
@@ -45,10 +47,9 @@ bool init(void *appCtx)
     if (gWebrtcContext == nullptr)
     {
         // Enable SVC encoding with the following configuration (3 spatial Layers | 3 temporal Layers)
-        std::string fieldTrialStr = (webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/", "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/"));
-        fieldTrialStr = webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-Video-DisableAutomaticResize/Enabled/", fieldTrialStr.c_str());
-        std::string *trials_string = new std::string(fieldTrialStr); // trials_string must never be destroyed.
-        webrtc::field_trial::InitFieldTrialsFromString(trials_string->c_str());
+        gFieldTrialStr = (webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/", "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/"));
+        gFieldTrialStr = webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-Video-DisableAutomaticResize/Enabled/", gFieldTrialStr.c_str());
+        webrtc::field_trial::InitFieldTrialsFromString(gFieldTrialStr.c_str()); // trials_string must never be destroyed.
 
         gWorkerThread = rtc::Thread::Create();
         gWorkerThread->Start();
