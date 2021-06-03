@@ -54,7 +54,7 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_SendGiphy(0, 1), "TEST Send Giphy");
 
 #ifndef KARERE_DISABLE_WEBRTC
-    EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
+    //EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
 #endif
 
     // The tests below are manual tests. They require the call to be answered from another client
