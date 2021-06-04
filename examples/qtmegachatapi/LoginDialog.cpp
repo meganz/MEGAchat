@@ -88,6 +88,11 @@ void LoginDialog::on_bAnonymous_clicked()
     anonymousLogin();
 }
 
+void LoginDialog::on_bEphimeralAccount_clicked()
+{
+    emit onEphemeralAccountPlusPlus();
+}
+
 void LoginDialog::anonymousLogin()
 {
     emit onPreviewClicked();

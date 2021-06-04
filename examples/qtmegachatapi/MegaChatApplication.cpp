@@ -95,7 +95,15 @@ void MegaChatApplication::init()
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
 
-        mMegaApi->fastLogin(mSid);
+        bool isEphemeral = existsEphemeralFile();
+        if (isEphemeral)
+        {
+            mMegaApi->resumeCreateAccountEphemeralPlusPlus(mSid);
+        }
+        else
+        {
+            mMegaApi->fastLogin(mSid);
+        }
     }
 }
 
@@ -104,6 +112,7 @@ void MegaChatApplication::login()
    mLoginDialog = new LoginDialog();
    connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
    connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
+   connect(mLoginDialog, SIGNAL(onEphemeralAccountPlusPlus()), this, SLOT(onEphemeral()));
    mLoginDialog->show();
 }
 
@@ -142,6 +151,16 @@ void MegaChatApplication::onPreviewClicked()
     if (!initAnonymous(chatLink))
     {
         mLoginDialog->setState(LoginDialog::LoginStage::badCredentials);
+    }
+}
+
+void MegaChatApplication::onEphemeral()
+{
+    QString name = QInputDialog::getText(mLoginDialog, tr("Insert ephemeral account name"), tr("Name"));
+    if (name.size())
+    {
+        mMegaApi->createEphemeralAccountPlusPlus(name.toStdString().c_str(), name.toStdString().c_str());
+        mMegaChatApi->init(nullptr);
     }
 }
 
@@ -226,6 +245,26 @@ void MegaChatApplication::removeSid()
     std::string sidPath = mAppDir + "/sid";
     std::remove(sidPath.c_str());
 }
+
+void MegaChatApplication::createEphemeralFile()
+{
+    ofstream osidf(mAppDir + "/EphemeralSession");
+    osidf.close();
+}
+
+bool MegaChatApplication::existsEphemeralFile()
+{
+    std::string ephemeralFile = mAppDir + "/EphemeralSession";
+    ifstream f(ephemeralFile.c_str());
+    return f.good();
+}
+
+void MegaChatApplication::removeEphemeralFile()
+{
+    std::string ephemeralFile = mAppDir + "/EphemeralSession";
+    std::remove(ephemeralFile.c_str());
+}
+
 
 void MegaChatApplication::configureLogs()
 {
@@ -634,8 +673,52 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         break;
         case MegaRequest::TYPE_SET_ATTR_USER:
         {
+            break;
         }
-        break;
+        case MegaRequest::TYPE_CREATE_ACCOUNT:
+        {
+            if (error == MegaError::API_OK && (request->getParamType() == 3 || request->getParamType() == 4))
+            {
+                if (request->getParamType() == 3)
+                {
+                    createEphemeralFile();
+
+                    if (!mSid)
+                    {
+                        mSid = mMegaApi->dumpSession();
+                        saveSid(mSid);
+                    }
+                }
+
+                api->fetchNodes();
+                mMainWin->setEphemeralAccount(true);
+            }
+            else if (error != MegaError::API_OK)
+            {
+                removeSid();
+                removeEphemeralFile();
+                init();
+            }
+
+            break;
+        }
+
+        case MegaRequest::TYPE_SEND_SIGNUP_LINK:
+        {
+            if (error == API_OK)
+            {
+                mMainWin->confirmAccount(request->getPassword());
+            }
+
+            break;
+        }
+
+        case MegaRequest::TYPE_CONFIRM_ACCOUNT:
+        {
+            removeEphemeralFile();
+            mMegaApi->login(request->getEmail(), request->getPassword());
+            break;
+        }
 
         default:
             break;
@@ -673,6 +756,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             if (error == MegaChatError::ERROR_OK)
             {
                 removeSid();
+                removeEphemeralFile();
                 init();
             }
             break;
