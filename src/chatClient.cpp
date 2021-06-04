@@ -377,13 +377,26 @@ bool Client::openDb(const std::string& sid)
             {
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
 
-                // Add meeting to chats table
-                db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
+                // We check if we have some pulic chat with creation ts higher than meeting release
+                // in that case we invalidate the cache, because it could a meetings
+                // ts -> 1625140800000 -> 1 July 2021 12:00 GTM
+                SqliteStmt stmt(db, "select count(*) from chats where mode == 1 and ts_created > 1618488000");
+                stmt.stepMustHaveData("get chats count");
+                if (stmt.intCol(0) > 0)
+                {
+                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
+                    api.sdk.invalidateCache();
+                }
+                else //
+                {
+                    // Add meeting to chats table
+                    db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
 
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
-                db.commit();
-                ok = true;
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                    db.commit();
+                    ok = true;
+                    KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                }
             }
         }
     }
