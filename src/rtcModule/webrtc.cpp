@@ -1660,8 +1660,12 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
 
     // set default video in device
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
-    mVideoDeviceSelected = videoDevices.begin()->second;
-    mDeviceCount = 0;
+    if (videoDevices.size())
+    {
+        mVideoDeviceSelected = videoDevices.begin()->second;
+    }
+
+    mDeviceTakenCount = 0;
 }
 
 ICall *RtcModuleSfu::findCall(karere::Id callid)
@@ -1755,20 +1759,20 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
 
 void RtcModuleSfu::takeDevice()
 {
-    if (!mDeviceCount)
+    if (!mDeviceTakenCount)
     {
         openDevice();
     }
 
-    mDeviceCount++;
+    mDeviceTakenCount++;
 }
 
 void RtcModuleSfu::releaseDevice()
 {
-    if (mDeviceCount > 0)
+    if (mDeviceTakenCount > 0)
     {
-        mDeviceCount--;
-        if (mDeviceCount == 0)
+        mDeviceTakenCount--;
+        if (mDeviceTakenCount == 0)
         {
             assert(mVideoDevice);
             closeDevice();
