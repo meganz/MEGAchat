@@ -714,11 +714,9 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 {
                     createEphemeralFile();
 
-                    if (!mSid)
-                    {
-                        mSid = mMegaApi->dumpSession();
-                        saveSid(mSid);
-                    }
+                    assert(!mSid);
+                    mSid = request->getSessionKey();
+                    saveSid(mSid);
 
                     if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
                     {
