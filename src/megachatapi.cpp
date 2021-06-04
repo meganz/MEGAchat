@@ -1493,6 +1493,11 @@ int64_t MegaChatRoom::getCreationTs() const
     return 0;
 }
 
+bool MegaChatRoom::isMeeting() const
+{
+    return false;
+}
+
 MegaChatPeerList * MegaChatPeerList::createInstance()
 {
     return new MegaChatPeerListPrivate();

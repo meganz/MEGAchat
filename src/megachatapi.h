@@ -6156,6 +6156,12 @@ public:
      */
     virtual int64_t getCreationTs() const;
 
+    /**
+     * @brief Returns whether the chat is a meeting room
+     * @return True if chat is a meeting room
+     */
+    virtual bool isMeeting() const;
+
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 };
