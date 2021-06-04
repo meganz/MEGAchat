@@ -1662,7 +1662,7 @@ void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcC
         mVideoDeviceSelected = videoDevices.begin()->second;
     }
 
-    mDeviceCount = 0;
+    mDeviceTakenCount = 0;
 }
 
 ICall *RtcModuleSfu::findCall(karere::Id callid)
@@ -1756,20 +1756,20 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
 
 void RtcModuleSfu::takeDevice()
 {
-    if (!mDeviceCount)
+    if (!mDeviceTakenCount)
     {
         openDevice();
     }
 
-    mDeviceCount++;
+    mDeviceTakenCount++;
 }
 
 void RtcModuleSfu::releaseDevice()
 {
-    if (mDeviceCount > 0)
+    if (mDeviceTakenCount > 0)
     {
-        mDeviceCount--;
-        if (mDeviceCount == 0)
+        mDeviceTakenCount--;
+        if (mDeviceTakenCount == 0)
         {
             assert(mVideoDevice);
             closeDevice();

@@ -392,7 +392,7 @@ private:
     std::unique_ptr<sfu::SfuClient> mSfuClient;
     std::string mVideoDeviceSelected;
     rtc::scoped_refptr<artc::VideoManager> mVideoDevice;
-    unsigned int mDeviceCount = 0;
+    unsigned int mDeviceTakenCount = 0;
     std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;
