@@ -270,7 +270,7 @@ bool MegaChatCall::hasRequestSpeak() const
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
-    this->pImpl = new MegaChatApiImpl(this, megaApi);
+    pImpl = new MegaChatApiImpl(this, megaApi);
 }
 
 MegaChatApi::~MegaChatApi()
