@@ -249,7 +249,8 @@ public:
     void takeVideoDevice();
     void releaseVideoDevice();
     bool hasVideoDevice();
-    void freeVideoTracks();
+    void freeVideoTracks(bool releaseSlots = false);
+    void freeAudioTrack(bool releaseSlot = false);
     void updateVideoTracks();
     void requestPeerTracks(const std::set<Cid_t> &cids);
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);

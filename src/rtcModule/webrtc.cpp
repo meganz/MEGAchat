@@ -1554,7 +1554,7 @@ bool Call::hasVideoDevice()
     return mVideoManager ? true : false;
 }
 
-void Call::freeVideoTracks()
+void Call::freeVideoTracks(bool releaseSlots)
 {
     // disable hi-res track
     if (mHiRes->getTransceiver()->sender()->track())
@@ -1568,6 +1568,25 @@ void Call::freeVideoTracks()
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
+    if (releaseSlots) // release slots in case flag is true
+    {
+        mVThumb.reset();
+        mHiRes.reset();
+    }
+}
+
+void Call::freeAudioTrack(bool releaseSlot)
+{
+    // disable audio track
+    if (mAudio->getTransceiver()->sender()->track())
+    {
+        mAudio->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+
+    if (releaseSlot) // release slot in case flag is true
+    {
+        mAudio.reset();
+    }
 }
 
 void Call::updateVideoTracks()
