@@ -198,7 +198,7 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
     wsCloseCb(errcode, errtype, preason, reason_len);
 }
 
-bool WebsocketsClient::getWriteBinary() const
+bool WebsocketsClient::isWriteBinary() const
 {
     return mWriteBinary;
 }

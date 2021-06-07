@@ -129,7 +129,7 @@ public:
     bool wsIsConnected();
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
 
-    bool getWriteBinary() const;
+    bool isWriteBinary() const;
 
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;

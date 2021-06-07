@@ -412,11 +412,11 @@ protected:
 
     void setConnState(ConnState newState);
 
-    virtual void wsConnectCb();
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t preason_len);
-    virtual void wsHandleMsgCb(char *data, size_t len);
-    virtual void wsSendMsgCb(const char *, size_t) {}
-    virtual void wsProcessNextMsgCb() {}
+    void wsConnectCb() override;
+    void wsCloseCb(int errcode, int errtype, const char *preason, size_t preason_len) override;
+    void wsHandleMsgCb(char *data, size_t len) override;
+    void wsSendMsgCb(const char *, size_t) override {}
+    void wsProcessNextMsgCb() override {}
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
