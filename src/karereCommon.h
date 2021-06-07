@@ -101,10 +101,23 @@ struct AvFlags
 protected:
     uint8_t mFlags = 0;
 public:
-    //Bit 3 (value 4) is occupied by kFlagRinging = 0x04
-    enum: uint8_t { kAudio = 1, kCameraLowRes = 2, kCameraHiRes = 4, kCamera = 6,
-                    kScreenLowRes = 8, kScreenHiRes = 16, kScreen = 24,
-                    kLowResVideo = 10, kHiResVideo = 20, kVideo = 30, kOnHold = 128};
+    enum: uint8_t { kAudio          = 0x01,
+
+                    kCameraLowRes   = 0x02,
+                    kCameraHiRes    = 0x04,
+                    kCamera         = kCameraLowRes | kCameraHiRes,
+
+                    kScreenLowRes   = 0x08,
+                    kScreenHiRes    = 0x10,
+                    kScreen         = kScreenLowRes | kScreenHiRes,
+
+                    kLowResVideo    = kCameraLowRes | kScreenLowRes,
+                    kHiResVideo     = kCameraHiRes | kScreenHiRes,
+
+                    kVideo          = kLowResVideo | kHiResVideo,
+                    kOnHold         = 0x80,
+                  };
+
     AvFlags(uint8_t flags): mFlags(flags){}
     AvFlags(bool audio, bool video) : mFlags((audio ? kAudio : 0) | (video ? kCamera : 0)) {}
     AvFlags(): mFlags(0){}
@@ -118,11 +131,11 @@ public:
     // getters
     uint8_t value() const       { return mFlags; }
     bool audio() const          { return mFlags & kAudio; }
+    bool video() const          { return mFlags & kVideo; }
     bool videoHiRes() const     { return mFlags & kHiResVideo; }  //  kCameraHiRes  | kScreenHiRes
     bool videoLowRes() const    { return mFlags & kLowResVideo; } //  kCameraLowRes | kScreenLowRes
     bool videoCam() const       { return mFlags & kCamera; }
     bool isOnHold() const       { return mFlags & kOnHold; }
-    bool video() const          { return videoHiRes() || videoLowRes(); }
 
     // check methods
     operator bool() const           { return mFlags != 0; }
