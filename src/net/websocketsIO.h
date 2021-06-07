@@ -135,7 +135,10 @@ public:
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
     virtual void wsSendMsgCb(const char *data, size_t len) = 0;
-    virtual void wsProcessNextMsgCb() = 0;
+
+    // Called after sending a message through the socket
+    // (it may be implemented by clients that require messages to be sent individually and sequentially)
+    virtual void wsProcessNextMsgCb() {}
 
     /* Public key pinning, by default this flag is enabled (true), it only should be disabled for testing purposes */
     static bool publicKeyPinning;

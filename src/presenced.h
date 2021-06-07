@@ -416,7 +416,6 @@ protected:
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t preason_len) override;
     void wsHandleMsgCb(char *data, size_t len) override;
     void wsSendMsgCb(const char *, size_t) override {}
-    void wsProcessNextMsgCb() override {}
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
