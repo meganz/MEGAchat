@@ -26,6 +26,16 @@ const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 int main(int argc, char **argv)
 {
     remove("test.log");
+
+    std::vector<char*> myargv1(argv, argv + argc);
+    for (auto it = myargv1.begin(); it != myargv1.end(); ++it)
+    {
+        if (std::string(*it).substr(0, 9) == "--APIURL:")
+        {
+            MegaClient::APIURL = string(*it).substr(9);
+        }
+    }
+
     MegaChatApiTest t;
     t.init();
 
