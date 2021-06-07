@@ -1554,7 +1554,7 @@ bool Call::hasVideoDevice()
     return mVideoManager ? true : false;
 }
 
-void Call::freeTracks()
+void Call::freeVideoTracks()
 {
     // disable hi-res track
     if (mHiRes->getTransceiver()->sender()->track())
@@ -1605,7 +1605,7 @@ void Call::updateVideoTracks()
     }
     else
     {
-        freeTracks();
+        freeVideoTracks();
         releaseVideoDevice();
     }
 }
@@ -1706,7 +1706,7 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
                 if (callIt.second->hasVideoDevice())
                 {
                     calls.push_back(callIt.second.get());
-                    callIt.second->freeTracks();
+                    callIt.second->freeVideoTracks();
                     callIt.second->releaseVideoDevice();
                     shouldOpen = true;
                 }
