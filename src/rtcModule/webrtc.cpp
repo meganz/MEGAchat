@@ -819,6 +819,15 @@ void Call::getLocalStreams()
     }
 }
 
+void Call::handleCallDisconnect()
+{
+    enableAudioLevelMonitor(false); // disable local audio level monitor
+    mSessions.clear();              // session dtor will notify apps through onDestroySession callback
+    freeVideoTracks(true);          // free local video tracks and release slots
+    freeAudioTrack(true);           // free local audio track and release slot
+    mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video tracks
+}
+
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
     if (mLocalAvFlags.videoCam())
@@ -831,12 +840,8 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         session.second->disableAudioSlot();
     }
 
-    mSessions.clear();
+    handleCallDisconnect();
     mAvailableTracks->clear();
-    mVThumb.reset(nullptr);
-    mHiRes.reset(nullptr);
-    mAudio.reset(nullptr);
-    mReceiverTracks.clear();
     mTermCode = termCode;
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
@@ -844,8 +849,6 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         mSfuClient.closeManagerProtocol(mChatid);
         mSfuConnection = nullptr;
     }
-
-    enableAudioLevelMonitor(false);
 
     if (mRtcConn)
     {
@@ -1284,6 +1287,12 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     {
         if (mState != CallState::kStateConnecting) // avoid interrupting a reconnection in progress
         {
+            if (mState == CallState::kStateInProgress
+                    && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
+            {
+                handleCallDisconnect();
+            }
+
             setState(CallState::kStateConnecting);
             mSfuConnection->retryPendingConnection(true);
             mSfuConnection->clearCommandsQueue();
