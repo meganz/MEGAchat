@@ -190,6 +190,7 @@ public:
     CallState getState() const override;
     void addParticipant(karere::Id peer) override;
     void removeParticipant(karere::Id peer) override;
+    void removeAllParticipants() override;
     promise::Promise<void> hangup() override;
     promise::Promise<void> endCall() override;
     promise::Promise<void> join(karere::AvFlags avFlags) override;

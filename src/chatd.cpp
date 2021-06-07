@@ -1708,11 +1708,8 @@ void Chat::onDisconnect()
         rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
         if (call)
         {
-            std::vector<karere::Id> participants = call->getParticipants();
-            for (const karere::Id& participant : participants)
-            {
-                call->removeParticipant(participant);
-            }
+            CHATD_LOG_ERROR("chatd::onDisconnect remove all peers");
+            call->removeAllParticipants();
         }
     }
 }

@@ -203,6 +203,18 @@ void Call::addParticipant(karere::Id peer)
     mGlobalCallHandler.onAddPeer(*this, peer);
 }
 
+
+void Call::removeAllParticipants()
+{
+    auto itPeer = mParticipants.begin();
+    while (itPeer != mParticipants.end())
+    {
+        karere::Id auxPeer = *itPeer;
+        itPeer = mParticipants.erase(itPeer);
+        mGlobalCallHandler.onRemovePeer(*this, auxPeer);
+    }
+}
+
 void Call::removeParticipant(karere::Id peer)
 {
     for (auto itPeer = mParticipants.begin(); itPeer != mParticipants.end(); itPeer++)
