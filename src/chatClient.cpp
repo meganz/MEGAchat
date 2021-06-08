@@ -3007,7 +3007,17 @@ void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms, bool checkDele
         }
         for (auto &chatid : removed)
         {
-            delete find(chatid)->second;
+            auto it = find(chatid);
+            ChatRoom *chatroom = it->second;
+
+            // notfiy deleted chat
+            auto listItem = chatroom->roomGui();
+            if (listItem)
+                listItem->onChatDeleted();
+
+            // delete from the list, from RAM and from DB
+            erase(it);
+            delete chatroom;
             deleteRoomFromDb(chatid);
         }
     }

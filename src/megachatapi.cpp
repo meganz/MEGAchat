@@ -1605,6 +1605,11 @@ bool MegaChatListItem::isArchived() const
     return false;
 }
 
+bool MegaChatListItem::isDeleted() const
+{
+    return false;
+}
+
 bool MegaChatListItem::isCallInProgress() const
 {
     return false;
