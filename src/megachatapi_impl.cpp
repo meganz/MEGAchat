@@ -4977,7 +4977,6 @@ void MegaChatApiImpl::onNewCall(rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     call.setCallHandler(new MegaChatCallHandler(this));
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_STATUS);
     fireOnChatCallUpdate(chatCall.get());
 }
 
@@ -4998,7 +4997,6 @@ void MegaChatApiImpl::onRemovePeer(rtcModule::ICall &call, Id peer)
 void MegaChatApiImpl::onEndCall(rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_STATUS);
     fireOnChatCallUpdate(chatCall.get());
 }
 
@@ -6238,16 +6236,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     {
         participants.push_back(participant);
     }
-
-    if (call.getState() == rtcModule::CallState::kStateInitial)
-    {
-        mChanged = CHANGE_TYPE_STATUS;
-    }
-    else if (call.getState() == rtcModule::CallState::kStateDestroyed)
-    {
-        mChanged = CHANGE_TYPE_STATUS;
-    }
-
     ringing = call.isRinging();
 
     std::vector<Cid_t> sessionCids = call.getSessionsCids();
