@@ -1329,7 +1329,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 //                  setInitState(kInitErrSidMismatch);
 //                  return;
 //              }
-                checkSyncWithSdkDb(scsn, *contactList, *chatList);
+                checkSyncWithSdkDb(scsn, *contactList, *chatList, false);
                 setInitState(kInitHasOnlineSession);
                 mSessionReadyPromise.resolve();
                 mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
@@ -1357,7 +1357,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             else    // a full reload happened (triggered by API or by the user)
             {
                 assert(state == kInitHasOnlineSession);
-                checkSyncWithSdkDb(scsn, *contactList, *chatList);
+                checkSyncWithSdkDb(scsn, *contactList, *chatList, true);
                 api.sdk.resumeActionPackets();
             }
         }, appCtx);
@@ -1425,14 +1425,18 @@ void Client::createDb()
 }
 
 bool Client::checkSyncWithSdkDb(const std::string& scsn,
-    ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chatList)
+    ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chatList, bool forceReload)
 {
-    SqliteStmt stmt(db, "select value from vars where name='scsn'");
-    stmt.stepMustHaveData("get karere scsn");
-    if (stmt.stringCol(0) == scsn)
+    if (!forceReload)
     {
-        KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
-        return true;
+        // check if 'scsn' has changed
+        SqliteStmt stmt(db, "select value from vars where name='scsn'");
+        stmt.stepMustHaveData("get karere scsn");
+        if (stmt.stringCol(0) == scsn)
+        {
+            KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
+            return true;
+        }
     }
 
     // We are not in sync, probably karere is one or more commits behind

@@ -1184,7 +1184,7 @@ protected:
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<int> initializeContactList();
 
-    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats);
+    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats, bool forceReload);
     void commit(const std::string& scsn);
 
     /** @brief Does the actual connect, once the SDK is online.
