@@ -4977,7 +4977,6 @@ void MegaChatApiImpl::onNewCall(rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     call.setCallHandler(new MegaChatCallHandler(this));
-    fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatApiImpl::onAddPeer(rtcModule::ICall &call, Id peer)
