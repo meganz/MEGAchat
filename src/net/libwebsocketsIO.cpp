@@ -307,39 +307,59 @@ static bool check_public_key(X509_STORE_CTX* ctx)
             return false;
         }
 
-        // get common name from cert
-        char auxbuf[256];
-        X509_NAME_oneline(X509_get_subject_name(ctx->cert), auxbuf, 256);
-        std::string commonName (auxbuf, 256);
-
-        if (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLMODULUS - 1
-            && BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLEXPONENT - 1)
+        // CONNECT TO CHATD/PRESENCED
+        if ((BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLEXPONENT - 1)
+                && ((BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLMODULUS  - 1)
+                    || (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLMODULUS2 - 1)))
         {
             BN_bn2bin(RSA_get0_n(EVP_PKEY_get0_RSA(evp)), buf);
-            if (commonName.find("*.karere.mega.nz") != std::string::npos) // CONNECTING TO CHATD/PRESENCED
+
+            if (!memcmp(buf,CHATSSLMODULUS, sizeof CHATSSLMODULUS - 1)            // check main key
+                || !memcmp(buf,CHATSSLMODULUS2, sizeof CHATSSLMODULUS2 - 1))      // check backup key
             {
-                if (!memcmp(buf, CHATSSLMODULUS, sizeof CHATSSLMODULUS - 1))
+                BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
+                if (!memcmp(buf, CHATSSLEXPONENT, sizeof CHATSSLEXPONENT - 1))
                 {
-                    BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
-                    if (!memcmp(buf, CHATSSLEXPONENT, sizeof CHATSSLEXPONENT - 1))
-                    {
-                        EVP_PKEY_free(evp);
-                        return true;
-                    }
+                    EVP_PKEY_free(evp);
+                    return true;
                 }
             }
+        }
 
-            if (commonName.find("*.sfu.mega.co.nz") != std::string::npos) // CONNECTING TO SFU
+        // CONNECT TO SFU
+        if ((BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSSLEXPONENT - 1)
+                && ((BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSSLMODULUS  - 1)
+                    || (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSSLMODULUS2 - 1)))
+        {
+            BN_bn2bin(RSA_get0_n(EVP_PKEY_get0_RSA(evp)), buf);
+
+            if (!memcmp(buf,SFUSSLMODULUS, sizeof SFUSSLMODULUS - 1)            // check main key
+                || !memcmp(buf,SFUSSLMODULUS2, sizeof SFUSSLMODULUS2 - 1))      // check backup key
             {
-                if (!memcmp(buf,SFUSSLMODULUS, sizeof SFUSSLMODULUS - 1)            // check main key
-                    || !memcmp(buf,SFUSSLMODULUS2, sizeof SFUSSLMODULUS2 - 1))      // check backup key
+                BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
+                if (!memcmp(buf, SFUSSLEXPONENT, sizeof SFUSSLEXPONENT - 1))
                 {
-                    BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
-                    if (!memcmp(buf, SFUSSLEXPONENT, sizeof SFUSSLEXPONENT - 1))
-                    {
-                        EVP_PKEY_free(evp);
-                        return true;
-                    }
+                    EVP_PKEY_free(evp);
+                    return true;
+                }
+            }
+        }
+
+        // CONNECT TO SFU STATS
+        if ((BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSTATSSSLEXPONENT - 1)
+                && ((BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSTATSSSLMODULUS  - 1)
+                    || (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSTATSSSLMODULUS2 - 1)))
+        {
+            BN_bn2bin(RSA_get0_n(EVP_PKEY_get0_RSA(evp)), buf);
+
+            if (!memcmp(buf,SFUSTATSSSLMODULUS, sizeof SFUSTATSSSLMODULUS - 1)            // check main key
+                || !memcmp(buf,SFUSTATSSSLMODULUS2, sizeof SFUSTATSSSLMODULUS2 - 1))      // check backup key
+            {
+                BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
+                if (!memcmp(buf, SFUSTATSSSLEXPONENT, sizeof SFUSTATSSSLEXPONENT - 1))
+                {
+                    EVP_PKEY_free(evp);
+                    return true;
                 }
             }
         }
