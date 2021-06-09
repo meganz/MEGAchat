@@ -136,6 +136,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     mAvailableTracks.reset(new AvailableTracks());
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mGlobalCallHandler.onNewCall(*this);
+    setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
     mSessions.clear();
 }
 
@@ -1790,7 +1791,6 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
             mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
-            mCalls[callid]->setState(kStateInitial);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });
@@ -1893,7 +1893,6 @@ void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t r
 void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey)
 {
     mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), isGroup, callKey);
-    mCalls[callid]->setState(kStateInitial);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 
