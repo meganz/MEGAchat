@@ -32,7 +32,8 @@ int main(int argc, char **argv)
     {
         if (std::string(*it).substr(0, 9) == "--APIURL:")
         {
-            MegaClient::APIURL = string(*it).substr(9);
+            std::lock_guard<std::mutex> g(g_APIURL_default_mutex);
+            g_APIURL_default = std::string(*it).substr(9);
         }
     }
 
