@@ -141,12 +141,11 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
 
 Call::~Call()
 {
-    setState(CallState::kStateDestroyed);
     if (mTermCode == kInvalidTermCode)
     {
         mTermCode = kUnKnownTermCode;
     }
-    mGlobalCallHandler.onEndCall(*this);
+    setState(CallState::kStateDestroyed);
 }
 
 karere::Id Call::getCallid() const
