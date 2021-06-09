@@ -13,7 +13,6 @@
 #endif
 #include "base/services.h"
 #include "sdkApi.h"
-#include <serverListProvider.h>
 #include <memory>
 #include <chatd.h>
 #include <db.h>
@@ -696,17 +695,6 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     }
 
 #ifndef KARERE_DISABLE_WEBRTC
-    if (rtc && disconnect)
-    {
-        int index = 0;
-        while (mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
-        {
-            // invalidate IPs
-            mDnsCache.invalidateIps(TURNSERVER_SHARD - index);
-            index++;
-        }
-    }
-
     // force reconnect all SFU connections
     rtc->getSfuClient().reconnectAllToSFU(disconnect);
 #endif

@@ -10,9 +10,6 @@
 #include "rtcCrypto.h"
 #include "sfu.h"
 
-#define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
-#define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
-
 #define RET_ENUM_NAME(name) case name: return #name
 
 namespace rtcModule
