@@ -1577,13 +1577,13 @@ bool Call::hasVideoDevice()
 void Call::freeVideoTracks(bool releaseSlots)
 {
     // disable hi-res track
-    if (mHiRes->getTransceiver()->sender()->track())
+    if (mHiRes && mHiRes->getTransceiver()->sender()->track())
     {
         mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
     // disable low-res track
-    if (mVThumb->getTransceiver()->sender()->track())
+    if (mVThumb && mVThumb->getTransceiver()->sender()->track())
     {
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
     }
@@ -1598,7 +1598,7 @@ void Call::freeVideoTracks(bool releaseSlots)
 void Call::freeAudioTrack(bool releaseSlot)
 {
     // disable audio track
-    if (mAudio->getTransceiver()->sender()->track())
+    if (mAudio && mAudio->getTransceiver()->sender()->track())
     {
         mAudio->getTransceiver()->sender()->SetTrack(nullptr);
     }
