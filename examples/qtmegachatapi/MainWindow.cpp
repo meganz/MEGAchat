@@ -925,12 +925,6 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
     }
     itemController = addOrUpdateChatControllerItem(item->copy());
 
-    bool needreorder = needReorder(item, oldPriv);
-    if ((!mAllowOrder && needreorder) || (!needreorder && !widget))
-    {
-        return;
-    }
-
     if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PREVIEW_CLOSED)
             || item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_DELETED))
     {
@@ -946,6 +940,11 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         return;
     }
 
+    bool needreorder = needReorder(item, oldPriv);
+    if ((!mAllowOrder && needreorder) || (!needreorder && !widget))
+    {
+        return;
+    }
 
     // If we don't need to reorder and chatItemwidget is rendered
     // we need to update the widget because non order actions requires
