@@ -481,8 +481,8 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
-    void previewCleanup(karere::Id chatid);
-    void onChatsUpdate(mega::MegaTextChatList& chats);
+    void deleteRoomFromDb(const Id &chatid);
+    void onChatsUpdate(mega::MegaTextChatList& chats, bool checkDeleted = false);
 /** @endcond PRIVATE */
 };
 
@@ -1184,7 +1184,7 @@ protected:
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<int> initializeContactList();
 
-    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats);
+    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats, bool forceReload);
     void commit(const std::string& scsn);
 
     /** @brief Does the actual connect, once the SDK is online.

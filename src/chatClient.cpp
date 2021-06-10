@@ -1328,7 +1328,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 //                  setInitState(kInitErrSidMismatch);
 //                  return;
 //              }
-                checkSyncWithSdkDb(scsn, *contactList, *chatList);
+                checkSyncWithSdkDb(scsn, *contactList, *chatList, false);
                 setInitState(kInitHasOnlineSession);
                 mSessionReadyPromise.resolve();
                 mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
@@ -1353,9 +1353,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                     api.sdk.resumeActionPackets();
                 });
             }
-            else
+            else    // a full reload happened (triggered by API or by the user)
             {
                 assert(state == kInitHasOnlineSession);
+                checkSyncWithSdkDb(scsn, *contactList, *chatList, true);
                 api.sdk.resumeActionPackets();
             }
         }, appCtx);
@@ -1422,14 +1423,18 @@ void Client::createDb()
 }
 
 bool Client::checkSyncWithSdkDb(const std::string& scsn,
-    ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chatList)
+    ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chatList, bool forceReload)
 {
-    SqliteStmt stmt(db, "select value from vars where name='scsn'");
-    stmt.stepMustHaveData("get karere scsn");
-    if (stmt.stringCol(0) == scsn)
+    if (!forceReload)
     {
-        KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
-        return true;
+        // check if 'scsn' has changed
+        SqliteStmt stmt(db, "select value from vars where name='scsn'");
+        stmt.stepMustHaveData("get karere scsn");
+        if (stmt.stringCol(0) == scsn)
+        {
+            KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
+            return true;
+        }
     }
 
     // We are not in sync, probably karere is one or more commits behind
@@ -1443,7 +1448,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
     mContactList->syncWithApi(aContactList);
 
     // sync the chatroom list
-    chats->onChatsUpdate(chatList);
+    chats->onChatsUpdate(chatList, forceReload);
 
     // commit the snapshot
     commit(scsn);
@@ -2774,7 +2779,7 @@ void ChatRoomList::loadFromDb()
     while(stmtPreviews.step())
     {
         Id chatid = stmtPreviews.uint64Col(0);
-        previewCleanup(chatid);
+        deleteRoomFromDb(chatid);
     }
 
     SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key from chats");
@@ -2966,7 +2971,7 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
     }, appCtx);
 }
 
-void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
+void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms, bool checkDeleted)
 {
     SetOfIds added; // out-param: records the new rooms added to the list
     addMissingRoomsFromApi(rooms, added);
@@ -2980,6 +2985,42 @@ void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
 
         ChatRoom *room = at(chatid);
         room->syncWithApi(*apiRoom);
+    }
+
+    if (checkDeleted)   // true only when list of rooms is complete, not for partial updates
+    {
+        SetOfIds removed;
+        for (auto &room : *this)
+        {
+            bool deleted = true;
+            for (int i = 0; i < rooms.size(); i++)
+            {
+                if (rooms.get(i)->getHandle() == room.first)
+                {
+                    deleted = false;
+                    break;
+                }
+            }
+            if (deleted)
+            {
+                removed.insert(room.first);
+            }
+        }
+        for (auto &chatid : removed)
+        {
+            auto it = find(chatid);
+            ChatRoom *chatroom = it->second;
+
+            // notfiy deleted chat
+            auto listItem = chatroom->roomGui();
+            if (listItem)
+                listItem->onChatDeleted();
+
+            // delete from the list, from RAM and from DB
+            erase(it);
+            delete chatroom;
+            deleteRoomFromDb(chatid);
+        }
     }
 }
 
@@ -3152,7 +3193,7 @@ GroupChatRoom::~GroupChatRoom()
 
     if (previewMode())
     {
-        parent.previewCleanup(mChatid);
+        parent.deleteRoomFromDb(mChatid);
     }
 
     if (parent.mKarereClient.mChatdClient)
@@ -3615,7 +3656,7 @@ bool GroupChatRoom::previewMode() const
     return mChat->previewMode();
 }
 
-void ChatRoomList::previewCleanup(Id chatid)
+void ChatRoomList::deleteRoomFromDb(const Id &chatid)
 {
     auto db = mKarereClient.db;
     if (db.isOpen())   // upon karere::Client destruction, DB is already closed
