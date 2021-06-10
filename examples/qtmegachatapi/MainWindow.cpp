@@ -538,13 +538,16 @@ void MainWindow::on_bSettings_clicked()
     QMenu *chatMenu = menu.addMenu("Chats");
 
     auto actPeerChat = chatMenu->addAction(tr("Create 1on1 chat (EKR on)"));
-    connect(actPeerChat, &QAction::triggered, this, [=](){onAddChatRoom(false,false);});
+    connect(actPeerChat, &QAction::triggered, this, [=](){onAddChatRoom(false, false, false);});
 
     auto actGroupChat = chatMenu->addAction(tr("Create group chat (EKR on)"));
-    connect(actGroupChat, &QAction::triggered, this, [=](){onAddChatRoom(true, false);});
+    connect(actGroupChat, &QAction::triggered, this, [=](){onAddChatRoom(true, false, false);});
 
     auto actPubChat = chatMenu->addAction(tr("Create public chat (EKR off)"));
-    connect(actPubChat, &QAction::triggered, this, [=](){onAddChatRoom(true, true);});
+    connect(actPubChat, &QAction::triggered, this, [=](){onAddChatRoom(true, true, false);});
+
+    auto actMeetingRoom = chatMenu->addAction(tr("Create meeting room (EKR off)"));
+    connect(actMeetingRoom, &QAction::triggered, this, [=](){onAddChatRoom(true, true, true);});
 
     auto actPreviewChat = chatMenu->addAction(tr("Preview chat-link"));
     connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
@@ -1000,11 +1003,11 @@ void MainWindow::activeControls(bool active)
     }
 }
 
-void MainWindow::onAddChatRoom(bool isGroup, bool isPublic)
+void MainWindow::onAddChatRoom(bool isGroup, bool isPublic, bool isMeeting)
 {
-    ::mega::MegaUserList *list = mMegaApi->getContacts();
-    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, isGroup, isPublic, mMegaChatApi);
-    chatDialog->createChatList(list);
+    std::unique_ptr<::mega::MegaUserList> list(mMegaApi->getContacts());
+    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, isGroup, isPublic, isMeeting, mMegaChatApi);
+    chatDialog->createChatList(list.get());
     chatDialog->show();
 }
 
