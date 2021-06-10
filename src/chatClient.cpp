@@ -1021,7 +1021,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         mContactList->syncWithApi(*contactList);
         mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
-        chats->onChatsUpdate(*chatList, true);
+        chats->onChatsUpdate(*chatList);
         commit(scsn);
 
         // Get aliases from cache
@@ -1448,7 +1448,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
     mContactList->syncWithApi(aContactList);
 
     // sync the chatroom list
-    chats->onChatsUpdate(chatList, true);
+    chats->onChatsUpdate(chatList, forceReload);
 
     // commit the snapshot
     commit(scsn);
@@ -2967,7 +2967,7 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
             return;
         }
 
-        chats->onChatsUpdate(*copy, false);
+        chats->onChatsUpdate(*copy);
     }, appCtx);
 }
 
