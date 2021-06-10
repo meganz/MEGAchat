@@ -124,7 +124,6 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
-    , mState(kStateInitial)
     , mIsRinging(isRinging)
     , mLocalAvFlags(avflags)
     , mIsGroup(isGroup)
@@ -137,17 +136,17 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     mAvailableTracks.reset(new AvailableTracks());
     mCallKey = callKey ? (*callKey.get()) : std::string();
     mGlobalCallHandler.onNewCall(*this);
+    setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
     mSessions.clear();
 }
 
 Call::~Call()
 {
-    setState(CallState::kStateDestroyed);
     if (mTermCode == kInvalidTermCode)
     {
         mTermCode = kUnKnownTermCode;
     }
-    mGlobalCallHandler.onEndCall(*this);
+    setState(CallState::kStateDestroyed);
 }
 
 karere::Id Call::getCallid() const
@@ -201,6 +200,18 @@ void Call::addParticipant(karere::Id peer)
 {
     mParticipants.push_back(peer);
     mGlobalCallHandler.onAddPeer(*this, peer);
+}
+
+
+void Call::removeAllParticipants()
+{
+    auto itPeer = mParticipants.begin();
+    while (itPeer != mParticipants.end())
+    {
+        karere::Id auxPeer = *itPeer;
+        itPeer = mParticipants.erase(itPeer);
+        mGlobalCallHandler.onRemovePeer(*this, auxPeer);
+    }
 }
 
 void Call::removeParticipant(karere::Id peer)
@@ -819,6 +830,15 @@ void Call::getLocalStreams()
     }
 }
 
+void Call::handleCallDisconnect()
+{
+    enableAudioLevelMonitor(false); // disable local audio level monitor
+    mSessions.clear();              // session dtor will notify apps through onDestroySession callback
+    freeVideoTracks(true);          // free local video tracks and release slots
+    freeAudioTrack(true);           // free local audio track and release slot
+    mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video tracks
+}
+
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
     if (mLocalAvFlags.videoCam())
@@ -831,12 +851,8 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         session.second->disableAudioSlot();
     }
 
-    mSessions.clear();
+    handleCallDisconnect();
     mAvailableTracks->clear();
-    mVThumb.reset(nullptr);
-    mHiRes.reset(nullptr);
-    mAudio.reset(nullptr);
-    mReceiverTracks.clear();
     mTermCode = termCode;
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
@@ -844,8 +860,6 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         mSfuClient.closeManagerProtocol(mChatid);
         mSfuConnection = nullptr;
     }
-
-    enableAudioLevelMonitor(false);
 
     if (mRtcConn)
     {
@@ -1284,6 +1298,12 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     {
         if (mState != CallState::kStateConnecting) // avoid interrupting a reconnection in progress
         {
+            if (mState == CallState::kStateInProgress
+                    && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
+            {
+                handleCallDisconnect();
+            }
+
             setState(CallState::kStateConnecting);
             mSfuConnection->retryPendingConnection(true);
             mSfuConnection->clearCommandsQueue();
@@ -1554,20 +1574,39 @@ bool Call::hasVideoDevice()
     return mVideoManager ? true : false;
 }
 
-void Call::freeTracks()
+void Call::freeVideoTracks(bool releaseSlots)
 {
     // disable hi-res track
-    if (mHiRes->getTransceiver()->sender()->track())
+    if (mHiRes && mHiRes->getTransceiver()->sender()->track())
     {
         mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
     // disable low-res track
-    if (mVThumb->getTransceiver()->sender()->track())
+    if (mVThumb && mVThumb->getTransceiver()->sender()->track())
     {
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
+    if (releaseSlots) // release slots in case flag is true
+    {
+        mVThumb.reset();
+        mHiRes.reset();
+    }
+}
+
+void Call::freeAudioTrack(bool releaseSlot)
+{
+    // disable audio track
+    if (mAudio && mAudio->getTransceiver()->sender()->track())
+    {
+        mAudio->getTransceiver()->sender()->SetTrack(nullptr);
+    }
+
+    if (releaseSlot) // release slot in case flag is true
+    {
+        mAudio.reset();
+    }
 }
 
 void Call::updateVideoTracks()
@@ -1605,7 +1644,7 @@ void Call::updateVideoTracks()
     }
     else
     {
-        freeTracks();
+        freeVideoTracks();
         releaseVideoDevice();
     }
 }
@@ -1706,7 +1745,7 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
                 if (callIt.second->hasVideoDevice())
                 {
                     calls.push_back(callIt.second.get());
-                    callIt.second->freeTracks();
+                    callIt.second->freeVideoTracks();
                     callIt.second->releaseVideoDevice();
                     shouldOpen = true;
                 }

@@ -131,6 +131,7 @@ public:
     virtual CallState getState() const = 0;
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
+    virtual void removeAllParticipants() = 0;
     virtual promise::Promise<void> hangup() = 0;
     virtual promise::Promise<void> endCall() = 0;
     virtual promise::Promise<void> join(karere::AvFlags avFlags) = 0;
@@ -216,7 +217,6 @@ public:
     virtual void onNewCall(ICall& call) = 0;
     virtual void onAddPeer(ICall& call, karere::Id peer) = 0;
     virtual void onRemovePeer(ICall& call, karere::Id peer) = 0;
-    virtual void onEndCall(ICall& call) = 0;
 };
 
 RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler);

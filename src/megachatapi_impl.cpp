@@ -4977,8 +4977,6 @@ void MegaChatApiImpl::onNewCall(rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     call.setCallHandler(new MegaChatCallHandler(this));
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_STATUS);
-    fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatApiImpl::onAddPeer(rtcModule::ICall &call, Id peer)
@@ -4992,13 +4990,6 @@ void MegaChatApiImpl::onRemovePeer(rtcModule::ICall &call, Id peer)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setPeerid(peer, false);
-    fireOnChatCallUpdate(chatCall.get());
-}
-
-void MegaChatApiImpl::onEndCall(rtcModule::ICall &call)
-{
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_STATUS);
     fireOnChatCallUpdate(chatCall.get());
 }
 
@@ -6236,18 +6227,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
 
     for (auto participant: call.getParticipants())
     {
-        participants[participant]; // init with empty flags by default
+        participants.push_back(participant);
     }
-
-    if (call.getState() == rtcModule::CallState::kStateInitial)
-    {
-        mChanged = CHANGE_TYPE_STATUS;
-    }
-    else if (call.getState() == rtcModule::CallState::kStateDestroyed)
-    {
-        mChanged = CHANGE_TYPE_STATUS;
-    }
-
     ringing = call.isRinging();
 
     std::vector<Cid_t> sessionCids = call.getSessionsCids();
@@ -6417,9 +6398,9 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
 {
     MegaHandleListPrivate *participantsList = new MegaHandleListPrivate();
 
-    for (auto it = participants.begin(); it != participants.end(); it++)
+    for (const MegaChatHandle& participant : participants)
     {
-        participantsList->addMegaHandle(it->first);
+        participantsList->addMegaHandle(participant);
     }
 
     return participantsList;
@@ -6591,7 +6572,15 @@ void MegaChatCallPrivate::setPeerid(Id peerid, bool added)
 
 bool MegaChatCallPrivate::isParticipating(Id userid)
 {
-    return participants.find(userid) != participants.end();
+    for (const MegaChatHandle& participant : participants)
+    {
+        if (userid == participant)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void MegaChatCallPrivate::setId(Id callid)

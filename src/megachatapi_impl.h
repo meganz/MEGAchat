@@ -271,7 +271,7 @@ protected:
     int64_t mInitialTs = 0;
     int64_t mFinalTs = 0;
     std::map<MegaChatHandle, std::unique_ptr<MegaChatSession>> mSessions;
-    std::map<MegaChatHandle, karere::AvFlags> participants;
+    std::vector<MegaChatHandle> participants;
     MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
     int callCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle callerId;
@@ -1188,7 +1188,6 @@ public:
     void onNewCall(rtcModule::ICall& call) override;
     void onAddPeer(rtcModule::ICall& call, karere::Id peer) override;
     void onRemovePeer(rtcModule::ICall& call, karere::Id peer) override;
-    void onEndCall(rtcModule::ICall& call) override;
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);

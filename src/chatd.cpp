@@ -1702,6 +1702,16 @@ void Chat::onDisconnect()
 
     mServerFetchState = kHistNotFetching;
     setOnlineState(kChatStateOffline);
+
+    if (mChatdClient.mKarereClient->rtc)
+    {
+        rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+        if (call)
+        {
+            CHATD_LOG_ERROR("chatd::onDisconnect remove all peers");
+            call->removeAllParticipants();
+        }
+    }
 }
 
 HistSource Chat::getHistory(unsigned count)
