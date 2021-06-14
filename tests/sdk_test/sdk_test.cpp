@@ -26,6 +26,17 @@ const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 int main(int argc, char **argv)
 {
     remove("test.log");
+
+    std::vector<char*> myargv1(argv, argv + argc);
+    for (auto it = myargv1.begin(); it != myargv1.end(); ++it)
+    {
+        if (std::string(*it).substr(0, 9) == "--APIURL:")
+        {
+            std::lock_guard<std::mutex> g(g_APIURL_default_mutex);
+            g_APIURL_default = std::string(*it).substr(9);
+        }
+    }
+
     MegaChatApiTest t;
     t.init();
 
@@ -4104,7 +4115,7 @@ void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHan
     ASSERT_CHAT_TEST(itemPrimary->getLastTimestamp() != 0, "Wrong last timestamp after clear history");
     delete itemPrimary; itemPrimary = NULL;
     MegaChatListItem *itemSecondary = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(itemSecondary->getUnreadCount() == 1, "Wrong unread count for chat list item after clear history. Count: " + std::to_string(itemSecondary->getUnreadCount()));
+    ASSERT_CHAT_TEST(itemSecondary->getUnreadCount() == 0, "Wrong unread count for chat list item after clear history. Count: " + std::to_string(itemSecondary->getUnreadCount()));
     ASSERT_CHAT_TEST(!strcmp(itemSecondary->getLastMessage(), ""), "Wrong content of last message for chat list item after clear history. Content: " + std::string(itemSecondary->getLastMessage()));
     ASSERT_CHAT_TEST(itemSecondary->getLastMessageType() == MegaChatMessage::TYPE_TRUNCATE, "Wrong type of last message after clear history. Type: " + std::to_string(itemSecondary->getLastMessageType()));
     ASSERT_CHAT_TEST(itemSecondary->getLastTimestamp() != 0, "Wrong last timestamp after clear history");

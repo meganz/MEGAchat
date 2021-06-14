@@ -87,6 +87,12 @@ ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatL
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
 {
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
+    if (!chatRoom)
+    {
+        // chatroom might be gone (due to takedown), despite it was locally know -> there is a chat-list-item, etc.
+        return;
+    }
+
     QString text = NULL;
     std::string senderHandle;
     megachat::MegaChatHandle lastMessageId = item->getLastMessageId();

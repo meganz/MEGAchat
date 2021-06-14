@@ -5085,7 +5085,7 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
         IGroupChatListItem *itemHandler = (*it);
         if (itemHandler == &item)
         {
-            delete (itemHandler);
+            delete itemHandler;
             chatGroupListItemHandler.erase(it);
             return;
         }
@@ -5248,6 +5248,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->mMessage = NULL;
     this->mMegaNodeList = NULL;
     this->mMegaHandleList = NULL;
+    this->mParamType = 0;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -5282,6 +5283,8 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
             this->setMegaHandleListByChat(chatid, request.getMegaHandleListByChat(chatid));
         }
     }
+
+    this->setParamType(request.getParamType());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -7623,6 +7626,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
     this->archived =  chatroom.isArchived();
+    mDeleted = false;
     this->mIsCallInProgress = chatroom.isCallActive();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
@@ -7730,6 +7734,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
     this->archived = item->isArchived();
+    mDeleted = item->isDeleted();
     this->mIsCallInProgress = item->isCallInProgress();
     this->lastMsgPriv = item->getLastMessagePriv();
     this->lastMsgHandle = item->getLastMessageHandle();
@@ -7825,6 +7830,11 @@ bool MegaChatListItemPrivate::isArchived() const
     return archived;
 }
 
+bool MegaChatListItemPrivate::isDeleted() const
+{
+    return mDeleted;
+}
+
 bool MegaChatListItemPrivate::isCallInProgress() const
 {
     return mIsCallInProgress;
@@ -7898,6 +7908,12 @@ void MegaChatListItemPrivate::setArchived(bool archived)
 {
     this->archived = archived;
     this->changed |= MegaChatListItem::CHANGE_TYPE_ARCHIVE;
+}
+
+void MegaChatListItemPrivate::setDeleted()
+{
+    mDeleted = true;
+    changed |= MegaChatListItem::CHANGE_TYPE_DELETED;
 }
 
 void MegaChatListItemPrivate::setCallInProgress()
@@ -7994,6 +8010,14 @@ void MegaChatListItemHandler::onChatArchived(bool archived)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setArchived(archived);
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatListItemHandler::onChatDeleted() const
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
+    item->setDeleted();
+
     chatApi.fireOnChatListItemUpdate(item);
 }
 
