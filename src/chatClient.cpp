@@ -4421,8 +4421,8 @@ void Client::updateAliases(Buffer *data)
                 continue;
             }
 
-            const std::string &newAlias = tlvRecords->get(key);
-            if (mAliasesMap[userid] != newAlias)
+            std::string newAlias;
+            if (tlvRecords->get(key, newAlias) && mAliasesMap[userid] != newAlias)
             {
                 mAliasesMap[userid] = newAlias;
                 aliasesUpdated.emplace_back(userid);
@@ -4434,7 +4434,8 @@ void Client::updateAliases(Buffer *data)
         {
             Id userid = itAliases->first;
             auto it = itAliases++;
-            if (!tlvRecords->find(userid.toString()))
+            std::string dummyValue;
+            if (!tlvRecords->get(userid.toString(), dummyValue))
             {
                 mAliasesMap.erase(it);
                 aliasesUpdated.emplace_back(userid);
