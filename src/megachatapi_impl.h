@@ -345,6 +345,7 @@ private:
     bool mPreviewMode;
     bool active;
     bool archived;
+    bool mDeleted;  // only true when chatlink is takendown (see removeGroupChatItem())
     bool mIsCallInProgress;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
     MegaChatHandle mLastMsgId;
@@ -370,6 +371,7 @@ public:
     virtual bool isPreview() const;
     virtual bool isActive() const;
     virtual bool isArchived() const;
+    bool isDeleted() const override;
     virtual bool isCallInProgress() const;
     virtual MegaChatHandle getPeerHandle() const;
     virtual int getLastMessagePriv() const;
@@ -385,6 +387,7 @@ public:
     void setClosed();
     void setLastTimestamp(int64_t ts);
     void setArchived(bool);
+    void setDeleted();
     void setCallInProgress();
 
     /**
@@ -416,6 +419,7 @@ public:
     virtual void onChatOnlineState(const chatd::ChatState state);
     virtual void onChatModeChanged(bool mode);
     virtual void onChatArchived(bool archived);
+    void onChatDeleted() const override;
     virtual void onPreviewersCountUpdate(uint32_t numPrev);
     virtual void onPreviewClosed();
 

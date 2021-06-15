@@ -5582,7 +5582,8 @@ public:
         CHANGE_TYPE_CALL                = 0x200, /// There's a new call or a call has finished
         CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
         CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800, /// The number of previewers has changed
-        CHANGE_TYPE_PREVIEW_CLOSED      = 0x1000 /// The chat preview has been closed
+        CHANGE_TYPE_PREVIEW_CLOSED      = 0x1000,/// The chat preview has been closed
+        CHANGE_TYPE_DELETED             = 0x2000 /// The chat has been taken down and should be hiden from the list of chats
     };
 
     virtual ~MegaChatListItem() {}
@@ -5751,6 +5752,12 @@ public:
      * @return True if the chat is archived, false otherwise.
      */
     virtual bool isArchived() const;
+
+    /**
+     * @brief Returns whether the chat has been deleted
+     * @return True if the chat is deleted, false otherwise.
+     */
+    virtual bool isDeleted() const;
 
     /**
      * @brief Returns whether the chat has a call in progress or not.

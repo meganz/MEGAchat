@@ -5578,7 +5578,7 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
         IGroupChatListItem *itemHandler = (*it);
         if (itemHandler == &item)
         {
-            delete (itemHandler);
+            delete itemHandler;
             chatGroupListItemHandler.erase(it);
             return;
         }
@@ -7940,6 +7940,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
     this->archived =  chatroom.isArchived();
+    mDeleted = false;
     this->mIsCallInProgress = chatroom.isCallActive();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
@@ -8048,6 +8049,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
     this->archived = item->isArchived();
+    mDeleted = item->isDeleted();
     this->mIsCallInProgress = item->isCallInProgress();
     this->lastMsgPriv = item->getLastMessagePriv();
     this->lastMsgHandle = item->getLastMessageHandle();
@@ -8143,6 +8145,11 @@ bool MegaChatListItemPrivate::isArchived() const
     return archived;
 }
 
+bool MegaChatListItemPrivate::isDeleted() const
+{
+    return mDeleted;
+}
+
 bool MegaChatListItemPrivate::isCallInProgress() const
 {
     return mIsCallInProgress;
@@ -8218,6 +8225,12 @@ void MegaChatListItemPrivate::setArchived(bool archived)
     this->changed |= MegaChatListItem::CHANGE_TYPE_ARCHIVE;
 }
 
+void MegaChatListItemPrivate::setDeleted()
+{
+    mDeleted = true;
+    changed |= MegaChatListItem::CHANGE_TYPE_DELETED;
+}
+
 void MegaChatListItemPrivate::setCallInProgress()
 {
     this->changed |= MegaChatListItem::CHANGE_TYPE_CALL;
@@ -8242,14 +8255,16 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
+    bool ownChange = (userid == chatApi.getMyUserHandle());
+
     // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
-    if (mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
+    if (!ownChange && mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
     {
         return;
     }
 
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
-    if (userid == chatApi.getMyUserHandle())
+    if (ownChange)
     {
         item->setOwnPriv(priv);
     }
@@ -8312,6 +8327,14 @@ void MegaChatListItemHandler::onChatArchived(bool archived)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setArchived(archived);
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatListItemHandler::onChatDeleted() const
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
+    item->setDeleted();
+
     chatApi.fireOnChatListItemUpdate(item);
 }
 
