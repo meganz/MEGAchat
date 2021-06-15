@@ -3713,7 +3713,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
                      ID_CSTR(chatid()), ID_CSTR(userid), member->mPriv, it->second);
 
-                onUserJoin(member->mHandle, member->mPriv);
+                onUserJoin(member->mHandle, it->second);
                 member->mPriv = it->second;
                 db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
             }
