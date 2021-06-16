@@ -2491,10 +2491,15 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 if (mChatdClient.mKarereClient->rtc)
                 {
+                    auto& chat = mChatdClient.chats(chatid);
+                    if (chat.previewMode())
+                    {
+                        break;
+                    }
+
                     rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        auto& chat = mChatdClient.chats(chatid);
                         promise::Promise<std::shared_ptr<std::string>> pms;
                         if (chat.isPublic())
                         {
@@ -2546,10 +2551,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %d", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
                 if (mChatdClient.mKarereClient->rtc)
                 {
+                    auto& chat = mChatdClient.chats(chatid);
+                    if (chat.previewMode())
+                    {
+                        break;
+                    }
                     rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        auto& chat = mChatdClient.chats(chatid);
                         promise::Promise<std::shared_ptr<std::string>> pms;
                         if (chat.isPublic())
                         {
