@@ -357,6 +357,17 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "11" && (strcmp(gDbSchemaVersionSuffix, "12") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Add tls session blob to dns_cache table
+                db.query("ALTER TABLE `dns_cache` ADD sess_data blob");
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -1141,6 +1152,12 @@ void Client::initWithDbSession(const char* sid)
         mContactList->loadFromDb();
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
+
+        if (websocketIO && websocketIO->hasSessionCache())
+        {
+            auto&& sessions = mDnsCache.getTlsSessions();
+            websocketIO->restoreSessions(std::move(sessions));
+        }
 
         // Get aliases from cache
         mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,

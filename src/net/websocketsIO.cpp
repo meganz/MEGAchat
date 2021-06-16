@@ -62,6 +62,14 @@ void WebsocketsClientImpl::wsSendMsgCb(const char *data, size_t len)
     client->wsSendMsgCb(data, len);
 }
 
+bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
+{
+    WebsocketsIO::MutexGuard lock(this->mutex);
+    WEBSOCKETS_LOG_DEBUG("TLS session updated for %s:%d",
+                         sess.hostname.c_str(), sess.port);
+    return client->wsSSLsessionUpdateCb(sess);
+}
+
 WebsocketsClient::WebsocketsClient()
 {
     ctx = NULL;
@@ -199,7 +207,7 @@ DNScache::DNScache(SqliteDb &db, int chatdVersion)
 
 }
 
-void DNScache::addRecord(int shard, const std::string &url, bool saveToDb)
+void DNScache::addRecord(int shard, const std::string &url, std::shared_ptr<Buffer> sess, bool saveToDb)
 {    
     if (hasRecord(shard))
     {
@@ -213,6 +221,10 @@ void DNScache::addRecord(int shard, const std::string &url, bool saveToDb)
     if (shard >= 0) // only chatd needs to append the protocol version
     {
         record.mUrl.path.append("/").append(std::to_string(mChatdVersion));
+    }
+    if (sess && !sess->empty())
+    {
+        record.tlsBlob = sess;
     }
     mRecords[shard] = record;
 
@@ -274,15 +286,24 @@ const karere::Url &DNScache::getUrl(int shard)
 
 void DNScache::loadFromDb()
 {
-    SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6 from dns_cache");
+    SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6, sess_data from dns_cache");
     while (stmt.step())
     {
         int shard = stmt.intCol(0);
         std::string url = stmt.stringCol(1);
         if (url.size())
         {
+            // get tls session data
+            auto blobBuff = std::make_shared<Buffer>();
+            int columnbytes = sqlite3_column_bytes(stmt, 4);
+            if (columnbytes)
+            {
+                blobBuff->reserve(columnbytes);
+                stmt.blobCol(4, *blobBuff);
+            }
+
             // if the record is for chatd, need to add the protocol version to the URL
-            addRecord(shard, url, false);
+            addRecord(shard, url, blobBuff, false);
             setIp(shard, stmt.stringCol(2), stmt.stringCol(3));
         }
         else
@@ -400,4 +421,41 @@ bool DNScache::isMatch(int shard, const std::string &ipv4, const std::string &ip
     }
 
     return match;
+}
+
+bool DNScache::updateTlsSession(const CachedSession &sess)
+{
+    // find the dns record that corresponds to this session
+    for (const auto &i : mRecords)
+    {
+        const DNSrecord &r = i.second;
+        if (r.mUrl.host == sess.hostname && r.mUrl.port == sess.port)
+        {
+            // update session data for that connection
+            mDb.query("update dns_cache set sess_data=? where shard=?", *sess.blob, i.first);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::vector<CachedSession> DNScache::getTlsSessions()
+{
+    std::vector<CachedSession> sessions;
+
+    for (auto &i : mRecords)
+    {
+        DNSrecord &r = i.second;
+        if (!r.tlsBlob)  continue;
+
+        CachedSession ts;
+        ts.hostname = r.mUrl.host;
+        ts.port = r.mUrl.port;
+        ts.blob = r.tlsBlob;
+        r.tlsBlob = nullptr; // no need to keep a copy here
+        sessions.emplace_back(std::move(ts));
+    }
+
+    return sessions;
 }
