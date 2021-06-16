@@ -1309,6 +1309,12 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
             mSfuConnection->clearCommandsQueue();
         }
     }
+    else if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected)
+    {
+        bool reconnect = !mSfuConnection->isOnline();
+        RTCM_LOG_DEBUG("onConnectionChange retryPendingConnection (reconnect) : %d", reconnect);
+        mSfuConnection->retryPendingConnection(reconnect);
+    }
 }
 
 void Call::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
