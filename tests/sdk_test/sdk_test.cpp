@@ -36,6 +36,8 @@ int main(int argc, char **argv)
         {
             std::lock_guard<std::mutex> g(g_APIURL_default_mutex);
             g_APIURL_default = std::string(*it).substr(9);
+            if (!g_APIURL_default.empty() && g_APIURL_default.back() != '/')
+                g_APIURL_default += '/';
         }
     }
 

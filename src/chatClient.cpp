@@ -377,6 +377,17 @@ bool Client::openDb(const std::string& sid)
             {
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
 
+                // Add tls session blob to dns_cache table
+                db.query("ALTER TABLE `dns_cache` ADD sess_data blob");
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
+            else if (cachedVersionSuffix == "12" && (strcmp(gDbSchemaVersionSuffix, "13") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
                 // We check if we have some pulic chat with creation ts higher than meeting release
                 // in that case we invalidate the cache, because it could a meetings
                 // ts -> 1625140800000 -> 1 July 2021 12:00 GTM
@@ -1182,6 +1193,12 @@ void Client::initWithDbSession(const char* sid)
         mContactList->loadFromDb();
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
+
+        if (websocketIO && websocketIO->hasSessionCache())
+        {
+            auto&& sessions = mDnsCache.getTlsSessions();
+            websocketIO->restoreSessions(std::move(sessions));
+        }
 
         // Get aliases from cache
         mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
@@ -4478,8 +4495,8 @@ void Client::updateAliases(Buffer *data)
                 continue;
             }
 
-            const std::string &newAlias = tlvRecords->get(key);
-            if (mAliasesMap[userid] != newAlias)
+            std::string newAlias;
+            if (tlvRecords->get(key, newAlias) && mAliasesMap[userid] != newAlias)
             {
                 mAliasesMap[userid] = newAlias;
                 aliasesUpdated.emplace_back(userid);
@@ -4491,7 +4508,8 @@ void Client::updateAliases(Buffer *data)
         {
             Id userid = itAliases->first;
             auto it = itAliases++;
-            if (!tlvRecords->find(userid.toString()))
+            std::string dummyValue;
+            if (!tlvRecords->get(userid.toString(), dummyValue))
             {
                 mAliasesMap.erase(it);
                 aliasesUpdated.emplace_back(userid);
