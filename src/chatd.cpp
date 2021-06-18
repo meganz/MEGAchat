@@ -1708,8 +1708,8 @@ void Chat::onDisconnect()
         rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
         if (call)
         {
-            CHATD_LOG_ERROR("chatd::onDisconnect remove all peers");
-            call->removeAllParticipants();
+            CHATD_LOG_ERROR("chatd::onDisconnect stop sfu reconnection and remove participants");
+            call->disconnectFromChatd();
         }
     }
 }
@@ -5771,6 +5771,16 @@ void Chat::setOnlineState(ChatState state)
                     mChatdClient.mKarereClient->mSyncTimer = 0;
                 }
                 mChatdClient.mKarereClient->mSyncPromise.resolve();
+            }
+        }
+
+        if (mChatdClient.mKarereClient->rtc)
+        {
+            rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+            if (call && call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
+            {
+                CHATD_LOG_ERROR("chatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ");
+                call->reconnectToSfu();
             }
         }
     }

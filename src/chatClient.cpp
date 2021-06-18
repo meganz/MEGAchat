@@ -732,19 +732,11 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     }
 
 #ifndef KARERE_DISABLE_WEBRTC
-    if (rtc && disconnect)
+    if (rtc && !disconnect) // In case of disconnect, reconnection will be launched after chatd::Chat::setOnlineState
     {
-        int index = 0;
-        while (mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
-        {
-            // invalidate IPs
-            mDnsCache.invalidateIps(TURNSERVER_SHARD - index);
-            index++;
-        }
+        // force reconnect all SFU connections
+        rtc->getSfuClient().reconnectAllToSFU(disconnect);
     }
-
-    // force reconnect all SFU connections
-    rtc->getSfuClient().reconnectAllToSFU(disconnect);
 #endif
 }
 

@@ -203,8 +203,12 @@ void Call::addParticipant(karere::Id peer)
 }
 
 
-void Call::removeAllParticipants()
+void Call::disconnectFromChatd()
 {
+    handleCallDisconnect();
+    setState(CallState::kStateConnecting);
+    mSfuConnection->disconnect(true);
+
     auto itPeer = mParticipants.begin();
     while (itPeer != mParticipants.end())
     {
@@ -212,6 +216,11 @@ void Call::removeAllParticipants()
         itPeer = mParticipants.erase(itPeer);
         mGlobalCallHandler.onRemovePeer(*this, auxPeer);
     }
+}
+
+void Call::reconnectToSfu()
+{
+    mSfuConnection->retryPendingConnection(true);
 }
 
 void Call::removeParticipant(karere::Id peer)
