@@ -1562,7 +1562,7 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(std::to_string(ringing));
             return tmpString;
         }
-        case OP_CALLEND:
+        case OP_DELCALLREASON:
         {
             string tmpString;
             karere::Id chatid = data.read<uint64_t>(1);
