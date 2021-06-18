@@ -5782,6 +5782,10 @@ void Chat::setOnlineState(ChatState state)
                 CHATD_LOG_ERROR("chatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ");
                 call->reconnectToSfu();
             }
+            else if (call->getState() == rtcModule::CallState::kStateClientNoParticipating && call->getParticipants().empty())
+            {
+                mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::TermCode::kErrNoCall);
+            }
         }
     }
 }
