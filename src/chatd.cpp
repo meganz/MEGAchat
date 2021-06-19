@@ -5777,14 +5777,17 @@ void Chat::setOnlineState(ChatState state)
         if (mChatdClient.mKarereClient->rtc)
         {
             rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
-            if (call && call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
+            if (call)
             {
-                CHATD_LOG_ERROR("chatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ");
-                call->reconnectToSfu();
-            }
-            else if (call->getState() == rtcModule::CallState::kStateClientNoParticipating && call->getParticipants().empty())
-            {
-                mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::TermCode::kErrNoCall);
+                if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
+                {
+                    CHATD_LOG_ERROR("chatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ");
+                    call->reconnectToSfu();
+                }
+                else if (call->getState() == rtcModule::CallState::kStateClientNoParticipating && call->getParticipants().empty())
+                {
+                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::TermCode::kErrNoCall);
+                }
             }
         }
     }
