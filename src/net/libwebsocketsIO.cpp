@@ -229,7 +229,6 @@ bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
     if (lws_callback_on_writable(wsi) <= 0)
     {
         WEBSOCKETS_LOG_ERROR("lws_callback_on_writable() failed");
-        assert(false);
         return false;
     }
     return true;
