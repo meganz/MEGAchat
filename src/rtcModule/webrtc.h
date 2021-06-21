@@ -33,13 +33,13 @@ enum TermCode: uint8_t
 
 enum CallState: uint8_t
 {
-    kStateInitial = 0,      // < Call object was initialised
-    kStateClientNoParticipating,  // < User is not particpating in the call
-    kStateConnecting,   // < Connecting to SFU
-    kStateJoining,      // < Joining a call
+    kStateInitial = 0,                  // < Call object was initialised
+    kStateClientNoParticipating,        // < User is not particpating in the call
+    kStateConnecting,                   // < Connecting to SFU
+    kStateJoining,                      // < Joining a call
     kStateInProgress,
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
-    kStateDestroyed    // < Call object is not valid anymore, the call is removed from the system
+    kStateDestroyed                     // < Call object is not valid anymore, the call is removed from the system
 };
 
 enum SessionState: uint8_t

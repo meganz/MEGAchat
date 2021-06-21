@@ -445,7 +445,7 @@ public:
     class SfuClient
     {
     public:
-        SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id& myHandle);
+        SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings, const karere::Id& myHandle);
         SfuConnection *generateSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
         void closeManagerProtocol(karere::Id chatid);
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();

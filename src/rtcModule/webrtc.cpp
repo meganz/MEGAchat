@@ -1701,10 +1701,10 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler)
 {
 }
 
-void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings, const karere::Id& myHandle)
+void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rtcCryptoMeetings, const karere::Id& myHandle)
 {
     mAppCtx = appCtx;
-    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings, myHandle);
+    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rtcCryptoMeetings, myHandle);
     if (!artc::isInitialized())
     {
         //rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
