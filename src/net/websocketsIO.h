@@ -20,6 +20,13 @@
 class WebsocketsClient;
 class WebsocketsClientImpl;
 
+struct CachedSession
+{
+    std::string             hostname;    // host.domain
+    int                     port = 0;    // 443 usually
+    std::shared_ptr<Buffer> blob;        // session data
+};
+
 class DNScache
 {
 public:
@@ -28,7 +35,7 @@ public:
 
     DNScache(SqliteDb &db, int chatdVersion);
     void loadFromDb();
-    void addRecord(int shard, const std::string &url, bool saveToDb = true);
+    void addRecord(int shard, const std::string &url, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true);
     void removeRecord(int shard);
     void updateRecord(int shard, const std::string &url, bool saveToDb);
     bool hasRecord(int shard);
@@ -45,6 +52,9 @@ public:
     time_t age(int shard);
     const karere::Url &getUrl(int shard);
 
+    bool updateTlsSession(const CachedSession &sess);
+    std::vector<CachedSession> getTlsSessions();
+
 private:
     struct DNSrecord
     {
@@ -54,6 +64,7 @@ private:
         time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
         time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
         time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
+        std::shared_ptr<Buffer> tlsBlob; // tls session data
     };
 
     // Maps shard to DNSrecord
@@ -85,6 +96,9 @@ public:
             delete cb;
         }
     };
+
+    virtual bool hasSessionCache() const { return false; }
+    virtual void restoreSessions(std::vector<CachedSession> &&) { }
 
 protected:
     Mutex &mutex;
@@ -139,11 +153,11 @@ public:
     // Called after sending a message through the socket
     // (it may be implemented by clients that require messages to be sent individually and sequentially)
     virtual void wsProcessNextMsgCb() {}
+    virtual bool wsSSLsessionUpdateCb(const CachedSession &) { return false; }
 
     /* Public key pinning, by default this flag is enabled (true), it only should be disabled for testing purposes */
     static bool publicKeyPinning;
 };
-
 
 class WebsocketsClientImpl
 {
@@ -160,6 +174,7 @@ public:
     void wsHandleMsgCb(char *data, size_t len);
     void wsSendMsgCb(const char *data, size_t len);
     void wsProcessNextMsgCb();
+    bool wsSSLsessionUpdateCb(const CachedSession &sess);
     
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;

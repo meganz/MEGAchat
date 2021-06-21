@@ -1923,13 +1923,27 @@ void exec_createchat(ac::ACState& s)
         }
     });
 
-    bool group = s.words[1].s == "-group";
-    auto pl = c::MegaChatPeerList::createInstance();
-    for (unsigned i = group ? 2 : 1; i < s.words.size(); ++i)
+    bool isGroup = s.extractflag("-group");
+    bool isPublic = s.extractflag("-public");
+    bool isMeeting = s.extractflag("-meeting");
+    auto peerList = c::MegaChatPeerList::createInstance();
+    for (unsigned i = 1; i < s.words.size(); ++i)
     {
-        pl->addPeer(s_ch(s.words[i].s), c::MegaChatPeerList::PRIV_STANDARD); // todo: accept privilege flags
+        peerList->addPeer(s_ch(s.words[i].s), c::MegaChatPeerList::PRIV_STANDARD); // todo: accept privilege flags
     }
-    g_chatApi->createChat(group, pl, &g_chatListener);
+
+    if (isMeeting)
+    {
+        g_chatApi->createMeeting(nullptr,  &g_chatListener);
+    }
+    else if (isPublic)
+    {
+        g_chatApi->createPublicChat(peerList, nullptr,  &g_chatListener);
+    }
+    else    // group and 1on1
+    {
+        g_chatApi->createChat(isGroup, peerList, &g_chatListener);
+    }
 }
 
 void exec_invitetochat(ac::ACState& s)
@@ -4430,7 +4444,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getchathandlebyuser, sequence(text("getchathandlebyuser"), param("userid")));
     p->Add(exec_chatinfo,           sequence(text("chatinfo"), opt(param("roomid"))));
 
-    p->Add(exec_createchat,         sequence(text("createchat"), opt(flag("-group")), repeat(param("userid"))));
+    p->Add(exec_createchat,         sequence(text("createchat"), opt(flag("-group")), opt(flag("-public")), opt(flag("-meeting")), repeat(param("userid"))));
     p->Add(exec_invitetochat,       sequence(text("invitetochat"), param("roomid"), param("userid")));
     p->Add(exec_removefromchat,     sequence(text("removefromchat"), param("roomid"), param("userid")));
     p->Add(exec_leavechat,          sequence(text("leavechat"), param("roomid")));

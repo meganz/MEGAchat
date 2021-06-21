@@ -103,6 +103,10 @@ using namespace megachat;
     return self.megaChatListItem ? self.megaChatListItem->isActive() : NO;
 }
 
+- (BOOL)isDeleted {
+    return self.megaChatListItem ? self.megaChatListItem->isDeleted() : NO;
+}
+
 - (NSUInteger)previewersCount {
     return self.megaChatListItem ? self.megaChatListItem->getNumPreviewers() : 0;
 }
@@ -182,6 +186,9 @@ using namespace megachat;
             break;
         case MEGAChatListItemChangeTypePreviewClosed:
             result = @"Preview closed";
+            break;
+        case MEGAChatListItemChangeTypeDelete:
+            result = @"Delete";
             break;
             
         default:

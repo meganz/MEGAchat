@@ -1562,7 +1562,7 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(std::to_string(ringing));
             return tmpString;
         }
-        case OP_CALLEND:
+        case OP_DELCALLREASON:
         {
             string tmpString;
             karere::Id chatid = data.read<uint64_t>(1);
@@ -1702,6 +1702,16 @@ void Chat::onDisconnect()
 
     mServerFetchState = kHistNotFetching;
     setOnlineState(kChatStateOffline);
+
+    if (mChatdClient.mKarereClient->rtc)
+    {
+        rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+        if (call)
+        {
+            CHATD_LOG_ERROR("chatd::onDisconnect stop sfu reconnection and remove participants");
+            call->disconnectFromChatd();
+        }
+    }
 }
 
 HistSource Chat::getHistory(unsigned count)
@@ -2057,6 +2067,12 @@ void Connection::wsSendMsgCb(const char *, size_t)
 {
     assert(!mSendPromise.done());
     mSendPromise.resolve();
+}
+
+bool Connection::wsSSLsessionUpdateCb(const CachedSession &sess)
+{
+    // update the session's data in the DNS cache
+    return mDnsCache.updateTlsSession(sess);
 }
 
 // inbound command processing
@@ -2477,10 +2493,15 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 if (mChatdClient.mKarereClient->rtc)
                 {
+                    auto& chat = mChatdClient.chats(chatid);
+                    if (chat.previewMode())
+                    {
+                        break;
+                    }
+
                     rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        auto& chat = mChatdClient.chats(chatid);
                         promise::Promise<std::shared_ptr<std::string>> pms;
                         if (chat.isPublic())
                         {
@@ -2532,10 +2553,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %d", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
                 if (mChatdClient.mKarereClient->rtc)
                 {
+                    auto& chat = mChatdClient.chats(chatid);
+                    if (chat.previewMode())
+                    {
+                        break;
+                    }
                     rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        auto& chat = mChatdClient.chats(chatid);
                         promise::Promise<std::shared_ptr<std::string>> pms;
                         if (chat.isPublic())
                         {
@@ -5742,6 +5767,23 @@ void Chat::setOnlineState(ChatState state)
                     mChatdClient.mKarereClient->mSyncTimer = 0;
                 }
                 mChatdClient.mKarereClient->mSyncPromise.resolve();
+            }
+        }
+
+        if (mChatdClient.mKarereClient->rtc)
+        {
+            rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+            if (call)
+            {
+                if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
+                {
+                    CHATD_LOG_ERROR("chatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ");
+                    call->reconnectToSfu();
+                }
+                else if (call->getState() == rtcModule::CallState::kStateClientNoParticipating && call->getParticipants().empty())
+                {
+                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::TermCode::kErrNoCall);
+                }
             }
         }
     }

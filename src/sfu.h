@@ -373,7 +373,7 @@ public:
         bool isOnline() const;
         bool isDisconnected() const;
         promise::Promise<void> connect();
-        void disconnect();
+        void disconnect(bool withoutReconnection = false);
         void doConnect();
         void retryPendingConnection(bool disconnect);
         bool sendCommand(const std::string& command);

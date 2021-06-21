@@ -20,12 +20,26 @@ public:
     
     void addevents(::mega::Waiter*, int) override;
     
+    bool hasSessionCache() const override { return true; }
+    void restoreSessions(std::vector<CachedSession> &&sessions) override;
+
 protected:
     bool wsResolveDNS(const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f) override;
     WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client) override;
     int wsGetNoNameErrorCode() override;
+
+private:
+    // Note: While theoretically a LWS context can have multiple vhosts, it's a
+    //       feature applicable to servers, and they need to be explicitly created.
+    //       Implicitly, as in our case, only the default vhost will be created.
+    //
+    // Note 2: Unfortunately default vhost's name was not abstracted away in LWS,
+    //         and is used verbatim in their sample too...
+    static const char constexpr *DEFAULT_VHOST = "default";
+
+    static constexpr int TLS_SESSION_TIMEOUT = 180 * 24 * 3600; // ~6 months, in seconds
 };
 
 class LibwebsocketsClient : public WebsocketsClientImpl
@@ -33,7 +47,9 @@ class LibwebsocketsClient : public WebsocketsClientImpl
 public:
     LibwebsocketsClient(WebsocketsIO::Mutex &mutex, WebsocketsClient *client);
     virtual ~LibwebsocketsClient();
-    
+
+    bool connectViaClientInfo(const char *ip, const char *host, int port, const char *path, bool ssl, lws_context *wscontext);
+
 protected:
     std::string recbuffer;
     std::string sendbuffer;
@@ -54,7 +70,20 @@ protected:
 public:
     struct lws *wsi;
     static int wsCallback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *data, size_t len);
+
+private:
+    CachedSession mTlsSession;
 };
 
+class LwsCache
+{
+public:
+    static bool dump(lws_vhost *vh, CachedSession *s);
+    static bool load(lws_vhost *vh, CachedSession *s);
+
+private:
+    static int dumpCb(lws_context *, lws_tls_session_dump *info);
+    static int loadCb(lws_context *, lws_tls_session_dump *info);
+};
 
 #endif /* libwebsocketsIO_h */

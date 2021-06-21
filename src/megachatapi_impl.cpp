@@ -880,7 +880,8 @@ void MegaChatApiImpl::sendPendingRequests()
                        request->setMegaHandleList(result->getMegaHandleList());
                    }
 
-                   request->setParamType(result->getFlag());
+                   bool meeting = result->getFlag();
+                   request->setParamType(meeting);
 
                    //Check chat link
                    if (!createChat)
@@ -916,7 +917,7 @@ void MegaChatApiImpl::sendPendingRequests()
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
                            uint32_t ts = result->getNumber();
 
-                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts);
+                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting);
                            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                            fireOnChatRequestFinish(request, megaChatError);
                        }
@@ -4976,8 +4977,6 @@ void MegaChatApiImpl::onNewCall(rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     call.setCallHandler(new MegaChatCallHandler(this));
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_STATUS);
-    fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatApiImpl::onAddPeer(rtcModule::ICall &call, Id peer)
@@ -4991,13 +4990,6 @@ void MegaChatApiImpl::onRemovePeer(rtcModule::ICall &call, Id peer)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setPeerid(peer, false);
-    fireOnChatCallUpdate(chatCall.get());
-}
-
-void MegaChatApiImpl::onEndCall(rtcModule::ICall &call)
-{
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_STATUS);
     fireOnChatCallUpdate(chatCall.get());
 }
 
@@ -5586,7 +5578,7 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
         IGroupChatListItem *itemHandler = (*it);
         if (itemHandler == &item)
         {
-            delete (itemHandler);
+            delete itemHandler;
             chatGroupListItemHandler.erase(it);
             return;
         }
@@ -6235,18 +6227,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
 
     for (auto participant: call.getParticipants())
     {
-        mParticipants[participant]; // init with empty flags by default
+        mParticipants.push_back(participant);
     }
-
-    if (call.getState() == rtcModule::CallState::kStateInitial)
-    {
-        mChanged = CHANGE_TYPE_STATUS;
-    }
-    else if (call.getState() == rtcModule::CallState::kStateDestroyed)
-    {
-        mChanged = CHANGE_TYPE_STATUS;
-    }
-
     mRinging = call.isRinging();
 
     std::vector<Cid_t> sessionCids = call.getSessionsCids();
@@ -6416,9 +6398,9 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
 {
     MegaHandleListPrivate *participantsList = new MegaHandleListPrivate();
 
-    for (auto it = mParticipants.begin(); it != mParticipants.end(); it++)
+    for (const MegaChatHandle& participant : mParticipants)
     {
-        participantsList->addMegaHandle(it->first);
+        participantsList->addMegaHandle(participant);
     }
 
     return participantsList;
@@ -6590,7 +6572,7 @@ void MegaChatCallPrivate::setPeerid(Id peerid, bool added)
 
 bool MegaChatCallPrivate::isParticipating(Id userid)
 {
-    return mParticipants.find(userid) != mParticipants.end();
+    return std::find(mParticipants.begin(), mParticipants.end(), userid) != mParticipants.end();
 }
 
 void MegaChatCallPrivate::setId(Id callid)
@@ -7382,6 +7364,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     mNumPreviewers = chat->getNumPreviewers();
     mRetentionTime = chat->getRetentionTime();
     mCreationTs = chat->getCreationTs();
+    mMeeting = chat->isMeeting();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -7402,6 +7385,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     mNumPreviewers = chat.chat().getNumPreviewers();
     mRetentionTime = chat.getRetentionTime();
     mCreationTs = chat.getCreationTs();
+    mMeeting = chat.isMeeting();
 
     if (group)
     {
@@ -7674,6 +7658,11 @@ bool MegaChatRoomPrivate::isArchived() const
 int64_t MegaChatRoomPrivate::getCreationTs() const
 {
     return mCreationTs;
+}
+
+bool MegaChatRoomPrivate::isMeeting() const
+{
+    return mMeeting;
 }
 
 int MegaChatRoomPrivate::getChanges() const
@@ -7949,6 +7938,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     lastMsgPriv = Priv::PRIV_INVALID;
     lastMsgHandle = MEGACHAT_INVALID_HANDLE;
     mNumPreviewers = chatroom.getNumPreviewers();
+    mDeleted = false;
 
     LastTextMsg tmp;
     LastTextMsg *message = &tmp;
@@ -8055,6 +8045,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     lastMsgPriv = item->getLastMessagePriv();
     lastMsgHandle = item->getLastMessageHandle();
     mNumPreviewers = item->getNumPreviewers();
+    mDeleted = item->isDeleted();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -8146,6 +8137,11 @@ bool MegaChatListItemPrivate::isArchived() const
     return mArchived;
 }
 
+bool MegaChatListItemPrivate::isDeleted() const
+{
+    return mDeleted;
+}
+
 bool MegaChatListItemPrivate::isCallInProgress() const
 {
     return mIsCallInProgress;
@@ -8221,6 +8217,12 @@ void MegaChatListItemPrivate::setArchived(bool archived)
     mChanged |= MegaChatListItem::CHANGE_TYPE_ARCHIVE;
 }
 
+void MegaChatListItemPrivate::setDeleted()
+{
+    mDeleted = true;
+    mChanged |= MegaChatListItem::CHANGE_TYPE_DELETED;
+}
+
 void MegaChatListItemPrivate::setCallInProgress()
 {
     mChanged |= MegaChatListItem::CHANGE_TYPE_CALL;
@@ -8245,14 +8247,16 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
+    bool ownChange = (userid == chatApi.getMyUserHandle());
+
     // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
-    if (mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
+    if (!ownChange && mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
     {
         return;
     }
 
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
-    if (userid == chatApi.getMyUserHandle())
+    if (ownChange)
     {
         item->setOwnPriv(priv);
     }
@@ -8315,6 +8319,14 @@ void MegaChatListItemHandler::onChatArchived(bool archived)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setArchived(archived);
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatListItemHandler::onChatDeleted() const
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
+    item->setDeleted();
+
     chatApi.fireOnChatListItemUpdate(item);
 }
 

@@ -372,6 +372,42 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "11" && (strcmp(gDbSchemaVersionSuffix, "12") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Add tls session blob to dns_cache table
+                db.query("ALTER TABLE `dns_cache` ADD sess_data blob");
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
+            else if (cachedVersionSuffix == "12" && (strcmp(gDbSchemaVersionSuffix, "13") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // We check if we have some pulic chat with creation ts higher than meeting release
+                // in that case we invalidate the cache, because it could a meetings
+                // ts -> 1625140800000 -> 1 July 2021 12:00 GTM
+                SqliteStmt stmt(db, "select count(*) from chats where mode == 1 and ts_created > 1618488000");
+                stmt.stepMustHaveData("get chats count");
+                if (stmt.intCol(0) > 0)
+                {
+                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
+                    api.sdk.invalidateCache();
+                }
+                else //
+                {
+                    // Add meeting to chats table
+                    db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
+
+                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                    db.commit();
+                    ok = true;
+                    KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                }
+            }
         }
     }
 
@@ -695,8 +731,11 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     }
 
 #ifndef KARERE_DISABLE_WEBRTC
-    // force reconnect all SFU connections
-    rtc->getSfuClient().reconnectAllToSFU(disconnect);
+    if (rtc && !disconnect) // In case of disconnect, reconnection will be launched after chatd::Chat::setOnlineState
+    {
+        // force reconnect all SFU connections
+        rtc->getSfuClient().reconnectAllToSFU(disconnect);
+    }
 #endif
 }
 
@@ -729,9 +768,9 @@ promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
     return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle);
 }
 
-void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts)
+void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting)
 {
-    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey);
+    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, meeting);
     chats->emplace(chatId, room);
     if (!mDnsCache.hasRecord(shard))
     {
@@ -1146,6 +1185,12 @@ void Client::initWithDbSession(const char* sid)
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
 
+        if (websocketIO && websocketIO->hasSessionCache())
+        {
+            auto&& sessions = mDnsCache.getTlsSessions();
+            websocketIO->restoreSessions(std::move(sessions));
+        }
+
         // Get aliases from cache
         mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
         ::mega::MegaApi::USER_ATTR_ALIAS, this,
@@ -1356,7 +1401,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 //                  setInitState(kInitErrSidMismatch);
 //                  return;
 //              }
-                checkSyncWithSdkDb(scsn, *contactList, *chatList);
+                checkSyncWithSdkDb(scsn, *contactList, *chatList, false);
                 setInitState(kInitHasOnlineSession);
                 mSessionReadyPromise.resolve();
                 mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
@@ -1381,9 +1426,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                     api.sdk.resumeActionPackets();
                 });
             }
-            else
+            else    // a full reload happened (triggered by API or by the user)
             {
                 assert(state == kInitHasOnlineSession);
+                checkSyncWithSdkDb(scsn, *contactList, *chatList, true);
                 api.sdk.resumeActionPackets();
             }
         }, appCtx);
@@ -1450,14 +1496,18 @@ void Client::createDb()
 }
 
 bool Client::checkSyncWithSdkDb(const std::string& scsn,
-    ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chatList)
+    ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chatList, bool forceReload)
 {
-    SqliteStmt stmt(db, "select value from vars where name='scsn'");
-    stmt.stepMustHaveData("get karere scsn");
-    if (stmt.stringCol(0) == scsn)
+    if (!forceReload)
     {
-        KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
-        return true;
+        // check if 'scsn' has changed
+        SqliteStmt stmt(db, "select value from vars where name='scsn'");
+        stmt.stepMustHaveData("get karere scsn");
+        if (stmt.stringCol(0) == scsn)
+        {
+            KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
+            return true;
+        }
     }
 
     // We are not in sync, probably karere is one or more commits behind
@@ -1471,7 +1521,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
     mContactList->syncWithApi(aContactList);
 
     // sync the chatroom list
-    chats->onChatsUpdate(chatList);
+    chats->onChatsUpdate(chatList, forceReload);
 
     // commit the snapshot
     commit(scsn);
@@ -2259,14 +2309,14 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
-  mRoomGui(nullptr)
+  mRoomGui(nullptr), mMeeting(aChat.isMeeting())
 {
     bool isPublicChat = aChat.isPublicChat();
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
     db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
-             "own_priv, ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
-             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
+             "own_priv, ts_created, archived, mode, meeting) values(?,?,-1,0,?,?,?,?,?)",
+             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat, mMeeting);
     db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
 
     // Initialize list of peers and fetch their names
@@ -2330,9 +2380,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 //Resume from cache
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
-    const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted)
+    const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting)
     : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived)
-    , mRoomGui(nullptr)
+    , mRoomGui(nullptr), mMeeting(meeting)
 {
     // Initialize list of peers
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
@@ -2363,9 +2413,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey)
+    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting)
   : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title)
-  , mRoomGui(nullptr)
+  , mRoomGui(nullptr), mMeeting(meeting)
 {
     Buffer unifiedKeyBuf;
     unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
@@ -2376,8 +2426,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     auto db = parent.mKarereClient.db;
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
-        "own_priv, ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
-        mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
+        "own_priv, ts_created, mode, unified_key, meeting) values(?,?,-1,0,?,?,2,?,?)",
+        mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf, mMeeting);
 
     initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
@@ -2779,10 +2829,10 @@ void ChatRoomList::loadFromDb()
     while(stmtPreviews.step())
     {
         Id chatid = stmtPreviews.uint64Col(0);
-        previewCleanup(chatid);
+        deleteRoomFromDb(chatid);
     }
 
-    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key from chats");
+    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key, meeting from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -2829,7 +2879,7 @@ void ChatRoomList::loadFromDb()
                 auxTitle.assign(posTitle, len);
             }
 
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted);
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted, stmt.intCol(10));
         }
         emplace(chatid, room);
     }
@@ -2971,7 +3021,7 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
     }, appCtx);
 }
 
-void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
+void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms, bool checkDeleted)
 {
     SetOfIds added; // out-param: records the new rooms added to the list
     addMissingRoomsFromApi(rooms, added);
@@ -2985,6 +3035,42 @@ void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
 
         ChatRoom *room = at(chatid);
         room->syncWithApi(*apiRoom);
+    }
+
+    if (checkDeleted)   // true only when list of rooms is complete, not for partial updates
+    {
+        SetOfIds removed;
+        for (auto &room : *this)
+        {
+            bool deleted = true;
+            for (int i = 0; i < rooms.size(); i++)
+            {
+                if (rooms.get(i)->getHandle() == room.first)
+                {
+                    deleted = false;
+                    break;
+                }
+            }
+            if (deleted)
+            {
+                removed.insert(room.first);
+            }
+        }
+        for (auto &chatid : removed)
+        {
+            auto it = find(chatid);
+            ChatRoom *chatroom = it->second;
+
+            // notfiy deleted chat
+            auto listItem = chatroom->roomGui();
+            if (listItem)
+                listItem->onChatDeleted();
+
+            // delete from the list, from RAM and from DB
+            erase(it);
+            delete chatroom;
+            deleteRoomFromDb(chatid);
+        }
     }
 }
 
@@ -3157,7 +3243,7 @@ GroupChatRoom::~GroupChatRoom()
 
     if (previewMode())
     {
-        parent.previewCleanup(mChatid);
+        parent.deleteRoomFromDb(mChatid);
     }
 
     if (parent.mKarereClient.mChatdClient)
@@ -3482,6 +3568,11 @@ unsigned long GroupChatRoom::numMembers() const
     return mPeers.size() + 1;
 }
 
+bool GroupChatRoom::isMeeting() const
+{
+    return mMeeting;
+}
+
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
     chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
@@ -3620,7 +3711,7 @@ bool GroupChatRoom::previewMode() const
     return mChat->previewMode();
 }
 
-void ChatRoomList::previewCleanup(Id chatid)
+void ChatRoomList::deleteRoomFromDb(const Id &chatid)
 {
     auto db = mKarereClient.db;
     if (db.isOpen())   // upon karere::Client destruction, DB is already closed
@@ -3677,6 +3768,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
                      ID_CSTR(chatid()), ID_CSTR(userid), member->mPriv, it->second);
 
+                onUserJoin(member->mHandle, it->second);
                 member->mPriv = it->second;
                 db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
             }
@@ -4394,8 +4486,8 @@ void Client::updateAliases(Buffer *data)
                 continue;
             }
 
-            const std::string &newAlias = tlvRecords->get(key);
-            if (mAliasesMap[userid] != newAlias)
+            std::string newAlias;
+            if (tlvRecords->get(key, newAlias) && mAliasesMap[userid] != newAlias)
             {
                 mAliasesMap[userid] = newAlias;
                 aliasesUpdated.emplace_back(userid);
@@ -4407,7 +4499,8 @@ void Client::updateAliases(Buffer *data)
         {
             Id userid = itAliases->first;
             auto it = itAliases++;
-            if (!tlvRecords->find(userid.toString()))
+            std::string dummyValue;
+            if (!tlvRecords->get(userid.toString(), dummyValue))
             {
                 mAliasesMap.erase(it);
                 aliasesUpdated.emplace_back(userid);

@@ -107,6 +107,7 @@ public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
     virtual bool isMember(karere::Id peerid) const = 0;
+    virtual bool isMeeting() const { return false; }
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
@@ -343,6 +344,7 @@ protected:
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
     bool mAutoJoining = false;
+    bool mMeeting = false;
 
     void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
@@ -374,13 +376,13 @@ protected:
     //Resume from cache
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
-                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
+                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting);
 
     //Load chatLink
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title,
-                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey);
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting);
 
     ~GroupChatRoom();
 
@@ -452,6 +454,8 @@ public:
     bool isMember(karere::Id peerid) const override;
 
     unsigned long numMembers() const override;
+
+    bool isMeeting() const override;
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -469,8 +473,8 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
-    void previewCleanup(karere::Id chatid);
-    void onChatsUpdate(mega::MegaTextChatList& chats);
+    void deleteRoomFromDb(const Id &chatid);
+    void onChatsUpdate(mega::MegaTextChatList& chats, bool checkDeleted = false);
 /** @endcond PRIVATE */
 };
 
@@ -1000,7 +1004,7 @@ public:
      * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
      * to avoid that openChatPreview creates the chat room
      */
-    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts);
+    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting);
 
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
@@ -1179,7 +1183,7 @@ protected:
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<int> initializeContactList();
 
-    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats);
+    bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats, bool forceReload);
     void commit(const std::string& scsn);
 
     /** @brief Does the actual connect, once the SDK is online.

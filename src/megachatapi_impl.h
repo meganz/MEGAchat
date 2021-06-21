@@ -271,7 +271,7 @@ protected:
     int64_t mInitialTs = 0;
     int64_t mFinalTs = 0;
     std::map<MegaChatHandle, std::unique_ptr<MegaChatSession>> mSessions;
-    std::map<MegaChatHandle, karere::AvFlags> mParticipants;
+    std::vector<MegaChatHandle> mParticipants;
     MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
     int mCallCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle mCallerId;
@@ -327,7 +327,7 @@ public:
     MegaChatListItemPrivate(karere::ChatRoom& chatroom);
     MegaChatListItemPrivate(const MegaChatListItem *item);
     virtual ~MegaChatListItemPrivate();
-    virtual MegaChatListItem *copy() const;
+    MegaChatListItem *copy() const override;
 
 private:
     int mChanged;
@@ -345,6 +345,7 @@ private:
     bool mPreviewMode;
     bool active;
     bool mArchived;
+    bool mDeleted;  // only true when chatlink is takendown (see removeGroupChatItem())
     bool mIsCallInProgress;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
     MegaChatHandle mLastMsgId;
@@ -370,6 +371,7 @@ public:
     virtual bool isPreview() const;
     virtual bool isActive() const;
     virtual bool isArchived() const;
+    bool isDeleted() const override;
     virtual bool isCallInProgress() const;
     virtual MegaChatHandle getPeerHandle() const;
     virtual int getLastMessagePriv() const;
@@ -385,6 +387,7 @@ public:
     void setClosed();
     void setLastTimestamp(int64_t ts);
     void setArchived(bool);
+    void setDeleted();
     void setCallInProgress();
 
     /**
@@ -416,6 +419,7 @@ public:
     virtual void onChatOnlineState(const chatd::ChatState state);
     virtual void onChatModeChanged(bool mode);
     virtual void onChatArchived(bool archived);
+    void onChatDeleted() const override;
     virtual void onPreviewersCountUpdate(uint32_t numPrev);
     virtual void onPreviewClosed();
 
@@ -703,6 +707,7 @@ public:
     bool hasCustomTitle() const override;
     bool isActive() const override;
     bool isArchived() const override;
+    bool isMeeting() const override;
     int64_t getCreationTs() const override;
 
     int getChanges() const override;
@@ -711,6 +716,7 @@ public:
     int getUnreadCount() const override;
     MegaChatHandle getUserHandle() const override;
     MegaChatHandle getUserTyping() const override;
+
     unsigned getRetentionTime() const override;
 
     void setRetentionTime(unsigned int period);
@@ -741,6 +747,7 @@ private:
     bool mArchived;
     bool mHasCustomTitle;
     int64_t mCreationTs;
+    bool mMeeting = false;
 
     std::string mTitle;
     int unreadCount;
@@ -1186,7 +1193,6 @@ public:
     void onNewCall(rtcModule::ICall& call) override;
     void onAddPeer(rtcModule::ICall& call, karere::Id peer) override;
     void onRemovePeer(rtcModule::ICall& call, karere::Id peer) override;
-    void onEndCall(rtcModule::ICall& call) override;
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
