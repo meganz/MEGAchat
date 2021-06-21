@@ -2525,8 +2525,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                             rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCall(callid);
                             assert(call);
                             opcode == OP_JOINEDCALL
-                                    ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, call->getCallid(), users)
-                                    : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, call->getCallid(), users);
+                                    ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, callid, users)
+                                    : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
                         })
                         .fail([] (const ::promise::Error &err)
                         {
@@ -2537,8 +2537,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                     else // if call already exists.
                     {
                         opcode == OP_JOINEDCALL
-                                ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, call->getCallid(), users)
-                                : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, call->getCallid(), users);
+                                ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, callid, users)
+                                : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
                     }
                 }
 
@@ -5782,7 +5782,7 @@ void Chat::setOnlineState(ChatState state)
                 }
                 else if (call->getState() == rtcModule::CallState::kStateClientNoParticipating && call->getParticipants().empty())
                 {
-                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::TermCode::kErrNoCall);
+                    mChatdClient.mKarereClient->rtc->removeCall(mChatId, rtcModule::TermCode::kErrNoCall);
                 }
             }
         }
@@ -6043,6 +6043,7 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(LEFTCALL);
         RET_ENUM_NAME(CALLSTATE);
         RET_ENUM_NAME(CALLEND);
+        RET_ENUM_NAME(DELCALLREASON);
         default: return "(invalid opcode)";
     };
 }

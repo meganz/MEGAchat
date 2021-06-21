@@ -360,7 +360,7 @@ public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rtcCryptoMeetings, const karere::Id &myHandle) override;
     ICall* findCall(karere::Id callid) override;
-    ICall* findCallByChatid(karere::Id chatid) override;
+    ICall* findCallByChatid(const karere::Id &chatid) override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) override;

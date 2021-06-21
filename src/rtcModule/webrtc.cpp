@@ -1733,7 +1733,7 @@ ICall *RtcModuleSfu::findCall(karere::Id callid)
     return nullptr;
 }
 
-ICall *RtcModuleSfu::findCallByChatid(karere::Id chatid)
+ICall *RtcModuleSfu::findCallByChatid(const karere::Id &chatid)
 {
     for (const auto& call : mCalls)
     {
