@@ -3048,7 +3048,9 @@ const char *MegaChatApiImpl::getUserAliasFromCache(MegaChatHandle userhandle)
             Id userid(key.data());
             if (userid == userhandle)
             {
-                 return MegaApi::strdup(tlvRecords->get(key.c_str()).c_str());
+                string value;
+                tlvRecords->get(key.c_str(), value);
+                return MegaApi::strdup(value.c_str());
             }
         }
     }
