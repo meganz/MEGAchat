@@ -487,6 +487,11 @@ const char *MegaChatApi::getUserAliasFromCache(MegaChatHandle userhandle)
     return pImpl->getUserAliasFromCache(userhandle);
 }
 
+::mega::MegaStringMap *MegaChatApi::getUserAliasesFromCache()
+{
+    return pImpl->getUserAliasesFromCache();
+}
+
 void MegaChatApi::loadUserAttributes(MegaChatHandle chatid, MegaHandleList* userList, MegaChatRequestListener *listener)
 {
     pImpl->loadUserAttributes(chatid, userList, listener);
