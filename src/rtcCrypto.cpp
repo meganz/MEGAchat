@@ -81,8 +81,9 @@ std::string RtcCryptoMeetings::keyToStr(const strongvelope::SendKey& key)
     return std::string(key.buf(), key.dataSize());
 }
 
-strongvelope::SendKey RtcCryptoMeetings::strToKey(const std::string& keystr)
+void RtcCryptoMeetings::strToKey(const std::string& keystr, strongvelope::SendKey &res)
 {
-    return strongvelope::SendKey(keystr.data(), keystr.size());
+    res.setDataSize(keystr.size());
+    memcpy(res.ubuf(), keystr.data(), keystr.size());
 }
 }

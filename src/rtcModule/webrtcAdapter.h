@@ -33,6 +33,12 @@ namespace std
 
 namespace artc
 {
+#if USE_CRYPTOPP && (CRYPTOPP_VERSION >= 600) && (__cplusplus >= 201103L)
+using byte = CryptoPP::byte;
+#else
+typedef unsigned char byte;
+#endif
+
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 
 extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
@@ -40,6 +46,7 @@ extern std::unique_ptr<rtc::Thread> gWorkerThread;
 extern std::unique_ptr<rtc::Thread> gSignalingThread;
 extern rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing;
 extern void* gAppCtx;
+extern std::string gFieldTrialStr;
 
 /** Globally initializes the library */
 bool init(void *appCtx);
@@ -326,10 +333,10 @@ public:
     void incrementPacketCtr();
 
     // generates a header for a new frame, you take the ownership of returned value
-    CryptoPP::byte *generateHeader();
+    byte *generateHeader();
 
     // generates an IV for a new frame, you take the ownership of returned value
-    CryptoPP::byte *generateFrameIV();
+    byte *generateFrameIV();
 
     // encrypts a received frame
     int Encrypt(cricket::MediaType media_type,
@@ -380,7 +387,7 @@ public:
     bool validateAndProcessHeader(rtc::ArrayView<const uint8_t> header);
 
     // rebuild the IV for a received frame, you take the ownership of returned value
-    std::shared_ptr<CryptoPP::byte> generateFrameIV();
+    std::shared_ptr<byte> generateFrameIV();
 
     // decrypts a received frame
     Result Decrypt(cricket::MediaType media_type,

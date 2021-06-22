@@ -24,6 +24,7 @@ public:
     promise::Promise<Buffer*> getCU25519PublicKey(const karere::Id &peer) override;
     static std::string keyToStr(const strongvelope::SendKey& key);
     static strongvelope::SendKey strToKey(const std::string& keystr);
+    static void strToKey(const std::string& keystr, strongvelope::SendKey &res);
 };
 }
 #endif // MEGACRYPTOFUNCTIONS_H

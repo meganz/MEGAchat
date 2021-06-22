@@ -538,13 +538,16 @@ void MainWindow::on_bSettings_clicked()
     QMenu *chatMenu = menu.addMenu("Chats");
 
     auto actPeerChat = chatMenu->addAction(tr("Create 1on1 chat (EKR on)"));
-    connect(actPeerChat, &QAction::triggered, this, [=](){onAddChatRoom(false,false);});
+    connect(actPeerChat, &QAction::triggered, this, [=](){onAddChatRoom(false, false, false);});
 
     auto actGroupChat = chatMenu->addAction(tr("Create group chat (EKR on)"));
-    connect(actGroupChat, &QAction::triggered, this, [=](){onAddChatRoom(true, false);});
+    connect(actGroupChat, &QAction::triggered, this, [=](){onAddChatRoom(true, false, false);});
 
     auto actPubChat = chatMenu->addAction(tr("Create public chat (EKR off)"));
-    connect(actPubChat, &QAction::triggered, this, [=](){onAddChatRoom(true, true);});
+    connect(actPubChat, &QAction::triggered, this, [=](){onAddChatRoom(true, true, false);});
+
+    auto actMeetingRoom = chatMenu->addAction(tr("Create meeting room (EKR off)"));
+    connect(actMeetingRoom, &QAction::triggered, this, [=](){onAddChatRoom(true, true, true);});
 
     auto actPreviewChat = chatMenu->addAction(tr("Preview chat-link"));
     connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
@@ -628,6 +631,13 @@ void MainWindow::on_bSettings_clicked()
         auto confirmAccount = menu.addAction("Confirm account");
         connect(confirmAccount, SIGNAL(triggered()), this, SLOT(onConfirmAccountClicked()));
 
+    }
+
+    if (mMegaChatApi->getInitState() == MegaChatApi::INIT_ANONYMOUS)
+    {
+        menu.addSeparator();
+        auto joinAsGuest = menu.addAction("Join as guest");
+        connect(joinAsGuest, SIGNAL(triggered()), this, SLOT(onJoinAsGuest()));
     }
 
     QPoint pos = ui->bSettings->pos();
@@ -875,7 +885,7 @@ ChatItemWidget *MainWindow::addQtChatWidget(const MegaChatListItem *chatListItem
 
 void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
 {
-    int oldPriv;
+    int oldPriv = megachat::MegaChatRoom::PRIV_UNKNOWN;
     ChatItemWidget *widget = nullptr;
     ChatListItemController *itemController = getChatControllerById(item->getChatId());
 
@@ -891,13 +901,8 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
     }
     itemController = addOrUpdateChatControllerItem(item->copy());
 
-    bool needreorder = needReorder(item, oldPriv);
-    if ((!mAllowOrder && needreorder) || (!needreorder && !widget))
-    {
-        return;
-    }
-
-    if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PREVIEW_CLOSED))
+    if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PREVIEW_CLOSED)
+            || item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_DELETED))
     {
         ChatWindow * auxWindow = itemController->getChatWindow();
         if(auxWindow)
@@ -911,6 +916,11 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         return;
     }
 
+    bool needreorder = needReorder(item, oldPriv);
+    if ((!mAllowOrder && needreorder) || (!needreorder && !widget))
+    {
+        return;
+    }
 
     // If we don't need to reorder and chatItemwidget is rendered
     // we need to update the widget because non order actions requires
@@ -968,6 +978,7 @@ bool MainWindow::needReorder(MegaChatListItem *newItem, int oldPriv)
     if(newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CLOSED)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE)
+         || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_DELETED)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE)
          || (newItem->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)         
@@ -993,11 +1004,11 @@ void MainWindow::activeControls(bool active)
     }
 }
 
-void MainWindow::onAddChatRoom(bool isGroup, bool isPublic)
+void MainWindow::onAddChatRoom(bool isGroup, bool isPublic, bool isMeeting)
 {
-    ::mega::MegaUserList *list = mMegaApi->getContacts();
-    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, isGroup, isPublic, mMegaChatApi);
-    chatDialog->createChatList(list);
+    std::unique_ptr<::mega::MegaUserList> list(mMegaApi->getContacts());
+    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, isGroup, isPublic, isMeeting, mMegaChatApi);
+    chatDialog->createChatList(list.get());
     chatDialog->show();
 }
 
@@ -1426,4 +1437,17 @@ void MainWindow::onCancelAccountConfirmation()
 {
     mConfirmAccount->deleteLater();
     mConfirmAccount = nullptr;
+}
+
+void MainWindow::onJoinAsGuest()
+{
+    mApp->setJoinAsGuest(true);
+    QString text = QInputDialog::getText(this, tr("Guest user name"), tr("Enter the guest user name: "));
+    if (text == "")
+    {
+        return;
+    }
+
+    mApp->setGuestName(text.toStdString());
+    mMegaChatApi->logout(); // upon onRequestFinish, it calls createEphemeralAccountPlusPlus()
 }

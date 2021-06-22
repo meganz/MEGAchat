@@ -1200,9 +1200,13 @@ promise::Promise<void> SfuConnection::connect()
     });
 }
 
-void SfuConnection::disconnect()
+void SfuConnection::disconnect(bool withoutReconnection)
 {
     setConnState(kDisconnected);
+    if (withoutReconnection)
+    {
+        abortRetryController();
+    }
 }
 
 void SfuConnection::doConnect()
@@ -1758,7 +1762,6 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         {
             wsDisconnect(true);
         }
-
     }
     else if (mConnState == kConnected)
     {
