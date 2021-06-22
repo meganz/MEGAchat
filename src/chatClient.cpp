@@ -357,6 +357,17 @@ bool Client::openDb(const std::string& sid)
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "11" && (strcmp(gDbSchemaVersionSuffix, "12") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // Add tls session blob to dns_cache table
+                db.query("ALTER TABLE `dns_cache` ADD sess_data blob");
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -1141,6 +1152,12 @@ void Client::initWithDbSession(const char* sid)
         mContactList->loadFromDb();
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
+
+        if (websocketIO && websocketIO->hasSessionCache())
+        {
+            auto&& sessions = mDnsCache.getTlsSessions();
+            websocketIO->restoreSessions(std::move(sessions));
+        }
 
         // Get aliases from cache
         mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
@@ -3713,6 +3730,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
                      ID_CSTR(chatid()), ID_CSTR(userid), member->mPriv, it->second);
 
+                onUserJoin(member->mHandle, it->second);
                 member->mPriv = it->second;
                 db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
             }
@@ -4421,8 +4439,8 @@ void Client::updateAliases(Buffer *data)
                 continue;
             }
 
-            const std::string &newAlias = tlvRecords->get(key);
-            if (mAliasesMap[userid] != newAlias)
+            std::string newAlias;
+            if (tlvRecords->get(key, newAlias) && mAliasesMap[userid] != newAlias)
             {
                 mAliasesMap[userid] = newAlias;
                 aliasesUpdated.emplace_back(userid);
@@ -4434,7 +4452,8 @@ void Client::updateAliases(Buffer *data)
         {
             Id userid = itAliases->first;
             auto it = itAliases++;
-            if (!tlvRecords->find(userid.toString()))
+            std::string dummyValue;
+            if (!tlvRecords->get(userid.toString(), dummyValue))
             {
                 mAliasesMap.erase(it);
                 aliasesUpdated.emplace_back(userid);
