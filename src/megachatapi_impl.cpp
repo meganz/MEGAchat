@@ -7983,14 +7983,16 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
+    bool ownChange = (userid == chatApi.getMyUserHandle());
+
     // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
-    if (mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
+    if (!ownChange && mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
     {
         return;
     }
 
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
-    if (userid == chatApi.getMyUserHandle())
+    if (ownChange)
     {
         item->setOwnPriv(priv);
     }
