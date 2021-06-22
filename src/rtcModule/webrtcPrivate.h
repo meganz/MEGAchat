@@ -191,6 +191,8 @@ public:
     CallState getState() const override;
     void addParticipant(karere::Id peer) override;
     void removeParticipant(karere::Id peer) override;
+    void disconnectFromChatd() override;
+    void reconnectToSfu() override;
     promise::Promise<void> hangup() override;
     promise::Promise<void> endCall() override;
     promise::Promise<void> join(karere::AvFlags avFlags) override;
@@ -243,6 +245,8 @@ public:
     void createTransceiver();
     void getLocalStreams();
     void disconnect(TermCode termCode, const std::string& msg = "");
+    void handleCallDisconnect();
+
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
     sfu::Peer &getMyPeer();
@@ -251,7 +255,8 @@ public:
     void takeVideoDevice();
     void releaseVideoDevice();
     bool hasVideoDevice();
-    void freeTracks();
+    void freeVideoTracks(bool releaseSlots = false);
+    void freeAudioTrack(bool releaseSlot = false);
     void updateVideoTracks();
     void requestPeerTracks(const std::set<Cid_t> &cids);
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
@@ -406,7 +411,8 @@ private:
     std::unique_ptr<sfu::SfuClient> mSfuClient;
     std::string mVideoDeviceSelected;
     rtc::scoped_refptr<artc::VideoManager> mVideoDevice;
-    unsigned int mDeviceCount = 0;
+    // count of times the device has been taken (without being released)
+    unsigned int mDeviceTakenCount = 0;
     std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;

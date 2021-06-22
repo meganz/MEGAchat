@@ -417,6 +417,7 @@ protected:
     virtual void wsHandleMsgCb(char *data, size_t len);
     virtual void wsSendMsgCb(const char *, size_t) {}
     virtual void wsProcessNextMsgCb() {}
+    bool wsSSLsessionUpdateCb(const CachedSession &sess) override;
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();

@@ -12,13 +12,14 @@ class ChatGroupDialog : public QDialog
 {
     Q_OBJECT
     protected:
+        Ui::ChatGroupDialog *ui;
         megachat::MegaChatApi * mMegaChatApi;
         MainWindow *mMainWin;
-        Ui::ChatGroupDialog *ui;
         bool mIsGroup;
         bool mIsPublic;
+        bool mIsMeeting;
     public:
-        ChatGroupDialog(QWidget *parent, bool isGroup, bool isPublic, ::megachat::MegaChatApi *megachatApi);
+        ChatGroupDialog(QWidget *parent, bool isGroup, bool isPublic, bool isMeeting, ::megachat::MegaChatApi *megachatApi);
         ~ChatGroupDialog();
         void createChatList(::mega::MegaUserList* contactList);
     private slots:

@@ -30,6 +30,8 @@ rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = null
 std::unique_ptr<rtc::Thread> gWorkerThread = nullptr;
 std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
 rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing = nullptr;
+std::string gFieldTrialStr;
+
 void *gAppCtx = nullptr;
 
 static bool gIsInitialized = false;
@@ -44,9 +46,11 @@ bool init(void *appCtx)
 
     if (gWebrtcContext == nullptr)
     {
-        // Note: trials_string must never be destroyed.
-        std::string *fieldTrial = new std::string(webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/", "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/"));
-        webrtc::field_trial::InitFieldTrialsFromString(fieldTrial->c_str());
+        // Enable SVC encoding with the following configuration (3 spatial Layers | 3 temporal Layers)
+        gFieldTrialStr = (webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/", "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/"));
+        gFieldTrialStr = webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-Video-DisableAutomaticResize/Enabled/", gFieldTrialStr.c_str());
+        webrtc::field_trial::InitFieldTrialsFromString(gFieldTrialStr.c_str()); // trials_string must never be destroyed.
+
         gWorkerThread = rtc::Thread::Create();
         gWorkerThread->Start();
         gSignalingThread = rtc::Thread::Create();
@@ -415,7 +419,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t ssrc, rtc::Ar
     }
 
     // add header to the output
-    const CryptoPP::byte *headerPtr= header.get();
+    const byte *headerPtr= header.get();
     for (size_t i = 0; i < FRAME_HEADER_LENGTH; i++)
     {
         encrypted_frame[i] = static_cast<uint8_t>(headerPtr[i]);
