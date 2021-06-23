@@ -5352,3 +5352,8 @@ void MockupCall::handleSfuConnected()
 {
 
 }
+
+bool MockupCall::error(unsigned int)
+{
+    return true;
+}
