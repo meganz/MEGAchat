@@ -858,7 +858,6 @@ void Call::handleCallDisconnect()
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
-    Stats::mConnStatsReady = true;
     mStats.mTerCode = static_cast<int32_t>(termCode);
     mStats.mDuration = time(nullptr) - mInitialTs;
     mMegaApi.sdk.sendChatStats(mStats.getJson().c_str(), 1378);
@@ -1693,7 +1692,10 @@ void Call::enableStats()
         mStats.mSamples.mNrxh.push_back(hiResSession);
         mStats.mSamples.mAv.push_back(mLocalAvFlags.value());
 
-        Stats::mConnStatsReady = true;
+
+        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
+        mRtcConn->GetStats(mStatConnCallback.get());
+
         mStatVideoReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteVideoStatsCallBack(&mStats));
         for (auto& slot : mReceiverTracks)
         {
@@ -1723,6 +1725,7 @@ void Call::disableStats()
         static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
         static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
         static_cast<RemoteVideoStatsCallBack*>(mStatVideoReceiverCallback.get())->removeStats();
+        static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
     }
 }
 

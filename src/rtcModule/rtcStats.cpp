@@ -6,8 +6,6 @@
 namespace  rtcModule
 {
 
-bool Stats::mConnStatsReady = true;
-
 RtcStatCallback::RtcStatCallback(Stats *stats)
     : mStats(stats)
 {
@@ -33,38 +31,6 @@ rtc::RefCountReleaseStatus RtcStatCallback::Release() const
     }
 
     return status;
-}
-bool RtcStatCallback::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it)
-{
-    if (mStats->mInitialTs == 0)
-    {
-        mStats->mInitialTs = it->timestamp_us();
-
-    }
-
-    std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
-    mStats->mSamples.mT.push_back((it->timestamp_us() - mStats->mInitialTs)/ 1000);
-    for (const webrtc::RTCStatsMemberInterface* member : members)
-    {
-        if (strcmp(member->name(), "currentRoundTripTime") == 0)
-        {
-            mStats->mSamples.mRoundTripTime.push_back(*member->cast_to<const webrtc::RTCStatsMember<double>>() * 1000);
-        }
-        else if (strcmp(member->name(), "availableOutgoingBitrate") == 0)
-        {
-            mStats->mSamples.mOutGoingBitrate.push_back(round(static_cast<double>(*member->cast_to<const webrtc::RTCStatsMember<double>>()) / 128.0));
-        }
-        else if (strcmp(member->name(), "bytesReceived") == 0)
-        {
-            mStats->mSamples.mBytesReceived.push_back(*member->cast_to<const webrtc::RTCStatsMember<uint64_t>>() / 128);
-        }
-        else if (strcmp(member->name(), "bytesSent") == 0)
-        {
-            mStats->mSamples.mBytesSend.push_back(*member->cast_to<const webrtc::RTCStatsMember<uint64_t>>() / 128);
-        }
-    }
-
-    return true;
 }
 
 LocalVideoStatsCallBack::LocalVideoStatsCallBack(Stats* stats, bool hiRes)
@@ -136,14 +102,6 @@ void LocalVideoStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const we
                 }
             }
         }
-
-        else if (strcmp(it->type(), "candidate-pair") == 0)
-        {
-            if (Stats::mConnStatsReady)
-            {
-                Stats::mConnStatsReady = !getConnStats(it);
-            }
-        }
     }
 }
 
@@ -200,13 +158,6 @@ void RemoteVideoStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const w
                 {
                     keyFramesDecoded = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
                 }
-            }
-        }
-        else if (strcmp(it->type(), "candidate-pair") == 0)
-        {
-            if (Stats::mConnStatsReady)
-            {
-                Stats::mConnStatsReady = !getConnStats(it);
             }
         }
     }
@@ -320,7 +271,6 @@ void Stats::clear()
     mSamples.mVtxLowResh.clear();
     mTerCode = 0;
     mIsGroup = false;
-    mConnStatsReady = false;
     mInitialTs = 0;
 }
 
@@ -387,6 +337,77 @@ void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &
 
         lastIndex = i;
         lastValue = datas[i];
+    }
+}
+
+ConnStatsCallBack::ConnStatsCallBack(Stats *stats)
+    : RtcStatCallback(stats)
+{
+
+}
+
+ConnStatsCallBack::~ConnStatsCallBack()
+{
+
+}
+
+void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport> &report)
+{
+    if (!mStats)
+    {
+        return;
+    }
+
+    mStats->mSamples.mRoundTripTime.push_back(0.0);
+    mStats->mSamples.mOutGoingBitrate.push_back(0.0);
+    mStats->mSamples.mBytesReceived.push_back(0);
+    mStats->mSamples.mBytesSend.push_back(0);
+
+    if (mStats->mInitialTs == 0)
+    {
+        mStats->mInitialTs = report->timestamp_us();
+    }
+
+    mStats->mSamples.mT.push_back((report->timestamp_us() - mStats->mInitialTs)/ 1000);
+
+    for (auto it = report->begin(); it != report->end(); it++)
+    {
+        if (strcmp(it->type(), "candidate-pair") == 0)
+        {
+            double rtt = 0.0;
+            double txBwe = 0.0;
+            int64_t bytesRecv = 0;
+            int64_t bytesSend = 0;
+            getConnStats(it, rtt, txBwe, bytesRecv, bytesSend);
+            mStats->mSamples.mRoundTripTime.back() += rtt;
+            mStats->mSamples.mOutGoingBitrate.back() += txBwe;
+            mStats->mSamples.mBytesReceived.back() += bytesRecv;
+            mStats->mSamples.mBytesSend.back() += bytesSend;
+        }
+    }
+}
+
+void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double txBwe, int64_t& bytesRecv, int64_t& bytesSend)
+{
+    std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
+    for (const webrtc::RTCStatsMemberInterface* member : members)
+    {
+        if (strcmp(member->name(), "currentRoundTripTime") == 0)
+        {
+            rtt = *member->cast_to<const webrtc::RTCStatsMember<double>>() * 1000;
+        }
+        else if (strcmp(member->name(), "availableOutgoingBitrate") == 0)
+        {
+            txBwe = round(static_cast<double>(*member->cast_to<const webrtc::RTCStatsMember<double>>()) / 128.0);
+        }
+        else if (strcmp(member->name(), "bytesReceived") == 0)
+        {
+           bytesRecv = *member->cast_to<const webrtc::RTCStatsMember<uint64_t>>() / 128;
+        }
+        else if (strcmp(member->name(), "bytesSent") == 0)
+        {
+            bytesSend = *member->cast_to<const webrtc::RTCStatsMember<uint64_t>>() / 128;
+        }
     }
 }
 

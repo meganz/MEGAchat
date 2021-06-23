@@ -45,7 +45,6 @@ namespace rtcModule
         int32_t mTerCode = 0;
         bool mIsGroup = false;
         int64_t mInitialTs = 0;
-        static bool mConnStatsReady;
 
     protected:
         void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<int32_t>* periods = nullptr);
@@ -89,7 +88,6 @@ namespace rtcModule
         rtc::RefCountReleaseStatus Release() const override;
 
     protected:
-        bool getConnStats(const webrtc::RTCStatsReport::ConstIterator& it);
         Stats* mStats;
 
     private:
@@ -111,6 +109,16 @@ namespace rtcModule
         RemoteVideoStatsCallBack(Stats* stats);
         ~RemoteVideoStatsCallBack();
         void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
+    };
+
+    class ConnStatsCallBack : public RtcStatCallback
+    {
+    public:
+        ConnStatsCallBack(Stats* stats);
+        ~ConnStatsCallBack();
+        void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
+    protected:
+        void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double &rtt, double txBwe, int64_t &bytesRecv, int64_t &bytesSend);
     };
 }
 

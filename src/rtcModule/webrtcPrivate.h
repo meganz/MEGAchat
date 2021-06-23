@@ -351,6 +351,7 @@ protected:
     std::map<std::string, RxStat> mPrevRemoteRxStas;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatVThumbSenderCallBack;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatHiResSenderCallBack;
+    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     TxStat mHiResTxStats;
     TxStat mPrevHiResTxStats;
     Stats mStats;
