@@ -1640,12 +1640,6 @@ promise::Promise<void> Client::doConnect()
         heartbeat();
     }, kHeartbeatTimeout, appCtx);
 
-#ifndef KARERE_DISABLE_WEBRTC
-// Create the rtc module
-    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
-    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this), myHandle());
-#endif
-
     if (anonymousMode())
     {
         // avoid to connect to presenced (no user, no peerstatus)
@@ -1653,6 +1647,12 @@ promise::Promise<void> Client::doConnect()
         setConnState(kConnected);
         return ::promise::_Void();
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
+    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this), myHandle());
+#endif
 
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
