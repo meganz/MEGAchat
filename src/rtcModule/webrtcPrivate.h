@@ -77,17 +77,19 @@ public:
     Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     virtual ~Slot();
     void createEncryptor(const sfu::Peer &peer);
-    void createDecryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
     void assign(Cid_t cid, IvStatic_t iv);
     bool hasTrack(bool send);
     void createDecryptor(Cid_t cid, IvStatic_t iv);
-    void enableAudioMonitor(bool enable);
-    void enableTrack(bool enable, TrackDirection direction);
     IvStatic_t getIv() const;
     void generateRandomIv();
     virtual void release();
+
+private:
+    void createDecryptor();
+    void enableAudioMonitor(bool enable);
+    void enableTrack(bool enable, TrackDirection direction);
 
 protected:
     Call &mCall;
