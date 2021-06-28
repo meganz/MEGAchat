@@ -460,7 +460,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             s->blob = nullptr; // stored or not, don't keep it in memory
             break;
         }
-        case LWS_CALLBACK_CLOSED:
+        case LWS_CALLBACK_CLIENT_CLOSED:
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         {
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;
