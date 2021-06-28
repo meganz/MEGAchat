@@ -137,6 +137,7 @@ public:
     virtual bool handleError(unsigned int , const std::string) = 0;
     virtual bool handleModerator(Cid_t cid, bool moderator) = 0;
     virtual void handleSfuConnected() = 0;
+    virtual bool error(unsigned int) = 0;
 };
 
     class Command
@@ -144,6 +145,7 @@ public:
     public:
         virtual bool processCommand(const rapidjson::Document& command) = 0;
         static std::string COMMAND_IDENTIFIER;
+        static std::string ERROR_IDENTIFIER;
         virtual ~Command();
         static std::string binaryToHex(uint64_t value);
         static uint64_t hexToBinary(const std::string& hex);

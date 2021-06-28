@@ -1270,6 +1270,17 @@ void Call::handleSfuConnected()
     joinSfu();
 }
 
+bool Call::error(unsigned int code)
+{
+    disconnect(static_cast<TermCode>(code), "Unknow reason");
+    if (mParticipants.empty())
+    {
+        mRtc.removeCall(mChatid, static_cast<TermCode>(code));
+    }
+
+    return true;
+}
+
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
     mVThumb->createEncryptor(getMyPeer());
