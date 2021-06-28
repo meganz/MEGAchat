@@ -729,12 +729,6 @@ public:
         {
             switch (request->getType())
             {
-            case c::MegaChatRequest::TYPE_CONNECT:
-                if (check_err("Connect", e))
-                {
-                    conlock(cout) << "Connection state " << api->getConnectionState() << endl;
-                }
-                break;
 
             case c::MegaChatRequest::TYPE_SET_ONLINE_STATUS:
                 if (check_err("SetChatStatus", e))
@@ -976,7 +970,6 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
         {
             conlock(cout) << "Connecting to chat servers" << endl;
             guard.unlock();
-            g_chatApi->connect(&g_chatListener);
 
             setprompt(COMMAND);
         }
@@ -1404,7 +1397,6 @@ void exec_initanonymous(ac::ACState& s)
     if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
     {
         g_chatApi->initAnonymous();
-        g_chatApi->connect(&g_chatListener);
     }
     else
     {

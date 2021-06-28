@@ -993,7 +993,7 @@ Client::InitState Client::initWithAnonymousSession()
     mMyHandle = Id::null(); // anonymous mode should use ownHandle set to all zeros
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this));
-    mSessionReadyPromise.resolve();
+    connect();
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
     return mInitState;
@@ -1226,7 +1226,7 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
             return kInitErrGeneric;
         }
 
-        mSessionReadyPromise.resolve();
+        connect();
         mInitStats.onCanceled();    // do not collect stats for this initialization mode
     }
 
@@ -1347,9 +1347,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 //              }
                 checkSyncWithSdkDb(scsn, *contactList, *chatList, false);
                 setInitState(kInitHasOnlineSession);
-                mSessionReadyPromise.resolve();
                 mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                 api.sdk.resumeActionPackets();
+
+                connect();
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
@@ -1358,16 +1359,17 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 initWithNewSession(sid.get(), scsn, contactList, chatList)
                 .fail([this](const ::promise::Error& err)
                 {
-                    mSessionReadyPromise.reject(err);
+                    KR_LOG_ERROR("Failed to initialize MEGAchat");
                     api.sdk.resumeActionPackets();
                     return err;
                 })
                 .then([this]()
                 {
                     setInitState(kInitHasOnlineSession);
-                    mSessionReadyPromise.resolve();
                     mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                     api.sdk.resumeActionPackets();
+
+                    connect();
                 });
             }
             else    // a full reload happened (triggered by API or by the user)
@@ -1514,63 +1516,30 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(bool isInBackground)
+void Client::connect()
 {
-    mIsInBackground = isInBackground;
-
+    // cancel stats if connection is done in background (not reliable times)
     if (mIsInBackground && !mInitStats.isCompleted())
     {
         mInitStats.onCanceled();
     }
 
-// only the first connect() needs to wait for the mSessionReadyPromise.
-// Any subsequent connect()-s (preceded by disconnect()) can initiate
-// the connect immediately
-    if (mConnState == kConnecting)      // already connecting, wait for completion
+    if (mConnState != kDisconnected)
     {
-        return mConnectPromise;
-    }
-    else if (mConnState == kConnected)  // nothing to do
-    {
-        return promise::_Void();
+        KR_LOG_WARNING("connect(): current state is %s", connStateToStr(mConnState));
+        return;
     }
 
-    assert(mConnState == kDisconnected);
-
-    auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
-    switch (sessDone)
-    {
-        case promise::kSucceeded:   // if session is ready...
-            return doConnect();
-
-        case promise::kFailed:      // if session failed...
-            return mSessionReadyPromise.error();
-
-        default:                    // if session is not ready yet... wait for it and then connect
-            assert(sessDone == promise::kNotResolved);
-            mConnectPromise = mSessionReadyPromise
-            .then([this]() mutable
-            {
-                return doConnect();
-            });
-            return mConnectPromise;
-    }
-}
-
-promise::Promise<void> Client::doConnect()
-{
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     mInitStats.stageStart(InitStats::kStatsConnection);
-
     setConnState(kConnecting);
-    assert(mSessionReadyPromise.succeeded());
-    assert(mUserAttrCache);
 
     // notify user-attr cache
-    assert(mUserAttrCache);
     mUserAttrCache->onLogin();
+
     connectToChatd();
 
+    // start heartbeats
     auto wptr = weakHandle();
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this, wptr]()
@@ -1590,7 +1559,7 @@ promise::Promise<void> Client::doConnect()
         // avoid to retrieve own user-attributes (no user, no attributes)
         // avoid to initialize WebRTC (no user, no calls)
         setConnState(kConnected);
-        return ::promise::_Void();
+        return;
     }
 
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
@@ -1608,24 +1577,9 @@ promise::Promise<void> Client::doConnect()
     rtc.reset(rtcModule::create(*this, app, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init();
 #endif
+    mPresencedClient.connect();
 
-    auto pms = mPresencedClient.connect()
-    .then([this, wptr]()
-    {
-        if (wptr.deleted())
-        {
-            return;
-        }
-
-        setConnState(kConnected);
-    })
-    .fail([this](const ::promise::Error& err)
-    {
-        setConnState(kDisconnected);
-        return err;
-    });
-
-    return pms;
+    setConnState(kConnected);
 }
 
 void Client::setConnState(ConnState newState)
@@ -1740,7 +1694,7 @@ uint64_t Client::initMyIdentity()
 promise::Promise<void> Client::loadOwnKeysFromApi()
 {
     return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
-    .then([this](ReqResult result) -> ApiPromise
+    .then([this](ReqResult result) -> promise::Promise<void>
     {
         auto keys = result->getMegaStringMap();
         auto cu25519 = keys->get("prCu255");
@@ -1759,10 +1713,7 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         if (b64len != 43)
             return ::promise::Error("prEd255 base64 key length is not 43 bytes");
         base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
-        return api.call(&mega::MegaApi::getUserData);
-    })
-    .then([this](ReqResult result) -> promise::Promise<void>
-    {
+
         // write to db
         db.query("insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
         db.query("insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
@@ -4267,7 +4218,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         }
     });
 
-    if (mTitleString.empty()) // user attrib fetch was not synchornous
+    if (mTitleString.empty()) // user attrib fetch was not synchronous
     {
         updateTitle(email);
         assert(!mTitleString.empty());

@@ -186,7 +186,6 @@ bool MegaChatApplication::initAnonymous(std::string chatlink)
     mSid = NULL;
 
     mMainWin->setWindowTitle("Anonymous mode");
-    mMegaChatApi->connect();
     mMegaChatApi->openChatPreview(chatlink.c_str());
     connect(mMainWin, SIGNAL(onAnonymousLogout()), this, SLOT(onAnonymousLogout()));
     mMainWin->show();
@@ -544,11 +543,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
 
                 mMegaApi->getPushNotificationSettings();
                 mMegaApi->fetchTimeZone();
-
-                if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
-                {
-                    mMegaChatApi->connect();
-                }
             }
             else
             {
@@ -683,11 +677,9 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 {
                     createEphemeralFile();
 
-                    if (!mSid)
-                    {
-                        mSid = mMegaApi->dumpSession();
-                        saveSid(mSid);
-                    }
+                    assert(!mSid);
+                    mSid = request->getSessionKey();
+                    saveSid(mSid);
                 }
 
                 api->fetchNodes();
@@ -736,22 +728,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 
     switch (reqType)
     {
-         case MegaChatRequest::TYPE_CONNECT:
-            if (error != MegaChatError::ERROR_OK)
-            {
-                QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection: ").append(e->getErrorString()));
-                init();
-            }
-            else
-            {
-                MegaUserList *contactList = mMegaApi->getContacts();
-                mMainWin->addOrUpdateContactControllersItems(contactList);
-                mMainWin->reorderAppContactList();
-                //Fetch alias attr
-                mMegaApi->getUserAttribute(::mega::MegaApi::USER_ATTR_ALIAS);
-                delete contactList;
-            }
-            break;
           case MegaChatRequest::TYPE_LOGOUT:
             if (error == MegaChatError::ERROR_OK)
             {

@@ -80,13 +80,13 @@ Promise<void> Client::fetchUrl()
     });
 }
 
-Promise<void> Client::connect()
+void Client::connect()
 {
     assert (mConnState == kConnNew);
-    return fetchUrl()
+    fetchUrl()
     .then([this]
     {
-        return reconnect()
+        reconnect()
         .fail([](const ::promise::Error& err)
         {
             PRESENCED_LOG_DEBUG("Presenced::connect(): Error connecting to server after getting URL: %s", err.what());

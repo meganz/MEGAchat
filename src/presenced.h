@@ -466,7 +466,7 @@ public:
     // connection's management
     bool isOnline() const { return (mConnState >= kConnected); }
     promise::Promise<void> fetchUrl();
-    promise::Promise<void> connect();
+    void connect();
     void disconnect();
     void doConnect();
     void retryPendingConnection(bool disconnect, bool refreshURL = false);
