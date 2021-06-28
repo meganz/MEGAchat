@@ -125,6 +125,16 @@ private:
     VideoResolution mVideoResolution = kUndefined;
 };
 
+
+/**
+ * @brief The Session class
+ *
+ * A session is used to manage the slots available for a peer
+ * in a all. It implements the ISession interface, and provides
+ * callbacks through the SessionHandler.
+ *
+ * The Session itself is created right before the CallHandler::onNewSession()
+ */
 class Session : public ISession
 {
 public:
@@ -144,8 +154,12 @@ public:
 
     void disableAudioSlot();
     void setSpeakRequested(bool requested);
+    void setAudioDetected(bool audioDetected);    
+    void notifyHiResReceived();
+    void notifyLowResReceived();
+    void disableVideoSlot(VideoResolution videoResolution);
 
-    // ISession methods
+    // ISession methods (called from intermediate layer, upon SessionHandler callbacks and others)
     karere::Id getPeerid() const override;
     Cid_t getClientid() const override;
     SessionState getState() const override;
@@ -153,26 +167,38 @@ public:
     bool isAudioDetected() const override;
     bool hasRequestSpeak() const override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
-    void setVideoRendererVthumb(IVideoRenderer *videoRederer) override;
-    void setVideoRendererHiRes(IVideoRenderer *videoRederer) override;
-    void setAudioDetected(bool audioDetected) override;
+    void setVideoRendererVthumb(IVideoRenderer *videoRenderer) override;
+    void setVideoRendererHiRes(IVideoRenderer *videoRenderer) override;
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
-    void notifyHiResReceived() override;
-    void notifyLowResReceived() override;
-    void disableVideoSlot(VideoResolution videoResolution) override;
 
 private:
+    // Data about the partipant in the call relative to this session
     sfu::Peer mPeer;
+
+    // ---- SLOTs -----
+    // Ownership is kept by the Call
+
     RemoteVideoSlot* mVthumSlot = nullptr;
     RemoteVideoSlot* mHiresSlot = nullptr;
     Slot* mAudioSlot = nullptr;
+
+    // To notify events about the session to the app (intermediate layer)
     std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
+
     bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
+
+    // Session starts directly in progress: the SFU sends the tracks immediately from new peer
     SessionState mState = kSessStateInProgress;
 };
 
+/**
+ * @brief The Call class
+ *
+ * This object is created upon OP_JOINEDCALL (or OP_CALLSTATE).
+ * It implements ICall interface for the intermediate layer.
+ */
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
@@ -185,65 +211,89 @@ public:
 
     Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
     virtual ~Call();
-    karere::Id getCallid() const override;
+
+
+    // ---- ICall methods ----
+
+
+    // sets a handler to receive callbacks about the call (takes ownership)
+    void setCallHandler(CallHandler* callHanlder) override;
+
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
-    bool isAudioDetected() const override;
     CallState getState() const override;
-    void addParticipant(karere::Id peer) override;
-    void removeParticipant(karere::Id peer) override;
-    void disconnectFromChatd() override;
-    void reconnectToSfu() override;
-    promise::Promise<void> hangup() override;
-    promise::Promise<void> endCall() override;
-    promise::Promise<void> join(karere::AvFlags avFlags) override;
+    // returns true if your user participates of the call
     bool participate() override;
-    void enableAudioLevelMonitor(bool enable) override;
-    void ignoreCall() override;
-    void setRinging(bool ringing) override;
-    void setOnHold() override;
-    void releaseOnHold() override;
-    bool isRinging() const override;
-    bool isIgnored() const override;
-    bool isAudioLevelMonitorEnabled() const override;
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
-    bool hasRequestSpeak() const override;
     TermCode getTermCode() const override;
 
+    // called upon reception of OP_JOINEDCALL from chatd
+    void addParticipant(karere::Id peer) override;
+    // called upon reception of OP_LEFTCALL from chatd
+    void removeParticipant(karere::Id peer) override;
+    // called from chatd::onDisconnect() to remove peers from the call when disconnected from chatd
+    void disconnectFromChatd() override;
+    // called from chatd::setState(online) to reconnect to SFU
+    void reconnectToSfu() override;
+
+    promise::Promise<void> hangup() override;
+    promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected
+    promise::Promise<void> join(karere::AvFlags avFlags) override;
+    void enableAudioLevelMonitor(bool enable) override;
+    bool isAudioLevelMonitorEnabled() const override;
+    bool isAudioDetected() const override;
+    void ignoreCall() override;
+    bool isIgnored() const override;
+    void setRinging(bool ringing) override;
+    bool isRinging() const override;
+    void setOnHold() override;
+    void releaseOnHold() override;
+
     void setCallerId(karere::Id callerid) override;
+    karere::Id getCallid() const override;
+    // request to speak, or cancels a previous request (add = false)
     void requestSpeaker(bool add = true) override;
-    bool isSpeakAllow() const override;
+    bool hasRequestSpeak() const override;
+    // allows to approve/deny requests to speak from other users (only allowed for moderators)
     void approveSpeakRequest(Cid_t cid, bool allow) override;
-    void stopSpeak(Cid_t cid = 0) override;
+    bool isSpeakAllow() const override; // true if request has been approved
+    void stopSpeak(Cid_t cid = 0) override; // after been approved
+    // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
     void requestHighResolutionVideo(Cid_t cid, int quality) override;
-    void requestHiResQuality(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
+    // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC)
+    void requestHiResQuality(Cid_t cid, int quality) override;
+    // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC)
     void requestSvcLayers(Cid_t cid, int layerIndex) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
-    Session* getSession(Cid_t cid);
-    bool isOutgoing() const override;
-    virtual int64_t getInitialTimeStamp() const override;
-    virtual int64_t getFinalTimeStamp() const override;
-    static const char *stateToStr(uint8_t state);
-
-    void setCallHandler(CallHandler* callHanlder) override;
+    bool isOutgoing() const override;   // true if your user started the call
+    int64_t getInitialTimeStamp() const override;
+    int64_t getFinalTimeStamp() const override;
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setAudioDetected(bool audioDetected) override;
+
+    // ------ end ICall methods -----
+
+    Session* getSession(Cid_t cid);
+
     void setState(CallState newState);
+    static const char *stateToStr(CallState state);
+
     void connectSfu(const std::string& sfuUrl);
     void joinSfu();
 
-    void createTransceiver();
-    void getLocalStreams();
+    void createTransceivers();  // both, for sending your audio/video and for receiving from participants
+    void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
+
     void disconnect(TermCode termCode, const std::string& msg = "");
     void handleCallDisconnect();
 
@@ -257,10 +307,12 @@ public:
     bool hasVideoDevice();
     void freeVideoTracks(bool releaseSlots = false);
     void freeAudioTrack(bool releaseSlot = false);
+    // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
     void requestPeerTracks(const std::set<Cid_t> &cids);
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
+    // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
@@ -326,9 +378,9 @@ protected:
     std::string mSdp;
     std::unique_ptr<Slot> mAudio;
     std::unique_ptr<Slot> mVThumb;
-    bool mVThumbActive = false;
+    bool mVThumbActive = false;  // true when sending low res video
     std::unique_ptr<Slot> mHiRes;
-    bool mHiResActive = false;
+    bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
     std::unique_ptr<AvailableTracks> mAvailableTracks;
@@ -352,6 +404,7 @@ protected:
     void addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker);
     void removeSpeaker(Cid_t cid);
     const std::string &getCallKey() const;
+    // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
     void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
 };

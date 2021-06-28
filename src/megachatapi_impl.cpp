@@ -4975,8 +4975,7 @@ void MegaChatApiImpl::stopLowResVideo(MegaChatHandle chatid, MegaHandleList *cli
 
 void MegaChatApiImpl::onNewCall(rtcModule::ICall &call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    call.setCallHandler(new MegaChatCallHandler(this));
+    call.setCallHandler(new MegaChatCallHandler(this)); // takes ownership
 }
 
 void MegaChatApiImpl::onAddPeer(rtcModule::ICall &call, Id peer)
@@ -8862,7 +8861,8 @@ void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
 void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModule::ICall &call)
 {
     MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);
-    sess.setSessionHandler(sessionHandler);
+    sess.setSessionHandler(sessionHandler); // takes ownership, destroyed after onDestroySession()
+
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(sess);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_STATUS);
     mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());

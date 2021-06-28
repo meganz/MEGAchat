@@ -8,7 +8,7 @@
 
 // MEGA Meetings types
 typedef uint8_t Keyid_t;        // 8-bit id of the encryption key
-typedef uint32_t Cid_t;         // 24-bit client id (CID) for meetings
+typedef uint32_t Cid_t;         // 24-bit client id (CID) for meetings (identifies a user in a call)
 typedef uint64_t IvStatic_t;    // IV static part (8 bytes)
 typedef uint32_t Ctr_t;         // packet Ctr (4 bytes)
 

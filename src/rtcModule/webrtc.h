@@ -96,12 +96,8 @@ public:
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
-    virtual void setAudioDetected(bool audioDetected) = 0;
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
-    virtual void notifyHiResReceived() = 0;
-    virtual void notifyLowResReceived() = 0;
-    virtual void disableVideoSlot(VideoResolution hires) = 0;
 };
 
 class ICall;

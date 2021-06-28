@@ -130,14 +130,16 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
     , mSfuClient(rtc.getSfuClient())
+    , mAvailableTracks(mega::make_unique<AvailableTracks>())
     , mMyPeer()
+    , mCallKey(callKey ? *callKey : std::string())
     , mRtc(rtc)
 {
-    mAvailableTracks.reset(new AvailableTracks());
-    mCallKey = callKey ? (*callKey.get()) : std::string();
+    // notify the IGlobalCallHandler (intermediate layer), which register the listener
+    // CallHandler to receive notifications about the call
     mGlobalCallHandler.onNewCall(*this);
+
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
-    mSessions.clear();
 }
 
 Call::~Call()
@@ -428,7 +430,7 @@ int64_t Call::getFinalTimeStamp() const
     return mFinalTs;
 }
 
-const char *Call::stateToStr(uint8_t state)
+const char *Call::stateToStr(CallState state)
 {
     switch(state)
     {
@@ -555,17 +557,19 @@ void Call::requestHighResolutionVideo(Cid_t cid, int quality)
     Session *sess= getSession(cid);
     if (!sess)
     {
+        RTCM_LOG_ERROR("requestHighResolutionVideo: session not found for %d", cid);
         return;
     }
 
     if (quality < kCallQualityHighDef || quality > kCallQualityHighLow)
     {
-        RTCM_LOG_WARNING("requestHighResolutionVideo: invalid resolution divider value (spatial layer offset).");
+        RTCM_LOG_WARNING("requestHighResolutionVideo: invalid resolution divider value (spatial layer offset): %d", quality);
         return;
     }
 
     if (sess->hasHighResolutionTrack())
     {
+        RTCM_LOG_WARNING("High res video requested, but already available");
         sess->notifyHiResReceived();
     }
     else
@@ -604,7 +608,7 @@ void Call::stopHighResolutionVideo(std::vector<Cid_t> &cids)
         else if (!sess->hasHighResolutionTrack())
         {
             it = cids.erase(auxit);
-            sess->notifyHiResReceived();
+            sess->notifyHiResReceived();    // also used to notify there's no video anymore
         }
     }
     if (!cids.empty())
@@ -749,7 +753,7 @@ void Call::joinSfu()
     webrtc::PeerConnectionInterface::IceServers iceServer;
     mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
 
-    createTransceiver();
+    createTransceivers();
     mSpeakerState = SpeakerState::kPending;
     getLocalStreams();
     setState(CallState::kStateJoining);
@@ -790,18 +794,16 @@ void Call::joinSfu()
     });
 }
 
-void Call::createTransceiver()
+void Call::createTransceivers()
 {
+    // create your transceivers for sending (and receiving)
+
     webrtc::RtpTransceiverInit transceiverInitVThumb;
     transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> err
             = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitVThumb);
-
-    if (err.ok())
-    {
-        mVThumb = ::mega::make_unique<RemoteVideoSlot>(*this, err.MoveValue());
-        mVThumb->generateRandomIv();
-    }
+    mVThumb = ::mega::make_unique<RemoteVideoSlot>(*this, err.MoveValue());
+    mVThumb->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitHiRes;
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
@@ -815,6 +817,7 @@ void Call::createTransceiver()
     mAudio = ::mega::make_unique<Slot>(*this, err.MoveValue());
     mAudio->generateRandomIv();
 
+    // create transceivers for receiving audio from peers
     for (int i = 0; i < RtcConstant::kMaxCallAudioSenders; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
@@ -822,6 +825,7 @@ void Call::createTransceiver()
         mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_AUDIO, transceiverInit);
     }
 
+    // create transceivers for receiving video from peers
     for (int i = 0; i < RtcConstant::kMaxCallVideoSenders; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
@@ -1640,6 +1644,7 @@ void Call::updateVideoTracks()
         }
         else if (!mHiResActive)
         {
+            // if there is a track, but none in the call has requested hi res video, disable the track
             mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
         }
 
@@ -1654,10 +1659,11 @@ void Call::updateVideoTracks()
         }
         else if (!mVThumbActive)
         {
+            // if there is a track, but none in the call has requested low res video, disable the track
             mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
         }
     }
-    else
+    else    // no video from camera (muted or not available), or call on-hold
     {
         freeVideoTracks();
         releaseVideoDevice();
@@ -1688,7 +1694,7 @@ void Call::updateAudioTracks()
             track->set_enabled(true);
         }
     }
-    else if (track) // if no audio flags active, or call is onHold
+    else if (track) // if no audio flags active, no speaker allowed, or call is onHold
     {
         track->set_enabled(false);
         mAudio->getTransceiver()->sender()->SetTrack(nullptr);
@@ -2274,7 +2280,7 @@ void Session::setSessionHandler(SessionHandler* sessionHandler)
     mSessionHandler = std::unique_ptr<SessionHandler>(sessionHandler);
 }
 
-void Session::setVideoRendererVthumb(IVideoRenderer *videoRederer)
+void Session::setVideoRendererVthumb(IVideoRenderer *videoRenderer)
 {
     if (!mVthumSlot)
     {
@@ -2282,10 +2288,10 @@ void Session::setVideoRendererVthumb(IVideoRenderer *videoRederer)
         return;
     }
 
-    mVthumSlot->setVideoRender(videoRederer);
+    mVthumSlot->setVideoRender(videoRenderer);
 }
 
-void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
+void Session::setVideoRendererHiRes(IVideoRenderer *videoRenderer)
 {
     if (!mHiresSlot)
     {
@@ -2293,7 +2299,7 @@ void Session::setVideoRendererHiRes(IVideoRenderer *videoRederer)
         return;
     }
 
-    mHiresSlot->setVideoRender(videoRederer);
+    mHiresSlot->setVideoRender(videoRenderer);
 }
 
 void Session::setAudioDetected(bool audioDetected)
