@@ -766,7 +766,7 @@ void Call::joinSfu()
             return ::promise::_Void();
 
         KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
-        return mRtcConn.setLocalDescription(sdp);
+        return mRtcConn.setLocalDescription(std::unique_ptr<webrtc::SessionDescriptionInterface>(sdp));   // takes onwership of sdp
     })
     .then([wptr, this]()
     {
@@ -995,7 +995,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
 
     std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
-    webrtc::SessionDescriptionInterface *sdpInterface = webrtc::CreateSessionDescription("answer", sdpUncompress, &error);
+    std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
     if (!sdpInterface)
     {
         disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
@@ -1003,12 +1003,13 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
     }
 
     auto wptr = weakHandle();
-    mRtcConn.setRemoteDescription(sdpInterface)
+    mRtcConn.setRemoteDescription(move(sdpInterface))
     .then([wptr, this, vthumbs, speakers, ts, cids]()
     {
         if (wptr.deleted())
             return;
 
+        // prepare parameters for low resolution video
         double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
         webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
         assert(parameters.encodings.size());
@@ -1016,13 +1017,14 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         parameters.encodings[0].max_bitrate_bps = 100 * 1024;
         mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
 
+        // annotate the available tracks upon connection, for further reconnects (to request the same)
         for (auto const vthumb : vthumbs)
         {
             mAvailableTracks->addCid(vthumb.first);
         }
 
         handleIncomingVideo(vthumbs);
-        requestPeerTracks(cids);
+        requestPeerTracks(cids);    // the ones previously available before reconnection
 
         for(auto speak : speakers)
         {
@@ -1357,7 +1359,7 @@ void Call::onRenegotiationNeeded()
 {
 }
 
-void Call::onDataChannel(webrtc::DataChannelInterface *data_channel)
+void Call::onDataChannel(webrtc::DataChannelInterface *)
 {
 }
 
@@ -1437,11 +1439,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             continue;
         }
 
-        if (slot->getCid() != 0)
+        if (slot->getCid() != 0)    // the slot is already in use, need to release first and notify
         {
             if (trackDescriptor.second.mReuse && slot->getCid() != cid)
             {
-                RTCM_LOG_WARNING("attachSlotToSession: trying to reuse slot, but cid has changed");
+                RTCM_LOG_ERROR("attachSlotToSession: trying to reuse slot, but cid has changed");
+                assert(false && "Possible error at SFU: slot with CID not found");
             }
 
             Session *oldSess = getSession(slot->getCid());
@@ -1459,7 +1462,8 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         Session *sess = getSession(cid);
         if (!sess)
         {
-            RTCM_LOG_WARNING("handleIncomingVideo: session with CID %d not found", cid);
+            RTCM_LOG_ERROR("handleIncomingVideo: session with CID %d not found", cid);
+            assert(false && "Possible error at SFU: session with CID not found");
             continue;
         }
 

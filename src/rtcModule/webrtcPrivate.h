@@ -316,6 +316,7 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
+    // request the missing tracks in ANSWER that were available before reconnection
     void requestPeerTracks(const std::set<Cid_t> &cids);
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
@@ -396,6 +397,8 @@ protected:
     bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
+
+    // monitor the available tracks for resuming after a reconnection (requesting the same tracks)
     std::unique_ptr<AvailableTracks> mAvailableTracks;
 
     std::unique_ptr<CallHandler> mCallHandler;
@@ -413,7 +416,9 @@ protected:
     int mCurrentSvcLayerIndex = 0;
 
     void generateAndSendNewkey();
+    // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution = kLowRes);
+    // associate slots with their corresponding sessions (audio)
     void addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker);
     void removeSpeaker(Cid_t cid);
     const std::string &getCallKey() const;
