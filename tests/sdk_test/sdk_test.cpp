@@ -5348,7 +5348,7 @@ bool MockupCall::handleModerator(Cid_t cid, bool moderator)
 
 }
 
-void MockupCall::handleSfuConnected()
+void MockupCall::onSfuConnected()
 {
 
 }

@@ -136,7 +136,7 @@ public:
     virtual bool handlePeerLeft(Cid_t cid) = 0;
     virtual bool handleError(unsigned int , const std::string) = 0;
     virtual bool handleModerator(Cid_t cid, bool moderator) = 0;
-    virtual void handleSfuConnected() = 0;
+    virtual void onSfuConnected() = 0;
 };
 
     class Command
@@ -442,16 +442,24 @@ public:
         std::thread::id mMainThreadId; // thread id to ensure that CommandsQueue is accessed from a single thread
     };
 
+    /**
+     * @brief The SfuClient class
+     *
+     * This class is used to handle the connections to the SFU for each call. It allows
+     * to handle multiple calls in different chatrooms at the same time, each of them using
+     * a different connection.
+     */
     class SfuClient
     {
     public:
         SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings, const karere::Id& myHandle);
-        SfuConnection *generateSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
-        void closeManagerProtocol(karere::Id chatid);
+
+        SfuConnection *createSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
+        void closeSfuConnection(karere::Id chatid);
+        void retryPendingConnections(bool disconnect);
+
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
         const karere::Id& myHandle();
-        void setDefVideoDevice(const std::string& device);
-        void reconnectAllToSFU(bool disconnect);
 
     private:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;

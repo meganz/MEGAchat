@@ -497,7 +497,7 @@ public:
     bool handlePeerLeft(Cid_t cid) override;
     bool handleError(unsigned int , const std::string) override;
     bool handleModerator(Cid_t cid, bool moderator) override;
-    void handleSfuConnected() override;
+    void onSfuConnected() override;
 };
 
 #endif // CHATTEST_H

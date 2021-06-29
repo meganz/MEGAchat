@@ -721,7 +721,7 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     if (rtc && !disconnect) // In case of disconnect, reconnection will be launched after chatd::Chat::setOnlineState
     {
         // force reconnect all SFU connections
-        rtc->getSfuClient().reconnectAllToSFU(disconnect);
+        rtc->getSfuClient().retryPendingConnections(disconnect);
     }
 #endif
 }

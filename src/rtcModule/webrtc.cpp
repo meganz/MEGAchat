@@ -205,19 +205,17 @@ void Call::addParticipant(karere::Id peer)
 }
 
 
-void Call::disconnectFromChatd()
+void Call::onDisconnectFromChatd()
 {
     handleCallDisconnect();
     setState(CallState::kStateConnecting);
     mSfuConnection->disconnect(true);
 
-    auto itPeer = mParticipants.begin();
-    while (itPeer != mParticipants.end())
+    for (auto &it : mParticipants)
     {
-        karere::Id auxPeer = *itPeer;
-        itPeer = mParticipants.erase(itPeer);
-        mGlobalCallHandler.onRemovePeer(*this, auxPeer);
+        mGlobalCallHandler.onRemovePeer(*this, it);
     }
+    mParticipants.clear();
 }
 
 void Call::reconnectToSfu()
@@ -253,6 +251,7 @@ promise::Promise<void> Call::hangup()
 {
     if (mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
+        // in 1on1 calls, the hangup (reject) by the user while ringing should end the call
         return endCall();
     }
     else
@@ -282,11 +281,8 @@ bool Call::participate()
 
 void Call::enableAudioLevelMonitor(bool enable)
 {
-    if (mVoiceDetectionTimer != 0 && enable)
-    {
-        return;
-    }
-    else if (mVoiceDetectionTimer == 0 && !enable)
+    if ( (enable && mVoiceDetectionTimer != 0)          // already enabled
+        || (!enable && mVoiceDetectionTimer == 0) )     // already disabled
     {
         return;
     }
@@ -306,15 +302,13 @@ void Call::enableAudioLevelMonitor(bool enable)
 
             if (audioStats.voice_detected && mAudioDetected != audioStats.voice_detected.value())
             {
-                mAudioDetected = audioStats.voice_detected.value();
-               setAudioDetected(mAudioDetected);
+                setAudioDetected(audioStats.voice_detected.value());
             }
         }, kAudioMonitorTimeout, mRtc.getAppCtx());
     }
     else
     {
         setAudioDetected(false);
-        mAudioDetected = false;
         karere::cancelInterval(mVoiceDetectionTimer, mRtc.getAppCtx());
         mVoiceDetectionTimer = 0;
     }
@@ -745,13 +739,12 @@ void Call::connectSfu(const std::string& sfuUrl)
         return;
     }
     setState(CallState::kStateConnecting);
-    mSfuConnection = mSfuClient.generateSfuConnection(mChatid, mSfuUrl, *this);
+    mSfuConnection = mSfuClient.createSfuConnection(mChatid, mSfuUrl, *this);
 }
 
 void Call::joinSfu()
 {
-    webrtc::PeerConnectionInterface::IceServers iceServer;
-    mRtcConn = artc::myPeerConnection<Call>(iceServer, *this);
+    mRtcConn = artc::myPeerConnection<Call>(*this);
 
     createTransceivers();
     mSpeakerState = SpeakerState::kPending;
@@ -852,7 +845,7 @@ void Call::handleCallDisconnect()
     mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video tracks
 }
 
-void Call::disconnect(TermCode termCode, const std::string &msg)
+void Call::disconnect(TermCode termCode, const std::string &)
 {
     if (mLocalAvFlags.videoCam())
     {
@@ -870,7 +863,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
     {
-        mSfuClient.closeManagerProtocol(mChatid);
+        mSfuClient.closeSfuConnection(mChatid);
         mSfuConnection = nullptr;
     }
 
@@ -980,13 +973,14 @@ bool Call::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
     }
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
+bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers,
+                               const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
-    // mod param will be ignored
+    // set my own client-id (cid)
     mMyPeer.init(cid, mSfuClient.myHandle(), 0);
 
     std::set<Cid_t> cids;
-    for (const sfu::Peer& peer : peers)
+    for (const sfu::Peer& peer : peers) // does not include own cid
     {
         cids.insert(peer.getCid());
         mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
@@ -994,6 +988,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
     }
 
     generateAndSendNewkey();
+
     std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
     webrtc::SessionDescriptionInterface *sdpInterface = webrtc::CreateSessionDescription("answer", sdpUncompress, &error);
@@ -1269,7 +1264,7 @@ bool Call::handleModerator(Cid_t cid, bool moderator)
     return true;
 }
 
-void Call::handleSfuConnected()
+void Call::onSfuConnected()
 {
     joinSfu();
 }

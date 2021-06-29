@@ -1709,7 +1709,7 @@ void Chat::onDisconnect()
         if (call)
         {
             CHATD_LOG_ERROR("chatd::onDisconnect stop sfu reconnection and remove participants");
-            call->disconnectFromChatd();
+            call->onDisconnectFromChatd();
         }
     }
 }

@@ -232,21 +232,28 @@ public:
     void addParticipant(karere::Id peer) override;
     // called upon reception of OP_LEFTCALL from chatd
     void removeParticipant(karere::Id peer) override;
+
     // called from chatd::onDisconnect() to remove peers from the call when disconnected from chatd
-    void disconnectFromChatd() override;
+    void onDisconnectFromChatd() override;
     // called from chatd::setState(online) to reconnect to SFU
     void reconnectToSfu() override;
 
     promise::Promise<void> hangup() override;
     promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected
     promise::Promise<void> join(karere::AvFlags avFlags) override;
+
+    // (for your own audio level)
     void enableAudioLevelMonitor(bool enable) override;
     bool isAudioLevelMonitorEnabled() const override;
     bool isAudioDetected() const override;
+
+    // called when the user wants to "mute" an incoming call (the call is kept in ringing state)
     void ignoreCall() override;
     bool isIgnored() const override;
+
     void setRinging(bool ringing) override;
-    bool isRinging() const override;
+    bool isRinging() const override;    // (always false for outgoing calls)
+
     void setOnHold() override;
     void releaseOnHold() override;
 
@@ -331,7 +338,7 @@ public:
     bool handlePeerLeft(Cid_t cid) override;
     bool handleError(unsigned int code, const std::string reason) override;
     bool handleModerator(Cid_t cid, bool moderator) override;
-    void handleSfuConnected() override;
+    void onSfuConnected() override;
 
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
@@ -358,12 +365,18 @@ protected:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
+
+    // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
+
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
     int64_t mInitialTs = 0;
     int64_t mFinalTs = 0;
     bool mAudioDetected = false;
+
+    // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
+
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
@@ -372,7 +385,7 @@ protected:
     IGlobalCallHandler& mGlobalCallHandler;
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;
-    sfu::SfuConnection* mSfuConnection = nullptr;
+    sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
 
     artc::myPeerConnection<Call> mRtcConn;
     std::string mSdp;

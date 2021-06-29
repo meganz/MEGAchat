@@ -266,11 +266,10 @@ protected:
     std::shared_ptr<Observer> mObserver;
 public:
     myPeerConnection():Base(){}
-    myPeerConnection(const webrtc::PeerConnectionInterface::IceServers& servers, C& handler)
+    myPeerConnection(C& handler)
         :mObserver(new Observer(handler))
     {
         webrtc::PeerConnectionInterface::RTCConfiguration config;
-        config.servers = servers;
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
 
         webrtc::CryptoOptions cryptoOptions;

@@ -1976,7 +1976,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
 
                 assert(isOnline());
-                mCall.handleSfuConnected();
+                mCall.onSfuConnected();
             });
 
         }, wptr, mAppCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
@@ -2009,7 +2009,7 @@ SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryp
 
 }
 
-SfuConnection* SfuClient::generateSfuConnection(karere::Id chatid, const std::string &sfuUrl, SfuInterface &call)
+SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, const std::string &sfuUrl, SfuInterface &call)
 {
     assert(mConnections.find(chatid) == mConnections.end());
     mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mWebsocketIO, mAppCtx, call);
@@ -2018,7 +2018,7 @@ SfuConnection* SfuClient::generateSfuConnection(karere::Id chatid, const std::st
     return sfuConnection;
 }
 
-void SfuClient::closeManagerProtocol(karere::Id chatid)
+void SfuClient::closeSfuConnection(karere::Id chatid)
 {
     mConnections[chatid]->disconnect();
     mConnections.erase(chatid);
@@ -2034,7 +2034,7 @@ const karere::Id& SfuClient::myHandle()
     return mMyHandle;
 }
 
-void SfuClient::reconnectAllToSFU(bool disconnect)
+void SfuClient::retryPendingConnections(bool disconnect)
 {
     for (auto it = mConnections.begin(); it != mConnections.end(); it++)
     {

@@ -122,10 +122,14 @@ public:
     virtual karere::Id getCallerid() const = 0;
     virtual bool isAudioDetected() const = 0;
     virtual CallState getState() const = 0;
+
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
-    virtual void disconnectFromChatd() = 0;
+
+    // called by chatd client when the connection to chatd is closed
+    virtual void onDisconnectFromChatd() = 0;
     virtual void reconnectToSfu() = 0;
+
     virtual promise::Promise<void> hangup() = 0;
     virtual promise::Promise<void> endCall() = 0;
     virtual promise::Promise<void> join(karere::AvFlags avFlags) = 0;
@@ -219,12 +223,12 @@ enum RtcConstant {
    kMaxCallReceivers = 20,
    kMaxCallAudioSenders = 20,
    kMaxCallVideoSenders = 30,
-   kInitialvthumbCount = 10,
+   kInitialvthumbCount = 10,    // maximum amount of video streams to receive after joining SFU
    kHiResWidth = 960,
    kHiResHeight = 540,
    kHiResMaxFPS = 30,
    kVthumbWidth = 160,
-   kAudioMonitorTimeout = 2000,
+   kAudioMonitorTimeout = 2000, // ms
 };
 
 #endif
