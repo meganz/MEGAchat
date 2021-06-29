@@ -1359,6 +1359,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 initWithNewSession(sid.get(), scsn, contactList, chatList)
                 .fail([this](const ::promise::Error& err)
                 {
+                    setInitState(kInitErrGeneric);
                     KR_LOG_ERROR("Failed to initialize MEGAchat");
                     api.sdk.resumeActionPackets();
                     return err;
