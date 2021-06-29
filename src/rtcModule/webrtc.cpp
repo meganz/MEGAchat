@@ -265,12 +265,16 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
     mLocalAvFlags = avFlags;
     auto wptr = weakHandle();
-    return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid, mCallid)
-    .then([wptr, this](ReqResult result)
+    return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid.val, mCallid.val)
+    .then([wptr, this](ReqResult result) -> promise::Promise<void>
     {
-        wptr.throwIfDeleted();
+        if (wptr.deleted())
+            return promise::Error("Join call succeed, but call has already ended");
+
         std::string sfuUrl = result->getText();
         connectSfu(sfuUrl);
+
+        return promise::_Void();
     });
 }
 
