@@ -796,7 +796,7 @@ private:
  *  5. Call MegaApi::fetchnodes() and wait for completion
  *     [at this stage, cloud storage apps show the main GUI, but apps with
  *      with chat enabled are not ready to be shown yet]
- *  6. The app is ready to operate
+ *  6. The app is ready to operate when the init state reaches kInitHasOnlineSession
  */
 class Client: public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
