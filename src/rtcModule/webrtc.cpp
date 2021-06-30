@@ -205,9 +205,12 @@ void Call::addParticipant(karere::Id peer)
 
 void Call::disconnectFromChatd()
 {
-    handleCallDisconnect();
-    setState(CallState::kStateConnecting);
-    mSfuConnection->disconnect(true);
+    if (participate())
+    {
+        handleCallDisconnect();
+        setState(CallState::kStateConnecting);
+        mSfuConnection->disconnect(true);
+    }
 
     auto itPeer = mParticipants.begin();
     while (itPeer != mParticipants.end())
