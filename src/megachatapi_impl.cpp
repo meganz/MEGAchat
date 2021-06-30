@@ -1690,13 +1690,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!call->participate())
-            {
-                API_LOG_ERROR("Hang up - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
             ::promise::Promise<void> pms = endCall
                     ? call->endCall()   // end call
                     : call->hangup();   // hang up
