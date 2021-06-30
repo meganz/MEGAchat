@@ -1620,6 +1620,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (call->participate())
+            {
+                API_LOG_ERROR("Answer call - we already participate");
+                errorCode = MegaChatError::ERROR_EXIST;
+                break;
+            }
+
             bool enableVideo = request->getFlag();
             bool enableAudio = request->getParamType();
             karere::AvFlags avFlags(enableAudio, enableVideo);
@@ -1680,6 +1687,13 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("End call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            if (!call->participate())
+            {
+                API_LOG_ERROR("Hang up - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -1745,6 +1759,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     requestedFlags.remove(karere::AvFlags::kCamera);
                 }
+            }
+
+            if (!call->participate())
+            {
+                API_LOG_ERROR("Disable audio vieo - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
             }
 
             call->updateAndSendLocalAvFlags(requestedFlags);
@@ -2076,6 +2097,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!call->participate())
+            {
+                API_LOG_ERROR("Enable auido level monitor - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
             call->enableAudioLevelMonitor(enable);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
@@ -2098,6 +2126,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SPEAK  - There is not any call in that chatroom");
                 errorCode = MegaChatError::ERROR_NOENT;
                 assert(false);
+                break;
+            }
+
+            if (!call->participate())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SPEAK - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -2144,6 +2179,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!call->participate())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
             call->approveSpeakRequest(request->getUserHandle(), enable);
 
 
@@ -2186,6 +2228,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!call->participate())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
             if (request->getFlag()) // HI-RES request only accepts a single peer CID
             {
                 Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
@@ -2222,6 +2271,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO  - There is not any call in that chatroom");
                 errorCode = MegaChatError::ERROR_NOENT;
                 assert(false);
+                break;
+            }
+
+            if (!call->participate())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -2295,6 +2351,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!call->participate())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
             Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
             if (!call->hasVideoSlot(cid, true))
             {
@@ -2334,6 +2397,14 @@ void MegaChatApiImpl::sendPendingRequests()
                 assert(false);
                 break;
             }
+
+            if (!call->participate())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
 
             Cid_t cid = request->getUserHandle() != MEGACHAT_INVALID_HANDLE
                     ? static_cast<Cid_t>(request->getUserHandle())
@@ -2391,6 +2462,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS  - There is not any call in that chatroom");
                 errorCode = MegaChatError::ERROR_NOENT;
                 assert(false);
+                break;
+            }
+
+            if (!call->participate())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS - we aren't participating");
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
