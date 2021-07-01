@@ -1506,6 +1506,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (chatroom->chatdOnlineState() != kChatStateOnline)
+            {
+                API_LOG_ERROR("Start call - chatroom isn't in online state");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             bool enableVideo = request->getFlag();
             bool enableAudio = request->getParamType();
             karere::AvFlags avFlags(enableAudio, enableVideo);
@@ -1601,6 +1608,13 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!chatroom->chat().connection().clientId())
             {
                 API_LOG_ERROR("Answer call - Refusing answer a call, clientid no yet assigned by shard: %d", chatroom->chat().connection().shardNo());
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            if (chatroom->chatdOnlineState() != kChatStateOnline)
+            {
+                API_LOG_ERROR("Answer call - chatroom isn't in online state");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
@@ -2122,9 +2136,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!call->participate())
+            if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("Request to speak - You don't participate in the call");
+                API_LOG_ERROR("Request to speak - Call is not in progress state");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
@@ -2172,9 +2186,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!call->participate())
+            if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("Approve request to speak - You don't participate in the call");
+                API_LOG_ERROR("Approve request to speak - Call is not in progress state");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
@@ -2221,9 +2235,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!call->participate())
+            if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("Request high resolution video - You don't participate in the call");
+                API_LOG_ERROR("Request high resolution video - Call is not in progress state");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
@@ -2267,10 +2281,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!call->participate())
+            if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Call is not in progress state");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
@@ -2344,10 +2358,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!call->participate())
+            if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY - Call is not in progress state");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
@@ -2391,13 +2405,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!call->participate())
+            if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - Call is not in progress state");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
-
 
             Cid_t cid = request->getUserHandle() != MEGACHAT_INVALID_HANDLE
                     ? static_cast<Cid_t>(request->getUserHandle())
@@ -2458,10 +2471,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!call->participate())
+            if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS - Call is not in progress state");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
