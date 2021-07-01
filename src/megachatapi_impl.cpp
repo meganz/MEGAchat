@@ -1622,7 +1622,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (call->participate())
             {
-                API_LOG_ERROR("Answer call - we already participate");
+                API_LOG_ERROR("Answer call - You already participate");
                 errorCode = MegaChatError::ERROR_EXIST;
                 break;
             }
@@ -1756,8 +1756,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!call->participate())
             {
-                API_LOG_ERROR("Disable audio vieo - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("Disable audio video - You don't participate in the call");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
@@ -2092,8 +2092,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!call->participate())
             {
-                API_LOG_ERROR("Enable auido level monitor - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("Enable audio level monitor - You don't participate in the call");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
@@ -2124,8 +2124,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!call->participate())
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SPEAK - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("Request to speak - You don't participate in the call");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
@@ -2174,8 +2174,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!call->participate())
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("Approve request to speak - You don't participate in the call");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
@@ -2223,8 +2223,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!call->participate())
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - we aren't participating");
-                errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("Request high resolution video - You don't participate in the call");
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
