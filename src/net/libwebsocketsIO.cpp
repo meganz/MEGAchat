@@ -274,11 +274,18 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
         return;
     }
 
-    // save the TLS session [again], just in case on-the-fly attempt failed
-    if (LwsCache::dump(lws_get_vhost(wsi), &mTlsSession))
+    if (mTlsSession.dropFromStorage())
+    {
+        wsSSLsessionUpdateCb(mTlsSession);
+        mTlsSession.dropFromStorage(false); // done, don't do it again later
+    }
+
+    else if (mTlsSession.saveToStorage() &&
+             LwsCache::dump(lws_get_vhost(wsi), &mTlsSession))
     {
         wsSSLsessionUpdateCb(mTlsSession);
         mTlsSession.blob = nullptr;
+        mTlsSession.saveToStorage(false); // done, don't do it again later
     }
 
     if (immediate)
@@ -416,6 +423,12 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             // deal with the TLS session
 
             CachedSession *s = &client->mTlsSession;
+
+            // Explicitly request to "ignore" this session info until we're sure it's valid.
+            // The default is "drop", because LWS will pass Null user data (thus client)
+            // in case of error, and we can't link to the CachedSession from there.
+            s->saveToStorage(false);
+
             if (s->hostname.empty()) // filter non-SSL connections, if any
                 break;
 
@@ -452,7 +465,14 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             i2d_SSL_SESSION(sslSess, &pp);
             s->blob->setDataSize(bloblen);
 
-            if (!client->wsSSLsessionUpdateCb(*s))
+            // Looks like session info is valid. Mark it to be saved persistently.
+            s->saveToStorage(true);
+
+            if (client->wsSSLsessionUpdateCb(*s))
+            {
+                s->saveToStorage(false); // no need to do it again later
+            }
+            else
             {
                 WEBSOCKETS_LOG_ERROR("TLS session save to persistent storage failed for %s:%d",
                                      s->hostname.c_str(), s->port);

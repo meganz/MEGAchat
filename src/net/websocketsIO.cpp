@@ -432,7 +432,15 @@ bool DNScache::updateTlsSession(const CachedSession &sess)
         if (r.mUrl.host == sess.hostname && r.mUrl.port == sess.port)
         {
             // update session data for that connection
-            mDb.query("update dns_cache set sess_data=? where shard=?", *sess.blob, i.first);
+            if (sess.dropFromStorage())
+            {
+                mDb.query("update dns_cache set sess_data=? where shard=?", Buffer(), i.first);
+            }
+            else if (sess.saveToStorage())
+            {
+                mDb.query("update dns_cache set sess_data=? where shard=?", *sess.blob, i.first);
+            }
+
             return true;
         }
     }

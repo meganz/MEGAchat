@@ -25,6 +25,23 @@ struct CachedSession
     std::string             hostname;    // host.domain
     int                     port = 0;    // 443 usually
     std::shared_ptr<Buffer> blob;        // session data
+
+    void saveToStorage(bool save) { disconnectAction = save ? SAVE : IGNORE; }
+    bool saveToStorage() const { return disconnectAction == SAVE; }
+    void dropFromStorage(bool drop) { disconnectAction = drop ? DROP : IGNORE; }
+    bool dropFromStorage() const { return disconnectAction == DROP; }
+
+private:
+    enum
+    {
+        IGNORE
+        , SAVE
+        , DROP
+    };
+
+    // Initialize to this unusual value ("drop"), because LWS won't offer enough data
+    // in the cb to link to one of these instances, in case of connection failure.
+    int                     disconnectAction = DROP;
 };
 
 class DNScache
