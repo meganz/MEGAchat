@@ -185,9 +185,13 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                      {
                         mMegaChatApi->answerChatCall(call->getCallId(), true);
                      }
-                     else if (QMessageBox::Cancel)
+                     else if (reply == QMessageBox::Cancel)
                      {
                          mMegaChatApi->hangChatCall(call->getCallId());
+                     }
+                     else if (reply == QMessageBox::Ignore)
+                     {
+                         mMegaChatApi->setIgnoredCall(call->getChatid());
                      }
                 }
 
@@ -233,9 +237,13 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
              {
                 mMegaChatApi->answerChatCall(call->getChatid(), true);
              }
-             else if (QMessageBox::Cancel)
+             else if (reply == QMessageBox::Cancel)
              {
                  mMegaChatApi->hangChatCall(call->getCallId());
+             }
+             else if (reply == QMessageBox::Ignore)
+             {
+                 mMegaChatApi->setIgnoredCall(call->getChatid());
              }
         }
     }
