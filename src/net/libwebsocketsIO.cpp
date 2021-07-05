@@ -611,7 +611,7 @@ int LwsCache::loadCb(lws_context *, lws_tls_session_dump *info)
     if (!info)  return 1;
 
     CachedSession *sess = reinterpret_cast<CachedSession*>(info->opaque);
-    if (!sess)  return 1;
+    if (!sess || !sess->blob)  return 1;
 
     info->blob = malloc(sess->blob->dataSize()); // will be deleted by LWS
     memcpy(info->blob, sess->blob->buf(), sess->blob->dataSize());
