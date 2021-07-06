@@ -3,10 +3,11 @@
 
 #include <megachatapi.h>
 #include <videoRenderer_Qt.h>
-#include <callListener.h> // TODO replace by QTMegaChatVideoListener
+#include "QTMegaChatVideoListener.h"
 #include <QWidget>
 #include <webrtc.h>
 
+using namespace megachat;
 class PeerWidget : public QWidget, public megachat::MegaChatVideoListener
 {
     Q_OBJECT
