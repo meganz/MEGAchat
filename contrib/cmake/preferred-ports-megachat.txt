@@ -53,7 +53,8 @@ openjpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
 bzip2/c303dd024e2dc03a0665ddffbb12a1077933e649
 
 #for megachat
-libwebsockets/2.4.2
+libwebsockets/bb002cdd1a2c9eacbe60d8383fb5d437752b1e4e:lws-4.2.patch
+pthreads/bb002cdd1a2c9eacbe60d8383fb5d437752b1e4e
 
 # tests and tools
 asio/c303dd024e2dc03a0665ddffbb12a1077933e649
