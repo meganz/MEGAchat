@@ -225,7 +225,7 @@ public:
     void disconnectFromChatd() override;
     void reconnectToSfu() override;
     promise::Promise<void> hangup() override;
-    promise::Promise<void> endCall() override;
+    promise::Promise<void> endCall(int reason = chatd::kDefault) override;
     promise::Promise<void> join(karere::AvFlags avFlags) override;
     bool participate() override;
     void enableAudioLevelMonitor(bool enable) override;
