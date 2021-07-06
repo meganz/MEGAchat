@@ -323,6 +323,7 @@ public:
 class MegaEncryptor : public rtc::RefCountedObject<webrtc::FrameEncryptorInterface>
 {
 public:
+    enum Status { kOk, kRecoverable, kFailedToEncrypt};
     MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv);
     ~MegaEncryptor() override;
 
@@ -338,7 +339,14 @@ public:
     // generates an IV for a new frame, you take the ownership of returned value
     byte *generateFrameIV();
 
-    // encrypts a received frame
+    // Attempts to encrypt the provided frame. You may assume the encrypted_frame
+    // will match the size returned by GetMaxCiphertextByteSize for a give frame.
+    // You may assume that the frames will arrive in order if SRTP is enabled.
+    // The ssrc will simply identify which stream the frame is travelling on. You
+    // must set bytes_written to the number of bytes you wrote in the
+    // encrypted_frame. kOk must be returned if successful, kRecoverable should be
+    // returned if the failure was due to something other than a encryption failure.
+    // kFailedToEncrypt should be returned in all other cases.
     int Encrypt(cricket::MediaType media_type,
                         uint32_t ssrc,
                         rtc::ArrayView<const uint8_t> additional_data,
@@ -384,12 +392,20 @@ public:
     void setDecryptionKey(const std::string &decryptKey);
 
     // validates header by checking if CID matches with expected one, also extracts keyId and packet CTR */
-    bool validateAndProcessHeader(rtc::ArrayView<const uint8_t> header);
+    int validateAndProcessHeader(rtc::ArrayView<const uint8_t> header);
 
     // rebuild the IV for a received frame, you take the ownership of returned value
     std::shared_ptr<byte> generateFrameIV();
 
-    // decrypts a received frame
+    // Attempts to decrypt the encrypted frame. You may assume the frame size will
+    // be allocated to the size returned from GetMaxPlaintextSize. You may assume
+    // that the frames are in order if SRTP is enabled. The stream is not provided
+    // here and it is up to the implementor to transport this information to the
+    // receiver if they care about it. You must set bytes_written to how many
+    // bytes you wrote to in the frame buffer. kOk must be returned if successful,
+    // kRecoverable should be returned if the failure was due to something other
+    // than a decryption failure. kFailedToDecrypt should be returned in all other
+    // cases.
     Result Decrypt(cricket::MediaType media_type,
                    const std::vector<uint32_t>& csrcs,
                    rtc::ArrayView<const uint8_t> additional_data,
