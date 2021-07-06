@@ -143,25 +143,44 @@ struct IceCandText
     }
 };
 
-class SdpSetCallbacks : public webrtc::SetSessionDescriptionObserver, public karere::DeleteTrackable
+class SdpSetRemoteCallbacks : public webrtc::SetRemoteDescriptionObserverInterface
+        , public karere::DeleteTrackable
 {
 public:
     typedef promise::Promise<void> PromiseType;
-    SdpSetCallbacks(const PromiseType& promise)
-    :mPromise(promise)
-    {}
-
-    virtual void OnSuccess()
+    SdpSetRemoteCallbacks(const PromiseType& promise) :mPromise(promise){}
+    virtual void OnSetRemoteDescriptionComplete(webrtc::RTCError error)
     {
-        RTCM_DO_CALLBACK(mPromise.resolve(); Release(), this);
+        if (error.ok())
+        {
+            RTCM_DO_CALLBACK(mPromise.resolve(); Release(), this);
+        }
+        else
+        {
+            RTCM_DO_CALLBACK(mPromise.reject(::promise::Error(error.message(), kSetSdpDescriptionFailed, ERRTYPE_RTC)); Release();, this, error);
+        }
     }
+protected:
+    PromiseType mPromise;
+};
 
-    virtual void OnFailure(webrtc::RTCError error)
+class SdpSetLocalCallbacks : public webrtc::SetLocalDescriptionObserverInterface
+        , public karere::DeleteTrackable
+{
+public:
+    typedef promise::Promise<void> PromiseType;
+    SdpSetLocalCallbacks(const PromiseType& promise) :mPromise(promise)     {}
+    virtual void OnSetLocalDescriptionComplete(webrtc::RTCError error)
     {
-        RTCM_DO_CALLBACK(
-            mPromise.reject(::promise::Error(error.message(), kSetSdpDescriptionFailed, ERRTYPE_RTC)); Release();, this, error);
+        if (error.ok())
+        {
+            RTCM_DO_CALLBACK(mPromise.resolve(); Release(), this);
+        }
+        else
+        {
+            RTCM_DO_CALLBACK(mPromise.reject(::promise::Error(error.message(), kSetSdpDescriptionFailed, ERRTYPE_RTC)); Release();, this, error);
+        }
     }
-
 protected:
     PromiseType mPromise;
 };
@@ -279,20 +298,24 @@ public:
       return promise;
   }
   /** Takes ownership of \c desc */
-  SdpSetCallbacks::PromiseType setLocalDescription(webrtc::SessionDescriptionInterface* desc)
+  SdpSetLocalCallbacks::PromiseType setLocalDescription(webrtc::SessionDescriptionInterface* desc)
   {
-      SdpSetCallbacks::PromiseType promise;
-      auto observer = new rtc::RefCountedObject<SdpSetCallbacks>(promise);
+      SdpSetLocalCallbacks::PromiseType promise;
+      auto observer = new rtc::RefCountedObject<SdpSetLocalCallbacks>(promise);
       observer->AddRef();
-      get()->SetLocalDescription(observer, desc);
+      get()->SetLocalDescription(desc->Clone(), observer);
+      delete desc;
       return promise;
   }
-  SdpSetCallbacks::PromiseType setRemoteDescription(webrtc::SessionDescriptionInterface* desc)
+
+  /** Takes ownership of \c desc */
+  SdpSetRemoteCallbacks::PromiseType setRemoteDescription(webrtc::SessionDescriptionInterface* desc)
   {
-      SdpSetCallbacks::PromiseType promise;
-      auto observer = new rtc::RefCountedObject<SdpSetCallbacks>(promise);
+      SdpSetRemoteCallbacks::PromiseType promise;
+      auto observer = new rtc::RefCountedObject<SdpSetRemoteCallbacks>(promise);
       observer->AddRef();
-      get()->SetRemoteDescription(observer, desc);
+      get()->SetRemoteDescription(desc->Clone(), observer);
+      delete desc;
       return promise;
   }
 };

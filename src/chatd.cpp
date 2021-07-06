@@ -2520,10 +2520,29 @@ void Connection::execCommand(const StaticBuffer& buf)
                             pms.resolve(std::make_shared<string>());
                         }
 
-                        pms.then([this, chatid, callid, userid, ringing] (shared_ptr<string> unifiedKey)
+                        auto wptr = weakHandle();
+                        pms.then([wptr, this, chatid, callid, userid, ringing] (shared_ptr<string> unifiedKey)
                         {
+                            if (wptr.deleted())
+                            {
+                                return;
+                            }
+
                             auto& chat = mChatdClient.chats(chatid);
-                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing, chat.isGroup(), unifiedKey);
+                            rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
+                            if (!call)
+                            {
+                                mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing, chat.isGroup(), unifiedKey);
+                            }
+                            else
+                            {
+                                // if OP_JOINEDCALL was received first and needed to wait for the unified key,
+                                // it may have created the call object already
+
+                                call->setCallerId(userid);
+                                call->setRinging(ringing);
+                            }
+
                         })
                         .fail([] (const ::promise::Error &err)
                         {
@@ -5724,14 +5743,14 @@ void Chat::setOnlineState(ChatState state)
             rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
             if (call)
             {
-                if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
+                if (call->getParticipants().empty())
+                {
+                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::TermCode::kErrNoCall);
+                }
+                else if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
                 {
                     CHATD_LOG_ERROR("chatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ");
                     call->reconnectToSfu();
-                }
-                else if (call->getState() == rtcModule::CallState::kStateClientNoParticipating && call->getParticipants().empty())
-                {
-                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::TermCode::kErrNoCall);
                 }
             }
         }

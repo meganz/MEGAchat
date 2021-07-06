@@ -498,6 +498,7 @@ public:
     bool handleError(unsigned int , const std::string) override;
     bool handleModerator(Cid_t cid, bool moderator) override;
     void handleSfuConnected() override;
+    bool error(unsigned int) override;
 };
 
 #endif // CHATTEST_H

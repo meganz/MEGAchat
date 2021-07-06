@@ -725,7 +725,6 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
         return;
     }
 
-    mPresencedClient.retryPendingConnection(disconnect, refreshURL);
     if (mChatdClient)
     {
         mChatdClient->retryPendingConnections(disconnect, refreshURL);
@@ -738,6 +737,11 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
         rtc->getSfuClient().reconnectAllToSFU(disconnect);
     }
 #endif
+
+    if (!anonymousMode())   // avoid to connect to presenced (no user, no peerstatus)
+    {
+        mPresencedClient.retryPendingConnection(disconnect, refreshURL);
+    }
 }
 
 promise::Promise<void> Client::notifyUserStatus(bool background)

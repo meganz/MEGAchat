@@ -280,6 +280,7 @@ public:
     bool handleError(unsigned int code, const std::string reason) override;
     bool handleModerator(Cid_t cid, bool moderator) override;
     void handleSfuConnected() override;
+    bool error(unsigned int code) override;
 
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);

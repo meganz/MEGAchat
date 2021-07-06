@@ -208,9 +208,12 @@ void Call::addParticipant(karere::Id peer)
 
 void Call::disconnectFromChatd()
 {
-    handleCallDisconnect();
-    setState(CallState::kStateConnecting);
-    mSfuConnection->disconnect(true);
+    if (participate())
+    {
+        handleCallDisconnect();
+        setState(CallState::kStateConnecting);
+        mSfuConnection->disconnect(true);
+    }
 
     auto itPeer = mParticipants.begin();
     while (itPeer != mParticipants.end())
@@ -1283,6 +1286,17 @@ bool Call::handleModerator(Cid_t cid, bool moderator)
 void Call::handleSfuConnected()
 {
     joinSfu();
+}
+
+bool Call::error(unsigned int code)
+{
+    disconnect(static_cast<TermCode>(code), "Unknow reason");
+    if (mParticipants.empty())
+    {
+        mRtc.removeCall(mChatid, static_cast<TermCode>(code));
+    }
+
+    return true;
 }
 
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
