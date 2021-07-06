@@ -134,7 +134,7 @@ public:
     virtual void disconnectFromChatd() = 0;
     virtual void reconnectToSfu() = 0;
     virtual promise::Promise<void> hangup() = 0;
-    virtual promise::Promise<void> endCall() = 0;
+    virtual promise::Promise<void> endCall(int reason = chatd::kDefault) = 0;
     virtual promise::Promise<void> join(karere::AvFlags avFlags) = 0;
     virtual bool participate() = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;
