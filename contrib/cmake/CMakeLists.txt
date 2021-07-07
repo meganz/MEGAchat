@@ -34,6 +34,9 @@ endif()
 set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../third-party"  CACHE STRING "Controllable third party library location")
 set(KarereDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 
+#and where the SDK is.  For buliding megachat alone, default to the old location
+set(MegaSdkDir "${CMAKE_CURRENT_LIST_DIR}/../../third-party/mega"  CACHE STRING "Controllable MEGA SDK library location")
+
 message("CONFIG: ${CONFIG}")
 
 IF (build_64_bit)
@@ -43,7 +46,7 @@ ELSE()
 ENDIF()
 
 # this line points to the MEGA SDK repo that you want to build MEGAChat against
-include(${CMAKE_CURRENT_LIST_DIR}/../../third-party/mega/contrib/cmake/CMakeLists.txt)
+include(${MegaSdkDir}/contrib/cmake/CMakeLists.txt)
 
 if (NOT ENABLE_CHAT OR NOT USE_OPENSSL)
     message(FATAL_ERROR "ENABLE_CHAT must be enabled in the SDK build, also USE_OPENSSL as libwebsockets requires it")

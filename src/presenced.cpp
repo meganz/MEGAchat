@@ -226,6 +226,12 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     }
 }
 
+bool Client::wsSSLsessionUpdateCb(const CachedSession &sess)
+{
+    // update the session's data in the DNS cache
+    return mDnsCache.updateTlsSession(sess);
+}
+
 std::string Config::toString() const
 {
     std::string result;

@@ -19,6 +19,14 @@ static struct lws_protocols protocols[] =
 
 LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
 {
+    ::mega::LibuvWaiter *libuvWaiter = dynamic_cast<::mega::LibuvWaiter *>(waiter);
+    if (!libuvWaiter)
+    {
+        WEBSOCKETS_LOG_ERROR("Fatal error: NULL or invalid waiter object");
+        assert(false);
+        abort();
+    }
+
     struct lws_context_creation_info info;
     memset( &info, 0, sizeof(info) );
     
@@ -29,6 +37,7 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     }
     
     info.port = CONTEXT_PORT_NO_LISTEN;
+    info.pcontext = &wscontext;
     info.protocols = protocols;
     info.gid = -1;
     info.uid = -1;
@@ -36,25 +45,51 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     info.options |= LWS_SERVER_OPTION_LIBUV;
     info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
-    
+    info.foreign_loops = (void**)&(libuvWaiter->eventloop);
+    info.tls_session_timeout = TLS_SESSION_TIMEOUT; // default: 300 (seconds); (default cache size is 10, should be fine)
+    // Disable TLS 1.3 support, because session resumption did not work with it, even with "ticket" support enabled on Mega servers.
+    // Note: Using this flag is deprecated. The newer API is SSL_CTX_set_max_proto_version(), but unfortunately the underlying
+    //       SSL_CTX is not accessible from here. Care should be taken for the next LWS upgrade.
+    info.ssl_client_options_set = SSL_OP_NO_TLSv1_3;
+
+    // For extra log messages add the following levels:
+    // LLL_NOTICE | LLL_INFO | LLL_DEBUG | LLL_PARSER | LLL_HEADER | LLL_EXT | LLL_CLIENT | LLL_LATENCY | LLL_USER | LLL_THREAD
     lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
     wscontext = lws_create_context(&info);
 
-    ::mega::LibuvWaiter *libuvWaiter = dynamic_cast<::mega::LibuvWaiter *>(waiter);
-    if (!libuvWaiter)
-    {
-        WEBSOCKETS_LOG_ERROR("Fatal error: NULL or invalid waiter object");
-        assert(false);
-        abort();
-    }
     eventloop = libuvWaiter->eventloop;
-    lws_uv_initloop(wscontext, libuvWaiter->eventloop, 0);
     WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
 }
 
 LibwebsocketsIO::~LibwebsocketsIO()
 {
     lws_context_destroy(wscontext);
+}
+
+void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
+{
+    if (sessions.empty())  return;
+
+    lws_vhost *vh = lws_get_vhost_by_name(wscontext, DEFAULT_VHOST);
+    if (!vh) // should never happen, as "default vhost is created along with the context"
+    {
+        WEBSOCKETS_LOG_ERROR("Missing default vhost for current LWS context");
+        return;
+    }
+
+    for (auto& s : sessions)
+    {
+        if (LwsCache::load(vh, &s))
+        {
+            WEBSOCKETS_LOG_DEBUG("TLS session loaded into LWS cache for %s:%d",
+                                 s.hostname.c_str(), s.port);
+        }
+        else
+        {
+            WEBSOCKETS_LOG_ERROR("TLS session failed to load into LWS cache for %s:%d",
+                                 s.hostname.c_str(), s.port);
+        }
+    }
 }
 
 void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
@@ -121,28 +156,7 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
 {
     LibwebsocketsClient *libwebsocketsClient = new LibwebsocketsClient(mutex, client);
     
-    std::string cip = ip;
-    if (cip[0] == '[')
-    {
-        // remove brackets in IPv6 addresses
-        cip = cip.substr(1, cip.size() - 2);
-    }
-    
-    struct lws_client_connect_info i;
-    memset(&i, 0, sizeof(i));
-    i.context = wscontext;
-    i.address = cip.c_str();
-    i.port = port;
-    i.ssl_connection = ssl ? 2 : 0;
-    string urlpath = "/";
-    urlpath.append(path);
-    i.path = urlpath.c_str();
-    i.host = host;
-    i.ietf_version_or_minus_one = -1;
-    i.userdata = libwebsocketsClient;
-    
-    libwebsocketsClient->wsi = lws_client_connect_via_info(&i);
-    if (!libwebsocketsClient->wsi)
+    if (!libwebsocketsClient->connectViaClientInfo(ip, host, port, path, ssl, wscontext))
     {
         delete libwebsocketsClient;
         return NULL;
@@ -215,10 +229,42 @@ bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
     if (lws_callback_on_writable(wsi) <= 0)
     {
         WEBSOCKETS_LOG_ERROR("lws_callback_on_writable() failed");
-        assert(false);
         return false;
     }
     return true;
+}
+
+bool LibwebsocketsClient::connectViaClientInfo(const char *ip, const char *host, int port, const char *path, bool ssl, lws_context *wscontext)
+{
+    std::string cip = ip;
+    if (cip[0] == '[')
+    {
+        // remove brackets in IPv6 addresses
+        cip = cip.substr(1, cip.size() - 2);
+    }
+
+    struct lws_client_connect_info i;
+    memset(&i, 0, sizeof(i));
+    i.context = wscontext;
+    i.address = cip.c_str();
+    i.port = port;
+    i.ssl_connection = ssl ? LCCSCF_USE_SSL : 0;
+    string urlpath = "/";
+    urlpath.append(path);
+    i.path = urlpath.c_str();
+    i.host = host;
+    i.ietf_version_or_minus_one = -1;
+    i.userdata = this;
+
+    if (ssl)
+    {
+        mTlsSession.hostname = host;
+        mTlsSession.port = port;
+    }
+
+    wsi = lws_client_connect_via_info(&i);
+
+    return wsi != nullptr;
 }
 
 void LibwebsocketsClient::wsDisconnect(bool immediate)
@@ -226,6 +272,20 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
     if (!wsi)
     {
         return;
+    }
+
+    if (mTlsSession.dropFromStorage())
+    {
+        wsSSLsessionUpdateCb(mTlsSession);
+        mTlsSession.dropFromStorage(false); // done, don't do it again later
+    }
+
+    else if (mTlsSession.saveToStorage() &&
+             LwsCache::dump(lws_get_vhost(wsi), &mTlsSession))
+    {
+        wsSSLsessionUpdateCb(mTlsSession);
+        mTlsSession.blob = nullptr;
+        mTlsSession.saveToStorage(false); // done, don't do it again later
     }
 
     if (immediate)
@@ -356,11 +416,71 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             {
                 return -1;
             }
-            
+
             client->wsConnectCb();
+
+            //
+            // deal with the TLS session
+
+            CachedSession *s = &client->mTlsSession;
+
+            // Explicitly request to "ignore" this session info until we're sure it's valid.
+            // The default is "drop", because LWS will pass Null user data (thus client)
+            // in case of error, and we can't link to the CachedSession from there.
+            s->saveToStorage(false);
+
+            if (s->hostname.empty()) // filter non-SSL connections, if any
+                break;
+
+            if (lws_tls_session_is_reused(wsi))
+            {
+                WEBSOCKETS_LOG_DEBUG("TLS session reused for %s:%d",
+                                     s->hostname.c_str(), s->port);
+                break;
+            }
+
+            // LWS cache might be updated later, asynchronously. Trying to get the session
+            // from there now, would either not find it, or get old data. So instead, let's
+            // get the session ourselves
+            SSL *nativeSSL = lws_get_ssl(wsi);
+            SSL_SESSION *sslSess = SSL_get_session(nativeSSL);
+            if (!sslSess) // should never happen in this cb
+            {
+                WEBSOCKETS_LOG_ERROR("TLS session was NULL for %s:%d", s->hostname.c_str(), s->port);
+                break;
+            }
+            if (!SSL_SESSION_is_resumable(sslSess)) // invalid session, not worth storing
+            {
+                // This never happened so far, but the possibility exists, so for this case, a later dump
+                // from LWS cache could be a solution. Unfortunately "later" cannot be defined.
+                WEBSOCKETS_LOG_WARNING("TLS session was invalid (not resumable); not stored for %s:%d",
+                                       s->hostname.c_str(), s->port);
+                break;
+            }
+
+            // serialize session data
+            auto bloblen = i2d_SSL_SESSION(sslSess, nullptr);
+            s->blob = make_shared<Buffer>(bloblen);
+            uint8_t *pp = s->blob->typedBuf<uint8_t>();
+            i2d_SSL_SESSION(sslSess, &pp);
+            s->blob->setDataSize(bloblen);
+
+            // Looks like session info is valid. Mark it to be saved persistently.
+            s->saveToStorage(true);
+
+            if (client->wsSSLsessionUpdateCb(*s))
+            {
+                s->saveToStorage(false); // no need to do it again later
+            }
+            else
+            {
+                WEBSOCKETS_LOG_ERROR("TLS session save to persistent storage failed for %s:%d",
+                                     s->hostname.c_str(), s->port);
+            }
+            s->blob = nullptr; // stored or not, don't keep it in memory
             break;
         }
-        case LWS_CALLBACK_CLOSED:
+        case LWS_CALLBACK_CLIENT_CLOSED:
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         {
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;
@@ -453,5 +573,49 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             break;
     }
     
+    return 0;
+}
+
+
+bool LwsCache::dump(lws_vhost *vh, CachedSession *s)
+{
+    return vh && s &&
+            // fill in the session data
+            // (dump callback will be called synchronously)
+            !lws_tls_session_dump_save(vh, s->hostname.c_str(), (uint16_t)s->port, &dumpCb, s); // 0: success
+}
+
+int LwsCache::dumpCb(lws_context *, lws_tls_session_dump *info)
+{
+    if (!info)  return 1;
+
+    CachedSession *sess = reinterpret_cast<CachedSession*>(info->opaque);
+    if (!sess)  return 1;
+
+    sess->blob = make_shared<Buffer>(info->blob_len);
+    sess->blob->assign(info->blob, info->blob_len);
+
+    return 0;
+}
+
+bool LwsCache::load(lws_vhost *vh, CachedSession *s)
+{
+    return vh && s &&
+            // fill in the session data
+            // (load callback will be called synchronously)
+            !lws_tls_session_dump_load(vh, s->hostname.c_str(), (uint16_t)s->port, &loadCb, s); // 0: success
+}
+
+int LwsCache::loadCb(lws_context *, lws_tls_session_dump *info)
+{
+    if (!info)  return 1;
+
+    CachedSession *sess = reinterpret_cast<CachedSession*>(info->opaque);
+    if (!sess || !sess->blob)  return 1;
+
+    info->blob = malloc(sess->blob->dataSize()); // will be deleted by LWS
+    memcpy(info->blob, sess->blob->buf(), sess->blob->dataSize());
+    info->blob_len = sess->blob->dataSize();
+
     return 0;
 }

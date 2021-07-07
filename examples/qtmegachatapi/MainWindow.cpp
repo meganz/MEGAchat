@@ -932,7 +932,7 @@ ChatItemWidget *MainWindow::addQtChatWidget(const MegaChatListItem *chatListItem
 
 void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
 {
-    int oldPriv;
+    int oldPriv = megachat::MegaChatRoom::PRIV_UNKNOWN;
     ChatItemWidget *widget = nullptr;
     ChatListItemController *itemController = getChatControllerById(item->getChatId());
 
@@ -948,13 +948,8 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
     }
     itemController = addOrUpdateChatControllerItem(item->copy());
 
-    bool needreorder = needReorder(item, oldPriv);
-    if ((!mAllowOrder && needreorder) || (!needreorder && !widget))
-    {
-        return;
-    }
-
-    if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PREVIEW_CLOSED))
+    if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PREVIEW_CLOSED)
+            || item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_DELETED))
     {
         ChatWindow * auxWindow = itemController->getChatWindow();
         if(auxWindow)
@@ -968,6 +963,11 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         return;
     }
 
+    bool needreorder = needReorder(item, oldPriv);
+    if ((!mAllowOrder && needreorder) || (!needreorder && !widget))
+    {
+        return;
+    }
 
     // If we don't need to reorder and chatItemwidget is rendered
     // we need to update the widget because non order actions requires
@@ -1025,6 +1025,7 @@ bool MainWindow::needReorder(MegaChatListItem *newItem, int oldPriv)
     if(newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CLOSED)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE)
+         || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_DELETED)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE)
          || (newItem->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)         

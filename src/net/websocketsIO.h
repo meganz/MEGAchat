@@ -20,6 +20,30 @@
 class WebsocketsClient;
 class WebsocketsClientImpl;
 
+struct CachedSession
+{
+    std::string             hostname;    // host.domain
+    int                     port = 0;    // 443 usually
+    std::shared_ptr<Buffer> blob;        // session data
+
+    void saveToStorage(bool save) { disconnectAction = save ? SAVE : IGNORE; }
+    bool saveToStorage() const { return disconnectAction == SAVE; }
+    void dropFromStorage(bool drop) { disconnectAction = drop ? DROP : IGNORE; }
+    bool dropFromStorage() const { return disconnectAction == DROP; }
+
+private:
+    enum
+    {
+        IGNORE
+        , SAVE
+        , DROP
+    };
+
+    // Initialize to this unusual value ("drop"), because LWS won't offer enough data
+    // in the cb to link to one of these instances, in case of connection failure.
+    int                     disconnectAction = DROP;
+};
+
 class DNScache
 {
 public:
@@ -28,7 +52,7 @@ public:
 
     DNScache(SqliteDb &db, int chatdVersion);
     void loadFromDb();
-    void addRecord(int shard, const std::string &url, bool saveToDb = true);
+    void addRecord(int shard, const std::string &url, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true);
     void removeRecord(int shard);
     void updateRecord(int shard, const std::string &url, bool saveToDb);
     bool hasRecord(int shard);
@@ -45,6 +69,9 @@ public:
     time_t age(int shard);
     const karere::Url &getUrl(int shard);
 
+    bool updateTlsSession(const CachedSession &sess);
+    std::vector<CachedSession> getTlsSessions();
+
 private:
     struct DNSrecord
     {
@@ -54,6 +81,7 @@ private:
         time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
         time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
         time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
+        std::shared_ptr<Buffer> tlsBlob; // tls session data
     };
 
     // Maps shard to DNSrecord
@@ -85,6 +113,9 @@ public:
             delete cb;
         }
     };
+
+    virtual bool hasSessionCache() const { return false; }
+    virtual void restoreSessions(std::vector<CachedSession> &&) { }
 
 protected:
     Mutex &mutex;
@@ -131,11 +162,11 @@ public:
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
     virtual void wsSendMsgCb(const char *data, size_t len) = 0;
+    virtual bool wsSSLsessionUpdateCb(const CachedSession &) { return false; }
 
     /* Public key pinning, by default this flag is enabled (true), it only should be disabled for testing purposes */
     static bool publicKeyPinning;
 };
-
 
 class WebsocketsClientImpl
 {
@@ -151,6 +182,7 @@ public:
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     void wsHandleMsgCb(char *data, size_t len);
     void wsSendMsgCb(const char *data, size_t len);
+    bool wsSSLsessionUpdateCb(const CachedSession &sess);
     
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;
