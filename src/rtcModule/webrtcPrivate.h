@@ -392,6 +392,7 @@ protected:
     void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
     void enableStats();
     void disableStats();
+    void adjustSvcBystats();
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable

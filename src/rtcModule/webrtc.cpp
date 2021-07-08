@@ -1732,6 +1732,8 @@ void Call::enableStats()
         mStats.mSamples.mNrxh.push_back(hiResSession);
         mStats.mSamples.mAv.push_back(mLocalAvFlags.value());
 
+        // adjust SVC driver based on collected stats
+        adjustSvcBystats();
 
         mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
         mRtcConn->GetStats(mStatConnCallback.get());
@@ -1807,6 +1809,58 @@ void Call::updateVideoTracks()
         freeVideoTracks();
         releaseVideoDevice();
     }
+}
+
+void Call::adjustSvcBystats()
+{
+    if (mStats.mSamples.mRoundTripTime.empty())
+    {
+        RTCM_LOG_WARNING("Not enough data to check SVC quality");
+        return;
+    }
+
+    int roundTripTime = mStats.mSamples.mRoundTripTime.back();
+    int packetLost = !mStats.mSamples.mPacketLost.empty()
+            ? mStats.mSamples.mPacketLost.back()
+            : 0;
+
+    if (!mSvcDriver.maRtt)
+    {
+         mSvcDriver.maRtt = roundTripTime;
+         mSvcDriver.maPlost = packetLost;
+         return; // intentionally skip first sample for lower/upper range calculation
+    }
+
+    if (roundTripTime < mSvcDriver.lowestRttSeen)
+    {
+        mSvcDriver.lowestRttSeen = roundTripTime;
+        mSvcDriver.rttLower = roundTripTime + mSvcDriver.kRttLowerHeadroom;
+        mSvcDriver.rttUpper = roundTripTime + mSvcDriver.kRttUpperHeadroom;
+    }
+
+    roundTripTime = mSvcDriver.maRtt = (mSvcDriver.maRtt * 3 + roundTripTime) / 4;
+    packetLost  = mSvcDriver.maPlost = (mSvcDriver.maPlost * 3 + packetLost) / 4;
+
+    time_t tsNow = time(nullptr);
+    if (mSvcDriver.tsLastSwitch
+            && (tsNow - mSvcDriver.tsLastSwitch < mSvcDriver.kMinTimeBetweenSwitches))
+    {
+        return; // too early
+    }
+
+    if ((mCurrentSvcLayerIndex >= 0 && roundTripTime > mSvcDriver.rttUpper)
+            || packetLost > mSvcDriver.plostUpper)
+    {
+        switchSvcQuality(-1);
+    }
+    else if (mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
+             && roundTripTime < mSvcDriver.rttLower
+             && packetLost < mSvcDriver.plostLower)
+    {
+        switchSvcQuality(+1);
+    }
+
+    // TODO check if there's CPU/bandwidth starvation and disableHighestSvcRes if proceed
 }
 
 const std::string& Call::getCallKey() const
