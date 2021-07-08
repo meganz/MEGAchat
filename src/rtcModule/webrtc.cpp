@@ -852,6 +852,7 @@ void Call::getLocalStreams()
 
 void Call::handleCallDisconnect()
 {
+    disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
     freeVideoTracks(true);          // free local video tracks and release slots
@@ -866,7 +867,6 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
     mMegaApi.sdk.sendChatStats(mStats.getJson().c_str(), 1378);
 
     mStats.clear();
-    disableStats();
     if (mLocalAvFlags.videoCam())
     {
         releaseVideoDevice();
@@ -1719,6 +1719,7 @@ void Call::enableStats()
             }
         }
 
+        assert(mVThumb  && mHiRes);
         mStatHiResSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, true));
         mRtcConn->GetStats(mHiRes->getTransceiver()->sender(), mStatHiResSenderCallBack);
 
