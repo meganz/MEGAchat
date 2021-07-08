@@ -98,7 +98,7 @@ protected:
     bool mAudioLevelMonitorEnabled = false;
 };
 
-class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>
+class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
 {
 public:
     VideoSink();
@@ -355,7 +355,7 @@ protected:
     void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
 };
 
-class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
+class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);
