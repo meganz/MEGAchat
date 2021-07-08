@@ -245,7 +245,7 @@ public:
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
-    void requestSvcLayers(Cid_t cid, int layerIndex) override;
+    void switchSvcQuality(int8_t delta) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;

@@ -727,11 +727,11 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
 }
 
-void Call::requestSvcLayers(Cid_t cid, int layerIndex)
+void Call::switchSvcQuality(int8_t delta)
 {
-    if (!hasVideoSlot(cid, true))
+    if (!mSvcDriver.switchSvcQuality(delta))
     {
-        RTCM_LOG_WARNING("setLayerSettings: Currently not receiving a hi-res stream for this peer");
+        RTCM_LOG_WARNING("switchSvcQuality: Invalid delta");
         return;
     }
 
@@ -739,9 +739,10 @@ void Call::requestSvcLayers(Cid_t cid, int layerIndex)
     int spt = 0;
     int tmp = 0;
     int stmp = 0;
-    if (!getLayerByIndex(layerIndex, spt, tmp, stmp))
+    int layerIndex = mSvcDriver.mCurrentSvcLayerIndex;
+    if (!mSvcDriver.getLayerByIndex(layerIndex, spt, tmp, stmp))
     {
-        RTCM_LOG_WARNING("setLayerSettings: Invalid layer index");
+        RTCM_LOG_WARNING("switchSvcQuality: Invalid layer index");
         return;
     }
 
