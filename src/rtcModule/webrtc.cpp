@@ -2482,16 +2482,6 @@ AudioLevelMonitor::AudioLevelMonitor(Call &call, int32_t cid)
 
 void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
 {
-    if (!hasAudio())
-    {
-        if (mAudioDetected)
-        {
-            onAudioDetected(false);
-        }
-
-        return;
-    }
-
     assert(bits_per_sample == 16);
     time_t nowTime = time(NULL);
     if (nowTime - mPreviousTime > 2) // Two seconds between samples
@@ -2515,10 +2505,31 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
         }
 
         bool audioDetected = (abs(audioMaxValue) + abs(audioMinValue) > kAudioThreshold);
-        if (audioDetected != mAudioDetected)
+
+        auto wptr = weakHandle();
+        karere::marshallCall([wptr, this, audioDetected]()
         {
-            onAudioDetected(mAudioDetected);
-        }
+            if (wptr.deleted())
+            {
+                return;
+            }
+
+            if (!hasAudio())
+            {
+                if (mAudioDetected)
+                {
+                    onAudioDetected(false);
+                }
+
+                return;
+            }
+
+            if (audioDetected != mAudioDetected)
+            {
+                onAudioDetected(mAudioDetected);
+            }
+
+        }, artc::gAppCtx);
     }
 }
 

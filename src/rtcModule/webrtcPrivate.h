@@ -52,7 +52,7 @@ private:
     std::map<Cid_t, karere::AvFlags> mTracksFlags;
 };
 
-class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
+class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface, public karere::DeleteTrackable
 {
     public:
     AudioLevelMonitor(Call &call, int32_t cid = -1);
