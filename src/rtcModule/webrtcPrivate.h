@@ -172,6 +172,30 @@ private:
     SessionState mState = kSessStateInProgress;
 };
 
+class SvcDriver
+{
+public:
+    static const uint8_t kMaxQualityIndex = 6;
+    static const int kRttLowerHeadroom = 30;
+    static const int kRttUpperHeadroom = 250;
+    static const int kMinTimeBetweenSwitches = 10000;
+    static const int kHiresStartGraceTime = 5000;
+
+    SvcDriver();
+    bool switchSvcQuality(int8_t delta);
+    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
+
+    uint8_t mCurrentSvcLayerIndex = 0;
+    float plostLower = 0;
+    int lowestRttSeen = 0;
+    int plostUpper = 0;
+    int rttLower = 0;
+    int rttUpper = 0;
+    int maRtt = 0;
+    int maPlost = 0;
+    time_t tsLastSwitch = 0;
+};
+
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
@@ -259,7 +283,6 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     void updateVideoTracks();
     void requestPeerTracks(const std::set<Cid_t> &cids);
-    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -356,6 +379,7 @@ protected:
     TxStat mHiResTxStats;
     TxStat mPrevHiResTxStats;
     Stats mStats;
+    SvcDriver mSvcDriver;
     // Current SVC layer index
     int mCurrentSvcLayerIndex = 0;
 
