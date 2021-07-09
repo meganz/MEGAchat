@@ -393,6 +393,7 @@ protected:
     void enableStats();
     void disableStats();
     void adjustSvcBystats();
+    void collectNonRTCStats();
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
