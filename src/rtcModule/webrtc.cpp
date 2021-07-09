@@ -1653,6 +1653,36 @@ void Call::freeAudioTrack(bool releaseSlot)
     }
 }
 
+void Call::collectNonRTCStats()
+{
+    int audioSession = 0;
+    int vThumbSession = 0;
+    int hiResSession = 0;
+    for (const auto& session : mSessions)
+    {
+        if (session.second->getAudioSlot())
+        {
+            audioSession++;
+        }
+
+        if (session.second->getVthumSlot())
+        {
+            vThumbSession++;
+        }
+
+        if (session.second->getHiResSlot())
+        {
+            hiResSession++;
+        }
+    }
+
+    mStats.mSamples.mPacketLost.push_back(0);
+    mStats.mSamples.mNrxa.push_back(audioSession);
+    mStats.mSamples.mNrxl.push_back(vThumbSession);
+    mStats.mSamples.mNrxh.push_back(hiResSession);
+    mStats.mSamples.mAv.push_back(mLocalAvFlags.value());
+}
+
 void Call::enableStats()
 {
     for (auto& slot : mReceiverTracks)
@@ -1679,38 +1709,27 @@ void Call::enableStats()
         if (wptr.deleted())
           return;
 
-
-        int audioSession = 0;
-        int vThumbSession = 0;
-        int hiResSession = 0;
-        for (const auto& session : mSessions)
+        if (!mSfuConnection->isJoined())
         {
-            if (session.second->getAudioSlot())
-            {
-                audioSession++;
-            }
-
-            if (session.second->getVthumSlot())
-            {
-                vThumbSession++;
-            }
-
-            if (session.second->getHiResSlot())
-            {
-                hiResSession++;
-            }
+          RTCM_LOG_WARNING("Cannot collect stats until reach kJoined state");
+          return;
         }
 
-        mStats.mSamples.mPacketLost.push_back(0);
-        mStats.mSamples.mNrxa.push_back(audioSession);
-        mStats.mSamples.mNrxl.push_back(vThumbSession);
-        mStats.mSamples.mNrxh.push_back(hiResSession);
-        mStats.mSamples.mAv.push_back(mLocalAvFlags.value());
+        // poll TxVideoStats
+        assert(mVThumb  && mHiRes);
+        if (mHiResActive)
+        {
+            mStatHiResSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, true));
+            mRtcConn->GetStats(mHiRes->getTransceiver()->sender(), mStatHiResSenderCallBack);
+        }
 
+        if (mVThumbActive)
+        {
+            mStatVThumbSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, false));
+            mRtcConn->GetStats(mVThumb->getTransceiver()->sender(), mStatVThumbSenderCallBack);
+        }
 
-        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
-        mRtcConn->GetStats(mStatConnCallback.get());
-
+        // poll RxStats
         mStatVideoReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteVideoStatsCallBack(&mStats));
         for (auto& slot : mReceiverTracks)
         {
@@ -1720,12 +1739,12 @@ void Call::enableStats()
             }
         }
 
-        assert(mVThumb  && mHiRes);
-        mStatHiResSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, true));
-        mRtcConn->GetStats(mHiRes->getTransceiver()->sender(), mStatHiResSenderCallBack);
+        // poll Conn stats
+        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
+        mRtcConn->GetStats(mStatConnCallback.get());
 
-        mStatVThumbSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, false));
-        mRtcConn->GetStats(mVThumb->getTransceiver()->sender(), mStatVThumbSenderCallBack);
+        // poll non-rtc stats
+        collectNonRTCStats();
 
     }, RtcConstant::kStatsInterval, mRtc.getAppCtx());
 }
