@@ -338,19 +338,19 @@ void Call::setRinging(bool ringing)
 void Call::setOnHold()
 {
     // disable audio track
-    if (mAudio->getTransceiver()->sender()->track())
+    if (mAudio && mAudio->getTransceiver()->sender()->track())
     {
         mAudio->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
     // disable hi-res track
-    if (mHiRes->getTransceiver()->sender()->track())
+    if (mHiRes && mHiRes->getTransceiver()->sender()->track())
     {
         mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
     // disable low-res track
-    if (mVThumb->getTransceiver()->sender()->track())
+    if (mVThumb && mVThumb->getTransceiver()->sender()->track())
     {
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
     }
@@ -1286,6 +1286,7 @@ bool Call::error(unsigned int code)
 
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
+    assert(mVThumb  && mHiRes && mAudio);
     mVThumb->createEncryptor(getMyPeer());
     mHiRes->createEncryptor(getMyPeer());
     mAudio->createEncryptor(getMyPeer());
@@ -1646,29 +1647,35 @@ void Call::updateVideoTracks()
         takeVideoDevice();
 
         // hi-res track
-        if (mHiResActive && !mHiRes->getTransceiver()->sender()->track())
+        if (mHiRes)
         {
-            rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-            mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
-        }
-        else if (!mHiResActive)
-        {
-            mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
+            if (mHiResActive && !mHiRes->getTransceiver()->sender()->track())
+            {
+                rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
+                mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
+            }
+            else if (!mHiResActive)
+            {
+                mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
+            }
         }
 
         // low-res track
-        if (!mVThumb->getTransceiver()->sender()->track())
+        if (mVThumb)
         {
-            rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-            webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
-            mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
+            if (!mVThumb->getTransceiver()->sender()->track())
+            {
+                rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
+                webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
+                mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
 
-        }
-        else if (!mVThumbActive)
-        {
-            mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+            }
+            else if (!mVThumbActive)
+            {
+                mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+            }
         }
     }
     else
@@ -1685,6 +1692,11 @@ const std::string& Call::getCallKey() const
 
 void Call::updateAudioTracks()
 {
+    if (!mAudio)
+    {
+        return;
+    }
+
     bool audio = mSpeakerState > SpeakerState::kNoSpeaker && mLocalAvFlags.audio();
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
     if (audio && !mLocalAvFlags.isOnHold())
@@ -1927,31 +1939,41 @@ void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere:
 
 void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
 {
-    for (auto& render : mRenderers)
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, this, frame]()
     {
-        ICall* call = findCallByChatid(render.first);
-        if ((call && call->getLocalAvFlags().videoCam() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+        if (wptr.deleted())
         {
-            assert(render.second != nullptr);
-            void* userData = NULL;
-            auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
-            if (frame.rotation() != webrtc::kVideoRotation_0)
-            {
-                buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
-            }
-            unsigned short width = (unsigned short)buffer->width();
-            unsigned short height = (unsigned short)buffer->height();
-            void* frameBuf = render.second->getImageBuffer(width, height, userData);
-            if (!frameBuf) //image is frozen or app is minimized/covered
-                return;
-            libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
-                               buffer->DataU(), buffer->StrideU(),
-                               buffer->DataV(), buffer->StrideV(),
-                               (uint8_t*)frameBuf, width * 4, width, height);
-
-            render.second->frameComplete(userData);
+            return;
         }
-    }
+
+        for (auto& render : mRenderers)
+        {
+            ICall* call = findCallByChatid(render.first);
+            if ((call && call->getLocalAvFlags().videoCam() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+            {
+                assert(render.second != nullptr);
+                void* userData = NULL;
+                auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
+                if (frame.rotation() != webrtc::kVideoRotation_0)
+                {
+                    buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+                }
+                unsigned short width = (unsigned short)buffer->width();
+                unsigned short height = (unsigned short)buffer->height();
+                void* frameBuf = render.second->getImageBuffer(width, height, userData);
+                if (!frameBuf) //image is frozen or app is minimized/covered
+                    return;
+                libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+                                   buffer->DataU(), buffer->StrideU(),
+                                   buffer->DataV(), buffer->StrideV(),
+                                   (uint8_t*)frameBuf, width * 4, width, height);
+
+                render.second->frameComplete(userData);
+            }
+        }
+    }, mAppCtx);
+
 }
 
 artc::VideoManager *RtcModuleSfu::getVideoDevice()
@@ -2215,25 +2237,34 @@ void VideoSink::setVideoRender(IVideoRenderer *videoRenderer)
 
 void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
 {
-    if (mRenderer)
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, this, frame]()
     {
-        void* userData = NULL;
-        auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
-        if (frame.rotation() != webrtc::kVideoRotation_0)
+        if (wptr.deleted())
         {
-            buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
-        }
-        unsigned short width = (unsigned short)buffer->width();
-        unsigned short height = (unsigned short)buffer->height();
-        void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
-        if (!frameBuf) //image is frozen or app is minimized/covered
             return;
-        libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
-                           buffer->DataU(), buffer->StrideU(),
-                           buffer->DataV(), buffer->StrideV(),
-                           (uint8_t*)frameBuf, width * 4, width, height);
-        mRenderer->frameComplete(userData);
-    }
+        }
+
+        if (mRenderer)
+        {
+            void* userData = NULL;
+            auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
+            if (frame.rotation() != webrtc::kVideoRotation_0)
+            {
+                buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+            }
+            unsigned short width = (unsigned short)buffer->width();
+            unsigned short height = (unsigned short)buffer->height();
+            void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
+            if (!frameBuf) //image is frozen or app is minimized/covered
+                return;
+            libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+                               buffer->DataU(), buffer->StrideU(),
+                               buffer->DataV(), buffer->StrideV(),
+                               (uint8_t*)frameBuf, width * 4, width, height);
+            mRenderer->frameComplete(userData);
+        }
+    }, artc::gAppCtx);
 }
 
 void RemoteVideoSlot::assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution)
@@ -2470,16 +2501,6 @@ AudioLevelMonitor::AudioLevelMonitor(Call &call, int32_t cid)
 
 void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
 {
-    if (!hasAudio())
-    {
-        if (mAudioDetected)
-        {
-            onAudioDetected(false);
-        }
-
-        return;
-    }
-
     assert(bits_per_sample == 16);
     time_t nowTime = time(NULL);
     if (nowTime - mPreviousTime > 2) // Two seconds between samples
@@ -2503,10 +2524,31 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
         }
 
         bool audioDetected = (abs(audioMaxValue) + abs(audioMinValue) > kAudioThreshold);
-        if (audioDetected != mAudioDetected)
+
+        auto wptr = weakHandle();
+        karere::marshallCall([wptr, this, audioDetected]()
         {
-            onAudioDetected(mAudioDetected);
-        }
+            if (wptr.deleted())
+            {
+                return;
+            }
+
+            if (!hasAudio())
+            {
+                if (mAudioDetected)
+                {
+                    onAudioDetected(false);
+                }
+
+                return;
+            }
+
+            if (audioDetected != mAudioDetected)
+            {
+                onAudioDetected(mAudioDetected);
+            }
+
+        }, artc::gAppCtx);
     }
 }
 
