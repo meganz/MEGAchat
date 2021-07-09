@@ -120,6 +120,49 @@ std::map<Cid_t, karere::AvFlags>& AvailableTracks::getTracks()
     return mTracksFlags;
 }
 
+SvcDriver::SvcDriver ()
+    : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
+      mPacketLostLower(0.01),
+      lowestRttSeen(10000),
+      mPacketLostUpper(1),
+      mRttLower(0),
+      mRttUpper(0),
+      mMovingAverageRtt(0),
+      mMovingAveragePlost(0),
+      mTsLastSwitch(0)
+{
+
+}
+
+bool SvcDriver::switchSvcQuality(int8_t delta)
+{
+    int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
+    if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
+    {
+        return false;
+    }
+    mTsLastSwitch = time(nullptr);
+    mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
+    return true;
+}
+
+bool SvcDriver::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
+{
+    // we want to provide a linear quality scale,
+    // layers are defined for each of the 7 "quality" steps
+    // layer: spatial (resolution), temporal (FPS), screen-temporal (temporal layer for screen video)
+    switch (index)
+    {
+        case 0: { stp = 0; tmp = 0; stmp = 0; return true; }
+        case 1: { stp = 0; tmp = 1; stmp = 0; return true; }
+        case 2: { stp = 0; tmp = 2; stmp = 0; return true; }
+        case 3: { stp = 1; tmp = 1; stmp = 0; return true; }
+        case 4: { stp = 1; tmp = 2; stmp = 1; return true; }
+        case 5: { stp = 2; tmp = 1; stmp = 1; return true; }
+        case 6: { stp = 2; tmp = 2; stmp = 2; return true; }
+        default: return false;
+    }
+}
 Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
@@ -684,11 +727,11 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
 }
 
-void Call::requestSvcLayers(Cid_t cid, int layerIndex)
+void Call::switchSvcQuality(int8_t delta)
 {
-    if (!hasVideoSlot(cid, true))
+    if (!mSvcDriver.switchSvcQuality(delta))
     {
-        RTCM_LOG_WARNING("setLayerSettings: Currently not receiving a hi-res stream for this peer");
+        RTCM_LOG_WARNING("switchSvcQuality: Invalid delta");
         return;
     }
 
@@ -696,9 +739,10 @@ void Call::requestSvcLayers(Cid_t cid, int layerIndex)
     int spt = 0;
     int tmp = 0;
     int stmp = 0;
-    if (!getLayerByIndex(layerIndex, spt, tmp, stmp))
+    int layerIndex = mSvcDriver.mCurrentSvcLayerIndex;
+    if (!mSvcDriver.getLayerByIndex(layerIndex, spt, tmp, stmp))
     {
-        RTCM_LOG_WARNING("setLayerSettings: Invalid layer index");
+        RTCM_LOG_WARNING("switchSvcQuality: Invalid layer index");
         return;
     }
 
@@ -973,24 +1017,6 @@ void Call::requestPeerTracks(const std::set<Cid_t>& cids)
     }
 
     requestLowResolutionVideo(lowResCids);
-}
-
-bool Call::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
-{
-    // we want to provide a linear quality scale,
-    // layers are defined for each of the 7 "quality" steps
-    // layer: spatial (resolution), temporal (FPS), screen-temporal (temporal layer for screen video)
-    switch (index)
-    {
-        case 0: { stp = 0; tmp = 0; stmp = 0; return true; }
-        case 1: { stp = 0; tmp = 1; stmp = 0; return true; }
-        case 2: { stp = 0; tmp = 2; stmp = 0; return true; }
-        case 3: { stp = 1; tmp = 1; stmp = 0; return true; }
-        case 4: { stp = 1; tmp = 2; stmp = 1; return true; }
-        case 5: { stp = 2; tmp = 1; stmp = 1; return true; }
-        case 6: { stp = 2; tmp = 2; stmp = 2; return true; }
-        default: return false;
-    }
 }
 
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
@@ -1746,6 +1772,9 @@ void Call::enableStats()
         // poll non-rtc stats
         collectNonRTCStats();
 
+        // adjust SVC driver based on collected stats
+        adjustSvcBystats();
+
     }, RtcConstant::kStatsInterval, mRtc.getAppCtx());
 }
 
@@ -1804,6 +1833,8 @@ void Call::updateVideoTracks()
     }
 }
 
+void Call::adjustSvcBystats()
+{
 const std::string& Call::getCallKey() const
 {
     return mCallKey;
