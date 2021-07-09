@@ -1835,6 +1835,56 @@ void Call::updateVideoTracks()
 
 void Call::adjustSvcBystats()
 {
+    if (mStats.mSamples.mRoundTripTime.empty())
+    {
+        RTCM_LOG_WARNING("Not enough data to check SVC quality");
+        return;
+    }
+
+    int roundTripTime = mStats.mSamples.mRoundTripTime.back();
+    int packetLost = !mStats.mSamples.mPacketLost.empty()
+            ? mStats.mSamples.mPacketLost.back()
+            : 0;
+
+    if (!mSvcDriver.mMovingAverageRtt)
+    {
+         mSvcDriver.mMovingAverageRtt = roundTripTime;
+         mSvcDriver.mMovingAveragePlost = packetLost;
+         return; // intentionally skip first sample for lower/upper range calculation
+    }
+
+    if (roundTripTime < mSvcDriver.lowestRttSeen)
+    {
+        mSvcDriver.lowestRttSeen = roundTripTime;
+        mSvcDriver.mRttLower = roundTripTime + mSvcDriver.kRttLowerHeadroom;
+        mSvcDriver.mRttUpper = roundTripTime + mSvcDriver.kRttUpperHeadroom;
+    }
+
+    roundTripTime = mSvcDriver.mMovingAverageRtt = (mSvcDriver.mMovingAverageRtt * 3 + roundTripTime) / 4;
+    packetLost  = mSvcDriver.mMovingAveragePlost = (mSvcDriver.mMovingAveragePlost * 3 + packetLost) / 4;
+
+    time_t tsNow = time(nullptr);
+    if (mSvcDriver.mTsLastSwitch
+            && (tsNow - mSvcDriver.mTsLastSwitch < mSvcDriver.kMinTimeBetweenSwitches))
+    {
+        return; // too early
+    }
+
+    if ((mCurrentSvcLayerIndex >= 0 && roundTripTime > mSvcDriver.mRttUpper)
+            || packetLost > mSvcDriver.mPacketLostUpper)
+    {
+        switchSvcQuality(-1);
+    }
+    else if (mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
+             && roundTripTime < mSvcDriver.mRttLower
+             && packetLost < mSvcDriver.mPacketLostLower)
+    {
+        switchSvcQuality(+1);
+    }
+
+    // TODO check if there's CPU/bandwidth starvation and disableHighestSvcRes if proceed
+}
+
 const std::string& Call::getCallKey() const
 {
     return mCallKey;
