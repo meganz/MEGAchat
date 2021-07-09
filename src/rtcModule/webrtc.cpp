@@ -864,7 +864,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
 {
     mStats.mTerCode = static_cast<int32_t>(termCode);
     mStats.mDuration = time(nullptr) - mInitialTs;
-    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str(), 1378);
+    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
 
     mStats.clear();
     if (mLocalAvFlags.videoCam())
