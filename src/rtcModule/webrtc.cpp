@@ -122,14 +122,14 @@ std::map<Cid_t, karere::AvFlags>& AvailableTracks::getTracks()
 
 SvcDriver::SvcDriver ()
     : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
-      plostLower(0.01),
+      mPacketLostLower(0.01),
       lowestRttSeen(10000),
-      plostUpper(1),
-      rttLower(0),
-      rttUpper(0),
-      maRtt(0),
-      maPlost(0),
-      tsLastSwitch(0)
+      mPacketLostUpper(1),
+      mRttLower(0),
+      mRttUpper(0),
+      mMaRtt(0),
+      mMaPlost(0),
+      mTsLastSwitch(0)
 {
 
 }
@@ -141,7 +141,7 @@ bool SvcDriver::switchSvcQuality(int8_t delta)
     {
         return false;
     }
-    tsLastSwitch = time(nullptr);
+    mTsLastSwitch = time(nullptr);
     mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
     return true;
 }
@@ -1824,38 +1824,38 @@ void Call::adjustSvcBystats()
             ? mStats.mSamples.mPacketLost.back()
             : 0;
 
-    if (!mSvcDriver.maRtt)
+    if (!mSvcDriver.mMaRtt)
     {
-         mSvcDriver.maRtt = roundTripTime;
-         mSvcDriver.maPlost = packetLost;
+         mSvcDriver.mMaRtt = roundTripTime;
+         mSvcDriver.mMaPlost = packetLost;
          return; // intentionally skip first sample for lower/upper range calculation
     }
 
     if (roundTripTime < mSvcDriver.lowestRttSeen)
     {
         mSvcDriver.lowestRttSeen = roundTripTime;
-        mSvcDriver.rttLower = roundTripTime + mSvcDriver.kRttLowerHeadroom;
-        mSvcDriver.rttUpper = roundTripTime + mSvcDriver.kRttUpperHeadroom;
+        mSvcDriver.mRttLower = roundTripTime + mSvcDriver.kRttLowerHeadroom;
+        mSvcDriver.mRttUpper = roundTripTime + mSvcDriver.kRttUpperHeadroom;
     }
 
-    roundTripTime = mSvcDriver.maRtt = (mSvcDriver.maRtt * 3 + roundTripTime) / 4;
-    packetLost  = mSvcDriver.maPlost = (mSvcDriver.maPlost * 3 + packetLost) / 4;
+    roundTripTime = mSvcDriver.mMaRtt = (mSvcDriver.mMaRtt * 3 + roundTripTime) / 4;
+    packetLost  = mSvcDriver.mMaPlost = (mSvcDriver.mMaPlost * 3 + packetLost) / 4;
 
     time_t tsNow = time(nullptr);
-    if (mSvcDriver.tsLastSwitch
-            && (tsNow - mSvcDriver.tsLastSwitch < mSvcDriver.kMinTimeBetweenSwitches))
+    if (mSvcDriver.mTsLastSwitch
+            && (tsNow - mSvcDriver.mTsLastSwitch < mSvcDriver.kMinTimeBetweenSwitches))
     {
         return; // too early
     }
 
-    if ((mCurrentSvcLayerIndex >= 0 && roundTripTime > mSvcDriver.rttUpper)
-            || packetLost > mSvcDriver.plostUpper)
+    if ((mCurrentSvcLayerIndex >= 0 && roundTripTime > mSvcDriver.mRttUpper)
+            || packetLost > mSvcDriver.mPacketLostUpper)
     {
         switchSvcQuality(-1);
     }
     else if (mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
-             && roundTripTime < mSvcDriver.rttLower
-             && packetLost < mSvcDriver.plostLower)
+             && roundTripTime < mSvcDriver.mRttLower
+             && packetLost < mSvcDriver.mPacketLostLower)
     {
         switchSvcQuality(+1);
     }

@@ -186,14 +186,14 @@ public:
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     uint8_t mCurrentSvcLayerIndex = 0;
-    float plostLower = 0;
+    float mPacketLostLower = 0;
     int lowestRttSeen = 0;
-    int plostUpper = 0;
-    int rttLower = 0;
-    int rttUpper = 0;
-    int maRtt = 0;
-    int maPlost = 0;
-    time_t tsLastSwitch = 0;
+    int mPacketLostUpper = 0;
+    int mRttLower = 0;
+    int mRttUpper = 0;
+    int mMaRtt = 0;
+    int mMaPlost = 0;
+    time_t mTsLastSwitch = 0;
 };
 
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
