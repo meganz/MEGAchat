@@ -45,6 +45,7 @@ namespace rtcModule
         int32_t mTerCode = 0;
         bool mIsGroup = false;
         int64_t mInitialTs = 0;
+        std::string mDevice;
 
     protected:
         void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<int32_t>* periods = nullptr);
