@@ -2022,8 +2022,8 @@ void RtcModuleSfu::closeDevice()
 {
     if (mVideoDevice)
     {
-        mVideoDevice->releaseDevice();
         mVideoDevice->RemoveSink(this);
+        mVideoDevice->releaseDevice();
         mVideoDevice = nullptr;
     }
 }
