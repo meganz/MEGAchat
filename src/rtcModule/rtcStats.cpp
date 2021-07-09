@@ -176,6 +176,9 @@ std::string Stats::getJson()
     json.AddMember("callid", callid, json.GetAllocator());
     json.AddMember("toffs", mTimeOffset, json.GetAllocator());
     json.AddMember("dur", mDuration, json.GetAllocator());
+    rapidjson::Value device(rapidjson::kStringType);
+    device.SetString(mDevice.c_str(), json.GetAllocator());
+    json.AddMember("ua", device, json.GetAllocator());
 
     rapidjson::Value samples(rapidjson::kObjectType);
 
@@ -272,6 +275,7 @@ void Stats::clear()
     mTerCode = 0;
     mIsGroup = false;
     mInitialTs = 0;
+    mDevice.clear();
 }
 
 void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &value, rapidjson::Document& json, bool diff, const std::vector<int32_t> *periods)

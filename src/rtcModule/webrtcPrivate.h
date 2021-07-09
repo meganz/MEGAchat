@@ -405,6 +405,7 @@ public:
     void closeDevice();
 
     void* getAppCtx();
+    std::string getDeviceInfo() const;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;

@@ -1671,6 +1671,7 @@ void Call::enableStats()
     mStats.mCallid = mCallid;
     mStats.mTimeOffset = mOffset;
     mStats.mIsGroup = mIsGroup;
+    mStats.mDevice = mRtc.getDeviceInfo();
 
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
@@ -2116,6 +2117,64 @@ void *RtcModuleSfu::getAppCtx()
 {
     return mAppCtx;
 }
+
+std::string RtcModuleSfu::getDeviceInfo() const
+{
+    // UserAgent Format
+    // MEGA<app>/<version> (platform) Megaclient/<version>
+    std::string userAgent = mMegaApi.sdk.getUserAgent();
+
+    std::string androidId = "MEGAAndroid";
+    std::string iosId = "MEGAiOS";
+    std::string testChatId = "MEGAChatTest";
+    std::string syncId = "MEGAsync";
+    std::string qtAppId = "MEGAChatQtApp";
+    std::string megaClcId = "MEGAclc";
+
+    std::string deviceType = "n";
+    std::string version = "0";
+
+    size_t endTypePosition = std::string::npos;
+    size_t idPosition;
+    if ((idPosition = userAgent.find(androidId)) != std::string::npos)
+    {
+        deviceType = "na";
+        endTypePosition = idPosition + androidId.size() + 1; // remove '/'
+    }
+    else if ((idPosition = userAgent.find(iosId)) != std::string::npos)
+    {
+        deviceType = "ni";
+        endTypePosition = idPosition + iosId.size() + 1;  // remove '/'
+    }
+    else if ((idPosition = userAgent.find(testChatId)) != std::string::npos)
+    {
+        deviceType = "nct";
+    }
+    else if ((idPosition = userAgent.find(syncId)) != std::string::npos)
+    {
+        deviceType = "nsync";
+        endTypePosition = idPosition + syncId.size() + 1;  // remove '/'
+    }
+    else if ((idPosition = userAgent.find(qtAppId)) != std::string::npos)
+    {
+        deviceType = "nqtApp";
+    }
+    else if ((idPosition = userAgent.find(megaClcId)) != std::string::npos)
+    {
+        deviceType = "nclc";
+    }
+
+    size_t endVersionPosition = userAgent.find(" (");
+    if (endVersionPosition != std::string::npos &&
+            endTypePosition != std::string::npos &&
+            endVersionPosition > endTypePosition)
+    {
+        version = userAgent.substr(endTypePosition, endVersionPosition - endTypePosition);
+    }
+
+    return deviceType + ":" + version;
+}
+
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler)
 {
