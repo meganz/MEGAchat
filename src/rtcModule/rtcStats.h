@@ -4,6 +4,7 @@
 #include <api/stats/rtc_stats_collector_callback.h>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
+#include <base/trackDelete.h>
 
 namespace rtcModule
 {
@@ -51,8 +52,7 @@ namespace rtcModule
         void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<int32_t>* periods = nullptr);
     };
 
-
-    class RtcStatCallback : public webrtc::RTCStatsCollectorCallback
+    class RtcStatCallback : public webrtc::RTCStatsCollectorCallback, public karere::DeleteTrackable
     {
     public:
         RtcStatCallback(Stats* stats);
