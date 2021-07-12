@@ -1655,17 +1655,6 @@ void Call::freeAudioTrack(bool releaseSlot)
 
 void Call::enableStats()
 {
-    for (auto& slot : mReceiverTracks)
-    {
-        if (slot.second->getTransceiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
-        {
-            RxStat rxStats;
-            RxStat prevRxStats;
-            mRemoteRxStats[slot.second->getTransceiver()->receiver()->id()] = rxStats;
-            mPrevRemoteRxStas[slot.second->getTransceiver()->receiver()->id()] = prevRxStats;
-        }
-    }
-
     mStats.mPeerId = mMyPeer.getPeerid();
     mStats.mCid = mMyPeer.getCid();
     mStats.mCallid = mCallid;
@@ -1745,8 +1734,6 @@ void Call::disableStats()
     {
         karere::cancelInterval(mStatsTimer, mRtc.getAppCtx());
         mStatsTimer = 0;
-        mRemoteRxStats.clear();
-        mPrevRemoteRxStas.clear();
         static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
         static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
         static_cast<RemoteVideoStatsCallBack*>(mStatVideoReceiverCallback.get())->removeStats();

@@ -348,13 +348,9 @@ protected:
 
     megaHandle mStatsTimer = 0;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatVideoReceiverCallback;
-    std::map<std::string, RxStat> mRemoteRxStats;
-    std::map<std::string, RxStat> mPrevRemoteRxStas;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatVThumbSenderCallBack;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatHiResSenderCallBack;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
-    TxStat mHiResTxStats;
-    TxStat mPrevHiResTxStats;
     Stats mStats;
     // Current SVC layer index
     int mCurrentSvcLayerIndex = 0;

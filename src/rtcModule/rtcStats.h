@@ -51,33 +51,6 @@ namespace rtcModule
         void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<int32_t>* periods = nullptr);
     };
 
-    class ConnStats
-    {
-    public:
-        int64_t mPeriodConnStats = 0;
-        uint64_t mTxBwe = 0;
-        uint64_t mRx = 0;
-        uint64_t mTx = 0;
-    };
-
-    class RxStat : public ConnStats
-    {
-    public:
-        uint64_t mPacketLost = 0;
-        uint64_t mNackCount = 0;
-        double mBytesRecv = 0.0;
-        double mKeyFramesEncoded = 0.0;
-    };
-
-    class TxStat : public ConnStats
-    {
-    public:
-        uint32_t mWidth = 0;
-        uint32_t mHeight = 0;
-        float mFps = 0.0;
-        double mBytesSend = 0.0;
-        double mKeyFramesEncoded = 0.0;
-    };
 
     class RtcStatCallback : public webrtc::RTCStatsCollectorCallback
     {
