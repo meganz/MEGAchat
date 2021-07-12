@@ -1719,22 +1719,10 @@ void Call::enableStats()
         }
 
         // poll RxStats
-        mStatVideoReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteStatsCallBack(&mStats));
+        mStatReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteStatsCallBack(&mStats));
         for (auto& slot : mReceiverTracks)
         {
-            if (slot.second->getTransceiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
-            {
-                mRtcConn->GetStats(slot.second->getTransceiver()->receiver(), mStatVideoReceiverCallback);
-            }
-        }
-
-        mStatVideoReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteStatsCallBack(&mStats));
-        for (auto& slot : mReceiverTracks)
-        {
-            if (slot.second->getTransceiver()->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
-            {
-                mRtcConn->GetStats(slot.second->getTransceiver()->receiver(), mStatVideoReceiverCallback);
-            }
+            mRtcConn->GetStats(slot.second->getTransceiver()->receiver(), mStatReceiverCallback);
         }
 
         // poll Conn stats
@@ -1755,7 +1743,7 @@ void Call::disableStats()
         mStatsTimer = 0;
         static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
         static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
-        static_cast<RemoteStatsCallBack*>(mStatVideoReceiverCallback.get())->removeStats();
+        static_cast<RemoteStatsCallBack*>(mStatReceiverCallback.get())->removeStats();
         static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
     }
 }

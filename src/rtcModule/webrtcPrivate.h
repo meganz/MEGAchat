@@ -347,7 +347,7 @@ protected:
     artc::VideoManager* mVideoManager = nullptr;
 
     megaHandle mStatsTimer = 0;
-    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatVideoReceiverCallback;
+    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatReceiverCallback;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatVThumbSenderCallBack;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatHiResSenderCallBack;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
