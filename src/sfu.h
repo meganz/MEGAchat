@@ -12,10 +12,12 @@
 #define SFU_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
+
 namespace sfu
 {
+
 // NOTE: This queue, must be always managed from a single thread.
-// The classes that instanciates it, are responsible to ensure that.
+// The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
 // a synchronization mechanism (like a mutex).
 class CommandsQueue
@@ -48,13 +50,13 @@ public:
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
     void init(Cid_t cid, karere::Id peerid, unsigned avFlags);
+
 protected:
     Cid_t mCid = 0;
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = 0;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
-
 };
 
 class TrackDescriptor
@@ -99,7 +101,6 @@ public:
     Sdp(const rapidjson::Value& sdp);
 
     std::string unCompress();
-    void toJson(rapidjson::Document& json) const;
 
     const std::vector<SdpTrack>& tracks() const { return mTracks; }
     const std::map<std::string, std::string>& data() const { return mData; }

@@ -808,11 +808,11 @@ Sdp::Sdp(const std::string &sdp)
     size_t pos = 0;
     std::string buffer = sdp;
     std::vector<std::string> tokens;
-    while ((pos = buffer.find(endl)) != std::string::npos)
+    while ((pos = buffer.find(Sdp::endl)) != std::string::npos)
     {
         std::string token = buffer.substr(0, pos);
         tokens.push_back(token);
-        buffer.erase(0, pos + endl.size());
+        buffer.erase(0, pos + Sdp::endl.size());
     }
 
     for (const std::string& line : tokens)
@@ -822,7 +822,7 @@ Sdp::Sdp(const std::string &sdp)
             break;
         }
 
-        mData["cmn"].append(line).append(endl);
+        mData["cmn"].append(line).append(Sdp::endl);
     }
 
     unsigned int i = 0;
@@ -910,14 +910,10 @@ std::string Sdp::unCompress()
     return sdp;
 }
 
-void Sdp::toJson(rapidjson::Document& json) const
-{
-}
-
 unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position)
 {
     std::string temp = lines[position++];
-    temp.append(endl);
+    temp.append(Sdp::endl);
 
     unsigned int i = 0;
     for (i = position; i < lines.size(); i++)
@@ -931,7 +927,7 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
 
         if (lineType != 'a')
         {
-            temp.append(line).append(endl);
+            temp.append(line).append(Sdp::endl);
             continue;
         }
 
@@ -947,7 +943,7 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
             continue;
         }
 
-        temp.append(line).append(endl);
+        temp.append(line).append(Sdp::endl);
     }
 
     mData[type] = temp;
@@ -1136,26 +1132,26 @@ std::string Sdp::unCompressTrack(const Sdp::SdpTrack& track, const std::string &
 {
     std::string sdp = tpl;
 
-    sdp.append("a=mid:").append(std::to_string(track.mMid)).append(endl);
-    sdp.append("a=").append(track.mDir).append(endl);
+    sdp.append("a=mid:").append(std::to_string(track.mMid)).append(Sdp::endl);
+    sdp.append("a=").append(track.mDir).append(Sdp::endl);
     if (track.mId.size())
     {
-        sdp.append("a=msid:").append(track.mSid).append(" ").append(track.mId).append(endl);
+        sdp.append("a=msid:").append(track.mSid).append(" ").append(track.mId).append(Sdp::endl);
     }
 
     if (track.mSsrcs.size())
     {
         for (const auto& ssrc : track.mSsrcs)
         {
-            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" cname:").append(ssrc.second.length() ? ssrc.second : track.mSid).append(endl);
-            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" msid:").append(track.mSid).append(" ").append(track.mId).append(endl);
+            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" cname:").append(ssrc.second.length() ? ssrc.second : track.mSid).append(Sdp::endl);
+            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" msid:").append(track.mSid).append(" ").append(track.mId).append(Sdp::endl);
         }
 
         if (track.mSsrcg.size())
         {
             for (const std::string& grp : track.mSsrcg)
             {
-                sdp.append("a=ssrc-group:").append(grp).append(endl);
+                sdp.append("a=ssrc-group:").append(grp).append(Sdp::endl);
             }
         }
     }

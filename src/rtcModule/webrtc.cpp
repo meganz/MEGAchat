@@ -980,8 +980,8 @@ bool Call::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
     }
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers,
-                               const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
+bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>& peers,
+                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
     // set my own client-id (cid)
     mMyPeer.init(cid, mSfuClient.myHandle(), 0);
@@ -1017,11 +1017,11 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
         assert(parameters.encodings.size());
         parameters.encodings[0].scale_resolution_down_by = scale;
-        parameters.encodings[0].max_bitrate_bps = 100 * 1024;
+        parameters.encodings[0].max_bitrate_bps = 100 * 1024;   // 100 Kbps
         mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
 
         // annotate the available tracks upon connection, for further reconnects (to request the same)
-        for (auto const vthumb : vthumbs)
+        for (const auto& vthumb : vthumbs)
         {
             mAvailableTracks->addCid(vthumb.first);
         }
@@ -1029,7 +1029,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         handleIncomingVideo(vthumbs);
         requestPeerTracks(cids);    // the ones previously available before reconnection
 
-        for(auto speak : speakers)
+        for (const auto& speak : speakers)
         {
             Cid_t cid = speak.first;
             const sfu::TrackDescriptor& speakerDecriptor = speak.second;
