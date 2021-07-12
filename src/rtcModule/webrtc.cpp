@@ -1736,7 +1736,7 @@ void Call::disableStats()
         mStatsTimer = 0;
         static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
         static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
-        static_cast<RemoteVideoStatsCallBack*>(mStatVideoReceiverCallback.get())->removeStats();
+        static_cast<RemoteStatsCallBack*>(mStatVideoReceiverCallback.get())->removeStats();
         static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
     }
 }
