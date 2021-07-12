@@ -1702,6 +1702,8 @@ void Call::collectNonRTCStats()
         }
     }
 
+    // TODO: pending to implement disabledTxLayers in future if needed
+    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
