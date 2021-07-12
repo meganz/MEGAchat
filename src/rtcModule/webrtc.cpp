@@ -1720,6 +1720,15 @@ void Call::enableStats()
             }
         }
 
+        mStatVideoReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteStatsCallBack(&mStats));
+        for (auto& slot : mReceiverTracks)
+        {
+            if (slot.second->getTransceiver()->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
+            {
+                mRtcConn->GetStats(slot.second->getTransceiver()->receiver(), mStatVideoReceiverCallback);
+            }
+        }
+
         assert(mVThumb  && mHiRes);
         mStatHiResSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, true));
         mRtcConn->GetStats(mHiRes->getTransceiver()->sender(), mStatHiResSenderCallBack);
