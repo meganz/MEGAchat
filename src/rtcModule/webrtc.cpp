@@ -1775,8 +1775,16 @@ void Call::disableStats()
     {
         karere::cancelInterval(mStatsTimer, mRtc.getAppCtx());
         mStatsTimer = 0;
-        static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
-        static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
+        if (mStatVThumbSenderCallBack)
+        {
+            static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
+        }
+
+        if (mStatHiResSenderCallBack)
+        {
+            static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
+        }
+
         static_cast<RemoteStatsCallBack*>(mStatReceiverCallback.get())->removeStats();
         static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
         mStatVThumbSenderCallBack = nullptr;
