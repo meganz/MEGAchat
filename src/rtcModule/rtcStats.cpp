@@ -13,11 +13,6 @@ RtcStatCallback::RtcStatCallback(Stats *stats)
 
 }
 
-void RtcStatCallback::removeStats()
-{
-    mStats = nullptr;
-}
-
 void RtcStatCallback::AddRef() const
 {
     mRefCount.IncRef();
