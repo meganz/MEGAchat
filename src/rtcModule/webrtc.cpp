@@ -1756,7 +1756,6 @@ void Call::enableStats()
         mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
         mRtcConn->GetStats(mStatConnCallback.get());
 
-        mStats.mSamples.mPacketLost.push_back(0);
         mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
         mRtcConn->GetStats(mStatConnCallback.get());
 
@@ -1765,6 +1764,7 @@ void Call::enableStats()
 
         // adjust SVC driver based on collected stats
         adjustSvcBystats();
+        mStats.mSamples.mPacketLost.push_back(0);
 
     }, RtcConstant::kStatsInterval, mRtc.getAppCtx());
 }
