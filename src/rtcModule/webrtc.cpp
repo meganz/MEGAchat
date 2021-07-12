@@ -1854,6 +1854,11 @@ void Call::adjustSvcBystats()
 
     if (roundTripTime < mSvcDriver.lowestRttSeen)
     {
+        // rttLower and rttUpper define the window inside which layer is not switched.
+        //  - if rtt falls below that window, layer is switched to higher quality,
+        //  - if rtt is higher, layer is switched to lower quality.
+        // the window is defined/redefined relative to the lowest rtt seen.
+
         mSvcDriver.lowestRttSeen = roundTripTime;
         mSvcDriver.mRttLower = roundTripTime + mSvcDriver.kRttLowerHeadroom;
         mSvcDriver.mRttUpper = roundTripTime + mSvcDriver.kRttUpperHeadroom;
