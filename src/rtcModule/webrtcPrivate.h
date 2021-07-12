@@ -52,7 +52,7 @@ private:
     std::map<Cid_t, karere::AvFlags> mTracksFlags;
 };
 
-class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
+class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface, public karere::DeleteTrackable
 {
     public:
     AudioLevelMonitor(Call &call, int32_t cid = -1);
@@ -100,7 +100,7 @@ protected:
     bool mAudioLevelMonitorEnabled = false;
 };
 
-class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>
+class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
 {
 public:
     VideoSink();
@@ -340,6 +340,7 @@ public:
     bool handleError(unsigned int code, const std::string reason) override;
     bool handleModerator(Cid_t cid, bool moderator) override;
     void onSfuConnected() override;
+    bool error(unsigned int code) override;
 
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
@@ -427,7 +428,7 @@ protected:
     void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
 };
 
-class RtcModuleSfu : public RtcModule, public VideoSink, public karere::DeleteTrackable
+class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);

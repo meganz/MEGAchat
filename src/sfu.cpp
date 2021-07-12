@@ -9,6 +9,7 @@ namespace sfu
 {
 // sfu->client commands
 std::string Command::COMMAND_IDENTIFIER = "a";
+std::string Command::ERROR_IDENTIFIER = "err";
 std::string AVCommand::COMMAND_NAME = "AV";
 std::string AnswerCommand::COMMAND_NAME = "ANSWER";
 std::string KeyCommand::COMMAND_NAME = "KEY";
@@ -1388,10 +1389,17 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
     }
 
     rapidjson::Value::ConstMemberIterator jsonIterator = document.FindMember(Command::COMMAND_IDENTIFIER.c_str());
-    if (jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString())
+    rapidjson::Value::ConstMemberIterator jsonErrIterator = document.FindMember(Command::ERROR_IDENTIFIER.c_str());
+    if ((jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString()) && (jsonErrIterator == document.MemberEnd()))
     {
         SFU_LOG_ERROR("Received data doesn't have 'a' field");
         return false;
+    }
+
+    if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
+    {
+        mCall.error(jsonErrIterator->value.GetInt());
+        return true;
     }
 
     std::string command = jsonIterator->value.GetString();

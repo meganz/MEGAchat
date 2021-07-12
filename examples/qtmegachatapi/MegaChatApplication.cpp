@@ -397,7 +397,8 @@ void MegaChatApplication::enableStaging(bool enable)
         mMegaApi->changeApiUrl("https://g.api.mega.co.nz/");
     }
 
-    if (mMegaChatApi->getOnlineStatus() != MegaChatApi::DISCONNECTED)
+    if (mMegaChatApi->getConnectionState() != MegaChatApi::DISCONNECTED
+            && mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS) // don't need login and cannot refresh url
     {
         // force a reload upon api-url changes
         mMegaApi->fastLogin(mSid);

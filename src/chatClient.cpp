@@ -387,7 +387,14 @@ bool Client::openDb(const std::string& sid)
                 else //
                 {
                     // Add meeting to chats table
-                    db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
+                    try
+                    {
+                        db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
+                    }
+                    catch (const std::runtime_error& e)
+                    {
+                        // meeting column is already added
+                    }
 
                     db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();
@@ -711,7 +718,6 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
         return;
     }
 
-    mPresencedClient.retryPendingConnection(disconnect, refreshURL);
     if (mChatdClient)
     {
         mChatdClient->retryPendingConnections(disconnect, refreshURL);
@@ -724,6 +730,11 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
         rtc->getSfuClient().retryPendingConnections(disconnect);
     }
 #endif
+
+    if (!anonymousMode())   // avoid to connect to presenced (no user, no peerstatus)
+    {
+        mPresencedClient.retryPendingConnection(disconnect, refreshURL);
+    }
 }
 
 promise::Promise<void> Client::notifyUserStatus(bool background)

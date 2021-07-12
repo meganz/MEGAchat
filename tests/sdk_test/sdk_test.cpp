@@ -5119,9 +5119,15 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 
     std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
     std::map<std::string, bool> checkCommands;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"] = true;
+    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"] = false;
     checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"] = false;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"] = true;
+    checkCommands["{\"a\":\"HIRES_STOP\"}"] = true;
+    checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2}"] = true;
+    checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"] = true;
+    checkCommands["{\"a\":\"HIRES_START\"}"] = true;
+    checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"] = true;
+    checkCommands["{\"err\":129}"] = true;
+
 
 
     for (auto testCase : checkCommands)
@@ -5260,95 +5266,100 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 
 bool MockupCall::handleAvCommand(Cid_t cid, unsigned av)
 {
-
+    return true;
 }
 
 bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, uint64_t ts, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
-
+    return true;
 }
 
 bool MockupCall::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
-
+    return true;
 }
 
 bool MockupCall::handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &)
 {
-
+    return true;
 }
 
 bool MockupCall::handleVThumbsStartCommand()
 {
-
+    return true;
 }
 
 bool MockupCall::handleVThumbsStopCommand()
 {
-
+    return true;
 }
 
 bool MockupCall::handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &)
 {
-
+    return true;
 }
 
 bool MockupCall::handleHiResStartCommand()
 {
-
+    return true;
 }
 
 bool MockupCall::handleHiResStopCommand()
 {
-
+    return true;
 }
 
 bool MockupCall::handleSpeakReqsCommand(const std::vector<Cid_t> &)
 {
-
+    return true;
 }
 
 bool MockupCall::handleSpeakReqDelCommand(Cid_t cid)
 {
-
+    return true;
 }
 
 bool MockupCall::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 {
-
+    return true;
 }
 
 bool MockupCall::handleSpeakOffCommand(Cid_t cid)
 {
-
+    return true;
 }
 
 bool MockupCall::handleStatCommand()
 {
-
+    return true;
 }
 
 bool MockupCall::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 {
-
+    return true;
 }
 
 bool MockupCall::handlePeerLeft(Cid_t cid)
 {
-
+    return true;
 }
 
 bool MockupCall::handleError(unsigned int, const string)
 {
-
+    return true;
 }
 
 bool MockupCall::handleModerator(Cid_t cid, bool moderator)
 {
-
+    return true;
 }
 
 void MockupCall::onSfuConnected()
 {
 
+}
+
+bool MockupCall::error(unsigned int)
+{
+    return true;
 }
