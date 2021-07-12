@@ -1873,6 +1873,8 @@ void Call::adjustSvcBystats()
             && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
     {
         // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
+        // we want to decrease layer when references values (mRttUpper and mPacketLostUpper)
+        // have been exceeded.
         switchSvcQuality(-1);
     }
     else if (mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
@@ -1880,6 +1882,8 @@ void Call::adjustSvcBystats()
              && packetLost < mSvcDriver.mPacketLostLower)
     {
         // if retrieved rtt AND packetLost have decreased respect current values increment 1 layer
+        // we only want to increase layer when the improvement is bigger enough to represents a
+        // faithfully improvement in network quality, we take mRttLower and mPacketLostLower as references
         switchSvcQuality(+1);
     }
 
