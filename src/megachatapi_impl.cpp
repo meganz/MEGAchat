@@ -3030,6 +3030,51 @@ const char *MegaChatApiImpl::getUserEmailFromCache(MegaChatHandle userhandle)
     return nullptr;
 }
 
+const char *MegaChatApiImpl::getUserAliasFromCache(MegaChatHandle userhandle)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(mClient->myHandle(), ::mega::MegaApi::USER_ATTR_ALIAS);
+
+        if (!buffer || buffer->empty()) return nullptr;
+
+        const std::string container(buffer->buf(), buffer->size());
+        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
+        std::unique_ptr<std::vector<std::string>> keys(tlvRecords->getKeys());
+
+        for (auto &key : *keys)
+        {
+            Id userid(key.data());
+            if (userid == userhandle)
+            {
+                string value;
+                tlvRecords->get(key.c_str(), value);
+                return MegaApi::strdup(value.c_str());
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+MegaStringMap *MegaChatApiImpl::getUserAliasesFromCache()
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(mClient->myHandle(), ::mega::MegaApi::USER_ATTR_ALIAS);
+
+        if (!buffer || buffer->empty()) return nullptr;
+
+        const std::string container(buffer->buf(), buffer->size());
+        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
+        return new MegaStringMapPrivate(tlvRecords->getMap(), true);
+    }
+
+    return nullptr;
+}
+
 void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList *userList, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES, listener);
