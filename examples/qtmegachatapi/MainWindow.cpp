@@ -1182,11 +1182,6 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
         {
             //Fetch alias attr
             mMegaApi->getUserAttribute(::mega::MegaApi::USER_ATTR_ALIAS);
-
-            if (mApp->isJoiningAsGuest())
-            {
-                mMegaChatApi->openChatPreview(mApp->getChatLink().c_str());
-            }
         }
     }
 }
