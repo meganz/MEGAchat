@@ -134,7 +134,7 @@ SvcDriver::SvcDriver ()
 
 }
 
-bool SvcDriver::switchSvcQuality(int8_t delta)
+bool SvcDriver::updateSvcQuality(int8_t delta)
 {
     int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
     if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
@@ -729,9 +729,8 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
 
 void Call::switchSvcQuality(int8_t delta)
 {
-    if (!mSvcDriver.switchSvcQuality(delta))
+    if (!mSvcDriver.updateSvcQuality(delta))
     {
-        RTCM_LOG_WARNING("switchSvcQuality: Invalid delta");
         return;
     }
 

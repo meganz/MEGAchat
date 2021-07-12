@@ -185,13 +185,13 @@ public:
     static const int kRttUpperHeadroom = 250;
 
     SvcDriver();
-    bool switchSvcQuality(int8_t delta);
+    bool updateSvcQuality(int8_t delta);
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     uint8_t mCurrentSvcLayerIndex = 0;
     float mPacketLostLower = 0;
+    float mPacketLostUpper = 0;
     int lowestRttSeen = 0;
-    int mPacketLostUpper = 0;
     int mRttLower = 0;
     int mRttUpper = 0;
     int mMovingAverageRtt = 0;
