@@ -67,6 +67,7 @@ namespace rtcModule
     {
     public:
         RtcStatCallback(Stats* stats);
+        void removeStats();
 
         void AddRef() const override;
         rtc::RefCountReleaseStatus Release() const override;

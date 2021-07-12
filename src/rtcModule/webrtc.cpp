@@ -1702,7 +1702,6 @@ void Call::collectNonRTCStats()
         }
     }
 
-    mStats.mSamples.mPacketLost.push_back(0);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
@@ -1774,6 +1773,10 @@ void Call::disableStats()
     {
         karere::cancelInterval(mStatsTimer, mRtc.getAppCtx());
         mStatsTimer = 0;
+        static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
+        static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
+        static_cast<RemoteStatsCallBack*>(mStatReceiverCallback.get())->removeStats();
+        static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
         mStatVThumbSenderCallBack = nullptr;
         mStatHiResSenderCallBack = nullptr;
         mStatReceiverCallback = nullptr;
