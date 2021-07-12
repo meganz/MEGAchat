@@ -105,18 +105,18 @@ void LocalVideoStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const we
     }
 }
 
-RemoteVideoStatsCallBack::RemoteVideoStatsCallBack(Stats *stats)
+RemoteStatsCallBack::RemoteStatsCallBack(Stats *stats)
     : RtcStatCallback(stats)
 {
 
 }
 
-RemoteVideoStatsCallBack::~RemoteVideoStatsCallBack()
+RemoteStatsCallBack::~RemoteStatsCallBack()
 {
 
 }
 
-void RemoteVideoStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport> &report)
+void RemoteStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport> &report)
 {
     if (!mStats)
     {

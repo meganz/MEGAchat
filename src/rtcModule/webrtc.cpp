@@ -1711,7 +1711,7 @@ void Call::enableStats()
         mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
         mRtcConn->GetStats(mStatConnCallback.get());
 
-        mStatVideoReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteVideoStatsCallBack(&mStats));
+        mStatVideoReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteStatsCallBack(&mStats));
         for (auto& slot : mReceiverTracks)
         {
             if (slot.second->getTransceiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)

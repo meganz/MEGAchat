@@ -104,11 +104,11 @@ namespace rtcModule
         bool mHiRes;
     };
 
-    class RemoteVideoStatsCallBack : public RtcStatCallback
+    class RemoteStatsCallBack : public RtcStatCallback
     {
     public:
-        RemoteVideoStatsCallBack(Stats* stats);
-        ~RemoteVideoStatsCallBack();
+        RemoteStatsCallBack(Stats* stats);
+        ~RemoteStatsCallBack();
         void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
     };
 
