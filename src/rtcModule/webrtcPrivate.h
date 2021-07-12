@@ -176,8 +176,8 @@ class SvcDriver
 {
 public:
     static const uint8_t kMaxQualityIndex = 6;
-    static const int kMinTimeBetweenSwitches = 10000;   // minimum period between SVC switches
-    static const int kHiresStartGraceTime = 5000;       // start grace period while which we avoid SVC switching
+    static const int kMinTimeBetweenSwitches = 10;   // minimum period between SVC switches in seconds
+    static const int kHiresStartGraceTime = 5;       // start grace period while which we avoid SVC switching in seconds
 
     // boundaries for switching to lower/higher quality.
     // if rtt moving average goes outside of these boundaries, switching occurs.
