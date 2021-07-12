@@ -172,6 +172,30 @@ private:
     SessionState mState = kSessStateInProgress;
 };
 
+class SvcDriver
+{
+public:
+    static const uint8_t kMaxQualityIndex = 6;
+    static const int kRttLowerHeadroom = 30;
+    static const int kRttUpperHeadroom = 250;
+    static const int kMinTimeBetweenSwitches = 10000;
+    static const int kHiresStartGraceTime = 5000;
+
+    SvcDriver();
+    bool switchSvcQuality(int8_t delta);
+    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
+
+    uint8_t mCurrentSvcLayerIndex = 0;
+    float mPacketLostLower = 0;
+    int lowestRttSeen = 0;
+    int mPacketLostUpper = 0;
+    int mRttLower = 0;
+    int mRttUpper = 0;
+    int mMaRtt = 0;
+    int mMaPlost = 0;
+    time_t mTsLastSwitch = 0;
+};
+
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
@@ -221,7 +245,7 @@ public:
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
-    void requestSvcLayers(Cid_t cid, int layerIndex) override;
+    void switchSvcQuality(int8_t delta) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
@@ -259,7 +283,6 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     void updateVideoTracks();
     void requestPeerTracks(const std::set<Cid_t> &cids);
-    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -352,6 +375,7 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatHiResSenderCallBack;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
+    SvcDriver mSvcDriver;
     // Current SVC layer index
     int mCurrentSvcLayerIndex = 0;
 
@@ -364,6 +388,7 @@ protected:
     void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
     void enableStats();
     void disableStats();
+    void adjustSvcBystats();
     void collectNonRTCStats();
 };
 
