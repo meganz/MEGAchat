@@ -176,23 +176,26 @@ class SvcDriver
 {
 public:
     static const uint8_t kMaxQualityIndex = 6;
+    static const int kMinTimeBetweenSwitches = 10;   // minimum period between SVC switches in seconds
+    static const int kHiresStartGraceTime = 5;       // start grace period while which we avoid SVC switching in seconds
+
+    // boundaries for switching to lower/higher quality.
+    // if rtt moving average goes outside of these boundaries, switching occurs.
     static const int kRttLowerHeadroom = 30;
     static const int kRttUpperHeadroom = 250;
-    static const int kMinTimeBetweenSwitches = 10000;
-    static const int kHiresStartGraceTime = 5000;
 
     SvcDriver();
-    bool switchSvcQuality(int8_t delta);
+    bool updateSvcQuality(int8_t delta);
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     uint8_t mCurrentSvcLayerIndex = 0;
     float mPacketLostLower = 0;
+    float mPacketLostUpper = 0;
     int lowestRttSeen = 0;
-    int mPacketLostUpper = 0;
     int mRttLower = 0;
     int mRttUpper = 0;
-    int mMaRtt = 0;
-    int mMaPlost = 0;
+    int mMovingAverageRtt = 0;
+    int mMovingAveragePlost = 0;
     time_t mTsLastSwitch = 0;
 };
 

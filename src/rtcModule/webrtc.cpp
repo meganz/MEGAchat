@@ -127,14 +127,14 @@ SvcDriver::SvcDriver ()
       mPacketLostUpper(1),
       mRttLower(0),
       mRttUpper(0),
-      mMaRtt(0),
-      mMaPlost(0),
+      mMovingAverageRtt(0),
+      mMovingAveragePlost(0),
       mTsLastSwitch(0)
 {
 
 }
 
-bool SvcDriver::switchSvcQuality(int8_t delta)
+bool SvcDriver::updateSvcQuality(int8_t delta)
 {
     int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
     if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
@@ -729,7 +729,7 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
 
 void Call::switchSvcQuality(int8_t delta)
 {
-    if (!mSvcDriver.switchSvcQuality(delta))
+    if (!mSvcDriver.updateSvcQuality(delta))
     {
         RTCM_LOG_WARNING("switchSvcQuality: Invalid delta");
         return;
@@ -1825,7 +1825,7 @@ void Call::adjustSvcBystats()
 {
     if (mStats.mSamples.mRoundTripTime.empty())
     {
-        RTCM_LOG_WARNING("Not enough data to check SVC quality");
+        RTCM_LOG_WARNING("adjustSvcBystats: not enough collected data");
         return;
     }
 
@@ -1834,22 +1834,26 @@ void Call::adjustSvcBystats()
             ? mStats.mSamples.mPacketLost.back()
             : 0;
 
-    if (!mSvcDriver.mMaRtt)
+    if (!mSvcDriver.mMovingAverageRtt)
     {
-         mSvcDriver.mMaRtt = roundTripTime;
-         mSvcDriver.mMaPlost = packetLost;
+         mSvcDriver.mMovingAverageRtt = roundTripTime;
+         mSvcDriver.mMovingAveragePlost = packetLost;
          return; // intentionally skip first sample for lower/upper range calculation
     }
 
     if (roundTripTime < mSvcDriver.lowestRttSeen)
     {
+        // rttLower and rttUpper define the window inside which layer is not switched.
+        //  - if rtt falls below that window, layer is switched to higher quality,
+        //  - if rtt is higher, layer is switched to lower quality.
+        // the window is defined/redefined relative to the lowest rtt seen.
         mSvcDriver.lowestRttSeen = roundTripTime;
         mSvcDriver.mRttLower = roundTripTime + mSvcDriver.kRttLowerHeadroom;
         mSvcDriver.mRttUpper = roundTripTime + mSvcDriver.kRttUpperHeadroom;
     }
 
-    roundTripTime = mSvcDriver.mMaRtt = (mSvcDriver.mMaRtt * 3 + roundTripTime) / 4;
-    packetLost  = mSvcDriver.mMaPlost = (mSvcDriver.mMaPlost * 3 + packetLost) / 4;
+    roundTripTime = mSvcDriver.mMovingAverageRtt = (mSvcDriver.mMovingAverageRtt * 3 + roundTripTime) / 4;
+    packetLost  = mSvcDriver.mMovingAveragePlost = (mSvcDriver.mMovingAveragePlost * 3 + packetLost) / 4;
 
     time_t tsNow = time(nullptr);
     if (mSvcDriver.mTsLastSwitch
@@ -1858,15 +1862,21 @@ void Call::adjustSvcBystats()
         return; // too early
     }
 
-    if ((mCurrentSvcLayerIndex >= 0 && roundTripTime > mSvcDriver.mRttUpper)
-            || packetLost > mSvcDriver.mPacketLostUpper)
+    if (mCurrentSvcLayerIndex >= 0
+            && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
     {
+        // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
+        // we want to decrease layer when references values (mRttUpper and mPacketLostUpper)
+        // have been exceeded.
         switchSvcQuality(-1);
     }
     else if (mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
              && roundTripTime < mSvcDriver.mRttLower
              && packetLost < mSvcDriver.mPacketLostLower)
     {
+        // if retrieved rtt AND packetLost have decreased respect current values increment 1 layer
+        // we only want to increase layer when the improvement is bigger enough to represents a
+        // faithfully improvement in network quality, we take mRttLower and mPacketLostLower as references
         switchSvcQuality(+1);
     }
 
