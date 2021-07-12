@@ -214,7 +214,7 @@ public:
 
 
     // ---- ICall methods ----
-
+    //
 
     // sets a handler to receive callbacks about the call (takes ownership)
     void setCallHandler(CallHandler* callHanlder) override;
@@ -259,28 +259,37 @@ public:
 
     void setCallerId(karere::Id callerid) override;
     karere::Id getCallid() const override;
+
     // request to speak, or cancels a previous request (add = false)
     void requestSpeaker(bool add = true) override;
     bool hasRequestSpeak() const override;
+
+    // get the list of users that have requested to speak
+    std::vector<Cid_t> getSpeakerRequested() override;
+
     // allows to approve/deny requests to speak from other users (only allowed for moderators)
     void approveSpeakRequest(Cid_t cid, bool allow) override;
     bool isSpeakAllow() const override; // true if request has been approved
     void stopSpeak(Cid_t cid = 0) override; // after been approved
-    // get the list of users that have requested to speak
-    std::vector<Cid_t> getSpeakerRequested() override;
+
     void requestHighResolutionVideo(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
+
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
+
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC)
     void requestHiResQuality(Cid_t cid, int quality) override;
+
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC)
     void requestSvcLayers(Cid_t cid, int layerIndex) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
+
     bool isOutgoing() const override;   // true if your user started the call
+
     int64_t getInitialTimeStamp() const override;
     int64_t getFinalTimeStamp() const override;
 
@@ -288,7 +297,9 @@ public:
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     void setAudioDetected(bool audioDetected) override;
 
+    //
     // ------ end ICall methods -----
+
 
     Session* getSession(Cid_t cid);
 

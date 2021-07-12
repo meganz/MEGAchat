@@ -162,7 +162,7 @@ public:
     public:
         AVCommand(const AvCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         AvCompleteFunction mComplete;
     };
 
@@ -172,7 +172,7 @@ public:
         typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>)> AnswerCompleteFunction;
         AnswerCommand(const AnswerCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         AnswerCompleteFunction mComplete;
 
     private:
@@ -188,7 +188,7 @@ public:
     public:
         KeyCommand(const KeyCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         KeyCompleteFunction mComplete;
     };
 
@@ -198,7 +198,7 @@ public:
     public:
         VthumbsCommand(const VtumbsCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         VtumbsCompleteFunction mComplete;
     };
 
@@ -208,7 +208,7 @@ public:
     public:
         VthumbsStartCommand(const VtumbsStartCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         VtumbsStartCompleteFunction mComplete;
     };
 
@@ -218,7 +218,7 @@ public:
     public:
         VthumbsStopCommand(const VtumbsStopCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         VtumbsStopCompleteFunction mComplete;
     };
 
@@ -228,7 +228,7 @@ public:
     public:
         HiResCommand(const HiresCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         HiresCompleteFunction mComplete;
     };
 
@@ -238,7 +238,7 @@ public:
     public:
         HiResStartCommand(const HiResStartCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         HiResStartCompleteFunction mComplete;
     };
 
@@ -248,7 +248,7 @@ public:
     public:
         HiResStopCommand(const HiResStopCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         HiResStopCompleteFunction mComplete;
     };
 
@@ -258,7 +258,7 @@ public:
     public:
         SpeakReqsCommand(const SpeakReqsCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         SpeakReqsCompleteFunction mComplete;
     };
 
@@ -268,7 +268,7 @@ public:
     public:
         SpeakReqDelCommand(const SpeakReqDelCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         SpeakReqDelCompleteFunction mComplete;
     };
 
@@ -278,7 +278,7 @@ public:
     public:
         SpeakOnCommand(const SpeakOnCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         SpeakOnCompleteFunction mComplete;
     };
 
@@ -288,7 +288,7 @@ public:
     public:
         SpeakOffCommand(const SpeakOffCompleteFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         SpeakOffCompleteFunction mComplete;
     };
 
@@ -298,7 +298,7 @@ public:
     public:
         StatCommand(const StatCommandFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         StatCommandFunction mComplete;
     };
 
@@ -308,7 +308,7 @@ public:
     public:
         PeerJoinCommand(const PeerJoinCommandFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         PeerJoinCommandFunction mComplete;
     };
 
@@ -318,7 +318,7 @@ public:
     public:
         PeerLeftCommand(const PeerLeftCommandFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         PeerLeftCommandFunction mComplete;
     };
 
@@ -328,7 +328,7 @@ public:
     public:
         ErrorCommand(const ErrorCommandFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         ErrorCommandFunction mComplete;
     };
 
@@ -338,25 +338,25 @@ public:
     public:
         ModeratorCommand(const ModeratorCommandFunction& complete);
         bool processCommand(const rapidjson::Document& command) override;
-        static std::string COMMAND_NAME;
+        static const std::string COMMAND_NAME;
         ModeratorCommandFunction mComplete;
     };
 
     class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     {
         // client->sfu commands
-        const std::string CSFU_JOIN = "JOIN";
-        const std::string CSFU_SENDKEY = "KEY";
-        const std::string CSFU_AV = "AV";
-        const std::string CSFU_GET_VTHUMBS = "GET_VTHUMBS";
-        const std::string CSFU_DEL_VTHUMBS = "DEL_VTHUMBS";
-        const std::string CSFU_GET_HIRES = "GET_HIRES";
-        const std::string CSFU_DEL_HIRES = "DEL_HIRES";
-        const std::string CSFU_HIRES_SET_LO = "HIRES_SET_LO";
-        const std::string CSFU_LAYER = "LAYER";
-        const std::string CSFU_SPEAK_RQ = "SPEAK_RQ";
-        const std::string CSFU_SPEAK_RQ_DEL = "SPEAK_RQ_DEL";
-        const std::string CSFU_SPEAK_DEL = "SPEAKER_DEL";
+        static const std::string CSFU_JOIN;
+        static const std::string CSFU_SENDKEY;
+        static const std::string CSFU_AV;
+        static const std::string CSFU_GET_VTHUMBS;
+        static const std::string CSFU_DEL_VTHUMBS;
+        static const std::string CSFU_GET_HIRES;
+        static const std::string CSFU_DEL_HIRES;
+        static const std::string CSFU_HIRES_SET_LO;
+        static const std::string CSFU_LAYER;
+        static const std::string CSFU_SPEAK_RQ;
+        static const std::string CSFU_SPEAK_RQ_DEL;
+        static const std::string CSFU_SPEAK_DEL;
 
     public:
         enum ConnState
