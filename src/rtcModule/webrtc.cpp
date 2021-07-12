@@ -1841,10 +1841,14 @@ void Call::adjustSvcBystats()
         return;
     }
 
-    int roundTripTime = mStats.mSamples.mRoundTripTime.back();
-    int packetLost = !mStats.mSamples.mPacketLost.empty()
-            ? mStats.mSamples.mPacketLost.back()
-            : 0;
+    float roundTripTime = mStats.mSamples.mRoundTripTime.back();
+    float packetLost = 0;
+    if (mStats.mSamples.mPacketLost.size() >= 2)
+    {
+        int lastpl =  mStats.mSamples.mPacketLost.back();
+        int prelastpl= mStats.mSamples.mPacketLost.at(mStats.mSamples.mPacketLost.size()-2);
+        packetLost = abs(lastpl - prelastpl);
+    }
 
     if (!mSvcDriver.mMovingAverageRtt)
     {
