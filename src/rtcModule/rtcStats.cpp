@@ -188,7 +188,7 @@ std::string Stats::getJson()
     samples.AddMember("t", t, json.GetAllocator());
 
     rapidjson::Value pl(rapidjson::kArrayType);
-    parseSamples(mSamples.mPacketLost, pl, json, true, &periods);
+    parseSamples(mSamples.mPacketLost, pl, json, false, nullptr);
     samples.AddMember("pl", pl, json.GetAllocator());
 
     rapidjson::Value rtt(rapidjson::kArrayType);
