@@ -1837,7 +1837,7 @@ void Call::adjustSvcBystats()
 {
     if (mStats.mSamples.mRoundTripTime.empty())
     {
-        RTCM_LOG_WARNING("Not enough data to check SVC quality");
+        RTCM_LOG_WARNING("adjustSvcBystats: not enough collected data");
         return;
     }
 
@@ -1870,15 +1870,17 @@ void Call::adjustSvcBystats()
         return; // too early
     }
 
-    if ((mCurrentSvcLayerIndex >= 0 && roundTripTime > mSvcDriver.mRttUpper)
-            || packetLost > mSvcDriver.mPacketLostUpper)
+    if (mCurrentSvcLayerIndex >= 0
+            && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
     {
+        // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
         switchSvcQuality(-1);
     }
     else if (mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
              && roundTripTime < mSvcDriver.mRttLower
              && packetLost < mSvcDriver.mPacketLostLower)
     {
+        // if retrieved rtt AND packetLost have decreased respect current values increment 1 layer
         switchSvcQuality(+1);
     }
 
