@@ -4,6 +4,7 @@
 #include <api/stats/rtc_stats_collector_callback.h>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
+#include <base/trackDelete.h>
 
 namespace rtcModule
 {
@@ -17,16 +18,27 @@ namespace rtcModule
         std::vector<int32_t> mOutGoingBitrate;
         std::vector<int32_t> mBytesReceived;
         std::vector<int32_t> mBytesSend;
+        // Scalable video coding index
         std::vector<int32_t> mQ;
+        // Audio video flags
         std::vector<int32_t> mAv;
+        // number of high resolution active tracks
         std::vector<int32_t> mNrxh;
+        // number of low resolution active tracks
         std::vector<int32_t> mNrxl;
+        // number of audio active tracks
         std::vector<int32_t> mNrxa;
+        // fps low res video
         std::vector<int32_t> mVtxLowResfps;
+        // width low res video
         std::vector<int32_t> mVtxLowResw;
+        // height low res video
         std::vector<int32_t> mVtxLowResh;
+        // fps high res video
         std::vector<int32_t> mVtxHiResfps;
+        // width high res video
         std::vector<int32_t> mVtxHiResw;
+        // height high res video
         std::vector<int32_t> mVtxHiResh;
     };
 
@@ -51,39 +63,10 @@ namespace rtcModule
         void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<int32_t>* periods = nullptr);
     };
 
-    class ConnStats
-    {
-    public:
-        int64_t mPeriodConnStats = 0;
-        uint64_t mTxBwe = 0;
-        uint64_t mRx = 0;
-        uint64_t mTx = 0;
-    };
-
-    class RxStat : public ConnStats
-    {
-    public:
-        uint64_t mPacketLost = 0;
-        uint64_t mNackCount = 0;
-        double mBytesRecv = 0.0;
-        double mKeyFramesEncoded = 0.0;
-    };
-
-    class TxStat : public ConnStats
-    {
-    public:
-        uint32_t mWidth = 0;
-        uint32_t mHeight = 0;
-        float mFps = 0.0;
-        double mBytesSend = 0.0;
-        double mKeyFramesEncoded = 0.0;
-    };
-
-    class RtcStatCallback : public webrtc::RTCStatsCollectorCallback
+    class RtcStatCallback : public webrtc::RTCStatsCollectorCallback, public karere::DeleteTrackable
     {
     public:
         RtcStatCallback(Stats* stats);
-        void removeStats();
 
         void AddRef() const override;
         rtc::RefCountReleaseStatus Release() const override;
@@ -104,11 +87,11 @@ namespace rtcModule
         bool mHiRes;
     };
 
-    class RemoteVideoStatsCallBack : public RtcStatCallback
+    class RemoteStatsCallBack : public RtcStatCallback
     {
     public:
-        RemoteVideoStatsCallBack(Stats* stats);
-        ~RemoteVideoStatsCallBack();
+        RemoteStatsCallBack(Stats* stats);
+        ~RemoteStatsCallBack();
         void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
     };
 

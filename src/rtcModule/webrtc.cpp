@@ -1711,17 +1711,6 @@ void Call::collectNonRTCStats()
 
 void Call::enableStats()
 {
-    for (auto& slot : mReceiverTracks)
-    {
-        if (slot.second->getTransceiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
-        {
-            RxStat rxStats;
-            RxStat prevRxStats;
-            mRemoteRxStats[slot.second->getTransceiver()->receiver()->id()] = rxStats;
-            mPrevRemoteRxStas[slot.second->getTransceiver()->receiver()->id()] = prevRxStats;
-        }
-    }
-
     mStats.mPeerId = mMyPeer.getPeerid();
     mStats.mCid = mMyPeer.getCid();
     mStats.mCallid = mCallid;
@@ -1756,16 +1745,17 @@ void Call::enableStats()
         }
 
         // poll RxStats
-        mStatVideoReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteVideoStatsCallBack(&mStats));
+        mStatReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteStatsCallBack(&mStats));
         for (auto& slot : mReceiverTracks)
         {
-            if (slot.second->getTransceiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
-            {
-                mRtcConn->GetStats(slot.second->getTransceiver()->receiver(), mStatVideoReceiverCallback);
-            }
+            mRtcConn->GetStats(slot.second->getTransceiver()->receiver(), mStatReceiverCallback);
         }
 
         // poll Conn stats
+        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
+        mRtcConn->GetStats(mStatConnCallback.get());
+
+        mStats.mSamples.mPacketLost.push_back(0);
         mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
         mRtcConn->GetStats(mStatConnCallback.get());
 
@@ -1784,12 +1774,10 @@ void Call::disableStats()
     {
         karere::cancelInterval(mStatsTimer, mRtc.getAppCtx());
         mStatsTimer = 0;
-        mRemoteRxStats.clear();
-        mPrevRemoteRxStas.clear();
-        static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
-        static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
-        static_cast<RemoteVideoStatsCallBack*>(mStatVideoReceiverCallback.get())->removeStats();
-        static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
+        mStatVThumbSenderCallBack = nullptr;
+        mStatHiResSenderCallBack = nullptr;
+        mStatReceiverCallback = nullptr;
+        mStatConnCallback = nullptr;
     }
 }
 
