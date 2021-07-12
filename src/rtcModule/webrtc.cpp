@@ -731,7 +731,6 @@ void Call::switchSvcQuality(int8_t delta)
 {
     if (!mSvcDriver.updateSvcQuality(delta))
     {
-        RTCM_LOG_WARNING("switchSvcQuality: Invalid delta");
         return;
     }
 
