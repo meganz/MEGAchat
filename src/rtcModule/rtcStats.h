@@ -18,16 +18,27 @@ namespace rtcModule
         std::vector<int32_t> mOutGoingBitrate;
         std::vector<int32_t> mBytesReceived;
         std::vector<int32_t> mBytesSend;
+        // Scalable video coding index
         std::vector<int32_t> mQ;
+        // Audio video flags
         std::vector<int32_t> mAv;
+        // number of high resolution active tracks
         std::vector<int32_t> mNrxh;
+        // number of low resolution active tracks
         std::vector<int32_t> mNrxl;
+        // number of audio active tracks
         std::vector<int32_t> mNrxa;
+        // fps low res video
         std::vector<int32_t> mVtxLowResfps;
+        // width low res video
         std::vector<int32_t> mVtxLowResw;
+        // height low res video
         std::vector<int32_t> mVtxLowResh;
+        // fps high res video
         std::vector<int32_t> mVtxHiResfps;
+        // width high res video
         std::vector<int32_t> mVtxHiResw;
+        // height high res video
         std::vector<int32_t> mVtxHiResh;
     };
 
