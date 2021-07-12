@@ -895,7 +895,7 @@ std::string Sdp::unCompress()
     std::string sdp;
     sdp.append(mData["cmn"]);
 
-    for (const SdpTrack& track : mTracks)
+    for (const Sdp::SdpTrack& track : mTracks)
     {
         if (track.mType == "a")
         {
@@ -958,7 +958,7 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
 unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int position)
 {
     std::string type = lines[position++].substr(2, 5);
-    SdpTrack track;
+    Sdp::SdpTrack track;
     if (type == "audio")
     {
         track.mType = "a";
@@ -1059,9 +1059,9 @@ std::string Sdp::nextWord(const std::string& line, unsigned int start, unsigned 
 
 }
 
-SdpTrack Sdp::parseTrack(const rapidjson::Value &value) const
+Sdp::SdpTrack Sdp::parseTrack(const rapidjson::Value &value) const
 {
-    SdpTrack track;
+    Sdp::SdpTrack track;
 
     rapidjson::Value::ConstMemberIterator typeIterator = value.FindMember("t");
     if (typeIterator != value.MemberEnd() && typeIterator->value.IsString())
@@ -1132,7 +1132,7 @@ SdpTrack Sdp::parseTrack(const rapidjson::Value &value) const
     return  track;
 }
 
-std::string Sdp::unCompressTrack(const SdpTrack& track, const std::string &tpl)
+std::string Sdp::unCompressTrack(const Sdp::SdpTrack& track, const std::string &tpl)
 {
     std::string sdp = tpl;
 
@@ -1452,7 +1452,8 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value sdpValue(rapidjson::kObjectType);
-    for (const auto& data : sdp.mData)
+    auto data = sdp.data();
+    for (const auto& data : data)
     {
         rapidjson::Value dataValue(rapidjson::kStringType);
         dataValue.SetString(data.second.c_str(), data.second.length());
@@ -1460,7 +1461,8 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
     }
 
     rapidjson::Value tracksValue(rapidjson::kArrayType);
-    for (const SdpTrack& track : sdp.mTracks)
+    auto tracks = sdp.tracks();
+    for (const Sdp::SdpTrack& track : tracks)
     {
         if (track.mType != "a" && track.mType != "v")
         {

@@ -81,35 +81,40 @@ protected:
     std::string mVideoDescriptor;
 };
 
-class SdpTrack
-{
-public:
-    std::string mType;
-    uint64_t mMid;
-    std::string mDir;
-    std::string mSid;
-    std::string mId;
-    std::vector<std::string> mSsrcg;
-    std::vector<std::pair<uint64_t, std::string>> mSsrcs;
-};
-
 class Sdp
 {
 public:
+    struct SdpTrack
+    {
+        std::string mType;
+        uint64_t mMid;
+        std::string mDir;
+        std::string mSid;
+        std::string mId;
+        std::vector<std::string> mSsrcg;
+        std::vector<std::pair<uint64_t, std::string>> mSsrcs;
+    };
+
     Sdp(const std::string& sdp);
     Sdp(const rapidjson::Value& sdp);
+
     std::string unCompress();
     void toJson(rapidjson::Document& json) const;
 
-public:
+    const std::vector<SdpTrack>& tracks() const { return mTracks; }
+    const std::map<std::string, std::string>& data() const { return mData; }
+
+private:
     unsigned int createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position);
     unsigned int addTrack(const std::vector<std::string>& lines, unsigned int position);
     unsigned int nextMline(const std::vector<std::string>& lines, unsigned int position);
     std::string nextWord(const std::string& line, unsigned int start, unsigned int &charRead);
     SdpTrack parseTrack(const rapidjson::Value &value) const;
     std::string unCompressTrack(const SdpTrack &track, const std::string& tpl);
+
     std::map<std::string, std::string> mData;
     std::vector<SdpTrack> mTracks;
+
     static const std::string endl;
 };
 
