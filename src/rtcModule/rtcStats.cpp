@@ -34,130 +34,6 @@ rtc::RefCountReleaseStatus RtcStatCallback::Release() const
     return status;
 }
 
-LocalVideoStatsCallBack::LocalVideoStatsCallBack(Stats* stats, bool hiRes)
-    : RtcStatCallback(stats)
-    , mHiRes(hiRes)
-{
-}
-
-void LocalVideoStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport> &report)
-{
-    auto wptr = weakHandle();
-    karere::marshallCall([wptr, this, report]()
-    {
-        if (wptr.deleted() || !mStats)
-        {
-            return;
-        }
-
-        int64_t ts = 0;
-        for (auto it = report->begin(); it != report->end(); it++)
-        {
-            if (strcmp(it->type(), "outbound-rtp") == 0)
-            {
-                std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
-                ts = it->timestamp_us();
-                for (const webrtc::RTCStatsMemberInterface* member : members)
-                {
-                    if (strcmp(member->name(), "frameWidth") == 0)
-                    {
-                        uint32_t width = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
-                        if (mStats->mSamples.mT.size() > mStats->mSamples.mVtxLowResw.size())
-                        {
-                            if (mHiRes)
-                            {
-                                mStats->mSamples.mVtxHiResw.push_back(width);
-                            }
-                            else
-                            {
-                                mStats->mSamples.mVtxLowResw.push_back(width);
-                            }
-                        }
-                    }
-                    else if (strcmp(member->name(), "frameHeight") == 0)
-                    {
-                        uint32_t height = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
-                        if (mStats->mSamples.mT.size() > mStats->mSamples.mVtxLowResh.size())
-                        {
-                            if (mHiRes)
-                            {
-                                mStats->mSamples.mVtxHiResh.push_back(height);
-                            }
-                            else
-                            {
-                                mStats->mSamples.mVtxLowResh.push_back(height);
-                            }
-                        }
-                    }
-                    else if (strcmp(member->name(), "framesPerSecond") == 0)
-                    {
-                        double fps = *member->cast_to<const webrtc::RTCStatsMember<double>>();
-                        if (mStats->mSamples.mT.size() > mStats->mSamples.mVtxLowResfps.size())
-                        {
-                            if (mHiRes)
-                            {
-                                mStats->mSamples.mVtxHiResfps.push_back(static_cast<int32_t>(fps));
-                            }
-                            else
-                            {
-                                mStats->mSamples.mVtxLowResfps.push_back(static_cast<int32_t>(fps));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }, artc::gAppCtx);
-}
-
-RemoteStatsCallBack::RemoteStatsCallBack(Stats *stats)
-    : RtcStatCallback(stats)
-{
-
-}
-
-RemoteStatsCallBack::~RemoteStatsCallBack()
-{
-
-}
-
-void RemoteStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport> &report)
-{
-    auto wptr = weakHandle();
-    karere::marshallCall([wptr, this, report]()
-    {
-        if (wptr.deleted() || !mStats)
-        {
-            return;
-        }
-
-        std::string trackId;
-        int64_t ts = 0;
-        uint32_t packetLost = 0;
-        for (auto it = report->begin(); it != report->end(); it++)
-        {
-            if (strcmp(it->type(), "track") == 0)
-            {
-                trackId = it->id();
-            }
-            else if (strcmp(it->type(), "inbound-rtp") == 0)
-            {
-                std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
-                ts = it->timestamp_us();
-                for (const webrtc::RTCStatsMemberInterface* member : members)
-                {
-                    if (strcmp(member->name(), "packetsLost") == 0)
-                    {
-                        packetLost = *member->cast_to<const webrtc::RTCStatsMember<int32_t>>();
-                        mStats->mSamples.mPacketLost.back() = mStats->mSamples.mPacketLost.back() + packetLost;
-                    }
-                }
-            }
-        }
-
-    }, artc::gAppCtx);
-}
-
 std::string Stats::getJson()
 {
     rapidjson::Document json(rapidjson::kObjectType);
@@ -339,10 +215,12 @@ void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &
     }
 }
 
-ConnStatsCallBack::ConnStatsCallBack(Stats *stats)
+ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lowResId)
     : RtcStatCallback(stats)
+    , mHiResId(hiResId)
+    , mLowResId(lowResId)
 {
-
+    AddRef();
 }
 
 ConnStatsCallBack::~ConnStatsCallBack()
@@ -360,10 +238,20 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
             return;
         }
 
+        std::string trackId;
+        int64_t ts = 0;
+        uint32_t packetLost = 0;
         mStats->mSamples.mRoundTripTime.push_back(0.0);
         mStats->mSamples.mOutGoingBitrate.push_back(0.0);
         mStats->mSamples.mBytesReceived.push_back(0);
         mStats->mSamples.mBytesSend.push_back(0);
+        mStats->mSamples.mPacketLost.push_back(0);
+        mStats->mSamples.mVtxHiResh.push_back(0);
+        mStats->mSamples.mVtxHiResfps.push_back(0);
+        mStats->mSamples.mVtxHiResw.push_back(0);
+        mStats->mSamples.mVtxLowResh.push_back(0);
+        mStats->mSamples.mVtxLowResfps.push_back(0);
+        mStats->mSamples.mVtxLowResw.push_back(0);
 
         if (mStats->mInitialTs == 0)
         {
@@ -386,8 +274,72 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 mStats->mSamples.mBytesReceived.back() += bytesRecv;
                 mStats->mSamples.mBytesSend.back() += bytesSend;
             }
+            else if (strcmp(it->type(), "track") == 0)
+            {
+                trackId = it->id();
+            }
+            else if (strcmp(it->type(), "inbound-rtp") == 0)
+            {
+                std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
+                ts = it->timestamp_us();
+                for (const webrtc::RTCStatsMemberInterface* member : members)
+                {
+                    if (strcmp(member->name(), "packetsLost") == 0)
+                    {
+                        packetLost = *member->cast_to<const webrtc::RTCStatsMember<int32_t>>();
+                        mStats->mSamples.mPacketLost.back() = mStats->mSamples.mPacketLost.back() + packetLost;
+                    }
+                }
+            }
+            else if (strcmp(it->type(), "outbound-rtp") == 0)
+            {
+                uint32_t width = 0;
+                uint32_t height = 0;
+                double fps = 0;
+                std::string trackId;
+                uint32_t ssrc = 0;
+                std::cerr << "OUTBount-rtp: " << it->ToJson();
+                for (const webrtc::RTCStatsMemberInterface* member : it->Members())
+                {
+                    if (strcmp(member->name(), "frameWidth") == 0)
+                    {
+                        width = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                    }
+                    else if (strcmp(member->name(), "frameHeight") == 0)
+                    {
+                        height = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                    }
+                    else if (strcmp(member->name(), "framesPerSecond") == 0)
+                    {
+                        fps = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                    }
+                    else if (strcmp(member->name(), "trackId") == 0)
+                    {
+                        trackId = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
+                    }
+                    else if (strcmp(member->name(), "ssrc") == 0)
+                    {
+                        ssrc = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                    }
+                }
+
+                if (ssrc == mHiResId && mHiResId)
+                {
+                    mStats->mSamples.mVtxHiResh.back() = height;
+                    mStats->mSamples.mVtxHiResfps.back() = static_cast<int32_t>(fps);
+                    mStats->mSamples.mVtxHiResw.back() = width;
+                }
+                else if (ssrc == mLowResId && mLowResId)
+                {
+                    mStats->mSamples.mVtxLowResh.back() = height;
+                    mStats->mSamples.mVtxLowResfps.back() = static_cast<int32_t>(fps);
+                    mStats->mSamples.mVtxLowResw.back() = width;
+                }
+            }
         }
     }, artc::gAppCtx);
+
+    Release();
 
 }
 
