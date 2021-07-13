@@ -1753,9 +1753,6 @@ void Call::enableStats()
 
         // adjust SVC driver based on collected stats
         adjustSvcBystats();
-        mStats.mSamples.mPacketLost.push_back(0);
-
-
     }, RtcConstant::kStatsInterval, mRtc.getAppCtx());
 }
 
