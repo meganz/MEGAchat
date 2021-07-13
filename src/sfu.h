@@ -39,17 +39,20 @@ public:
 class Peer
 {
 public:
-    Peer(); //default ctor
-    Peer(Cid_t cid, karere::Id peerid, unsigned avFlags);
+    Peer(karere::Id peerid, unsigned avFlags, Cid_t cid = 0);
     Peer(const Peer& peer);
+
     Cid_t getCid() const;
+    void setCid(Cid_t cid);    // called from handleAnswerCommand() only for setting cid of Call::mMyPeer
+
     karere::Id getPeerid() const;
-    Keyid_t getCurrentKeyId() const;
+
     karere::AvFlags getAvFlags() const;
+    void setAvFlags(karere::AvFlags flags);
+
+    Keyid_t getCurrentKeyId() const;
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
-    void setAvFlags(karere::AvFlags flags);
-    void init(Cid_t cid, karere::Id peerid, unsigned avFlags);
 
 protected:
     Cid_t mCid = 0;

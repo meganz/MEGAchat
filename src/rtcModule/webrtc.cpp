@@ -125,13 +125,12 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mChatid(chatid)
     , mCallerId(callerid)
     , mIsRinging(isRinging)
-    , mLocalAvFlags(avflags)
     , mIsGroup(isGroup)
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
     , mSfuClient(rtc.getSfuClient())
     , mAvailableTracks(mega::make_unique<AvailableTracks>())
-    , mMyPeer()
+    , mMyPeer(rtc.getSfuClient().myHandle(), avflags)
     , mCallKey(callKey ? *callKey : std::string())
     , mRtc(rtc)
 {
@@ -266,7 +265,7 @@ promise::Promise<void> Call::hangup()
 
 promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
-    mLocalAvFlags = avFlags;
+    mMyPeer.setAvFlags(avFlags);
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid.val, mCallid.val)
     .then([wptr, this](ReqResult result) -> promise::Promise<void>
@@ -453,23 +452,23 @@ void Call::setCallHandler(CallHandler* callHanlder)
 
 karere::AvFlags Call::getLocalAvFlags() const
 {
-    return mLocalAvFlags;
+    return mMyPeer.getAvFlags();
 }
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 {
-    if (flags == mLocalAvFlags)
+    if (flags == getLocalAvFlags())
     {
         RTCM_LOG_WARNING("updateAndSendLocalAvFlags: AV flags has not changed");
         return;
     }
 
     // update and send local AV flags
-    karere::AvFlags olFlags = mLocalAvFlags;
-    mLocalAvFlags = flags;
+    karere::AvFlags oldFlags = getLocalAvFlags();
+    mMyPeer.setAvFlags(flags);
     mSfuConnection->sendAv(flags.value());
 
-    if (olFlags.isOnHold() != flags.isOnHold())
+    if (oldFlags.isOnHold() != flags.isOnHold())
     {
         // kOnHold flag has changed
         (flags.isOnHold())
@@ -511,7 +510,7 @@ void Call::requestSpeaker(bool add)
 
 bool Call::isSpeakAllow() const
 {
-    return mSpeakerState == SpeakerState::kActive && mLocalAvFlags.audio();
+    return mSpeakerState == SpeakerState::kActive && getLocalAvFlags().audio();
 }
 
 void Call::approveSpeakRequest(Cid_t cid, bool allow)
@@ -784,7 +783,7 @@ void Call::joinSfu()
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
         ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-        mSfuConnection->joinSfu(sdp, ivs, mLocalAvFlags.value(), mSpeakerState, kInitialvthumbCount);
+        mSfuConnection->joinSfu(sdp, ivs, getLocalAvFlags().value(), mSpeakerState, kInitialvthumbCount);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -837,7 +836,7 @@ void Call::createTransceivers()
 void Call::getLocalStreams()
 {
     updateAudioTracks();
-    if (mLocalAvFlags.videoCam())
+    if (getLocalAvFlags().videoCam())
     {
         updateVideoTracks();
     }
@@ -854,7 +853,7 @@ void Call::handleCallDisconnect()
 
 void Call::disconnect(TermCode termCode, const std::string &)
 {
-    if (mLocalAvFlags.videoCam())
+    if (getLocalAvFlags().videoCam())
     {
         releaseVideoDevice();
     }
@@ -984,7 +983,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
     // set my own client-id (cid)
-    mMyPeer.init(cid, mSfuClient.myHandle(), 0);
+    mMyPeer.setCid(cid);
 
     std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers) // does not include own cid
@@ -1648,8 +1647,8 @@ void Call::freeAudioTrack(bool releaseSlot)
 
 void Call::updateVideoTracks()
 {
-    bool isOnHold = mLocalAvFlags.isOnHold();
-    if (mLocalAvFlags.videoCam() && !isOnHold)
+    bool isOnHold = getLocalAvFlags().isOnHold();
+    if (getLocalAvFlags().videoCam() && !isOnHold)
     {
         takeVideoDevice();
 
@@ -1705,9 +1704,9 @@ void Call::updateAudioTracks()
         return;
     }
 
-    bool audio = mSpeakerState > SpeakerState::kNoSpeaker && mLocalAvFlags.audio();
+    bool audio = mSpeakerState > SpeakerState::kNoSpeaker && getLocalAvFlags().audio();
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
-    if (audio && !mLocalAvFlags.isOnHold())
+    if (audio && !getLocalAvFlags().isOnHold())
     {
         if (!track) // create audio track only if not exists
         {

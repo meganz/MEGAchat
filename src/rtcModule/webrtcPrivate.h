@@ -382,7 +382,6 @@ protected:
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
 
-    karere::AvFlags mLocalAvFlags = 0; // local Av flags
     int64_t mInitialTs = 0;
     int64_t mFinalTs = 0;
     bool mAudioDetected = false;
@@ -415,7 +414,6 @@ protected:
 
     std::unique_ptr<CallHandler> mCallHandler;
 
-    // represents own peer
     sfu::Peer mMyPeer;
 
     // call key for public chats (128-bit key)

@@ -91,12 +91,8 @@ void CommandsQueue::clear()
     commands.clear();
 }
 
-Peer::Peer()
-    : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0)
-{
-}
 
-Peer::Peer(Cid_t cid, karere::Id peerid, unsigned avFlags)
+Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid)
     : mCid(cid), mPeerid(peerid), mAvFlags(avFlags)
 {
 }
@@ -109,11 +105,9 @@ Peer::Peer(const Peer &peer)
 
 }
 
-void Peer::init(Cid_t cid, karere::Id peerid, unsigned avFlags)
+void Peer::setCid(Cid_t cid)
 {
     mCid = cid;
-    mPeerid = peerid;
-    mAvFlags = avFlags;
 }
 
 Cid_t Peer::getCid() const
