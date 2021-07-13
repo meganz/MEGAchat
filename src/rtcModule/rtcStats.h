@@ -79,31 +79,16 @@ namespace rtcModule
         mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
     };
 
-    class LocalVideoStatsCallBack : public RtcStatCallback
-    {
-    public:
-        LocalVideoStatsCallBack(Stats *stats, bool hiRes);
-        void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
-    private:
-        bool mHiRes;
-    };
-
-    class RemoteStatsCallBack : public RtcStatCallback
-    {
-    public:
-        RemoteStatsCallBack(Stats* stats);
-        ~RemoteStatsCallBack();
-        void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
-    };
-
     class ConnStatsCallBack : public RtcStatCallback
     {
     public:
-        ConnStatsCallBack(Stats* stats);
+        ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId);
         ~ConnStatsCallBack();
         void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
     protected:
         void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double &rtt, double txBwe, int64_t &bytesRecv, int64_t &bytesSend);
+        uint32_t mHiResId;
+        uint32_t mLowResId;
     };
 }
 

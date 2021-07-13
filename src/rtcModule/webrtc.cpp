@@ -1724,7 +1724,7 @@ void Call::enableStats()
         if (wptr.deleted())
           return;
 
-        if (!mSfuConnection->isJoined())
+        if (!mSfuConnection || !mSfuConnection->isJoined())
         {
           RTCM_LOG_WARNING("Cannot collect stats until reach kJoined state");
           return;
@@ -1732,30 +1732,20 @@ void Call::enableStats()
 
         // poll TxVideoStats
         assert(mVThumb && mHiRes);
+        uint32_t hiResId;
         if (mHiResActive)
         {
-            mStatHiResSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, true));
-            mRtcConn->GetStats(mHiRes->getTransceiver()->sender(), mStatHiResSenderCallBack);
+            hiResId = mHiRes->getTransceiver()->sender()->ssrc();
         }
 
+        uint32_t lowResId;
         if (mVThumbActive)
         {
-            mStatVThumbSenderCallBack = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new LocalVideoStatsCallBack(&mStats, false));
-            mRtcConn->GetStats(mVThumb->getTransceiver()->sender(), mStatVThumbSenderCallBack);
-        }
-
-        // poll RxStats
-        mStatReceiverCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new RemoteStatsCallBack(&mStats));
-        for (auto& slot : mReceiverTracks)
-        {
-            mRtcConn->GetStats(slot.second->getTransceiver()->receiver(), mStatReceiverCallback);
+            lowResId = mVThumb->getTransceiver()->sender()->ssrc();
         }
 
         // poll Conn stats
-        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
-        mRtcConn->GetStats(mStatConnCallback.get());
-
-        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
+        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId));
         mRtcConn->GetStats(mStatConnCallback.get());
 
         // poll non-rtc stats
@@ -1763,8 +1753,6 @@ void Call::enableStats()
 
         // adjust SVC driver based on collected stats
         adjustSvcBystats();
-        mStats.mSamples.mPacketLost.push_back(0);
-
     }, RtcConstant::kStatsInterval, mRtc.getAppCtx());
 }
 
@@ -1774,21 +1762,7 @@ void Call::disableStats()
     {
         karere::cancelInterval(mStatsTimer, mRtc.getAppCtx());
         mStatsTimer = 0;
-        if (mStatVThumbSenderCallBack)
-        {
-            static_cast<LocalVideoStatsCallBack*>(mStatVThumbSenderCallBack.get())->removeStats();
-        }
-
-        if (mStatHiResSenderCallBack)
-        {
-            static_cast<LocalVideoStatsCallBack*>(mStatHiResSenderCallBack.get())->removeStats();
-        }
-
-        static_cast<RemoteStatsCallBack*>(mStatReceiverCallback.get())->removeStats();
         static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
-        mStatVThumbSenderCallBack = nullptr;
-        mStatHiResSenderCallBack = nullptr;
-        mStatReceiverCallback = nullptr;
         mStatConnCallback = nullptr;
     }
 }
