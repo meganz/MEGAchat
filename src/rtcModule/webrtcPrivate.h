@@ -172,12 +172,16 @@ private:
     SessionState mState = kSessStateInProgress;
 };
 
+/**
+ * @brief Configure scalable video coding based on webrtc stats
+ *
+ * It's only applied to high resolution video
+ */
 class SvcDriver
 {
 public:
     static const uint8_t kMaxQualityIndex = 6;
     static const int kMinTimeBetweenSwitches = 10;   // minimum period between SVC switches in seconds
-    static const int kHiresStartGraceTime = 5;       // start grace period while which we avoid SVC switching in seconds
 
     // boundaries for switching to lower/higher quality.
     // if rtt moving average goes outside of these boundaries, switching occurs.
@@ -188,15 +192,15 @@ public:
     bool updateSvcQuality(int8_t delta);
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
-    uint8_t mCurrentSvcLayerIndex = 0;
-    float mPacketLostLower = 0;
-    float mPacketLostUpper = 0;
-    int lowestRttSeen = 0;
-    int mRttLower = 0;
-    int mRttUpper = 0;
-    float mMovingAverageRtt = 0;
-    float mMovingAveragePlost = 0;
-    time_t mTsLastSwitch = 0;
+    uint8_t mCurrentSvcLayerIndex;
+    float mPacketLostLower;
+    float mPacketLostUpper;
+    int mLowestRttSeen;
+    int mRttLower;
+    int mRttUpper;
+    float mMovingAverageRtt;
+    float mMovingAveragePlost;
+    time_t mTsLastSwitch;
 };
 
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
@@ -336,7 +340,7 @@ protected:
     SpeakerState mSpeakerState = SpeakerState::kPending;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
     int64_t mInitialTs = 0;
-    int64_t mOffset;
+    int64_t mOffset = 0;
     int64_t mFinalTs = 0;
     bool mAudioDetected = false;
     megaHandle mVoiceDetectionTimer = 0;
@@ -373,9 +377,6 @@ protected:
     artc::VideoManager* mVideoManager = nullptr;
 
     megaHandle mStatsTimer = 0;
-    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatReceiverCallback;
-    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatVThumbSenderCallBack;
-    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatHiResSenderCallBack;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
@@ -391,7 +392,7 @@ protected:
     void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
     void enableStats();
     void disableStats();
-    void adjustSvcBystats();
+    void adjustSvcByStats();
     void collectNonRTCStats();
 };
 

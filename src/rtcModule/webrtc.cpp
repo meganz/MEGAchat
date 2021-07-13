@@ -123,8 +123,8 @@ std::map<Cid_t, karere::AvFlags>& AvailableTracks::getTracks()
 SvcDriver::SvcDriver ()
     : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
       mPacketLostLower(0.01),
-      lowestRttSeen(10000),
       mPacketLostUpper(1),
+      mLowestRttSeen(10000),
       mRttLower(0),
       mRttUpper(0),
       mMovingAverageRtt(0),
@@ -905,7 +905,7 @@ void Call::handleCallDisconnect()
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
-    mStats.mTerCode = static_cast<int32_t>(termCode);
+    mStats.mTermCode = static_cast<int32_t>(termCode);
     mStats.mDuration = time(nullptr) - mInitialTs;
     mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
 
@@ -1723,37 +1723,40 @@ void Call::enableStats()
     mStatsTimer = karere::setInterval([this, wptr]()
     {
         if (wptr.deleted())
-          return;
+        {
+            return;
+        }
 
         if (!mSfuConnection || !mSfuConnection->isJoined())
         {
-          RTCM_LOG_WARNING("Cannot collect stats until reach kJoined state");
-          return;
+            RTCM_LOG_WARNING("Cannot collect stats until reach kJoined state");
+            return;
         }
 
         // poll TxVideoStats
         assert(mVThumb && mHiRes);
-        uint32_t hiResId;
+        uint32_t hiResId = 0;
         if (mHiResActive)
         {
             hiResId = mHiRes->getTransceiver()->sender()->ssrc();
         }
 
-        uint32_t lowResId;
+        uint32_t lowResId = 0;
         if (mVThumbActive)
         {
             lowResId = mVThumb->getTransceiver()->sender()->ssrc();
         }
 
-        // poll Conn stats
-        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId));
-        mRtcConn->GetStats(mStatConnCallback.get());
-
         // poll non-rtc stats
         collectNonRTCStats();
 
+        // Keep mStats ownership
+        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId));
+        mRtcConn->GetStats(mStatConnCallback.get());
+
         // adjust SVC driver based on collected stats
-        adjustSvcBystats();
+        // TODO: I can be done in ConnStatsCallBack to take into account latest stats
+        adjustSvcByStats();
     }, RtcConstant::kStatsInterval, mRtc.getAppCtx());
 }
 
@@ -1814,7 +1817,7 @@ void Call::updateVideoTracks()
     }
 }
 
-void Call::adjustSvcBystats()
+void Call::adjustSvcByStats()
 {
     if (mStats.mSamples.mRoundTripTime.empty())
     {
@@ -1838,13 +1841,13 @@ void Call::adjustSvcBystats()
          return; // intentionally skip first sample for lower/upper range calculation
     }
 
-    if (roundTripTime < mSvcDriver.lowestRttSeen)
+    if (roundTripTime < mSvcDriver.mLowestRttSeen)
     {
         // rttLower and rttUpper define the window inside which layer is not switched.
         //  - if rtt falls below that window, layer is switched to higher quality,
         //  - if rtt is higher, layer is switched to lower quality.
         // the window is defined/redefined relative to the lowest rtt seen.
-        mSvcDriver.lowestRttSeen = roundTripTime;
+        mSvcDriver.mLowestRttSeen = roundTripTime;
         mSvcDriver.mRttLower = roundTripTime + mSvcDriver.kRttLowerHeadroom;
         mSvcDriver.mRttUpper = roundTripTime + mSvcDriver.kRttUpperHeadroom;
     }

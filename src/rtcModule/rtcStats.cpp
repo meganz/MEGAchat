@@ -7,23 +7,17 @@
 namespace  rtcModule
 {
 
-RtcStatCallback::RtcStatCallback(Stats *stats)
-    : mStats(stats)
-{
-
-}
-
-void RtcStatCallback::removeStats()
+void ConnStatsCallBack::removeStats()
 {
     mStats = nullptr;
 }
 
-void RtcStatCallback::AddRef() const
+void ConnStatsCallBack::AddRef() const
 {
     mRefCount.IncRef();
 }
 
-rtc::RefCountReleaseStatus RtcStatCallback::Release() const
+rtc::RefCountReleaseStatus ConnStatsCallBack::Release() const
 {
     const auto status = mRefCount.DecRef();
     if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
@@ -112,7 +106,7 @@ std::string Stats::getJson()
     samples.AddMember("vtxh", vtxh, json.GetAllocator());
 
     json.AddMember("samples", samples, json.GetAllocator());
-    json.AddMember("trsn", mTerCode, json.GetAllocator());
+    json.AddMember("trsn", mTermCode, json.GetAllocator());
     json.AddMember("grp", static_cast<int>(mIsGroup), json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
@@ -143,7 +137,7 @@ void Stats::clear()
     mSamples.mVtxLowResfps.clear();
     mSamples.mVtxLowResw.clear();
     mSamples.mVtxLowResh.clear();
-    mTerCode = 0;
+    mTermCode = 0;
     mIsGroup = false;
     mInitialTs = 0;
     mDevice.clear();
@@ -216,7 +210,7 @@ void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &
 }
 
 ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lowResId)
-    : RtcStatCallback(stats)
+    : mStats(stats)
     , mHiResId(hiResId)
     , mLowResId(lowResId)
 {
@@ -238,7 +232,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
             return;
         }
 
-        std::string trackId;
         int64_t ts = 0;
         uint32_t packetLost = 0;
         mStats->mSamples.mRoundTripTime.push_back(0.0);
@@ -274,10 +267,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 mStats->mSamples.mBytesReceived.back() += bytesRecv;
                 mStats->mSamples.mBytesSend.back() += bytesSend;
             }
-            else if (strcmp(it->type(), "track") == 0)
-            {
-                trackId = it->id();
-            }
             else if (strcmp(it->type(), "inbound-rtp") == 0)
             {
                 std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
@@ -296,7 +285,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 uint32_t width = 0;
                 uint32_t height = 0;
                 double fps = 0;
-                std::string trackId;
                 uint32_t ssrc = 0;
                 for (const webrtc::RTCStatsMemberInterface* member : it->Members())
                 {
@@ -311,10 +299,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                     else if (strcmp(member->name(), "framesPerSecond") == 0)
                     {
                         fps = *member->cast_to<const webrtc::RTCStatsMember<double>>();
-                    }
-                    else if (strcmp(member->name(), "trackId") == 0)
-                    {
-                        trackId = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
                     }
                     else if (strcmp(member->name(), "ssrc") == 0)
                     {
@@ -339,7 +323,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
     }, artc::gAppCtx);
 
     Release();
-
 }
 
 void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double txBwe, int64_t& bytesRecv, int64_t& bytesSend)
