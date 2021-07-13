@@ -422,7 +422,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
     }
 }
 
-bool AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, TrackDescriptor>& tracks, rapidjson::Value::ConstMemberIterator &it, bool audio) const
+void AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, TrackDescriptor>& tracks, rapidjson::Value::ConstMemberIterator &it, bool audio) const
 {
     for (const Peer& peer : peers)
     {
@@ -431,7 +431,7 @@ bool AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
         if (iterator == it->value.MemberEnd() || !iterator->value.IsObject())
         {
              SFU_LOG_ERROR("parseTracks: invalid 'cid' value");
-             return false;
+             continue;
         }
 
         if (audio)
@@ -440,7 +440,7 @@ bool AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
             if (audioIterator == iterator->value.MemberEnd() || !audioIterator->value.IsObject())
             {
                  SFU_LOG_ERROR("parseTracks: invalid 'audio' value");
-                 return false;
+                 continue;
             }
 
             iterator = audioIterator;
@@ -454,11 +454,9 @@ bool AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
         }
         else
         {
-            return false;
+            continue;
         }
     }
-
-     return true;
 }
 
 void AnswerCommand::parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
