@@ -401,7 +401,7 @@ protected:
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
 
     artc::myPeerConnection<Call> mRtcConn;
-    std::string mSdp;
+    std::string mSdp;   // session description provided by WebRTC::createOffer()
     std::unique_ptr<Slot> mAudio;
     std::unique_ptr<Slot> mVThumb;
     bool mVThumbActive = false;  // true when sending low res video

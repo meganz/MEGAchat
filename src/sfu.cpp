@@ -807,18 +807,20 @@ Sdp::Sdp(const std::string &sdp)
 {
     size_t pos = 0;
     std::string buffer = sdp;
-    std::vector<std::string> tokens;
+    std::vector<std::string> lines;
     while ((pos = buffer.find(Sdp::endl)) != std::string::npos)
     {
-        std::string token = buffer.substr(0, pos);
-        tokens.push_back(token);
+        std::string line = buffer.substr(0, pos);
+        lines.push_back(line);
         buffer.erase(0, pos + Sdp::endl.size());
     }
 
-    for (const std::string& line : tokens)
+    for (const std::string& line : lines)
     {
         if (line.size() > 2 && line[0] == 'm' && line[1] == '=')
         {
+            // "cmn" precedes any "m=" line in the session-description provided by WebRTC
+            assert(mData.find("cmn") != mData.end());
             break;
         }
 
@@ -826,35 +828,38 @@ Sdp::Sdp(const std::string &sdp)
     }
 
     unsigned int i = 0;
-    while (i < tokens.size())
+    while (i < lines.size())
     {
-        const std::string& line = tokens.at(i);
+        const std::string& line = lines.at(i);
         std::string type = line.substr(2, 5);
         if (type == "audio" && mData.find("atpl") == mData.end())
         {
-            i = createTemplate("atpl", tokens, i);
+            i = createTemplate("atpl", lines, i);   // can consume more than one line -> update `i`
             if (mData.find("vtpl") != mData.end())
             {
+                // if "vtpl" is already added to data, we are done
                 break;
             }
         }
         else if (type == "video" && mData.find("vtpl") == mData.end())
         {
-            i = createTemplate("vtpl", tokens, i);
-            if (mData.find("atpl") != mData.end())
+            i = createTemplate("vtpl", lines, i);
+            if (mData.find("atpl") != mData.end())  // TODO: why do we break here?
             {
+                // if "atpl" is already added to data, we are done
                 break;
             }
         }
         else
         {
-            i = nextMline(tokens, i + 1);
+            // find next line starting with "m"
+            i = nextMline(lines, i + 1);
         }
     }
 
-    for (i = nextMline(tokens, 0); i < tokens.size();)
+    for (i = nextMline(lines, 0); i < lines.size();)
     {
-        i = addTrack(tokens, i);
+        i = addTrack(lines, i);
     }
 }
 
@@ -883,6 +888,7 @@ Sdp::Sdp(const rapidjson::Value &sdp)
     rapidjson::Value::ConstMemberIterator tracksIterator = sdp.FindMember("tracks");
     if (tracksIterator != sdp.MemberEnd() && tracksIterator->value.IsArray())
     {
+        // TODO: check whether we should use Size() instead of Capacity() (also check other usages of Capacity())
         for (unsigned int i = 0; i < tracksIterator->value.Capacity(); i++)
         {
             mTracks.push_back(parseTrack(tracksIterator->value[i]));
@@ -895,7 +901,7 @@ std::string Sdp::unCompress()
     std::string sdp;
     sdp.append(mData["cmn"]);
 
-    for (const Sdp::SdpTrack& track : mTracks)
+    for (const Sdp::Track& track : mTracks)
     {
         if (track.mType == "a")
         {
@@ -915,8 +921,8 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
     std::string temp = lines[position++];
     temp.append(Sdp::endl);
 
-    unsigned int i = 0;
-    for (i = position; i < lines.size(); i++)
+    unsigned int i = position;
+    for (; i < lines.size(); i++)
     {
         const std::string& line = lines[i];
         char lineType = line[0];
@@ -954,7 +960,7 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
 unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int position)
 {
     std::string type = lines[position++].substr(2, 5);
-    Sdp::SdpTrack track;
+    Sdp::Track track;
     if (type == "audio")
     {
         track.mType = "a";
@@ -964,9 +970,9 @@ unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int p
         track.mType = "v";
     }
 
-    unsigned int i = 0;
+    unsigned int i = position;
     std::set<uint64_t> ssrcsIds;
-    for (i = position; i < lines.size(); i++)
+    for (; i < lines.size(); i++)
     {
         std::string line = lines[i];
         char lineType = line[0];
@@ -1055,9 +1061,9 @@ std::string Sdp::nextWord(const std::string& line, unsigned int start, unsigned 
 
 }
 
-Sdp::SdpTrack Sdp::parseTrack(const rapidjson::Value &value) const
+Sdp::Track Sdp::parseTrack(const rapidjson::Value &value) const
 {
-    Sdp::SdpTrack track;
+    Sdp::Track track;
 
     rapidjson::Value::ConstMemberIterator typeIterator = value.FindMember("t");
     if (typeIterator != value.MemberEnd() && typeIterator->value.IsString())
@@ -1128,7 +1134,7 @@ Sdp::SdpTrack Sdp::parseTrack(const rapidjson::Value &value) const
     return  track;
 }
 
-std::string Sdp::unCompressTrack(const Sdp::SdpTrack& track, const std::string &tpl)
+std::string Sdp::unCompressTrack(const Sdp::Track& track, const std::string &tpl)
 {
     std::string sdp = tpl;
 
@@ -1458,11 +1464,11 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     rapidjson::Value tracksValue(rapidjson::kArrayType);
     auto tracks = sdp.tracks();
-    for (const Sdp::SdpTrack& track : tracks)
+    for (const Sdp::Track& track : tracks)
     {
         if (track.mType != "a" && track.mType != "v")
         {
-            // screen sharing not supported by native apps (only webclient)
+            // skip any other (unknown) type of track. Only audio and video are supported
             continue;
         }
 

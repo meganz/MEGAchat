@@ -86,23 +86,28 @@ protected:
 class Sdp
 {
 public:
-    struct SdpTrack
+    struct Track
     {
-        std::string mType;
+        // TODO: document what is each variable
+        std::string mType;  // "a" for audio, "v" for video
         uint64_t mMid;
-        std::string mDir;
+        std::string mDir;   // direction of track (sendrecv, recvonly, sendonly)
         std::string mSid;
         std::string mId;
         std::vector<std::string> mSsrcg;
         std::vector<std::pair<uint64_t, std::string>> mSsrcs;
     };
 
+    // ctor from session-description provided by WebRTC (string format)
     Sdp(const std::string& sdp);
+
+    // ctor from session-description from SFU (JSON format)
     Sdp(const rapidjson::Value& sdp);
 
+    // restores the original session-description string from a striped string (which got condensed for saving bandwidth)
     std::string unCompress();
 
-    const std::vector<SdpTrack>& tracks() const { return mTracks; }
+    const std::vector<Track>& tracks() const { return mTracks; }
     const std::map<std::string, std::string>& data() const { return mData; }
 
 private:
@@ -110,11 +115,16 @@ private:
     unsigned int addTrack(const std::vector<std::string>& lines, unsigned int position);
     unsigned int nextMline(const std::vector<std::string>& lines, unsigned int position);
     std::string nextWord(const std::string& line, unsigned int start, unsigned int &charRead);
-    SdpTrack parseTrack(const rapidjson::Value &value) const;
-    std::string unCompressTrack(const SdpTrack &track, const std::string& tpl);
+    Track parseTrack(const rapidjson::Value &value) const;
 
+    // convenience method to uncompress each track from original session-description string (see unCompress() )
+    std::string unCompressTrack(const Track &track, const std::string& tpl);
+
+    // maps id ("cmn", "atpl", "vtpl") to the corresponding session description
     std::map<std::string, std::string> mData;
-    std::vector<SdpTrack> mTracks;
+
+    // array of tracks for audio and video
+    std::vector<Track> mTracks;
 
     static const std::string endl;
 };
