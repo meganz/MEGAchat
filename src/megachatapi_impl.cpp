@@ -881,7 +881,10 @@ void MegaChatApiImpl::sendPendingRequests()
                    }
 
                    bool meeting = result->getFlag();
-                   request->setParamType(meeting);
+                   if (meeting)
+                   {
+                       request->setParamType(1);
+                   }
 
                    //Check chat link
                    if (!createChat)

@@ -401,7 +401,14 @@ bool Client::openDb(const std::string& sid)
                 else //
                 {
                     // Add meeting to chats table
-                    db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
+                    try
+                    {
+                        db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
+                    }
+                    catch (const std::runtime_error& e)
+                    {
+                        // meeting column is already added
+                    }
 
                     db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();
