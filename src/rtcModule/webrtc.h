@@ -161,7 +161,7 @@ public:
     virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
-    virtual void requestSvcLayers(Cid_t cid, int layerIndex) = 0;
+    virtual void switchSvcQuality(int8_t delta) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
@@ -169,6 +169,7 @@ public:
     virtual bool isOutgoing() const = 0;
     virtual int64_t getInitialTimeStamp() const = 0;
     virtual int64_t getFinalTimeStamp() const = 0;
+    virtual int64_t getInitialOffset() const = 0;
 
     virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
@@ -232,6 +233,7 @@ enum RtcConstant {
    kHiResMaxFPS = 30,
    kVthumbWidth = 160,
    kAudioMonitorTimeout = 2000,
+   kStatsInterval = 1000,
 };
 
 #endif
