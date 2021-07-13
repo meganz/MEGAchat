@@ -1793,7 +1793,7 @@ void Call::updateVideoTracks()
         // low-res track
         if (mVThumb)
         {
-            if (!mVThumb->getTransceiver()->sender()->track())
+            if (mVThumbActive && !mVThumb->getTransceiver()->sender()->track())
             {
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
