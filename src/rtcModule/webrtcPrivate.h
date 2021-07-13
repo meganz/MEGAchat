@@ -194,8 +194,8 @@ public:
     int lowestRttSeen = 0;
     int mRttLower = 0;
     int mRttUpper = 0;
-    int mMovingAverageRtt = 0;
-    int mMovingAveragePlost = 0;
+    float mMovingAverageRtt = 0;
+    float mMovingAveragePlost = 0;
     time_t mTsLastSwitch = 0;
 };
 

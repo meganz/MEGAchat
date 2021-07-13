@@ -731,7 +731,6 @@ void Call::switchSvcQuality(int8_t delta)
 {
     if (!mSvcDriver.updateSvcQuality(delta))
     {
-        RTCM_LOG_WARNING("switchSvcQuality: Invalid delta");
         return;
     }
 
@@ -1756,7 +1755,6 @@ void Call::enableStats()
         mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
         mRtcConn->GetStats(mStatConnCallback.get());
 
-        mStats.mSamples.mPacketLost.push_back(0);
         mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats));
         mRtcConn->GetStats(mStatConnCallback.get());
 
@@ -1765,6 +1763,7 @@ void Call::enableStats()
 
         // adjust SVC driver based on collected stats
         adjustSvcBystats();
+        mStats.mSamples.mPacketLost.push_back(0);
 
     }, RtcConstant::kStatsInterval, mRtc.getAppCtx());
 }
@@ -1842,10 +1841,14 @@ void Call::adjustSvcBystats()
         return;
     }
 
-    int roundTripTime = mStats.mSamples.mRoundTripTime.back();
-    int packetLost = !mStats.mSamples.mPacketLost.empty()
-            ? mStats.mSamples.mPacketLost.back()
-            : 0;
+    float roundTripTime = mStats.mSamples.mRoundTripTime.back();
+    float packetLost = 0;
+    if (mStats.mSamples.mPacketLost.size() >= 2)
+    {
+        int lastpl =  mStats.mSamples.mPacketLost.back();
+        int prelastpl= mStats.mSamples.mPacketLost.at(mStats.mSamples.mPacketLost.size()-2);
+        packetLost = abs(lastpl - prelastpl);
+    }
 
     if (!mSvcDriver.mMovingAverageRtt)
     {
