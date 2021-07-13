@@ -37,7 +37,7 @@ enum CallState: uint8_t
     kStateClientNoParticipating,        // < User is not particpating in the call
     kStateConnecting,                   // < Connecting to SFU
     kStateJoining,                      // < Joining a call
-    kStateInProgress,
+    kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
     kStateDestroyed                     // < Call object is not valid anymore, the call is removed from the system
 };

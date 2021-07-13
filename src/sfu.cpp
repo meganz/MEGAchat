@@ -338,7 +338,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
 
     Sdp sdp(sdpIterator->value);
 
-    rapidjson::Value::ConstMemberIterator tsIterator = command.FindMember("t");
+    rapidjson::Value::ConstMemberIterator tsIterator = command.FindMember("t"); // time elapsed since the start of the call
     if (tsIterator == command.MemberEnd() || !tsIterator->value.IsUint64())
     {
         SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 't' field");
@@ -346,7 +346,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     }
 
     // call start ts (ms)
-    uint64_t ts = tsIterator->value.GetUint64();
+    uint64_t callDuration = tsIterator->value.GetUint64();
 
     std::vector<Peer> peers;
     rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
@@ -356,7 +356,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     }
 
     std::map<Cid_t, TrackDescriptor> speakers;
-    rapidjson::Value::ConstMemberIterator speakersIterator = command.FindMember("speakers");
+    rapidjson::Value::ConstMemberIterator speakersIterator = command.FindMember("speakers");    // peers allowed to speak
     if (speakersIterator != command.MemberEnd() && speakersIterator->value.IsObject())
     {
         parseTracks(peers, speakers, speakersIterator, true);
@@ -366,10 +366,10 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator vthumbsIterator = command.FindMember("vthumbs");
     if (vthumbsIterator != command.MemberEnd() && vthumbsIterator->value.IsObject())
     {
-        parseTracks(peers, vthumbs, vthumbsIterator);
+        parseTracks(peers, vthumbs, vthumbsIterator, false);
     }
 
-    return mComplete(cid, sdp, ts, peers, vthumbs, speakers);
+    return mComplete(cid, sdp, callDuration, peers, vthumbs, speakers);
 }
 
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::ConstMemberIterator &it) const
@@ -502,7 +502,6 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    // TODO: check if it's necessary to add new data type to Rapid json impl
     Keyid_t id = static_cast<Keyid_t>(idIterator->value.GetUint());
 
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("from");
@@ -1546,6 +1545,9 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
 bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys)
 {
+    if (keys.empty())
+        return true;
+
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SENDKEY.c_str(), json.GetAllocator());

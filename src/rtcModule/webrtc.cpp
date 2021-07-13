@@ -979,7 +979,7 @@ bool Call::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
     }
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>& peers,
+bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, const std::vector<sfu::Peer>& peers,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
     // set my own client-id (cid)
@@ -1006,7 +1006,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
 
     auto wptr = weakHandle();
     mRtcConn.setRemoteDescription(move(sdpInterface))
-    .then([wptr, this, vthumbs, speakers, ts, cids]()
+    .then([wptr, this, vthumbs, speakers, duration, cids]()
     {
         if (wptr.deleted())
             return;
@@ -1028,7 +1028,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         handleIncomingVideo(vthumbs);
         requestPeerTracks(cids);    // the ones previously available before reconnection
 
-        for (const auto& speak : speakers)
+        for (const auto& speak : speakers)  // current speakers in the call
         {
             Cid_t cid = speak.first;
             const sfu::TrackDescriptor& speakerDecriptor = speak.second;
@@ -1036,7 +1036,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         }
 
         setState(CallState::kStateInProgress);
-        mInitialTs -= (ts / 1000); // subtract ts(ms) received in ANSWER command, from ts captured upon setState kStateInProgress
+        mInitialTs -= (duration / 1000); // subtract duration(ms) received in ANSWER command, from ts captured upon setState kStateInProgress
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -1072,17 +1072,16 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
         Session *session = getSession(cid);
         if (!session)
         {
-            RTCM_LOG_WARNING("handleKeyCommand: Received key for unknown peer cid %d", cid);
+            RTCM_LOG_WARNING("handleKeyCommand after get Cu25510 key: Received key for unknown peer cid %d", cid);
             return;
         }
 
         // decrypt received key
-        strongvelope::SendKey plainKey;
         std::string binaryKey = mega::Base64::atob(key);
-
-
         strongvelope::SendKey encryptedKey;
         mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey, encryptedKey);
+
+        strongvelope::SendKey plainKey;
         mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(session->getPeer().getPeerid(), encryptedKey, plainKey);
 
         // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
@@ -1427,10 +1426,7 @@ void Call::generateAndSendNewkey()
             keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
         }
 
-        if (keys.size())
-        {
-            mSfuConnection->sendKey(currentKeyId, keys);
-        }
+        mSfuConnection->sendKey(currentKeyId, keys);
     });
 }
 

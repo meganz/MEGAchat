@@ -107,20 +107,28 @@ public:
     // ctor from session-description from SFU (JSON format)
     Sdp(const rapidjson::Value& sdp);
 
-    // restores the original session-description string from a striped string (which got condensed for saving bandwidth)
+    // restores the original (webrtc) session-description string from a striped (JSON) string (which got condensed for saving bandwidth)
     std::string unCompress();
 
     const std::vector<Track>& tracks() const { return mTracks; }
     const std::map<std::string, std::string>& data() const { return mData; }
 
 private:
+    // process 'lines' of (webrtc) session description from 'position', for 'type' (atpl, vtpl) and adds them to 'mData'
+    // it returns the final position after reading lines
     unsigned int createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position);
+
+    // process 'lines' of (webrtc) session description from 'position' and adds them to 'mTracks'
     unsigned int addTrack(const std::vector<std::string>& lines, unsigned int position);
+
+    // returns the position of the next line starting with "m"
     unsigned int nextMline(const std::vector<std::string>& lines, unsigned int position);
     std::string nextWord(const std::string& line, unsigned int start, unsigned int &charRead);
+
+    // returns the Track represented by a JSON string
     Track parseTrack(const rapidjson::Value &value) const;
 
-    // convenience method to uncompress each track from original session-description string (see unCompress() )
+    // convenience method to uncompress each track from JSON session-description (see unCompress() )
     std::string unCompressTrack(const Track &track, const std::string& tpl);
 
     // maps id ("cmn", "atpl", "vtpl") to the corresponding session description
@@ -133,11 +141,17 @@ private:
 };
 
 
+/**
+ * @brief The SfuInterface class
+ *
+ * Defines the handlers that should be implemented in order to manage the different
+ * commands received by the client from the SFU server.
+ */
 class SfuInterface
 {
 public:
     // SFU -> Client
-    virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;
+    virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;   // audio/video/on-hold flags
     virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, uint64_t, const std::vector<Peer>&peers, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
@@ -385,8 +399,8 @@ public:
             kResolving,
             kConnecting,
             kConnected,
-            kJoining,
-            kJoined,
+            kJoining,       // after sending JOIN
+            kJoined,        // after receiving ANSWER
         };
 
         SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call);
