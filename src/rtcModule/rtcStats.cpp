@@ -298,7 +298,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 double fps = 0;
                 std::string trackId;
                 uint32_t ssrc = 0;
-                std::cerr << "OUTBount-rtp: " << it->ToJson();
                 for (const webrtc::RTCStatsMemberInterface* member : it->Members())
                 {
                     if (strcmp(member->name(), "frameWidth") == 0)
