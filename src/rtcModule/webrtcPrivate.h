@@ -4,6 +4,7 @@
 #include <logger.h>
 #include <rtcModule/webrtcAdapter.h>
 #include <rtcModule/webrtc.h>
+#include <rtcModule/rtcStats.h>
 #include <sfu.h>
 #include <IVideoRenderer.h>
 
@@ -171,6 +172,37 @@ private:
     SessionState mState = kSessStateInProgress;
 };
 
+/**
+ * @brief Configure scalable video coding based on webrtc stats
+ *
+ * It's only applied to high resolution video
+ */
+class SvcDriver
+{
+public:
+    static const uint8_t kMaxQualityIndex = 6;
+    static const int kMinTimeBetweenSwitches = 10;   // minimum period between SVC switches in seconds
+
+    // boundaries for switching to lower/higher quality.
+    // if rtt moving average goes outside of these boundaries, switching occurs.
+    static const int kRttLowerHeadroom = 30;
+    static const int kRttUpperHeadroom = 250;
+
+    SvcDriver();
+    bool updateSvcQuality(int8_t delta);
+    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
+
+    uint8_t mCurrentSvcLayerIndex;
+    float mPacketLostLower;
+    float mPacketLostUpper;
+    int mLowestRttSeen;
+    int mRttLower;
+    int mRttUpper;
+    float mMovingAverageRtt;
+    float mMovingAveragePlost;
+    time_t mTsLastSwitch;
+};
+
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
@@ -220,7 +252,7 @@ public:
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
-    void requestSvcLayers(Cid_t cid, int layerIndex) override;
+    void switchSvcQuality(int8_t delta) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
@@ -229,6 +261,7 @@ public:
     bool isOutgoing() const override;
     virtual int64_t getInitialTimeStamp() const override;
     virtual int64_t getFinalTimeStamp() const override;
+    int64_t getInitialOffset() const override;
     static const char *stateToStr(uint8_t state);
 
     void setCallHandler(CallHandler* callHanlder) override;
@@ -257,7 +290,6 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     void updateVideoTracks();
     void requestPeerTracks(const std::set<Cid_t> &cids);
-    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
@@ -308,6 +340,7 @@ protected:
     SpeakerState mSpeakerState = SpeakerState::kPending;
     karere::AvFlags mLocalAvFlags = 0; // local Av flags
     int64_t mInitialTs = 0;
+    int64_t mOffset = 0;
     int64_t mFinalTs = 0;
     bool mAudioDetected = false;
     megaHandle mVoiceDetectionTimer = 0;
@@ -343,6 +376,10 @@ protected:
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
 
+    megaHandle mStatsTimer = 0;
+    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
+    Stats mStats;
+    SvcDriver mSvcDriver;
     // Current SVC layer index
     int mCurrentSvcLayerIndex = 0;
 
@@ -353,6 +390,10 @@ protected:
     const std::string &getCallKey() const;
     void updateAudioTracks();
     void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
+    void enableStats();
+    void disableStats();
+    void adjustSvcByStats();
+    void collectNonRTCStats();
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
@@ -390,6 +431,7 @@ public:
     void closeDevice();
 
     void* getAppCtx();
+    std::string getDeviceInfo() const;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
