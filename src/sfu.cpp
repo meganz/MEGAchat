@@ -2013,10 +2013,9 @@ void SfuConnection::abortRetryController()
     mRetryCtrl.reset();
 }
 
-SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id& myHandle)
+SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings)
     : mRtcCryptoMeetings(std::make_shared<rtcModule::RtcCryptoMeetings>(*rRtcCryptoMeetings))
     , mWebsocketIO(websocketIO)
-    , mMyHandle(myHandle)
     , mAppCtx(appCtx)
 {
 
@@ -2040,11 +2039,6 @@ void SfuClient::closeManagerProtocol(karere::Id chatid)
 std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
 {
     return mRtcCryptoMeetings;
-}
-
-const karere::Id& SfuClient::myHandle()
-{
-    return mMyHandle;
 }
 
 void SfuClient::reconnectAllToSFU(bool disconnect)

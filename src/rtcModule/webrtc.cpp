@@ -459,12 +459,18 @@ void Call::setCallerId(karere::Id callerid)
 
 bool Call::isRinging() const
 {
-    return mIsRinging && mCallerId != mSfuClient.myHandle();
+    std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
+    karere::Id myUserHandle(userHandle.get());
+    // TODO when clean branch will be merged replace myUserHandle by mMyPeer.getPeerid();
+    return mIsRinging && mCallerId != myUserHandle;
 }
 
 bool Call::isOutgoing() const
 {
-    return mCallerId == mSfuClient.myHandle();
+    std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
+    karere::Id myUserHandle(userHandle.get());
+    // TODO when clean branch will be merged replace myUserHandle by mMyPeer.getPeerid();
+    return mCallerId == myUserHandle;
 }
 
 int64_t Call::getInitialTimeStamp() const
@@ -1021,7 +1027,9 @@ void Call::requestPeerTracks(const std::set<Cid_t>& cids)
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
     // mod param will be ignored
-    mMyPeer.init(cid, mSfuClient.myHandle(), 0);
+    std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
+    karere::Id myUserHandle(userHandle.get());
+    mMyPeer.init(cid, myUserHandle, 0);
 
     std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers)
@@ -1925,10 +1933,11 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler)
 {
 }
 
-void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings, const karere::Id& myHandle)
+void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
 {
     mAppCtx = appCtx;
-    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings, myHandle);
+
+    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings);
     if (!artc::isInitialized())
     {
         //rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
@@ -2029,7 +2038,9 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
+            std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
+            karere::Id myUserHandle(userHandle.get());
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });

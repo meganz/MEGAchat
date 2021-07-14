@@ -400,7 +400,7 @@ class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
     RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);
-    void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) override;
+    void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(karere::Id chatid) override;
     bool selectVideoInDevice(const std::string& device) override;
