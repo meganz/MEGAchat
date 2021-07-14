@@ -50,7 +50,7 @@ std::string Stats::getJson()
     std::vector<int32_t> periods;
     for (unsigned int i = 1; i < mSamples.mT.size(); i++)
     {
-        periods.push_back(mSamples.mT[i] - mSamples.mT[i - 1]);
+        periods.push_back((mSamples.mT[i] - mSamples.mT[i - 1])/1000);
     }
 
     rapidjson::Value t(rapidjson::kArrayType);
@@ -58,7 +58,7 @@ std::string Stats::getJson()
     samples.AddMember("t", t, json.GetAllocator());
 
     rapidjson::Value pl(rapidjson::kArrayType);
-    parseSamples(mSamples.mPacketLost, pl, json, false, nullptr);
+    parseSamples(mSamples.mPacketLost, pl, json, true, &periods);
     samples.AddMember("pl", pl, json.GetAllocator());
 
     rapidjson::Value rtt(rapidjson::kArrayType);

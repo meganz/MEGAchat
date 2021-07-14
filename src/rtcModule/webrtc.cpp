@@ -1829,9 +1829,14 @@ void Call::adjustSvcByStats()
     float packetLost = 0;
     if (mStats.mSamples.mPacketLost.size() >= 2)
     {
+        // get last lost packets
         int lastpl =  mStats.mSamples.mPacketLost.back();
         int prelastpl= mStats.mSamples.mPacketLost.at(mStats.mSamples.mPacketLost.size()-2);
-        packetLost = abs(lastpl - prelastpl);
+
+        // get periods
+        int lastT = mStats.mSamples.mT.back();
+        int prelastT = mStats.mSamples.mT.at(mStats.mSamples.mT.size() - 2);
+        packetLost = fabs(lastpl - prelastpl) / static_cast<float>(fabs(lastT - prelastT));
     }
 
     if (!mSvcDriver.mMovingAverageRtt)
