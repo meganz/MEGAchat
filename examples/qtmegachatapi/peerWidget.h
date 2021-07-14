@@ -7,7 +7,6 @@
 #include <QWidget>
 #include <webrtc.h>
 
-using namespace megachat;
 class PeerWidget : public QWidget, public megachat::MegaChatVideoListener
 {
     Q_OBJECT
@@ -22,7 +21,7 @@ public:
     void drawPeerAvatar(QImage &image);
     void drawAvatar(QImage &image, QChar letter, uint64_t userid, bool onHold = false);
     bool event(QEvent *event) override;
-    QTMegaChatVideoListener *mMegaChatVideoListenerDelegate;
+    megachat::QTMegaChatVideoListener *mMegaChatVideoListenerDelegate;
     void removeVideoListener();
 
 protected:
