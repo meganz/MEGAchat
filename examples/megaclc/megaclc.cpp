@@ -882,10 +882,6 @@ public:
     {
     }
 
-    void onSyncEvent(m::MegaApi *, m::MegaSync *, m::MegaSyncEvent *) override
-    {
-    }
-
     void onSyncStateChanged(m::MegaApi*, m::MegaSync*) override
     {
     }
@@ -3431,12 +3427,25 @@ void exec_createfolder(ac::ACState& s)
 
 void exec_startupload(ac::ACState& s)
 {
+    string newfilename;
+    bool set_filename = s.extractflagparam("-filename", newfilename);
+
     if (auto node = GetNodeByPath(s.words[2].s))
     {
-        g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
-            {
-                check_err("startUpload", e, ReportResult);
-            }));
+        if (!set_filename)
+        {
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+                {
+                    check_err("startUpload", e, ReportResult);
+                }));
+        }
+        else
+        {
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), newfilename.c_str(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+                {
+                    check_err("startUpload", e, ReportResult);
+                }));
+        }
     }
 }
 
@@ -4551,7 +4560,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-order"), param("order")), sequence(flag("-refilter"), param("regex")))), param("path")));
     p->Add(exec_createfolder, sequence(text("createfolder"), param("name"), param("remotepath")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
-    p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath")));
+    p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath"), opt(sequence(flag("-filename"), param("newname")))));
     p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath()));
 
     p->Add(exec_exportNode, sequence(text("exportnode"), opt(sequence(flag("-writable"), either(text("true"), text("false")))), opt(sequence(flag("-expiry"), param("time_t"))), param("remotepath")));

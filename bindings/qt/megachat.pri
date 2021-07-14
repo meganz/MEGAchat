@@ -137,6 +137,7 @@ HEADERS  += asyncTest-framework.h \
             rtcModule/webrtcAdapter.h \
             rtcModule/webrtcAsyncWaiter.h \
             rtcModule/webrtcPrivate.h \
+            rtcModule/rtcStats.h \
             sfu.h \
             strongvelope/tlvstore.h \
             strongvelope/strongvelope.h \
@@ -158,7 +159,7 @@ CONFIG(USE_WEBRTC) {
     SOURCES += rtcCrypto.cpp \
              rtcModule/webrtc.cpp \
              rtcModule/webrtcAdapter.cpp \
-
+             rtcModule/rtcStats.cpp
 }
 else {
     DEFINES += KARERE_DISABLE_WEBRTC=1 SVC_DISABLE_STROPHE

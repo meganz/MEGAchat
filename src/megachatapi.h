@@ -3044,6 +3044,29 @@ public:
     const char* getUserEmailFromCache(MegaChatHandle userhandle);
 
     /**
+     * @brief Returns the known alias given to the user
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose alias is requested.
+     * @return The alias from user
+     */
+    const char *getUserAliasFromCache(MegaChatHandle userhandle);
+
+    /**
+     * @brief Returns all the known aliases
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @return The list of aliases
+     */
+    ::mega::MegaStringMap *getUserAliasesFromCache();
+
+    /**
      * @brief request to server user attributes
      *
      * This function is useful to get the email address, first name, last name and full name

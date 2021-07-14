@@ -1522,60 +1522,6 @@ string Command::toString(const StaticBuffer& data)
             return tmpString;
         }
 
-
-        case OP_JOINEDCALL:
-        case OP_LEFTCALL:
-        {
-            string tmpString = opcode == OP_JOINEDCALL ? "JOINEDCALL" : "LEFTCALL";
-            karere::Id chatid = data.read<uint64_t>(1);
-            karere::Id callid = data.read<uint64_t>(9);
-            uint16_t userListCount = data.read<uint16_t>(17);
-            tmpString.append(" chatid: ");
-            tmpString.append(ID_CSTR(chatid));
-            tmpString.append(", callid: ");
-            tmpString.append(ID_CSTR(callid));
-            tmpString.append(", number of users: ");
-            tmpString.append(std::to_string(userListCount));
-            int begin = 17 + sizeof(uint16_t);
-            for (uint16_t i = 0; i < userListCount; i++)
-            {
-                tmpString.append(", User");
-                tmpString.append(std::to_string(i));
-                tmpString.append(": ");
-                karere::Id userid = data.read<uint64_t>(begin + i * 8);
-                tmpString.append(ID_CSTR(userid));
-            }
-
-            return tmpString;
-        }
-        case OP_CALLSTATE:
-        {
-            string tmpString;
-            karere::Id chatid = data.read<uint64_t>(1);
-            karere::Id callid = data.read<uint64_t>(9);
-            uint8_t ringing = data.read<uint8_t>(17);
-            tmpString.append("CALLSTATE chatid: ");
-            tmpString.append(ID_CSTR(chatid));
-            tmpString.append(", callid: ");
-            tmpString.append(ID_CSTR(callid));
-            tmpString.append(", Ringing: ");
-            tmpString.append(std::to_string(ringing));
-            return tmpString;
-        }
-        case OP_DELCALLREASON:
-        {
-            string tmpString;
-            karere::Id chatid = data.read<uint64_t>(1);
-            karere::Id callid = data.read<uint64_t>(9);
-            uint8_t reason = data.read<uint8_t>(17);
-            tmpString.append("CALLEND chatid: ");
-            tmpString.append(ID_CSTR(chatid));
-            tmpString.append(", callid: ");
-            tmpString.append(ID_CSTR(callid));
-            tmpString.append(", Reason: ");
-            tmpString.append(std::to_string(reason));
-            return tmpString;
-        }
         default:
             return opcodeToStr(opcode);
     }
@@ -2523,11 +2469,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                             }
 
                             auto& chat = mChatdClient.chats(chatid);
-                            rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
 
                             // in case that OP_CALLSTATE were received first, it might have created the call already
                             // (this is just a protection, in case chatd changes the order of the opcodes)
-                            assert(!call);
+                            assert(mChatdClient.mKarereClient->rtc->findCall(callid));
 
                             mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, chat.isGroup(), unifiedKey);
                             opcode == OP_JOINEDCALL

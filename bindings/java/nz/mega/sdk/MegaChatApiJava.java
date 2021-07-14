@@ -6,9 +6,6 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import mega.privacy.android.app.MegaApplication;
-import mega.privacy.android.app.R;
-import mega.privacy.android.app.utils.TextUtil;
 import mega.privacy.android.app.utils.VideoCaptureUtils;
 
 public class MegaChatApiJava {
@@ -1442,6 +1439,33 @@ public class MegaChatApiJava {
      */
     public String getUserFullnameFromCache(long userhandle){
         return megaChatApi.getUserFullnameFromCache(userhandle);
+    }
+
+    /**
+     * Returns the known alias given to the user
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @param userhandle Handle of the user whose alias is requested.
+     * @return The alias from user
+     */
+    public String getUserAliasFromCache(long userhandle) {
+        return megaChatApi.getUserAliasFromCache(userhandle);
+    }
+
+    /**
+     * Returns all the known aliases
+     *
+     * Returns NULL if data is not cached yet or it's not possible to get
+     *
+     * You take the ownership of returned value
+     *
+     * @return The list of aliases
+     */
+    public MegaStringMap getUserAliasesFromCache() {
+        return megaChatApi.getUserAliasesFromCache();
     }
 
     /**

@@ -1192,6 +1192,11 @@ SfuConnection::~SfuConnection()
     }
 }
 
+bool SfuConnection::isJoined() const
+{
+    return (mConnState == kJoined);
+}
+
 bool SfuConnection::isOnline() const
 {
     return (mConnState >= kConnected);

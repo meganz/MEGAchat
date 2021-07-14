@@ -26,22 +26,22 @@ struct CachedSession
     int                     port = 0;    // 443 usually
     std::shared_ptr<Buffer> blob;        // session data
 
-    void saveToStorage(bool save) { disconnectAction = save ? SAVE : IGNORE; }
-    bool saveToStorage() const { return disconnectAction == SAVE; }
-    void dropFromStorage(bool drop) { disconnectAction = drop ? DROP : IGNORE; }
-    bool dropFromStorage() const { return disconnectAction == DROP; }
+    void saveToStorage(bool save) { disconnectAction = save ? MEGA_SAVE : MEGA_IGNORE; }
+    bool saveToStorage() const { return disconnectAction == MEGA_SAVE; }
+    void dropFromStorage(bool drop) { disconnectAction = drop ? MEGA_DROP : MEGA_IGNORE; }
+    bool dropFromStorage() const { return disconnectAction == MEGA_DROP; }
 
 private:
     enum
     {
-        IGNORE
-        , SAVE
-        , DROP
+        MEGA_IGNORE   // WinBase.h:   #define IGNORE              0       // Ignore signal
+        , MEGA_SAVE
+        , MEGA_DROP
     };
 
     // Initialize to this unusual value ("drop"), because LWS won't offer enough data
     // in the cb to link to one of these instances, in case of connection failure.
-    int                     disconnectAction = DROP;
+    int                     disconnectAction = MEGA_DROP;
 };
 
 class DNScache
@@ -98,7 +98,7 @@ public:
 
     WebsocketsIO(Mutex &mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
-    
+
     // apart from the lambda function to be executed, since it needs to be executed on a marshall call,
     // the appCtx is also required for some callbacks, so Msg wraps them both
     struct Msg
@@ -121,7 +121,7 @@ protected:
     Mutex &mutex;
     MyMegaApi mApi;
     void *appCtx;
-    
+
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
     virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)> f) = 0;
@@ -182,7 +182,7 @@ protected:
     WebsocketsClient *client;
     WebsocketsIO::Mutex &mutex;
     bool disconnecting;
-    
+
 public:
     WebsocketsClientImpl(WebsocketsIO::Mutex &mutex, WebsocketsClient *client);
     virtual ~WebsocketsClientImpl();
@@ -192,7 +192,7 @@ public:
     void wsSendMsgCb(const char *data, size_t len);
     void wsProcessNextMsgCb();
     bool wsSSLsessionUpdateCb(const CachedSession &sess);
-    
+
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;
     virtual bool wsIsConnected() = 0;

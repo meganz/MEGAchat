@@ -4,6 +4,7 @@
 #include <logger.h>
 #include <rtcModule/webrtcAdapter.h>
 #include <rtcModule/webrtc.h>
+#include <rtcModule/rtcStats.h>
 #include <sfu.h>
 #include <IVideoRenderer.h>
 
@@ -194,11 +195,42 @@ private:
 };
 
 /**
- * @brief The Call class
+ * @brief Configure scalable video coding based on webrtc stats
  *
- * This object is created upon OP_JOINEDCALL (or OP_CALLSTATE).
- * It implements ICall interface for the intermediate layer.
+ * It's only applied to high resolution video
  */
+class SvcDriver
+{
+public:
+    static const uint8_t kMaxQualityIndex = 6;
+    static const int kMinTimeBetweenSwitches = 10;   // minimum period between SVC switches in seconds
+
+    // boundaries for switching to lower/higher quality.
+    // if rtt moving average goes outside of these boundaries, switching occurs.
+    static const int kRttLowerHeadroom = 30;
+    static const int kRttUpperHeadroom = 250;
+
+    SvcDriver();
+    bool updateSvcQuality(int8_t delta);
+    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
+
+    uint8_t mCurrentSvcLayerIndex;
+    float mPacketLostLower;
+    float mPacketLostUpper;
+    float mLowestRttSeen;
+    float mRttLower;
+    float mRttUpper;
+    float mMovingAverageRtt;
+    float mMovingAveragePlost;
+    time_t mTsLastSwitch;
+};
+
+/**
+* @brief The Call class
+*
+* This object is created upon OP_JOINEDCALL (or OP_CALLSTATE).
+* It implements ICall interface for the intermediate layer.
+*/
 class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
@@ -278,11 +310,11 @@ public:
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
 
-    // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC)
+    // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
-    // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC)
-    void requestSvcLayers(Cid_t cid, int layerIndex) override;
+    // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
+    void switchSvcQuality(int8_t delta) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
@@ -292,6 +324,7 @@ public:
 
     int64_t getInitialTimeStamp() const override;
     int64_t getFinalTimeStamp() const override;
+    int64_t getInitialOffset() const override;
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
@@ -329,7 +362,6 @@ public:
     void updateVideoTracks();
     // request the missing tracks in ANSWER that were available before reconnection
     void requestPeerTracks(const std::set<Cid_t> &cids);
-    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
@@ -382,8 +414,9 @@ protected:
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
 
-    int64_t mInitialTs = 0;
-    int64_t mFinalTs = 0;
+    int64_t mInitialTs = 0; // when we joined the call
+    int64_t mOffset = 0;    // duration of call when we joined
+    int64_t mFinalTs = 0;   // end of the call
     bool mAudioDetected = false;
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
@@ -422,6 +455,10 @@ protected:
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
 
+    megaHandle mStatsTimer = 0;
+    rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
+    Stats mStats;
+    SvcDriver mSvcDriver;
     // Current SVC layer index
     int mCurrentSvcLayerIndex = 0;
 
@@ -435,6 +472,10 @@ protected:
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
     void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
+    void enableStats();
+    void disableStats();
+    void adjustSvcByStats();
+    void collectNonRTCStats();
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
@@ -472,6 +513,7 @@ public:
     void closeDevice();
 
     void* getAppCtx();
+    std::string getDeviceInfo() const;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
