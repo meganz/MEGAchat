@@ -449,6 +449,9 @@ bool DNScache::updateTlsSession(const CachedSession &sess)
             }
             else if (sess.saveToStorage())
             {
+                if (!sess.blob)
+                    return false;
+
                 mDb.query("update dns_cache set sess_data=? where shard=?", *sess.blob, i.first);
             }
 
