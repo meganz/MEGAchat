@@ -406,7 +406,7 @@ protected:
     bool mVThumbActive = false;  // true when sending low res video
     std::unique_ptr<Slot> mHiRes;
     bool mHiResActive = false;  // true when sending high res video
-    std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;
+    std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
 
     // monitor the available tracks for resuming after a reconnection (requesting the same tracks)
@@ -427,7 +427,7 @@ protected:
 
     void generateAndSendNewkey();
     // associate slots with their corresponding sessions (video)
-    void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution = kLowRes);
+    void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)
     void addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker);
     void removeSpeaker(Cid_t cid);

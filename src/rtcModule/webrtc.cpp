@@ -582,13 +582,13 @@ void Call::requestHiResQuality(Cid_t cid, int quality)
 {
     if (!hasVideoSlot(cid, true))
     {
-        RTCM_LOG_WARNING("setHighResolutionDivider: Currently not receiving a hi-res stream for this peer");
+        RTCM_LOG_WARNING("requestHiResQuality: Currently not receiving a hi-res stream for this peer");
         return;
     }
 
     if (quality < kCallQualityHighDef || quality > kCallQualityHighLow)
     {
-        RTCM_LOG_WARNING("setHiResDivider: invalid resolution divider value (spatial layer offset).");
+        RTCM_LOG_WARNING("requestHiResQuality: invalid resolution divider value (spatial layer offset).");
         return;
     }
 
@@ -603,10 +603,12 @@ void Call::stopHighResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
+            RTCM_LOG_ERROR("stopHighResolutionVideo: session not found for %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (!sess->hasHighResolutionTrack())
         {
+            RTCM_LOG_WARNING("stopHighResolutionVideo: high resolution already not available for cid: %d", *auxit);
             it = cids.erase(auxit);
             sess->notifyHiResReceived();    // also used to notify there's no video anymore
         }
@@ -633,10 +635,13 @@ void Call::requestLowResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
+            // remove cid that has no active session
+            RTCM_LOG_WARNING("requestLowResolutionVideo: session not found for cid: %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (sess->hasLowResolutionTrack())
         {
+            RTCM_LOG_WARNING("requestLowResolutionVideo: low resolution already available for cid: %d", *auxit);
             it = cids.erase(auxit);
             sess->notifyLowResReceived();
         }
@@ -655,10 +660,12 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
+            RTCM_LOG_WARNING("stopLowResolutionVideo: session not found for cid: %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (!sess->hasLowResolutionTrack())
         {
+            RTCM_LOG_WARNING("stopLowResolutionVideo: low resolution already not available for cid: %d", *auxit);
             it = cids.erase(auxit);
             sess->notifyLowResReceived();
         }
@@ -1025,7 +1032,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             mAvailableTracks->addCid(vthumb.first);
         }
 
-        handleIncomingVideo(vthumbs);
+        handleIncomingVideo(vthumbs, kLowRes);
         requestPeerTracks(cids);    // the ones previously available before reconnection
 
         for (const auto& speak : speakers)  // current speakers in the call
@@ -1102,7 +1109,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 
 bool Call::handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors)
 {
-    handleIncomingVideo(videoTrackDescriptors);
+    handleIncomingVideo(videoTrackDescriptors, kLowRes);
     return true;
 }
 
@@ -1438,7 +1445,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         if (it == mReceiverTracks.end())
         {
             RTCM_LOG_WARNING("Unknown vtrack mid %d", trackDescriptor.second.mMid);
-            return;
+            continue;
         }
 
         Cid_t cid = trackDescriptor.first;
@@ -1667,18 +1674,18 @@ void Call::updateVideoTracks()
         // low-res track
         if (mVThumb)
         {
-            if (!mVThumb->getTransceiver()->sender()->track())
+            if (mVThumbActive && !mVThumb->getTransceiver()->sender()->track())
             {
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
                 webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
                 mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
             }
-        }
-        else if (!mVThumbActive)
-        {
-            // if there is a track, but none in the call has requested low res video, disable the track
-            mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+            else if (!mVThumbActive)
+            {
+                // if there is a track, but none in the call has requested low res video, disable the track
+                mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+            }
         }
     }
     else    // no video from camera (muted or not available), or call on-hold

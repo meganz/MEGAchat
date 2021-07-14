@@ -4847,6 +4847,12 @@ public:
      *  + MegaChatCall::CALL_QUALITY_HIGH_MEDIUM = 1,  // 2x lower resolution
      *  + MegaChatCall::CALL_QUALITY_HIGH_LOW = 2,     // 4x lower resolution
      *
+     * Currently, the default high resolution is 960 x 540 pixels.
+     *
+     * This method can be used by the apps to lower the resolution according to their
+     * needs. Ie. showing 2 videos in high res, each of them with 480x270, should
+     * result on the app requesting to lower quality to CALL_QUALITY_HIGH_MEDIUM.
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
