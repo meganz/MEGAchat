@@ -1103,7 +1103,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
     Session *session = getSession(cid);
     if (!session)
     {
-        RTCM_LOG_WARNING("handleKeyCommand: Received key for unknown peer cid %d", cid);
+        RTCM_LOG_ERROR("handleKeyCommand: Received key for unknown peer cid %d", cid);
         return false;
     }
 
@@ -1198,8 +1198,8 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
             assert(session);
             if (!session)
             {
-                RTCM_LOG_WARNING("handleSpeakReqsCommand: Received speakRequest for unknown peer cid %d", cid);
-                return false;
+                RTCM_LOG_ERROR("handleSpeakReqsCommand: Received speakRequest for unknown peer cid %d", cid);
+                continue;
             }
             session->setSpeakRequested(true);
         }
@@ -1216,7 +1216,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
         assert(session);
         if (!session)
         {
-            RTCM_LOG_WARNING("handleSpeakReqDelCommand: Received delSpeakRequest for unknown peer cid %d", cid);
+            RTCM_LOG_ERROR("handleSpeakReqDelCommand: Received delSpeakRequest for unknown peer cid %d", cid);
             return false;
         }
         session->setSpeakRequested(false);
@@ -1227,14 +1227,22 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
         mSpeakerState = SpeakerState::kNoSpeaker;
         updateAudioTracks();
     }
+    else    // own cid, but SpeakerState is not kPending
+    {
+        RTCM_LOG_ERROR("handleSpeakReqDelCommand: Received delSpeakRequest for own cid %d without a pending requests", cid);
+        assert(false);
+        return false;
+    }
 
     return true;
 }
 
 bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 {
+    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer.getCid()
     if (cid)
     {
+        assert(cid != mMyPeer.getCid());
         addSpeaker(cid, speaker);
     }
     else if (mSpeakerState == SpeakerState::kPending)
@@ -1242,20 +1250,34 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
         mSpeakerState = SpeakerState::kActive;
         updateAudioTracks();
     }
+    else    // own cid, but SpeakerState is not kPending
+    {
+        RTCM_LOG_ERROR("handleSpeakOnCommand: Received speak on for own cid %d without a pending requests", cid);
+        assert(false);
+        return false;
+    }
 
     return true;
 }
 
 bool Call::handleSpeakOffCommand(Cid_t cid)
 {
+    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer.getCid()
     if (cid)
     {
+        assert(cid != mMyPeer.getCid());
         removeSpeaker(cid);
     }
     else if (mSpeakerState == SpeakerState::kActive)
     {
         mSpeakerState = SpeakerState::kNoSpeaker;
         updateAudioTracks();
+    }
+    else    // own cid, but SpeakerState is not kActive
+    {
+        RTCM_LOG_ERROR("handleSpeakOffCommand: Received speak off for own cid %d without being active", cid);
+        assert(false);
+        return false;
     }
 
     return true;
