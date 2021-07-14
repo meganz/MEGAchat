@@ -1862,7 +1862,7 @@ void Call::adjustSvcByStats()
         return; // too early
     }
 
-    if (mCurrentSvcLayerIndex >= 0
+    if (mCurrentSvcLayerIndex > 0
             && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
     {
         // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
