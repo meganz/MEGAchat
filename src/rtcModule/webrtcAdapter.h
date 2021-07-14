@@ -50,6 +50,7 @@ extern std::string gFieldTrialStr;
 
 /** Globally initializes the library */
 bool init(void *appCtx);
+
 /** De-initializes and cleans up the library and webrtc stack */
 void cleanup();
 bool isInitialized();
@@ -63,12 +64,12 @@ enum: uint32_t { ERRTYPE_RTC = 0x3e9a57c0 }; //promise error type
 enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
 
 // meetings WebRTC frame structure lengths (in Bytes)
-const uint8_t FRAME_KEYID_LENGTH = 1;
-const uint8_t FRAME_CID_LENGTH = 3;
-const uint8_t FRAME_CTR_LENGTH = 4;
-const uint8_t FRAME_GCM_TAG_LENGTH = 4;
-const uint8_t FRAME_HEADER_LENGTH = 8;
-const uint8_t FRAME_IV_LENGTH = 12;
+const static uint8_t FRAME_KEYID_LENGTH = 1;
+const static uint8_t FRAME_CID_LENGTH = 3;
+const static uint8_t FRAME_CTR_LENGTH = 4;
+const static uint8_t FRAME_GCM_TAG_LENGTH = 4;
+const static uint8_t FRAME_HEADER_LENGTH = 8;
+const static uint8_t FRAME_IV_LENGTH = 12;
 
 // max number of tracks
 const static uint8_t MAX_MEDIA_TYPES = 3;
@@ -118,6 +119,7 @@ public:
 protected:
     PromiseType mPromise;
 };
+
 struct IceCandText
 {
     std::string candidate;
@@ -228,9 +230,10 @@ protected:
     };
     typedef rtc::scoped_refptr<webrtc::PeerConnectionInterface> Base;
     std::shared_ptr<Observer> mObserver;
+
 public:
-    myPeerConnection():Base(){}
-    myPeerConnection(C& handler)
+    MyPeerConnection():Base(){}
+    MyPeerConnection(C& handler)
         :mObserver(new Observer(handler))
     {
         webrtc::PeerConnectionInterface::RTCConfiguration config;
@@ -281,40 +284,22 @@ public:
   }
 };
 
-class MegaEncryptor : public rtc::RefCountedObject<webrtc::FrameEncryptorInterface>
+class RtcCipher
 {
 public:
-    MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv);
-    ~MegaEncryptor() override;
+    RtcCipher(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv);
+    virtual ~RtcCipher() {}
 
-    // set a new encryption key for SymmCipher
-    void setEncryptionKey(const std::string &encryptKey);
+    // set a key for SymmCipher
+    void setKey(const std::string &key);
 
-    // increments sequential number of the packet, for each sent frame of that media track.
-    void incrementPacketCtr();
-
-    // generates a header for a new frame, you take the ownership of returned value
-    byte *generateHeader();
-
-    // generates an IV for a new frame, you take the ownership of returned value
-    byte *generateFrameIV();
-
-    // encrypts a received frame
-    int Encrypt(cricket::MediaType media_type,
-                        uint32_t ssrc,
-                        rtc::ArrayView<const uint8_t> additional_data,
-                        rtc::ArrayView<const uint8_t> frame,
-                        rtc::ArrayView<uint8_t> encrypted_frame,
-                        size_t* bytes_written) override;
-
-    // returns the encrypted_frame size for a given frame
-    size_t GetMaxCiphertextByteSize(cricket::MediaType media_type, size_t frame_size) override;
+    // generates an IV for a new frame
+    std::unique_ptr<byte []> generateFrameIV();
 
     void setTerminating();
 
-private:
-
-    // symetric cipher
+protected:
+    // symmetric cipher
     std::unique_ptr<mega::SymmCipher> mSymCipher;
 
     // sequential number of the packet
@@ -324,7 +309,7 @@ private:
     Keyid_t mKeyId = 0;
 
     // own peer
-    const sfu::Peer& mMyPeer;
+    const sfu::Peer& mPeer;
 
     // shared ptr to crypto module for meetings
     std::shared_ptr<::rtcModule::IRtcCryptoMeetings> mCryptoMeetings;
@@ -335,54 +320,54 @@ private:
     bool mTerminating = false;
 };
 
-class MegaDecryptor : public rtc::RefCountedObject<webrtc::FrameDecryptorInterface>
+class MegaEncryptor
+        : public RtcCipher
+        , public rtc::RefCountedObject<webrtc::FrameEncryptorInterface>
+{
+public:
+    MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv);
+    ~MegaEncryptor() override;
+
+    // increments sequential number of the packet, for each sent frame of that media track.
+    void incrementPacketCtr();
+
+    // generates a header for a new frame, you take the ownership of returned value
+    std::unique_ptr<byte[]> generateHeader();
+
+    // FrameEncryptorInterface
+    //
+    // encrypts a received frame
+    int Encrypt(cricket::MediaType media_type,
+                        uint32_t ssrc,
+                        rtc::ArrayView<const uint8_t> additional_data,
+                        rtc::ArrayView<const uint8_t> frame,
+                        rtc::ArrayView<uint8_t> encrypted_frame,
+                        size_t* bytes_written) override;
+    // returns the encrypted_frame size for a given frame
+    size_t GetMaxCiphertextByteSize(cricket::MediaType media_type, size_t frame_size) override;
+};
+
+class MegaDecryptor
+        : public RtcCipher
+        , public rtc::RefCountedObject<webrtc::FrameDecryptorInterface>
 {
 public:
      MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv);
     ~MegaDecryptor() override;
 
-    // set a new decryption key for SymmCipher
-    void setDecryptionKey(const std::string &decryptKey);
-
     // validates header by checking if CID matches with expected one, also extracts keyId and packet CTR */
     bool validateAndProcessHeader(rtc::ArrayView<const uint8_t> header);
 
-    // rebuild the IV for a received frame, you take the ownership of returned value
-    std::shared_ptr<byte> generateFrameIV();
-
+    // FrameDecryptorInterface
+    //
     // decrypts a received frame
     Result Decrypt(cricket::MediaType media_type,
                    const std::vector<uint32_t>& csrcs,
                    rtc::ArrayView<const uint8_t> additional_data,
                    rtc::ArrayView<const uint8_t> encrypted_frame,
                    rtc::ArrayView<uint8_t> frame) override;
-
     // returns the plain_frame size for a given encrypted frame
     size_t GetMaxPlaintextByteSize(cricket::MediaType media_type, size_t encrypted_frame_size) override;
-
-    void setTerminating();
-
-private:
-
-    // symetric cipher
-    std::unique_ptr<mega::SymmCipher> mSymCipher;
-
-    // sequential number of the packet
-    Ctr_t mCtr = 0;
-
-    // keyId of current key armed in SymCipher
-    Keyid_t mKeyId = 0;
-
-    // peer
-    const sfu::Peer& mPeer;
-
-    // crypto module for meetings
-    std::shared_ptr<::rtcModule::IRtcCryptoMeetings> mCryptoMeetings;
-
-    // static part (8 Bytes) of IV
-    IvStatic_t mIv;
-
-    bool mTerminating = false;
 };
 
 class LocalStreamHandle

@@ -1299,12 +1299,12 @@ bool Call::error(unsigned int code)
     return true;
 }
 
-void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
+void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> /*stream*/)
 {
-    assert(mVThumb  && mHiRes && mAudio);
-    mVThumb->createEncryptor(getMyPeer());
-    mHiRes->createEncryptor(getMyPeer());
-    mAudio->createEncryptor(getMyPeer());
+    assert(mVThumb && mHiRes && mAudio);
+    mVThumb->createEncryptor();
+    mHiRes->createEncryptor();
+    mAudio->createEncryptor();
 }
 
 void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -1324,7 +1324,7 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
     }
 }
 
-void Call::onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
+void Call::onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> /*receiver*/)
 {
     RTCM_LOG_DEBUG("onRemoveTrack received");
 }
@@ -2256,15 +2256,15 @@ Slot::~Slot()
 
     if (mTransceiver->sender())
     {
-        rtc::scoped_refptr<webrtc::FrameEncryptorInterface> encrytor = mTransceiver->sender()->GetFrameEncryptor();
-        if (encrytor)
+        rtc::scoped_refptr<webrtc::FrameEncryptorInterface> encryptor = mTransceiver->sender()->GetFrameEncryptor();
+        if (encryptor)
         {
-            static_cast<artc::MegaEncryptor*>(encrytor.get())->setTerminating();
+            static_cast<artc::MegaEncryptor*>(encryptor.get())->setTerminating();
         }
     }
 }
 
-void Slot::createEncryptor(const sfu::Peer& peer)
+void Slot::createEncryptor()
 {
     mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
