@@ -102,7 +102,7 @@ public:
     typedef promise::Promise<webrtc::SessionDescriptionInterface*> PromiseType;
     SdpCreateCallbacks(const PromiseType& promise)
         :mPromise(promise){}
-    virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc)
+    void OnSuccess(webrtc::SessionDescriptionInterface* desc) override
     {
         RTCM_DO_CALLBACK(mPromise.resolve(desc); Release(), this, desc);
     }
@@ -186,7 +186,7 @@ protected:
 };
 
 template <class C>
-class myPeerConnection: public rtc::scoped_refptr<webrtc::PeerConnectionInterface>
+class MyPeerConnection: public rtc::scoped_refptr<webrtc::PeerConnectionInterface>
 {
 protected:
     //PeerConnectionObserver implementation
@@ -194,53 +194,10 @@ protected:
                      public karere::DeleteTrackable    // required to use weakHandle() at RTCM_DO_CALLBACK()
     {
         Observer(C& handler):mHandler(handler){}
-        virtual void OnError()
-        {
-            RTCM_DO_CALLBACK(mHandler.onError(), this);
-        }
         virtual void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
         {
             tspMediaStream spStream(stream);
             RTCM_DO_CALLBACK(mHandler.onAddStream(spStream), this, spStream);
-        }
-        virtual void OnRemoveStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
-        {
-            tspMediaStream spStream(stream);
-            RTCM_DO_CALLBACK(mHandler.onRemoveStream(spStream), this, spStream);
-        }
-        virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
-        {
-            std::shared_ptr<IceCandText> spCand(new IceCandText(candidate));
-            RTCM_DO_CALLBACK(mHandler.onIceCandidate(spCand), this, spCand);
-        }
-        virtual void OnIceComplete()
-        {
-            RTCM_DO_CALLBACK(mHandler.onIceComplete(), this);
-        }
-        virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState)
-        {
-            RTCM_DO_CALLBACK(mHandler.onSignalingChange(newState), this, newState);
-        }
-        virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
-        {
-            // It's deprecate in webrtc
-        }
-        virtual void OnStandardizedIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState newState)
-        {
-            RTCM_DO_CALLBACK(mHandler.onIceConnectionChange(newState), this, newState);
-        }
-        virtual void OnRenegotiationNeeded()
-        {
-            RTCM_DO_CALLBACK(mHandler.onRenegotiationNeeded(), this);
-        }
-        virtual void OnDataChannel(scoped_refptr<webrtc::DataChannelInterface> data_channel)
-        {
-            rtc::scoped_refptr<webrtc::DataChannelInterface> chan(data_channel);
-            RTCM_DO_CALLBACK(mHandler.onDataChannel(chan), this, chan);
-        }
-        virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
-        {
-            //TODO: Forward on GUI thread
         }
 
         virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -257,6 +214,13 @@ protected:
         {
             RTCM_DO_CALLBACK(mHandler.onConnectionChange(new_state), this, new_state);
         }
+
+        // pure virtual methods from webrtc::PeerConnectionObserver
+        //
+        void OnIceCandidate(const webrtc::IceCandidateInterface* /*candidate*/) override {}
+        void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState /*newState*/) override {}
+        void OnDataChannel(scoped_refptr<webrtc::DataChannelInterface> /*data_channel*/) override {}
+        void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState /*new_state*/) override {}
 
     protected:
         /** own callback interface, always called by the GUI thread */

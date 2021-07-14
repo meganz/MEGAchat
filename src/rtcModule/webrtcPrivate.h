@@ -377,11 +377,6 @@ public:
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handleStatCommand() override;
-    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
-    bool handlePeerLeft(Cid_t cid) override;
-    bool handleError(unsigned int code, const std::string reason) override;
-    bool handleModerator(Cid_t cid, bool moderator) override;
     void onSfuConnected() override;
     bool error(unsigned int code) override;
 
@@ -390,17 +385,6 @@ public:
     void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver);
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
-    void onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state);
-
-    // PeerConnectionInterface events (EMPTY)
-    void onError();
-    void onIceComplete();
-    void onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState);
-    void onRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
-    void onIceCandidate(std::shared_ptr<artc::IceCandText> cand);
-    void onRenegotiationNeeded();
-    void onDataChannel(webrtc::DataChannelInterface* data_channel);
-
 
 protected:
     std::vector<karere::Id> mParticipants; // managed exclusively by meetings related chatd commands
@@ -432,7 +416,7 @@ protected:
     sfu::SfuClient& mSfuClient;
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
 
-    artc::myPeerConnection<Call> mRtcConn;
+    artc::MyPeerConnection<Call> mRtcConn;
     std::string mSdp;   // session description provided by WebRTC::createOffer()
     std::unique_ptr<Slot> mAudio;
     std::unique_ptr<Slot> mVThumb;
