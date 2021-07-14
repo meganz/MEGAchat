@@ -1074,6 +1074,8 @@ public:
     const char* getUserFullnameFromCache(MegaChatHandle userhandle);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     const char* getUserEmailFromCache(MegaChatHandle userhandle);
+    const char* getUserAliasFromCache(MegaChatHandle userhandle);
+    ::mega::MegaStringMap *getUserAliasesFromCache();
     void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList* userList, MegaChatRequestListener *listener = nullptr);
     unsigned int getMaxParticipantsWithAttributes();
     char *getContactEmail(MegaChatHandle userhandle);
