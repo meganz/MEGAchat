@@ -2470,11 +2470,12 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                             auto& chat = mChatdClient.chats(chatid);
 
+
+
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, chat.isGroup(), unifiedKey);
                             // in case that OP_CALLSTATE were received first, it might have created the call already
                             // (this is just a protection, in case chatd changes the order of the opcodes)
                             assert(mChatdClient.mKarereClient->rtc->findCall(callid));
-
-                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, chat.isGroup(), unifiedKey);
                             opcode == OP_JOINEDCALL
                                     ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, callid, users)
                                     : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
