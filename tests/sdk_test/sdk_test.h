@@ -352,11 +352,10 @@ private:
     bool mCallAnswered[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
-    bool mTerminationLocal[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     bool mPeerIsRinging[NUM_ACCOUNTS];
     bool mVideoLocal[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
