@@ -321,8 +321,15 @@ RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCrypt
 
 void RtcCipher::setKey(const std::string &key)
 {
-    const unsigned char *decKey = reinterpret_cast<const unsigned char*>(key.data());
-    mSymCipher.reset(new mega::SymmCipher(decKey));
+    const unsigned char *newKey = reinterpret_cast<const unsigned char*>(key.data());
+    if (!mSymCipher)
+    {
+        mSymCipher.reset(new mega::SymmCipher(newKey));
+    }
+    else
+    {
+        mSymCipher->setkey(newKey);
+    }
 }
 
 void RtcCipher::setTerminating()
