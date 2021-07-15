@@ -453,12 +453,12 @@ public:
     bool retentionTimeUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
-    virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);
-    virtual void onMessageLoaded(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // loaded by getMessages()
-    virtual void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);
-    virtual void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // new or updated
-    virtual void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count);
-    virtual void onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg) override;
+    void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat) override;
+    void onMessageLoaded(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg) override;   // loaded by getMessages()
+    void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg) override;
+    void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg) override;   // new or updated
+    void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count) override;
+    void onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg) override;
 
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
@@ -492,12 +492,10 @@ public:
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handleStatCommand() override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid) override;
     bool handleError(unsigned int , const std::string) override;
-    bool handleModerator(Cid_t cid, bool moderator) override;
-    void handleSfuConnected() override;
+    void onSfuConnected() override;
     bool error(unsigned int) override;
 };
 

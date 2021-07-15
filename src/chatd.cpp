@@ -1654,8 +1654,8 @@ void Chat::onDisconnect()
         rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
         if (call)
         {
-            CHATD_LOG_DEBUG("chatd::onDisconnect stop sfu reconnection and remove participants");
-            call->disconnectFromChatd();
+            CHATD_LOG_ERROR("chatd::onDisconnect stop sfu reconnection and remove participants");
+            call->onDisconnectFromChatd();
         }
     }
 }
@@ -2013,10 +2013,6 @@ void Connection::wsSendMsgCb(const char *, size_t)
 {
     assert(!mSendPromise.done());
     mSendPromise.resolve();
-}
-
-void Connection::wsProcessNextMsgCb()
-{
 }
 
 bool Connection::wsSSLsessionUpdateCb(const CachedSession &sess)
@@ -2438,7 +2434,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     users.push_back(user);
                     userListStr.append(ID_CSTR(user)).append(", ");
                 }
-                userListStr.erase(userListStr.size() -2);
+                userListStr.erase(userListStr.size() - 2);
                 CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s userList: [%s]", tmpStr, ID_CSTR(chatid), ID_CSTR(callid), userListStr.c_str());
 
                 if (mChatdClient.mKarereClient->rtc)
@@ -2452,6 +2448,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                     rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
+                        assert(opcode != OP_LEFTCALL);  // chatd should never send a LEFTCALL for an unknown call
+
                         promise::Promise<std::shared_ptr<std::string>> pms;
                         if (chat.isPublic())
                         {
@@ -2471,8 +2469,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                             }
 
                             auto& chat = mChatdClient.chats(chatid);
-                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, chat.isGroup(), unifiedKey);
+
+                            // in case that OP_CALLSTATE were received first, it might have created the call already
+                            // (this is just a protection, in case chatd changes the order of the opcodes)
                             assert(mChatdClient.mKarereClient->rtc->findCall(callid));
+
+                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, chat.isGroup(), unifiedKey);
                             opcode == OP_JOINEDCALL
                                     ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, callid, users)
                                     : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
@@ -2486,8 +2488,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                     else // if call already exists.
                     {
                         opcode == OP_JOINEDCALL
-                                ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, call->getCallid(), users)
-                                : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, call->getCallid(), users);
+                                ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, callid, users)
+                                : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
                     }
                 }
 
@@ -6011,6 +6013,7 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(LEFTCALL);
         RET_ENUM_NAME(CALLSTATE);
         RET_ENUM_NAME(CALLEND);
+        RET_ENUM_NAME(DELCALLREASON);
         default: return "(invalid opcode)";
     };
 }

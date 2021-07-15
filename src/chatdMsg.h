@@ -267,26 +267,32 @@ enum Opcode
     OP_CLIENTID = 24,
 
     /**
-      * @brief  <chatid> <userid> <clientid> <payload-len> <payload> (deprecated)
+      * @brief  <chatid> <userid> <clientid> <payload-len> <payload>
       *
       * C->S: send to specified recipient(s)
       * S->C: delivery from specified sender
+      *
+      * @deprecated
       */
     OP_RTMSG_BROADCAST = 25,
 
     /**
-      * @brief  <chatid> <userid> <clientid> <payload-len> <payload> (deprecated)
+      * @brief  <chatid> <userid> <clientid> <payload-len> <payload>
       *
       * C->S: send to specified recipient(s)
       * S->C: delivery from specified sender
+      *
+      * @deprecated
       */
     OP_RTMSG_USER = 26,
 
     /**
-      * @brief  <chatid> <userid> <clientid> <payload-len> <payload> (deprecated)
+      * @brief  <chatid> <userid> <clientid> <payload-len> <payload>
       *
       * C->S: send to specified recipient(s)
       * S->C: delivery from specified sender
+      *
+      * @deprecated
       */
     OP_RTMSG_ENDPOINT = 27,
 
@@ -507,7 +513,7 @@ enum Opcode
       */
     OP_DELCALLREASON = 55,
 
-    OP_LAST = OP_CALLEND,
+    OP_LAST = OP_DELCALLREASON,
     OP_INVALIDCODE = 0xFF
 };
 

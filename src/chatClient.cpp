@@ -13,7 +13,6 @@
 #endif
 #include "base/services.h"
 #include "sdkApi.h"
-#include <serverListProvider.h>
 #include <memory>
 #include <chatd.h>
 #include <db.h>
@@ -59,40 +58,32 @@ bool Client::isInBackground() const
 {
     return mIsInBackground;
 }
-#ifndef KARERE_DISABLE_WEBRTC
-Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp, rtcModule::IGlobalCallHandler&globalCallHandler, const std::string &appDir, uint8_t caps, void *ctx)
-    : mAppDir(appDir),
-          websocketIO(websocketsIO),
-          appCtx(ctx),
-          api(sdk, ctx),
-          app(aApp),
-          mDnsCache(db, chatd::Client::chatdVersion),
-          mGlobalCallHandler(globalCallHandler),
-          mContactList(new ContactList(*this)),
-          chats(new ChatRoomList(*this)),
-          mPresencedClient(&api, this, *this, caps)
-{
-}
 
-#else
 /* Warning - the database is not initialzed at construction, but only after
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
+Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
+               rtcModule::IGlobalCallHandler &globalCallHandler,
+               const std::string &appDir, uint8_t caps, void *ctx)
     : mAppDir(appDir),
-          websocketIO(websocketsIO),
-          appCtx(ctx),
-          api(sdk, ctx),
-          app(aApp),
-          mDnsCache(db, chatd::Client::chatdVersion),
-          mContactList(new ContactList(*this)),
-          chats(new ChatRoomList(*this)),
-          mPresencedClient(&api, this, *this, caps)
+      websocketIO(websocketsIO),
+      appCtx(ctx),
+      api(sdk, ctx),
+      app(aApp),
+      mDnsCache(db, chatd::Client::chatdVersion),
+      mGlobalCallHandler(globalCallHandler),
+      mContactList(new ContactList(*this)),
+      chats(new ChatRoomList(*this)),
+      mPresencedClient(&api, this, *this, caps)
 {
-    mSfuClient = mega::make_unique<sfu::SfuClient>(*this);
-}
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
+    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this));
 #endif
+}
+
 
 KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)
 {
@@ -741,7 +732,7 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     if (rtc && !disconnect) // In case of disconnect, reconnection will be launched after chatd::Chat::setOnlineState
     {
         // force reconnect all SFU connections
-        rtc->getSfuClient().reconnectAllToSFU(disconnect);
+        rtc->getSfuClient().retryPendingConnections(disconnect);
     }
 #endif
 
@@ -1658,12 +1649,6 @@ promise::Promise<void> Client::doConnect()
         setConnState(kConnected);
         return ::promise::_Void();
     }
-
-#ifndef KARERE_DISABLE_WEBRTC
-// Create the rtc module
-    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
-    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this), myHandle());
-#endif
 
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)

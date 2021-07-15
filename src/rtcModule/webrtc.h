@@ -10,9 +10,6 @@
 #include "rtcCrypto.h"
 #include "sfu.h"
 
-#define TURNSERVER_SHARD -10    // shard number in the DNS cache for TURN servers
-#define MAX_TURN_SERVERS 5      // max. number of TURN servers to be managed
-
 #define RET_ENUM_NAME(name) case name: return #name
 
 namespace rtcModule
@@ -36,13 +33,13 @@ enum TermCode: uint8_t
 
 enum CallState: uint8_t
 {
-    kStateInitial = 0,      // < Call object was initialised
-    kStateClientNoParticipating,  // < User is not particpating in the call
-    kStateConnecting,   // < Connecting to SFU
-    kStateJoining,      // < Joining a call
-    kStateInProgress,
+    kStateInitial = 0,                  // < Call object was initialised
+    kStateClientNoParticipating,        // < User is not particpating in the call
+    kStateConnecting,                   // < Connecting to SFU
+    kStateJoining,                      // < Joining a call
+    kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
-    kStateDestroyed    // < Call object is not valid anymore, the call is removed from the system
+    kStateDestroyed                     // < Call object is not valid anymore, the call is removed from the system
 };
 
 enum SessionState: uint8_t
@@ -99,12 +96,8 @@ public:
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
-    virtual void setAudioDetected(bool audioDetected) = 0;
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
-    virtual void notifyHiResReceived() = 0;
-    virtual void notifyLowResReceived() = 0;
-    virtual void disableVideoSlot(VideoResolution hires) = 0;
 };
 
 class ICall;
@@ -129,13 +122,18 @@ public:
     virtual karere::Id getCallerid() const = 0;
     virtual bool isAudioDetected() const = 0;
     virtual CallState getState() const = 0;
+
     virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
-    virtual void disconnectFromChatd() = 0;
+
+    // called by chatd client when the connection to chatd is closed
+    virtual void onDisconnectFromChatd() = 0;
     virtual void reconnectToSfu() = 0;
+
     virtual promise::Promise<void> hangup() = 0;
-    virtual promise::Promise<void> endCall(int reason = chatd::kDefault) = 0;
+    virtual promise::Promise<void> endCall(int reason = chatd::kDefault) = 0;  // only used on 1on1 when incoming call is rejected
     virtual promise::Promise<void> join(karere::AvFlags avFlags) = 0;
+
     virtual bool participate() = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
@@ -181,9 +179,9 @@ class RtcModule
 {
 public:
     virtual ~RtcModule(){};
-    virtual void init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id &myHandle) = 0;
+    virtual void init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings) = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
-    virtual ICall* findCallByChatid(karere::Id chatid) = 0;
+    virtual ICall* findCallByChatid(const karere::Id &chatid) = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
@@ -227,13 +225,13 @@ enum RtcConstant {
    kMaxCallReceivers = 20,
    kMaxCallAudioSenders = 20,
    kMaxCallVideoSenders = 30,
-   kInitialvthumbCount = 10,
-   kHiResWidth = 960,
-   kHiResHeight = 540,
+   kInitialvthumbCount = 10,    // maximum amount of video streams to receive after joining SFU
+   kHiResWidth = 960,  // px
+   kHiResHeight = 540,  // px
    kHiResMaxFPS = 30,
-   kVthumbWidth = 160,
-   kAudioMonitorTimeout = 2000,
-   kStatsInterval = 1000,
+   kVthumbWidth = 160,  // px
+   kAudioMonitorTimeout = 2000, // ms
+   kStatsInterval = 1000,   // ms
 };
 
 #endif
