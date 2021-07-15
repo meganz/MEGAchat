@@ -881,7 +881,10 @@ void MegaChatApiImpl::sendPendingRequests()
                    }
 
                    bool meeting = result->getFlag();
-                   request->setParamType(meeting);
+                   if (meeting)
+                   {
+                       request->setParamType(1);
+                   }
 
                    //Check chat link
                    if (!createChat)
@@ -2444,61 +2447,6 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
-        case MegaChatRequest::TYPE_REQUEST_SVC_LAYERS:
-        {
-            handle chatid = request->getChatHandle();
-            if (chatid == MEGACHAT_INVALID_HANDLE)
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
-
-            Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
-            if (request->getUserHandle() == MEGACHAT_INVALID_HANDLE)
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS  - Invalid ClientId");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
-
-            int layerIndex = request->getPrivilege();
-            if (layerIndex < 0 || layerIndex > 6)
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS  - Invalid layer index");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
-
-            rtcModule::ICall *call = findCall(chatid);
-            if (!call)
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS  - There is not any call in that chatroom");
-                errorCode = MegaChatError::ERROR_NOENT;
-                assert(false);
-                break;
-            }
-
-            if (call->getState() != rtcModule::kStateInProgress)
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SVC_LAYERS - Call isn't in progress state");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
-            ChatRoom *chatroom = findChatRoom(chatid);
-            if (!chatroom)
-            {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            call->requestSvcLayers(cid, layerIndex);
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-            fireOnChatRequestFinish(request, megaChatError);
-            break;
-        }
-
 #endif
         default:
         {
@@ -3448,6 +3396,51 @@ const char *MegaChatApiImpl::getUserEmailFromCache(MegaChatHandle userhandle)
     {
         const Buffer* buffer = mClient->userAttrCache().getDataFromCache(userhandle, USER_ATTR_EMAIL);
         return buffer ? buffer->c_str() : nullptr;
+    }
+
+    return nullptr;
+}
+
+const char *MegaChatApiImpl::getUserAliasFromCache(MegaChatHandle userhandle)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(mClient->myHandle(), ::mega::MegaApi::USER_ATTR_ALIAS);
+
+        if (!buffer || buffer->empty()) return nullptr;
+
+        const std::string container(buffer->buf(), buffer->size());
+        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
+        std::unique_ptr<std::vector<std::string>> keys(tlvRecords->getKeys());
+
+        for (auto &key : *keys)
+        {
+            Id userid(key.data());
+            if (userid == userhandle)
+            {
+                string value;
+                tlvRecords->get(key.c_str(), value);
+                return MegaApi::strdup(value.c_str());
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+MegaStringMap *MegaChatApiImpl::getUserAliasesFromCache()
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(mClient->myHandle(), ::mega::MegaApi::USER_ATTR_ALIAS);
+
+        if (!buffer || buffer->empty()) return nullptr;
+
+        const std::string container(buffer->buf(), buffer->size());
+        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
+        return new MegaStringMapPrivate(tlvRecords->getMap(), true);
     }
 
     return nullptr;
@@ -4754,16 +4747,6 @@ void MegaChatApiImpl::removeSpeaker(MegaChatHandle chatid, MegaChatHandle client
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DEL_SPEAKER, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(clientId);
-    requestQueue.push(request);
-    waiter->notify();
-}
-
-void MegaChatApiImpl::requestSvcLayers(MegaChatHandle chatid, MegaChatHandle clientId, int layerIndex, MegaChatRequestListener *listener)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_SVC_LAYERS, listener);
-    request->setChatHandle(chatid);
-    request->setUserHandle(clientId);
-    request->setPrivilege(layerIndex);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -6310,7 +6293,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     localAVFlags = call.getLocalAvFlags();
-    mInitialTs = call.getInitialTimeStamp();
+    mInitialTs = call.getInitialTimeStamp() - call.getInitialOffset();
     mFinalTs = call.getFinalTimeStamp();
     mAudioDetected = call.isAudioDetected();
     mNetworkQuality = call.getNetworkQuality();

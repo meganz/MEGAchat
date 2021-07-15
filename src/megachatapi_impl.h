@@ -1074,6 +1074,8 @@ public:
     const char* getUserFullnameFromCache(MegaChatHandle userhandle);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     const char* getUserEmailFromCache(MegaChatHandle userhandle);
+    const char* getUserAliasFromCache(MegaChatHandle userhandle);
+    ::mega::MegaStringMap *getUserAliasesFromCache();
     void loadUserAttributes(MegaChatHandle chatid, mega::MegaHandleList* userList, MegaChatRequestListener *listener = nullptr);
     unsigned int getMaxParticipantsWithAttributes();
     char *getContactEmail(MegaChatHandle userhandle);
@@ -1168,7 +1170,6 @@ public:
     void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
-    void requestSvcLayers(MegaChatHandle chatid, MegaChatHandle clientId, int layerIndex, MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);

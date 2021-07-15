@@ -145,6 +145,7 @@ endif()
 set(_common_cmake_args
     "-DMega3rdPartyDir=${_3rdparty_dir}"
     "-DVCPKG_TRIPLET=${_triplet}"
+	"-DMEGA_PROJECT_NAME=MegaChat-"
     -DUSE_THIRDPARTY_FROM_VCPKG=1
     -S ${_script_cwd}
 )

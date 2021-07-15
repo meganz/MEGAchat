@@ -120,6 +120,49 @@ std::map<Cid_t, karere::AvFlags>& AvailableTracks::getTracks()
     return mTracksFlags;
 }
 
+SvcDriver::SvcDriver ()
+    : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
+      mPacketLostLower(0.01),
+      mPacketLostUpper(1),
+      mLowestRttSeen(10000),
+      mRttLower(0),
+      mRttUpper(0),
+      mMovingAverageRtt(0),
+      mMovingAveragePlost(0),
+      mTsLastSwitch(0)
+{
+
+}
+
+bool SvcDriver::updateSvcQuality(int8_t delta)
+{
+    int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
+    if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
+    {
+        return false;
+    }
+    mTsLastSwitch = time(nullptr);
+    mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
+    return true;
+}
+
+bool SvcDriver::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
+{
+    // we want to provide a linear quality scale,
+    // layers are defined for each of the 7 "quality" steps
+    // layer: spatial (resolution), temporal (FPS), screen-temporal (temporal layer for screen video)
+    switch (index)
+    {
+        case 0: { stp = 0; tmp = 0; stmp = 0; return true; }
+        case 1: { stp = 0; tmp = 1; stmp = 0; return true; }
+        case 2: { stp = 0; tmp = 2; stmp = 0; return true; }
+        case 3: { stp = 1; tmp = 1; stmp = 0; return true; }
+        case 4: { stp = 1; tmp = 2; stmp = 1; return true; }
+        case 5: { stp = 2; tmp = 1; stmp = 1; return true; }
+        case 6: { stp = 2; tmp = 2; stmp = 2; return true; }
+        default: return false;
+    }
+}
 Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
@@ -142,10 +185,13 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
 
 Call::~Call()
 {
+    disableStats();
+
     if (mTermCode == kInvalidTermCode)
     {
         mTermCode = kUnKnownTermCode;
     }
+
     setState(CallState::kStateDestroyed);
 }
 
@@ -339,19 +385,19 @@ void Call::setRinging(bool ringing)
 void Call::setOnHold()
 {
     // disable audio track
-    if (mAudio->getTransceiver()->sender()->track())
+    if (mAudio && mAudio->getTransceiver()->sender()->track())
     {
         mAudio->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
     // disable hi-res track
-    if (mHiRes->getTransceiver()->sender()->track())
+    if (mHiRes && mHiRes->getTransceiver()->sender()->track())
     {
         mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
     // disable low-res track
-    if (mVThumb->getTransceiver()->sender()->track())
+    if (mVThumb && mVThumb->getTransceiver()->sender()->track())
     {
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
     }
@@ -430,6 +476,11 @@ int64_t Call::getInitialTimeStamp() const
 int64_t Call::getFinalTimeStamp() const
 {
     return mFinalTs;
+}
+
+int64_t Call::getInitialOffset() const
+{
+    return mOffset;
 }
 
 const char *Call::stateToStr(uint8_t state)
@@ -677,11 +728,10 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
 }
 
-void Call::requestSvcLayers(Cid_t cid, int layerIndex)
+void Call::switchSvcQuality(int8_t delta)
 {
-    if (!hasVideoSlot(cid, true))
+    if (!mSvcDriver.updateSvcQuality(delta))
     {
-        RTCM_LOG_WARNING("setLayerSettings: Currently not receiving a hi-res stream for this peer");
         return;
     }
 
@@ -689,9 +739,10 @@ void Call::requestSvcLayers(Cid_t cid, int layerIndex)
     int spt = 0;
     int tmp = 0;
     int stmp = 0;
-    if (!getLayerByIndex(layerIndex, spt, tmp, stmp))
+    int layerIndex = mSvcDriver.mCurrentSvcLayerIndex;
+    if (!mSvcDriver.getLayerByIndex(layerIndex, spt, tmp, stmp))
     {
-        RTCM_LOG_WARNING("setLayerSettings: Invalid layer index");
+        RTCM_LOG_WARNING("switchSvcQuality: Invalid layer index");
         return;
     }
 
@@ -845,6 +896,7 @@ void Call::getLocalStreams()
 
 void Call::handleCallDisconnect()
 {
+    disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
     freeVideoTracks(true);          // free local video tracks and release slots
@@ -854,6 +906,11 @@ void Call::handleCallDisconnect()
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
+    mStats.mTermCode = static_cast<int32_t>(termCode);
+    mStats.mDuration = time(nullptr) - mInitialTs;
+    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+
+    mStats.clear();
     if (mLocalAvFlags.videoCam())
     {
         releaseVideoDevice();
@@ -962,24 +1019,6 @@ void Call::requestPeerTracks(const std::set<Cid_t>& cids)
     requestLowResolutionVideo(lowResCids);
 }
 
-bool Call::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
-{
-    // we want to provide a linear quality scale,
-    // layers are defined for each of the 7 "quality" steps
-    // layer: spatial (resolution), temporal (FPS), screen-temporal (temporal layer for screen video)
-    switch (index)
-    {
-        case 0: { stp = 0; tmp = 0; stmp = 0; return true; }
-        case 1: { stp = 0; tmp = 1; stmp = 0; return true; }
-        case 2: { stp = 0; tmp = 2; stmp = 0; return true; }
-        case 3: { stp = 1; tmp = 1; stmp = 0; return true; }
-        case 4: { stp = 1; tmp = 2; stmp = 1; return true; }
-        case 5: { stp = 2; tmp = 1; stmp = 1; return true; }
-        case 6: { stp = 2; tmp = 2; stmp = 2; return true; }
-        default: return false;
-    }
-}
-
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
     // mod param will be ignored
@@ -1033,7 +1072,8 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         }
 
         setState(CallState::kStateInProgress);
-        mInitialTs -= (ts / 1000); // subtract ts(ms) received in ANSWER command, from ts captured upon setState kStateInProgress
+        mOffset = ts / 1000;
+        enableStats();
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -1287,6 +1327,7 @@ bool Call::error(unsigned int code)
 
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
+    assert(mVThumb  && mHiRes && mAudio);
     mVThumb->createEncryptor(getMyPeer());
     mHiRes->createEncryptor(getMyPeer());
     mAudio->createEncryptor(getMyPeer());
@@ -1639,6 +1680,98 @@ void Call::freeAudioTrack(bool releaseSlot)
     }
 }
 
+void Call::collectNonRTCStats()
+{
+    int audioSession = 0;
+    int vThumbSession = 0;
+    int hiResSession = 0;
+    for (const auto& session : mSessions)
+    {
+        if (session.second->getAudioSlot())
+        {
+            audioSession++;
+        }
+
+        if (session.second->getVthumSlot())
+        {
+            vThumbSession++;
+        }
+
+        if (session.second->getHiResSlot())
+        {
+            hiResSession++;
+        }
+    }
+
+    // TODO: pending to implement disabledTxLayers in future if needed
+    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex);
+    mStats.mSamples.mNrxa.push_back(audioSession);
+    mStats.mSamples.mNrxl.push_back(vThumbSession);
+    mStats.mSamples.mNrxh.push_back(hiResSession);
+    mStats.mSamples.mAv.push_back(mLocalAvFlags.value());
+}
+
+void Call::enableStats()
+{
+    mStats.mPeerId = mMyPeer.getPeerid();
+    mStats.mCid = mMyPeer.getCid();
+    mStats.mCallid = mCallid;
+    mStats.mTimeOffset = mOffset;
+    mStats.mIsGroup = mIsGroup;
+    mStats.mDevice = mRtc.getDeviceInfo();
+
+    auto wptr = weakHandle();
+    mStatsTimer = karere::setInterval([this, wptr]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        if (!mSfuConnection || !mSfuConnection->isJoined())
+        {
+            RTCM_LOG_WARNING("Cannot collect stats until reach kJoined state");
+            return;
+        }
+
+        // poll TxVideoStats
+        assert(mVThumb && mHiRes);
+        uint32_t hiResId = 0;
+        if (mHiResActive)
+        {
+            hiResId = mHiRes->getTransceiver()->sender()->ssrc();
+        }
+
+        uint32_t lowResId = 0;
+        if (mVThumbActive)
+        {
+            lowResId = mVThumb->getTransceiver()->sender()->ssrc();
+        }
+
+        // poll non-rtc stats
+        collectNonRTCStats();
+
+        // Keep mStats ownership
+        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId));
+        mRtcConn->GetStats(mStatConnCallback.get());
+
+        // adjust SVC driver based on collected stats
+        // TODO: I can be done in ConnStatsCallBack to take into account latest stats
+        adjustSvcByStats();
+    }, RtcConstant::kStatsInterval, mRtc.getAppCtx());
+}
+
+void Call::disableStats()
+{
+    if (mStatsTimer != 0)
+    {
+        karere::cancelInterval(mStatsTimer, mRtc.getAppCtx());
+        mStatsTimer = 0;
+        static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
+        mStatConnCallback = nullptr;
+    }
+}
+
 void Call::updateVideoTracks()
 {
     bool isOnHold = mLocalAvFlags.isOnHold();
@@ -1647,29 +1780,35 @@ void Call::updateVideoTracks()
         takeVideoDevice();
 
         // hi-res track
-        if (mHiResActive && !mHiRes->getTransceiver()->sender()->track())
+        if (mHiRes)
         {
-            rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-            mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
-        }
-        else if (!mHiResActive)
-        {
-            mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
+            if (mHiResActive && !mHiRes->getTransceiver()->sender()->track())
+            {
+                rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
+                mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
+            }
+            else if (!mHiResActive)
+            {
+                mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
+            }
         }
 
         // low-res track
-        if (!mVThumb->getTransceiver()->sender()->track())
+        if (mVThumb)
         {
-            rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-            videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-            webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
-            mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
+            if (mVThumbActive && !mVThumb->getTransceiver()->sender()->track())
+            {
+                rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
+                webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
+                mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
 
-        }
-        else if (!mVThumbActive)
-        {
-            mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+            }
+            else if (!mVThumbActive)
+            {
+                mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+            }
         }
     }
     else
@@ -1679,6 +1818,72 @@ void Call::updateVideoTracks()
     }
 }
 
+void Call::adjustSvcByStats()
+{
+    if (mStats.mSamples.mRoundTripTime.empty())
+    {
+        RTCM_LOG_WARNING("adjustSvcBystats: not enough collected data");
+        return;
+    }
+
+    float roundTripTime = mStats.mSamples.mRoundTripTime.back();
+    float packetLost = 0;
+    if (mStats.mSamples.mPacketLost.size() >= 2)
+    {
+        int lastpl =  mStats.mSamples.mPacketLost.back();
+        int prelastpl= mStats.mSamples.mPacketLost.at(mStats.mSamples.mPacketLost.size()-2);
+        packetLost = abs(lastpl - prelastpl);
+    }
+
+    if (!mSvcDriver.mMovingAverageRtt)
+    {
+         mSvcDriver.mMovingAverageRtt = roundTripTime;
+         mSvcDriver.mMovingAveragePlost = packetLost;
+         return; // intentionally skip first sample for lower/upper range calculation
+    }
+
+    if (roundTripTime < mSvcDriver.mLowestRttSeen)
+    {
+        // rttLower and rttUpper define the window inside which layer is not switched.
+        //  - if rtt falls below that window, layer is switched to higher quality,
+        //  - if rtt is higher, layer is switched to lower quality.
+        // the window is defined/redefined relative to the lowest rtt seen.
+        mSvcDriver.mLowestRttSeen = roundTripTime;
+        mSvcDriver.mRttLower = roundTripTime + mSvcDriver.kRttLowerHeadroom;
+        mSvcDriver.mRttUpper = roundTripTime + mSvcDriver.kRttUpperHeadroom;
+    }
+
+    roundTripTime = mSvcDriver.mMovingAverageRtt = (mSvcDriver.mMovingAverageRtt * 3 + roundTripTime) / 4;
+    packetLost  = mSvcDriver.mMovingAveragePlost = (mSvcDriver.mMovingAveragePlost * 3 + packetLost) / 4;
+
+    time_t tsNow = time(nullptr);
+    if (mSvcDriver.mTsLastSwitch
+            && (tsNow - mSvcDriver.mTsLastSwitch < mSvcDriver.kMinTimeBetweenSwitches))
+    {
+        return; // too early
+    }
+
+    if (mCurrentSvcLayerIndex >= 0
+            && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
+    {
+        // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
+        // we want to decrease layer when references values (mRttUpper and mPacketLostUpper)
+        // have been exceeded.
+        switchSvcQuality(-1);
+    }
+    else if (mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
+             && roundTripTime < mSvcDriver.mRttLower
+             && packetLost < mSvcDriver.mPacketLostLower)
+    {
+        // if retrieved rtt AND packetLost have decreased respect current values increment 1 layer
+        // we only want to increase layer when the improvement is bigger enough to represents a
+        // faithfully improvement in network quality, we take mRttLower and mPacketLostLower as references
+        switchSvcQuality(+1);
+    }
+
+    // TODO check if there's CPU/bandwidth starvation and disableHighestSvcRes if proceed
+}
+
 const std::string& Call::getCallKey() const
 {
     return mCallKey;
@@ -1686,6 +1891,11 @@ const std::string& Call::getCallKey() const
 
 void Call::updateAudioTracks()
 {
+    if (!mAudio)
+    {
+        return;
+    }
+
     bool audio = mSpeakerState > SpeakerState::kNoSpeaker && mLocalAvFlags.audio();
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
     if (audio && !mLocalAvFlags.isOnHold())
@@ -1928,31 +2138,41 @@ void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere:
 
 void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
 {
-    for (auto& render : mRenderers)
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, this, frame]()
     {
-        ICall* call = findCallByChatid(render.first);
-        if ((call && call->getLocalAvFlags().videoCam() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+        if (wptr.deleted())
         {
-            assert(render.second != nullptr);
-            void* userData = NULL;
-            auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
-            if (frame.rotation() != webrtc::kVideoRotation_0)
-            {
-                buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
-            }
-            unsigned short width = (unsigned short)buffer->width();
-            unsigned short height = (unsigned short)buffer->height();
-            void* frameBuf = render.second->getImageBuffer(width, height, userData);
-            if (!frameBuf) //image is frozen or app is minimized/covered
-                return;
-            libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
-                               buffer->DataU(), buffer->StrideU(),
-                               buffer->DataV(), buffer->StrideV(),
-                               (uint8_t*)frameBuf, width * 4, width, height);
-
-            render.second->frameComplete(userData);
+            return;
         }
-    }
+
+        for (auto& render : mRenderers)
+        {
+            ICall* call = findCallByChatid(render.first);
+            if ((call && call->getLocalAvFlags().videoCam() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+            {
+                assert(render.second != nullptr);
+                void* userData = NULL;
+                auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
+                if (frame.rotation() != webrtc::kVideoRotation_0)
+                {
+                    buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+                }
+                unsigned short width = (unsigned short)buffer->width();
+                unsigned short height = (unsigned short)buffer->height();
+                void* frameBuf = render.second->getImageBuffer(width, height, userData);
+                if (!frameBuf) //image is frozen or app is minimized/covered
+                    return;
+                libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+                                   buffer->DataU(), buffer->StrideU(),
+                                   buffer->DataV(), buffer->StrideV(),
+                                   (uint8_t*)frameBuf, width * 4, width, height);
+
+                render.second->frameComplete(userData);
+            }
+        }
+    }, mAppCtx);
+
 }
 
 artc::VideoManager *RtcModuleSfu::getVideoDevice()
@@ -2011,6 +2231,64 @@ void *RtcModuleSfu::getAppCtx()
 {
     return mAppCtx;
 }
+
+std::string RtcModuleSfu::getDeviceInfo() const
+{
+    // UserAgent Format
+    // MEGA<app>/<version> (platform) Megaclient/<version>
+    std::string userAgent = mMegaApi.sdk.getUserAgent();
+
+    std::string androidId = "MEGAAndroid";
+    std::string iosId = "MEGAiOS";
+    std::string testChatId = "MEGAChatTest";
+    std::string syncId = "MEGAsync";
+    std::string qtAppId = "MEGAChatQtApp";
+    std::string megaClcId = "MEGAclc";
+
+    std::string deviceType = "n";
+    std::string version = "0";
+
+    size_t endTypePosition = std::string::npos;
+    size_t idPosition;
+    if ((idPosition = userAgent.find(androidId)) != std::string::npos)
+    {
+        deviceType = "na";
+        endTypePosition = idPosition + androidId.size() + 1; // remove '/'
+    }
+    else if ((idPosition = userAgent.find(iosId)) != std::string::npos)
+    {
+        deviceType = "ni";
+        endTypePosition = idPosition + iosId.size() + 1;  // remove '/'
+    }
+    else if ((idPosition = userAgent.find(testChatId)) != std::string::npos)
+    {
+        deviceType = "nct";
+    }
+    else if ((idPosition = userAgent.find(syncId)) != std::string::npos)
+    {
+        deviceType = "nsync";
+        endTypePosition = idPosition + syncId.size() + 1;  // remove '/'
+    }
+    else if ((idPosition = userAgent.find(qtAppId)) != std::string::npos)
+    {
+        deviceType = "nqtApp";
+    }
+    else if ((idPosition = userAgent.find(megaClcId)) != std::string::npos)
+    {
+        deviceType = "nclc";
+    }
+
+    size_t endVersionPosition = userAgent.find(" (");
+    if (endVersionPosition != std::string::npos &&
+            endTypePosition != std::string::npos &&
+            endVersionPosition > endTypePosition)
+    {
+        version = userAgent.substr(endTypePosition, endVersionPosition - endTypePosition);
+    }
+
+    return deviceType + ":" + version;
+}
+
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler)
 {
@@ -2216,25 +2494,34 @@ void VideoSink::setVideoRender(IVideoRenderer *videoRenderer)
 
 void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
 {
-    if (mRenderer)
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, this, frame]()
     {
-        void* userData = NULL;
-        auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
-        if (frame.rotation() != webrtc::kVideoRotation_0)
+        if (wptr.deleted())
         {
-            buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
-        }
-        unsigned short width = (unsigned short)buffer->width();
-        unsigned short height = (unsigned short)buffer->height();
-        void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
-        if (!frameBuf) //image is frozen or app is minimized/covered
             return;
-        libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
-                           buffer->DataU(), buffer->StrideU(),
-                           buffer->DataV(), buffer->StrideV(),
-                           (uint8_t*)frameBuf, width * 4, width, height);
-        mRenderer->frameComplete(userData);
-    }
+        }
+
+        if (mRenderer)
+        {
+            void* userData = NULL;
+            auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
+            if (frame.rotation() != webrtc::kVideoRotation_0)
+            {
+                buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+            }
+            unsigned short width = (unsigned short)buffer->width();
+            unsigned short height = (unsigned short)buffer->height();
+            void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
+            if (!frameBuf) //image is frozen or app is minimized/covered
+                return;
+            libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+                               buffer->DataU(), buffer->StrideU(),
+                               buffer->DataV(), buffer->StrideV(),
+                               (uint8_t*)frameBuf, width * 4, width, height);
+            mRenderer->frameComplete(userData);
+        }
+    }, artc::gAppCtx);
 }
 
 void RemoteVideoSlot::assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution)
@@ -2471,16 +2758,6 @@ AudioLevelMonitor::AudioLevelMonitor(Call &call, int32_t cid)
 
 void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
 {
-    if (!hasAudio())
-    {
-        if (mAudioDetected)
-        {
-            onAudioDetected(false);
-        }
-
-        return;
-    }
-
     assert(bits_per_sample == 16);
     time_t nowTime = time(NULL);
     if (nowTime - mPreviousTime > 2) // Two seconds between samples
@@ -2504,10 +2781,31 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
         }
 
         bool audioDetected = (abs(audioMaxValue) + abs(audioMinValue) > kAudioThreshold);
-        if (audioDetected != mAudioDetected)
+
+        auto wptr = weakHandle();
+        karere::marshallCall([wptr, this, audioDetected]()
         {
-            onAudioDetected(mAudioDetected);
-        }
+            if (wptr.deleted())
+            {
+                return;
+            }
+
+            if (!hasAudio())
+            {
+                if (mAudioDetected)
+                {
+                    onAudioDetected(false);
+                }
+
+                return;
+            }
+
+            if (audioDetected != mAudioDetected)
+            {
+                onAudioDetected(mAudioDetected);
+            }
+
+        }, artc::gAppCtx);
     }
 }
 
