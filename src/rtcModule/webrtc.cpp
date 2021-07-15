@@ -173,10 +173,13 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mMegaApi(megaApi)
     , mSfuClient(rtc.getSfuClient())
     , mAvailableTracks(mega::make_unique<AvailableTracks>())
-    , mMyPeer(rtc.getSfuClient().myHandle(), avflags)
     , mCallKey(callKey ? *callKey : std::string())
     , mRtc(rtc)
 {
+    std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
+    karere::Id myUserHandle(userHandle.get());
+    mMyPeer.reset(new sfu::Peer(myUserHandle, avflags));
+
     // notify the IGlobalCallHandler (intermediate layer), which register the listener
     // CallHandler to receive notifications about the call
     mGlobalCallHandler.onNewCall(*this);
@@ -311,7 +314,7 @@ promise::Promise<void> Call::hangup()
 
 promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
-    mMyPeer.setAvFlags(avFlags);
+    mMyPeer->setAvFlags(avFlags);
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid.val, mCallid.val)
     .then([wptr, this](ReqResult result) -> promise::Promise<void>
@@ -458,12 +461,12 @@ void Call::setCallerId(karere::Id callerid)
 
 bool Call::isRinging() const
 {
-    return mIsRinging && mCallerId != mSfuClient.myHandle();
+    return mIsRinging && mCallerId != mMyPeer->getPeerid();
 }
 
 bool Call::isOutgoing() const
 {
-    return mCallerId == mSfuClient.myHandle();
+    return mCallerId == mMyPeer->getPeerid();
 }
 
 int64_t Call::getInitialTimeStamp() const
@@ -503,7 +506,7 @@ void Call::setCallHandler(CallHandler* callHanlder)
 
 karere::AvFlags Call::getLocalAvFlags() const
 {
-    return mMyPeer.getAvFlags();
+    return mMyPeer->getAvFlags();
 }
 
 void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
@@ -516,7 +519,7 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
 
     // update and send local AV flags
     karere::AvFlags oldFlags = getLocalAvFlags();
-    mMyPeer.setAvFlags(flags);
+    mMyPeer->setAvFlags(flags);
     mSfuConnection->sendAv(flags.value());
 
     if (oldFlags.isOnHold() != flags.isOnHold())
@@ -944,7 +947,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
     }
 
     // I'm the last one participant, it isn't necessary set kStateClientNoParticipating
-    if (mParticipants.size() == 0 ||  (mParticipants.size() == 1 && mParticipants.at(0) == mMyPeer.getPeerid()))
+    if (mParticipants.size() == 0 ||  (mParticipants.size() == 1 && mParticipants.at(0) == mMyPeer->getPeerid()))
     {
         return;
     }
@@ -967,7 +970,7 @@ bool Call::hasCallKey()
 
 bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
-    if (mMyPeer.getCid() == cid)
+    if (mMyPeer->getCid() == cid)
     {
         RTCM_LOG_WARNING("handleAvCommand: Received our own AV flags");
         return false;
@@ -1029,7 +1032,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
     // set my own client-id (cid)
-    mMyPeer.setCid(cid);
+    mMyPeer->setCid(cid);
 
     std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers) // does not include own cid
@@ -1192,7 +1195,7 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 {
     for (Cid_t cid : speakRequests)
     {
-        if (cid != mMyPeer.getCid())
+        if (cid != mMyPeer->getCid())
         {
             Session *session = getSession(cid);
             assert(session);
@@ -1210,7 +1213,7 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 
 bool Call::handleSpeakReqDelCommand(Cid_t cid)
 {
-    if (mMyPeer.getCid() != cid) // remote peer
+    if (mMyPeer->getCid() != cid) // remote peer
     {
         Session *session = getSession(cid);
         assert(session);
@@ -1239,10 +1242,10 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
 
 bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 {
-    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer.getCid()
+    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
-        assert(cid != mMyPeer.getCid());
+        assert(cid != mMyPeer->getCid());
         addSpeaker(cid, speaker);
     }
     else if (mSpeakerState == SpeakerState::kPending)
@@ -1262,10 +1265,10 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 
 bool Call::handleSpeakOffCommand(Cid_t cid)
 {
-    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer.getCid()
+    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
-        assert(cid != mMyPeer.getCid());
+        assert(cid != mMyPeer->getCid());
         removeSpeaker(cid);
     }
     else if (mSpeakerState == SpeakerState::kActive)
@@ -1411,9 +1414,9 @@ void Call::generateAndSendNewkey()
     std::shared_ptr<strongvelope::SendKey> newPlainKey = mSfuClient.getRtcCryptoMeetings()->generateSendKey();
 
     // add new key to own peer key map and update currentKeyId
-    Keyid_t currentKeyId = mMyPeer.getCurrentKeyId() + 1;
+    Keyid_t currentKeyId = mMyPeer->getCurrentKeyId() + 1;
     std::string plainkey = mSfuClient.getRtcCryptoMeetings()->keyToStr(*newPlainKey.get());
-    mMyPeer.addKey(currentKeyId, plainkey);
+    mMyPeer->addKey(currentKeyId, plainkey);
 
     // in case of a call in a public chatroom, XORs new key with the call key for additional authentication
     if (hasCallKey())
@@ -1599,7 +1602,7 @@ void Call::removeSpeaker(Cid_t cid)
 
 sfu::Peer& Call::getMyPeer()
 {
-    return mMyPeer;
+    return *mMyPeer;
 }
 
 sfu::SfuClient &Call::getSfuClient()
@@ -1703,8 +1706,8 @@ void Call::collectNonRTCStats()
 
 void Call::enableStats()
 {
-    mStats.mPeerId = mMyPeer.getPeerid();
-    mStats.mCid = mMyPeer.getCid();
+    mStats.mPeerId = mMyPeer->getPeerid();
+    mStats.mCid = mMyPeer->getCid();
     mStats.mCallid = mCallid;
     mStats.mTimeOffset = mOffset;
     mStats.mIsGroup = mIsGroup;
@@ -1917,10 +1920,11 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler)
 {
 }
 
-void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rtcCryptoMeetings, const karere::Id& myHandle)
+void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
 {
     mAppCtx = appCtx;
-    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rtcCryptoMeetings, myHandle);
+
+    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings);
     if (!artc::isInitialized())
     {
         //rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
@@ -2021,7 +2025,9 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, mSfuClient->myHandle(), false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
+            std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
+            karere::Id myUserHandle(userHandle.get());
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
     });

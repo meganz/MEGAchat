@@ -77,6 +77,11 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
       chats(new ChatRoomList(*this)),
       mPresencedClient(&api, this, *this, caps)
 {
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
+    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this));
+#endif
 }
 
 
@@ -1644,12 +1649,6 @@ promise::Promise<void> Client::doConnect()
         setConnState(kConnected);
         return ::promise::_Void();
     }
-
-#ifndef KARERE_DISABLE_WEBRTC
-// Create the rtc module
-    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
-    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this), myHandle());
-#endif
 
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)

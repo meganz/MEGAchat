@@ -471,7 +471,7 @@ protected:
 class SfuClient
 {
 public:
-    SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings, const karere::Id& myHandle);
+    SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings);
 
     SfuConnection *createSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
     void closeSfuConnection(karere::Id chatid);
@@ -484,7 +484,6 @@ private:
     std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
     std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
     WebsocketsIO& mWebsocketIO;
-    karere::Id mMyHandle;
     void* mAppCtx;
 };
 

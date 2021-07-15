@@ -308,7 +308,7 @@ protected:
     // keyId of current key armed in SymCipher
     Keyid_t mKeyId = 0;
 
-    // own peer
+    // own peer (ownership belongs to Call, whose lifetime is longer than this object)
     const sfu::Peer& mPeer;
 
     // shared ptr to crypto module for meetings
