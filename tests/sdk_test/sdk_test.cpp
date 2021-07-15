@@ -3063,7 +3063,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     sleep(5);
 
-    megaChatApi[a2]->hangChatCall(call->getCallId());
+    megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]);
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
@@ -3096,7 +3096,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     sleep(5);
 
-    megaChatApi[a1]->hangChatCall(call->getCallId());
+    megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]);
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a1]));
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
@@ -3113,8 +3113,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
     flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
-    flagPeerRinging = &mPeerIsRinging[a1]; *flagPeerRinging = false;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
+    flagPeerRinging = &mPeerIsRinging[a2]; *flagPeerRinging = false;
     mVideoLocal[a1] = true;
     megaChatApi[a1]->startChatCall(chatid, mVideoLocal[a1]);
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
@@ -3131,12 +3131,11 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     sleep(5);
 
-    megaChatApi[a2]->hangChatCall(call->getCallId());
+    megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]);
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
-
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
