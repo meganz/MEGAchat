@@ -271,7 +271,7 @@ public:
     void reconnectToSfu() override;
 
     promise::Promise<void> hangup() override;
-    promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected
+    promise::Promise<void> endCall(int reason = chatd::kDefault) override;  // only used on 1on1 when incoming call is rejected
     promise::Promise<void> join(karere::AvFlags avFlags) override;
 
     // (for your own audio level)

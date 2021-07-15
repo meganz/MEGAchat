@@ -290,9 +290,10 @@ void Call::removeParticipant(karere::Id peer)
     return;
 }
 
-promise::Promise<void> Call::endCall()
+// for the moment just chatd::kRejected is a valid reason (only for rejecting 1on1 call while ringing)
+promise::Promise<void> Call::endCall(int reason)
 {
-    return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, 0)
+    return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, reason)
     .then([](ReqResult /*result*/)
     {
     });
@@ -303,7 +304,7 @@ promise::Promise<void> Call::hangup()
     if (mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
         // in 1on1 calls, the hangup (reject) by the user while ringing should end the call
-        return endCall();
+        return endCall(chatd::kRejected); // reject 1on1 call while ringing
     }
     else
     {

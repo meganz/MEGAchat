@@ -23,16 +23,16 @@ public:
     void addSession(const megachat::MegaChatSession& session);
     void removeSession(const megachat::MegaChatSession& session);
     void updateSession(const megachat::MegaChatSession& session);
-    void updateAudioButtonText(MegaChatCall *call);
-    void updateVideoButtonText(MegaChatCall *call);
-    void setOnHold(bool mIsOnHold, MegaChatHandle cid);
+    void updateAudioButtonText(megachat::MegaChatCall *call);
+    void updateVideoButtonText(megachat::MegaChatCall *call);
+    void setOnHold(bool mIsOnHold, megachat::MegaChatHandle cid);
     std::string sessionToString(const megachat::MegaChatSession& session);
     void updateAudioMonitor(bool enabled);
     void updateNumParticipants(unsigned participants);
 
     // methods to add/remove video widgets
-    void addLowResByCid(MegaChatHandle chatid, uint32_t cid);
-    void addHiResByCid(MegaChatHandle chatid, uint32_t cid);
+    void addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid);
+    void addHiResByCid(megachat::MegaChatHandle chatid, uint32_t cid);
     void removeLowResByCid(uint32_t cid);
     void removeHiResByCid(uint32_t cid);
     void localAudioDetected(bool audio);
@@ -75,7 +75,7 @@ public slots:
     void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
-    void onRemoveSpeaker(uint32_t cid = MEGACHAT_INVALID_HANDLE);
+    void onRemoveSpeaker(uint32_t cid = megachat::MEGACHAT_INVALID_HANDLE);
     void onEnableAudioMonitor(bool audioMonitorEnable);
 };
 

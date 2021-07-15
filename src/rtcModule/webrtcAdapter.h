@@ -325,6 +325,8 @@ class MegaEncryptor
         , public rtc::RefCountedObject<webrtc::FrameEncryptorInterface>
 {
 public:
+    enum Status { kOk, kRecoverable, kFailedToEncrypt};
+
     MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv);
     ~MegaEncryptor() override;
 
@@ -356,7 +358,7 @@ public:
     ~MegaDecryptor() override;
 
     // validates header by checking if CID matches with expected one, also extracts keyId and packet CTR */
-    bool validateAndProcessHeader(rtc::ArrayView<const uint8_t> header);
+    int validateAndProcessHeader(rtc::ArrayView<const uint8_t> header);
 
     // FrameDecryptorInterface
     //
