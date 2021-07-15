@@ -404,7 +404,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
             }
 
             unsigned av = avIterator->value.GetUint();
-            peers.push_back(Peer(cid, userId, av));
+            peers.push_back(Peer(userId, av, cid));
         }
         else
         {
