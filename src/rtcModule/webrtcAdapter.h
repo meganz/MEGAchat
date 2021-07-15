@@ -74,12 +74,12 @@ const static uint8_t FRAME_IV_LENGTH = 12;
 // max number of tracks
 const static uint8_t MAX_MEDIA_TYPES = 3;
 
-// Old webrtc versions called user callbacks directly from internal webrtc threads,
-// so we needed to marshall these callbacks to our GUI thread. New webrtc relies
+// Current webrtc version calls user callbacks directly from internal webrtc threads,
+// so we needed to marshall these callbacks to our main thread. Old webrtc versions rely
 // on the main thread to process internal webrtc messages (as any other webrtc thread),
-// and using that mechanism webrtc marshalls the calls on the main/GUI thread by itself,
-// thus we don't need to do that. Define RTCM_MARSHALL_CALLBACKS if you want the callbacks
-// marshalled by Karere. This should not be needed.
+// so they didn need to marshalls the calls on the main thread.
+// In case future webrtc versions don't need to do that, comment the
+// definition of RTCM_MARSHALL_CALLBACKS to avoid marshalling the callbacks
 #define RTCM_MARSHALL_CALLBACKS
 #ifdef RTCM_MARSHALL_CALLBACKS
 #define RTCM_DO_CALLBACK(code,...)      \
