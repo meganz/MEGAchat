@@ -1290,7 +1290,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
 
 bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 {
-    sfu::Peer peer(cid, userid, av);
+    sfu::Peer peer(userid, av, cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler->onNewSession(*mSessions[cid], *this);
     generateAndSendNewkey();
