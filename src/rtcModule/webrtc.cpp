@@ -460,6 +460,11 @@ void Call::setCallerId(karere::Id callerid)
 bool Call::isRinging() const
 {
     std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
+    if (!userHandle)
+    {
+        return false;
+    }
+
     karere::Id myUserHandle(userHandle.get());
     // TODO when clean branch will be merged replace myUserHandle by mMyPeer.getPeerid();
     return mIsRinging && mCallerId != myUserHandle;
@@ -468,6 +473,11 @@ bool Call::isRinging() const
 bool Call::isOutgoing() const
 {
     std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
+    if (!userHandle)
+    {
+        return false;
+    }
+
     karere::Id myUserHandle(userHandle.get());
     // TODO when clean branch will be merged replace myUserHandle by mMyPeer.getPeerid();
     return mCallerId == myUserHandle;
