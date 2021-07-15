@@ -423,14 +423,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
 
     // encrypt frame
     std::string encFrame;
-    std::string plainFrame;
-    plainFrame.resize(frame.size());
-    for (size_t i = 0; i < frame.size(); i++)
-    {
-        plainFrame[i] = static_cast<char>(frame[i]);
-    }
-
-    bool result = mSymCipher->gcm_encrypt_aad(&plainFrame, header.get(), FRAME_HEADER_LENGTH, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &encFrame);
+    bool result = mSymCipher->gcm_encrypt_aad(frame.data(), frame.size(), header.get(), FRAME_HEADER_LENGTH, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &encFrame);
     if (!result)
     {
         // TODO: manage errors and define error codes
