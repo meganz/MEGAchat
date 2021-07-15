@@ -26,6 +26,9 @@ const std::string SpeakReqsCommand::COMMAND_NAME      = "SPEAK_REQS";
 const std::string SpeakReqDelCommand::COMMAND_NAME    = "SPEAK_RQ_DEL";
 const std::string SpeakOnCommand::COMMAND_NAME        = "SPEAK_ON";
 const std::string SpeakOffCommand::COMMAND_NAME       = "SPEAK_OFF";
+const std::string PeerJoinCommand::COMMAND_NAME       = "PEERJOIN";
+const std::string PeerLeftCommand::COMMAND_NAME       = "PEERLEFT";
+const std::string ErrorCommand::COMMAND_NAME          = "ERR";
 
 const std::string Sdp::endl = "\r\n";
 
@@ -715,6 +718,70 @@ bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid);
 }
 
+
+PeerJoinCommand::PeerJoinCommand(const PeerJoinCommandFunction &complete)
+    : mComplete(complete)
+{
+}
+
+bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
+{
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("PeerJoinCommand: Received data doesn't have 'cid' field");
+        return false;
+    }
+
+    Cid_t cid = cidIterator->value.GetUint();
+
+    rapidjson::Value::ConstMemberIterator userIdIterator = command.FindMember("userId");
+    if (userIdIterator == command.MemberEnd() || !userIdIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("PeerJoinCommand: Received data doesn't have 'userId' field");
+        return false;
+    }
+
+    std::string userIdString = userIdIterator->value.GetString();
+    uint64_t userid = mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+
+    rapidjson::Value::ConstMemberIterator avIterator = command.FindMember("av");
+    if (avIterator == command.MemberEnd() || !avIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("PeerJoinCommand: Received data doesn't have 'av' field");
+        return false;
+    }
+
+    unsigned int av = avIterator->value.GetUint();
+
+    return mComplete(cid, userid, av);
+
+}
+
+ErrorCommand::ErrorCommand(const ErrorCommandFunction &complete)
+    : mComplete(complete)
+{
+}
+
+bool ErrorCommand::processCommand(const rapidjson::Document &command)
+{
+    rapidjson::Value::ConstMemberIterator codeIterator = command.FindMember("code");
+    if (codeIterator == command.MemberEnd() || !codeIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("ErrorCommand: Received data doesn't have 'code' field");
+        return false;
+    }
+
+    std::string errorMsg = "";
+    unsigned int code = codeIterator->value.GetUint();
+    rapidjson::Value::ConstMemberIterator msgIterator = command.FindMember("msg");
+    if (msgIterator != command.MemberEnd() && msgIterator->value.IsString())
+    {
+        errorMsg = msgIterator->value.GetString();
+    }
+    return mComplete(code, errorMsg);
+}
+
 Sdp::Sdp(const std::string &sdp)
 {
     size_t pos = 0;
@@ -1098,6 +1165,9 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1));
     mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2));
     mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1));
+    mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1));
+    mCommands[ErrorCommand::COMMAND_NAME] = mega::make_unique<ErrorCommand>(std::bind(&sfu::SfuInterface::handleError, &call, std::placeholders::_1, std::placeholders::_2));
 }
 
 SfuConnection::~SfuConnection()
@@ -1986,6 +2056,24 @@ void SfuClient::retryPendingConnections(bool disconnect)
     {
         it->second->retryPendingConnection(disconnect);
     }
+}
+
+PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete)
+    : mComplete(complete)
+{
+}
+
+bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
+{
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'cid' field");
+        return false;
+    }
+
+    ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
+    return mComplete(cid);
 }
 
 }

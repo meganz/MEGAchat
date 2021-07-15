@@ -5329,6 +5329,22 @@ bool MockupCall::handleSpeakOffCommand(Cid_t cid)
     return true;
 }
 
+
+bool MockupCall::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
+{
+    return true;
+}
+
+bool MockupCall::handlePeerLeft(Cid_t cid)
+{
+    return true;
+}
+
+bool MockupCall::handleError(unsigned int, const string)
+{
+    return true;
+}
+
 void MockupCall::onSfuConnected()
 {
 

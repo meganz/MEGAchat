@@ -166,6 +166,9 @@ public:
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
 
     // called when the connection to SFU is established
+    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
+    virtual bool handlePeerLeft(Cid_t cid) = 0;
+    virtual bool handleError(unsigned int , const std::string) = 0;
     virtual void onSfuConnected() = 0;
 
 
@@ -323,6 +326,37 @@ public:
     static const std::string COMMAND_NAME;
     SpeakOffCompleteFunction mComplete;
 };
+
+typedef std::function<bool(Cid_t cid, uint64_t userid, int av)> PeerJoinCommandFunction;
+class PeerJoinCommand : public Command
+{
+public:
+    PeerJoinCommand(const PeerJoinCommandFunction& complete);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    PeerJoinCommandFunction mComplete;
+};
+
+typedef std::function<bool(Cid_t cid)> PeerLeftCommandFunction;
+class PeerLeftCommand : public Command
+{
+public:
+    PeerLeftCommand(const PeerLeftCommandFunction& complete);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    PeerLeftCommandFunction mComplete;
+};
+
+typedef std::function<bool(unsigned int , const std::string)> ErrorCommandFunction;
+class ErrorCommand : public Command
+{
+public:
+    ErrorCommand(const ErrorCommandFunction& complete);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    ErrorCommandFunction mComplete;
+};
+
 
 class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
 {

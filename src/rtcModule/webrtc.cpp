@@ -1283,6 +1283,55 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     return true;
 }
 
+
+bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
+{
+    sfu::Peer peer(cid, userid, av);
+    mSessions[cid] = ::mega::make_unique<Session>(peer);
+    mCallHandler->onNewSession(*mSessions[cid], *this);
+    generateAndSendNewkey();
+
+    // We shouldn't receive a handlePeerJoin with an existing CID in mAvailableTracks
+    // Upon reconnect SFU assign a new CID to the peer.
+    assert(!mAvailableTracks->hasCid(cid));
+    mAvailableTracks->addCid(cid);
+
+    ISession *sess = getSession(cid);
+    if (sess && sess->getAvFlags().videoLowRes())
+    {
+        // request low-res video by default for a new peer joined
+        std::vector<Cid_t> cids;
+        cids.emplace_back(cid);
+        requestLowResolutionVideo(cids);
+    }
+
+    return true;
+}
+
+bool Call::handlePeerLeft(Cid_t cid)
+{
+    auto it = mSessions.find(cid);
+    if (it == mSessions.end())
+    {
+        RTCM_LOG_ERROR("handlePeerLeft: unknown cid");
+        return false;
+    }
+
+    mAvailableTracks->removeCid(cid);
+    it->second->disableAudioSlot();
+    it->second->disableVideoSlot(kHiRes);
+    it->second->disableVideoSlot(kLowRes);
+    mSessions.erase(cid);
+    return true;
+}
+
+bool Call::handleError(unsigned int code, const std::string reason)
+{
+    RTCM_LOG_ERROR("SFU error (Remove call ) -> code: %d, reason: %s", code, reason.c_str());
+    disconnect(static_cast<TermCode>(code), reason);
+    return true;
+}
+
 void Call::onSfuConnected()
 {
     joinSfu();
