@@ -448,11 +448,10 @@ public:
     class SfuClient
     {
     public:
-        SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings, const karere::Id& myHandle);
+        SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings);
         SfuConnection *generateSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
         void closeManagerProtocol(karere::Id chatid);
         std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
-        const karere::Id& myHandle();
         void setDefVideoDevice(const std::string& device);
         void reconnectAllToSFU(bool disconnect);
 
@@ -460,7 +459,6 @@ public:
         std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
         std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
         WebsocketsIO& mWebsocketIO;
-        karere::Id mMyHandle;
         void* mAppCtx;
     };
 
