@@ -300,7 +300,7 @@ public:
 
 protected:
     // symmetric cipher
-    std::unique_ptr<mega::SymmCipher> mSymCipher;
+    mega::SymmCipher mSymCipher;
 
     // sequential number of the packet
     Ctr_t mCtr = 0;

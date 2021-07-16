@@ -322,14 +322,7 @@ RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCrypt
 void RtcCipher::setKey(const std::string &key)
 {
     const unsigned char *newKey = reinterpret_cast<const unsigned char*>(key.data());
-    if (!mSymCipher)
-    {
-        mSymCipher.reset(new mega::SymmCipher(newKey));
-    }
-    else
-    {
-        mSymCipher->setkey(newKey);
-    }
+    mSymCipher.setkey(newKey);
 }
 
 void RtcCipher::setTerminating()
@@ -399,7 +392,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
 
     // get keyId for peer
     Keyid_t currentKeyId = mPeer.getCurrentKeyId();
-    if (!mSymCipher || (currentKeyId != mKeyId))
+    if (currentKeyId != mKeyId)
     {
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         mKeyId = currentKeyId;
@@ -423,7 +416,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
 
     // encrypt frame
     std::string encFrame;
-    bool result = mSymCipher->gcm_encrypt_aad(frame.data(), frame.size(), header.get(), FRAME_HEADER_LENGTH, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &encFrame);
+    bool result = mSymCipher.gcm_encrypt_aad(frame.data(), frame.size(), header.get(), FRAME_HEADER_LENGTH, iv.get(), FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH, &encFrame);
     if (!result)
     {
         return kFailedToEncrypt;
@@ -482,7 +475,7 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
     Cid_t peerCid = 0;
     memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
 
-    if (!mSymCipher || (auxKeyId != mKeyId))
+    if (auxKeyId != mKeyId)
     {
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         std::string decryptionKey = mPeer.getKey(auxKeyId);
@@ -544,7 +537,7 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
 
     // decrypt frame
     std::string plainFrame;
-    if (!mSymCipher->gcm_decrypt_aad(data.data(), data.size(),
+    if (!mSymCipher.gcm_decrypt_aad(data.data(), data.size(),
                                      header.data(), FRAME_HEADER_LENGTH,
                                      gcmTag.data(), FRAME_GCM_TAG_LENGTH,
                                      iv.get(), FRAME_IV_LENGTH, &plainFrame))
