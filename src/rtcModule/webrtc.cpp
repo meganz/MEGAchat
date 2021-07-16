@@ -1069,12 +1069,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
         return false;
     }
 
-    if (!mRtcConn)
-    {
-        assert(mState == kStateClientNoParticipating);
-        return false;
-    }
-
+    assert(mRtcConn);
     auto wptr = weakHandle();
     mRtcConn.setRemoteDescription(sdpInterface)
     .then([wptr, this, vthumbs, speakers, ts, cids]()
