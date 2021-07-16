@@ -832,7 +832,15 @@ void Call::joinSfu()
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
     {
         if (wptr.deleted())
+        {
             return ::promise::_Void();
+        }
+
+        if (!mRtcConn)
+        {
+            assert(mState == kStateClientNoParticipating);
+            return ::promise::Error("Failure at initialization. Call destroyed or disconnect");
+        }
 
         KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
         return mRtcConn.setLocalDescription(sdp);
@@ -862,6 +870,8 @@ void Call::joinSfu()
 
 void Call::createTransceiver()
 {
+    assert(mRtcConn);
+
     webrtc::RtpTransceiverInit transceiverInitVThumb;
     transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> err
@@ -1056,6 +1066,12 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
     if (!sdpInterface)
     {
         disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
+        return false;
+    }
+
+    if (!mRtcConn)
+    {
+        assert(mState == kStateClientNoParticipating);
         return false;
     }
 
@@ -1770,6 +1786,7 @@ void Call::enableStats()
 
         // Keep mStats ownership
         mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId));
+        assert(mRtcConn);
         mRtcConn->GetStats(mStatConnCallback.get());
 
         // adjust SVC driver based on collected stats
