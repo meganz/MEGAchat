@@ -1836,7 +1836,7 @@ void Call::adjustSvcByStats()
         // get periods
         int lastT = mStats.mSamples.mT.back();
         int prelastT = mStats.mSamples.mT.at(mStats.mSamples.mT.size() - 2);
-        packetLost = fabs(lastpl - prelastpl) / static_cast<float>(fabs(lastT - prelastT));
+        packetLost = (float)abs(lastpl - prelastpl) / (float)abs(lastT - prelastT);
     }
 
     if (!mSvcDriver.mMovingAverageRtt)
