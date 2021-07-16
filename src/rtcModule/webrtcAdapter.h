@@ -300,7 +300,7 @@ public:
 
 protected:
     // symmetric cipher
-    std::unique_ptr<mega::SymmCipher> mSymCipher;
+    mega::SymmCipher mSymCipher;
 
     // sequential number of the packet
     Ctr_t mCtr = 0;
@@ -333,8 +333,8 @@ public:
     // increments sequential number of the packet, for each sent frame of that media track.
     void incrementPacketCtr();
 
-    // generates a header for a new frame, you take the ownership of returned value
-    std::unique_ptr<byte[]> generateHeader();
+    // generates a header for a new frame
+    void generateHeader(uint8_t *header);
 
     // FrameEncryptorInterface
     //
