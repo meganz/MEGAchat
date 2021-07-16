@@ -333,7 +333,7 @@ public:
     // increments sequential number of the packet, for each sent frame of that media track.
     void incrementPacketCtr();
 
-    // generates a header for a new frame, you take the ownership of returned value
+    // generates a header for a new frame
     void generateHeader(uint8_t *header);
 
     // FrameEncryptorInterface
