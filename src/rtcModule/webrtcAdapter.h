@@ -334,7 +334,7 @@ public:
     void incrementPacketCtr();
 
     // generates a header for a new frame, you take the ownership of returned value
-    std::unique_ptr<byte[]> generateHeader();
+    void generateHeader(uint8_t *header);
 
     // FrameEncryptorInterface
     //

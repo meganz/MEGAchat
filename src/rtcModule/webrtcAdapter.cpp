@@ -359,19 +359,17 @@ void MegaEncryptor::incrementPacketCtr()
  * Frame format: header.8: <keyId.1> <CID.3> <packetCTR.4>
  * Note: (keyId.1 senderCID.3) and packetCtr.4 are little-endian (No need byte-order swap) 32-bit integers.
  */
-std::unique_ptr<byte []> MegaEncryptor::generateHeader()
+void MegaEncryptor::generateHeader(uint8_t *header)
 {
-    std::unique_ptr<byte []> header(new byte[FRAME_HEADER_LENGTH]);
     Keyid_t keyId = mPeer.getCurrentKeyId();
-    memcpy(header.get(), &keyId, FRAME_KEYID_LENGTH);
+    memcpy(header, &keyId, FRAME_KEYID_LENGTH);
 
     Cid_t cid = mPeer.getCid();
     uint8_t offset = FRAME_KEYID_LENGTH;
-    memcpy(header.get() + offset, &cid, FRAME_CID_LENGTH);
+    memcpy(header + offset, &cid, FRAME_CID_LENGTH);
 
     offset += FRAME_CID_LENGTH;
-    memcpy(header.get() + offset, &mCtr, FRAME_CTR_LENGTH);
-    return header;
+    memcpy(header + offset, &mCtr, FRAME_CTR_LENGTH);
 }
 
 
@@ -408,17 +406,14 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
     // generate frame iv
     mega::unique_ptr<byte []> iv = generateFrameIV();
 
-    // generate header
-    mega::unique_ptr<byte []> header = generateHeader();
+    // generate header and store in encrypted_frame
+    generateHeader(encrypted_frame.data());
 
     // increment PacketCtr after we have generated header
     incrementPacketCtr();
 
-    // add header to encrypted_frame
-    memcpy(encrypted_frame.data(), header.get(), FRAME_HEADER_LENGTH);
-
     // encrypt frame and store it in encrypted_frame
-    bool result = mSymCipher.gcm_encrypt_aad(frame.data(), frame.size(), header.get(),
+    bool result = mSymCipher.gcm_encrypt_aad(frame.data(), frame.size(), encrypted_frame.data(),
                                              FRAME_HEADER_LENGTH, iv.get(),
                                              FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH,
                                              encrypted_frame.data()+FRAME_HEADER_LENGTH,  // header offset
