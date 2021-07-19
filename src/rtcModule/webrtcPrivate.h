@@ -195,9 +195,9 @@ public:
     uint8_t mCurrentSvcLayerIndex;
     float mPacketLostLower;
     float mPacketLostUpper;
-    int mLowestRttSeen;
-    int mRttLower;
-    int mRttUpper;
+    float mLowestRttSeen;
+    float mRttLower;
+    float mRttUpper;
     float mMovingAverageRtt;
     float mMovingAveragePlost;
     time_t mTsLastSwitch;
