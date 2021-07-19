@@ -513,7 +513,6 @@ enum Opcode
       */
     OP_DELCALLREASON = 55,
 
-    OP_LAST = OP_DELCALLREASON,
     OP_INVALIDCODE = 0xFF
 };
 
