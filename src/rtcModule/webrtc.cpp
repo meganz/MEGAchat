@@ -178,7 +178,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
 {
     std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
     karere::Id myUserHandle(userHandle.get());
-    mMyPeer.reset(new sfu::Peer(myUserHandle, avflags));
+    mMyPeer.reset(new sfu::Peer(myUserHandle, avflags.value()));
 
     // notify the IGlobalCallHandler (intermediate layer), which register the listener
     // CallHandler to receive notifications about the call
