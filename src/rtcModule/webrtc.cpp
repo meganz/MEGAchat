@@ -1796,7 +1796,11 @@ void Call::disableStats()
     {
         karere::cancelInterval(mStatsTimer, mRtc.getAppCtx());
         mStatsTimer = 0;
-        static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
+        if (mStatConnCallback)
+        {
+            static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
+        }
+
         mStatConnCallback = nullptr;
     }
 }
