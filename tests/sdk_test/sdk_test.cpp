@@ -396,7 +396,6 @@ void MegaChatApiTest::SetUp()
         mCallIdRingIn[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdJoining[i] = MEGACHAT_INVALID_HANDLE;
         mPeerIsRinging[i] = false;
-        mVideoLocal[i] = false;
         mLocalVideoListener[i] = NULL;
         mRemoteVideoListener[i] = NULL;
 #endif
@@ -3049,8 +3048,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
     bool *flagPeerRinging = &mPeerIsRinging[a2]; *flagPeerRinging = false;
-    mVideoLocal[a1] = true;
-    megaChatApi[a1]->startChatCall(chatid, mVideoLocal[a1]);
+    megaChatApi[a1]->startChatCall(chatid, false, false);
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
 
@@ -3082,8 +3080,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
     flagPeerRinging = &mPeerIsRinging[a2]; *flagPeerRinging = false;
-    mVideoLocal[a1] = false;
-    megaChatApi[a1]->startChatCall(chatid, mVideoLocal[a1]);
+    megaChatApi[a1]->startChatCall(chatid, false, false);
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
 
@@ -3115,8 +3112,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
     flagPeerRinging = &mPeerIsRinging[a2]; *flagPeerRinging = false;
-    mVideoLocal[a1] = true;
-    megaChatApi[a1]->startChatCall(chatid, mVideoLocal[a1]);
+    megaChatApi[a1]->startChatCall(chatid, false, false);
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
 
@@ -4587,11 +4583,6 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         default:
             break;
         }
-    }
-
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
-    {
-        mVideoLocal[apiIndex] = call->hasLocalVideo();
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
