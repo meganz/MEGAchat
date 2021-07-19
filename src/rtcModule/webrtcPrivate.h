@@ -181,7 +181,7 @@ class SvcDriver
 {
 public:
     static const uint8_t kMaxQualityIndex = 6;
-    static const int kMinTimeBetweenSwitches = 10;   // minimum period between SVC switches in seconds
+    static const int kMinTimeBetweenSwitches = 6;   // minimum period between SVC switches in seconds
 
     // boundaries for switching to lower/higher quality.
     // if rtt moving average goes outside of these boundaries, switching occurs.
