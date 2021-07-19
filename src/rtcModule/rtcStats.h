@@ -61,7 +61,7 @@ public:
     std::string mDevice;
 
 protected:
-    void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<int32_t>* periods = nullptr);
+    void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<float> *periods = nullptr);
 };
 
 class ConnStatsCallBack : public webrtc::RTCStatsCollectorCallback, public karere::DeleteTrackable
