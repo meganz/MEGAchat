@@ -175,7 +175,6 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mSfuClient(rtc.getSfuClient())
     , mMyPeer()
     , mRtc(rtc)
-    , mCurrentSvcLayerIndex(SvcDriver::kMaxQualityIndex) // set Max SVC quality by default
 {
     mAvailableTracks.reset(new AvailableTracks());
     mCallKey = callKey ? (*callKey.get()) : std::string();
@@ -762,7 +761,7 @@ void Call::switchSvcQuality(int8_t delta)
         return;
     }
 
-    mCurrentSvcLayerIndex = layerIndex;
+    mSvcDriver.mCurrentSvcLayerIndex = layerIndex;
     mSfuConnection->sendLayer(spt, tmp, stmp);
 }
 
@@ -1902,7 +1901,7 @@ void Call::adjustSvcByStats()
         return; // too early
     }
 
-    if (mCurrentSvcLayerIndex > 0
+    if (mSvcDriver.mCurrentSvcLayerIndex > 0
             && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
     {
         // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
@@ -1910,7 +1909,7 @@ void Call::adjustSvcByStats()
         // have been exceeded.
         switchSvcQuality(-1);
     }
-    else if (mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
+    else if (mSvcDriver.mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
              && roundTripTime < mSvcDriver.mRttLower
              && packetLost < mSvcDriver.mPacketLostLower)
     {

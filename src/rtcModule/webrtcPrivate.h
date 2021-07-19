@@ -380,8 +380,6 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
-    // Current SVC layer index
-    int mCurrentSvcLayerIndex = 0;
 
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution = kLowRes);
