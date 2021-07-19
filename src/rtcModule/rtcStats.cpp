@@ -47,10 +47,10 @@ std::string Stats::getJson()
 
     rapidjson::Value samples(rapidjson::kObjectType);
 
-    std::vector<int32_t> periods;
+    std::vector<float> periods;
     for (unsigned int i = 1; i < mSamples.mT.size(); i++)
     {
-        periods.push_back(mSamples.mT[i] - mSamples.mT[i - 1]);
+        periods.push_back(static_cast<float>(mSamples.mT[i] - mSamples.mT[i - 1])/1000.0);
     }
 
     rapidjson::Value t(rapidjson::kArrayType);
@@ -58,7 +58,7 @@ std::string Stats::getJson()
     samples.AddMember("t", t, json.GetAllocator());
 
     rapidjson::Value pl(rapidjson::kArrayType);
-    parseSamples(mSamples.mPacketLost, pl, json, false, nullptr);
+    parseSamples(mSamples.mPacketLost, pl, json, true, &periods);
     samples.AddMember("pl", pl, json.GetAllocator());
 
     rapidjson::Value rtt(rapidjson::kArrayType);
@@ -143,7 +143,7 @@ void Stats::clear()
     mDevice.clear();
 }
 
-void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &value, rapidjson::Document& json, bool diff, const std::vector<int32_t> *periods)
+void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &value, rapidjson::Document& json, bool diff, const std::vector<float> *periods)
 {
     std::vector<int32_t> datas;
     if (diff)
@@ -178,11 +178,11 @@ void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &
         {
             if (i < periods->size())
             {
-                data = data / periods->at(i);
+                data = static_cast<int32_t>(static_cast<float>(data) / periods->at(i));
             }
             else
             {
-                data = data / periods->back();
+                data = static_cast<int32_t>(static_cast<float>(data) / periods->back());
             }
         }
 

@@ -827,7 +827,15 @@ void Call::joinSfu()
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
     {
         if (wptr.deleted())
+        {
             return ::promise::_Void();
+        }
+
+        if (!mRtcConn)
+        {
+            assert(mState == kStateClientNoParticipating);
+            return ::promise::Error("Failure at initialization. Call destroyed or disconnect");
+        }
 
         KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
         return mRtcConn.setLocalDescription(std::unique_ptr<webrtc::SessionDescriptionInterface>(sdp));   // takes onwership of sdp
@@ -857,8 +865,9 @@ void Call::joinSfu()
 
 void Call::createTransceivers()
 {
-    // create your transceivers for sending (and receiving)
+    assert(mRtcConn);
 
+    // create your transceivers for sending (and receiving)
     webrtc::RtpTransceiverInit transceiverInitVThumb;
     transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> err
@@ -1054,6 +1063,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
         return false;
     }
 
+    assert(mRtcConn);
     auto wptr = weakHandle();
     mRtcConn.setRemoteDescription(move(sdpInterface))
     .then([wptr, this, vthumbs, speakers, duration, cids]()
@@ -1747,6 +1757,7 @@ void Call::enableStats()
 
         // Keep mStats ownership
         mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId));
+        assert(mRtcConn);
         mRtcConn->GetStats(mStatConnCallback.get());
 
         // adjust SVC driver based on collected stats
@@ -1761,7 +1772,11 @@ void Call::disableStats()
     {
         karere::cancelInterval(mStatsTimer, mRtc.getAppCtx());
         mStatsTimer = 0;
-        static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
+        if (mStatConnCallback)
+        {
+            static_cast<ConnStatsCallBack*>(mStatConnCallback.get())->removeStats();
+        }
+
         mStatConnCallback = nullptr;
     }
 }
@@ -1825,9 +1840,14 @@ void Call::adjustSvcByStats()
     float packetLost = 0;
     if (mStats.mSamples.mPacketLost.size() >= 2)
     {
+        // get last lost packets
         int lastpl =  mStats.mSamples.mPacketLost.back();
         int prelastpl= mStats.mSamples.mPacketLost.at(mStats.mSamples.mPacketLost.size()-2);
-        packetLost = fabs(lastpl - prelastpl);
+
+        // get periods
+        int lastT = mStats.mSamples.mT.back();
+        int prelastT = mStats.mSamples.mT.at(mStats.mSamples.mT.size() - 2);
+        packetLost = (float)abs(lastpl - prelastpl) / (float)abs(lastT - prelastT);
     }
 
     if (!mSvcDriver.mMovingAverageRtt)
@@ -1858,7 +1878,7 @@ void Call::adjustSvcByStats()
         return; // too early
     }
 
-    if (mCurrentSvcLayerIndex >= 0
+    if (mCurrentSvcLayerIndex > 0
             && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
     {
         // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
