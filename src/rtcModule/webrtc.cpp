@@ -175,6 +175,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mSfuClient(rtc.getSfuClient())
     , mMyPeer()
     , mRtc(rtc)
+    , mCurrentSvcLayerIndex(SvcDriver::kMaxQualityIndex) // set Max SVC quality by default
 {
     mAvailableTracks.reset(new AvailableTracks());
     mCallKey = callKey ? (*callKey.get()) : std::string();
@@ -1870,7 +1871,7 @@ void Call::adjustSvcByStats()
         // get periods
         int lastT = mStats.mSamples.mT.back();
         int prelastT = mStats.mSamples.mT.at(mStats.mSamples.mT.size() - 2);
-        packetLost = (float)abs(lastpl - prelastpl) / (float)abs(lastT - prelastT);
+        packetLost = (float)abs(lastpl - prelastpl) / ((float)abs(lastT - prelastT) / 1000.0);
     }
 
     if (!mSvcDriver.mMovingAverageRtt)
