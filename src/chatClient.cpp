@@ -1226,8 +1226,11 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
             return kInitErrGeneric;
         }
 
-        connect();
         mInitStats.onCanceled();    // do not collect stats for this initialization mode
+
+        // connect() should be done in main thread, not app's thread, since LWS is single threaded
+        // and the `wsi` context must be created by the main thread, where it runs the event's loop
+        marshallCall([this]() { connect(); }, appCtx);
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);
