@@ -1,6 +1,7 @@
 #ifndef websocketsIO_h
 #define websocketsIO_h
 
+#include <thread>
 #include <iostream>
 #include <functional>
 #include <vector>
@@ -118,8 +119,8 @@ public:
     virtual void restoreSessions(std::vector<CachedSession> &&) { }
 
 protected:
-    Mutex &mutex;
     MyMegaApi mApi;
+    Mutex &mutex;
     void *appCtx;
 
     // This function is protected to prevent a wrong direct usage
@@ -140,12 +141,9 @@ class WebsocketsClient
 {
 private:
     WebsocketsClientImpl *ctx;
-#if defined(_WIN32) && defined(_MSC_VER)
     std::thread::id thread_id;
-#else
-    pthread_t thread_id;
-#endif
 
+    // chatd/presenced use binary protocol, while SFU use text-based protocol (JSON)
     bool mWriteBinary = true;
 
 public:
