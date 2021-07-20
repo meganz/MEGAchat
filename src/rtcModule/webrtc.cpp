@@ -1873,8 +1873,9 @@ void Call::adjustSvcByStats()
         packetLost = static_cast<double>(abs(lastpl - prelastpl)) / (static_cast<double>(abs(lastT - prelastT)) / 1000.0);
     }
 
-    if (std::fabs(mSvcDriver.mMovingAverageRtt - 0) <= std::numeric_limits<double>::epsilon())
+    if (std::fabs(mSvcDriver.mMovingAverageRtt) <= std::numeric_limits<double>::epsilon())
     {
+         // if mMovingAverageRtt has not value yet
          mSvcDriver.mMovingAverageRtt = roundTripTime;
          mSvcDriver.mMovingAveragePlost = packetLost;
          return; // intentionally skip first sample for lower/upper range calculation
