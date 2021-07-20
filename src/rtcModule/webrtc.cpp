@@ -232,7 +232,7 @@ void Call::setState(CallState newState)
         // initial ts is set when user has joined to the call
         mInitialTs = time(nullptr);
     }
-    if (newState == CallState::kStateDestroyed)
+    else if (newState == CallState::kStateDestroyed)
     {
         mFinalTs = time(nullptr);
     }
@@ -796,16 +796,14 @@ Session* Call::getSession(Cid_t cid)
 
 void Call::connectSfu(const std::string& sfuUrl)
 {
-    if (!sfuUrl.empty())
+    if (sfuUrl.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
     {
-        mSfuUrl = sfuUrl;
-    }
-    else if (mSfuUrl.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
-    {
-        RTCM_LOG_DEBUG("trying to connect to SFU with an Empty URL");
+        RTCM_LOG_ERROR("trying to connect to SFU with an Empty URL");
         assert(false);
         return;
     }
+
+    mSfuUrl = sfuUrl;
     setState(CallState::kStateConnecting);
     mSfuConnection = mSfuClient.createSfuConnection(mChatid, mSfuUrl, *this);
 }
@@ -2120,23 +2118,23 @@ void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
     }
 }
 
-void RtcModuleSfu::handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id> &usersJoined)
+void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::vector<karere::Id> &usersJoined)
 {
-    for (karere::Id peer : usersJoined)
+    for (const karere::Id &peer : usersJoined)
     {
         mCalls[callid]->addParticipant(peer);
     }
 }
 
-void RtcModuleSfu::handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id> &usersLeft)
+void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, const std::vector<karere::Id> &usersLeft)
 {
-    for (karere::Id peer : usersLeft)
+    for (const karere::Id &peer : usersLeft)
     {
         mCalls[callid]->removeParticipant(peer);
     }
 }
 
-void RtcModuleSfu::handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason)
+void RtcModuleSfu::handleCallEnd(karere::Id /*chatid*/, karere::Id callid, uint8_t /*reason*/)
 {
     mCalls.erase(callid);
 }

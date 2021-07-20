@@ -2480,7 +2480,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                                     ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, callid, users)
                                     : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
                         })
-                        .fail([] (const ::promise::Error &err)
+                        .fail([] (const ::promise::Error &/*err*/)
                         {
                             // Todo: check if it's necessary to throw an exception
                             throw std::runtime_error("Failed to decrypt unified key");
