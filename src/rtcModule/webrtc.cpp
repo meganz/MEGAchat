@@ -2245,6 +2245,12 @@ void RtcModuleSfu::openDevice()
         RTCM_LOG_WARNING("Default video in device is not set");
         assert(false);
         std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+        if (videoDevices.empty())
+        {
+            RTCM_LOG_ERROR("openDevice(): no video devices available");
+            return;
+        }
+
         videoDevice = videoDevices.begin()->second;
     }
 
