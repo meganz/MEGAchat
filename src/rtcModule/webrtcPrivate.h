@@ -86,6 +86,11 @@ public:
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
     void enableTrack(bool enable, TrackDirection direction);
+    void setTxSvcLayerCount(int8_t sentLayers);
+    void setTsStart(time_t t);
+    time_t getTsStart();
+    int8_t getTxSvcLayerCount();
+
     IvStatic_t getIv() const;
     void generateRandomIv();
     virtual void release();
@@ -95,7 +100,9 @@ protected:
     IvStatic_t mIv;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
-    Cid_t mCid = 0;
+    Cid_t mCid;
+    time_t mTsStart;
+    int8_t mSentLayers;
     bool mAudioLevelMonitorEnabled = false;
 };
 
@@ -182,6 +189,7 @@ class SvcDriver
 public:
     static const uint8_t kMaxQualityIndex = 6;
     static const int kMinTimeBetweenSwitches = 6;   // minimum period between SVC switches in seconds
+    static const int kInitialGraceTime = 5000;
 
     // boundaries for switching to lower/higher quality.
     // if rtt moving average goes outside of these boundaries, switching occurs.
@@ -190,7 +198,7 @@ public:
 
     SvcDriver();
     bool updateSvcQuality(int8_t delta);
-    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
+    bool getLayerByIndex(uint8_t index, int8_t& rxStp, int8_t& rxTmp, int8_t& rxStmp, int8_t &txSpt);
 
     uint8_t mCurrentSvcLayerIndex;
     float mPacketLostLower;
@@ -252,7 +260,8 @@ public:
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
-    void switchSvcQuality(int8_t delta) override;
+    void switchRxSvcQuality(int8_t delta, int8_t &txSpt) override;
+    void checkAdaptTxSvcQuality(int8_t txSpt) override;
 
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
@@ -381,7 +390,7 @@ protected:
     Stats mStats;
     SvcDriver mSvcDriver;
     // Current SVC layer index
-    int mCurrentSvcLayerIndex = 0;
+    uint8_t mCurrentSvcLayerIndex = 0;
 
     void generateAndSendNewkey();
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution = kLowRes);
