@@ -874,9 +874,16 @@ Promise<void> Connection::reconnect()
 
                 if (!mRetryCtrl)
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
-                    assert(isOnline());
-                    assert(cachedIPs);
+
+                    if (isOnline())
+                    {
+                        CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                        assert(cachedIPs);
+                    }
+                    else
+                    {
+                        CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection was aborted");
+                    }
                     return;
                 }
                 if (mRetryCtrl.get() != retryCtrl)

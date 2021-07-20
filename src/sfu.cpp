@@ -1855,8 +1855,14 @@ promise::Promise<void> SfuConnection::reconnect()
 
                 if (!mRetryCtrl)
                 {
-                    SFU_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
-                    assert(isOnline());
+                    if (isOnline())
+                    {
+                        SFU_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                    }
+                    else
+                    {
+                        SFU_LOG_DEBUG("DNS resolution completed but ignored: connection was aborted");
+                    }
                     return;
                 }
                 if (mRetryCtrl.get() != retryCtrl)
