@@ -1220,10 +1220,10 @@ void SfuConnection::doConnect()
     std::string ipv4 = mIpsv4.size() ? mIpsv4[0] : "";
     std::string ipv6 = mIpsv6.size() ? mIpsv6[0] : "";
 
+    mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
+
     setConnState(kConnecting);
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
-
-    mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
     bool rt = wsConnect(&mWebsocketIO, mTargetIp.c_str(),
           url.host.c_str(),
@@ -1420,11 +1420,6 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
     }
 
     return processCommandResult;
-}
-
-promise::Promise<void> SfuConnection::getPromiseConnection()
-{
-    return mConnectPromise;
 }
 
 bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker, int vthumbs)

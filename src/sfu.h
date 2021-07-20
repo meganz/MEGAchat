@@ -168,10 +168,11 @@ public:
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
     virtual bool handlePeerLeft(Cid_t cid) = 0;
+    // handle errors at command's level ( {..., "a":err} )
     virtual bool handleError(unsigned int , const std::string) = 0;
     virtual void onSfuConnected() = 0;
 
-
+    // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int) = 0;
 };
 
@@ -402,7 +403,6 @@ public:
     void clearCommandsQueue();
     void checkThreadId();
 
-    promise::Promise<void> getPromiseConnection();
     bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
     bool sendAv(unsigned av);
@@ -474,7 +474,7 @@ public:
     SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings);
 
     SfuConnection *createSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
-    void closeSfuConnection(karere::Id chatid);
+    void closeSfuConnection(karere::Id chatid); // does NOT retry the connection afterwards (used for errors/disconnects)
     void retryPendingConnections(bool disconnect);
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
