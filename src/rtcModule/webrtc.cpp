@@ -2204,6 +2204,7 @@ void RtcModuleSfu::openDevice()
         std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
         if (videoDevices.empty())
         {
+            RTCM_LOG_ERROR("openDevice(): no video devices available");
             return;
         }
 
