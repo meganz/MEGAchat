@@ -20,20 +20,16 @@ namespace sfu
 // The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
 // a synchronization mechanism (like a mutex).
-class CommandsQueue
+class CommandsQueue : public std::deque<std::string>
 {
 protected:
-    std::deque<std::string> commands;
     bool isSending = false;
 
 public:
     CommandsQueue();
     bool sending();
     void setSending(bool sending);
-    void push(const std::string &);
     std::string pop();
-    bool isEmpty();
-    void clear();
 };
 
 class Peer
@@ -347,6 +343,22 @@ public:
 };
 
 
+/**
+ * @brief This class allows to handle a connection to the SFU
+ *
+ * Each call requires its own connection to the SFU in order to handle
+ * call signalling.
+ *
+ * It implements the interface to communicate via websockets
+ * in text-mode using JSON protocol (compared with binary protocol used by
+ * chatd and presenced).
+ *
+ * Additionally, the JSON commands are sent to the SFU sequeniatlly. In other
+ * words, commands are sent one by one, never combined in a single packet.
+ * In consequence, this class maintains a queue of commands.
+ *
+ * TODO: integrate the DNS cache within the SfuConnection -> IPs and TLS sessions speed up connections significantly
+ */
 class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
 {
     // client->sfu commands
@@ -406,7 +418,6 @@ public:
 
 protected:
     std::string mSfuUrl;
-    //karere::Client& mKarereClient;
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
 

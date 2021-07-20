@@ -61,31 +61,16 @@ void CommandsQueue::setSending(bool sending)
     isSending = sending;
 }
 
-void CommandsQueue::push(const std::string& command)
-{
-    commands.push_back(command);
-}
-
 std::string CommandsQueue::pop()
 {
-    if (commands.empty())
+    if (empty())
     {
         return std::string();
     }
 
-    std::string command = std::move(commands.front());
-    commands.pop_front();
+    std::string command = std::move(front());
+    pop_front();
     return command;
-}
-
-bool CommandsQueue::isEmpty()
-{
-    return commands.empty();
-}
-
-void CommandsQueue::clear()
-{
-    commands.clear();
 }
 
 
@@ -1301,8 +1286,9 @@ bool SfuConnection::sendCommand(const std::string &command)
 
 void SfuConnection::addNewCommand(const std::string &command)
 {
-    checkThreadId();                // Check that commandsQueue is always accessed from a single thread
-    mCommandsQueue.push(command);   // push command in the queue
+    checkThreadId();    // Check that commandsQueue is always accessed from a single thread
+
+    mCommandsQueue.push_back(command);   // push command in the queue
     processNextCommand();
 }
 
@@ -1316,7 +1302,7 @@ void SfuConnection::processNextCommand(bool resetSending)
         mCommandsQueue.setSending(false);
     }
 
-    if (mCommandsQueue.isEmpty() || mCommandsQueue.sending())
+    if (mCommandsQueue.empty() || mCommandsQueue.sending())
     {
         return;
     }
@@ -1338,6 +1324,7 @@ void SfuConnection::processNextCommand(bool resetSending)
 void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
+
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
