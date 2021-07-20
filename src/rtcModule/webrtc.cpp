@@ -1859,8 +1859,8 @@ void Call::adjustSvcByStats()
         return;
     }
 
-    float roundTripTime = mStats.mSamples.mRoundTripTime.back();
-    float packetLost = 0;
+    double roundTripTime = mStats.mSamples.mRoundTripTime.back();
+    double packetLost = 0;
     if (mStats.mSamples.mPacketLost.size() >= 2)
     {
         // get last lost packets
@@ -1870,10 +1870,10 @@ void Call::adjustSvcByStats()
         // get periods
         int lastT = mStats.mSamples.mT.back();
         int prelastT = mStats.mSamples.mT.at(mStats.mSamples.mT.size() - 2);
-        packetLost = (float)abs(lastpl - prelastpl) / ((float)abs(lastT - prelastT) / 1000.0);
+        packetLost = static_cast<double>(abs(lastpl - prelastpl)) / (static_cast<double>(abs(lastT - prelastT)) / 1000.0);
     }
 
-    if (!mSvcDriver.mMovingAverageRtt)
+    if (std::fabs(mSvcDriver.mMovingAverageRtt - 0) <= std::numeric_limits<double>::epsilon())
     {
          mSvcDriver.mMovingAverageRtt = roundTripTime;
          mSvcDriver.mMovingAveragePlost = packetLost;

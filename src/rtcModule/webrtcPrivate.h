@@ -193,13 +193,13 @@ public:
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     uint8_t mCurrentSvcLayerIndex;
-    float mPacketLostLower;
-    float mPacketLostUpper;
-    float mLowestRttSeen;
-    float mRttLower;
-    float mRttUpper;
-    float mMovingAverageRtt;
-    float mMovingAveragePlost;
+    double mPacketLostLower;
+    double mPacketLostUpper;
+    double mLowestRttSeen;
+    double mRttLower;
+    double mRttUpper;
+    double mMovingAverageRtt;
+    double mMovingAveragePlost;
     time_t mTsLastSwitch;
 };
 
