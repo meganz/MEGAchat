@@ -168,8 +168,6 @@ public:
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
     virtual bool handlePeerLeft(Cid_t cid) = 0;
-    // handle errors at command's level ( {..., "a":err} )
-    virtual bool handleError(unsigned int , const std::string) = 0;
     virtual void onSfuConnected() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
@@ -346,16 +344,6 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     PeerLeftCommandFunction mComplete;
-};
-
-typedef std::function<bool(unsigned int , const std::string)> ErrorCommandFunction;
-class ErrorCommand : public Command
-{
-public:
-    ErrorCommand(const ErrorCommandFunction& complete);
-    bool processCommand(const rapidjson::Document& command) override;
-    static const std::string COMMAND_NAME;
-    ErrorCommandFunction mComplete;
 };
 
 

@@ -28,7 +28,6 @@ const std::string SpeakOnCommand::COMMAND_NAME        = "SPEAK_ON";
 const std::string SpeakOffCommand::COMMAND_NAME       = "SPEAK_OFF";
 const std::string PeerJoinCommand::COMMAND_NAME       = "PEERJOIN";
 const std::string PeerLeftCommand::COMMAND_NAME       = "PEERLEFT";
-const std::string ErrorCommand::COMMAND_NAME          = "ERR";
 
 const std::string Sdp::endl = "\r\n";
 
@@ -758,30 +757,6 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
 
 }
 
-ErrorCommand::ErrorCommand(const ErrorCommandFunction &complete)
-    : mComplete(complete)
-{
-}
-
-bool ErrorCommand::processCommand(const rapidjson::Document &command)
-{
-    rapidjson::Value::ConstMemberIterator codeIterator = command.FindMember("code");
-    if (codeIterator == command.MemberEnd() || !codeIterator->value.IsUint())
-    {
-        SFU_LOG_ERROR("ErrorCommand: Received data doesn't have 'code' field");
-        return false;
-    }
-
-    std::string errorMsg = "";
-    unsigned int code = codeIterator->value.GetUint();
-    rapidjson::Value::ConstMemberIterator msgIterator = command.FindMember("msg");
-    if (msgIterator != command.MemberEnd() && msgIterator->value.IsString())
-    {
-        errorMsg = msgIterator->value.GetString();
-    }
-    return mComplete(code, errorMsg);
-}
-
 Sdp::Sdp(const std::string &sdp)
 {
     size_t pos = 0;
@@ -1167,7 +1142,6 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1));
     mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1));
-    mCommands[ErrorCommand::COMMAND_NAME] = mega::make_unique<ErrorCommand>(std::bind(&sfu::SfuInterface::handleError, &call, std::placeholders::_1, std::placeholders::_2));
 }
 
 SfuConnection::~SfuConnection()

@@ -494,7 +494,6 @@ public:
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid) override;
-    bool handleError(unsigned int , const std::string) override;
     void onSfuConnected() override;
     bool error(unsigned int) override;
 };

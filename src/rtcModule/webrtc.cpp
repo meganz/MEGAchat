@@ -1339,13 +1339,6 @@ bool Call::handlePeerLeft(Cid_t cid)
     return true;
 }
 
-bool Call::handleError(unsigned int code, const std::string reason)
-{
-    RTCM_LOG_ERROR("SFU error (Remove call ) -> code: %d, reason: %s", code, reason.c_str());
-    disconnect(static_cast<TermCode>(code), reason);
-    return true;
-}
-
 void Call::onSfuConnected()
 {
     joinSfu();

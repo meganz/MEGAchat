@@ -5340,11 +5340,6 @@ bool MockupCall::handlePeerLeft(Cid_t cid)
     return true;
 }
 
-bool MockupCall::handleError(unsigned int, const string)
-{
-    return true;
-}
-
 void MockupCall::onSfuConnected()
 {
 
