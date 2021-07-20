@@ -831,7 +831,8 @@ void Call::joinSfu()
 
         if (!mRtcConn)
         {
-            assert(mState == kStateClientNoParticipating);
+            assert(mState == kStateClientNoParticipating
+                   || mState == kStateTerminatingUserParticipation);
             return ::promise::Error("Failure at initialization. Call destroyed or disconnect");
         }
 
