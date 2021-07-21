@@ -5174,7 +5174,11 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
         marshallCall([this, chatid]()
         {
             // avoid access from App thread to RtcModule::mRenderers
-            mClient->rtc->addLocalVideoRenderer(chatid, new MegaChatVideoReceiver(this, chatid, rtcModule::VideoResolution::kHiRes));
+            if (mClient && mClient->rtc)
+            {
+                mClient->rtc->addLocalVideoRenderer(chatid, new MegaChatVideoReceiver(this, chatid, rtcModule::VideoResolution::kHiRes));
+            }
+
         }, this);
     }
     else if (videoResolution == rtcModule::VideoResolution::kHiRes)
@@ -5212,7 +5216,10 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
                 marshallCall([this, chatid]()
                 {
                     // avoid access from App thread to RtcModule::mRenderers
-                    mClient->rtc->removeLocalVideoRenderer(chatid);
+                    if (mClient && mClient->rtc)
+                    {
+                        mClient->rtc->removeLocalVideoRenderer(chatid);
+                    }
                 }, this);
             }
         }
