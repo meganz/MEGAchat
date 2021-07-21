@@ -908,9 +908,9 @@ public:
 private:
     MegaChatApi *mChatApi;
     mega::MegaApi *mMegaApi;
-    WebsocketsIO *websocketsIO;
+    WebsocketsIO *mWebsocketsIO;
     karere::Client *mClient;
-    bool terminating;
+    bool mTerminating;
 
     mega::MegaThread thread;
     int threadExit;

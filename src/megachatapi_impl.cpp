@@ -112,9 +112,9 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     mMegaApi = megaApi;
 
     mClient = NULL;
-    terminating = false;
+    mTerminating = false;
     waiter = new MegaChatWaiter();
-    websocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
+    mWebsocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
     reqtag = 0;
 
     //Start blocking thread
@@ -145,7 +145,7 @@ void MegaChatApiImpl::loop()
         sdkMutex.unlock();
 
         waiter->init(NEVER);
-        waiter->wakeupby(websocketsIO, ::mega::Waiter::NEEDEXEC);
+        waiter->wakeupby(mWebsocketsIO, ::mega::Waiter::NEEDEXEC);
         waiter->wait();
 
         sdkMutex.lock();
@@ -215,7 +215,7 @@ void MegaChatApiImpl::sendPendingRequests()
             continue;
         }
 
-        if (terminating && request->getType() != MegaChatRequest::TYPE_DELETE)
+        if (mTerminating && request->getType() != MegaChatRequest::TYPE_DELETE)
         {
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
             API_LOG_WARNING("Chat engine is terminated, cannot process the request");
@@ -346,7 +346,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             bool deleteDb = request->getFlag();
             cleanChatHandlers();
-            terminating = true;
+            mTerminating = true;
             mClient->terminate(deleteDb);
 
             API_LOG_INFO("Chat engine is logged out!");
@@ -357,14 +357,14 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 delete mClient;
                 mClient = NULL;
-                terminating = false;
+                mTerminating = false;
             }, this);
 
             break;
         }
         case MegaChatRequest::TYPE_DELETE:
         {
-            if (mClient && !terminating)
+            if (mClient && !mTerminating)
             {
                 cleanChatHandlers();
                 mClient->terminate();
@@ -2567,8 +2567,8 @@ void MegaChatApiImpl::createKarereClient()
 #else
         uint8_t caps = karere::kClientIsMobile | karere::kClientSupportLastGreen;
 #endif
-        mClient = new karere::Client(*mMegaApi, websocketsIO, *this, *this, mMegaApi->getBasePath(), caps, this);
-        terminating = false;
+        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *this, mMegaApi->getBasePath(), caps, this);
+        mTerminating = false;
     }
 }
 
@@ -2629,7 +2629,7 @@ ChatRoom *MegaChatApiImpl::findChatRoom(MegaChatHandle chatid)
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ChatRoomList::iterator it = mClient->chats->find(chatid);
         if (it != mClient->chats->end())
@@ -2649,7 +2649,7 @@ karere::ChatRoom *MegaChatApiImpl::findChatRoomByUser(MegaChatHandle userhandle)
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ContactList::iterator it = mClient->mContactList->find(userhandle);
         if (it != mClient->mContactList->end())
@@ -2937,7 +2937,7 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
         return;
     }
 
-    if (terminating)
+    if (mTerminating)
     {
         return;
     }
@@ -2965,7 +2965,7 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
 
 void MegaChatApiImpl::fireOnChatSessionUpdate(MegaChatHandle chatid, MegaChatHandle callid, MegaChatSessionPrivate *session)
 {
-    if (terminating)
+    if (mTerminating)
     {
         return;
     }
@@ -3240,7 +3240,7 @@ MegaChatPresenceConfig *MegaChatApiImpl::getPresenceConfig()
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         const ::presenced::Config &cfg = mClient->presenced().config();
         if (cfg.presence().isValid())
@@ -3293,7 +3293,7 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         status = mClient->presenced().peerPresence(userhandle).status();
     }
@@ -3563,7 +3563,7 @@ MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
@@ -3617,7 +3617,7 @@ MegaChatListItemList *MegaChatApiImpl::getChatListItems()
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
@@ -3640,7 +3640,7 @@ MegaChatListItemList *MegaChatApiImpl::getChatListItemsByPeers(MegaChatPeerList 
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
@@ -3714,7 +3714,7 @@ int MegaChatApiImpl::getUnreadChats()
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
@@ -3738,7 +3738,7 @@ MegaChatListItemList *MegaChatApiImpl::getActiveChatListItems()
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
@@ -3761,7 +3761,7 @@ MegaChatListItemList *MegaChatApiImpl::getInactiveChatListItems()
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
@@ -3784,7 +3784,7 @@ MegaChatListItemList *MegaChatApiImpl::getArchivedChatListItems()
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
@@ -3807,7 +3807,7 @@ MegaChatListItemList *MegaChatApiImpl::getUnreadChatListItems()
 
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
@@ -4594,7 +4594,7 @@ void MegaChatApiImpl::saveCurrentState()
 {
     sdkMutex.lock();
 
-    if (mClient && !terminating)
+    if (mClient && !mTerminating)
     {
         mClient->saveDb();
     }
