@@ -90,7 +90,6 @@ HEADERS  += asyncTest-framework.h \
             db.h \
             karereId.h \
             presenced.h \
-            serverListProvider.h \
             autoHandle.h \
             chatCommon.h  \
             chatdMsg.h \

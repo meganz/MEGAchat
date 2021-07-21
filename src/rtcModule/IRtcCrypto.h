@@ -8,10 +8,6 @@
 
 namespace rtcModule
 {
-struct SdpKey
-{
-    uint8_t data[32];
-};
 
 class IRtcCryptoMeetings
 {

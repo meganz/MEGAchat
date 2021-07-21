@@ -18,16 +18,16 @@ public:
     LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
     virtual ~LibwebsocketsIO();
     
-    virtual void addevents(::mega::Waiter*, int);
-
+    void addevents(::mega::Waiter*, int) override;
+    
     bool hasSessionCache() const override { return true; }
     void restoreSessions(std::vector<CachedSession> &&sessions) override;
 
 protected:
-    virtual bool wsResolveDNS(const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f);
-    virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
+    bool wsResolveDNS(const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f) override;
+    WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
-                                           WebsocketsClient *client);
+                                           WebsocketsClient *client) override;
     int wsGetNoNameErrorCode() override;
 
 private:
@@ -63,9 +63,9 @@ protected:
     size_t getOutputBufferLength();
     void resetOutputBuffer();
     
-    virtual bool wsSendMessage(char *msg, size_t len);
-    virtual void wsDisconnect(bool immediate);
-    virtual bool wsIsConnected();
+    bool wsSendMessage(char *msg, size_t len) override;
+    void wsDisconnect(bool immediate) override;
+    bool wsIsConnected() override;
     
 public:
     struct lws *wsi;

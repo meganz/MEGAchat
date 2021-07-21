@@ -474,11 +474,10 @@ protected:
     bool mFetchingUrl = false;
 
     // ---- callbacks called from libwebsocketsIO ----
-    virtual void wsConnectCb();
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
-    virtual void wsHandleMsgCb(char *data, size_t len);
-    virtual void wsSendMsgCb(const char *data, size_t len);
-    virtual void wsProcessNextMsgCb();
+    void wsConnectCb() override;
+    void wsCloseCb(int errcode, int errtype, const char *preason, size_t preason_len) override;
+    void wsHandleMsgCb(char *data, size_t len) override;
+    void wsSendMsgCb(const char *, size_t) override;
     bool wsSSLsessionUpdateCb(const CachedSession &sess) override;
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);

@@ -76,13 +76,9 @@ bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
 }
 
 WebsocketsClient::WebsocketsClient(bool writeBinary)
-    : mWriteBinary(writeBinary)
-{
-    ctx = NULL;
-#if !defined(_WIN32) || !defined(_MSC_VER)
-    thread_id = 0;
-#endif
-}
+    : ctx(nullptr)
+    , mWriteBinary(writeBinary)
+{ }
 
 WebsocketsClient::~WebsocketsClient()
 {
@@ -97,11 +93,7 @@ bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostn
 
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
 {
-#if defined(_WIN32) && defined(_MSC_VER)
     thread_id = std::this_thread::get_id();
-#else
-    thread_id = pthread_self();
-#endif
 
     WEBSOCKETS_LOG_DEBUG("Connecting to %s (%s)  port %d  path: %s   ssl: %d", host, ip, port, path, ssl);
 
@@ -136,12 +128,7 @@ bool WebsocketsClient::wsSendMessage(char *msg, size_t len)
         return false;
     }
 
-#if defined(_WIN32) && defined(_MSC_VER)
-    assert(thread_id == std::this_thread::get_id());
-#else
-    assert(thread_id == pthread_self());
-#endif
-    
+    assert(thread_id == std::this_thread::get_id());    
     
     WEBSOCKETS_LOG_DEBUG("Sending %d bytes", len);
     bool result = ctx->wsSendMessage(msg, len);
@@ -161,11 +148,8 @@ void WebsocketsClient::wsDisconnect(bool immediate)
         return;
     }
 
-#if defined(_WIN32) && defined(_MSC_VER)
     assert(thread_id == std::this_thread::get_id());
-#else
-    assert(thread_id == pthread_self());
-#endif
+
     ctx->wsDisconnect(immediate);
 
     if (immediate)
@@ -182,11 +166,7 @@ bool WebsocketsClient::wsIsConnected()
         return false;
     }
     
-#if defined(_WIN32) && defined(_MSC_VER)
     assert(thread_id == std::this_thread::get_id());
-#else
-    assert(thread_id == pthread_self());
-#endif
 
     return ctx->wsIsConnected();
 }
@@ -206,7 +186,7 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
     wsCloseCb(errcode, errtype, preason, reason_len);
 }
 
-bool WebsocketsClient::getWriteBinary() const
+bool WebsocketsClient::isWriteBinary() const
 {
     return mWriteBinary;
 }
