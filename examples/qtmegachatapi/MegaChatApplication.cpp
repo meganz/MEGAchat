@@ -695,6 +695,8 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             break;
         case MegaRequest::TYPE_FETCH_TIMEZONE:
         {
+            if (error != MegaError::API_OK) break;
+
             mTimeZoneDetails.reset(request->getMegaTimeZoneDetails()->copy());
 
             if (mMainWin && mMainWin->mSettings && mNotificationSettings)

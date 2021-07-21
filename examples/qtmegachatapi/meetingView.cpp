@@ -107,7 +107,7 @@ void MeetingView::updateNumParticipants(unsigned participants)
     mParticipantsLabel->setText(txt.c_str());
 }
 
-void MeetingView::addLowResByCid(MegaChatHandle chatid, uint32_t cid)
+void MeetingView::addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid)
 {
     auto it = mThumbsWidget.find(cid);
     if (it == mThumbsWidget.end())
@@ -119,7 +119,7 @@ void MeetingView::addLowResByCid(MegaChatHandle chatid, uint32_t cid)
     }
 }
 
-void MeetingView::addHiResByCid(MegaChatHandle chatid, uint32_t cid)
+void MeetingView::addHiResByCid(megachat::MegaChatHandle chatid, uint32_t cid)
 {
     auto it = mHiResWidget.find(cid);
     if (it == mHiResWidget.end())
@@ -207,7 +207,7 @@ void MeetingView::updateSession(const megachat::MegaChatSession &session)
     }
 }
 
-void MeetingView::updateAudioButtonText(MegaChatCall *call)
+void MeetingView::updateAudioButtonText(megachat::MegaChatCall *call)
 {
     std::string text;
     if (call->hasLocalAudio())
@@ -222,7 +222,7 @@ void MeetingView::updateAudioButtonText(MegaChatCall *call)
     mEnableAudio->setText(text.c_str());
 }
 
-void MeetingView::updateVideoButtonText(MegaChatCall *call)
+void MeetingView::updateVideoButtonText(megachat::MegaChatCall *call)
 {
     std::string text;
     if (call->hasLocalVideo())
@@ -237,9 +237,9 @@ void MeetingView::updateVideoButtonText(MegaChatCall *call)
     mEnableVideo->setText(text.c_str());
 }
 
-void MeetingView::setOnHold(bool isOnHold, MegaChatHandle cid)
+void MeetingView::setOnHold(bool isOnHold, megachat::MegaChatHandle cid)
 {
-    if (cid == MEGACHAT_INVALID_HANDLE)
+    if (cid == megachat::MEGACHAT_INVALID_HANDLE)
     {
         mLocalWidget->setOnHold(isOnHold);
         mOnHoldLabel->setVisible(isOnHold);
@@ -272,7 +272,7 @@ void MeetingView::setOnHold(bool isOnHold, MegaChatHandle cid)
 std::string MeetingView::sessionToString(const megachat::MegaChatSession &session)
 {
     std::string returnedString;
-    std::unique_ptr<MegaChatRoom> chatRoom(mMegaChatApi.getChatRoom(mChatid));
+    std::unique_ptr<megachat::MegaChatRoom> chatRoom(mMegaChatApi.getChatRoom(mChatid));
     for (size_t i = 0; i < chatRoom->getPeerCount(); i++)
     {
         if (chatRoom->getPeerHandle(i) == session.getPeerid())
@@ -301,7 +301,7 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
 void MeetingView::onHangUp()
 {
     mLocalWidget->removeVideoListener();
-    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
     if (call)
     {
         mMegaChatApi.hangChatCall(call->getCallId());
@@ -345,33 +345,33 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     QMenu *hiResMenuQuality = submenu.addMenu("Request hiRes with quality");
     QAction action3("Default", this);
     connect(&action3, &QAction::triggered, this, [=](){
-        mMegaChatApi.requestHiResVideoWithQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_DEF);});
+        mMegaChatApi.requestHiResVideoWithQuality(mChatid, cid, megachat::MegaChatCall::CALL_QUALITY_HIGH_DEF);});
     hiResMenuQuality->addAction(&action3);
 
     QAction action4("2x lower", this);
     connect(&action4, &QAction::triggered, this, [=](){
-        mMegaChatApi.requestHiResVideoWithQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
+        mMegaChatApi.requestHiResVideoWithQuality(mChatid, cid, megachat::MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
     hiResMenuQuality->addAction(&action4);
 
     QAction action5("4x lower", this);
     connect(&action5, &QAction::triggered, this, [=](){
-        mMegaChatApi.requestHiResVideoWithQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_LOW);});
+        mMegaChatApi.requestHiResVideoWithQuality(mChatid, cid, megachat::MegaChatCall::CALL_QUALITY_HIGH_LOW);});
     hiResMenuQuality->addAction(&action5);
 
     QMenu *hiResMenu = submenu.addMenu("Adjust High Resolution");
     QAction action6("Default", this);
     connect(&action6, &QAction::triggered, this, [=](){
-        mMegaChatApi.requestHiResQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_DEF);});
+        mMegaChatApi.requestHiResQuality(mChatid, cid, megachat::MegaChatCall::CALL_QUALITY_HIGH_DEF);});
     hiResMenu->addAction(&action6);
 
     QAction action7("2x lower", this);
     connect(&action7, &QAction::triggered, this, [=](){
-        mMegaChatApi.requestHiResQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
+        mMegaChatApi.requestHiResQuality(mChatid, cid, megachat::MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
     hiResMenu->addAction(&action7);
 
     QAction action8("4x lower", this);
     connect(&action8, &QAction::triggered, this, [=](){
-        mMegaChatApi.requestHiResQuality(mChatid, cid, MegaChatCall::CALL_QUALITY_HIGH_LOW);});
+        mMegaChatApi.requestHiResQuality(mChatid, cid, megachat::MegaChatCall::CALL_QUALITY_HIGH_LOW);});
     hiResMenu->addAction(&action8);
 
     //submenu.addAction(requestHiRes.c_str());
@@ -379,8 +379,8 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     submenu.addAction(stopHiRes.c_str());
 
     std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
-    std::unique_ptr<MegaChatRoom> chatRoom = std::unique_ptr<MegaChatRoom>(mMegaChatApi. getChatRoom(mChatid));
-    bool moderator = (chatRoom->getOwnPrivilege() == MegaChatRoom::PRIV_MODERATOR);
+    std::unique_ptr<megachat::MegaChatRoom> chatRoom = std::unique_ptr<megachat::MegaChatRoom>(mMegaChatApi. getChatRoom(mChatid));
+    bool moderator = (chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
     if (call && moderator)
     {
        submenu.addAction(requestDelSpeaker.c_str());
@@ -434,7 +434,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
 
 void MeetingView::onRequestSpeak(bool request)
 {
-    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
     if (!call)
     {
         assert(false);
@@ -448,7 +448,7 @@ void MeetingView::onRequestSpeak(bool request)
 
 void MeetingView::onEnableAudio()
 {
-    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
     if (!call)
     {
         assert(false);
@@ -467,7 +467,7 @@ void MeetingView::onEnableAudio()
 
 void MeetingView::onEnableVideo()
 {
-    std::unique_ptr<MegaChatCall> call = std::unique_ptr<MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
     if (!call)
     {
         assert(false);
@@ -486,7 +486,7 @@ void MeetingView::onEnableVideo()
 
 void MeetingView::onRemoveSpeaker(uint32_t cid)
 {
-    mMegaChatApi.removeSpeaker(mChatid, MEGACHAT_INVALID_HANDLE);
+    mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
 }
 
 void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)

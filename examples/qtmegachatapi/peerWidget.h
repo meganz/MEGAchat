@@ -3,7 +3,7 @@
 
 #include <megachatapi.h>
 #include <videoRenderer_Qt.h>
-#include <callListener.h> // TODO replace by QTMegaChatVideoListener
+#include "QTMegaChatVideoListener.h"
 #include <QWidget>
 #include <webrtc.h>
 
@@ -21,7 +21,7 @@ public:
     void drawPeerAvatar(QImage &image);
     void drawAvatar(QImage &image, QChar letter, uint64_t userid, bool onHold = false);
     bool event(QEvent *event) override;
-    QTMegaChatVideoListener *mMegaChatVideoListenerDelegate;
+    megachat::QTMegaChatVideoListener *mMegaChatVideoListenerDelegate;
     void removeVideoListener();
 
 protected:

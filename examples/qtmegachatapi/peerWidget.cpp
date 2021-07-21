@@ -12,7 +12,7 @@ PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHan
     , mHiRes(hiRes)
     , mLocal(local)
 {
-    mMegaChatVideoListenerDelegate = new QTMegaChatVideoListener(&mMegaChatApi, this);
+    mMegaChatVideoListenerDelegate = new megachat::QTMegaChatVideoListener(&mMegaChatApi, this);
     mVideoRender = new VideoRendererQt(this);
     QHBoxLayout* layout = new QHBoxLayout();
     layout->addWidget(mVideoRender);
@@ -138,17 +138,17 @@ void PeerWidget::showMenu(const QPoint &pos)
         QMenu *hiResMenu = contextMenu.addMenu("Adjust High Resolution");
         QAction action3("Default", this);
         connect(&action3, &QAction::triggered, this, [=](){
-            mMegaChatApi.requestHiResQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_DEF);});
+            mMegaChatApi.requestHiResQuality(mChatid, mCid, megachat::MegaChatCall::CALL_QUALITY_HIGH_DEF);});
         hiResMenu->addAction(&action3);
 
         QAction action4("2x lower", this);
         connect(&action4, &QAction::triggered, this, [=](){
-            mMegaChatApi.requestHiResQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
+            mMegaChatApi.requestHiResQuality(mChatid, mCid, megachat::MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
         hiResMenu->addAction(&action4);
 
         QAction action5("4x lower", this);
         connect(&action5, &QAction::triggered, this, [=](){
-            mMegaChatApi.requestHiResQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_LOW);});
+            mMegaChatApi.requestHiResQuality(mChatid, mCid, megachat::MegaChatCall::CALL_QUALITY_HIGH_LOW);});
         hiResMenu->addAction(&action5);
         contextMenu.exec(mapToGlobal(pos));
     }
@@ -158,17 +158,17 @@ void PeerWidget::showMenu(const QPoint &pos)
         QMenu *hiResMenuQuality = contextMenu.addMenu("Request hiRes");
         QAction action3("Default", this);
         connect(&action3, &QAction::triggered, this, [=](){
-            mMegaChatApi.requestHiResVideoWithQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_DEF);});
+            mMegaChatApi.requestHiResVideoWithQuality(mChatid, mCid, megachat::MegaChatCall::CALL_QUALITY_HIGH_DEF);});
         hiResMenuQuality->addAction(&action3);
 
         QAction action4("2x lower", this);
         connect(&action4, &QAction::triggered, this, [=](){
-            mMegaChatApi.requestHiResVideoWithQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
+            mMegaChatApi.requestHiResVideoWithQuality(mChatid, mCid, megachat::MegaChatCall::CALL_QUALITY_HIGH_MEDIUM);});
         hiResMenuQuality->addAction(&action4);
 
         QAction action5("4x lower", this);
         connect(&action5, &QAction::triggered, this, [=](){
-            mMegaChatApi.requestHiResVideoWithQuality(mChatid, mCid, MegaChatCall::CALL_QUALITY_HIGH_LOW);});
+            mMegaChatApi.requestHiResVideoWithQuality(mChatid, mCid, megachat::MegaChatCall::CALL_QUALITY_HIGH_LOW);});
         hiResMenuQuality->addAction(&action5);
 
         QAction action2("Stop LowRes", this);
