@@ -1498,7 +1498,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
         || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
     {
-        if (mState != CallState::kStateConnecting) // avoid interrupting a reconnection in progress
+        if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateJoining isn't included to avoid interrupting a reconnection in progress
         {
             if (mState == CallState::kStateInProgress
                     && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
