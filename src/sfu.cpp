@@ -7,29 +7,44 @@
 
 namespace sfu
 {
-// sfu->client commands
-std::string Command::COMMAND_IDENTIFIER = "a";
-std::string Command::ERROR_IDENTIFIER = "err";
-std::string AVCommand::COMMAND_NAME = "AV";
-std::string AnswerCommand::COMMAND_NAME = "ANSWER";
-std::string KeyCommand::COMMAND_NAME = "KEY";
-std::string VthumbsCommand::COMMAND_NAME = "VTHUMBS";
-std::string VthumbsStartCommand::COMMAND_NAME = "VTHUMB_START";
-std::string VthumbsStopCommand::COMMAND_NAME = "VTHUMB_STOP";
-std::string HiResCommand::COMMAND_NAME = "HIRES";
-std::string HiResStartCommand::COMMAND_NAME = "HIRES_START";
-std::string HiResStopCommand::COMMAND_NAME = "HIRES_STOP";
-std::string SpeakReqsCommand::COMMAND_NAME = "SPEAK_REQS";
-std::string SpeakReqDelCommand::COMMAND_NAME = "SPEAK_RQ_DEL";
-std::string SpeakOnCommand::COMMAND_NAME = "SPEAK_ON";
-std::string SpeakOffCommand::COMMAND_NAME = "SPEAK_OFF";
-std::string StatCommand::COMMAND_NAME = "STAT";
-std::string PeerJoinCommand::COMMAND_NAME = "PEERJOIN";
-std::string PeerLeftCommand::COMMAND_NAME = "PEERLEFT";
-std::string ErrorCommand::COMMAND_NAME = "ERR";
-std::string ModeratorCommand::COMMAND_NAME = "MOD"; // only for testing purposes
+
+// notifications SFU -> client
+//
+std::string Command::COMMAND_IDENTIFIER     = "a";
+std::string Command::ERROR_IDENTIFIER       = "err";
+
+const std::string AVCommand::COMMAND_NAME             = "AV";
+const std::string AnswerCommand::COMMAND_NAME         = "ANSWER";
+const std::string KeyCommand::COMMAND_NAME            = "KEY";
+const std::string VthumbsCommand::COMMAND_NAME        = "VTHUMBS";
+const std::string VthumbsStartCommand::COMMAND_NAME   = "VTHUMB_START";
+const std::string VthumbsStopCommand::COMMAND_NAME    = "VTHUMB_STOP";
+const std::string HiResCommand::COMMAND_NAME          = "HIRES";
+const std::string HiResStartCommand::COMMAND_NAME     = "HIRES_START";
+const std::string HiResStopCommand::COMMAND_NAME      = "HIRES_STOP";
+const std::string SpeakReqsCommand::COMMAND_NAME      = "SPEAK_REQS";
+const std::string SpeakReqDelCommand::COMMAND_NAME    = "SPEAK_RQ_DEL";
+const std::string SpeakOnCommand::COMMAND_NAME        = "SPEAK_ON";
+const std::string SpeakOffCommand::COMMAND_NAME       = "SPEAK_OFF";
+const std::string PeerJoinCommand::COMMAND_NAME       = "PEERJOIN";
+const std::string PeerLeftCommand::COMMAND_NAME       = "PEERLEFT";
 
 const std::string Sdp::endl = "\r\n";
+
+// commands client -> SFU
+const std::string SfuConnection::CSFU_JOIN         = "JOIN";
+const std::string SfuConnection::CSFU_SENDKEY      = "KEY";
+const std::string SfuConnection::CSFU_AV           = "AV";
+const std::string SfuConnection::CSFU_GET_VTHUMBS  = "GET_VTHUMBS";
+const std::string SfuConnection::CSFU_DEL_VTHUMBS  = "DEL_VTHUMBS";
+const std::string SfuConnection::CSFU_GET_HIRES    = "GET_HIRES";
+const std::string SfuConnection::CSFU_DEL_HIRES    = "DEL_HIRES";
+const std::string SfuConnection::CSFU_HIRES_SET_LO = "HIRES_SET_LO";
+const std::string SfuConnection::CSFU_LAYER        = "LAYER";
+const std::string SfuConnection::CSFU_SPEAK_RQ     = "SPEAK_RQ";
+const std::string SfuConnection::CSFU_SPEAK_RQ_DEL = "SPEAK_RQ_DEL";
+const std::string SfuConnection::CSFU_SPEAK_DEL    = "SPEAKER_DEL";
+
 
 CommandsQueue::CommandsQueue():
     isSending(false)
@@ -46,39 +61,20 @@ void CommandsQueue::setSending(bool sending)
     isSending = sending;
 }
 
-void CommandsQueue::push(const std::string& command)
-{
-    commands.push_back(command);
-}
-
 std::string CommandsQueue::pop()
 {
-    if (commands.empty())
+    if (empty())
     {
         return std::string();
     }
 
-    std::string command = std::move(commands.front());
-    commands.pop_front();
+    std::string command = std::move(front());
+    pop_front();
     return command;
 }
 
-bool CommandsQueue::isEmpty()
-{
-    return commands.empty();
-}
 
-void CommandsQueue::clear()
-{
-    commands.clear();
-}
-
-Peer::Peer()
-    : mCid(0), mPeerid(::karere::Id::inval()), mAvFlags(0)
-{
-}
-
-Peer::Peer(Cid_t cid, karere::Id peerid, unsigned avFlags)
+Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid)
     : mCid(cid), mPeerid(peerid), mAvFlags(avFlags)
 {
 }
@@ -91,11 +87,9 @@ Peer::Peer(const Peer &peer)
 
 }
 
-void Peer::init(Cid_t cid, karere::Id peerid, unsigned avFlags)
+void Peer::setCid(Cid_t cid)
 {
     mCid = cid;
-    mPeerid = peerid;
-    mAvFlags = avFlags;
 }
 
 Cid_t Peer::getCid() const
@@ -326,7 +320,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
 
     Sdp sdp(sdpIterator->value);
 
-    rapidjson::Value::ConstMemberIterator tsIterator = command.FindMember("t");
+    rapidjson::Value::ConstMemberIterator tsIterator = command.FindMember("t"); // time elapsed since the start of the call
     if (tsIterator == command.MemberEnd() || !tsIterator->value.IsUint64())
     {
         SFU_LOG_ERROR("AnswerCommand::processCommand: Received data doesn't have 't' field");
@@ -334,7 +328,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     }
 
     // call start ts (ms)
-    uint64_t ts = tsIterator->value.GetUint64();
+    uint64_t callDuration = tsIterator->value.GetUint64();
 
     std::vector<Peer> peers;
     rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
@@ -344,7 +338,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     }
 
     std::map<Cid_t, TrackDescriptor> speakers;
-    rapidjson::Value::ConstMemberIterator speakersIterator = command.FindMember("speakers");
+    rapidjson::Value::ConstMemberIterator speakersIterator = command.FindMember("speakers");    // peers allowed to speak
     if (speakersIterator != command.MemberEnd() && speakersIterator->value.IsObject())
     {
         parseTracks(peers, speakers, speakersIterator, true);
@@ -354,10 +348,10 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator vthumbsIterator = command.FindMember("vthumbs");
     if (vthumbsIterator != command.MemberEnd() && vthumbsIterator->value.IsObject())
     {
-        parseTracks(peers, vthumbs, vthumbsIterator);
+        parseTracks(peers, vthumbs, vthumbsIterator, false);
     }
 
-    return mComplete(cid, sdp, ts, peers, vthumbs, speakers);
+    return mComplete(cid, sdp, callDuration, peers, vthumbs, speakers);
 }
 
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::ConstMemberIterator &it) const
@@ -394,7 +388,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
             }
 
             unsigned av = avIterator->value.GetUint();
-            peers.push_back(Peer(cid, userId, av));
+            peers.push_back(Peer(userId, av, cid));
         }
         else
         {
@@ -404,7 +398,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
     }
 }
 
-bool AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, TrackDescriptor>& tracks, rapidjson::Value::ConstMemberIterator &it, bool audio) const
+void AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, TrackDescriptor>& tracks, rapidjson::Value::ConstMemberIterator &it, bool audio) const
 {
     for (const Peer& peer : peers)
     {
@@ -413,7 +407,7 @@ bool AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
         if (iterator == it->value.MemberEnd() || !iterator->value.IsObject())
         {
              SFU_LOG_ERROR("parseTracks: invalid 'cid' value");
-             return false;
+             continue;
         }
 
         if (audio)
@@ -422,7 +416,7 @@ bool AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
             if (audioIterator == iterator->value.MemberEnd() || !audioIterator->value.IsObject())
             {
                  SFU_LOG_ERROR("parseTracks: invalid 'audio' value");
-                 return false;
+                 continue;
             }
 
             iterator = audioIterator;
@@ -436,11 +430,9 @@ bool AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
         }
         else
         {
-            return false;
+            continue;
         }
     }
-
-     return true;
 }
 
 void AnswerCommand::parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
@@ -492,7 +484,6 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    // TODO: check if it's necessary to add new data type to Rapid json impl
     Keyid_t id = static_cast<Keyid_t>(idIterator->value.GetUint());
 
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("from");
@@ -711,16 +702,6 @@ bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid);
 }
 
-StatCommand::StatCommand(const StatCommandFunction &complete)
-    : mComplete(complete)
-{
-
-}
-
-bool StatCommand::processCommand(const rapidjson::Document &command)
-{
-    return true;
-}
 
 PeerJoinCommand::PeerJoinCommand(const PeerJoinCommandFunction &complete)
     : mComplete(complete)
@@ -761,82 +742,63 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
 
 }
 
-ErrorCommand::ErrorCommand(const ErrorCommandFunction &complete)
-    : mComplete(complete)
-{
-}
-
-bool ErrorCommand::processCommand(const rapidjson::Document &command)
-{
-    rapidjson::Value::ConstMemberIterator codeIterator = command.FindMember("code");
-    if (codeIterator == command.MemberEnd() || !codeIterator->value.IsUint())
-    {
-        SFU_LOG_ERROR("ErrorCommand: Received data doesn't have 'code' field");
-        return false;
-    }
-
-    std::string errorMsg = "";
-    unsigned int code = codeIterator->value.GetUint();
-    rapidjson::Value::ConstMemberIterator msgIterator = command.FindMember("msg");
-    if (msgIterator != command.MemberEnd() && msgIterator->value.IsString())
-    {
-        errorMsg = msgIterator->value.GetString();
-    }
-    return mComplete(code, errorMsg);
-}
-
 Sdp::Sdp(const std::string &sdp)
 {
     size_t pos = 0;
     std::string buffer = sdp;
-    std::vector<std::string> tokens;
-    while ((pos = buffer.find(endl)) != std::string::npos)
+    std::vector<std::string> lines;
+    while ((pos = buffer.find(Sdp::endl)) != std::string::npos)
     {
-        std::string token = buffer.substr(0, pos);
-        tokens.push_back(token);
-        buffer.erase(0, pos + endl.size());
+        std::string line = buffer.substr(0, pos);
+        lines.push_back(line);
+        buffer.erase(0, pos + Sdp::endl.size());
     }
 
-    for (const std::string& line : tokens)
+    for (const std::string& line : lines)
     {
         if (line.size() > 2 && line[0] == 'm' && line[1] == '=')
         {
+            // "cmn" precedes any "m=" line in the session-description provided by WebRTC
+            assert(mData.find("cmn") != mData.end());
             break;
         }
 
-        mData["cmn"].append(line).append(endl);
+        mData["cmn"].append(line).append(Sdp::endl);
     }
 
     unsigned int i = 0;
-    while (i < tokens.size())
+    while (i < lines.size())
     {
-        const std::string& line = tokens.at(i);
+        const std::string& line = lines.at(i);
         std::string type = line.substr(2, 5);
         if (type == "audio" && mData.find("atpl") == mData.end())
         {
-            i = createTemplate("atpl", tokens, i);
+            i = createTemplate("atpl", lines, i);   // can consume more than one line -> update `i`
             if (mData.find("vtpl") != mData.end())
             {
+                // if "vtpl" is already added to data, we are done
                 break;
             }
         }
         else if (type == "video" && mData.find("vtpl") == mData.end())
         {
-            i = createTemplate("vtpl", tokens, i);
-            if (mData.find("atpl") != mData.end())
+            i = createTemplate("vtpl", lines, i);
+            if (mData.find("atpl") != mData.end())  // TODO: why do we break here?
             {
+                // if "atpl" is already added to data, we are done
                 break;
             }
         }
         else
         {
-            i = nextMline(tokens, i + 1);
+            // find next line starting with "m"
+            i = nextMline(lines, i + 1);
         }
     }
 
-    for (i = nextMline(tokens, 0); i < tokens.size();)
+    for (i = nextMline(lines, 0); i < lines.size();)
     {
-        i = addTrack(tokens, i);
+        i = addTrack(lines, i);
     }
 }
 
@@ -865,6 +827,7 @@ Sdp::Sdp(const rapidjson::Value &sdp)
     rapidjson::Value::ConstMemberIterator tracksIterator = sdp.FindMember("tracks");
     if (tracksIterator != sdp.MemberEnd() && tracksIterator->value.IsArray())
     {
+        // TODO: check whether we should use Size() instead of Capacity() (also check other usages of Capacity())
         for (unsigned int i = 0; i < tracksIterator->value.Capacity(); i++)
         {
             mTracks.push_back(parseTrack(tracksIterator->value[i]));
@@ -877,7 +840,7 @@ std::string Sdp::unCompress()
     std::string sdp;
     sdp.append(mData["cmn"]);
 
-    for (const SdpTrack& track : mTracks)
+    for (const Sdp::Track& track : mTracks)
     {
         if (track.mType == "a")
         {
@@ -892,17 +855,13 @@ std::string Sdp::unCompress()
     return sdp;
 }
 
-void Sdp::toJson(rapidjson::Document& json) const
-{
-}
-
 unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position)
 {
     std::string temp = lines[position++];
-    temp.append(endl);
+    temp.append(Sdp::endl);
 
-    unsigned int i = 0;
-    for (i = position; i < lines.size(); i++)
+    unsigned int i = position;
+    for (; i < lines.size(); i++)
     {
         const std::string& line = lines[i];
         char lineType = line[0];
@@ -913,7 +872,7 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
 
         if (lineType != 'a')
         {
-            temp.append(line).append(endl);
+            temp.append(line).append(Sdp::endl);
             continue;
         }
 
@@ -929,7 +888,7 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
             continue;
         }
 
-        temp.append(line).append(endl);
+        temp.append(line).append(Sdp::endl);
     }
 
     mData[type] = temp;
@@ -940,7 +899,7 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
 unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int position)
 {
     std::string type = lines[position++].substr(2, 5);
-    SdpTrack track;
+    Sdp::Track track;
     if (type == "audio")
     {
         track.mType = "a";
@@ -950,9 +909,9 @@ unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int p
         track.mType = "v";
     }
 
-    unsigned int i = 0;
+    unsigned int i = position;
     std::set<uint64_t> ssrcsIds;
-    for (i = position; i < lines.size(); i++)
+    for (; i < lines.size(); i++)
     {
         std::string line = lines[i];
         char lineType = line[0];
@@ -1041,9 +1000,9 @@ std::string Sdp::nextWord(const std::string& line, unsigned int start, unsigned 
 
 }
 
-SdpTrack Sdp::parseTrack(const rapidjson::Value &value) const
+Sdp::Track Sdp::parseTrack(const rapidjson::Value &value) const
 {
-    SdpTrack track;
+    Sdp::Track track;
 
     rapidjson::Value::ConstMemberIterator typeIterator = value.FindMember("t");
     if (typeIterator != value.MemberEnd() && typeIterator->value.IsString())
@@ -1114,30 +1073,30 @@ SdpTrack Sdp::parseTrack(const rapidjson::Value &value) const
     return  track;
 }
 
-std::string Sdp::unCompressTrack(const SdpTrack& track, const std::string &tpl)
+std::string Sdp::unCompressTrack(const Sdp::Track& track, const std::string &tpl)
 {
     std::string sdp = tpl;
 
-    sdp.append("a=mid:").append(std::to_string(track.mMid)).append(endl);
-    sdp.append("a=").append(track.mDir).append(endl);
+    sdp.append("a=mid:").append(std::to_string(track.mMid)).append(Sdp::endl);
+    sdp.append("a=").append(track.mDir).append(Sdp::endl);
     if (track.mId.size())
     {
-        sdp.append("a=msid:").append(track.mSid).append(" ").append(track.mId).append(endl);
+        sdp.append("a=msid:").append(track.mSid).append(" ").append(track.mId).append(Sdp::endl);
     }
 
     if (track.mSsrcs.size())
     {
         for (const auto& ssrc : track.mSsrcs)
         {
-            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" cname:").append(ssrc.second.length() ? ssrc.second : track.mSid).append(endl);
-            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" msid:").append(track.mSid).append(" ").append(track.mId).append(endl);
+            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" cname:").append(ssrc.second.length() ? ssrc.second : track.mSid).append(Sdp::endl);
+            sdp.append("a=ssrc:").append(std::to_string(ssrc.first)).append(" msid:").append(track.mSid).append(" ").append(track.mId).append(Sdp::endl);
         }
 
         if (track.mSsrcg.size())
         {
             for (const std::string& grp : track.mSsrcg)
             {
-                sdp.append("a=ssrc-group:").append(grp).append(endl);
+                sdp.append("a=ssrc-group:").append(grp).append(Sdp::endl);
             }
         }
     }
@@ -1166,11 +1125,8 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1));
     mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2));
     mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1));
-    mCommands[StatCommand::COMMAND_NAME] = mega::make_unique<StatCommand>(std::bind(&sfu::SfuInterface::handleStatCommand, &call));
     mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1));
-    mCommands[ErrorCommand::COMMAND_NAME] = mega::make_unique<ErrorCommand>(std::bind(&sfu::SfuInterface::handleError, &call, std::placeholders::_1, std::placeholders::_2));
-    mCommands[ModeratorCommand::COMMAND_NAME] = mega::make_unique<ModeratorCommand>(std::bind(&sfu::SfuInterface::handleModerator, &call, std::placeholders::_1, std::placeholders::_2));
 }
 
 SfuConnection::~SfuConnection()
@@ -1223,10 +1179,10 @@ void SfuConnection::doConnect()
     std::string ipv4 = mIpsv4.size() ? mIpsv4[0] : "";
     std::string ipv6 = mIpsv6.size() ? mIpsv6[0] : "";
 
+    mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
+
     setConnState(kConnecting);
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
-
-    mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
     bool rt = wsConnect(&mWebsocketIO, mTargetIp.c_str(),
           url.host.c_str(),
@@ -1330,8 +1286,9 @@ bool SfuConnection::sendCommand(const std::string &command)
 
 void SfuConnection::addNewCommand(const std::string &command)
 {
-    checkThreadId();                // Check that commandsQueue is always accessed from a single thread
-    mCommandsQueue.push(command);   // push command in the queue
+    checkThreadId();    // Check that commandsQueue is always accessed from a single thread
+
+    mCommandsQueue.push_back(command);   // push command in the queue
     processNextCommand();
 }
 
@@ -1345,7 +1302,7 @@ void SfuConnection::processNextCommand(bool resetSending)
         mCommandsQueue.setSending(false);
     }
 
-    if (mCommandsQueue.isEmpty() || mCommandsQueue.sending())
+    if (mCommandsQueue.empty() || mCommandsQueue.sending())
     {
         return;
     }
@@ -1367,6 +1324,7 @@ void SfuConnection::processNextCommand(bool resetSending)
 void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
+
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
@@ -1425,21 +1383,17 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
     return processCommandResult;
 }
 
-promise::Promise<void> SfuConnection::getPromiseConnection()
-{
-    return mConnectPromise;
-}
-
 bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker, int vthumbs)
 {
     rapidjson::Document json(rapidjson::kObjectType);
 
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_JOIN.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_JOIN.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value sdpValue(rapidjson::kObjectType);
-    for (const auto& data : sdp.mData)
+    auto data = sdp.data();
+    for (const auto& data : data)
     {
         rapidjson::Value dataValue(rapidjson::kStringType);
         dataValue.SetString(data.second.c_str(), data.second.length());
@@ -1447,10 +1401,12 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
     }
 
     rapidjson::Value tracksValue(rapidjson::kArrayType);
-    for(const SdpTrack& track : sdp.mTracks)
+    auto tracks = sdp.tracks();
+    for (const Sdp::Track& track : tracks)
     {
         if (track.mType != "a" && track.mType != "v")
         {
+            // skip any other (unknown) type of track. Only audio and video are supported
             continue;
         }
 
@@ -1536,9 +1492,12 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
 bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys)
 {
+    if (keys.empty())
+        return true;
+
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_SENDKEY.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_SENDKEY.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value idValue(rapidjson::kNumberType);
@@ -1568,7 +1527,7 @@ bool SfuConnection::sendAv(unsigned av)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_AV.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_AV.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value avValue(rapidjson::kNumberType);
@@ -1586,7 +1545,7 @@ bool SfuConnection::sendGetVtumbs(const std::vector<Cid_t> &cids)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_GET_VTHUMBS.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_GET_VTHUMBS.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
@@ -1608,7 +1567,7 @@ bool SfuConnection::sendDelVthumbs(const std::vector<Cid_t> &cids)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_DEL_VTHUMBS.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_DEL_VTHUMBS.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
@@ -1630,7 +1589,7 @@ bool SfuConnection::sendGetHiRes(Cid_t cid, int r, int lo)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_GET_HIRES.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_GET_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
@@ -1648,7 +1607,7 @@ bool SfuConnection::sendDelHiRes(const std::vector<Cid_t> &cids)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_DEL_HIRES.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_DEL_HIRES.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
@@ -1669,7 +1628,7 @@ bool SfuConnection::sendHiResSetLo(Cid_t cid, int lo)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_HIRES_SET_LO.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_HIRES_SET_LO.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
@@ -1686,7 +1645,7 @@ bool SfuConnection::sendLayer(int spt, int tmp, int stmp)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_LAYER.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_LAYER.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
     json.AddMember("spt", rapidjson::Value(spt), json.GetAllocator());
     json.AddMember("tmp", rapidjson::Value(tmp), json.GetAllocator());
@@ -1702,7 +1661,7 @@ bool SfuConnection::sendSpeakReq(Cid_t cid)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_SPEAK_RQ.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_SPEAK_RQ.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     if (cid)
@@ -1721,7 +1680,7 @@ bool SfuConnection::sendSpeakReqDel(Cid_t cid)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_SPEAK_RQ_DEL.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_SPEAK_RQ_DEL.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     if (cid)
@@ -1740,7 +1699,7 @@ bool SfuConnection::sendSpeakDel(Cid_t cid)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(CSFU_SPEAK_DEL.c_str(), json.GetAllocator());
+    cmdValue.SetString(SfuConnection::CSFU_SPEAK_DEL.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     if (cid)
@@ -1896,8 +1855,14 @@ promise::Promise<void> SfuConnection::reconnect()
 
                 if (!mRetryCtrl)
                 {
-                    SFU_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
-                    assert(isOnline());
+                    if (isOnline())
+                    {
+                        SFU_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                    }
+                    else
+                    {
+                        SFU_LOG_DEBUG("DNS resolution completed but ignored: connection was aborted");
+                    }
                     return;
                 }
                 if (mRetryCtrl.get() != retryCtrl)
@@ -1989,7 +1954,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
 
                 assert(isOnline());
-                mCall.handleSfuConnected();
+                mCall.onSfuConnected();
             });
 
         }, wptr, mAppCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
@@ -2021,7 +1986,7 @@ SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryp
 
 }
 
-SfuConnection* SfuClient::generateSfuConnection(karere::Id chatid, const std::string &sfuUrl, SfuInterface &call)
+SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, const std::string &sfuUrl, SfuInterface &call)
 {
     assert(mConnections.find(chatid) == mConnections.end());
     mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mWebsocketIO, mAppCtx, call);
@@ -2030,7 +1995,7 @@ SfuConnection* SfuClient::generateSfuConnection(karere::Id chatid, const std::st
     return sfuConnection;
 }
 
-void SfuClient::closeManagerProtocol(karere::Id chatid)
+void SfuClient::closeSfuConnection(karere::Id chatid)
 {
     mConnections[chatid]->disconnect();
     mConnections.erase(chatid);
@@ -2041,7 +2006,7 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
     return mRtcCryptoMeetings;
 }
 
-void SfuClient::reconnectAllToSFU(bool disconnect)
+void SfuClient::retryPendingConnections(bool disconnect)
 {
     for (auto it = mConnections.begin(); it != mConnections.end(); it++)
     {
@@ -2065,32 +2030,6 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
 
     ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
     return mComplete(cid);
-}
-
-ModeratorCommand::ModeratorCommand(const ModeratorCommandFunction &complete)
-    : mComplete(complete)
-{
-}
-
-bool ModeratorCommand::processCommand(const rapidjson::Document &command)
-{
-    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    Cid_t cid = 0;
-    if (cidIterator != command.MemberEnd() || cidIterator->value.IsUint())
-    {
-        cid = (cidIterator->value.GetUint64());
-    }
-
-    rapidjson::Value::ConstMemberIterator modeIterator = command.FindMember("mod");
-    if (modeIterator == command.MemberEnd() || !modeIterator->value.IsUint())
-    {
-        SFU_LOG_ERROR("Received data doesn't have 'mod' field");
-        return false;
-    }
-
-    bool moderator = modeIterator->value.GetUint();
-
-    return mComplete(cid, moderator);
 }
 
 }

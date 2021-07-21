@@ -5258,10 +5258,6 @@ bool MockupCall::handleSpeakOffCommand(Cid_t cid)
     return true;
 }
 
-bool MockupCall::handleStatCommand()
-{
-    return true;
-}
 
 bool MockupCall::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 {
@@ -5273,17 +5269,7 @@ bool MockupCall::handlePeerLeft(Cid_t cid)
     return true;
 }
 
-bool MockupCall::handleError(unsigned int, const string)
-{
-    return true;
-}
-
-bool MockupCall::handleModerator(Cid_t cid, bool moderator)
-{
-    return true;
-}
-
-void MockupCall::handleSfuConnected()
+void MockupCall::onSfuConnected()
 {
 
 }

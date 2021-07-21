@@ -953,13 +953,9 @@ public:
      * inconsistent, karere will behave as if \c false was specified - will
      * delete the karere.db file and re-create it from scratch.
      */
-#ifndef KARERE_DISABLE_WEBRTC
-    Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& app, rtcModule::IGlobalCallHandler& globalCallHandler, const std::string& appDir,
-           uint8_t caps, void *ctx = NULL);
-#else
-    Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& app, const std::string& appDir,
-           uint8_t caps, void *ctx = NULL);
-#endif
+    Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
+           rtcModule::IGlobalCallHandler&globalCallHandler,
+           const std::string &appDir, uint8_t caps, void *ctx);
 
     virtual ~Client();
 
