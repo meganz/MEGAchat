@@ -77,7 +77,6 @@ bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
 
 WebsocketsClient::WebsocketsClient(bool writeBinary)
     : ctx(nullptr)
-    , thread_id(0)
     , mWriteBinary(writeBinary)
 { }
 
