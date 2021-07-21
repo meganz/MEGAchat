@@ -831,7 +831,8 @@ void Call::joinSfu()
 
         if (mState != kStateJoining)
         {
-            RTCM_LOG_WARNING("joinSfu: get unexpect state change at createOffer");
+            RTCM_LOG_WARNING("joinSfu: get unexpected state change at createOffer");
+            assert(false); // theoretically, it should not happen. If so, it may worth to investigate
             return ::promise::_Void();
         }
 
@@ -854,7 +855,8 @@ void Call::joinSfu()
 
         if (mState != kStateJoining)
         {
-            RTCM_LOG_WARNING("joinSfu: get unexpect state change at setLocalDescription");
+            RTCM_LOG_WARNING("joinSfu: get unexpected state change at setLocalDescription");
+            assert(false); // theoretically, it should not happen. If so, it may worth to investigate
             return;
         }
 
@@ -996,6 +998,8 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
     if (mState != kStateJoining && mState != kStateInProgress)
     {
+        RTCM_LOG_WARNING("handleAvCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1149,6 +1153,8 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleKeyCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1204,6 +1210,8 @@ bool Call::handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &vid
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleVThumbsCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1215,6 +1223,8 @@ bool Call::handleVThumbsStartCommand()
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleVThumbsStartCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1227,6 +1237,8 @@ bool Call::handleVThumbsStopCommand()
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleVThumbsStopCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1239,6 +1251,8 @@ bool Call::handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor>& video
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleHiResCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1250,6 +1264,8 @@ bool Call::handleHiResStartCommand()
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleHiResStartCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1262,6 +1278,8 @@ bool Call::handleHiResStopCommand()
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleHiResStopCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1274,6 +1292,8 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleSpeakReqsCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1299,6 +1319,8 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleSpeakReqDelCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1333,6 +1355,8 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleSpeakOnCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1361,6 +1385,8 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handleSpeakOffCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1390,6 +1416,8 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handlePeerJoin: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1419,6 +1447,8 @@ bool Call::handlePeerLeft(Cid_t cid)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
+        RTCM_LOG_WARNING("handlePeerLeft: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         return false;
     }
 
@@ -1447,6 +1477,10 @@ bool Call::error(unsigned int code)
     auto wptr = weakHandle();
     karere::marshallCall([wptr, this, code]()
     {
+        // error() is called from LibwebsocketsClient::wsCallback() for LWS_CALLBACK_CLIENT_RECEIVE.
+        // If disconnect() is called here immediately, it will destroy the LWS client synchronously,
+        // leave it in an invalid state (and will crash at Libwebsockets::resetMessage())
+
         if (wptr.deleted())
         {
             return;
@@ -1466,7 +1500,8 @@ void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> /*stream
 {
     if (mState != kStateJoining)
     {
-        assert(mState != kStateInProgress);
+        RTCM_LOG_WARNING("onAddStream: get unexpected state");
+        assert(mState != kStateInProgress); // theoretically, it should not happen. If so, it may worth to investigate
         return;
     }
 
@@ -1480,7 +1515,8 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
 {
     if (mState != kStateJoining)
     {
-        assert(mState != kStateInProgress);
+        RTCM_LOG_WARNING("onTrack: get unexpected state");
+        assert(mState != kStateInProgress); // theoretically, it should not happen. If so, it may worth to investigate
         return;
     }
 
@@ -1510,7 +1546,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
         || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
     {
-        if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateJoining isn't included to avoid interrupting a reconnection in progress
+        if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateConnecting isn't included to avoid interrupting a reconnection in progress
         {
             if (mState == CallState::kStateInProgress
                     && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
