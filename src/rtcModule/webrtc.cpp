@@ -141,6 +141,8 @@ bool SvcDriver::updateSvcQuality(int8_t delta)
     {
         return false;
     }
+
+    RTCM_LOG_WARNING("switchSvcQuality: Switching rx SVC quality from %d to %d", mCurrentSvcLayerIndex, newSvcLayerIndex);
     mTsLastSwitch = time(nullptr); // update last Ts SVC switch
     mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
     return true;
@@ -746,17 +748,23 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
 
 void Call::checkAdaptTxSvcQuality(int8_t txSpt)
 {
-    if (!mHiRes)
+    if (!mHiRes || txSpt < 0)
     {
         return;
     }
 
     int8_t sentLayers = mHiRes->getTxSvcLayerCount();
     int8_t newSentLayers = txSpt + 1; // +1 for layer index to count
+
+    if (newSentLayers != sentLayers)
+    {
+         RTCM_LOG_WARNING("TX Spatial changed: NEW %d OLD: %d", newSentLayers, sentLayers);
+    }
+
     if (newSentLayers < sentLayers)
     {
         // decrease tx SVC quality
-        mHiRes->setTxSvcLayerCount(newSentLayers);
+        mHiRes->updateTxSvcEnc(newSentLayers, true);
         mSvcDriver.mTsLastSwitch = time(nullptr); // update last Ts SVC switch
     }
     else if (newSentLayers > sentLayers)
@@ -765,7 +773,7 @@ void Call::checkAdaptTxSvcQuality(int8_t txSpt)
         if (mStats.mSamples.mVtxHiResfps.size() &&
                 mStats.mSamples.mVtxHiResfps.back() >= 12)
         {
-            mHiRes->setTxSvcLayerCount(sentLayers + 1); // don't set to allowedLayers - it may be several steps
+            mHiRes->updateTxSvcEnc(sentLayers + 1, true); // don't set to allowedLayers - it may be several steps
             mSvcDriver.mTsLastSwitch = time(nullptr);   // update last Ts SVC switch
         }
     }
@@ -777,13 +785,14 @@ void Call::checkAdaptTxSvcQuality(int8_t txSpt)
         {
             RTCM_LOG_WARNING("Apparent local CPU/bandwidth starvation (fps = %d), disabling highest SVC resolution", mStats.mSamples.mVtxHiResfps.back());
             mSvcDriver.mTsLastSwitch = time(nullptr);
-            mHiRes->setTxSvcLayerCount(sentLayers - 1);
+            mHiRes->updateTxSvcEnc(sentLayers - 1, true);
         }
     }
 }
 
 void Call::switchRxSvcQuality(int8_t delta, int8_t &txSpt)
 {
+    // update SvcQuality index
     if (!mSvcDriver.updateSvcQuality(delta))
     {
         return;
@@ -802,7 +811,6 @@ void Call::switchRxSvcQuality(int8_t delta, int8_t &txSpt)
     }
 
     // send LAYER command to adjust Rx SVC quality
-    RTCM_LOG_WARNING("switchSvcQuality: Switching rx SVC quality from %d to %d", mSvcDriver.mCurrentSvcLayerIndex, layerIndex);
     mSvcDriver.mCurrentSvcLayerIndex = layerIndex;
     mSfuConnection->sendLayer(rxSpt, rxTmp, rxStmp);
 }
@@ -1862,6 +1870,7 @@ void Call::updateVideoTracks()
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
                 mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
+                mHiRes->updateTxSvcEnc(); // update SVC encoding params with current value of mSentLayers
                 mHiRes->setTsStart(time(nullptr));
             }
             else if (!mHiResActive)
@@ -1945,7 +1954,7 @@ void Call::adjustSvcByStats()
         return; // too early
     }
 
-    int8_t txSpt = 0;
+    int8_t txSpt = -1; // initialize to invalid value (<0)
     if (mSvcDriver.mCurrentSvcLayerIndex > 0
             && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
     {
@@ -2517,12 +2526,16 @@ void Slot::enableTrack(bool enable, TrackDirection direction)
     }
 }
 
-void Slot::setTxSvcLayerCount(int8_t sentLayers)
+void Slot::updateTxSvcEnc(int8_t sentLayers, bool updateSentLayers)
 {
-    mSentLayers = sentLayers;
+    if (updateSentLayers)
+    {
+        mSentLayers = sentLayers;
+    }
+
     if (!getTransceiver()->sender()->track())
     {
-        RTCM_LOG_WARNING("setTxSvcLayerCount: Currently not sending HI-RES track, will only record sentLayers value");
+        RTCM_LOG_WARNING("updateTxSvcEnc: Currently not sending HI-RES track, will only record sentLayers value");
         return;
     }
 
@@ -2530,16 +2543,16 @@ void Slot::setTxSvcLayerCount(int8_t sentLayers)
     std::vector<webrtc::RtpEncodingParameters> encs = parameters.encodings;
     if (encs.empty() || encs.size() < 2)
     {
-        RTCM_LOG_WARNING("setTxSvcLayerCount: There is no SVC enabled for this sender");
+        RTCM_LOG_WARNING("updateTxSvcEnc: There is no SVC enabled for this sender");
         return;
     }
 
     for (size_t i = 0; i < encs.size(); i++)
     {
-        encs[i].active = i < static_cast<size_t>(sentLayers);
+        encs[i].active = i < static_cast<size_t>(mSentLayers);
     }
 
-    RTCM_LOG_WARNING("setTxSvcLayerCount: Enabling only first %d layers",sentLayers);
+    RTCM_LOG_WARNING("updateTxSvcEnc: Enabling only first %d layers",mSentLayers);
     getTransceiver()->sender()->SetParameters(parameters);
     return;
 }

@@ -86,7 +86,7 @@ public:
     void createDecryptor(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
     void enableTrack(bool enable, TrackDirection direction);
-    void setTxSvcLayerCount(int8_t sentLayers);
+    void updateTxSvcEnc(int8_t sentLayers = 0, bool updateSentLayers = false);
     void setTsStart(time_t t);
     time_t getTsStart();
     int8_t getTxSvcLayerCount();
