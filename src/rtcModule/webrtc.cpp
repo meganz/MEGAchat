@@ -1444,11 +1444,20 @@ void Call::handleSfuConnected()
 
 bool Call::error(unsigned int code)
 {
-    disconnect(static_cast<TermCode>(code), "Unknow reason");
-    if (mParticipants.empty())
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, this, code]()
     {
-        mRtc.removeCall(mChatid, static_cast<TermCode>(code));
-    }
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        disconnect(static_cast<TermCode>(code), "Unknow reason");
+        if (mParticipants.empty())
+        {
+            mRtc.removeCall(mChatid, static_cast<TermCode>(code));
+        }
+    }, mRtc.getAppCtx());
 
     return true;
 }
