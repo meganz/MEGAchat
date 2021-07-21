@@ -944,9 +944,12 @@ void Call::handleCallDisconnect()
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
-    mStats.mTermCode = static_cast<int32_t>(termCode);
-    mStats.mDuration = time(nullptr) - mInitialTs;
-    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    if ( mStats.mSamples.mT.size() > 2)
+    {
+        mStats.mTermCode = static_cast<int32_t>(termCode);
+        mStats.mDuration = time(nullptr) - mInitialTs;
+        mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    }
 
     mStats.clear();
     if (mLocalAvFlags.videoCam())
