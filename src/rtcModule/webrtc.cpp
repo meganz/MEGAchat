@@ -829,6 +829,13 @@ void Call::joinSfu()
             return ::promise::_Void();
         }
 
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_WARNING("joinSfu: get unexpected state change at createOffer");
+            assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+            return ::promise::_Void();
+        }
+
         if (!mRtcConn)
         {
             assert(mState == kStateClientNoParticipating
@@ -843,6 +850,13 @@ void Call::joinSfu()
     {
         if (wptr.deleted())
         {
+            return;
+        }
+
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_WARNING("joinSfu: get unexpected state change at setLocalDescription");
+            assert(false); // theoretically, it should not happen. If so, it may worth to investigate
             return;
         }
 
@@ -924,9 +938,12 @@ void Call::handleCallDisconnect()
 
 void Call::disconnect(TermCode termCode, const std::string &)
 {
-    mStats.mTermCode = static_cast<int32_t>(termCode);
-    mStats.mDuration = time(nullptr) - mInitialTs;
-    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    if ( mStats.mSamples.mT.size() > 2)
+    {
+        mStats.mTermCode = static_cast<int32_t>(termCode);
+        mStats.mDuration = time(nullptr) - mInitialTs;
+        mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    }
 
     mStats.clear();
     if (getLocalAvFlags().videoCam())
@@ -979,6 +996,13 @@ bool Call::hasCallKey()
 
 bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
+    if (mState != kStateJoining && mState != kStateInProgress)
+    {
+        RTCM_LOG_WARNING("handleAvCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     if (mMyPeer->getCid() == cid)
     {
         RTCM_LOG_WARNING("handleAvCommand: Received our own AV flags");
@@ -1040,6 +1064,12 @@ void Call::requestPeerTracks(const std::set<Cid_t>& cids)
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, const std::vector<sfu::Peer>& peers,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
+    if (mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change");
+        return false;
+    }
+
     // set my own client-id (cid)
     mMyPeer->setCid(cid);
 
@@ -1068,7 +1098,15 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     .then([wptr, this, vthumbs, speakers, duration, cids]()
     {
         if (wptr.deleted())
+        {
             return;
+        }
+
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change at setRemoteDescription");
+            return;
+        }
 
         // prepare parameters for low resolution video
         double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
@@ -1113,6 +1151,13 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
 bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleKeyCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     Session *session = getSession(cid);
     if (!session)
     {
@@ -1163,12 +1208,26 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 
 bool Call::handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleVThumbsCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     handleIncomingVideo(videoTrackDescriptors, kLowRes);
     return true;
 }
 
 bool Call::handleVThumbsStartCommand()
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleVThumbsStartCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     mVThumbActive = true;
     updateVideoTracks();
     return true;
@@ -1176,6 +1235,13 @@ bool Call::handleVThumbsStartCommand()
 
 bool Call::handleVThumbsStopCommand()
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleVThumbsStopCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     mVThumbActive = false;
     updateVideoTracks();
     return true;
@@ -1183,12 +1249,26 @@ bool Call::handleVThumbsStopCommand()
 
 bool Call::handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor>& videoTrackDescriptors)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleHiResCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     handleIncomingVideo(videoTrackDescriptors, kHiRes);
     return true;
 }
 
 bool Call::handleHiResStartCommand()
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleHiResStartCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     mHiResActive = true;
     updateVideoTracks();
     return true;
@@ -1196,6 +1276,13 @@ bool Call::handleHiResStartCommand()
 
 bool Call::handleHiResStopCommand()
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleHiResStopCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     mHiResActive = false;
     updateVideoTracks();
     return true;
@@ -1203,6 +1290,13 @@ bool Call::handleHiResStopCommand()
 
 bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleSpeakReqsCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     for (Cid_t cid : speakRequests)
     {
         if (cid != mMyPeer->getCid())
@@ -1223,6 +1317,13 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 
 bool Call::handleSpeakReqDelCommand(Cid_t cid)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleSpeakReqDelCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     if (mMyPeer->getCid() != cid) // remote peer
     {
         Session *session = getSession(cid);
@@ -1252,6 +1353,13 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
 
 bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleSpeakOnCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
@@ -1275,6 +1383,13 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 
 bool Call::handleSpeakOffCommand(Cid_t cid)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleSpeakOffCommand: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
@@ -1299,6 +1414,13 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
 
 bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handlePeerJoin: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     sfu::Peer peer(userid, av, cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler->onNewSession(*mSessions[cid], *this);
@@ -1323,6 +1445,13 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 
 bool Call::handlePeerLeft(Cid_t cid)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handlePeerLeft: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
     auto it = mSessions.find(cid);
     if (it == mSessions.end())
     {
@@ -1345,17 +1474,37 @@ void Call::onSfuConnected()
 
 bool Call::error(unsigned int code)
 {
-    disconnect(static_cast<TermCode>(code), "Unknow reason");
-    if (mParticipants.empty())
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, this, code]()
     {
-        mRtc.removeCall(mChatid, static_cast<TermCode>(code));
-    }
+        // error() is called from LibwebsocketsClient::wsCallback() for LWS_CALLBACK_CLIENT_RECEIVE.
+        // If disconnect() is called here immediately, it will destroy the LWS client synchronously,
+        // leave it in an invalid state (and will crash at Libwebsockets::resetMessage())
+
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        disconnect(static_cast<TermCode>(code), "Unknow reason");
+        if (mParticipants.empty())
+        {
+            mRtc.removeCall(mChatid, static_cast<TermCode>(code));
+        }
+    }, mRtc.getAppCtx());
 
     return true;
 }
 
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> /*stream*/)
 {
+    if (mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("onAddStream: get unexpected state");
+        assert(mState != kStateInProgress); // theoretically, it should not happen. If so, it may worth to investigate
+        return;
+    }
+
     assert(mVThumb && mHiRes && mAudio);
     mVThumb->createEncryptor();
     mHiRes->createEncryptor();
@@ -1364,6 +1513,13 @@ void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> /*stream
 
 void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
 {
+    if (mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("onTrack: get unexpected state");
+        assert(mState != kStateInProgress); // theoretically, it should not happen. If so, it may worth to investigate
+        return;
+    }
+
     absl::optional<std::string> mid = transceiver->mid();
     if (mid.has_value())
     {
@@ -1390,7 +1546,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
         || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
     {
-        if (mState != CallState::kStateConnecting) // avoid interrupting a reconnection in progress
+        if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateConnecting isn't included to avoid interrupting a reconnection in progress
         {
             if (mState == CallState::kStateInProgress
                     && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
