@@ -5171,7 +5171,9 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
     if (clientId == 0)
     {
         mLocalVideoListeners[chatid].insert(listener);
-        marshallCall([this, chatid](){
+        marshallCall([this, chatid]()
+        {
+            // avoid access from App thread to RtcModule::mRenderers
             mClient->rtc->addLocalVideoRenderer(chatid, new MegaChatVideoReceiver(this, chatid, rtcModule::VideoResolution::kHiRes));
         }, this);
     }
@@ -5207,7 +5209,9 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
             {
                 // if videoListenersSet is empty, remove entry from mLocalVideoListeners map
                 mLocalVideoListeners.erase(chatid);
-                marshallCall([this, chatid](){
+                marshallCall([this, chatid]()
+                {
+                    // avoid access from App thread to RtcModule::mRenderers
                     mClient->rtc->removeLocalVideoRenderer(chatid);
                 }, this);
             }
