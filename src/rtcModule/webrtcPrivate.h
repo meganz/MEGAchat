@@ -215,13 +215,14 @@ public:
     bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
 
     uint8_t mCurrentSvcLayerIndex;
-    float mPacketLostLower;
-    float mPacketLostUpper;
-    float mLowestRttSeen;
-    float mRttLower;
-    float mRttUpper;
-    float mMovingAverageRtt;
-    float mMovingAveragePlost;
+
+    double mPacketLostLower;
+    double mPacketLostUpper;
+    double mLowestRttSeen;
+    double mRttLower;
+    double mRttUpper;
+    double mMovingAverageRtt;
+    double mMovingAveragePlost;
     time_t mTsLastSwitch;
 };
 
@@ -445,8 +446,6 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
-    // Current SVC layer index
-    int mCurrentSvcLayerIndex = 0;
 
     void generateAndSendNewkey();
     // associate slots with their corresponding sessions (video)

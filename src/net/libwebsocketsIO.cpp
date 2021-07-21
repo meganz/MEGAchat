@@ -404,25 +404,6 @@ static bool check_public_key(X509_STORE_CTX* ctx)
                 }
             }
         }
-
-        // CONNECT TO SFU STATS
-        if ((BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSTATSSSLEXPONENT - 1)
-                && ((BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSTATSSSLMODULUS  - 1)
-                    || (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSTATSSSLMODULUS2 - 1)))
-        {
-            BN_bn2bin(RSA_get0_n(EVP_PKEY_get0_RSA(evp)), buf);
-
-            if (!memcmp(buf,SFUSTATSSSLMODULUS, sizeof SFUSTATSSSLMODULUS - 1)            // check main key
-                || !memcmp(buf,SFUSTATSSSLMODULUS2, sizeof SFUSTATSSSLMODULUS2 - 1))      // check backup key
-            {
-                BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
-                if (!memcmp(buf, SFUSTATSSSLEXPONENT, sizeof SFUSTATSSSLEXPONENT - 1))
-                {
-                    EVP_PKEY_free(evp);
-                    return true;
-                }
-            }
-        }
         EVP_PKEY_free(evp);
     }
 

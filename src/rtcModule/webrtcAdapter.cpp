@@ -558,8 +558,7 @@ size_t MegaDecryptor::GetMaxPlaintextByteSize(cricket::MediaType /*media_type*/,
 CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
     : mCapabilities(capabilities)
 {
-    JNIEnv* env;
-    MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    JNIEnv* env = webrtc::AttachCurrentThreadIfNeeded();
     startVideoCaptureMID = env->GetStaticMethodID(applicationClass, "startVideoCapture", "(IIILorg/webrtc/SurfaceTextureHelper;Lorg/webrtc/CapturerObserver;Ljava/lang/String;)V");
     if (!startVideoCaptureMID)
     {

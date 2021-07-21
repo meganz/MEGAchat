@@ -757,7 +757,7 @@ void Call::switchSvcQuality(int8_t delta)
         return;
     }
 
-    mCurrentSvcLayerIndex = layerIndex;
+    mSvcDriver.mCurrentSvcLayerIndex = layerIndex;
     mSfuConnection->sendLayer(spt, tmp, stmp);
 }
 
@@ -1828,8 +1828,8 @@ void Call::adjustSvcByStats()
         return;
     }
 
-    float roundTripTime = (float)mStats.mSamples.mRoundTripTime.back();
-    float packetLost = 0;
+    double roundTripTime = mStats.mSamples.mRoundTripTime.back();
+    double packetLost = 0;
     if (mStats.mSamples.mPacketLost.size() >= 2)
     {
         // get last lost packets
@@ -1839,11 +1839,12 @@ void Call::adjustSvcByStats()
         // get periods
         int lastT = mStats.mSamples.mT.back();
         int prelastT = mStats.mSamples.mT.at(mStats.mSamples.mT.size() - 2);
-        packetLost = (float)abs(lastpl - prelastpl) / (float)abs(lastT - prelastT);
+        packetLost = static_cast<double>(abs(lastpl - prelastpl)) / (static_cast<double>(abs(lastT - prelastT)) / 1000.0);
     }
 
-    if (!mSvcDriver.mMovingAverageRtt)
+    if (std::fabs(mSvcDriver.mMovingAverageRtt) <= std::numeric_limits<double>::epsilon())
     {
+         // if mMovingAverageRtt has not value yet
          mSvcDriver.mMovingAverageRtt = roundTripTime;
          mSvcDriver.mMovingAveragePlost = packetLost;
          return; // intentionally skip first sample for lower/upper range calculation
@@ -1870,7 +1871,7 @@ void Call::adjustSvcByStats()
         return; // too early
     }
 
-    if (mCurrentSvcLayerIndex > 0
+    if (mSvcDriver.mCurrentSvcLayerIndex > 0
             && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
     {
         // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
@@ -1878,7 +1879,7 @@ void Call::adjustSvcByStats()
         // have been exceeded.
         switchSvcQuality(-1);
     }
-    else if (mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
+    else if (mSvcDriver.mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
              && roundTripTime < mSvcDriver.mRttLower
              && packetLost < mSvcDriver.mPacketLostLower)
     {
@@ -2213,6 +2214,12 @@ void RtcModuleSfu::openDevice()
         RTCM_LOG_WARNING("Default video in device is not set");
         assert(false);
         std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+        if (videoDevices.empty())
+        {
+            RTCM_LOG_ERROR("openDevice(): no video devices available");
+            return;
+        }
+
         videoDevice = videoDevices.begin()->second;
     }
 
