@@ -837,6 +837,12 @@ void Call::joinSfu()
             return ::promise::_Void();
         }
 
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_WARNING("joinSfu: get unexpect state change at createOffer");
+            return ::promise::_Void();
+        }
+
         if (!mRtcConn)
         {
             assert(mState == kStateClientNoParticipating);
@@ -850,6 +856,12 @@ void Call::joinSfu()
     {
         if (wptr.deleted())
         {
+            return;
+        }
+
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_WARNING("joinSfu: get unexpect state change at setLocalDescription");
             return;
         }
 
@@ -987,6 +999,11 @@ bool Call::hasCallKey()
 
 bool Call::handleAvCommand(Cid_t cid, unsigned av)
 {
+    if (mState != kStateJoining && mState != kStateInProgress)
+    {
+        return false;
+    }
+
     if (mMyPeer.getCid() == cid)
     {
         RTCM_LOG_WARNING("handleAvCommand: Received our own AV flags");
@@ -1047,6 +1064,12 @@ void Call::requestPeerTracks(const std::set<Cid_t>& cids)
 
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
 {
+    if (mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change");
+        return false;
+    }
+
     // mod param will be ignored
     std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
     karere::Id myUserHandle(userHandle.get());
@@ -1076,7 +1099,15 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
     .then([wptr, this, vthumbs, speakers, ts, cids]()
     {
         if (wptr.deleted())
+        {
             return;
+        }
+
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change at setRemoteDescription");
+            return;
+        }
 
         double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
         webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
@@ -1118,6 +1149,11 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std:
 
 bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     Session *session = getSession(cid);
     if (!session)
     {
@@ -1169,12 +1205,22 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
 
 bool Call::handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     handleIncomingVideo(videoTrackDescriptors);
     return true;
 }
 
 bool Call::handleVThumbsStartCommand()
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     mVThumbActive = true;
     updateVideoTracks();
     return true;
@@ -1182,6 +1228,11 @@ bool Call::handleVThumbsStartCommand()
 
 bool Call::handleVThumbsStopCommand()
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     mVThumbActive = false;
     updateVideoTracks();
     return true;
@@ -1189,12 +1240,22 @@ bool Call::handleVThumbsStopCommand()
 
 bool Call::handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor>& videoTrackDescriptors)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     handleIncomingVideo(videoTrackDescriptors, kHiRes);
     return true;
 }
 
 bool Call::handleHiResStartCommand()
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     mHiResActive = true;
     updateVideoTracks();
     return true;
@@ -1202,6 +1263,11 @@ bool Call::handleHiResStartCommand()
 
 bool Call::handleHiResStopCommand()
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     mHiResActive = false;
     updateVideoTracks();
     return true;
@@ -1209,6 +1275,11 @@ bool Call::handleHiResStopCommand()
 
 bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     for (Cid_t cid : speakRequests)
     {
         if (cid != mMyPeer.getCid())
@@ -1229,6 +1300,11 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 
 bool Call::handleSpeakReqDelCommand(Cid_t cid)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     if (mMyPeer.getCid() != cid) // remote peer
     {
         Session *session = getSession(cid);
@@ -1252,6 +1328,11 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
 
 bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     if (cid)
     {
         addSpeaker(cid, speaker);
@@ -1267,6 +1348,11 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
 
 bool Call::handleSpeakOffCommand(Cid_t cid)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     if (cid)
     {
         removeSpeaker(cid);
@@ -1287,6 +1373,11 @@ bool Call::handleStatCommand()
 
 bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     sfu::Peer peer(cid, userid, av);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler->onNewSession(*mSessions[cid], *this);
@@ -1311,6 +1402,11 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 
 bool Call::handlePeerLeft(Cid_t cid)
 {
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        return false;
+    }
+
     auto it = mSessions.find(cid);
     if (it == mSessions.end())
     {
@@ -1356,6 +1452,12 @@ bool Call::error(unsigned int code)
 
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 {
+    if (mState != kStateJoining)
+    {
+        assert(mState != kStateInProgress);
+        return;
+    }
+
     assert(mVThumb  && mHiRes && mAudio);
     mVThumb->createEncryptor(getMyPeer());
     mHiRes->createEncryptor(getMyPeer());
@@ -1364,6 +1466,12 @@ void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 
 void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
 {
+    if (mState != kStateJoining)
+    {
+        assert(mState != kStateInProgress);
+        return;
+    }
+
     absl::optional<std::string> mid = transceiver->mid();
     if (mid.has_value())
     {
