@@ -83,7 +83,7 @@ public:
     void assign(Cid_t cid, IvStatic_t iv);
     bool hasTrack(bool send);
     void createDecryptor(Cid_t cid, IvStatic_t iv);
-    void updateTxSvcEnc(int8_t sentLayers = 0, bool updateSentLayers = false);
+    void updateTxSvcEnc(int8_t sentLayers);
     void setTsStart(time_t t);
     time_t getTsStart();
     int8_t getTxSvcLayerCount();

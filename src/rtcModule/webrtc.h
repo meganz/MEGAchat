@@ -233,7 +233,7 @@ enum RtcConstant {
    kVthumbWidth = 160,  // px
    kAudioMonitorTimeout = 2000, // ms
    kStatsInterval = 1000,   // ms
-   kSpatialLayerCount = 3,
+   kTxSpatialLayerCount = 3,
 };
 
 #endif
