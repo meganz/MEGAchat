@@ -121,6 +121,10 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->isArchived() : NO;
 }
 
+- (BOOL)isMeeting {
+    return self.megaChatRoom ? self.megaChatRoom->isMeeting() : NO;
+}
+
 - (NSUInteger)retentionTime {
     return self.megaChatRoom ? self.megaChatRoom->getRetentionTime() : 0;
 }
