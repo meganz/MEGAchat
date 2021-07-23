@@ -154,8 +154,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)addChatLocalVideo:(uint64_t)chatId delegate:(id<MEGAChatVideoDelegate>)delegate;
 - (void)removeChatLocalVideo:(uint64_t)chatId delegate:(id<MEGAChatVideoDelegate>)delegate;
 
-- (void)addChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId cliendId:(uint64_t)clientId delegate:(id<MEGAChatVideoDelegate>)delegate;
-- (void)removeChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId cliendId:(uint64_t)clientId delegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)addChatRemoteVideo:(uint64_t)chatId cliendId:(uint64_t)clientId hiRes:(BOOL)hiRes delegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)removeChatRemoteVideo:(uint64_t)chatId cliendId:(uint64_t)clientId hiRes:(BOOL)hiRes delegate:(id<MEGAChatVideoDelegate>)delegate;
 
 #endif
 
@@ -197,6 +197,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(NSString *)title;
+- (void)createMeetingWithTitle:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)createMeetingWithTitle:(NSString *)title;
 - (void)queryChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)queryChatLink:(uint64_t)chatId;
 - (void)createChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -288,6 +290,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (NSInteger)messageReactionCountForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction;
 - (MEGAStringList *)messageReactionsForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
 - (MEGAHandleList *)reactionUsersForChat:(uint64_t)chatId messageId:(uint64_t)messageId reaction:(NSString *)reaction;
+- (void)setPublicKeyPinning:(BOOL)enable;
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
 - (void)sendStopTypingNotificationForChat:(uint64_t)chatId;
@@ -303,13 +306,15 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (MEGAStringList *)chatVideoInDevices;
 - (void)setChatVideoInDevices:(NSString *)devices;
+- (void)setChatVideoInDevices:(NSString *)devices delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (NSString *)videoDeviceSelected;
-- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
-- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
+- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
 - (void)hangChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)hangChatCall:(uint64_t)chatId;
+- (void)hangChatCall:(uint64_t)callId;
+- (void)endChatCall:(uint64_t)callId;
 - (void)enableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)enableAudioForChat:(uint64_t)chatId;
 - (void)disableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -320,6 +325,10 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)disableVideoForChat:(uint64_t)chatId;
 - (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold;
+- (void)openVideoDevice;
+- (void)openVideoDeviceWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)releaseVideoDevice;
+- (void)releaseVideoDeviceWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
 @property (nonatomic, readonly) NSInteger numCalls;
@@ -332,7 +341,10 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (BOOL)isAudioLevelMonitorEnabledForChatId:(uint64_t)chatId;
 - (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId;
-
+- (void)requestHiResVideoForChatId:(uint64_t)chatId clientId:(uint64_t)clientId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)stopHiResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)requestLowResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)stopLowResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate;
 #endif
 
 #pragma mark - Debug log messages
