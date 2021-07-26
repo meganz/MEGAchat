@@ -882,8 +882,8 @@ void Call::joinSfu()
             return ::promise::Error("Failure at initialization. Call destroyed or disconnect");
         }
 
-        KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
         return mRtcConn.setLocalDescription(std::unique_ptr<webrtc::SessionDescriptionInterface>(sdp));   // takes onwership of sdp
+        KR_THROW_IF_FALSE(sdp->ToString(&mSdpStr));
     })
     .then([wptr, this]()
     {
@@ -892,7 +892,7 @@ void Call::joinSfu()
             return;
         }
 
-        sfu::Sdp sdp(mSdp);
+        sfu::Sdp sdp(mSdpStr);
 
         std::map<std::string, std::string> ivs;
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
