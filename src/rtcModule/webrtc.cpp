@@ -892,6 +892,9 @@ void Call::joinSfu()
         {
             disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
         }
+
+        // update mSdpStr with modified SDP
+        KR_THROW_IF_FALSE(sdpInterface->ToString(&mSdpStr));
         return mRtcConn.setLocalDescription(std::move(sdpInterface));   // takes onwership of sdp
     })
     .then([wptr, this]()
@@ -1859,7 +1862,6 @@ void Call::updateVideoTracks()
             {
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-                webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
                 mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
             }
             else if (!mVThumbActive)
