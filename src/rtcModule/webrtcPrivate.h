@@ -80,25 +80,22 @@ public:
     void createEncryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
-    void assign(Cid_t cid, IvStatic_t iv);
+    virtual void assign(Cid_t cid, IvStatic_t iv);
     bool hasTrack(bool send);
-    void createDecryptor(Cid_t cid, IvStatic_t iv);
+    virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
     IvStatic_t getIv() const;
     void generateRandomIv();
     virtual void release();
 
 private:
     void createDecryptor();
-    void enableAudioMonitor(bool enable);
     void enableTrack(bool enable, TrackDirection direction);
 
 protected:
     Call &mCall;
     IvStatic_t mIv;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
-    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     Cid_t mCid = 0;
-    bool mAudioLevelMonitorEnabled = false;
 };
 
 class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
@@ -124,6 +121,19 @@ public:
 
 private:
     VideoResolution mVideoResolution = kUndefined;
+};
+
+class RemoteAudioSlot : public Slot
+{
+public:
+    RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void assign(Cid_t cid, IvStatic_t iv) override;
+    void enableAudioMonitor(bool enable);
+    void createDecryptor(Cid_t cid, IvStatic_t iv) override;
+    void release() override;
+private:
+    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
+    bool mAudioLevelMonitorEnabled = false;
 };
 
 

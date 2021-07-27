@@ -1526,7 +1526,7 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
         std::string value = mid.value();
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
         {
-            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<Slot>(*this, transceiver);
+            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver);
         }
         else
         {
@@ -2531,10 +2531,6 @@ void Slot::assign(Cid_t cid, IvStatic_t iv)
     assert(!mCid);
     createDecryptor(cid, iv);
     enableTrack(true, kRecv);
-    if (mTransceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
-    {
-        enableAudioMonitor(true); // enable audio monitor
-    }
 }
 
 bool Slot::hasTrack(bool send)
@@ -2557,28 +2553,6 @@ void Slot::createDecryptor(Cid_t cid, IvStatic_t iv)
     mCid = cid;
     mIv = iv;
     createDecryptor();
-
-    if (mTransceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
-    {
-        mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
-    }
-}
-
-void Slot::enableAudioMonitor(bool enable)
-{
-    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
-    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
-    assert(audioTrack);
-    if (enable && !mAudioLevelMonitorEnabled)
-    {
-        mAudioLevelMonitorEnabled = true;
-        audioTrack->AddSink(mAudioLevelMonitor.get());     // enable AudioLevelMonitor for remote audio detection
-    }
-    else if (!enable && mAudioLevelMonitorEnabled)
-    {
-        mAudioLevelMonitorEnabled = false;
-        audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
-    }
 }
 
 void Slot::enableTrack(bool enable, TrackDirection direction)
@@ -2613,13 +2587,6 @@ void Slot::release()
 
     mIv = 0;
     mCid = 0;
-
-    if (mAudioLevelMonitor)
-    {
-        enableAudioMonitor(false);
-        mAudioLevelMonitor = nullptr;
-        mAudioLevelMonitorEnabled = false;
-    }
 
     enableTrack(false, kRecv);
     rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = getTransceiver()->receiver()->GetFrameDecryptor();
@@ -2720,6 +2687,51 @@ void RemoteVideoSlot::enableTrack()
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
     videoTrack->set_enabled(true);
+}
+
+RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+    : Slot(call, transceiver)
+{
+}
+
+void RemoteAudioSlot::assign(Cid_t cid, IvStatic_t iv)
+{
+    Slot::assign(cid, iv);
+    enableAudioMonitor(true);   // Enable audio monitor
+}
+
+void RemoteAudioSlot::enableAudioMonitor(bool enable)
+{
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
+    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
+    assert(audioTrack);
+    if (enable && !mAudioLevelMonitorEnabled)
+    {
+        mAudioLevelMonitorEnabled = true;
+        audioTrack->AddSink(mAudioLevelMonitor.get());     // enable AudioLevelMonitor for remote audio detection
+    }
+    else if (!enable && mAudioLevelMonitorEnabled)
+    {
+        mAudioLevelMonitorEnabled = false;
+        audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
+    }
+}
+
+void RemoteAudioSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
+{
+    Slot::createDecryptor(cid, iv);
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
+}
+
+void RemoteAudioSlot::release()
+{
+    Slot::release();
+    if (mAudioLevelMonitor)
+    {
+        enableAudioMonitor(false);
+        mAudioLevelMonitor = nullptr;
+        mAudioLevelMonitorEnabled = false;
+    }
 }
 
 void globalCleanup()
