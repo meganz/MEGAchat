@@ -75,27 +75,42 @@ private:
 class Slot
 {
 public:
-    Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     virtual ~Slot();
-    void createEncryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
-    virtual void assign(Cid_t cid, IvStatic_t iv);
     bool hasTrack(bool send);
-    virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
     IvStatic_t getIv() const;
     void generateRandomIv();
-    virtual void release();
-
-private:
-    void createDecryptor();
-    void enableTrack(bool enable, TrackDirection direction);
 
 protected:
     Call &mCall;
     IvStatic_t mIv;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
     Cid_t mCid = 0;
+
+    Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+};
+
+class LocalSlot : public Slot
+{
+public:
+    LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void createEncryptor();
+};
+
+class RemoteSlot : public Slot
+{
+public:
+    virtual void assign(Cid_t cid, IvStatic_t iv);
+    virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
+    virtual void release();
+
+protected:
+    RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+
+private:
+    void createDecryptor();
+    void enableTrack(bool enable, TrackDirection direction);
 };
 
 class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
@@ -109,7 +124,7 @@ private:
     std::unique_ptr<IVideoRenderer> mRenderer;
 };
 
-class RemoteVideoSlot : public Slot, public VideoSink
+class RemoteVideoSlot : public RemoteSlot, public VideoSink
 {
 public:
     RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
@@ -123,7 +138,7 @@ private:
     VideoResolution mVideoResolution = kUndefined;
 };
 
-class RemoteAudioSlot : public Slot
+class RemoteAudioSlot : public RemoteSlot
 {
 public:
     RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
@@ -155,7 +170,7 @@ public:
     const sfu::Peer &getPeer() const;
     void setVThumSlot(RemoteVideoSlot* slot);
     void setHiResSlot(RemoteVideoSlot* slot);
-    void setAudioSlot(Slot* slot);
+    void setAudioSlot(RemoteAudioSlot *slot);
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
 
@@ -192,7 +207,7 @@ private:
 
     RemoteVideoSlot* mVthumSlot = nullptr;
     RemoteVideoSlot* mHiresSlot = nullptr;
-    Slot* mAudioSlot = nullptr;
+    RemoteAudioSlot* mAudioSlot = nullptr;
 
     // To notify events about the session to the app (intermediate layer)
     std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
@@ -431,12 +446,12 @@ protected:
 
     artc::MyPeerConnection<Call> mRtcConn;
     std::string mSdp;   // session description provided by WebRTC::createOffer()
-    std::unique_ptr<Slot> mAudio;
-    std::unique_ptr<Slot> mVThumb;
+    std::unique_ptr<LocalSlot> mAudio;
+    std::unique_ptr<LocalSlot> mVThumb;
     bool mVThumbActive = false;  // true when sending low res video
-    std::unique_ptr<Slot> mHiRes;
+    std::unique_ptr<LocalSlot> mHiRes;
     bool mHiResActive = false;  // true when sending high res video
-    std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;  // maps 'mid' to 'Slot'
+    std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
 
     // monitor the available tracks for resuming after a reconnection (requesting the same tracks)
@@ -466,7 +481,7 @@ protected:
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
+    void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes, bool reuse);
     void enableStats();
     void disableStats();
     void adjustSvcByStats();
