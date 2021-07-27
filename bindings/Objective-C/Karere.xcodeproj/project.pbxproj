@@ -228,6 +228,8 @@
 		A8AD680A25CD513800392F13 /* ListenerDispatch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ListenerDispatch.h; sourceTree = "<group>"; };
 		A8F96C18219DE3A2005A3EB6 /* MEGAChatGeolocation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatGeolocation.h; sourceTree = "<group>"; };
 		A8F96C19219DE3A2005A3EB6 /* MEGAChatGeolocation.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatGeolocation.mm; sourceTree = "<group>"; };
+		BF1146FC26AD60CD006E30F5 /* RTCAudioSessionConfiguration.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RTCAudioSessionConfiguration.h; path = ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/components/audio/RTCAudioSessionConfiguration.h; sourceTree = "<group>"; };
+		BF1146FD26AD60F3006E30F5 /* RTCDispatcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RTCDispatcher.h; path = ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/helpers/RTCDispatcher.h; sourceTree = "<group>"; };
 		BF959683269715090076E5F6 /* RTCAudioSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RTCAudioSession.h; path = ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/components/audio/RTCAudioSession.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -304,6 +306,8 @@
 		947566151F18D52700FE8664 /* rtcModule */ = {
 			isa = PBXGroup;
 			children = (
+				BF1146FD26AD60F3006E30F5 /* RTCDispatcher.h */,
+				BF1146FC26AD60CD006E30F5 /* RTCAudioSessionConfiguration.h */,
 				BF959683269715090076E5F6 /* RTCAudioSession.h */,
 				947566171F18D53D00FE8664 /* IDeviceListImpl.h */,
 				A87D1056220C6ECB007CC424 /* IRtcCrypto.h */,
