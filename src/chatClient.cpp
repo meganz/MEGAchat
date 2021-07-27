@@ -158,18 +158,28 @@ bool Client::openDb(const std::string& sid)
         KR_LOG_WARNING("Error opening database");
         return false;
     }
-    SqliteStmt stmt(db, "select value from vars where name = 'schema_version'");
-    if (!stmt.step())
+
+    std::string cachedVersion;
+    std::string currentVersion;
+    bool result;
+    {
+        SqliteStmt stmt(db, "select value from vars where name = 'schema_version'");
+        result = stmt.step();
+        if (result)
+        {
+            currentVersion.assign(gDbSchemaHash);
+            currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
+
+            cachedVersion.assign(stmt.stringCol(0));
+        }
+    }
+    if (!result)
     {
         db.close();
         KR_LOG_WARNING("Can't get local database version");
         return false;
     }
 
-    std::string currentVersion(gDbSchemaHash);
-    currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
-
-    std::string cachedVersion(stmt.stringCol(0));
     if (cachedVersion != currentVersion)
     {
         ok = false;
