@@ -474,7 +474,7 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
         {
-            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d -- Mypeerid: %d --- peerid received: %d", auxKeyId, mPeer.getCid(), peerCid);
+            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d -- peerCid expected: %d --- peerCid received: %d", auxKeyId, mPeer.getCid(), peerCid);
             return static_cast<int>(Status::kFailedToDecrypt); // decryption error
         }
 
