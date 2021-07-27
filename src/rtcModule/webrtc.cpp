@@ -882,8 +882,17 @@ void Call::joinSfu()
             return ::promise::Error("Failure at initialization. Call destroyed or disconnect");
         }
 
-        return mRtcConn.setLocalDescription(std::unique_ptr<webrtc::SessionDescriptionInterface>(sdp));   // takes onwership of sdp
         KR_THROW_IF_FALSE(sdp->ToString(&mSdpStr));
+        sfu::Sdp mungedSdp(mSdpStr, true); // Create a Sdp instance from String and modify it to enable SVC
+        std::string sdpUncompress = mungedSdp.unCompress(); // get string from modified Sdp instance
+
+        webrtc::SdpParseError error;
+        std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
+        if (!sdpInterface)
+        {
+            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
+        }
+        return mRtcConn.setLocalDescription(std::move(sdpInterface));   // takes onwership of sdp
     })
     .then([wptr, this]()
     {

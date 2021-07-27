@@ -98,7 +98,7 @@ public:
     };
 
     // ctor from session-description provided by WebRTC (string format)
-    Sdp(const std::string& sdp);
+    Sdp(const std::string& sdp, bool mungeSdp = false);
 
     // ctor from session-description from SFU (JSON format)
     Sdp(const rapidjson::Value& sdp);
@@ -114,6 +114,7 @@ private:
     // it returns the final position after reading lines
     unsigned int createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position);
 
+    void mungeSdpForSvc(Sdp::Track &track);
     // process 'lines' of (webrtc) session description from 'position' and adds them to 'mTracks'
     unsigned int addTrack(const std::vector<std::string>& lines, unsigned int position);
 
