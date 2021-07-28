@@ -428,7 +428,7 @@ bool Call::hasVideoSlot(Cid_t cid, bool highRes) const
 {
     for (const auto& session : mSessions)
     {
-        Slot *slot = highRes
+        RemoteSlot *slot = highRes
                 ? session.second->getHiResSlot()
                 : session.second->getVthumSlot();
 
@@ -1723,7 +1723,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
-    RemoteSlot *slot = it->second.get();
+    RemoteAudioSlot* slot = static_cast<RemoteAudioSlot*>(it->second.get());
     if (slot->getCid() != cid)
     {
         Session *oldSess = getSession(slot->getCid());
@@ -1742,7 +1742,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
-    slot->assign(cid, speaker.mIv);
+    slot->assignAudioSlot(cid, speaker.mIv);
     attachSlotToSession(cid, slot, true, kUndefined, false);
 }
 
@@ -2501,11 +2501,6 @@ webrtc::RtpTransceiverInterface *Slot::getTransceiver()
     return mTransceiver.get();
 }
 
-Cid_t Slot::getCid() const
-{
-    return mCid;
-}
-
 bool Slot::hasTrack(bool send)
 {
     assert(mTransceiver);
@@ -2524,11 +2519,6 @@ bool Slot::hasTrack(bool send)
 IvStatic_t Slot::getIv() const
 {
     return mIv;
-}
-
-void Slot::generateRandomIv()
-{
-    randombytes_buf(&mIv, sizeof(mIv));
 }
 
 void RemoteSlot::release()
@@ -2554,12 +2544,16 @@ void RemoteSlot::assign(Cid_t cid, IvStatic_t iv)
     enableTrack(true, kRecv);
 }
 
-
 void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
 {
     mCid = cid;
     mIv = iv;
     createDecryptor();
+}
+
+Cid_t RemoteSlot::getCid() const
+{
+    return mCid;
 }
 
 RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -2605,6 +2599,11 @@ void LocalSlot::createEncryptor()
     mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
                                                                       mIv));
+}
+
+void LocalSlot::generateRandomIv()
+{
+    randombytes_buf(&mIv, sizeof(mIv));
 }
 
 RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -2707,9 +2706,9 @@ RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTrans
 {
 }
 
-void RemoteAudioSlot::assign(Cid_t cid, IvStatic_t iv)
+void RemoteAudioSlot::assignAudioSlot(Cid_t cid, IvStatic_t iv)
 {
-    RemoteSlot::assign(cid, iv);
+    assign(cid, iv);
     enableAudioMonitor(true);   // Enable audio monitor
 }
 
@@ -2868,7 +2867,7 @@ void Session::setAvFlags(karere::AvFlags flags)
         : mSessionHandler->onRemoteFlagsChanged(*this); // notify remote AvFlags Change
 }
 
-Slot *Session::getAudioSlot()
+RemoteAudioSlot *Session::getAudioSlot()
 {
     return mAudioSlot;
 }

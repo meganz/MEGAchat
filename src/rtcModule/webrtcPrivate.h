@@ -77,16 +77,13 @@ class Slot
 public:
     virtual ~Slot();
     webrtc::RtpTransceiverInterface* getTransceiver();
-    Cid_t getCid() const;
     bool hasTrack(bool send);
     IvStatic_t getIv() const;
-    void generateRandomIv();
 
 protected:
     Call &mCall;
     IvStatic_t mIv;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
-    Cid_t mCid = 0;
 
     Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
 };
@@ -96,17 +93,20 @@ class LocalSlot : public Slot
 public:
     LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void createEncryptor();
+    void generateRandomIv();
 };
 
 class RemoteSlot : public Slot
 {
 public:
-    virtual void assign(Cid_t cid, IvStatic_t iv);
     virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
     virtual void release();
+    Cid_t getCid() const;
 
 protected:
+    Cid_t mCid = 0;
     RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void assign(Cid_t cid, IvStatic_t iv);
 
 private:
     void createDecryptor();
@@ -142,7 +142,7 @@ class RemoteAudioSlot : public RemoteSlot
 {
 public:
     RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
-    void assign(Cid_t cid, IvStatic_t iv) override;
+    void assignAudioSlot(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
     void createDecryptor(Cid_t cid, IvStatic_t iv) override;
     void release() override;
@@ -150,7 +150,6 @@ private:
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     bool mAudioLevelMonitorEnabled = false;
 };
-
 
 /**
  * @brief The Session class
@@ -174,7 +173,7 @@ public:
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
 
-    Slot* getAudioSlot();
+    RemoteAudioSlot* getAudioSlot();
     RemoteVideoSlot* getVthumSlot();
     RemoteVideoSlot* getHiResSlot();
 
