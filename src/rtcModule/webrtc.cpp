@@ -1758,7 +1758,7 @@ void Call::collectNonRTCStats()
     }
 
     // TODO: pending to implement disabledTxLayers in future if needed
-    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex);
+    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex | mHiRes->getTxSvcLayerCount() << 8);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
@@ -2377,7 +2377,7 @@ Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> trans
     , mTransceiver(transceiver)
     , mCid(0)
     , mTsStart(0)
-    , mSentLayers(0)
+    , mSentLayers(kTxSpatialLayerCount) // initialize mSentLayers to kTxSpatialLayerCount
 {
 }
 
