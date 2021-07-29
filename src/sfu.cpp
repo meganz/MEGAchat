@@ -125,7 +125,6 @@ std::string Peer::getKey(Keyid_t keyid) const
 
 void Peer::addKey(Keyid_t keyid, const std::string &key)
 {
-    assert(mKeyMap.find(keyid) == mKeyMap.end());
     mCurrentkeyId = keyid;
     mKeyMap[mCurrentkeyId] = key;
 }
