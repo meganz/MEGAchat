@@ -390,8 +390,14 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
 
     // get keyId for peer
     Keyid_t currentKeyId = mPeer.getCurrentKeyId();
-    if (currentKeyId != mKeyId)
+    if (currentKeyId != mKeyId || !mInitialized)
     {
+        if (!mInitialized)
+        {
+            mInitialized = true;
+            assert(mKeyId == 0);
+        }
+
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         mKeyId = currentKeyId;
         std::string encryptionKey = mPeer.getKey(currentKeyId);
@@ -468,8 +474,14 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
     Cid_t peerCid = 0;
     memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
 
-    if (auxKeyId != mKeyId)
+    if (auxKeyId != mKeyId || !mInitialized)
     {
+        if (!mInitialized)
+        {
+            mInitialized = true;
+            assert(mKeyId == 0);
+        }
+
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
