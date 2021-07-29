@@ -479,6 +479,7 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
         if (!mInitialized)
         {
             mInitialized = true;
+            assert(mKeyId == 0);
         }
 
         // If there's no key armed in SymCipher or keyId doesn't match with current one
