@@ -1567,15 +1567,30 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     }
 }
 
+Keyid_t Call::generateNextKeyId()
+{
+    if (mMyPeer->getCurrentKeyId() + 1 > 255
+            || (!mMyPeer->getCurrentKeyId() && !mMyPeer->hasAnyKey()))
+    {
+        // if we have exceeded max keyid => reset keyid to zero
+        // if current keyId is zero and we don't have stored any key => first keyId (zero)
+        return 0;
+    }
+    else
+    {
+        return mMyPeer->getCurrentKeyId() + 1;
+    }
+}
+
 void Call::generateAndSendNewkey()
 {
     // generate a new plain key
     std::shared_ptr<strongvelope::SendKey> newPlainKey = mSfuClient.getRtcCryptoMeetings()->generateSendKey();
 
     // add new key to own peer key map and update currentKeyId
-    Keyid_t currentKeyId = mMyPeer->getCurrentKeyId() + 1;
+    Keyid_t newKeyId = generateNextKeyId();
     std::string plainkey = mSfuClient.getRtcCryptoMeetings()->keyToStr(*newPlainKey.get());
-    mMyPeer->addKey(currentKeyId, plainkey);
+    mMyPeer->addKey(newKeyId, plainkey);
 
     // in case of a call in a public chatroom, XORs new key with the call key for additional authentication
     if (hasCallKey())
@@ -1593,7 +1608,7 @@ void Call::generateAndSendNewkey()
 
     auto wptr = weakHandle();
     promise::when(promises)
-    .then([wptr, currentKeyId, newPlainKey, this]
+    .then([wptr, newKeyId, newPlainKey, this]
     {
         if (wptr.deleted())
         {
@@ -1617,7 +1632,7 @@ void Call::generateAndSendNewkey()
             keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
         }
 
-        mSfuConnection->sendKey(currentKeyId, keys);
+        mSfuConnection->sendKey(newKeyId, keys);
     });
 }
 

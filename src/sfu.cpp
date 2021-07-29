@@ -102,6 +102,11 @@ karere::Id Peer::getPeerid() const
     return mPeerid;
 }
 
+bool Peer::hasAnyKey() const
+{
+    return !mKeyMap.empty();
+}
+
 Keyid_t Peer::getCurrentKeyId() const
 {
     return mCurrentkeyId;

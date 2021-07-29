@@ -46,6 +46,7 @@ public:
     karere::AvFlags getAvFlags() const;
     void setAvFlags(karere::AvFlags flags);
 
+    bool hasAnyKey() const;
     Keyid_t getCurrentKeyId() const;
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
