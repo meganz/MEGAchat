@@ -447,6 +447,7 @@ protected:
     Stats mStats;
     SvcDriver mSvcDriver;
 
+    Keyid_t generateNextKeyId();
     void generateAndSendNewkey();
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);

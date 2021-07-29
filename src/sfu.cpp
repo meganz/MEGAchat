@@ -102,6 +102,11 @@ karere::Id Peer::getPeerid() const
     return mPeerid;
 }
 
+bool Peer::hasAnyKey() const
+{
+    return !mKeyMap.empty();
+}
+
 Keyid_t Peer::getCurrentKeyId() const
 {
     return mCurrentkeyId;
@@ -125,7 +130,6 @@ std::string Peer::getKey(Keyid_t keyid) const
 
 void Peer::addKey(Keyid_t keyid, const std::string &key)
 {
-    assert(mKeyMap.find(keyid) == mKeyMap.end());
     mCurrentkeyId = keyid;
     mKeyMap[mCurrentkeyId] = key;
 }
