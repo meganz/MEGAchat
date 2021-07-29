@@ -1569,7 +1569,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 
 Keyid_t Call::generateNextKeyId()
 {
-    if (mMyPeer->getCurrentKeyId() + 1 > 255
+    if (mMyPeer->getCurrentKeyId() >= 255
             || (!mMyPeer->getCurrentKeyId() && !mMyPeer->hasAnyKey()))
     {
         // if we have exceeded max keyid => reset keyid to zero
