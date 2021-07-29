@@ -318,6 +318,7 @@ protected:
     IvStatic_t mIv;
 
     bool mTerminating = false;
+    bool mInitialized = false; // this flag will be set true upon first key is set in cipher
 };
 
 class MegaEncryptor
