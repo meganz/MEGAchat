@@ -395,6 +395,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
         if (!mInitialized)
         {
             mInitialized = true;
+            assert(mKeyId == 0);
         }
 
         // If there's no key armed in SymCipher or keyId doesn't match with current one
