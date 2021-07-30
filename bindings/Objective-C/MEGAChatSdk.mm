@@ -795,11 +795,15 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)createMeetingWithTitle:(NSString *)title {
-    self.megaChatApi->createMeeting(title ? [title UTF8String] : NULL);
+    if (self.megaChatApi) {
+        self.megaChatApi->createMeeting(title.UTF8String);
+    }
 }
 
 - (void)createMeetingWithTitle:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->createMeeting(title ? [title UTF8String] : NULL, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    if (self.megaChatApi) {
+        self.megaChatApi->createMeeting(title.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
 }
 
 - (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(NSString *)title {
@@ -1213,7 +1217,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)setPublicKeyPinning:(BOOL)enable {
-    self.megaChatApi->setPublicKeyPinning(enable);
+    if (self.megaChatApi) {
+        self.megaChatApi->setPublicKeyPinning(enable);
+    }
 }
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId {
@@ -1389,19 +1395,27 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)openVideoDevice {
-    self.megaChatApi->openVideoDevice();
+    if (self.megaChatApi) {
+        self.megaChatApi->openVideoDevice();
+    }
 }
 
 - (void)openVideoDeviceWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->openVideoDevice([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    if (self.megaChatApi) {
+        self.megaChatApi->openVideoDevice([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
 }
 
 - (void)releaseVideoDevice {
-    self.megaChatApi->releaseVideoDevice();
+    if (self.megaChatApi) {
+        self.megaChatApi->releaseVideoDevice();
+    }
 }
 
 - (void)releaseVideoDeviceWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->releaseVideoDevice([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    if (self.megaChatApi) {
+        self.megaChatApi->releaseVideoDevice([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
 }
 
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId {
@@ -1461,10 +1475,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)requestHiResVideoForChatId:(uint64_t)chatId clientId:(uint64_t)clientId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->requestHiResVideo(chatId, clientId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    if (self.megaChatApi) {
+        self.megaChatApi->requestHiResVideo(chatId, clientId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
 }
 
 - (void)stopHiResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (!self.megaChatApi) return;
     MEGAHandleList *clientIdList = MEGAHandleList.alloc.init;
     for (NSNumber *handle in clientIds) {
         [clientIdList addMegaHandle:handle.unsignedLongLongValue];
@@ -1473,6 +1490,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)requestLowResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (!self.megaChatApi) return;
     MEGAHandleList *clientIdList = MEGAHandleList.alloc.init;
     for (NSNumber *handle in clientIds) {
         [clientIdList addMegaHandle:handle.unsignedLongLongValue];
@@ -1481,6 +1499,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)stopLowResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (!self.megaChatApi) return;
     MEGAHandleList *clientIdList = MEGAHandleList.alloc.init;
     for (NSNumber *handle in clientIds) {
         [clientIdList addMegaHandle:handle.unsignedLongLongValue];
