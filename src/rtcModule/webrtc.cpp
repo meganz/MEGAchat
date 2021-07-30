@@ -928,11 +928,18 @@ void Call::getLocalStreams()
 
 void Call::handleCallDisconnect()
 {
+    if (mRtcConn)
+    {
+        mRtcConn->Close();
+        mRtcConn = nullptr;
+    }
+
     disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
-    freeVideoTracks(true);          // free local video tracks and release slots
-    freeAudioTrack(true);           // free local audio track and release slot
+    mVThumb.reset();
+    mHiRes.reset();
+    mAudio.reset();
     mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video tracks
 }
 
@@ -964,12 +971,6 @@ void Call::disconnect(TermCode termCode, const std::string &)
     {
         mSfuClient.closeSfuConnection(mChatid);
         mSfuConnection = nullptr;
-    }
-
-    if (mRtcConn)
-    {
-        mRtcConn->Close();
-        mRtcConn = nullptr;
     }
 
     // I'm the last one participant, it isn't necessary set kStateClientNoParticipating
@@ -2655,14 +2656,14 @@ RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTrans
 
 RemoteVideoSlot::~RemoteVideoSlot()
 {
-    webrtc::VideoTrackInterface* videoTrack =
-            static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
-    videoTrack->set_enabled(false);
+//    webrtc::VideoTrackInterface* videoTrack =
+//            static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
+//    videoTrack->set_enabled(false);
 
-    if (videoTrack)
-    {
-        videoTrack->RemoveSink(this);
-    }
+//    if (videoTrack)
+//    {
+//        videoTrack->RemoveSink(this);
+//    }
 }
 
 VideoSink::VideoSink()
