@@ -2656,14 +2656,6 @@ RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTrans
 
 RemoteVideoSlot::~RemoteVideoSlot()
 {
-//    webrtc::VideoTrackInterface* videoTrack =
-//            static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
-//    videoTrack->set_enabled(false);
-
-//    if (videoTrack)
-//    {
-//        videoTrack->RemoveSink(this);
-//    }
 }
 
 VideoSink::VideoSink()
