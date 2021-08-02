@@ -134,7 +134,7 @@ SvcDriver::SvcDriver ()
 
 }
 
-bool SvcDriver::updateSvcQuality(int8_t delta)
+bool SvcDriver::setRxSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& rxStmp, int8_t& txSpt)
 {
     int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
     if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
@@ -145,15 +145,11 @@ bool SvcDriver::updateSvcQuality(int8_t delta)
     RTCM_LOG_WARNING("switchSvcQuality: Switching rx SVC quality from %d to %d", mCurrentSvcLayerIndex, newSvcLayerIndex);
     mTsLastSwitch = time(nullptr); // update last Ts SVC switch
     mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
-    return true;
-}
 
-bool SvcDriver::getLayerByIndex(uint8_t index, int8_t& rxSpt, int8_t& rxTmp, int8_t& rxStmp, int8_t& txSpt)
-{
     // we want to provide a linear quality scale,
     // layers are defined for each of the 7 "quality" steps
     // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial
-    switch (index)
+    switch (mCurrentSvcLayerIndex)
     {
         case 0: { rxSpt = 0; rxTmp = 0; rxStmp = 0; txSpt =0; return true; }
         case 1: { rxSpt = 0; rxTmp = 1; rxStmp = 0; txSpt =0; return true; }
@@ -165,6 +161,7 @@ bool SvcDriver::getLayerByIndex(uint8_t index, int8_t& rxSpt, int8_t& rxTmp, int
         default: return false;
     }
 }
+
 Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
@@ -784,26 +781,19 @@ void Call::checkAdaptTxSvcQuality(int8_t txSpt)
 
 void Call::switchRxSvcQuality(int8_t delta, int8_t &txSpt)
 {
-    // update SvcQuality index
-    if (!mSvcDriver.updateSvcQuality(delta))
-    {
-        return;
-    }
-
     // rx SVC layer: spatial, temporal, screen-temporal
     int8_t rxSpt = 0;
     int8_t rxTmp = 0;
     int8_t rxStmp = 0;
-    uint8_t layerIndex = mSvcDriver.mCurrentSvcLayerIndex;
 
-    if (!mSvcDriver.getLayerByIndex(layerIndex, rxSpt, rxTmp, rxStmp, txSpt))
+    // updateCurrentSvcLayerIndex must be called before getLayerByIndex to update mCurrentSvcLayerIndex
+    if (!mSvcDriver.setRxSvcLayer(delta, rxSpt, rxTmp, rxStmp, txSpt))
     {
-        RTCM_LOG_WARNING("switchSvcQuality: Invalid layer index");
+        RTCM_LOG_WARNING("switchRxSvcQuality: Invalid new layer index %d", mSvcDriver.mCurrentSvcLayerIndex + delta);
         return;
     }
 
     // send LAYER command to adjust Rx SVC quality
-    mSvcDriver.mCurrentSvcLayerIndex = layerIndex;
     mSfuConnection->sendLayer(rxSpt, rxTmp, rxStmp);
 }
 

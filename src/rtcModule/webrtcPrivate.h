@@ -218,9 +218,7 @@ public:
     static const int kRttUpperHeadroom = 250;
 
     SvcDriver();
-    bool updateSvcQuality(int8_t delta);
-    bool getLayerByIndex(uint8_t index, int8_t& rxStp, int8_t& rxTmp, int8_t& rxStmp, int8_t &txSpt);
-
+    bool setRxSvcLayer(int8_t delta, int8_t &rxSpt, int8_t &rxTmp, int8_t &rxStmp, int8_t &txSpt);
     uint8_t mCurrentSvcLayerIndex;
 
     double mPacketLostLower;
