@@ -2550,7 +2550,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 // it may have created the call object already
 
                                 call->setCallerId(userid);
-                                call->setRinging(ringing);
+                                call->setRinging(call->isOtherClientParticipating() ? false : ringing);
                             }
 
                         })
@@ -2563,7 +2563,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     else
                     {
                         call->setCallerId(userid);
-                        call->setRinging(ringing);
+                        call->setRinging(call->isOtherClientParticipating() ? false : ringing);
                     }
                 }
                 break;
