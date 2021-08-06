@@ -1417,16 +1417,16 @@ public:
     Priv getOwnprivilege() const;
 
     /**
-     * @brief Launch a timer to send keepALive
+     * @brief Launch a timer to send keepAlive
      * This method only should be used after begining to participate in a call
      */
-    void startKeepALiveTimer();
+    void startKeepAliveTimer();
 
     /**
-     * @brief Stop a timer to send keepALive
+     * @brief Stop a timer to send keepAlive
      * This method only should be used after stopping to participate in a call
      */
-    void stopKeepALiveTimer();
+    void stopKeepAliveTimer();
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

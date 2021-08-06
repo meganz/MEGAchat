@@ -5520,14 +5520,14 @@ rtcModule::ICall *MegaChatApiImpl::findCall(MegaChatHandle chatid)
 
 }
 
-void MegaChatApiImpl::startKeepALiveTimer(MegaChatHandle chatid)
+void MegaChatApiImpl::startKeepAliveTimer(MegaChatHandle chatid)
 {
-    mClient->mChatdClient->chats(chatid).startKeepALiveTimer();
+    mClient->mChatdClient->chats(chatid).startKeepAliveTimer();
 }
 
-void MegaChatApiImpl::stopKeepALiveTimer(MegaChatHandle chatid)
+void MegaChatApiImpl::stopKeepAliveTimer(MegaChatHandle chatid)
 {
-    mClient->mChatdClient->chats(chatid).stopKeepALiveTimer();
+    mClient->mChatdClient->chats(chatid).stopKeepAliveTimer();
 }
 
 #endif
@@ -8952,11 +8952,11 @@ void MegaChatCallHandler::onCallStateChange(rtcModule::ICall &call)
 
     if (call.getState() == rtcModule::kStateInProgress)
     {
-        mMegaChatApi->startKeepALiveTimer(call.getChatid());
+        mMegaChatApi->startKeepAliveTimer(call.getChatid());
     }
     else if (call.getState() == rtcModule::kStateTerminatingUserParticipation || call.getState() == rtcModule::kStateDestroyed)
     {
-        mMegaChatApi->stopKeepALiveTimer(call.getChatid());
+        mMegaChatApi->stopKeepAliveTimer(call.getChatid());
     }
 }
 

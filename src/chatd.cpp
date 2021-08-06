@@ -5950,7 +5950,7 @@ Priv Chat::getOwnprivilege() const
     return mOwnPrivilege;
 }
 
-void Chat::startKeepALiveTimer()
+void Chat::startKeepAliveTimer()
 {
     if (mKeepAliveTimer != 0)
     {
@@ -5971,7 +5971,7 @@ void Chat::startKeepALiveTimer()
     }, chatd::kKeepAlivetimeout, mChatdClient.mKarereClient->appCtx);
 }
 
-void Chat::stopKeepALiveTimer()
+void Chat::stopKeepAliveTimer()
 {
     if (mKeepAliveTimer != 0)
     {
