@@ -981,6 +981,8 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::ICall* findCall(MegaChatHandle chatid);
 #endif
+    void startKeepAliveTimer(MegaChatHandle chatid);
+    void stopKeepAliveTimer(MegaChatHandle chatid);
 
     static void setCatchException(bool enable);
     static bool hasUrl(const char* text);

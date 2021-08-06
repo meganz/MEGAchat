@@ -5520,6 +5520,16 @@ rtcModule::ICall *MegaChatApiImpl::findCall(MegaChatHandle chatid)
 
 }
 
+void MegaChatApiImpl::startKeepAliveTimer(MegaChatHandle chatid)
+{
+    mClient->mChatdClient->chats(chatid).startKeepAliveTimer();
+}
+
+void MegaChatApiImpl::stopKeepAliveTimer(MegaChatHandle chatid)
+{
+    mClient->mChatdClient->chats(chatid).stopKeepAliveTimer();
+}
+
 #endif
 
 void MegaChatApiImpl::cleanChatHandlers()
@@ -8939,6 +8949,15 @@ void MegaChatCallHandler::onCallStateChange(rtcModule::ICall &call)
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setStatus(MegaChatCallPrivate::convertCallState(call.getState()));
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+
+    if (call.getState() == rtcModule::kStateInProgress)
+    {
+        mMegaChatApi->startKeepAliveTimer(call.getChatid());
+    }
+    else if (call.getState() == rtcModule::kStateTerminatingUserParticipation || call.getState() == rtcModule::kStateDestroyed)
+    {
+        mMegaChatApi->stopKeepAliveTimer(call.getChatid());
+    }
 }
 
 void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)

@@ -70,7 +70,8 @@ enum HistSource
 enum
 {
     kSeenTimeout = 200,     /// Delay to send SEEN (ms)
-    kSyncTimeout = 2500     /// Timeout to recv SYNC (ms)
+    kSyncTimeout = 2500,     /// Timeout to recv SYNC (ms)
+    kKeepAlivetimeout = 15000,  /// Timeout to send keepALive during call (ms)
 };
 
 enum { kMaxMsgSize = 120000 };  // (in bytes)
@@ -867,6 +868,8 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
+
+    megaHandle mKeepAliveTimer = 0;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
@@ -1412,6 +1415,18 @@ public:
     promise::Promise<void> requestUserAttributes(karere::Id sender);
     uint32_t getRetentionTime() const;
     Priv getOwnprivilege() const;
+
+    /**
+     * @brief Launch a timer to send keepAlive
+     * This method only should be used after begining to participate in a call
+     */
+    void startKeepAliveTimer();
+
+    /**
+     * @brief Stop a timer to send keepAlive
+     * This method only should be used after stopping to participate in a call
+     */
+    void stopKeepAliveTimer();
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
