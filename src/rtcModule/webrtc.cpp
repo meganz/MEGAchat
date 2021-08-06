@@ -248,6 +248,11 @@ CallState Call::getState() const
 
 void Call::addParticipant(karere::Id peer)
 {
+    if (peer == mMyPeer->getPeerid())
+    {
+        setRinging(false);
+    }
+
     mParticipants.push_back(peer);
     mGlobalCallHandler.onAddPeer(*this, peer);
 }
@@ -288,6 +293,19 @@ void Call::removeParticipant(karere::Id peer)
 
     assert(false);
     return;
+}
+
+bool Call::isOtherClientParticipating()
+{
+    for (auto& peerid : mParticipants)
+    {
+        if (peerid == mMyPeer->getPeerid())
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // for the moment just chatd::kRejected is a valid reason (only for rejecting 1on1 call while ringing)
@@ -462,7 +480,7 @@ void Call::setCallerId(karere::Id callerid)
 
 bool Call::isRinging() const
 {
-    return mIsRinging && mCallerId != mMyPeer->getPeerid();
+    return mIsRinging;
 }
 
 bool Call::isOutgoing() const
@@ -948,7 +966,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
     if ( mStats.mSamples.mT.size() > 2)
     {
         mStats.mTermCode = static_cast<int32_t>(termCode);
-        mStats.mDuration = time(nullptr) - mInitialTs;
+        mStats.mDuration = (time(nullptr) - mInitialTs);
         mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
     }
 
