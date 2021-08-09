@@ -2326,6 +2326,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 // clientid.4 reserved.4
                 READ_32(clientid, 0);
+                READ_32(unused, 4);
                 mClientId = clientid;
                 CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
                 break;
