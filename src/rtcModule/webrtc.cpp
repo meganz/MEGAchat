@@ -919,7 +919,7 @@ void Call::createTransceivers()
     mAudio->generateRandomIv();
 
     // create transceivers for receiving audio from peers
-    for (int i = 0; i < RtcConstant::kMaxCallAudioSenders; i++)
+    for (int i = 1; i < RtcConstant::kMaxCallAudioSenders; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
         transceiverInit.direction = webrtc::RtpTransceiverDirection::kRecvOnly;
@@ -927,7 +927,7 @@ void Call::createTransceivers()
     }
 
     // create transceivers for receiving video from peers
-    for (int i = 0; i < RtcConstant::kMaxCallVideoSenders; i++)
+    for (int i = 2; i < RtcConstant::kMaxCallVideoSenders; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
         transceiverInit.direction = webrtc::RtpTransceiverDirection::kRecvOnly;
@@ -1608,8 +1608,7 @@ void Call::generateAndSendNewkey()
 
     // add new key to own peer key map and update currentKeyId
     Keyid_t newKeyId = generateNextKeyId();
-    std::string plainkey = mSfuClient.getRtcCryptoMeetings()->keyToStr(*newPlainKey.get());
-    mMyPeer->addKey(newKeyId, plainkey);
+    std::string plainKeyStr = mSfuClient.getRtcCryptoMeetings()->keyToStr(*newPlainKey.get());
 
     // in case of a call in a public chatroom, XORs new key with the call key for additional authentication
     if (hasCallKey())
@@ -1627,7 +1626,7 @@ void Call::generateAndSendNewkey()
 
     auto wptr = weakHandle();
     promise::when(promises)
-    .then([wptr, newKeyId, newPlainKey, this]
+    .then([wptr, newKeyId, plainKeyStr, newPlainKey, this]
     {
         if (wptr.deleted())
         {
@@ -1652,6 +1651,22 @@ void Call::generateAndSendNewkey()
         }
 
         mSfuConnection->sendKey(newKeyId, keys);
+
+        // set a small delay after broadcasting the new key, and before starting to use it,
+        // to minimize the chance that the key hasn't yet been received over the signaling channel
+        karere::setTimeout([this, newKeyId, plainKeyStr, wptr]()
+        {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
+            // add key to peer's key map, although is not encrypted for any other participant,
+            // as we need to start sending audio frames as soon as we receive SPEAK_ON command
+            // and we could receive it even if there's no more participants in the meeting
+            mMyPeer->addKey(newKeyId, plainKeyStr);
+        }, RtcConstant::kRotateKeyUseDelay, mRtc.getAppCtx());
+
     });
 }
 
