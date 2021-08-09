@@ -2326,7 +2326,6 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 // clientid.4 reserved.4
                 READ_32(clientid, 0);
-                READ_32(unused, 4);
                 mClientId = clientid;
                 CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
                 break;
@@ -5948,36 +5947,6 @@ uint32_t Chat::getRetentionTime() const
 Priv Chat::getOwnprivilege() const
 {
     return mOwnPrivilege;
-}
-
-void Chat::startKeepAliveTimer()
-{
-    if (mKeepAliveTimer != 0)
-    {
-        return;
-    }
-
-    auto wptr = weakHandle();
-    mKeepAliveTimer = setInterval([this, wptr]()
-    {
-        if (wptr.deleted())
-          return;
-
-        if (mConnection.state() == Connection::kStateConnected)
-        {
-            mConnection.sendKeepalive();
-        }
-
-    }, chatd::kKeepAlivetimeout, mChatdClient.mKarereClient->appCtx);
-}
-
-void Chat::stopKeepAliveTimer()
-{
-    if (mKeepAliveTimer != 0)
-    {
-        cancelInterval(mKeepAliveTimer, mChatdClient.mKarereClient->appCtx);
-        mKeepAliveTimer = 0;
-    }
 }
 
 void Client::leave(Id chatid)
