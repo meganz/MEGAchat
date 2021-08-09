@@ -966,7 +966,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
     if ( mStats.mSamples.mT.size() > 2)
     {
         mStats.mTermCode = static_cast<int32_t>(termCode);
-        mStats.mDuration = (time(nullptr) - mInitialTs);
+        mStats.mDuration = (time(nullptr) - mInitialTs) * 1000;  // ms
         mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
     }
 
