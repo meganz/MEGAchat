@@ -397,10 +397,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
         std::string encryptionKey = mPeer.getKey(currentKeyId);
         if (encryptionKey.empty())
         {
-            if (mPeer.hasAnyKey())
-            {
-                RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d", currentKeyId);
-            }
+            RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d", currentKeyId);
             return kFailedToEncrypt;
         }
         setKey(encryptionKey);
@@ -410,12 +407,6 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
             mInitialized = true;
             assert(mKeyId == 0);
         }
-    }
-
-    if (!mInitialized)
-    {
-        // there could be no more participants in Meeting, so we don't need to encrypt and send frames
-        return kRecoverable;
     }
 
     // generate frame iv
