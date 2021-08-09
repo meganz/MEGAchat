@@ -1632,11 +1632,6 @@ void Call::generateAndSendNewkey()
             keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
         }
 
-        if (keys.empty())
-        {
-            return;
-        }
-
         mSfuConnection->sendKey(newKeyId, keys);
 
         // set a small delay after broadcasting the new key, and before starting to use it,
@@ -1648,6 +1643,9 @@ void Call::generateAndSendNewkey()
                 return;
             }
 
+            // add key to peer's key map, although is not encrypted for any other participant,
+            // as we need to start sending audio frames as soon as we receive SPEAK_ON command
+            // and we could receive it even if there's no more participants in the meeting
             mMyPeer->addKey(newKeyId, plainKeyStr);
         }, RtcConstant::kRotateKeyUseDelay, mRtc.getAppCtx());
 
