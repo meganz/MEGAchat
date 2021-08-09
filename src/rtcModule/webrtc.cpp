@@ -1590,8 +1590,7 @@ void Call::generateAndSendNewkey()
 
     // add new key to own peer key map and update currentKeyId
     Keyid_t newKeyId = generateNextKeyId();
-    std::string plainkey = mSfuClient.getRtcCryptoMeetings()->keyToStr(*newPlainKey.get());
-    mMyPeer->addKey(newKeyId, plainkey);
+    std::string plainKeyStr = mSfuClient.getRtcCryptoMeetings()->keyToStr(*newPlainKey.get());
 
     // in case of a call in a public chatroom, XORs new key with the call key for additional authentication
     if (hasCallKey())
@@ -1609,7 +1608,7 @@ void Call::generateAndSendNewkey()
 
     auto wptr = weakHandle();
     promise::when(promises)
-    .then([wptr, newKeyId, newPlainKey, this]
+    .then([wptr, newKeyId, plainKeyStr, newPlainKey, this]
     {
         if (wptr.deleted())
         {
@@ -1633,7 +1632,25 @@ void Call::generateAndSendNewkey()
             keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
         }
 
+        if (keys.empty())
+        {
+            return;
+        }
+
         mSfuConnection->sendKey(newKeyId, keys);
+
+        // set a small delay after broadcasting the new key, and before starting to use it,
+        // to minimize the chance that the key hasn't yet been received over the signaling channel
+        karere::setTimeout([this, newKeyId, plainKeyStr, wptr]()
+        {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
+            mMyPeer->addKey(newKeyId, plainKeyStr);
+        }, RtcConstant::kRotateKeyUseDelay, mRtc.getAppCtx());
+
     });
 }
 

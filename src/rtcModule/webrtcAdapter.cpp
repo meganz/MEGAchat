@@ -392,21 +392,30 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
     Keyid_t currentKeyId = mPeer.getCurrentKeyId();
     if (currentKeyId != mKeyId || !mInitialized)
     {
-        if (!mInitialized)
-        {
-            mInitialized = true;
-            assert(mKeyId == 0);
-        }
-
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         mKeyId = currentKeyId;
         std::string encryptionKey = mPeer.getKey(currentKeyId);
         if (encryptionKey.empty())
         {
-            RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d", currentKeyId);
+            if (mPeer.hasAnyKey())
+            {
+                RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d", currentKeyId);
+            }
             return kFailedToEncrypt;
         }
         setKey(encryptionKey);
+
+        if (!mInitialized)
+        {
+            mInitialized = true;
+            assert(mKeyId == 0);
+        }
+    }
+
+    if (!mInitialized)
+    {
+        // there could be no more participants in Meeting, so we don't need to encrypt and send frames
+        return kRecoverable;
     }
 
     // generate frame iv
@@ -476,12 +485,6 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
 
     if (auxKeyId != mKeyId || !mInitialized)
     {
-        if (!mInitialized)
-        {
-            mInitialized = true;
-            assert(mKeyId == 0);
-        }
-
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
@@ -492,6 +495,12 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
 
         mKeyId = auxKeyId;
         setKey(decryptionKey);
+
+        if (!mInitialized)
+        {
+            mInitialized = true;
+            assert(mKeyId == 0);
+        }
     }
 
     if (peerCid != mPeer.getCid())

@@ -232,6 +232,7 @@ enum RtcConstant {
    kVthumbWidth = 160,  // px
    kAudioMonitorTimeout = 2000, // ms
    kStatsInterval = 1000,   // ms
+   kRotateKeyUseDelay = 100, // ms
 };
 
 #endif
