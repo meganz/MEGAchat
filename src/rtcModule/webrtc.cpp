@@ -901,7 +901,7 @@ void Call::createTransceivers()
     mAudio->generateRandomIv();
 
     // create transceivers for receiving audio from peers
-    for (int i = 0; i < RtcConstant::kMaxCallAudioSenders; i++)
+    for (int i = 1; i < RtcConstant::kMaxCallAudioSenders; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
         transceiverInit.direction = webrtc::RtpTransceiverDirection::kRecvOnly;
@@ -909,7 +909,7 @@ void Call::createTransceivers()
     }
 
     // create transceivers for receiving video from peers
-    for (int i = 0; i < RtcConstant::kMaxCallVideoSenders; i++)
+    for (int i = 2; i < RtcConstant::kMaxCallVideoSenders; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
         transceiverInit.direction = webrtc::RtpTransceiverDirection::kRecvOnly;
