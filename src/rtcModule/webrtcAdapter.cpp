@@ -405,7 +405,6 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
         if (!mInitialized)
         {
             mInitialized = true;
-            assert(mKeyId == 0);
         }
     }
 
@@ -490,7 +489,6 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
         if (!mInitialized)
         {
             mInitialized = true;
-            assert(mKeyId == 0);
         }
     }
 
