@@ -149,6 +149,7 @@ public:
     virtual TermCode getTermCode() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
+    virtual bool isOtherClientParticipating() = 0;
     virtual void requestSpeaker(bool add = true) = 0;
     virtual bool isSpeakAllow() const = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
@@ -234,6 +235,7 @@ enum RtcConstant {
    kAudioMonitorTimeout = 2000, // ms
    kStatsInterval = 1000,   // ms
    kTxSpatialLayerCount = 3,
+   kRotateKeyUseDelay = 100, // ms
 };
 
 #endif

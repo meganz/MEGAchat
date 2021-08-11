@@ -270,6 +270,8 @@ public:
     void addParticipant(karere::Id peer) override;
     // called upon reception of OP_LEFTCALL from chatd
     void removeParticipant(karere::Id peer) override;
+    // check if our peer is participating in the call (called from chatd)
+    bool isOtherClientParticipating() override;
 
     // called from chatd::onDisconnect() to remove peers from the call when disconnected from chatd
     void onDisconnectFromChatd() override;
@@ -453,6 +455,7 @@ protected:
     Stats mStats;
     SvcDriver mSvcDriver;
 
+    Keyid_t generateNextKeyId();
     void generateAndSendNewkey();
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);

@@ -102,6 +102,11 @@ karere::Id Peer::getPeerid() const
     return mPeerid;
 }
 
+bool Peer::hasAnyKey() const
+{
+    return !mKeyMap.empty();
+}
+
 Keyid_t Peer::getCurrentKeyId() const
 {
     return mCurrentkeyId;
@@ -125,7 +130,6 @@ std::string Peer::getKey(Keyid_t keyid) const
 
 void Peer::addKey(Keyid_t keyid, const std::string &key)
 {
-    assert(mKeyMap.find(keyid) == mKeyMap.end());
     mCurrentkeyId = keyid;
     mKeyMap[mCurrentkeyId] = key;
 }
@@ -1548,7 +1552,9 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys)
 {
     if (keys.empty())
+    {
         return true;
+    }
 
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
