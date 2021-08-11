@@ -1100,7 +1100,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
         mCallHandler->onNewSession(*mSessions[peer.getCid()], *this);
     }
 
-    generateAndSendNewkey();
+    generateAndSendNewkey(true);
 
     std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
@@ -1601,8 +1601,14 @@ Keyid_t Call::generateNextKeyId()
     }
 }
 
-void Call::generateAndSendNewkey()
+void Call::generateAndSendNewkey(bool reset)
 {
+    if (reset)
+    {
+        // when you leave a meeting or you experiment a reconnect, we should reset keyId to zero and clear keys map
+        mMyPeer->resetKeys();
+    }
+
     // generate a new plain key
     std::shared_ptr<strongvelope::SendKey> newPlainKey = mSfuClient.getRtcCryptoMeetings()->generateSendKey();
 
