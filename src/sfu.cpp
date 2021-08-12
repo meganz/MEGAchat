@@ -1497,7 +1497,9 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys)
 {
     if (keys.empty())
+    {
         return true;
+    }
 
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
