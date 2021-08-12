@@ -473,6 +473,12 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
     Cid_t peerCid = 0;
     memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
 
+    if (peerCid != mPeer.getCid())
+    {
+        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);
+        return static_cast<int>(Status::kRecoverable); // recoverable error
+    }
+
     if (auxKeyId != mKeyId || !mInitialized)
     {
         // If there's no key armed in SymCipher or keyId doesn't match with current one
@@ -490,12 +496,6 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
         {
             mInitialized = true;
         }
-    }
-
-    if (peerCid != mPeer.getCid())
-    {
-        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);
-        return static_cast<int>(Status::kRecoverable); // recoverable error
     }
 
     // extract packet ctr from header, and update mCtr (ctr will be used to generate an IV to decrypt the frame)
