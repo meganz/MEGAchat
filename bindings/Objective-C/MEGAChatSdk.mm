@@ -1425,9 +1425,12 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId {
-    if (self.megaChatApi == nil) return nil;
-    MegaChatCall *chatCall = self.megaChatApi->getChatCall(chatId);
-    return chatCall ? [[MEGAChatCall alloc] initWithMegaChatCall:chatCall cMemoryOwn:YES] : nil;
+    if (self.megaChatApi != nil && self.megaChatApi->hasCallInChatRoom(chatId)) {
+        MegaChatCall *chatCall = self.megaChatApi->getChatCall(chatId);
+        return chatCall ? [[MEGAChatCall alloc] initWithMegaChatCall:chatCall cMemoryOwn:YES] : nil;
+    }
+    
+    return nil;
 }
 
 - (NSInteger)numCalls {
