@@ -415,7 +415,6 @@ protected:
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
 
-    std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;

@@ -821,9 +821,8 @@ void Call::connectSfu(const std::string& sfuUrl)
         return;
     }
 
-    mSfuUrl = sfuUrl;
     setState(CallState::kStateConnecting);
-    mSfuConnection = mSfuClient.createSfuConnection(mChatid, mSfuUrl, *this);
+    mSfuConnection = mSfuClient.createSfuConnection(mChatid, sfuUrl, *this);
 }
 
 void Call::joinSfu()
