@@ -468,7 +468,7 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);
+    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, DNScache &dnsCache);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
@@ -484,6 +484,7 @@ public:
     unsigned int getNumCalls() override;
     const std::string& getVideoDeviceSelected() const override;
     sfu::SfuClient& getSfuClient() override;
+    DNScache& getDnsCache() override;
 
     void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
 
@@ -506,6 +507,7 @@ private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
     IGlobalCallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
+    DNScache &mDnsCache;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
     std::string mVideoDeviceSelected;
     rtc::scoped_refptr<artc::VideoManager> mVideoDevice;

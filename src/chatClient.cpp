@@ -79,7 +79,7 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 {
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
+    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler, mDnsCache));
     rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this));
 #endif
 }

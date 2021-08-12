@@ -389,6 +389,7 @@ public:
     };
 
     SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call);
+    SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     bool isOnline() const;
     bool isJoined() const;
@@ -459,6 +460,7 @@ protected:
     SfuInterface& mCall;
     CommandsQueue mCommandsQueue;
     std::thread::id mMainThreadId; // thread id to ensure that CommandsQueue is accessed from a single thread
+    DNScache &mDnsCache;
 };
 
 /**
@@ -473,7 +475,7 @@ class SfuClient
 public:
     SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings);
 
-    SfuConnection *createSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
+    SfuConnection *createSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call, DNScache &dnsCache);
     void closeSfuConnection(karere::Id chatid); // does NOT retry the connection afterwards (used for errors/disconnects)
     void retryPendingConnections(bool disconnect);
 

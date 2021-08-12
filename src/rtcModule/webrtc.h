@@ -195,6 +195,7 @@ public:
     virtual unsigned int getNumCalls() = 0;
     virtual const std::string& getVideoDeviceSelected() const = 0;
     virtual sfu::SfuClient& getSfuClient() = 0;
+    virtual DNScache& getDnsCache() = 0;
 
     virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;
 
@@ -220,7 +221,7 @@ public:
     virtual void onRemovePeer(ICall& call, karere::Id peer) = 0;
 };
 
-RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler);
+RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler, DNScache &dnsCache);
 
 enum RtcConstant {
    kMaxCallReceivers = 20,

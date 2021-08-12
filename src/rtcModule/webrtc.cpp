@@ -822,7 +822,7 @@ void Call::connectSfu(const std::string& sfuUrl)
     }
 
     setState(CallState::kStateConnecting);
-    mSfuConnection = mSfuClient.createSfuConnection(mChatid, sfuUrl, *this);
+    mSfuConnection = mSfuClient.createSfuConnection(mChatid, sfuUrl, *this, mRtc.getDnsCache());
 }
 
 void Call::joinSfu()
@@ -2132,9 +2132,10 @@ void Call::updateAudioTracks()
     }
 }
 
-RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler)
+RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler, DNScache &dnsCache)
     : mCallHandler(callhandler)
     , mMegaApi(megaApi)
+    , mDnsCache(dnsCache)
 {
 }
 
@@ -2308,6 +2309,11 @@ const std::string& RtcModuleSfu::getVideoDeviceSelected() const
 sfu::SfuClient& RtcModuleSfu::getSfuClient()
 {
     return (*mSfuClient.get());
+}
+
+DNScache& RtcModuleSfu::getDnsCache()
+{
+    return mDnsCache;
 }
 
 void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
@@ -2511,9 +2517,9 @@ std::string RtcModuleSfu::getDeviceInfo() const
 }
 
 
-RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler)
+RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler, DNScache &dnsCache)
 {
-    return new RtcModuleSfu(megaApi, callhandler);
+    return new RtcModuleSfu(megaApi, callhandler, dnsCache);
 }
 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)

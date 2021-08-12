@@ -1108,13 +1108,14 @@ std::string Sdp::unCompressTrack(const Sdp::Track& track, const std::string &tpl
     return sdp;
 }
 
-SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface &call)
+SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface &call, DNScache& dnsCache)
     : WebsocketsClient(false)
     , mSfuUrl(sfuUrl)
     , mWebsocketIO(websocketIO)
     , mAppCtx(appCtx)
     , mCall(call)
     , mMainThreadId(std::this_thread::get_id())
+    , mDnsCache(dnsCache)
 {
     mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2));
     mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
@@ -1992,10 +1993,10 @@ SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryp
 
 }
 
-SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, const std::string &sfuUrl, SfuInterface &call)
+SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, const std::string &sfuUrl, SfuInterface &call, DNScache &dnsCache)
 {
     assert(mConnections.find(chatid) == mConnections.end());
-    mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mWebsocketIO, mAppCtx, call);
+    mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mWebsocketIO, mAppCtx, call, dnsCache);
     SfuConnection* sfuConnection = mConnections[chatid].get();
     sfuConnection->connect();
     return sfuConnection;
