@@ -392,21 +392,20 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
     Keyid_t currentKeyId = mPeer.getCurrentKeyId();
     if (currentKeyId != mKeyId || !mInitialized)
     {
-        if (!mInitialized)
-        {
-            mInitialized = true;
-            assert(mKeyId == 0);
-        }
-
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         mKeyId = currentKeyId;
         std::string encryptionKey = mPeer.getKey(currentKeyId);
         if (encryptionKey.empty())
         {
             RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d", currentKeyId);
-            return kFailedToEncrypt;
+            return kRecoverable;
         }
         setKey(encryptionKey);
+
+        if (!mInitialized)
+        {
+            mInitialized = true;
+        }
     }
 
     // generate frame iv
@@ -426,7 +425,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
                                              encrypted_frame.size()-FRAME_HEADER_LENGTH); // size - header
     if (!result)
     {
-        return kFailedToEncrypt;
+        return kRecoverable;
     }
 
     // set bytes_written to the number of bytes, written in encrypted_frame
@@ -435,7 +434,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
     if (GetMaxCiphertextByteSize(media_type, frame.size()) != *bytes_written)
     {
         RTCM_LOG_WARNING("Encrypt: Frame size doesn't match with expected size");
-        return kFailedToEncrypt;
+        return kRecoverable;
     }
     return kOk;
 }
@@ -474,30 +473,29 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
     Cid_t peerCid = 0;
     memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
 
+    if (peerCid != mPeer.getCid())
+    {
+        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);
+        return static_cast<int>(Status::kRecoverable); // recoverable error
+    }
+
     if (auxKeyId != mKeyId || !mInitialized)
     {
-        if (!mInitialized)
-        {
-            mInitialized = true;
-            assert(mKeyId == 0);
-        }
-
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
         {
             RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d -- Mypeerid: %d --- peerid received: %d", auxKeyId, mPeer.getCid(), peerCid);
-            return static_cast<int>(Status::kFailedToDecrypt); // decryption error
+            return static_cast<int>(Status::kRecoverable); // decryption error
         }
 
         mKeyId = auxKeyId;
         setKey(decryptionKey);
-    }
 
-    if (peerCid != mPeer.getCid())
-    {
-        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);
-        return static_cast<int>(Status::kRecoverable); // recoverable error
+        if (!mInitialized)
+        {
+            mInitialized = true;
+        }
     }
 
     // extract packet ctr from header, and update mCtr (ctr will be used to generate an IV to decrypt the frame)
@@ -547,7 +545,7 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
                                      iv.get(), FRAME_IV_LENGTH,
                                      frame.data(), frame.size()))
     {
-        return Result(Status::kFailedToDecrypt, 0); // decryption error, don't pass to the decoder
+        return Result(Status::kRecoverable, 0); // decryption error, don't pass to the decoder
     }
 
     // check if decrypted frame size is the expected one
@@ -556,7 +554,7 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
     if (expectedFrameSize != frame.size())
     {
         RTCM_LOG_WARNING("Plain frame size doesn't match with expected size, expected: %d decrypted: %d", expectedFrameSize, frame.size());
-        return Result(Status::kFailedToDecrypt, 0); // decryption error, don't pass to the decoder
+        return Result(Status::kRecoverable, 0); // decryption error, don't pass to the decoder
     }
     return Result(Status::kOk, frame.size());
 }
