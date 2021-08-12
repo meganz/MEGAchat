@@ -57,6 +57,7 @@ public:
     void removeRecord(int shard);
     void updateRecord(int shard, const std::string &url, bool saveToDb);
     bool hasRecord(int shard);
+    bool hasUrl(const karere::Url &url);
     bool isValidUrl(int shard);
     // the record for the given shard must exist
     bool setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
