@@ -416,9 +416,6 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
     // generate header and store in encrypted_frame
     generateHeader(encrypted_frame.data());
 
-    // increment PacketCtr after we have generated header
-    incrementPacketCtr();
-
     // encrypt frame and store it in encrypted_frame
     bool result = mSymCipher.gcm_encrypt_aad(frame.data(), frame.size(), encrypted_frame.data(),
                                              FRAME_HEADER_LENGTH, iv.get(),
@@ -442,6 +439,9 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
                          *bytes_written, expectedSize, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr - 1);
         return kRecoverable;
     }
+
+    // increment packetCtr, if encryption process has succeeded
+    incrementPacketCtr();
     return kOk;
 }
 
