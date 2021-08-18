@@ -1390,16 +1390,6 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler->onNewSession(*mSessions[cid], *this);
     generateAndSendNewkey();
-
-    ISession *sess = getSession(cid);
-    if (sess && sess->getAvFlags().videoLowRes())
-    {
-        // request low-res video by default for a new peer joined
-        std::vector<Cid_t> cids;
-        cids.emplace_back(cid);
-        requestLowResolutionVideo(cids);
-    }
-
     return true;
 }
 
