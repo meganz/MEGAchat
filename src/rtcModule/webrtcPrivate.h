@@ -363,8 +363,6 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
-    // request the missing tracks in ANSWER that were available before reconnection
-    void requestPeerTracks(const std::set<Cid_t> &cids);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
@@ -430,9 +428,6 @@ protected:
     bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
-
-    // monitor the available tracks for resuming after a reconnection (requesting the same tracks)
-    std::unique_ptr<AvailableTracks> mAvailableTracks;
 
     std::unique_ptr<CallHandler> mCallHandler;
 
