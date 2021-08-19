@@ -139,58 +139,12 @@ void Peer::setAvFlags(karere::AvFlags flags)
     mAvFlags = flags;
 }
 
-SpeakersDescriptor::SpeakersDescriptor()
-{
-}
-
-SpeakersDescriptor::SpeakersDescriptor(const std::string &audioDescriptor, const std::string &videoDescriptor)
-    : mAudioDescriptor(audioDescriptor), mVideoDescriptor(videoDescriptor)
-{
-}
-
-std::string SpeakersDescriptor::getAudioDescriptor() const
-{
-    return mAudioDescriptor;
-}
-
-std::string SpeakersDescriptor::getVideoDescriptor() const
-{
-    return mVideoDescriptor;
-}
-
-void SpeakersDescriptor::setDescriptors(const std::string &audioDescriptor, const std::string &videoDescriptor)
-{
-    mAudioDescriptor = audioDescriptor;
-    mVideoDescriptor = videoDescriptor;
-}
-
 Command::~Command()
 {
 }
 
 Command::Command()
 {
-}
-
-void Command::parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator &it) const
-{
-    rapidjson::Value::ConstMemberIterator audioIterator = it->value.FindMember("audio");
-    if (audioIterator == it->value.MemberEnd() || !audioIterator->value.IsString())
-    {
-         SFU_LOG_ERROR("Command::parseSpeakerObject: invalid 'audio' value");
-         return;
-    }
-
-    std::string audio = audioIterator->value.GetString();
-
-    std::string video;
-    rapidjson::Value::ConstMemberIterator videoIterator = it->value.FindMember("video");
-    if (videoIterator != it->value.MemberEnd() || videoIterator->value.IsString())
-    {
-         video = videoIterator->value.GetString();
-    }
-
-    speaker.setDescriptors(audio, video);
 }
 
 bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &it) const
@@ -437,40 +391,6 @@ void AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
             continue;
         }
     }
-}
-
-void AnswerCommand::parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
-{
-    assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
-    {
-        Cid_t cid;
-        rapidjson::Value::ConstMemberIterator cidIterator = it->value[j].FindMember("cid");
-        if (cidIterator == it->value.MemberEnd() || !cidIterator->value.IsUint())
-        {
-             SFU_LOG_ERROR("parseSpeakersObject: invalid 'cid' value");
-             return;
-        }
-
-        rapidjson::Value::ConstMemberIterator speakerIterator = it->value[j].FindMember("speaker");
-        if (speakerIterator == it->value[j].MemberEnd() || !speakerIterator->value.IsArray())
-        {
-            SFU_LOG_ERROR("parseSpeakersObject: Received data doesn't have 'speaker' field");
-            return;
-        }
-
-        SpeakersDescriptor speakerDescriptor;
-        parseSpeakerObject(speakerDescriptor, speakerIterator);
-
-        speakers.insert(std::pair<karere::Id, SpeakersDescriptor>(cid, speakerDescriptor));
-
-    }
-}
-
-void AnswerCommand::parseVthumsObject(std::map<Cid_t, TrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator &it) const
-{
-    assert(it->value.IsArray());
-
 }
 
 KeyCommand::KeyCommand(const KeyCompleteFunction &complete)
