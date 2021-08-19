@@ -2498,9 +2498,16 @@ bool Slot::hasTrack(bool send)
 {
     assert(mTransceiver);
 
-    if ((send && (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kRecvOnly))  ||
-     (!send && (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kSendOnly)))
+    if (send && !mTransceiver->sender())
     {
+        RTCM_LOG_WARNING("Sender transceiver wrongly initialized");
+        assert(false);
+        return false;
+    }
+    if (!send && !mTransceiver->receiver())
+    {
+        RTCM_LOG_WARNING("Receiver transceiver wrongly initialized");
+        assert(false);
         return false;
     }
 
