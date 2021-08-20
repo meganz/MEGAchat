@@ -1607,11 +1607,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         auto it = mReceiverTracks.find(trackDescriptor.second.mMid);
         if (it == mReceiverTracks.end())
         {
-            RTCM_LOG_WARNING("Unknown vtrack mid %d", trackDescriptor.second.mMid);
+            RTCM_LOG_ERROR("Unknown vtrack mid %d", trackDescriptor.second.mMid);
             continue;
         }
 
         Cid_t cid = trackDescriptor.first;
+        uint32_t mid = trackDescriptor.second.mMid;
         RemoteVideoSlot *slot = static_cast<RemoteVideoSlot*>(it->second.get());
         if (slot->getCid() == cid && slot->getVideoResolution() == videoResolution)
         {
@@ -1627,10 +1628,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                 assert(false && "Possible error at SFU: slot with CID not found");
             }
 
+            RTCM_LOG_DEBUG("reassign slot with mid: %d from cid: %d to newcid: %d, reuse: %d ", mid, slot->getCid(), cid, trackDescriptor.second.mReuse);
+
             Session *oldSess = getSession(slot->getCid());
             if (oldSess)
             {
-                // In case of Slot reassign for another peer (CID) we need to notify app about that
+                // In case of Slot reassign for another peer (CID) or same peer (CID) slot reusing, we need to notify app about that
                 oldSess->disableVideoSlot(slot->getVideoResolution());
             }
         }
@@ -1644,11 +1647,11 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         slot->assignVideoSlot(cid, trackDescriptor.second.mIv, videoResolution);
-        attachSlotToSession(cid, slot, false, videoResolution, trackDescriptor.second.mReuse);
+        attachSlotToSession(cid, slot, false, videoResolution);
     }
 }
 
-void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResolution hiRes, bool reuse)
+void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResolution hiRes)
 {
     Session *session = getSession(cid);
     assert(session);
@@ -1702,7 +1705,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
     slot->assign(cid, speaker.mIv);
-    attachSlotToSession(cid, slot, true, kUndefined, false);
+    attachSlotToSession(cid, slot, true, kUndefined);
 }
 
 void Call::removeSpeaker(Cid_t cid)
@@ -2452,11 +2455,21 @@ Slot::~Slot()
     }
 }
 
+uint32_t Slot::getTransceiverMid()
+{
+    if (!mTransceiver->mid())
+    {
+        assert(false);
+        return 0;
+    }
+    return atoi(mTransceiver->mid()->c_str());
+}
+
 void Slot::createEncryptor()
 {
     mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv));
+                                                                      mIv, getTransceiverMid()));
 }
 
 void Slot::createDecryptor()
@@ -2470,7 +2483,7 @@ void Slot::createDecryptor()
 
     mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv));
+                                                                      mIv, getTransceiverMid()));
 }
 
 webrtc::RtpTransceiverInterface *Slot::getTransceiver()
