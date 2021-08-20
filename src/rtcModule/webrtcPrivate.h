@@ -77,6 +77,7 @@ class Slot
 public:
     Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     virtual ~Slot();
+    uint32_t getTransceiverMid();
     void createEncryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;

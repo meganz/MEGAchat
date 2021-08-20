@@ -2440,11 +2440,21 @@ Slot::~Slot()
     }
 }
 
+uint32_t Slot::getTransceiverMid()
+{
+    if (!mTransceiver->mid())
+    {
+        assert(false);
+        return 0;
+    }
+    return atoi(mTransceiver->mid()->c_str());
+}
+
 void Slot::createEncryptor()
 {
     mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv, atoi(getTransceiver()->mid()->c_str())));
+                                                                      mIv, getTransceiverMid()));
 }
 
 void Slot::createDecryptor()
@@ -2458,7 +2468,7 @@ void Slot::createDecryptor()
 
     mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv, atoi(getTransceiver()->mid()->c_str())));
+                                                                      mIv, getTransceiverMid()));
 }
 
 webrtc::RtpTransceiverInterface *Slot::getTransceiver()
