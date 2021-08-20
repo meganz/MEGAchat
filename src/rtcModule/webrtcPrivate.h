@@ -77,6 +77,7 @@ class Slot
 public:
     Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     virtual ~Slot();
+    uint32_t getTransceiverMid();
     void createEncryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
@@ -454,7 +455,7 @@ protected:
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
+    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes);
     void enableStats();
     void disableStats();
     void adjustSvcByStats();
