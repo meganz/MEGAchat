@@ -311,10 +311,11 @@ rtc::RefCountReleaseStatus VideoManager::Release() const
     return status;
 }
 
-RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv)
+RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv, uint32_t mid)
     : mPeer(peer)
     , mCryptoMeetings(cryptoMeetings)
     , mIv(iv)
+    , mMid(mid)
 {
 
 }
@@ -339,8 +340,8 @@ std::unique_ptr<byte []> RtcCipher::generateFrameIV()
     return iv;
 }
 
-MegaEncryptor::MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv)
-    : RtcCipher(peer, cryptoMeetings, iv)
+MegaEncryptor::MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv, uint32_t mid)
+    : RtcCipher(peer, cryptoMeetings, iv, mid)
 {
 }
 
@@ -451,8 +452,8 @@ size_t MegaEncryptor::GetMaxCiphertextByteSize(cricket::MediaType /*media_type*/
     return FRAME_HEADER_LENGTH + frame_size + FRAME_GCM_TAG_LENGTH;
 }
 
-MegaDecryptor::MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv)
-    : RtcCipher(peer, cryptoMeetings, iv)
+MegaDecryptor::MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv,  uint32_t mid)
+    : RtcCipher(peer, cryptoMeetings, iv, mid)
 {
 }
 
@@ -486,8 +487,8 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
     if (peerCid != mPeer.getCid())
     {
         RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d, "
-                         "peerid: %s, keyid: %d, frameCtr: %d", mPeer.getCid(), peerCid,
-                         mPeer.getPeerid().toString().c_str(), auxKeyId, mCtr);
+                         "mid: %d peerid: %s, keyid: %d, frameCtr: %d", mPeer.getCid(), peerCid,
+                         mMid, mPeer.getPeerid().toString().c_str(), auxKeyId, mCtr);
         return static_cast<int>(Status::kRecoverable); // recoverable error
     }
 
@@ -497,8 +498,8 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
         {
-            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with Frame keyId: %d, peercid: %d, peerid: %s, frameCtr: %d",
-                             auxKeyId, peerCid, mPeer.getPeerid().toString().c_str(), mCtr);
+            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with Frame keyId: %d, mid: %d, peercid: %d, peerid: %s, frameCtr: %d",
+                             auxKeyId, mMid, peerCid, mPeer.getPeerid().toString().c_str(), mCtr);
             return static_cast<int>(Status::kRecoverable); // decryption error
         }
 
@@ -555,8 +556,8 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
                                      iv.get(), FRAME_IV_LENGTH,
                                      frame.data(), frame.size()))
     {
-        RTCM_LOG_WARNING("Failed gcm_decrypt_aad decryption with additional authenticated data: Cid: %d, PeerId: %s, KeyId: %d, frameCtr: %d",
-                         mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr);
+        RTCM_LOG_WARNING("Failed gcm_decrypt_aad decryption with additional authenticated data: mid: %d Cid: %d, PeerId: %s, KeyId: %d, frameCtr: %d",
+                         mMid, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr);
         return Result(Status::kRecoverable, 0); // decryption error, don't pass to the decoder
     }
 

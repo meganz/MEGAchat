@@ -287,7 +287,7 @@ public:
 class RtcCipher
 {
 public:
-    RtcCipher(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv);
+    RtcCipher(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv, uint32_t mid);
     virtual ~RtcCipher() {}
 
     // set a key for SymmCipher
@@ -317,6 +317,8 @@ protected:
     // static part (8 Bytes) of IV
     IvStatic_t mIv;
 
+    uint32_t mMid = 0;
+
     bool mTerminating = false;
     bool mInitialized = false; // this flag will be set true upon first key is set in cipher
 };
@@ -328,7 +330,7 @@ class MegaEncryptor
 public:
     enum Status { kOk, kRecoverable, kFailedToEncrypt};
 
-    MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv);
+    MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv, uint32_t mid);
     ~MegaEncryptor() override;
 
     // increments sequential number of the packet, for each sent frame of that media track.
@@ -355,7 +357,7 @@ class MegaDecryptor
         , public rtc::RefCountedObject<webrtc::FrameDecryptorInterface>
 {
 public:
-     MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv);
+     MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv, uint32_t mid);
     ~MegaDecryptor() override;
 
     // validates header by checking if CID matches with expected one, also extracts keyId and packet CTR */

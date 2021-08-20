@@ -1597,6 +1597,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         Cid_t cid = trackDescriptor.first;
+        uint32_t mid = trackDescriptor.second.mMid;
         RemoteVideoSlot *slot = static_cast<RemoteVideoSlot*>(it->second.get());
         if (slot->getCid() == cid && slot->getVideoResolution() == videoResolution)
         {
@@ -1612,6 +1613,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                 assert(false && "Possible error at SFU: slot with CID not found");
             }
 
+            RTCM_LOG_DEBUG("reassign slot with mid: %d from cid: %d to newcid: %d", mid, slot->getCid(), cid);
             Session *oldSess = getSession(slot->getCid());
             if (oldSess)
             {
@@ -2441,7 +2443,7 @@ void Slot::createEncryptor()
 {
     mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv));
+                                                                      mIv, atoi(getTransceiver()->mid()->c_str())));
 }
 
 void Slot::createDecryptor()
@@ -2455,7 +2457,7 @@ void Slot::createDecryptor()
 
     mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv));
+                                                                      mIv, atoi(getTransceiver()->mid()->c_str())));
 }
 
 webrtc::RtpTransceiverInterface *Slot::getTransceiver()
