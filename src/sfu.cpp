@@ -1599,7 +1599,11 @@ bool SfuConnection::sendGetHiRes(Cid_t cid, int r, int lo)
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
-    json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
+    if (r)
+    {
+        // avoid sending r flag if it's zero (it's useless and it could generate issues at SFU)
+        json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
+    }
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
 
     rapidjson::StringBuffer buffer;

@@ -646,7 +646,7 @@ void Call::requestHighResolutionVideo(Cid_t cid, int quality)
     }
     else
     {
-        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false), quality);
+        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false) ? 1 : 0, quality);
     }
 }
 
