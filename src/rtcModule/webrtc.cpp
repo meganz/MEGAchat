@@ -1632,11 +1632,11 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         slot->assignVideoSlot(cid, trackDescriptor.second.mIv, videoResolution);
-        attachSlotToSession(cid, slot, false, videoResolution, trackDescriptor.second.mReuse);
+        attachSlotToSession(cid, slot, false, videoResolution);
     }
 }
 
-void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResolution hiRes, bool reuse)
+void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResolution hiRes)
 {
     Session *session = getSession(cid);
     assert(session);
@@ -1690,7 +1690,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
     slot->assign(cid, speaker.mIv);
-    attachSlotToSession(cid, slot, true, kUndefined, false);
+    attachSlotToSession(cid, slot, true, kUndefined);
 }
 
 void Call::removeSpeaker(Cid_t cid)

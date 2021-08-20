@@ -454,7 +454,7 @@ protected:
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
+    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes);
     void enableStats();
     void disableStats();
     void adjustSvcByStats();
