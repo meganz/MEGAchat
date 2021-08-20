@@ -317,6 +317,7 @@ protected:
     // static part (8 Bytes) of IV
     IvStatic_t mIv;
 
+    // track mid for log purposes
     uint32_t mMid = 0;
 
     bool mTerminating = false;

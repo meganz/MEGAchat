@@ -1592,7 +1592,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         auto it = mReceiverTracks.find(trackDescriptor.second.mMid);
         if (it == mReceiverTracks.end())
         {
-            RTCM_LOG_WARNING("Unknown vtrack mid %d", trackDescriptor.second.mMid);
+            RTCM_LOG_ERROR("Unknown vtrack mid %d", trackDescriptor.second.mMid);
             continue;
         }
 
@@ -1613,11 +1613,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                 assert(false && "Possible error at SFU: slot with CID not found");
             }
 
-            RTCM_LOG_DEBUG("reassign slot with mid: %d from cid: %d to newcid: %d", mid, slot->getCid(), cid);
+            RTCM_LOG_DEBUG("reassign slot with mid: %d from cid: %d to newcid: %d, reuse: %d ", mid, slot->getCid(), cid, trackDescriptor.second.mReuse);
+
             Session *oldSess = getSession(slot->getCid());
             if (oldSess)
             {
-                // In case of Slot reassign for another peer (CID) we need to notify app about that
+                // In case of Slot reassign for another peer (CID) or same peer (CID) slot reusing, we need to notify app about that
                 oldSess->disableVideoSlot(slot->getVideoResolution());
             }
         }
