@@ -568,7 +568,7 @@ void ChatItemWidget::onResquestMemberInfo()
 {
     mega::MegaHandleList* userList;
     userList = mega::MegaHandleList::createInstance();
-    MegaChatRoom* room = mMegaChatApi->getChatRoom(mChatId);
+    megachat::MegaChatRoom* room = mMegaChatApi->getChatRoom(mChatId);
     int i = 0;
     for (i = mIndexMemberRequested; i < (mIndexMemberRequested + MEMBERS_REQUESTED) && i < room->getPeerCount(); i++)
     {

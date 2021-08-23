@@ -2,8 +2,8 @@
 #include <QMenu>
 #include <QApplication>
 
-MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent, unsigned numParticipants)
-    : QWidget(parent)
+MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent)
+    : QDialog(parent)
     , mMegaChatApi(megaChatApi)
     , mChatid(chatid)
 {
@@ -24,21 +24,37 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 
     mHangup = new QPushButton("Hang up", this);
     connect(mHangup, SIGNAL(released()), this, SLOT(onHangUp()));
+    mHangup->setVisible(false);
     mRequestSpeaker = new QPushButton("ReqSpeaker", this);
     connect(mRequestSpeaker, &QAbstractButton::clicked, this, [=](){onRequestSpeak(true);});
+    mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel = new QPushButton("Cancel ReqSpeaker", this);
     connect(mRequestSpeakerCancel, &QAbstractButton::clicked, this, [=](){onRequestSpeak(false);});
+    mRequestSpeakerCancel->setVisible(false);
     mEnableAudio = new QPushButton("Audio-disable", this);
     connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
+    mEnableAudio->setVisible(false);
     mEnableVideo = new QPushButton("Video-disable", this);
     connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
+    mEnableVideo->setVisible(false);
 
     QString audioMonTex = mMegaChatApi.isAudioLevelMonitorEnabled(mChatid) ? "Audio monitor (is enabled)" : "Audio monitor (is disabled)";
     mAudioMonitor = new QPushButton(audioMonTex.toStdString().c_str(), this);
     connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
+    mAudioMonitor->setVisible(false);
 
     mRemOwnSpeaker = new QPushButton("Remove own speaker", this);
     connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveSpeaker()));
+    mRemOwnSpeaker->setVisible(false);
+
+    mJoinCallWithVideo = new QPushButton("Join Call with Video", this);
+    connect(mJoinCallWithVideo, SIGNAL(clicked()), this, SLOT(onJoinCallWithVideo()));
+    mJoinCallWithVideo->setVisible(false);
+
+    mJoinCallWithoutVideo = new QPushButton("Join Call without Video", this);
+    connect(mJoinCallWithoutVideo, SIGNAL(clicked()), this, SLOT(onJoinCallWithoutVideo()));
+    mJoinCallWithoutVideo->setVisible(false);
+
     mSetOnHold = new QPushButton("onHold", this);
     connect(mSetOnHold, SIGNAL(released()), this, SLOT(onOnHold()));
     mOnHoldLabel = new QLabel("CALL ONHOLD", this);
@@ -46,6 +62,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mOnHoldLabel->setAlignment(Qt::AlignCenter);
     mOnHoldLabel->setContentsMargins(0, 0, 0, 0);
     mOnHoldLabel->setVisible(false);
+    mSetOnHold->setVisible(false);
 
     mLocalAudioDetected = new QLabel("AUDIO DETECTED", this);
     mLocalAudioDetected->setStyleSheet("background-color:#088529 ;color:#FFFFFF; font-weight:bold;");
@@ -64,11 +81,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mHiResView->setWidgetResizable(true);
     mHiResView->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
 
-    mParticipantsLabel = new QLabel("");
-    mParticipantsLabel->setStyleSheet("border: 1px solid #C5C5C5; color:#000000; font-weight:bold;");
-    mParticipantsLabel->setAlignment(Qt::AlignCenter);
-    updateNumParticipants(numParticipants);
-    mGridLayout->addWidget(mParticipantsLabel, 0, 0, 1, 1);
+    mLabel = new QLabel("");
+    mLabel->setStyleSheet("border: 1px solid #C5C5C5; color:#000000; font-weight:bold;");
+    mLabel->setAlignment(Qt::AlignCenter);
+    mGridLayout->addWidget(mLabel, 0, 0, 1, 1);
     mGridLayout->addWidget(mListWidget, 1, 0, 3, 1);
     mGridLayout->addWidget(mThumbView, 0, 1, 1, 1);
     mGridLayout->addWidget(mHiResView, 1, 1, 1, 1);
@@ -83,11 +99,26 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mSetOnHold);
     mButtonsLayout->addWidget(mOnHoldLabel);
     mButtonsLayout->addWidget(mLocalAudioDetected);
+    mButtonsLayout->addWidget(mJoinCallWithVideo);
+    mButtonsLayout->addWidget(mJoinCallWithoutVideo);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
     mGridLayout->setRowStretch(2, 3);
     mLocalLayout->addLayout(mButtonsLayout);
+
+    QVBoxLayout *localLayout = new QVBoxLayout();
+    mLocalLayout->addLayout(localLayout);
+
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(chatid));
+    assert(call);
+    PeerWidget* widget = new PeerWidget(mMegaChatApi, call->getChatid(), 0, 0, true);
+    addLocalVideo(widget);
+
+    setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::CustomizeWindowHint);
+    std::unique_ptr<megachat::MegaChatRoom> chatroom = std::unique_ptr<megachat::MegaChatRoom>(mMegaChatApi.getChatRoom(chatid));
+    assert(chatroom);
+    setWindowTitle(chatroom->getTitle());
 }
 
 MeetingView::~MeetingView()
@@ -100,11 +131,43 @@ void MeetingView::updateAudioMonitor(bool enabled)
     mAudioMonitor->setText(audioMonTex.toStdString().c_str());
 }
 
-void MeetingView::updateNumParticipants(unsigned participants)
+void MeetingView::updateLabel(unsigned participants, const std::string &state)
 {
     std::string txt = "Participants: ";
     txt.append(std::to_string(participants));
-    mParticipantsLabel->setText(txt.c_str());
+    txt.append("  State: ");
+    txt.append(state);
+    mLabel->setText(txt.c_str());
+}
+
+void MeetingView::setNotParticipating()
+{
+    mLocalWidget->setVisible(false);
+    mHangup->setVisible(false);
+    mRequestSpeaker->setVisible(false);
+    mRequestSpeakerCancel->setVisible(false);
+    mEnableAudio->setVisible(false);
+    mEnableVideo->setVisible(false);
+    mAudioMonitor->setVisible(false);
+    mRemOwnSpeaker->setVisible(false);
+    mSetOnHold->setVisible(false);
+    mJoinCallWithVideo->setVisible(true);
+    mJoinCallWithoutVideo->setVisible(true);
+}
+
+void MeetingView::setConnecting()
+{
+    mLocalWidget->setVisible(false);
+    mHangup->setVisible(true);
+    mRequestSpeaker->setVisible(false);
+    mRequestSpeakerCancel->setVisible(false);
+    mEnableAudio->setVisible(false);
+    mEnableVideo->setVisible(false);
+    mAudioMonitor->setVisible(false);
+    mRemOwnSpeaker->setVisible(false);
+    mSetOnHold->setVisible(false);
+    mJoinCallWithVideo->setVisible(false);
+    mJoinCallWithoutVideo->setVisible(false);
 }
 
 void MeetingView::addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid)
@@ -164,9 +227,24 @@ void MeetingView::addLocalVideo(PeerWidget *widget)
 {
     assert(!mLocalWidget);
     mLocalWidget = widget;
-    QVBoxLayout *localLayout = new QVBoxLayout();
-    localLayout->addWidget(widget);
-    mLocalLayout->addLayout(localLayout);
+    mLocalWidget->setVisible(false);
+    mLocalLayout->layout()->addWidget(mLocalWidget);
+    adjustSize();
+}
+
+void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
+{
+    updateAudioButtonText(call);
+    updateVideoButtonText(call);
+    mLocalWidget->setVisible(true);
+    mHangup->setVisible(true);
+    mRequestSpeaker->setVisible(true);
+    mRequestSpeakerCancel->setVisible(true);
+    mEnableAudio->setVisible(true);
+    mEnableVideo->setVisible(true);
+    mAudioMonitor->setVisible(true);
+    mRemOwnSpeaker->setVisible(true);
+    mSetOnHold->setVisible(true);
 }
 
 void MeetingView::addSession(const megachat::MegaChatSession &session)
@@ -207,10 +285,10 @@ void MeetingView::updateSession(const megachat::MegaChatSession &session)
     }
 }
 
-void MeetingView::updateAudioButtonText(megachat::MegaChatCall *call)
+void MeetingView::updateAudioButtonText(const megachat::MegaChatCall& call)
 {
     std::string text;
-    if (call->hasLocalAudio())
+    if (call.hasLocalAudio())
     {
         text = "Disable Audio";
     }
@@ -222,10 +300,10 @@ void MeetingView::updateAudioButtonText(megachat::MegaChatCall *call)
     mEnableAudio->setText(text.c_str());
 }
 
-void MeetingView::updateVideoButtonText(megachat::MegaChatCall *call)
+void MeetingView::updateVideoButtonText(const megachat::MegaChatCall &call)
 {
     std::string text;
-    if (call->hasLocalVideo())
+    if (call.hasLocalVideo())
     {
         text = "Disable Video";
     }
@@ -300,7 +378,6 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
 
 void MeetingView::onHangUp()
 {
-    mLocalWidget->removeVideoListener();
     std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
     if (call)
     {
@@ -494,5 +571,15 @@ void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
     mMegaChatApi.isAudioLevelMonitorEnabled(mChatid)
            ? mMegaChatApi.enableAudioLevelMonitor(false, mChatid)
            : mMegaChatApi.enableAudioLevelMonitor(true, mChatid);
+}
+
+void MeetingView::onJoinCallWithVideo()
+{
+    mMegaChatApi.startChatCall(mChatid);
+}
+
+void MeetingView::onJoinCallWithoutVideo()
+{
+    mMegaChatApi.startChatCall(mChatid, false);
 }
 

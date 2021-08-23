@@ -80,16 +80,10 @@ FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
     ../../../examples/qtmegachatapi/confirmAccount.ui
 
 CONFIG(USE_WEBRTC) {
-    SOURCES +=  ../../../examples/qtmegachatapi/callGui.cpp \
-        ../../../examples/qtmegachatapi/callListener.cpp \
-        ../../../examples/qtmegachatapi/remoteCallListener.cpp \
-        ../../../examples/qtmegachatapi/localCallListener.cpp \
+    SOURCES +=  \
         ../../src/videoRenderer_Qt.cpp
 
-    HEADERS +=  ../../../examples/qtmegachatapi/callGui.h \
-        ../../../examples/qtmegachatapi/callListener.h \
-        ../../../examples/qtmegachatapi/remoteCallListener.h \
-        ../../../examples/qtmegachatapi/localCallListener.h \
+    HEADERS +=  \
         ../../src/videoRenderer_Qt.h
 
     FORMS += ../../../examples/qtmegachatapi/callGui.ui
