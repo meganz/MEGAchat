@@ -1960,8 +1960,14 @@ promise::Promise<void> SfuConnection::reconnect()
                 assert(isOnline());
                 mCall.onSfuConnected();
             });
+        }, wptr, mAppCtx
+                     , nullptr                              // cancel function
+                     , KARERE_RECONNECT_ATTEMPT_TIMEOUT     // initial attempt timeout (increases exponentially)
+                     , KARERE_RECONNECT_MAX_ATTEMPT_TIMEOUT // maximum attempt timeout
+                     , 0                                    // max number of attempts
+                     , KARERE_RECONNECT_DELAY_MAX           // max single wait between attempts
+                     , 0));                                 // initial single wait between attempts  (increases exponentially)
 
-        }, wptr, mAppCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
 
         return static_cast<promise::Promise<void>&>(mRetryCtrl->start());
     }
