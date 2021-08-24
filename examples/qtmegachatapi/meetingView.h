@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
 #include <map>
@@ -40,6 +41,8 @@ public:
     void removeLowResByCid(uint32_t cid);
     void removeHiResByCid(uint32_t cid);
     void localAudioDetected(bool audio);
+    void createRingingWindow(megachat::MegaChatHandle callid);
+    void destroyRingingWindow();
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -73,6 +76,8 @@ protected:
     std::map<uint32_t, PeerWidget*> mHiResWidget;
     PeerWidget* mLocalWidget = nullptr;
     std::map<uint32_t, MeetingSession*> mSessionWidgets;
+
+    std::unique_ptr<QMessageBox> mRingingWindow;
 
 public slots:
     void onHangUp();

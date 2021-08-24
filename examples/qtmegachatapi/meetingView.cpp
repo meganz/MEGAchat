@@ -223,6 +223,38 @@ void MeetingView::localAudioDetected(bool audio)
     mLocalAudioDetected->setVisible(audio);
 }
 
+void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
+{
+    if (!mRingingWindow)
+    {
+        mRingingWindow = mega::make_unique<QMessageBox>(this);
+        mRingingWindow->setText("New call");
+        mRingingWindow->setInformativeText("Answer?");
+        mRingingWindow->setStandardButtons(QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
+        int ringingWindowOption = mRingingWindow->exec();
+        if (ringingWindowOption == QMessageBox::Yes)
+        {
+            mMegaChatApi.answerChatCall(mChatid, true);
+        }
+        else if (ringingWindowOption == QMessageBox::Cancel)
+        {
+            mMegaChatApi.hangChatCall(callid);
+        }
+        else if (ringingWindowOption == QMessageBox::Ignore)
+        {
+            mMegaChatApi.setIgnoredCall(mChatid);
+        }
+    }
+}
+
+void MeetingView::destroyRingingWindow()
+{
+    if (mRingingWindow)
+    {
+        mRingingWindow.reset(nullptr);
+    }
+}
+
 void MeetingView::addLocalVideo(PeerWidget *widget)
 {
     assert(!mLocalWidget);

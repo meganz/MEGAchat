@@ -178,20 +178,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 itemController->createMeetingView();
                 if (call->isRinging() && call->getCaller() != mMegaChatApi->getMyUserHandle())
                 {
-                    QMessageBox::StandardButton reply;
-                     reply = QMessageBox::question(itemController->getMeetingView(), "New call", "Answer?", QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
-                     if (reply == QMessageBox::Yes)
-                     {
-                        mMegaChatApi->answerChatCall(call->getCallId(), true);
-                     }
-                     else if (reply == QMessageBox::Cancel)
-                     {
-                         mMegaChatApi->hangChatCall(call->getCallId());
-                     }
-                     else if (reply == QMessageBox::Ignore)
-                     {
-                         mMegaChatApi->setIgnoredCall(call->getChatid());
-                     }
+                    itemController->getMeetingView()->createRingingWindow(call->getCallId());
                 }
 
                 itemController->getMeetingView()->updateLabel(call->getNumParticipants(), callStateToString(*call));
@@ -248,20 +235,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         if (call->isRinging() && call->getCaller() != mMegaChatApi->getMyUserHandle())
         {
             assert(itemController->getMeetingView());
-            QMessageBox::StandardButton reply;
-             reply = QMessageBox::question(itemController->getMeetingView(), "New call", "Answer?", QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
-             if (reply == QMessageBox::Yes)
-             {
-                mMegaChatApi->answerChatCall(call->getChatid(), true);
-             }
-             else if (reply == QMessageBox::Cancel)
-             {
-                 mMegaChatApi->hangChatCall(call->getCallId());
-             }
-             else if (reply == QMessageBox::Ignore)
-             {
-                 mMegaChatApi->setIgnoredCall(call->getChatid());
-             }
+            itemController->getMeetingView()->createRingingWindow(call->getCallId());
+        }
+        else if (!call->isRinging())
+        {
+            assert(itemController->getMeetingView());
+            itemController->getMeetingView()->destroyRingingWindow();
         }
     }
 
