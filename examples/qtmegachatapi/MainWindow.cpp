@@ -181,40 +181,32 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                     itemController->getMeetingView()->createRingingWindow(call->getCallId());
                 }
 
-                itemController->getMeetingView()->updateLabel(call->getNumParticipants(), callStateToString(*call));
-
                 break;
             }
 
             case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
             {
-                MeetingView* meetingView = itemController->getMeetingView();
-                assert(meetingView);
-                meetingView->setNotParticipating();
+                assert(itemController->getMeetingView());
+                itemController->getMeetingView()->setNotParticipating();
                 break;
             }
 
             case megachat::MegaChatCall::CALL_STATUS_CONNECTING:
             {
-                MeetingView* meetingView = itemController->getMeetingView();
-                assert(meetingView);
-                meetingView->setConnecting();
-                itemController->getMeetingView()->updateLabel(call->getNumParticipants(), callStateToString(*call));
+                assert(itemController->getMeetingView());
+                itemController->getMeetingView()->setConnecting();
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
-                MeetingView* meetingView = itemController->getMeetingView();
-                assert(meetingView);
-                meetingView->joinedToCall(*call);
-                itemController->getMeetingView()->updateLabel(call->getNumParticipants(), callStateToString(*call));
+                assert(itemController->getMeetingView());
+                itemController->getMeetingView()->joinedToCall(*call);
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
             {
                 assert(itemController->getMeetingView());
                 itemController->getMeetingView()->setNotParticipating();
-                itemController->getMeetingView()->updateLabel(call->getNumParticipants(), callStateToString(*call));
                 return;
             }
             case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
@@ -227,6 +219,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 break;
             }
+        }
+
+        MeetingView* meetingView = itemController->getMeetingView();
+        if (meetingView) // At destroy state meetingView doesn't exit
+        {
+            meetingView->updateLabel(call->getNumParticipants(), callStateToString(*call));
         }
     }
 
@@ -272,11 +270,9 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         throw std::runtime_error("Session notification in a call without associated item");
     }
 
-    ChatWindow *window = itemController->showChatWindow();
-    assert(window);
-    assert(itemController->getMeetingView());
     MeetingView* meetingView = itemController->getMeetingView();
-    itemController->getMeetingView()->updateSession(*session);
+    assert(meetingView);
+    meetingView->updateSession(*session);
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD))
     {
