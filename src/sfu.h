@@ -50,6 +50,7 @@ public:
     Keyid_t getCurrentKeyId() const;
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
+    void resetKeys();
 
 protected:
     Cid_t mCid = 0;

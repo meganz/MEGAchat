@@ -134,6 +134,12 @@ void Peer::addKey(Keyid_t keyid, const std::string &key)
     mKeyMap[mCurrentkeyId] = key;
 }
 
+void Peer::resetKeys()
+{
+    mCurrentkeyId = 0;
+    mKeyMap.clear();
+}
+
 void Peer::setAvFlags(karere::AvFlags flags)
 {
     mAvFlags = flags;
