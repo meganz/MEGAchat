@@ -73,7 +73,7 @@ bool Url::operator!=(const Url &url) const
 
 bool Url::operator==(const Url &url) const
 {
-    return host == url.host && protocol == url.protocol && port == url.port && path == url.path;
+    return !operator!=(url);
 }
 
 uint16_t Url::getPortFromProtocol() const
