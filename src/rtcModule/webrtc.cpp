@@ -341,8 +341,8 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
         if (wptr.deleted())
             return promise::Error("Join call succeed, but call has already ended");
 
-        std::string sfuUrl = result->getText();
-        connectSfu(sfuUrl);
+        std::string sfuUrlStr = result->getText();
+        connectSfu(sfuUrlStr);
 
         return promise::_Void();
     });
@@ -812,17 +812,26 @@ Session* Call::getSession(Cid_t cid)
         : nullptr;
 }
 
-void Call::connectSfu(const std::string& sfuUrl)
+void Call::connectSfu(const std::string& sfuUrlStr)
 {
-    if (sfuUrl.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
+    if (sfuUrlStr.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
     {
         RTCM_LOG_ERROR("trying to connect to SFU with an Empty URL");
         assert(false);
         return;
     }
 
+    karere::Url sfuUrl(sfuUrlStr);
+    if (sfuUrl.isValid())
+    {
+        RTCM_LOG_ERROR("trying to connect to SFU with an Empty Host");
+        assert(false);
+        return;
+    }
+
     setState(CallState::kStateConnecting);
-    mSfuConnection = mSfuClient.createSfuConnection(mChatid, sfuUrl, *this, mRtc.getDnsCache());
+    mRtc.getDnsCache().addSfuRecord(sfuUrl.host); // Add record to db to store new URL in case it doesn't exist yet in cache
+    mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
 }
 
 void Call::joinSfu()
@@ -2241,13 +2250,13 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
 
         wptr.throwIfDeleted();
         karere::Id callid = result->getParentHandle();
-        std::string sfuUrl = result->getText();
+        std::string sfuUrlStr = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
             std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
             karere::Id myUserHandle(userHandle.get());
             mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
-            mCalls[callid]->connectSfu(sfuUrl);
+            mCalls[callid]->connectSfu(sfuUrlStr);
         }
     });
 }

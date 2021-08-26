@@ -388,7 +388,7 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
-    SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
+    SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     bool isOnline() const;
     bool isJoined() const;
@@ -418,7 +418,8 @@ public:
     bool sendSpeakDel(Cid_t cid = 0);
 
 protected:
-    std::string mSfuUrl;
+    // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
+    karere::Url mSfuUrl;
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
 
@@ -474,7 +475,7 @@ class SfuClient
 public:
     SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings);
 
-    SfuConnection *createSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call, DNScache &dnsCache);
+    SfuConnection *createSfuConnection(karere::Id chatid, karere::Url&& sfuUrl, SfuInterface& call, DNScache &dnsCache);
     void closeSfuConnection(karere::Id chatid); // does NOT retry the connection afterwards (used for errors/disconnects)
     void retryPendingConnections(bool disconnect);
 

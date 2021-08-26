@@ -342,7 +342,7 @@ public:
     void setState(CallState newState);
     static const char *stateToStr(CallState state);
 
-    void connectSfu(const std::string& sfuUrl);
+    void connectSfu(const std::string& sfuUrlStr);
     void joinSfu();
 
     void createTransceivers();  // both, for sending your audio/video and for receiving from participants
@@ -447,7 +447,6 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
-
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey();
     // associate slots with their corresponding sessions (video)

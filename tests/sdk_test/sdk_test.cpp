@@ -5042,7 +5042,8 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     MockupCall call;
     SqliteDb mockupDb;
     DNScache mockupCache(mockupDb, chatd::Client::chatdVersion);
-    sfu::SfuConnection sfuConnection("SFU-URL", webSocket, nullptr, call, mockupCache);
+    karere::Url sfuUrl("SFU-URL");
+    sfu::SfuConnection sfuConnection(std::move(sfuUrl), webSocket, nullptr, call, mockupCache);
 
     int failedTest = 0;
     int executedTests = 0;

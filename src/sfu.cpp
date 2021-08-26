@@ -1108,7 +1108,7 @@ std::string Sdp::unCompressTrack(const Sdp::Track& track, const std::string &tpl
     return sdp;
 }
 
-SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface &call, DNScache& dnsCache)
+SfuConnection::SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface &call, DNScache& dnsCache)
     : WebsocketsClient(false)
     , mSfuUrl(sfuUrl)
     , mWebsocketIO(websocketIO)
@@ -1178,9 +1178,7 @@ void SfuConnection::disconnect(bool withoutReconnection)
 
 void SfuConnection::doConnect()
 {
-    const karere::Url url(mSfuUrl);
-    assert (url.isValid());
-
+    assert (mSfuUrl.isValid());
     std::string ipv4 = mIpsv4.size() ? mIpsv4[0] : "";
     std::string ipv6 = mIpsv6.size() ? mIpsv6[0] : "";
 
@@ -1190,10 +1188,10 @@ void SfuConnection::doConnect()
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
 
     bool rt = wsConnect(&mWebsocketIO, mTargetIp.c_str(),
-          url.host.c_str(),
-          url.port,
-          url.path.c_str(),
-          url.isSecure);
+          mSfuUrl.host.c_str(),
+          mSfuUrl.port,
+          mSfuUrl.path.c_str(),
+          mSfuUrl.isSecure);
 
     if (!rt)    // immediate failure --> try the other IP family (if available)
     {
@@ -1216,10 +1214,10 @@ void SfuConnection::doConnect()
         {
             SFU_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
             if (wsConnect(&mWebsocketIO, mTargetIp.c_str(),
-                          url.host.c_str(),
-                          url.port,
-                          url.path.c_str(),
-                          url.isSecure))
+                          mSfuUrl.host.c_str(),
+                          mSfuUrl.port,
+                          mSfuUrl.path.c_str(),
+                          mSfuUrl.isSecure))
             {
                 return;
             }
@@ -1824,7 +1822,7 @@ promise::Promise<void> SfuConnection::reconnect()
         if (mConnState >= kResolving) //would be good to just log and return, but we have to return a promise
             return ::promise::Error(std::string("Already connecting/connected"));
 
-        if (mSfuUrl.empty())
+        if (!mSfuUrl.isValid() || !mDnsCache.hasHost(mSfuUrl.host))
             return ::promise::Error("SFU reconnect: Current URL is not valid");
 
         setConnState(kResolving);
@@ -1845,14 +1843,13 @@ promise::Promise<void> SfuConnection::reconnect()
             setConnState(kDisconnected);
             mConnectPromise = promise::Promise<void>();
 
-            karere::Url url(mSfuUrl);
 
             setConnState(kResolving);
-            SFU_LOG_DEBUG("Resolving hostname %s...", url.host.c_str());
+            SFU_LOG_DEBUG("Resolving hostname %s...", mSfuUrl.host.c_str());
 
             auto retryCtrl = mRetryCtrl.get();
-            int statusDNS = wsResolveDNS(&mWebsocketIO, url.host.c_str(),
-                         [wptr, this, retryCtrl, attemptNo](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+            int statusDNS = wsResolveDNS(&mWebsocketIO, mSfuUrl.host.c_str(),
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo, &ipv4, &ipv6](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -1993,10 +1990,10 @@ SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryp
 
 }
 
-SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, const std::string &sfuUrl, SfuInterface &call, DNScache &dnsCache)
+SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, karere::Url&& sfuUrl, SfuInterface &call, DNScache &dnsCache)
 {
     assert(mConnections.find(chatid) == mConnections.end());
-    mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mWebsocketIO, mAppCtx, call, dnsCache);
+    mConnections[chatid] = mega::make_unique<SfuConnection>(std::move(sfuUrl), mWebsocketIO, mAppCtx, call, dnsCache);
     SfuConnection* sfuConnection = mConnections[chatid].get();
     sfuConnection->connect();
     return sfuConnection;
