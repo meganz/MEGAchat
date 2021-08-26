@@ -93,8 +93,16 @@ public:
     bool updateTlsSession(const CachedSession &sess);
     std::vector<CachedSession> getTlsSessions();
 
-    // DNS cache methods based on host instead of shard
+    // DNS cache methods to manage records based on host instead of shard
     enum: int8_t { kSfuShardStart = -20,  kSfuShardEnd = -128};
+    bool addRecordByHost(std::string host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true);
+    bool hasRecordByHost(const std::string &host) const;
+    DNSrecord* getRecordByHost(const std::string &host);
+    void connectDoneByHost(const std::string &host, const std::string &ip);
+    bool getIpByHost(const std::string &host, std::string &ipv4, std::string &ipv6);
+    bool setIpByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool isMatchByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+
 private:
     // Maps shard to DNSrecord
     std::map<int, DNSrecord> mRecords;

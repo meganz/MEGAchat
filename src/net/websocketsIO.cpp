@@ -463,5 +463,149 @@ std::vector<CachedSession> DNScache::getTlsSessions()
     return sessions;
 }
 
-// SFU related methods
+// DNS cache methods to manage records based on host instead of shard
+bool DNScache::addRecordByHost(std::string host, std::shared_ptr<Buffer> sess, bool saveToDb)
+{
+    assert(!host.empty());
+    if (hasRecordByHost(host))
+    {
+        // we already have a record in DNS cache for that host
+        return false;
+    }
 
+    if (mCurrentShardForSfu <= kSfuShardEnd)
+    {
+        /* in case we have reached kSfuShardEnd, we need to reset mCurrentShardForSfu and remove
+         * the current record in cache for that shard value
+         */
+        mCurrentShardForSfu = kSfuShardStart;
+        removeRecord(mCurrentShardForSfu);
+    }
+
+    DNSrecord record(std::move(host), sess); // add record in DNS cache based on host instead full URL
+    mRecords[mCurrentShardForSfu] = record;
+
+    if (saveToDb)
+    {
+        /* For every starting/joining meeting attempt, it's mandatory to send mcms/mcmj command to API.
+         * In both cases API returns the SFU server URL where we have to connect to, so we don't
+         * need to store full URL(URL+path) in dns cache, as we have already stored in memory.
+         */
+        mDb.query("insert or replace into dns_cache(shard, url) values(?,?)", mCurrentShardForSfu, host);
+    }
+
+    mCurrentShardForSfu--; // decrement mCurrentShardForSfu
+    return true;
+}
+
+bool DNScache::hasRecordByHost(const std::string &host) const
+{
+    for (auto it = mRecords.begin(); it != mRecords.end(); it++)
+    {
+        if (it->second.isHostMatch(host))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+DNScache::DNSrecord* DNScache::getRecordByHost(const std::string &host)
+{
+    for (auto it = mRecords.begin(); it != mRecords.end(); it++)
+    {
+        if (it->second.isHostMatch(host))
+        {
+           return &it->second;
+        }
+    }
+    return nullptr;
+}
+
+void DNScache::connectDoneByHost(const std::string &host, const std::string &ip)
+{
+    DNSrecord *record = getRecordByHost(host);
+    if (!record)
+    {
+        /* in case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
+         * mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones */
+        return;
+    }
+
+    if (ip == record->ipv4)
+    {
+        record->connectIpv4Ts = time(NULL);
+    }
+    else if (ip == record->ipv6)
+    {
+        record->connectIpv6Ts = time(NULL);
+    }
+}
+
+bool DNScache::getIpByHost(const std::string &host, std::string &ipv4, std::string &ipv6)
+{
+    DNSrecord *record = getRecordByHost(host);
+    if (!record)
+    {
+        /* in case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
+         * mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones */
+        return false;
+    }
+
+    ipv4 = record->ipv4;
+    ipv6 = record->ipv6;
+    return ipv4.size() || ipv6.size();
+}
+
+bool DNScache::setIpByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+{
+    if (isMatchByHost(host, ipsv4, ipsv6))
+    {
+        return false; // if there's a match in cache, returns
+    }
+
+    DNSrecord *record = getRecordByHost(host);
+    if (!record)
+    {
+        /* Important: This is a corner case
+         * This method is called twice:
+         * 1) Upon DNS resolution succeed but there's not cached IP's for this host yet
+         *      - this case it's not problematic
+         * 2) Upon DNS resolution succeed, and returned IP's by DNS doesn't match with stored in cache
+         *      - In case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
+         *        mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones
+         *
+         *        The case described above could happens, as multiple calls are allowed and all calls shares
+         *        the same DNS cache
+         *
+         * The solution to this corner case, is add the host to DNS cache again.
+        */
+        fprintf(stderr, "[dnscache] [WRN]: setIpByHost: host %s not found in DNS cache, "
+                        "that record could be overwritten. Adding it again", host.c_str());
+        addRecordByHost(host);
+    }
+
+    record->ipv4 = ipsv4.empty() ? "" : ipsv4.front();
+    record->ipv6 = ipsv6.empty() ? "" : ipsv6.front();
+    record->resolveTs = time(NULL);
+    mDb.query("update dns_cache set ipv4=?, ipv6=? where url=?", record->ipv4, record->ipv6, host);
+    return true;
+}
+
+bool DNScache::isMatchByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+{
+    bool match = false;
+    DNSrecord *record = getRecordByHost(host);
+    if (record)
+    {
+        std::string ipv4 = record->ipv4;
+        std::string ipv6 = record->ipv6;
+
+        match = ( ((ipv4.empty() && ipsv4.empty()) // don't have IPv4, but it wasn't received either
+                   || (std::find(ipsv4.begin(), ipsv4.end(), ipv4) != ipsv4.end())) // IPv4 is contained in `ipsv4`
+                  && ((ipv6.empty() && ipsv6.empty())
+                      || std::find(ipsv6.begin(), ipsv6.end(), ipv6) != ipsv6.end()));
+    }
+
+    return match;
+}
