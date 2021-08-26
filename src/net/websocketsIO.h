@@ -91,10 +91,18 @@ public:
     bool updateTlsSession(const CachedSession &sess);
     std::vector<CachedSession> getTlsSessions();
 
+    // DNS cache methods based on host instead of shard
+    enum: int8_t { kSfuShardStart = -20,  kSfuShardEnd = -128};
 private:
     // Maps shard to DNSrecord
     std::map<int, DNSrecord> mRecords;
     int mChatdVersion;
+
+    /* SFU servers are not distributed in shards, but dns_cache primary key is shard number,
+     * so for this purpose, we'll use a variable whose possible values are between
+     * kSfuShardStart and kSfuShardEnd.
+     */
+    int mCurrentShardForSfu;
 };
 
 // Generic websockets network layer

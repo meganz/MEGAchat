@@ -193,7 +193,8 @@ bool WebsocketsClient::isWriteBinary() const
 
 DNScache::DNScache(SqliteDb &db, int chatdVersion)
     : mDb(db),
-      mChatdVersion(chatdVersion)
+      mChatdVersion(chatdVersion),
+      mCurrentShardForSfu(kSfuShardStart)
 {
 
 }
@@ -461,3 +462,6 @@ std::vector<CachedSession> DNScache::getTlsSessions()
 
     return sessions;
 }
+
+// SFU related methods
+
