@@ -20,7 +20,6 @@ public:
     void parse(const std::string& url);
     bool isValid() const { return !host.empty(); }
     bool operator!=(const Url& url) const;
-    bool operator==(const Url &url) const;
 };
 }
 

@@ -71,11 +71,6 @@ bool Url::operator!=(const Url &url) const
     return host != url.host || protocol != url.protocol || port != url.port || path != url.path;
 }
 
-bool Url::operator==(const Url &url) const
-{
-    return !operator!=(url);
-}
-
 uint16_t Url::getPortFromProtocol() const
 {
     if ((protocol == "http") || (protocol == "ws"))

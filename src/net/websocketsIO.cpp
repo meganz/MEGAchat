@@ -257,19 +257,6 @@ bool DNScache::hasRecord(int shard)
     return mRecords.find(shard) != mRecords.end();
 }
 
-bool DNScache::hasUrl(const karere::Url &url) const
-{
-    for (auto it = mRecords.begin(); it != mRecords.end(); it++)
-    {
-        if (it->second.mUrl == url)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 bool DNScache::isValidUrl(int shard)
 {
     auto it = mRecords.find(shard);
