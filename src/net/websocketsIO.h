@@ -65,6 +65,8 @@ public:
         {
             // no need to implement move ctr in Url class as all members are from primitive types
         }
+
+        bool isHostMatch(const std::string &host) const { return mHost == host; }
     };
 
     // reference to db-layer interface
