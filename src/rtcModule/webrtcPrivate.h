@@ -383,6 +383,7 @@ public:
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
     bool error(unsigned int code) override;
+    void logError(const char* error) override;
 
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);

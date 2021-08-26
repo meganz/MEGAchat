@@ -1445,6 +1445,11 @@ bool Call::error(unsigned int code)
     return true;
 }
 
+void Call::logError(const char *error)
+{
+    RTCM_LOG_ERROR("SFU: %s", error);
+}
+
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> /*stream*/)
 {
     if (mState != kStateJoining)

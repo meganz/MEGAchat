@@ -494,6 +494,7 @@ public:
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
     bool error(unsigned int) override;
+    void logError(const char* error) override;
 };
 
 #endif // CHATTEST_H

@@ -5278,3 +5278,9 @@ bool MockupCall::error(unsigned int)
 {
     return true;
 }
+
+void MockupCall::logError(const char *error)
+{
+
+}
+
