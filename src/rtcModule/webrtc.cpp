@@ -822,7 +822,7 @@ void Call::connectSfu(const std::string& sfuUrlStr)
     }
 
     karere::Url sfuUrl(sfuUrlStr);
-    if (sfuUrl.isValid())
+    if (!sfuUrl.isValid())
     {
         RTCM_LOG_ERROR("trying to connect to SFU with an Empty Host");
         assert(false);
