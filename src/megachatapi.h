@@ -611,8 +611,9 @@ public:
     /**
      * @brief Get a list with the ids of peers that are participating in the call
      *
-     * In a group call, this function returns the list of active participants,
-     * regardless your own user participates or not.
+     * This funcition returns a value regardless your own user participates or not.
+     *
+     * @note If client is participating with several clients, it return only one instance
      *
      * You take the ownership of the returned value.
      *
@@ -623,8 +624,9 @@ public:
     /**
      * @brief Get the number of peers participating in the call
      *
-     * In a group call, this function returns the number of active participants,
-     * regardless your own user participates or not.
+     * This funcition returns a value regardless your own user participates or not.
+     *
+     * @note If client is participating with several clients, it's take as one peer
      *
      * @return Number of active participants in the call
      */

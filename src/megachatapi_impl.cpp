@@ -1558,13 +1558,6 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (!call->participate())
             {
-                if (call->getParticipants().size() > rtcModule::kMaxCallReceivers)
-                {
-                    API_LOG_ERROR("Start call - There are too many participants in the call");
-                    errorCode = MegaChatError::ERROR_TOOMANY;
-                    break;
-                }
-
                 call->join(avFlags)
                 .then([request, this]()
                 {
@@ -1627,13 +1620,6 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Answer call - There is not any call in that chatroom");
                 errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            if (call->getParticipants().size() > rtcModule::kMaxCallReceivers)
-            {
-                API_LOG_ERROR("Answer call - There are too many participants in the call");
-                errorCode = MegaChatError::ERROR_TOOMANY;
                 break;
             }
 
