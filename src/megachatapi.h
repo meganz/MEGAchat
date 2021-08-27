@@ -352,8 +352,9 @@ public:
     enum {
         TERM_CODE_INVALID = -1,     // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
         TERM_CODE_HANGUP = 0,       // Call has been finished by user
-        TERM_CODE_ERROR = 1,        // Call has been finished by error
+        TERM_CODE_TOO_MANY_PARTICIPANTS = 1, // No posible to join the call, too many participants
         TERM_CODE_REJECT = 2,       // Caller has hang up the call before no body answer the call
+        TERM_CODE_ERROR = 3,        // Call has been finished by error
     };
 
     virtual ~MegaChatCall();
@@ -526,9 +527,13 @@ public:
     /**
      * @brief Returns the termination code for this call
      *
+     * @note this value only will be valie in states CALL_STATUS_TERMINATING_USER_PARTICIPATION
+     * and CALL_STATUS_DESTROYED
+     *
      * Valid values are:
      *  - TERM_CODE_INVALID
      *  - TERM_CODE_HANGUP
+     *  - TERM_CODE_TOO_MANY_PARTICIPANTS
      *  - TERM_CODE_ERROR
      *  - TERM_CODE_REJECT
      *

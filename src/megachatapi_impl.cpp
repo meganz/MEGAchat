@@ -6617,6 +6617,9 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kUserHangup:
             return TERM_CODE_HANGUP;
 
+       case rtcModule::TermCode::kTooManyParticipants:
+            return TERM_CODE_TOO_MANY_PARTICIPANTS;
+
        case rtcModule::TermCode::kInvalidTermCode:
             return TERM_CODE_INVALID;
     }

@@ -869,7 +869,6 @@ void Call::joinSfu()
         if (mState != kStateJoining)
         {
             RTCM_LOG_WARNING("joinSfu: get unexpected state change at setLocalDescription");
-            assert(false); // theoretically, it should not happen. If so, it may worth to investigate
             return;
         }
 
@@ -991,6 +990,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
         return;
     }
 
+    mTermCode = kInvalidTermCode;
     setState(CallState::kStateClientNoParticipating);
 }
 
