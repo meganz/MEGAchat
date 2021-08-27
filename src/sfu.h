@@ -440,9 +440,6 @@ protected:
      *  - If it fails: a new attempt is schedulled
      *  - If it success: the reconnection is taken as done */
     promise::Promise<void> mConnectPromise;
-    std::vector<std::string> mIpsv4;
-    std::vector<std::string> mIpsv6;
-
     void setConnState(ConnState newState);
 
     void wsConnectCb() override;

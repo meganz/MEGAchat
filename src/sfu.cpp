@@ -1239,6 +1239,11 @@ void SfuConnection::doConnect(const std::string &ipv4, const std::string &ipv6)
 
 void SfuConnection::retryPendingConnection(bool disconnect)
 {
+    /* mSfuUrl must always be valid, however we could not find the host in DNS cache
+     * as in case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
+     * mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones
+     */
+    assert(mSfuUrl.isValid());
     if (mConnState == kConnNew)
     {
         SFU_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
@@ -1746,6 +1751,7 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
     {
         SFU_LOG_DEBUG("Sfu connected to %s", mTargetIp.c_str());
 
+        mDnsCache.connectDoneByHost(mSfuUrl.host, mTargetIp);
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
@@ -1824,7 +1830,11 @@ promise::Promise<void> SfuConnection::reconnect()
         if (mConnState >= kResolving) //would be good to just log and return, but we have to return a promise
             return ::promise::Error(std::string("Already connecting/connected"));
 
-        if (!mSfuUrl.isValid() || !mDnsCache.hasHost(mSfuUrl.host))
+        /* mSfuUrl must always be valid, however we could not find the host in DNS cache
+         * as in case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
+         * mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones
+         */
+        if (!mSfuUrl.isValid())
             return ::promise::Error("SFU reconnect: Current URL is not valid");
 
         setConnState(kResolving);
@@ -1845,6 +1855,8 @@ promise::Promise<void> SfuConnection::reconnect()
             setConnState(kDisconnected);
             mConnectPromise = promise::Promise<void>();
 
+            std::string ipv4, ipv6;
+            bool cachedIPs = mDnsCache.getIpByHost(mSfuUrl.host, ipv4, ipv6);
 
             setConnState(kResolving);
             SFU_LOG_DEBUG("Resolving hostname %s...", mSfuUrl.host.c_str());
@@ -1864,6 +1876,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     if (isOnline())
                     {
                         SFU_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                        assert(cachedIPs);
                     }
                     else
                     {
@@ -1885,7 +1898,7 @@ promise::Promise<void> SfuConnection::reconnect()
 
                 if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
                 {
-                    if (isOnline())
+                    if (isOnline() && cachedIPs)
                     {
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
                         SFU_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
@@ -1913,24 +1926,32 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
                 }
 
-                if (mIpsv4.empty() && mIpsv6.empty()) // connect required DNS lookup
+                if (!cachedIPs) // connect required DNS lookup
                 {
                     SFU_LOG_DEBUG("Hostname resolved by first time. Connecting...");
-                    mIpsv4 = ipsv4;
-                    mIpsv6 = ipsv6;
-                    doConnect();
+                    mDnsCache.setIpByHost(mSfuUrl.host, ipsv4, ipsv6);
+                    std::string resolvedIpv4 = ipsv4.empty() ? "" : ipsv4.front();
+                    std::string resolvedIpv6 = ipsv4.empty() ? "" : ipsv4.front();
+                    doConnect(resolvedIpv4, resolvedIpv6);
                     return;
                 }
 
-                if (mIpsv4 == ipsv4 && mIpsv6 == ipsv6)
+                if (mDnsCache.isMatchByHost(mSfuUrl.host, ipsv4, ipsv6))
                 {
+                    /* If there are multiple calls trying to reconnect in parallel against the same SFU server, and
+                     * IP's have been changed for that moment, first DNS resolution attempt that finishes,
+                     * will update IP's in cache (and will call onsocket close), but for the rest of calls,
+                     * when DNS resolution ends (with same IP's returned) returned IP's will already match in cache
+                     * so we will have to wait until doConnect inFlight fails and timeout
+                     * expires to trigger a new reconnection attempt.
+                     */
                     SFU_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
                 else
                 {
+                    // update DNS cache
+                    mDnsCache.setIpByHost(mSfuUrl.host, ipsv4, ipsv6);
                     SFU_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
-                    mIpsv4 = ipsv4;
-                    mIpsv6 = ipsv6;
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (sfu)");
                 }
             });
@@ -1947,10 +1968,11 @@ promise::Promise<void> SfuConnection::reconnect()
                 // reject promise, so the RetryController starts a new attempt
                 mConnectPromise.reject(errStr, statusDNS, promise::kErrorTypeGeneric);
             }
-            else if (mIpsv4.size() || mIpsv6.size()) // if wsResolveDNS() failed immediately, very likely there's
+            else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
             // no network connetion, so it's futile to attempt to connect
             {
-                doConnect();
+                // this connect attempt is made in parallel with DNS resolution, use cached IP's
+                doConnect(ipv4, ipv6);
             }
 
             return mConnectPromise
