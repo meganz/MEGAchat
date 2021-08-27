@@ -12,6 +12,7 @@ namespace sfu
 //
 std::string Command::COMMAND_IDENTIFIER     = "a";
 std::string Command::ERROR_IDENTIFIER       = "err";
+std::string Command::ERROR_MESSAGE          = "msg";
 
 const std::string AVCommand::COMMAND_NAME             = "AV";
 const std::string AnswerCommand::COMMAND_NAME         = "ANSWER";
@@ -1365,7 +1366,14 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
 
     if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
     {
-        mCall.error(jsonErrIterator->value.GetInt());
+        std::string error = "Unknow reason";
+        rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = document.FindMember(Command::ERROR_MESSAGE.c_str());
+        if (jsonErrMsgIterator != document.MemberEnd() && jsonErrMsgIterator->value.IsString())
+        {
+            error = jsonErrMsgIterator->value.GetString();
+        }
+
+        mCall.error(jsonErrIterator->value.GetInt(), error);
         return true;
     }
 
