@@ -1933,7 +1933,7 @@ promise::Promise<void> SfuConnection::reconnect()
 
                 if (!cachedIPs) // connect required DNS lookup
                 {
-                    SFU_LOG_DEBUG("Hostname resolved by first time. Connecting...");
+                    SFU_LOG_DEBUG("Hostname resolved and there was no previous cached Ip's for this host. Connecting...");
                     mDnsCache.setIpByHost(mSfuUrl.host, ipsv4, ipsv6);
                     std::string resolvedIpv4 = ipsv4.empty() ? "" : ipsv4.front();
                     std::string resolvedIpv6 = ipsv4.empty() ? "" : ipsv4.front();
@@ -1950,7 +1950,7 @@ promise::Promise<void> SfuConnection::reconnect()
                      * so we will have to wait until doConnect inFlight fails and timeout
                      * expires to trigger a new reconnection attempt.
                      */
-                    SFU_LOG_DEBUG("DNS resolve matches cached IPs.");
+                    SFU_LOG_DEBUG("DNS resolve matches cached IPs, let current attempt finish.");
                 }
                 else
                 {
@@ -1977,6 +1977,7 @@ promise::Promise<void> SfuConnection::reconnect()
             // no network connetion, so it's futile to attempt to connect
             {
                 // this connect attempt is made in parallel with DNS resolution, use cached IP's
+                SFU_LOG_DEBUG("Connection attempt (with Cached Ip's) in parallel to DNS resolution");
                 doConnect(ipv4, ipv6);
             }
 
