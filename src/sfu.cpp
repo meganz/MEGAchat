@@ -1176,14 +1176,16 @@ void SfuConnection::disconnect(bool withoutReconnection)
     }
 }
 
-void SfuConnection::doConnect()
+void SfuConnection::doConnect(const std::string &ipv4, const std::string &ipv6)
 {
     assert (mSfuUrl.isValid());
-    std::string ipv4 = mIpsv4.size() ? mIpsv4[0] : "";
-    std::string ipv6 = mIpsv6.size() ? mIpsv6[0] : "";
+    if (ipv4.empty() && ipv6.empty())
+    {
+        SFU_LOG_ERROR("Trying to connect sfu (%s) using empty Ip's (ipv4 and ipv6)", mSfuUrl.host.c_str());
+        onSocketClose(0, 0, "sfu doConnect error, empty Ip's (ipv4 and ipv6)");
+    }
 
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
-
     setConnState(kConnecting);
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
 
