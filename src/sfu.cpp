@@ -1785,6 +1785,11 @@ void SfuConnection::wsSendMsgCb(const char *, size_t)
     }
 }
 
+bool SfuConnection::wsSSLsessionUpdateCb(const CachedSession &sess)
+{
+    return true;
+}
+
 void SfuConnection::wsProcessNextMsgCb()
 {
     processNextCommand(true);
