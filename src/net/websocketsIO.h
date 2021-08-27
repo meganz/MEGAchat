@@ -59,7 +59,7 @@ public:
         time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
         std::shared_ptr<Buffer> tlsBlob; // tls session data
         DNSrecord() = default;
-        DNSrecord(std::string&& host, std::shared_ptr<Buffer> sess):
+        DNSrecord(std::string host, std::shared_ptr<Buffer> sess):
             mHost(std::move(host)),
             tlsBlob(sess && !sess->empty() ? sess : nullptr)
         {

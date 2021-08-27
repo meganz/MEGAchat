@@ -488,7 +488,7 @@ bool DNScache::addRecordByHost(std::string host, std::shared_ptr<Buffer> sess, b
         removeRecord(mCurrentShardForSfu);
     }
 
-    DNSrecord record(std::move(host), sess); // add record in DNS cache based on host instead full URL
+    DNSrecord record(host, sess); // add record in DNS cache based on host instead full URL
     mRecords[mCurrentShardForSfu] = record;
 
     if (saveToDb)
