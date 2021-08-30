@@ -1421,10 +1421,10 @@ void Call::onSfuConnected()
     joinSfu();
 }
 
-bool Call::error(unsigned int code, const std::string &error)
+bool Call::error(unsigned int code, const std::string &errMsg)
 {
     auto wptr = weakHandle();
-    karere::marshallCall([wptr, this, code, error]()
+    karere::marshallCall([wptr, this, code, errMsg]()
     {
         // error() is called from LibwebsocketsClient::wsCallback() for LWS_CALLBACK_CLIENT_RECEIVE.
         // If disconnect() is called here immediately, it will destroy the LWS client synchronously,
@@ -1435,7 +1435,7 @@ bool Call::error(unsigned int code, const std::string &error)
             return;
         }
 
-        disconnect(static_cast<TermCode>(code), error);
+        disconnect(static_cast<TermCode>(code), errMsg);
         if (mParticipants.empty())
         {
             mRtc.removeCall(mChatid, static_cast<TermCode>(code));
