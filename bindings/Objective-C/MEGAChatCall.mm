@@ -177,42 +177,20 @@ using namespace megachat;
 + (NSString *)stringForTermCode:(MEGAChatCallTermCode)termCode {
     NSString *result;
     switch (termCode) {
+        case MEGAChatCallTermCodeInvalid:
+            result = @"Invalid";
+            break;
         case MEGAChatCallTermCodeUserHangup:
             result = @"User hangup";
             break;
-        case MEGAChatCallTermCodeCallReqCancel:
-            result = @"Call req cancel";
+        case MEGAChatCallTermCodeTooManyParticipants:
+            result = @"Too many participants";
             break;
         case MEGAChatCallTermCodeCallReject:
             result = @"Call reject";
             break;
-        case MEGAChatCallTermCodeAnswerElseWhere:
-            result = @"Answer else where";
-            break;
-        case MEGAChatCallTermCodeRejectElseWhere:
-            result = @"Reject else where";
-            break;
-        case MEGAChatCallTermCodeAnswerTimeout:
-            result = @"Answer timeout";
-            break;
-        case MEGAChatCallTermCodeRingOutTimeout:
-            result = @"Ring out timeout";
-            break;
-        case MEGAChatCallTermCodeAppTerminating:
-            result = @"App terminating";
-            break;
-        case MEGAChatCallTermCodeBusy:
-            result = @"Busy";
-            break;
-        case MEGAChatCallTermCodeNotFinished:
-            result = @"Not finished";
-            break;
         case MEGAChatCallTermCodeError:
             result = @"Error";
-            break;
-            
-        default:
-            result = @"Default";
             break;
     }
     return result;
