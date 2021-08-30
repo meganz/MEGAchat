@@ -12,6 +12,7 @@ namespace sfu
 //
 std::string Command::COMMAND_IDENTIFIER     = "a";
 std::string Command::ERROR_IDENTIFIER       = "err";
+std::string Command::ERROR_MESSAGE          = "msg";
 
 const std::string AVCommand::COMMAND_NAME             = "AV";
 const std::string AnswerCommand::COMMAND_NAME         = "ANSWER";
@@ -132,6 +133,12 @@ void Peer::addKey(Keyid_t keyid, const std::string &key)
 {
     mCurrentkeyId = keyid;
     mKeyMap[mCurrentkeyId] = key;
+}
+
+void Peer::resetKeys()
+{
+    mCurrentkeyId = 0;
+    mKeyMap.clear();
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)
@@ -1420,7 +1427,14 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
 
     if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
     {
-        mCall.error(jsonErrIterator->value.GetInt());
+        std::string error = "Unknown reason";
+        rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = document.FindMember(Command::ERROR_MESSAGE.c_str());
+        if (jsonErrMsgIterator != document.MemberEnd() && jsonErrMsgIterator->value.IsString())
+        {
+            error = jsonErrMsgIterator->value.GetString();
+        }
+
+        mCall.error(jsonErrIterator->value.GetInt(), error);
         return true;
     }
 
@@ -1654,7 +1668,11 @@ bool SfuConnection::sendGetHiRes(Cid_t cid, int r, int lo)
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
-    json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
+    if (r)
+    {
+        // avoid sending r flag if it's zero (it's useless and it could generate issues at SFU)
+        json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
+    }
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
@@ -2017,8 +2035,14 @@ promise::Promise<void> SfuConnection::reconnect()
                 assert(isOnline());
                 mCall.onSfuConnected();
             });
+        }, wptr, mAppCtx
+                     , nullptr                              // cancel function
+                     , KARERE_RECONNECT_ATTEMPT_TIMEOUT     // initial attempt timeout (increases exponentially)
+                     , KARERE_RECONNECT_MAX_ATTEMPT_TIMEOUT // maximum attempt timeout
+                     , 0                                    // max number of attempts
+                     , KARERE_RECONNECT_DELAY_MAX           // max single wait between attempts
+                     , 0));                                 // initial single wait between attempts  (increases exponentially)
 
-        }, wptr, mAppCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
 
         return static_cast<promise::Promise<void>&>(mRetryCtrl->start());
     }

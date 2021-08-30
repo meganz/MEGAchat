@@ -311,10 +311,11 @@ rtc::RefCountReleaseStatus VideoManager::Release() const
     return status;
 }
 
-RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv)
+RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv, uint32_t mid)
     : mPeer(peer)
     , mCryptoMeetings(cryptoMeetings)
     , mIv(iv)
+    , mMid(mid)
 {
 
 }
@@ -339,8 +340,8 @@ std::unique_ptr<byte []> RtcCipher::generateFrameIV()
     return iv;
 }
 
-MegaEncryptor::MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv)
-    : RtcCipher(peer, cryptoMeetings, iv)
+MegaEncryptor::MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv, uint32_t mid)
+    : RtcCipher(peer, cryptoMeetings, iv, mid)
 {
 }
 
@@ -397,8 +398,10 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
         std::string encryptionKey = mPeer.getKey(currentKeyId);
         if (encryptionKey.empty())
         {
-            RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d", currentKeyId);
-            return kFailedToEncrypt;
+
+            RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d, MyCid %d, MyPeerid: %s, frameCtr: %d",
+                             currentKeyId, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mCtr);
+            return kRecoverable;
         }
         setKey(encryptionKey);
 
@@ -414,9 +417,6 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
     // generate header and store in encrypted_frame
     generateHeader(encrypted_frame.data());
 
-    // increment PacketCtr after we have generated header
-    incrementPacketCtr();
-
     // encrypt frame and store it in encrypted_frame
     bool result = mSymCipher.gcm_encrypt_aad(frame.data(), frame.size(), encrypted_frame.data(),
                                              FRAME_HEADER_LENGTH, iv.get(),
@@ -425,17 +425,24 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
                                              encrypted_frame.size()-FRAME_HEADER_LENGTH); // size - header
     if (!result)
     {
-        return kFailedToEncrypt;
+        RTCM_LOG_WARNING("Failed gcm_encrypt_aad encryption with additional authenticated data: MyCid: %d, MyPeerId: %s, KeyId: %d, frameCtr: %d",
+                         mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr - 1);
+        return kRecoverable;
     }
 
     // set bytes_written to the number of bytes, written in encrypted_frame
     assert(GetMaxCiphertextByteSize(media_type, frame.size()) == encrypted_frame.size());
     *bytes_written = encrypted_frame.size();
-    if (GetMaxCiphertextByteSize(media_type, frame.size()) != *bytes_written)
+    size_t expectedSize = GetMaxCiphertextByteSize(media_type, frame.size());
+    if (expectedSize != *bytes_written)
     {
-        RTCM_LOG_WARNING("Encrypt: Frame size doesn't match with expected size");
-        return kFailedToEncrypt;
+        RTCM_LOG_WARNING("Encrypt: Frame size: %d doesn't match with expected size: %d MyCid: %d, MyPeerId: %s, KeyId: %d, frameCtr: %d",
+                         *bytes_written, expectedSize, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr - 1);
+        return kRecoverable;
     }
+
+    // increment packetCtr, if encryption process has succeeded
+    incrementPacketCtr();
     return kOk;
 }
 
@@ -445,8 +452,8 @@ size_t MegaEncryptor::GetMaxCiphertextByteSize(cricket::MediaType /*media_type*/
     return FRAME_HEADER_LENGTH + frame_size + FRAME_GCM_TAG_LENGTH;
 }
 
-MegaDecryptor::MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv)
-    : RtcCipher(peer, cryptoMeetings, iv)
+MegaDecryptor::MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv,  uint32_t mid)
+    : RtcCipher(peer, cryptoMeetings, iv, mid)
 {
 }
 
@@ -473,14 +480,27 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
     Cid_t peerCid = 0;
     memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
 
+    // extract packet ctr from header, and update mCtr (ctr will be used to generate an IV to decrypt the frame)
+    offset += FRAME_CID_LENGTH;
+    memcpy(&mCtr, headerData + offset, FRAME_CTR_LENGTH);
+
+    if (peerCid != mPeer.getCid())
+    {
+        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d, "
+                         "mid: %d peerid: %s, keyid: %d, frameCtr: %d", mPeer.getCid(), peerCid,
+                         mMid, mPeer.getPeerid().toString().c_str(), auxKeyId, mCtr);
+        return static_cast<int>(Status::kRecoverable); // recoverable error
+    }
+
     if (auxKeyId != mKeyId || !mInitialized)
     {
         // If there's no key armed in SymCipher or keyId doesn't match with current one
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
         {
-            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with keyId: %d -- peerCid expected: %d --- peerCid received: %d", auxKeyId, mPeer.getCid(), peerCid);
-            return static_cast<int>(Status::kFailedToDecrypt); // decryption error
+            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with Frame keyId: %d, mid: %d, peercid: %d, peerid: %s, frameCtr: %d",
+                             auxKeyId, mMid, peerCid, mPeer.getPeerid().toString().c_str(), mCtr);
+            return static_cast<int>(Status::kRecoverable); // decryption error
         }
 
         mKeyId = auxKeyId;
@@ -492,15 +512,6 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
         }
     }
 
-    if (peerCid != mPeer.getCid())
-    {
-        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d", mPeer.getCid(), peerCid);
-        return static_cast<int>(Status::kRecoverable); // recoverable error
-    }
-
-    // extract packet ctr from header, and update mCtr (ctr will be used to generate an IV to decrypt the frame)
-    offset += FRAME_CID_LENGTH;
-    memcpy(&mCtr, headerData + offset, FRAME_CTR_LENGTH);
     return static_cast<int>(Status::kOk);
 }
 
@@ -545,7 +556,9 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
                                      iv.get(), FRAME_IV_LENGTH,
                                      frame.data(), frame.size()))
     {
-        return Result(Status::kFailedToDecrypt, 0); // decryption error, don't pass to the decoder
+        RTCM_LOG_WARNING("Failed gcm_decrypt_aad decryption with additional authenticated data: mid: %d Cid: %d, PeerId: %s, KeyId: %d, frameCtr: %d",
+                         mMid, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr);
+        return Result(Status::kRecoverable, 0); // decryption error, don't pass to the decoder
     }
 
     // check if decrypted frame size is the expected one
@@ -553,8 +566,9 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
     size_t expectedFrameSize = GetMaxPlaintextByteSize(media_type, encrypted_frame.size());
     if (expectedFrameSize != frame.size())
     {
-        RTCM_LOG_WARNING("Plain frame size doesn't match with expected size, expected: %d decrypted: %d", expectedFrameSize, frame.size());
-        return Result(Status::kFailedToDecrypt, 0); // decryption error, don't pass to the decoder
+        RTCM_LOG_WARNING("Decrypt: Decrypted frame size: %d doesn't match with expected size: %d Cid: %d, PeerId: %s, KeyId: %d, frameCtr: %d",
+                               frame.size(), expectedFrameSize, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr);
+        return Result(Status::kRecoverable, 0); // decryption error, don't pass to the decoder
     }
     return Result(Status::kOk, frame.size());
 }

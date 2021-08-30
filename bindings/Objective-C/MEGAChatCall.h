@@ -22,18 +22,11 @@ typedef NS_ENUM (NSInteger, MEGAChatCallSessionStatus) {
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
+    MEGAChatCallTermCodeInvalid = -1,
     MEGAChatCallTermCodeUserHangup = 0,
-    MEGAChatCallTermCodeCallReqCancel = 1,
+    MEGAChatCallTermCodeTooManyParticipants = 1,
     MEGAChatCallTermCodeCallReject = 2,
-    MEGAChatCallTermCodeAnswerElseWhere = 3,
-    MEGAChatCallTermCodeRejectElseWhere = 4,
-    MEGAChatCallTermCodeAnswerTimeout = 5,
-    MEGAChatCallTermCodeRingOutTimeout = 6,
-    MEGAChatCallTermCodeAppTerminating = 7,
-    MEGAChatCallTermCodeBusy = 9,
-    MEGAChatCallTermCodeNotFinished = 10,
-    MEGAChatCallTermCodeDestroyByCallCollision = 19,
-    MEGAChatCallTermCodeError = 21
+    MEGAChatCallTermCodeError = 3,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {

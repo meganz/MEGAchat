@@ -171,7 +171,6 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mGlobalCallHandler(globalCallHandler)
     , mMegaApi(megaApi)
     , mSfuClient(rtc.getSfuClient())
-    , mAvailableTracks(mega::make_unique<AvailableTracks>())
     , mCallKey(callKey ? *callKey : std::string())
     , mRtc(rtc)
 {
@@ -646,7 +645,7 @@ void Call::requestHighResolutionVideo(Cid_t cid, int quality)
     }
     else
     {
-        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false), quality);
+        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false) ? 1 : 0, quality);
     }
 }
 
@@ -690,8 +689,6 @@ void Call::stopHighResolutionVideo(std::vector<Cid_t> &cids)
         for (auto cid: cids)
         {
             Session *sess= getSession(cid);
-            assert(mAvailableTracks->hasCid(cid));
-            mAvailableTracks->updateHiresTrack(cid, false);
             sess->disableVideoSlot(kHiRes);
         }
 
@@ -747,8 +744,6 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
         for (auto cid: cids)
         {
             Session *sess= getSession(cid);
-            assert(mAvailableTracks->hasCid(cid));
-            mAvailableTracks->updateLowresTrack(cid, false);
             sess->disableVideoSlot(kLowRes);
         }
 
@@ -922,7 +917,6 @@ void Call::joinSfu()
         if (mState != kStateJoining)
         {
             RTCM_LOG_WARNING("joinSfu: get unexpected state change at setLocalDescription");
-            assert(false); // theoretically, it should not happen. If so, it may worth to investigate
             return;
         }
 
@@ -1029,7 +1023,6 @@ void Call::disconnect(TermCode termCode, const std::string &)
     }
 
     handleCallDisconnect();
-    mAvailableTracks->clear();
     mTermCode = termCode;
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
@@ -1044,6 +1037,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
         return;
     }
 
+    mTermCode = kInvalidTermCode;
     setState(CallState::kStateClientNoParticipating);
 }
 
@@ -1087,46 +1081,6 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
-void Call::requestPeerTracks(const std::set<Cid_t>& cids)
-{
-    std::vector<Cid_t> lowResCids;
-
-    // compare stored cids with received ones upon ANSWER command
-    std::map<Cid_t, karere::AvFlags> &availableTracks = mAvailableTracks->getTracks();
-    for (auto it = availableTracks.begin(); it != availableTracks.end();)
-    {
-        auto auxit = it++;
-        Cid_t auxCid = auxit->first;
-        if (cids.find(auxCid) == cids.end()) // peer(CID) doesn't exists anymore
-        {
-            mAvailableTracks->removeCid(auxCid);
-        }
-        else // peer(CID) exists
-        {
-            if (mAvailableTracks->hasHiresTrack(auxCid)) // request HIRES video for that peer
-            {
-                requestHighResolutionVideo(auxCid, kCallQualityHighDef); // request default resolution quality
-            }
-            if (mAvailableTracks->hasLowresTrack(auxCid)) // add peer(CID) to lowResCids vector
-            {
-                lowResCids.emplace_back(auxCid);
-            }
-        }
-    }
-
-    // add new peers(CID) and request LowRes video by default
-    for (auto cid: cids)
-    {
-        if (!mAvailableTracks->hasCid(cid))
-        {
-            mAvailableTracks->addCid(cid);
-            lowResCids.emplace_back(cid);   // add peer(CID) to lowResCids vector
-        }
-    }
-
-    requestLowResolutionVideo(lowResCids);
-}
-
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, const std::vector<sfu::Peer>& peers,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
@@ -1147,7 +1101,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
         mCallHandler->onNewSession(*mSessions[peer.getCid()], *this);
     }
 
-    generateAndSendNewkey();
+    generateAndSendNewkey(true);
 
     std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
@@ -1181,15 +1135,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
         parameters.encodings[0].scale_resolution_down_by = scale;
         parameters.encodings[0].max_bitrate_bps = 100 * 1024;   // 100 Kbps
         mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
-
-        // annotate the available tracks upon connection, for further reconnects (to request the same)
-        for (const auto& vthumb : vthumbs)
-        {
-            mAvailableTracks->addCid(vthumb.first);
-        }
-
         handleIncomingVideo(vthumbs, kLowRes);
-        requestPeerTracks(cids);    // the ones previously available before reconnection
 
         for (const auto& speak : speakers)  // current speakers in the call
         {
@@ -1491,21 +1437,6 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler->onNewSession(*mSessions[cid], *this);
     generateAndSendNewkey();
-
-    // We shouldn't receive a handlePeerJoin with an existing CID in mAvailableTracks
-    // Upon reconnect SFU assign a new CID to the peer.
-    assert(!mAvailableTracks->hasCid(cid));
-    mAvailableTracks->addCid(cid);
-
-    ISession *sess = getSession(cid);
-    if (sess && sess->getAvFlags().videoLowRes())
-    {
-        // request low-res video by default for a new peer joined
-        std::vector<Cid_t> cids;
-        cids.emplace_back(cid);
-        requestLowResolutionVideo(cids);
-    }
-
     return true;
 }
 
@@ -1525,7 +1456,6 @@ bool Call::handlePeerLeft(Cid_t cid)
         return false;
     }
 
-    mAvailableTracks->removeCid(cid);
     it->second->disableAudioSlot();
     it->second->disableVideoSlot(kHiRes);
     it->second->disableVideoSlot(kLowRes);
@@ -1538,10 +1468,10 @@ void Call::onSfuConnected()
     joinSfu();
 }
 
-bool Call::error(unsigned int code)
+bool Call::error(unsigned int code, const std::string &errMsg)
 {
     auto wptr = weakHandle();
-    karere::marshallCall([wptr, this, code]()
+    karere::marshallCall([wptr, this, code, errMsg]()
     {
         // error() is called from LibwebsocketsClient::wsCallback() for LWS_CALLBACK_CLIENT_RECEIVE.
         // If disconnect() is called here immediately, it will destroy the LWS client synchronously,
@@ -1552,7 +1482,7 @@ bool Call::error(unsigned int code)
             return;
         }
 
-        disconnect(static_cast<TermCode>(code), "Unknow reason");
+        disconnect(static_cast<TermCode>(code), errMsg);
         if (mParticipants.empty())
         {
             mRtc.removeCall(mChatid, static_cast<TermCode>(code));
@@ -1648,8 +1578,14 @@ Keyid_t Call::generateNextKeyId()
     }
 }
 
-void Call::generateAndSendNewkey()
+void Call::generateAndSendNewkey(bool reset)
 {
+    if (reset)
+    {
+        // when you leave a meeting or you experiment a reconnect, we should reset keyId to zero and clear keys map
+        mMyPeer->resetKeys();
+    }
+
     // generate a new plain key
     std::shared_ptr<strongvelope::SendKey> newPlainKey = mSfuClient.getRtcCryptoMeetings()->generateSendKey();
 
@@ -1724,11 +1660,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         auto it = mReceiverTracks.find(trackDescriptor.second.mMid);
         if (it == mReceiverTracks.end())
         {
-            RTCM_LOG_WARNING("Unknown vtrack mid %d", trackDescriptor.second.mMid);
+            RTCM_LOG_ERROR("Unknown vtrack mid %d", trackDescriptor.second.mMid);
             continue;
         }
 
         Cid_t cid = trackDescriptor.first;
+        uint32_t mid = trackDescriptor.second.mMid;
         RemoteVideoSlot *slot = static_cast<RemoteVideoSlot*>(it->second.get());
         if (slot->getCid() == cid && slot->getVideoResolution() == videoResolution)
         {
@@ -1744,14 +1681,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                 assert(false && "Possible error at SFU: slot with CID not found");
             }
 
+            RTCM_LOG_DEBUG("reassign slot with mid: %d from cid: %d to newcid: %d, reuse: %d ", mid, slot->getCid(), cid, trackDescriptor.second.mReuse);
+
             Session *oldSess = getSession(slot->getCid());
             if (oldSess)
             {
-                // In case of Slot reassign for another peer (CID) we need to notify app about that
-                (videoResolution == kHiRes)
-                        ? mAvailableTracks->updateHiresTrack(slot->getCid(), false)
-                        : mAvailableTracks->updateLowresTrack(slot->getCid(), false);
-
+                // In case of Slot reassign for another peer (CID) or same peer (CID) slot reusing, we need to notify app about that
                 oldSess->disableVideoSlot(slot->getVideoResolution());
             }
         }
@@ -1765,11 +1700,11 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         }
 
         slot->assignVideoSlot(cid, trackDescriptor.second.mIv, videoResolution);
-        attachSlotToSession(cid, slot, false, videoResolution, trackDescriptor.second.mReuse);
+        attachSlotToSession(cid, slot, false, videoResolution);
     }
 }
 
-void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResolution hiRes, bool reuse)
+void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResolution hiRes)
 {
     Session *session = getSession(cid);
     assert(session);
@@ -1779,32 +1714,18 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResoluti
         return;
     }
 
-    assert(mAvailableTracks->hasCid(cid));
     if (audio)
     {
-        mAvailableTracks->updateSpeakTrack(cid, true);
         session->setAudioSlot(slot);
     }
     else
     {
         if (hiRes)
         {
-            mAvailableTracks->updateHiresTrack(cid, true);
-            if (reuse)
-            {
-                mAvailableTracks->updateLowresTrack(cid, false);
-            }
-
             session->setHiResSlot(static_cast<RemoteVideoSlot *>(slot));
         }
         else
         {
-            mAvailableTracks->updateLowresTrack(cid, true);
-            if (reuse)
-            {
-                mAvailableTracks->updateHiresTrack(cid, false);
-            }
-
             session->setVThumSlot(static_cast<RemoteVideoSlot *>(slot));
         }
     }
@@ -1826,7 +1747,6 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         if (oldSess)
         {
             // In case of Slot reassign for another peer (CID) we need to notify app about that
-            mAvailableTracks->updateSpeakTrack(slot->getCid(), false);
             oldSess->disableAudioSlot();
         }
     }
@@ -1838,7 +1758,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
     slot->assign(cid, speaker.mIv);
-    attachSlotToSession(cid, slot, true, kUndefined, false);
+    attachSlotToSession(cid, slot, true, kUndefined);
 }
 
 void Call::removeSpeaker(Cid_t cid)
@@ -1849,9 +1769,6 @@ void Call::removeSpeaker(Cid_t cid)
         RTCM_LOG_ERROR("removeSpeaker: unknown cid");
         return;
     }
-
-    assert(mAvailableTracks->hasCid(cid));
-    mAvailableTracks->updateSpeakTrack(cid, false);
     it->second->disableAudioSlot();
 }
 
@@ -2596,11 +2513,21 @@ Slot::~Slot()
     }
 }
 
+uint32_t Slot::getTransceiverMid()
+{
+    if (!mTransceiver->mid())
+    {
+        assert(false);
+        return 0;
+    }
+    return atoi(mTransceiver->mid()->c_str());
+}
+
 void Slot::createEncryptor()
 {
     mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv));
+                                                                      mIv, getTransceiverMid()));
 }
 
 void Slot::createDecryptor()
@@ -2614,7 +2541,7 @@ void Slot::createDecryptor()
 
     mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv));
+                                                                      mIv, getTransceiverMid()));
 }
 
 webrtc::RtpTransceiverInterface *Slot::getTransceiver()
@@ -2642,9 +2569,16 @@ bool Slot::hasTrack(bool send)
 {
     assert(mTransceiver);
 
-    if ((send && (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kRecvOnly))  ||
-     (!send && (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kSendOnly)))
+    if (send && !mTransceiver->sender())
     {
+        RTCM_LOG_WARNING("Sender transceiver wrongly initialized");
+        assert(false);
+        return false;
+    }
+    if (!send && !mTransceiver->receiver())
+    {
+        RTCM_LOG_WARNING("Receiver transceiver wrongly initialized");
+        assert(false);
         return false;
     }
 
