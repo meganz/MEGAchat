@@ -1263,7 +1263,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (NSString *)videoDeviceSelected {
-    return self.megaChatApi ? [[NSString alloc] initWithUTF8String:self.megaChatApi->getVideoDeviceSelected()] : nil;
+    if (self.megaChatApi == nil) return nil;
+    char *selectedVideoDevice = self.megaChatApi->getVideoDeviceSelected();
+    if (!selectedVideoDevice) return nil;
+    return [[NSString alloc] initWithUTF8String:selectedVideoDevice];
 }
 
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate {
