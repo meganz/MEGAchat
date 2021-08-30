@@ -2538,16 +2538,7 @@ void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
 {
     mCid = cid;
     mIv = iv;
-    createDecryptor();
-}
 
-RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : Slot(call, transceiver)
-{
-}
-
-void RemoteSlot::createDecryptor()
-{
     auto it = mCall.getSessions().find(mCid);
     if (it == mCall.getSessions().end())
     {
@@ -2558,6 +2549,11 @@ void RemoteSlot::createDecryptor()
     mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
                                                                       mIv));
+}
+
+RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+    : Slot(call, transceiver)
+{
 }
 
 void RemoteSlot::enableTrack(bool enable, TrackDirection direction)

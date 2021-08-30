@@ -109,7 +109,6 @@ protected:
     void assign(Cid_t cid, IvStatic_t iv);
 
 private:
-    void createDecryptor();
     void enableTrack(bool enable, TrackDirection direction);
 };
 
