@@ -61,7 +61,6 @@ namespace rtcModule {void globalCleanup(); }
 #endif
 
 #define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
-#define MAX_PUBLICCHAT_MEMBERS_FOR_CALL 20
 
 using namespace std;
 using namespace megachat;
