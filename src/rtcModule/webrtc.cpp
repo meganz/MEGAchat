@@ -2496,11 +2496,6 @@ Slot::~Slot()
     }
 }
 
-webrtc::RtpTransceiverInterface *Slot::getTransceiver()
-{
-    return mTransceiver.get();
-}
-
 bool Slot::hasTrack(bool send)
 {
     assert(mTransceiver);
@@ -2514,11 +2509,6 @@ bool Slot::hasTrack(bool send)
     return send
             ? mTransceiver->sender()->track()
             : mTransceiver->receiver()->track();
-}
-
-IvStatic_t Slot::getIv() const
-{
-    return mIv;
 }
 
 void RemoteSlot::release()
@@ -2549,11 +2539,6 @@ void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
     mCid = cid;
     mIv = iv;
     createDecryptor();
-}
-
-Cid_t RemoteSlot::getCid() const
-{
-    return mCid;
 }
 
 RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)

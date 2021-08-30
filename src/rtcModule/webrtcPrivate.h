@@ -76,9 +76,9 @@ class Slot
 {
 public:
     virtual ~Slot();
-    webrtc::RtpTransceiverInterface* getTransceiver();
     bool hasTrack(bool send);
-    IvStatic_t getIv() const;
+    webrtc::RtpTransceiverInterface* getTransceiver() { return mTransceiver.get(); }
+    IvStatic_t getIv() const { return mIv; }
 
 protected:
     Call &mCall;
@@ -101,7 +101,7 @@ class RemoteSlot : public Slot
 public:
     virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
     virtual void release();
-    Cid_t getCid() const;
+    Cid_t getCid() const { return mCid; }
 
 protected:
     Cid_t mCid = 0;
