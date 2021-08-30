@@ -2589,6 +2589,7 @@ void LocalSlot::generateRandomIv()
 
 RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : RemoteSlot(call, transceiver)
+    , VideoSink()
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());

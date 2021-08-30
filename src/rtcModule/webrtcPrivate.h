@@ -82,7 +82,7 @@ public:
 
 protected:
     Call &mCall;
-    IvStatic_t mIv;
+    IvStatic_t mIv = 0;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
 
     Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
@@ -99,6 +99,7 @@ public:
 class RemoteSlot : public Slot
 {
 public:
+    virtual ~RemoteSlot() {}
     virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
     virtual void release();
     Cid_t getCid() const { return mCid; }
@@ -145,6 +146,7 @@ public:
     void enableAudioMonitor(bool enable);
     void createDecryptor(Cid_t cid, IvStatic_t iv) override;
     void release() override;
+
 private:
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     bool mAudioLevelMonitorEnabled = false;
