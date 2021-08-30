@@ -776,7 +776,7 @@ void Call::checkAdaptTxSvcQuality(int8_t txSpt)
              && mStats.mSamples.mVtxHiResfps.back() >= 12)
     {
             // increase tx SVC quality but only if not overloaded
-            newSentLayers = currentSentLayers + 1; // don't set directly to newSentLayers - just decrease 1 step
+            newSentLayers = currentSentLayers + 1; // don't set directly to newSentLayers - just increase 1 step
             update = true;
     }
     else if (mStats.mSamples.mVtxHiResfps.size() && mStats.mSamples.mVtxHiResfps.back() < 5
