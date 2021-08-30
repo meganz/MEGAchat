@@ -1943,14 +1943,24 @@ promise::Promise<void> SfuConnection::reconnect()
 
                 if (mDnsCache.isMatchByHost(mSfuUrl.host, ipsv4, ipsv6))
                 {
-                    /* If there are multiple calls trying to reconnect in parallel against the same SFU server, and
-                     * IP's have been changed for that moment, first DNS resolution attempt that finishes,
-                     * will update IP's in cache (and will call onsocket close), but for the rest of calls,
-                     * when DNS resolution ends (with same IP's returned) returned IP's will already match in cache
-                     * so we will have to wait until doConnect inFlight fails and timeout
-                     * expires to trigger a new reconnection attempt.
-                     */
-                    SFU_LOG_DEBUG("DNS resolve matches cached IPs, let current attempt finish.");
+                    if (!ipv4.empty() && !ipsv4.empty() && !ipv6.empty() && !ipsv6.empty()
+                                     && std::find(ipsv4.begin(), ipsv4.end(), ipv4) == ipsv4.end()
+                                     && std::find(ipsv6.begin(), ipsv6.end(), ipv6) == ipsv6.end())
+                    {
+                       /* If there are multiple calls trying to reconnect in parallel against the same SFU server, and
+                        * IP's have been changed for that moment, first DNS resolution attempt that finishes,
+                        * will update IP's in cache (and will call onsocket close), but for the rest of calls,
+                        * when DNS resolution ends (with same IP's returned) returned IP's will already match in cache.
+                        *
+                        * In this case Ip's used for that reconnection attempt are outdated, so we need to force reconnect
+                        */
+                        SFU_LOG_WARNING("DNS resolve matches cached IPs, but Ip's used for this reconnection attempt are outdated. Forcing reconnect...");
+                        onSocketClose(0, 0, "Outdated Ip's. Forcing reconnect... (sfu)");
+                    }
+                    else
+                    {
+                        SFU_LOG_DEBUG("DNS resolve matches cached IPs, let current attempt finish.");
+                    }
                 }
                 else
                 {
