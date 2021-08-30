@@ -1366,7 +1366,7 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
 
     if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
     {
-        std::string error = "Unknow reason";
+        std::string error = "Unknown reason";
         rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = document.FindMember(Command::ERROR_MESSAGE.c_str());
         if (jsonErrMsgIterator != document.MemberEnd() && jsonErrMsgIterator->value.IsString())
         {

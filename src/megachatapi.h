@@ -352,7 +352,7 @@ public:
     enum {
         TERM_CODE_INVALID = -1,     // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
         TERM_CODE_HANGUP = 0,       // Call has been finished by user
-        TERM_CODE_TOO_MANY_PARTICIPANTS = 1, // No posible to join the call, too many participants
+        TERM_CODE_TOO_MANY_PARTICIPANTS = 1, // No possible to join the call, too many participants
         TERM_CODE_REJECT = 2,       // Caller has hang up the call before no body answer the call
         TERM_CODE_ERROR = 3,        // Call has been finished by error
     };
@@ -527,7 +527,7 @@ public:
     /**
      * @brief Returns the termination code for this call
      *
-     * @note this value only will be valie in states CALL_STATUS_TERMINATING_USER_PARTICIPATION
+     * @note this value only will be valid in states CALL_STATUS_TERMINATING_USER_PARTICIPATION
      * and CALL_STATUS_DESTROYED
      *
      * Valid values are:
@@ -611,7 +611,7 @@ public:
     /**
      * @brief Get a list with the ids of peers that are participating in the call
      *
-     * This funcition returns a value regardless your own user participates or not.
+     * This function returns a value regardless your own user participates or not.
      *
      * @note If client is participating with several clients, it return only one instance
      *
@@ -624,9 +624,9 @@ public:
     /**
      * @brief Get the number of peers participating in the call
      *
-     * This funcition returns a value regardless your own user participates or not.
+     * This function returns a value regardless your own user participates or not.
      *
-     * @note If client is participating with several clients, it's take as one peer
+     * @note If client is participating with several clients, it's taken as one peer
      *
      * @return Number of active participants in the call
      */
