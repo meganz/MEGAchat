@@ -173,6 +173,7 @@ public:
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int) = 0;
 
+    // send error to server, for debugging purposes
     virtual void logError(const char* error) = 0;
 };
 
