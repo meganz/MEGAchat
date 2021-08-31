@@ -382,7 +382,8 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
-    bool error(unsigned int code) override;
+
+    bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
 
     // PeerConnectionInterface events
@@ -447,7 +448,7 @@ protected:
     SvcDriver mSvcDriver;
 
     Keyid_t generateNextKeyId();
-    void generateAndSendNewkey();
+    void generateAndSendNewkey(bool reset = false);
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)

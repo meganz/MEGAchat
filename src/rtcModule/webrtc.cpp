@@ -869,7 +869,6 @@ void Call::joinSfu()
         if (mState != kStateJoining)
         {
             RTCM_LOG_WARNING("joinSfu: get unexpected state change at setLocalDescription");
-            assert(false); // theoretically, it should not happen. If so, it may worth to investigate
             return;
         }
 
@@ -991,6 +990,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
         return;
     }
 
+    mTermCode = kInvalidTermCode;
     setState(CallState::kStateClientNoParticipating);
 }
 
@@ -1054,7 +1054,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
         mCallHandler->onNewSession(*mSessions[peer.getCid()], *this);
     }
 
-    generateAndSendNewkey();
+    generateAndSendNewkey(true);
 
     std::string sdpUncompress = sdp.unCompress();
     webrtc::SdpParseError error;
@@ -1421,10 +1421,10 @@ void Call::onSfuConnected()
     joinSfu();
 }
 
-bool Call::error(unsigned int code)
+bool Call::error(unsigned int code, const std::string &errMsg)
 {
     auto wptr = weakHandle();
-    karere::marshallCall([wptr, this, code]()
+    karere::marshallCall([wptr, this, code, errMsg]()
     {
         // error() is called from LibwebsocketsClient::wsCallback() for LWS_CALLBACK_CLIENT_RECEIVE.
         // If disconnect() is called here immediately, it will destroy the LWS client synchronously,
@@ -1435,7 +1435,7 @@ bool Call::error(unsigned int code)
             return;
         }
 
-        disconnect(static_cast<TermCode>(code), "Unknow reason");
+        disconnect(static_cast<TermCode>(code), errMsg);
         if (mParticipants.empty())
         {
             mRtc.removeCall(mChatid, static_cast<TermCode>(code));
@@ -1536,8 +1536,14 @@ Keyid_t Call::generateNextKeyId()
     }
 }
 
-void Call::generateAndSendNewkey()
+void Call::generateAndSendNewkey(bool reset)
 {
+    if (reset)
+    {
+        // when you leave a meeting or you experiment a reconnect, we should reset keyId to zero and clear keys map
+        mMyPeer->resetKeys();
+    }
+
     // generate a new plain key
     std::shared_ptr<strongvelope::SendKey> newPlainKey = mSfuClient.getRtcCryptoMeetings()->generateSendKey();
 

@@ -493,7 +493,7 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
-    bool error(unsigned int) override;
+    bool error(unsigned int, const std::string &) override;
     void logError(const char* error) override;
 };
 
