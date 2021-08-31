@@ -22,6 +22,7 @@ enum TermCode: uint8_t
 {
     kInvalidTermCode = 255,
     kUserHangup = 0,            // < Normal user hangup
+    kTooManyParticipants = 1,   // < Too many participants
     kErrSdp = 32,               // < error generating or setting SDP description
     kRtcDisconn = 64,
     kSigDisconn = 65,

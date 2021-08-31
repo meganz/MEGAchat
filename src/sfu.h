@@ -50,6 +50,7 @@ public:
     Keyid_t getCurrentKeyId() const;
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
+    void resetKeys();
 
 protected:
     Cid_t mCid = 0;
@@ -168,7 +169,7 @@ public:
     virtual void onSfuConnected() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
-    virtual bool error(unsigned int) = 0;
+    virtual bool error(unsigned int, const std::string&) = 0;
 };
 
 class Command
@@ -177,6 +178,7 @@ public:
     virtual bool processCommand(const rapidjson::Document& command) = 0;
     static std::string COMMAND_IDENTIFIER;
     static std::string ERROR_IDENTIFIER;
+    static std::string ERROR_MESSAGE;
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);

@@ -1558,13 +1558,6 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (!call->participate())
             {
-                if (call->getParticipants().size() > rtcModule::kMaxCallReceivers)
-                {
-                    API_LOG_ERROR("Start call - There are too many participants in the call");
-                    errorCode = MegaChatError::ERROR_TOOMANY;
-                    break;
-                }
-
                 call->join(avFlags)
                 .then([request, this]()
                 {
@@ -1627,13 +1620,6 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Answer call - There is not any call in that chatroom");
                 errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            if (call->getParticipants().size() > rtcModule::kMaxCallReceivers)
-            {
-                API_LOG_ERROR("Answer call - There are too many participants in the call");
-                errorCode = MegaChatError::ERROR_TOOMANY;
                 break;
             }
 
@@ -6616,6 +6602,9 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
 
         case rtcModule::TermCode::kUserHangup:
             return TERM_CODE_HANGUP;
+
+       case rtcModule::TermCode::kTooManyParticipants:
+            return TERM_CODE_TOO_MANY_PARTICIPANTS;
 
        case rtcModule::TermCode::kInvalidTermCode:
             return TERM_CODE_INVALID;
