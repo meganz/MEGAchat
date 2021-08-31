@@ -464,7 +464,7 @@ std::vector<CachedSession> DNScache::getTlsSessions()
 }
 
 // DNS cache methods to manage records based on host instead of shard
-bool DNScache::addRecordByHost(std::string host, std::shared_ptr<Buffer> sess, bool saveToDb)
+bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb)
 {
     if (host.empty())
     {
