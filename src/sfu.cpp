@@ -1863,7 +1863,7 @@ promise::Promise<void> SfuConnection::reconnect()
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(&mWebsocketIO, mSfuUrl.host.c_str(),
-                         [wptr, cachedIpsByHost, this, retryCtrl, attemptNo, &ipv4, &ipv6](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+                         [wptr, cachedIpsByHost, this, retryCtrl, attemptNo, ipv4, ipv6](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
