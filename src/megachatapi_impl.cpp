@@ -116,7 +116,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     waiter = new MegaChatWaiter();
     mWebsocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
     reqtag = 0;
-    mCallHandler.reset(new MegaChatCallHandler(this));
+    mCallHandler = ::mega::make_unique<MegaChatCallHandler>(this);
     //Start blocking thread
     threadExit = 0;
     thread.start(threadEntryPoint, this);
