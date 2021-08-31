@@ -5,6 +5,8 @@
 #include <QMenu>
 #include <QClipboard>
 
+using namespace megachat;
+
 ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megachat::MegaChatApi *megaChatApi, ::mega::MegaApi *megaApi, ::mega::MegaUser *contact) :
     QWidget(parent),
     ui(new Ui::ChatItem),
