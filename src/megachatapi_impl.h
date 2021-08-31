@@ -945,7 +945,7 @@ private:
 
     mega::MegaStringList *getChatInDevices(const std::set<std::string> &devices);
     void cleanCalls();
-    MegaChatCallHandler *mCallHandler;
+    std::unique_ptr<MegaChatCallHandler> mCallHandler;
 #endif
 
     void cleanChatHandlers();
