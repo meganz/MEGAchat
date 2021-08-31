@@ -825,7 +825,7 @@ void Call::connectSfu(const std::string& sfuUrlStr)
     if (!sfuUrl.isValid())
     {
         RTCM_LOG_ERROR("trying to connect to SFU with an Empty Host");
-        assert(false);
+        assert(sfuUrl.isValid());
         return;
     }
 

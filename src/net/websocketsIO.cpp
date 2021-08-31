@@ -604,8 +604,8 @@ bool DNScache::isMatchByHost(const std::string &host, const std::vector<std::str
     DNSrecord *record = getRecordByHost(host);
     if (record)
     {
-        std::string ipv4 = record->ipv4;
-        std::string ipv6 = record->ipv6;
+        const std::string &ipv4 = record->ipv4;
+        const std::string &ipv6 = record->ipv6;
 
         match = ( ((ipv4.empty() && ipsv4.empty()) // don't have IPv4, but it wasn't received either
                    || (std::find(ipsv4.begin(), ipsv4.end(), ipv4) != ipsv4.end())) // IPv4 is contained in `ipsv4`

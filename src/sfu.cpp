@@ -1110,7 +1110,7 @@ std::string Sdp::unCompressTrack(const Sdp::Track& track, const std::string &tpl
 
 SfuConnection::SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface &call, DNScache& dnsCache)
     : WebsocketsClient(false)
-    , mSfuUrl(sfuUrl)
+    , mSfuUrl(std::move(sfuUrl))
     , mWebsocketIO(websocketIO)
     , mAppCtx(appCtx)
     , mCall(call)
@@ -1935,8 +1935,8 @@ promise::Promise<void> SfuConnection::reconnect()
                 {
                     SFU_LOG_DEBUG("Hostname resolved and there was no previous cached Ip's for this host. Connecting...");
                     mDnsCache.setIpByHost(mSfuUrl.host, ipsv4, ipsv6);
-                    std::string resolvedIpv4 = ipsv4.empty() ? "" : ipsv4.front();
-                    std::string resolvedIpv6 = ipsv4.empty() ? "" : ipsv4.front();
+                    const std::string &resolvedIpv4 = ipsv4.empty() ? "" : ipsv4.front();
+                    const std::string &resolvedIpv6 = ipsv4.empty() ? "" : ipsv4.front();
                     doConnect(resolvedIpv4, resolvedIpv6);
                     return;
                 }
