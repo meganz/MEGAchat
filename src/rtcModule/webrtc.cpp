@@ -1445,6 +1445,11 @@ bool Call::error(unsigned int code, const std::string &errMsg)
     return true;
 }
 
+void Call::logError(const char *error)
+{
+    RTCM_LOG_ERROR("SFU: %s", error);
+}
+
 void Call::onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> /*stream*/)
 {
     if (mState != kStateJoining)
@@ -2338,7 +2343,7 @@ void RtcModuleSfu::openDevice()
         std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
         if (videoDevices.empty())
         {
-            RTCM_LOG_ERROR("openDevice(): no video devices available");
+            RTCM_LOG_WARNING("openDevice(): no video devices available");
             return;
         }
 
@@ -2483,7 +2488,7 @@ void Slot::createDecryptor()
     auto it = mCall.getSessions().find(mCid);
     if (it == mCall.getSessions().end())
     {
-        RTCM_LOG_ERROR("createDecryptor: unknown cid");
+        mCall.logError("createDecryptor: unknown cid");
         return;
     }
 
