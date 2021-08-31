@@ -1785,11 +1785,6 @@ void SfuConnection::wsSendMsgCb(const char *, size_t)
     }
 }
 
-bool SfuConnection::wsSSLsessionUpdateCb(const CachedSession &sess)
-{
-    return true;
-}
-
 void SfuConnection::wsProcessNextMsgCb()
 {
     processNextCommand(true);
@@ -1861,14 +1856,14 @@ promise::Promise<void> SfuConnection::reconnect()
             mConnectPromise = promise::Promise<void>();
 
             std::string ipv4, ipv6;
-            bool cachedIPs = mDnsCache.getIpByHost(mSfuUrl.host, ipv4, ipv6);
+            bool cachedIpsByHost = mDnsCache.getIpByHost(mSfuUrl.host, ipv4, ipv6);
 
             setConnState(kResolving);
             SFU_LOG_DEBUG("Resolving hostname %s...", mSfuUrl.host.c_str());
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(&mWebsocketIO, mSfuUrl.host.c_str(),
-                         [wptr, cachedIPs, this, retryCtrl, attemptNo, &ipv4, &ipv6](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+                         [wptr, cachedIpsByHost, this, retryCtrl, attemptNo, &ipv4, &ipv6](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -1881,7 +1876,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     if (isOnline())
                     {
                         SFU_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
-                        assert(cachedIPs);
+                        assert(cachedIpsByHost);
                     }
                     else
                     {
@@ -1903,7 +1898,7 @@ promise::Promise<void> SfuConnection::reconnect()
 
                 if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
                 {
-                    if (isOnline() && cachedIPs)
+                    if (isOnline() && cachedIpsByHost)
                     {
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
                         SFU_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
@@ -1931,7 +1926,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
                 }
 
-                if (!cachedIPs) // connect required DNS lookup
+                if (!cachedIpsByHost) // connect required DNS lookup
                 {
                     SFU_LOG_DEBUG("Hostname resolved and there was no previous cached Ip's for this host. Connecting...");
                     mDnsCache.setIpByHost(mSfuUrl.host, ipsv4, ipsv6);
@@ -1983,7 +1978,7 @@ promise::Promise<void> SfuConnection::reconnect()
                 // reject promise, so the RetryController starts a new attempt
                 mConnectPromise.reject(errStr, statusDNS, promise::kErrorTypeGeneric);
             }
-            else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
+            else if (cachedIpsByHost) // if wsResolveDNS() failed immediately, very likely there's
             // no network connetion, so it's futile to attempt to connect
             {
                 // this connect attempt is made in parallel with DNS resolution, use cached IP's
