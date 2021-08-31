@@ -163,13 +163,13 @@ bool SvcDriver::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
         default: return false;
     }
 }
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
     , mIsRinging(isRinging)
     , mIsGroup(isGroup)
-    , mGlobalCallHandler(globalCallHandler)
+    , mCallHandler(callHandler) // CallHandler to receive notifications about the call
     , mMegaApi(megaApi)
     , mSfuClient(rtc.getSfuClient())
     , mCallKey(callKey ? *callKey : std::string())
@@ -178,11 +178,6 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
     karere::Id myUserHandle(userHandle.get());
     mMyPeer.reset(new sfu::Peer(myUserHandle, avflags.value()));
-
-    // notify the IGlobalCallHandler (intermediate layer), which register the listener
-    // CallHandler to receive notifications about the call
-    mGlobalCallHandler.onNewCall(*this);
-
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
@@ -237,7 +232,7 @@ void Call::setState(CallState newState)
     }
 
     mState = newState;
-    mCallHandler->onCallStateChange(*this);
+    mCallHandler.onCallStateChange(*this);
 }
 
 CallState Call::getState() const
@@ -253,7 +248,7 @@ void Call::addParticipant(karere::Id peer)
     }
 
     mParticipants.push_back(peer);
-    mGlobalCallHandler.onAddPeer(*this, peer);
+    mCallHandler.onAddPeer(*this, peer);
 }
 
 
@@ -268,7 +263,7 @@ void Call::onDisconnectFromChatd()
 
     for (auto &it : mParticipants)
     {
-        mGlobalCallHandler.onRemovePeer(*this, it);
+        mCallHandler.onRemovePeer(*this, it);
     }
     mParticipants.clear();
 }
@@ -285,7 +280,7 @@ void Call::removeParticipant(karere::Id peer)
         if (*itPeer == peer)
         {
             mParticipants.erase(itPeer);
-            mGlobalCallHandler.onRemovePeer(*this, peer);
+            mCallHandler.onRemovePeer(*this, peer);
             return;
         }
     }
@@ -397,7 +392,7 @@ void Call::setRinging(bool ringing)
     if (mIsRinging != ringing)
     {
         mIsRinging = ringing;
-        mCallHandler->onCallRinging(*this);
+        mCallHandler.onCallRinging(*this);
     }
 }
 
@@ -517,11 +512,6 @@ const char *Call::stateToStr(CallState state)
     }
 }
 
-void Call::setCallHandler(CallHandler* callHanlder)
-{
-    mCallHandler = std::unique_ptr<CallHandler>(callHanlder);
-}
-
 karere::AvFlags Call::getLocalAvFlags() const
 {
     return mMyPeer->getAvFlags();
@@ -547,20 +537,20 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
                 ? setOnHold()
                 : releaseOnHold();
 
-        mCallHandler->onOnHold(*this); // notify app onHold Change
+        mCallHandler.onOnHold(*this); // notify app onHold Change
     }
     else
     {
         updateAudioTracks();
         updateVideoTracks();
-        mCallHandler->onLocalFlagsChanged(*this);  // notify app local AvFlags Change
+        mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
     }
 }
 
 void Call::setAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
-    mCallHandler->onLocalAudioDetected(*this);
+    mCallHandler.onLocalAudioDetected(*this);
 }
 
 void Call::requestSpeaker(bool add)
@@ -1051,7 +1041,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     {
         cids.insert(peer.getCid());
         mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
-        mCallHandler->onNewSession(*mSessions[peer.getCid()], *this);
+        mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
     }
 
     generateAndSendNewkey(true);
@@ -1388,7 +1378,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 
     sfu::Peer peer(userid, av, cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
-    mCallHandler->onNewSession(*mSessions[cid], *this);
+    mCallHandler.onNewSession(*mSessions[cid], *this);
     generateAndSendNewkey();
     return true;
 }
@@ -2050,7 +2040,7 @@ void Call::updateAudioTracks()
     }
 }
 
-RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, IGlobalCallHandler &callhandler)
+RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler)
     : mCallHandler(callhandler)
     , mMegaApi(megaApi)
 {
@@ -2429,9 +2419,9 @@ std::string RtcModuleSfu::getDeviceInfo() const
 }
 
 
-RtcModule* createRtcModule(MyMegaApi &megaApi, IGlobalCallHandler& callhandler)
+RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler)
 {
-    return new RtcModuleSfu(megaApi, callhandler);
+    return new RtcModuleSfu(megaApi, callHandler);
 }
 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
