@@ -258,6 +258,7 @@ public:
     CallState getState() const override;
     // returns true if your user participates of the call
     bool participate() override;
+    bool isJoining() const override;
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
     TermCode getTermCode() const override;
@@ -444,6 +445,7 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
+    bool mIsJoining;
 
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey();
@@ -469,6 +471,7 @@ public:
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
+    bool isCallAttemptStarted(const karere::Id &chatid) const override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) override;
@@ -511,6 +514,7 @@ private:
     std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;
+    std::set<karere::Id> mStartedCallsAttempts;
 };
 
 void globalCleanup();

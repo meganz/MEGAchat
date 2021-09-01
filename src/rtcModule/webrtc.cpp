@@ -332,6 +332,7 @@ promise::Promise<void> Call::hangup()
 
 promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
+    mIsJoining = true; // set flag true to avoid multiple join call attempts
     mMyPeer->setAvFlags(avFlags);
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid.val, mCallid.val)
@@ -343,13 +344,27 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
         std::string sfuUrl = result->getText();
         connectSfu(sfuUrl);
 
+        mIsJoining = false;  // set flag false
         return promise::_Void();
+    })
+    .fail([wptr, this](const ::promise::Error& err)
+    {
+        if (!wptr.deleted())
+            return promise::Error("Join call failed, and call has already ended");
+
+        mIsJoining = false;  // set flag false
+        return err;
     });
 }
 
 bool Call::participate()
 {
     return (mState > kStateClientNoParticipating && mState < kStateTerminatingUserParticipation);
+}
+
+bool Call::isJoining() const
+{
+    return mIsJoining;
 }
 
 void Call::enableAudioLevelMonitor(bool enable)
@@ -2081,6 +2096,11 @@ ICall *RtcModuleSfu::findCallByChatid(const karere::Id &chatid)
     return nullptr;
 }
 
+bool RtcModuleSfu::isCallAttemptStarted(const karere::Id &chatid) const
+{
+    return mStartedCallsAttempts.find(chatid) != mStartedCallsAttempts.end();
+}
+
 bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
 {
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
@@ -2125,17 +2145,20 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 
 promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey)
 {
+    // add chatid to CallsAttempts to avoid multiple start call attempts
+    mStartedCallsAttempts.insert(chatid);
+
     // we need a temp string to avoid issues with lambda shared pointer capture
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
     .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result)
     {
+        wptr.throwIfDeleted();
         std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
                 ? std::make_shared<std::string>(auxCallKey)
                 : nullptr;
 
-        wptr.throwIfDeleted();
         karere::Id callid = result->getParentHandle();
         std::string sfuUrl = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
@@ -2145,7 +2168,15 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
             mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
+        mStartedCallsAttempts.erase(chatid); // remove chatid from CallsAttempts
+    })
+    .fail([wptr, this, chatid](const ::promise::Error& err)
+    {
+        wptr.throwIfDeleted();
+        mStartedCallsAttempts.erase(chatid); // remove chatid from CallsAttempts
+        return err;
     });
+
 }
 
 void RtcModuleSfu::takeDevice()
