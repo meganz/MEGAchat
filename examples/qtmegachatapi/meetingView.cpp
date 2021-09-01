@@ -109,10 +109,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 
     QVBoxLayout *localLayout = new QVBoxLayout();
     mLocalLayout->addLayout(localLayout);
-
-    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(chatid));
-    assert(call);
-    PeerWidget* widget = new PeerWidget(mMegaChatApi, call->getChatid(), 0, 0, true);
+    PeerWidget* widget = new PeerWidget(mMegaChatApi, chatid, 0, 0, true);
     addLocalVideo(widget);
 
     setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::CustomizeWindowHint| Qt::WindowMinimizeButtonHint);
