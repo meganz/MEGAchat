@@ -12,12 +12,7 @@
 
 namespace rtcModule
 {
-#ifdef KARERE_DISABLE_WEBRTC
-class IGlobalCallHandler
-{
-};
-#else
-
+#ifndef KARERE_DISABLE_WEBRTC
 class RtcModuleSfu;
 class Call;
 class Session;
@@ -248,16 +243,12 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
     virtual ~Call();
 
 
     // ---- ICall methods ----
     //
-
-    // sets a handler to receive callbacks about the call (takes ownership)
-    void setCallHandler(CallHandler* callHanlder) override;
-
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
     CallState getState() const override;
@@ -388,7 +379,9 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
+
     bool error(unsigned int code, const std::string& errMsg) override;
+    void logError(const char* error) override;
 
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
@@ -421,7 +414,7 @@ protected:
     TermCode mTermCode = kInvalidTermCode;
 
     std::string mSfuUrl;
-    IGlobalCallHandler& mGlobalCallHandler;
+    CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
@@ -435,9 +428,6 @@ protected:
     bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
-
-    std::unique_ptr<CallHandler> mCallHandler;
-
     std::unique_ptr<sfu::Peer> mMyPeer;
 
     // call key for public chats (128-bit key)
@@ -471,7 +461,7 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);
+    RtcModuleSfu(MyMegaApi& megaApi, CallHandler& callhandler);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
@@ -507,7 +497,7 @@ public:
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
-    IGlobalCallHandler& mCallHandler;
+    CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
     std::string mVideoDeviceSelected;
