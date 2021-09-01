@@ -5274,7 +5274,13 @@ void MockupCall::onSfuConnected()
 
 }
 
-bool MockupCall::error(unsigned int)
+bool MockupCall::error(unsigned int, const string &)
 {
     return true;
 }
+
+void MockupCall::logError(const char *error)
+{
+
+}
+
