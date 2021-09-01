@@ -4735,9 +4735,11 @@ public:
      * in the call and we can't join to it, or when the chat is public and there are too many participants
      * to start the call.
      *
-     * The request will fail with MegaChatError::ERROR_EXISTS if there is already another attempt to start a call
-     * for this chat. Additionally in case that a call already exists for this chat, MegaChatRequest::getUserHandle
-     * will returns the callid that identifies the call.
+     * The request will fail with MegaChatError::ERROR_EXISTS
+     * - if there is already another attempt to start a call for this chat, but call doesn't exists yet
+     * - if there is already another attempt to start a call for this chat, and call already exists but we don't participate
+     * - if the call already exists and we already participate
+     * In case that call already exists MegaChatRequest::getUserHandle will returns the callid that identifies the call.
      *
      * @note In case of group calls, if there is already too many peers sending video and there are no
      * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
