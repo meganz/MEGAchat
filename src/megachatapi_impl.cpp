@@ -61,7 +61,6 @@ namespace rtcModule {void globalCleanup(); }
 #endif
 
 #define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
-#define MAX_PUBLICCHAT_MEMBERS_FOR_CALL 20
 
 using namespace std;
 using namespace megachat;
@@ -1477,13 +1476,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (chatroom->publicChat() && chatroom->numMembers() > MAX_PUBLICCHAT_MEMBERS_FOR_CALL)
-            {
-                API_LOG_ERROR("Start call - the public chat has too many participants");
-                errorCode = MegaChatError::ERROR_TOOMANY;
-                break;
-            }
-
             if (!chatroom->isGroup())
             {
                 uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
@@ -1591,13 +1583,6 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Answer call - Chatroom has not been found");
                 errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            if (chatroom->publicChat() && chatroom->numMembers() > MAX_PUBLICCHAT_MEMBERS_FOR_CALL)
-            {
-                API_LOG_ERROR("Answer call - the public chat has too many participants");
-                errorCode = MegaChatError::ERROR_TOOMANY;
                 break;
             }
 
