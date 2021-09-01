@@ -64,7 +64,7 @@ bool Client::isInBackground() const
  * depend on the database
  */
 Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
-               rtcModule::IGlobalCallHandler &globalCallHandler,
+               rtcModule::CallHandler &callHandler,
                const std::string &appDir, uint8_t caps, void *ctx)
     : mAppDir(appDir),
       websocketIO(websocketsIO),
@@ -72,14 +72,14 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
       api(sdk, ctx),
       app(aApp),
       mDnsCache(db, chatd::Client::chatdVersion),
-      mGlobalCallHandler(globalCallHandler),
+      mCallHandler(callHandler),
       mContactList(new ContactList(*this)),
       chats(new ChatRoomList(*this)),
       mPresencedClient(&api, this, *this, caps)
 {
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
+    rtc.reset(rtcModule::createRtcModule(api, mCallHandler));
     rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this));
 #endif
 }

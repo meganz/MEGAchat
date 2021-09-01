@@ -588,6 +588,8 @@ public:
     void onLocalFlagsChanged(const rtcModule::ICall& call) override;
     void onLocalAudioDetected(const rtcModule::ICall& call) override;
     void onOnHold(const rtcModule::ICall& call) override;
+    void onAddPeer(const rtcModule::ICall &call, karere::Id peer) override;
+    void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -893,8 +895,7 @@ public:
 
 class MegaChatApiImpl :
         public karere::IApp,
-        public karere::IApp::IChatListHandler,
-        public rtcModule::IGlobalCallHandler
+        public karere::IApp::IChatListHandler
 {
 public:
 
@@ -944,6 +945,7 @@ private:
 
     mega::MegaStringList *getChatInDevices(const std::set<std::string> &devices);
     void cleanCalls();
+    std::unique_ptr<MegaChatCallHandler> mCallHandler;
 #endif
 
     void cleanChatHandlers();
@@ -1190,10 +1192,6 @@ public:
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void stopLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
-
-    void onNewCall(rtcModule::ICall& call) override;
-    void onAddPeer(rtcModule::ICall& call, karere::Id peer) override;
-    void onRemovePeer(rtcModule::ICall& call, karere::Id peer) override;
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
