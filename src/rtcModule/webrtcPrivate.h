@@ -437,7 +437,7 @@ protected:
 
     // call key for public chats (128-bit key)
     std::string mCallKey;
-
+    bool mIsJoining;
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
 
@@ -445,7 +445,6 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
-    bool mIsJoining;
 
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey();

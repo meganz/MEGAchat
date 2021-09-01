@@ -173,6 +173,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mMegaApi(megaApi)
     , mSfuClient(rtc.getSfuClient())
     , mCallKey(callKey ? *callKey : std::string())
+    , mIsJoining(false)
     , mRtc(rtc)
 {
     std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
