@@ -2457,22 +2457,6 @@ Slot::~Slot()
     }
 }
 
-bool Slot::hasTrack(bool send)
-{
-    assert(mTransceiver);
-
-    if ((send && (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kRecvOnly))  ||
-     (!send && (mTransceiver->direction() == webrtc::RtpTransceiverDirection::kSendOnly)))
-    {
-        return false;
-    }
-
-    return send
-            ? mTransceiver->sender()->track()
-            : mTransceiver->receiver()->track();
-
-}
-
 uint32_t Slot::getMid() const
 {
     return mTransceiver->mid().has_value() ? atoi(mTransceiver->mid()->c_str()) : 0;
@@ -2635,6 +2619,19 @@ VideoResolution RemoteVideoSlot::getVideoResolution() const
     return mVideoResolution;
 }
 
+bool RemoteVideoSlot::hasTrack()
+{
+    assert(mTransceiver);
+
+    if (mTransceiver->receiver())
+    {
+        return  mTransceiver->receiver()->track();
+    }
+
+    return false;
+
+}
+
 void RemoteVideoSlot::enableTrack()
 {
     webrtc::VideoTrackInterface* videoTrack =
@@ -2744,12 +2741,12 @@ void Session::setAudioDetected(bool audioDetected)
 
 bool Session::hasHighResolutionTrack() const
 {
-    return mHiresSlot && mHiresSlot->hasTrack(false);
+    return mHiresSlot && mHiresSlot->hasTrack();
 }
 
 bool Session::hasLowResolutionTrack() const
 {
-    return mVthumSlot && mVthumSlot->hasTrack(false);
+    return mVthumSlot && mVthumSlot->hasTrack();
 }
 
 void Session::notifyHiResReceived()

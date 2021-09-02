@@ -71,7 +71,6 @@ class Slot
 {
 public:
     virtual ~Slot();
-    bool hasTrack(bool send);
     webrtc::RtpTransceiverInterface* getTransceiver() { return mTransceiver.get(); }
     IvStatic_t getIv() const { return mIv; }
     uint32_t getMid() const;
@@ -128,6 +127,7 @@ public:
     void assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution);
     void release() override;
     VideoResolution getVideoResolution() const;
+    bool hasTrack();
 
 private:
     VideoResolution mVideoResolution = kUndefined;
