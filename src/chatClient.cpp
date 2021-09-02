@@ -64,7 +64,7 @@ bool Client::isInBackground() const
  * depend on the database
  */
 Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
-               rtcModule::IGlobalCallHandler &globalCallHandler,
+               rtcModule::CallHandler &callHandler,
                const std::string &appDir, uint8_t caps, void *ctx)
     : mAppDir(appDir),
       websocketIO(websocketsIO),
@@ -72,14 +72,14 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
       api(sdk, ctx),
       app(aApp),
       mDnsCache(db, chatd::Client::chatdVersion),
-      mGlobalCallHandler(globalCallHandler),
+      mCallHandler(callHandler),
       mContactList(new ContactList(*this)),
       chats(new ChatRoomList(*this)),
       mPresencedClient(&api, this, *this, caps)
 {
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::createRtcModule(api, mGlobalCallHandler));
+    rtc.reset(rtcModule::createRtcModule(api, mCallHandler));
     rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this));
 #endif
 }
@@ -165,18 +165,28 @@ bool Client::openDb(const std::string& sid)
         KR_LOG_WARNING("Error opening database");
         return false;
     }
-    SqliteStmt stmt(db, "select value from vars where name = 'schema_version'");
-    if (!stmt.step())
+
+    std::string cachedVersion;
+    std::string currentVersion;
+    bool result;
+    {
+        SqliteStmt stmt(db, "select value from vars where name = 'schema_version'");
+        result = stmt.step();
+        if (result)
+        {
+            currentVersion.assign(gDbSchemaHash);
+            currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
+
+            cachedVersion.assign(stmt.stringCol(0));
+        }
+    }
+    if (!result)
     {
         db.close();
         KR_LOG_WARNING("Can't get local database version");
         return false;
     }
 
-    std::string currentVersion(gDbSchemaHash);
-    currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
-
-    std::string cachedVersion(stmt.stringCol(0));
     if (cachedVersion != currentVersion)
     {
         ok = false;

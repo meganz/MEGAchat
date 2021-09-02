@@ -100,12 +100,12 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->isRinging() : NO;
 }
 
-- (uint64_t)clientidCallCompositionChange {
-    return self.megaChatCall ? self.megaChatCall->getClientidCallCompositionChange() : MEGACHAT_INVALID_HANDLE;
+- (uint64_t)peeridCallCompositionChange {
+    return self.megaChatCall ? self.megaChatCall->getPeeridCallCompositionChange() : MEGACHAT_INVALID_HANDLE;
 }
 
-- (uint64_t)callCompositionChange {
-    return self.megaChatCall ? self.megaChatCall->getCallCompositionChange() : MEGACHAT_INVALID_HANDLE;
+- (MEGAChatCallCompositionChange)callCompositionChange {
+    return (MEGAChatCallCompositionChange) (self.megaChatCall ? self.megaChatCall->getCallCompositionChange() : 0);
 }
 
 - (MEGAHandleList *)sessionsClientId {
@@ -124,6 +124,10 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->isOnHold() : NO;
 }
 
+- (NSInteger)networkQuality {
+    return self.megaChatCall ? self.megaChatCall->getNetworkQuality() : 0;
+}
+
 - (NSUUID *)uuid {
     unsigned char tempUuid[128];
     uint64_t tempChatId = self.chatId;
@@ -135,7 +139,7 @@ using namespace megachat;
     return uuid;
 }
 
-- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId clientId:(uint64_t)clientId {
+- (MEGAChatSession *)sessionForClientId:(uint64_t)clientId {
     return self.megaChatCall ? [[MEGAChatSession alloc] initWithMegaChatSession:self.megaChatCall->getMegaChatSession(clientId) cMemoryOwn:NO] : nil;
 }
 
@@ -145,14 +149,11 @@ using namespace megachat;
         case MEGAChatCallStatusInitial:
             result = @"Initial";
             break;
-        case MEGAChatCallStatusHasLocalStream:
-            result = @"Has local stream";
+        case MEGAChatCallStatusUserNoPresent:
+            result = @"User no present";
             break;
-        case MEGAChatCallStatusRequestSent:
-            result = @"Request sent";
-            break;
-        case MEGAChatCallStatusRingIn:
-            result = @"Ring in";
+        case MEGAChatCallStatusConnecting:
+            result = @"Connecting";
             break;
         case MEGAChatCallStatusJoining:
             result = @"Joining";
@@ -163,18 +164,11 @@ using namespace megachat;
         case MEGAChatCallStatusTerminatingUserParticipation:
             result = @"Terminating user participation";
             break;
-        case MEGAChatCallStatusDestroyed:
-            result = @"Destroyed";
-            break;
-        case MEGAChatCallStatusUserNoPresent:
-            result = @"User no present";
-            break;
-        case MEGAChatCallStatusReconnecting:
-            result = @"Reconnecting";
-            break;
-            
+         case MEGAChatCallStatusDestroyed:
+             result = @"Destroyed";
+             break;
         default:
-            result = @"Default";
+            result = @"Undefined";
             break;
     }
     return result;
@@ -183,42 +177,20 @@ using namespace megachat;
 + (NSString *)stringForTermCode:(MEGAChatCallTermCode)termCode {
     NSString *result;
     switch (termCode) {
+        case MEGAChatCallTermCodeInvalid:
+            result = @"Invalid";
+            break;
         case MEGAChatCallTermCodeUserHangup:
             result = @"User hangup";
             break;
-        case MEGAChatCallTermCodeCallReqCancel:
-            result = @"Call req cancel";
+        case MEGAChatCallTermCodeTooManyParticipants:
+            result = @"Too many participants";
             break;
         case MEGAChatCallTermCodeCallReject:
             result = @"Call reject";
             break;
-        case MEGAChatCallTermCodeAnswerElseWhere:
-            result = @"Answer else where";
-            break;
-        case MEGAChatCallTermCodeRejectElseWhere:
-            result = @"Reject else where";
-            break;
-        case MEGAChatCallTermCodeAnswerTimeout:
-            result = @"Answer timeout";
-            break;
-        case MEGAChatCallTermCodeRingOutTimeout:
-            result = @"Ring out timeout";
-            break;
-        case MEGAChatCallTermCodeAppTerminating:
-            result = @"App terminating";
-            break;
-        case MEGAChatCallTermCodeBusy:
-            result = @"Busy";
-            break;
-        case MEGAChatCallTermCodeNotFinished:
-            result = @"Not finished";
-            break;
         case MEGAChatCallTermCodeError:
             result = @"Error";
-            break;
-            
-        default:
-            result = @"Default";
             break;
     }
     return result;

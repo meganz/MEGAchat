@@ -2326,6 +2326,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 // clientid.4 reserved.4
                 READ_32(clientid, 0);
+                READ_32(unused, 4);
                 mClientId = clientid;
                 CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
                 break;
@@ -2550,7 +2551,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 // it may have created the call object already
 
                                 call->setCallerId(userid);
-                                call->setRinging(ringing);
+                                call->setRinging(call->isOtherClientParticipating() ? false : ringing);
                             }
 
                         })
@@ -2563,7 +2564,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     else
                     {
                         call->setCallerId(userid);
-                        call->setRinging(ringing);
+                        call->setRinging(call->isOtherClientParticipating() ? false : ringing);
                     }
                 }
                 break;
@@ -5755,6 +5756,7 @@ void Chat::setOnlineState(ChatState state)
             {
                 if (call->getParticipants().empty())
                 {
+                    CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s with no participants", call->getCallid().toString().c_str());
                     mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::TermCode::kErrNoCall);
                 }
                 else if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)

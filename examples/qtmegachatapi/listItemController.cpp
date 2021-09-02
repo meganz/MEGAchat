@@ -2,6 +2,8 @@
 #include <mega/utils.h>
 #include <QInputDialog>
 
+using namespace megachat;
+
 ChatListItemController::ChatListItemController(MainWindow *mainWindow, megachat::MegaChatListItem *item, ChatItemWidget *widget, ChatWindow *chatWindow)
     : QObject(mainWindow),
       ListItemController(item->getChatId()),
@@ -55,6 +57,27 @@ void ChatListItemController::invalidChatWindow()
 {
     mChatWindow = nullptr;
 }
+
+#ifndef KARERE_DISABLE_WEBRTC
+void ChatListItemController::createMeetingView()
+{
+    assert(!mMeetingView);
+    mMeetingView = new MeetingView(*mMegaChatApi, mItem->getChatId(), mMainWindow);
+    mMeetingView->show();
+}
+
+void ChatListItemController::destroyMeetingView()
+{
+    assert(mMeetingView);
+    mMeetingView->deleteLater();
+    mMeetingView = nullptr;
+}
+
+MeetingView* ChatListItemController::getMeetingView()
+{
+    return mMeetingView;
+}
+#endif
 
 void ChatListItemController::addOrUpdateWidget(ChatItemWidget *widget)
 {

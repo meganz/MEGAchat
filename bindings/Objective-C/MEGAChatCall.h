@@ -6,15 +6,12 @@
 typedef NS_ENUM (NSInteger, MEGAChatCallStatus) {
     MEGAChatCallStatusUndefined = -1,
     MEGAChatCallStatusInitial = 0,
-    MEGAChatCallStatusHasLocalStream,
-    MEGAChatCallStatusRequestSent,
-    MEGAChatCallStatusRingIn,
+    MEGAChatCallStatusUserNoPresent,
+    MEGAChatCallStatusConnecting,
     MEGAChatCallStatusJoining,
     MEGAChatCallStatusInProgress,
     MEGAChatCallStatusTerminatingUserParticipation,
-    MEGAChatCallStatusDestroyed,
-    MEGAChatCallStatusUserNoPresent,
-    MEGAChatCallStatusReconnecting
+    MEGAChatCallStatusDestroyed
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallSessionStatus) {
@@ -25,18 +22,11 @@ typedef NS_ENUM (NSInteger, MEGAChatCallSessionStatus) {
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
+    MEGAChatCallTermCodeInvalid = -1,
     MEGAChatCallTermCodeUserHangup = 0,
-    MEGAChatCallTermCodeCallReqCancel = 1,
+    MEGAChatCallTermCodeTooManyParticipants = 1,
     MEGAChatCallTermCodeCallReject = 2,
-    MEGAChatCallTermCodeAnswerElseWhere = 3,
-    MEGAChatCallTermCodeRejectElseWhere = 4,
-    MEGAChatCallTermCodeAnswerTimeout = 5,
-    MEGAChatCallTermCodeRingOutTimeout = 6,
-    MEGAChatCallTermCodeAppTerminating = 7,
-    MEGAChatCallTermCodeBusy = 9,
-    MEGAChatCallTermCodeNotFinished = 10,
-    MEGAChatCallTermCodeDestroyByCallCollision = 19,
-    MEGAChatCallTermCodeError = 21
+    MEGAChatCallTermCodeError = 3,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
@@ -45,7 +35,10 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeLocalAVFlags = 0x02,
     MEGAChatCallChangeTypeRingingStatus = 0x04,
     MEGAChatCallChangeTypeCallComposition = 0x08,
-    MEGAChatCallChangeTypeOnHold = 0x10,
+    MEGAChatCallChangeTypeCallOnHold = 0x10,
+    MEGAChatCallChangeTypeCallSpeak = 0x20,
+    MEGAChatCallChangeTypeAudioLevel = 0x40,
+    MEGAChatCallChangeTypeNetworkQuality = 0x80,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
@@ -73,11 +66,12 @@ typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
 @property (nonatomic, readonly, getter=hasLocalVideo) BOOL localVideo;
 @property (nonatomic, readonly) MEGAChatCallTermCode termCode;
 @property (nonatomic, readonly, getter=isRinging) BOOL ringing;
-@property (nonatomic, readonly) uint64_t clientidCallCompositionChange;
-@property (nonatomic, readonly) uint64_t callCompositionChange;
+@property (nonatomic, readonly) uint64_t peeridCallCompositionChange;
+@property (nonatomic, readonly) MEGAChatCallCompositionChange callCompositionChange;
 
 @property (nonatomic, readonly) NSInteger numParticipants;
 @property (nonatomic, readonly, getter=isOnHold) BOOL onHold;
+@property (nonatomic, readonly) NSInteger networkQuality;
 @property (nonatomic, readonly) MEGAHandleList *sessionsClientId;
 
 @property (nonatomic, readonly) MEGAHandleList *participants;
@@ -86,7 +80,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
 
-- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId clientId:(uint64_t)clientId;
+- (MEGAChatSession *)sessionForClientId:(uint64_t)clientId;
 
 - (instancetype)clone;
 

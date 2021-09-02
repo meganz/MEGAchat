@@ -887,7 +887,7 @@ public:
     std::unique_ptr<chatd::Client> mChatdClient;
 
 #ifndef KARERE_DISABLE_WEBRTC
-    rtcModule::IGlobalCallHandler& mGlobalCallHandler; // interface for global events in calls
+    rtcModule::CallHandler& mCallHandler; // interface for global events in calls
     std::unique_ptr<rtcModule::RtcModule> rtc;
 #endif
 
@@ -954,7 +954,7 @@ public:
      * delete the karere.db file and re-create it from scratch.
      */
     Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
-           rtcModule::IGlobalCallHandler&globalCallHandler,
+           rtcModule::CallHandler& callHandler,
            const std::string &appDir, uint8_t caps, void *ctx);
 
     virtual ~Client();

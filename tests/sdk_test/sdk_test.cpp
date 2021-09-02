@@ -5054,7 +5054,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2}"] = true;
     checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"] = true;
     checkCommands["{\"a\":\"HIRES_START\"}"] = true;
-    checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"] = true;
+    checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"] = false;
     checkCommands["{\"err\":129}"] = true;
 
 
@@ -5274,7 +5274,13 @@ void MockupCall::onSfuConnected()
 
 }
 
-bool MockupCall::error(unsigned int)
+bool MockupCall::error(unsigned int, const string &)
 {
     return true;
 }
+
+void MockupCall::logError(const char *error)
+{
+
+}
+

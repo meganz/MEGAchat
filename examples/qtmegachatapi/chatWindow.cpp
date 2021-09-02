@@ -5,6 +5,8 @@
 #include <QFileDialog>
 #include <mega/utils.h>
 
+using namespace megachat;
+
 ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, megachat::MegaChatRoom *cRoom, const char *title)
     : QDialog(parent),
       ui(new Ui::ChatWindowUi)
@@ -427,11 +429,6 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
     }
 
     return megachat::MEGACHAT_INVALID_HANDLE;
-}
-
-MeetingView *ChatWindow::getMeetingView()
-{
-    return mMeetingView;
 }
 
 ChatListItemController *ChatWindow::getChatItemController()
@@ -1046,104 +1043,8 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::createCallGui(MegaChatHandle peerid, MegaChatHandle clientid, bool onHold, unsigned numParticipants)
-{
-    if (mMeetingView)
-    {
-        std::string msg = "createCallGui: unknown peer cid ";
-        msg.append(std::to_string(clientid));
-        mLogger->postLog(msg.c_str());
-        return;
-    }
-
-    mMeetingView = new MeetingView(*mMegaChatApi, mChatRoom->getChatId(), this, numParticipants);
-    mMeetingView->setVisible(true);
-    ui->mCentralWidget->layout()->addWidget(mMeetingView);
-    PeerWidget* peerWidget = new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, true, true);
-    mMeetingView->addLocalVideo(peerWidget);
-}
-
-void ChatWindow::deleteCallGui()
-{
-    ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
-    ui->mCentralWidget->layout()->removeWidget(mMeetingView);
-    delete mMeetingView;
-    mMeetingView = nullptr;
-
-    setChatTittle(mChatRoom->getTitle());
-    ui->mTextChatWidget->show();
-    ui->mTitlebar->show();
-    ui->mTextChatWidget->setStyleSheet("background-color: #FFFFFF");
-    ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
-
-    if (mChatRoom->isPreview())
-    {
-        ui->mTitlebar->setStyleSheet("background-color:#FFE4AF");
-    }
-    else if(mChatRoom->isPublic())
-    {
-        ui->mTitlebar->setStyleSheet("background-color:#C4F2C9");
-    }
-    else
-    {
-        ui->mTitlebar->setStyleSheet("background-color:#C1EFFF");
-    }
-}
-
-void ChatWindow::getCallPos(int index, int &row, int &col)
-{
-    switch (index)
-    {
-        case -1:
-            row = 0;
-            col = 0;
-            break;
-        case 0:
-            row = 0;
-            col = 1;
-            break;
-        case 1:
-            row = 1;
-            col = 0;
-            break;
-        case 2:
-            row = 1;
-            col = 1;
-            break;
-        case 3:
-            row = 2;
-            col = 0;
-            break;
-        case 4:
-            row = 2;
-            col = 1;
-            break;
-        case 5:
-            row = 3;
-            col = 0;
-            break;
-        case 6:
-            row = 3;
-            col = 1;
-            break;
-        case 7:
-            row = 4;
-            col = 0;
-            break;
-        case 8:
-            row = 4;
-            col = 1;
-            break;
-    }
-    row += widgetsFixed;
-}
-
 void ChatWindow::closeEvent(QCloseEvent *event)
 {
-    if (mMeetingView)
-    {
-        deleteCallGui();
-    }
     delete this;
     event->accept();
 }
@@ -1153,10 +1054,6 @@ void ChatWindow::onCallBtn(bool video)
     mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
 }
 
-void ChatWindow::hangCall()
-{
-    deleteCallGui();
-}
 #endif
 
 void ChatWindow::on_mSettingsBtn_clicked()

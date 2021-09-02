@@ -12,6 +12,7 @@ namespace sfu
 //
 std::string Command::COMMAND_IDENTIFIER     = "a";
 std::string Command::ERROR_IDENTIFIER       = "err";
+std::string Command::ERROR_MESSAGE          = "msg";
 
 const std::string AVCommand::COMMAND_NAME             = "AV";
 const std::string AnswerCommand::COMMAND_NAME         = "ANSWER";
@@ -102,6 +103,11 @@ karere::Id Peer::getPeerid() const
     return mPeerid;
 }
 
+bool Peer::hasAnyKey() const
+{
+    return !mKeyMap.empty();
+}
+
 Keyid_t Peer::getCurrentKeyId() const
 {
     return mCurrentkeyId;
@@ -125,9 +131,14 @@ std::string Peer::getKey(Keyid_t keyid) const
 
 void Peer::addKey(Keyid_t keyid, const std::string &key)
 {
-    assert(mKeyMap.find(keyid) == mKeyMap.end());
     mCurrentkeyId = keyid;
     mKeyMap[mCurrentkeyId] = key;
+}
+
+void Peer::resetKeys()
+{
+    mCurrentkeyId = 0;
+    mKeyMap.clear();
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)
@@ -164,7 +175,8 @@ Command::~Command()
 {
 }
 
-Command::Command()
+Command::Command(SfuInterface& call)
+    : mCall(call)
 {
 }
 
@@ -270,8 +282,9 @@ std::string Command::binaryToHex(uint64_t value)
     return result;
 }
 
-AVCommand::AVCommand(const AvCompleteFunction &complete)
-    : mComplete(complete)
+AVCommand::AVCommand(const AvCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -296,8 +309,9 @@ bool AVCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid, av);
 }
 
-AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete)
-    : mComplete(complete)
+AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -469,8 +483,9 @@ void AnswerCommand::parseVthumsObject(std::map<Cid_t, TrackDescriptor> &vthumbs,
 
 }
 
-KeyCommand::KeyCommand(const KeyCompleteFunction &complete)
-    : mComplete(complete)
+KeyCommand::KeyCommand(const KeyCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -507,8 +522,9 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
     return mComplete(id, cid, key);
 }
 
-VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete)
-    : mComplete(complete)
+VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -532,8 +548,9 @@ bool VthumbsCommand::processCommand(const rapidjson::Document &command)
     return mComplete(tracks);
 }
 
-VthumbsStartCommand::VthumbsStartCommand(const VtumbsStartCompleteFunction &complete)
-    : mComplete(complete)
+VthumbsStartCommand::VthumbsStartCommand(const VtumbsStartCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -543,8 +560,9 @@ bool VthumbsStartCommand::processCommand(const rapidjson::Document &command)
     return mComplete();
 }
 
-VthumbsStopCommand::VthumbsStopCommand(const VtumbsStopCompleteFunction &complete)
-    : mComplete(complete)
+VthumbsStopCommand::VthumbsStopCommand(const VtumbsStopCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -554,8 +572,9 @@ bool VthumbsStopCommand::processCommand(const rapidjson::Document &command)
     return mComplete();
 }
 
-HiResCommand::HiResCommand(const HiresCompleteFunction &complete)
-    : mComplete(complete)
+HiResCommand::HiResCommand(const HiresCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -580,8 +599,9 @@ bool HiResCommand::processCommand(const rapidjson::Document &command)
     return mComplete(tracks);
 }
 
-HiResStartCommand::HiResStartCommand(const HiResStartCompleteFunction &complete)
-    : mComplete(complete)
+HiResStartCommand::HiResStartCommand(const HiResStartCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -591,8 +611,9 @@ bool HiResStartCommand::processCommand(const rapidjson::Document &command)
     return mComplete();
 }
 
-HiResStopCommand::HiResStopCommand(const HiResStopCompleteFunction &complete)
-    : mComplete(complete)
+HiResStopCommand::HiResStopCommand(const HiResStopCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -602,8 +623,9 @@ bool HiResStopCommand::processCommand(const rapidjson::Document &command)
     return mComplete();
 }
 
-SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete)
-    : mComplete(complete)
+SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -634,8 +656,9 @@ bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
     return mComplete(speakRequest);
 }
 
-SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &complete)
-    : mComplete(complete)
+SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -653,8 +676,9 @@ bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid);
 }
 
-SpeakOnCommand::SpeakOnCommand(const SpeakOnCompleteFunction &complete)
-    : mComplete(complete)
+SpeakOnCommand::SpeakOnCommand(const SpeakOnCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -684,8 +708,9 @@ bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
     }
 }
 
-SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete)
-    : mComplete(complete)
+SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -703,8 +728,9 @@ bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
 }
 
 
-PeerJoinCommand::PeerJoinCommand(const PeerJoinCommandFunction &complete)
-    : mComplete(complete)
+PeerJoinCommand::PeerJoinCommand(const PeerJoinCommandFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -1112,21 +1138,21 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     , mCall(call)
     , mMainThreadId(std::this_thread::get_id())
 {
-    mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2));
-    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
-    mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1));
-    mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call));
-    mCommands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call));
-    mCommands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1));
-    mCommands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call));
-    mCommands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call));
-    mCommands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1));
-    mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1));
-    mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2));
-    mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1));
-    mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1));
+    mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), mCall);
+    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), mCall);
+    mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), mCall);
+    mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), mCall);
+    mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), mCall);
+    mCommands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), mCall);
+    mCommands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), mCall);
+    mCommands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), mCall);
+    mCommands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), mCall);
+    mCommands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), mCall);
+    mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), mCall);
+    mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), mCall);
+    mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), mCall);
+    mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), mCall);
+    mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), mCall);
 }
 
 SfuConnection::~SfuConnection()
@@ -1361,7 +1387,14 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
 
     if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
     {
-        mCall.error(jsonErrIterator->value.GetInt());
+        std::string error = "Unknown reason";
+        rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = document.FindMember(Command::ERROR_MESSAGE.c_str());
+        if (jsonErrMsgIterator != document.MemberEnd() && jsonErrMsgIterator->value.IsString())
+        {
+            error = jsonErrMsgIterator->value.GetString();
+        }
+
+        mCall.error(jsonErrIterator->value.GetInt(), error);
         return true;
     }
 
@@ -1493,7 +1526,9 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys)
 {
     if (keys.empty())
+    {
         return true;
+    }
 
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
@@ -1593,7 +1628,11 @@ bool SfuConnection::sendGetHiRes(Cid_t cid, int r, int lo)
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
-    json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
+    if (r)
+    {
+        // avoid sending r flag if it's zero (it's useless and it could generate issues at SFU)
+        json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
+    }
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
@@ -1956,8 +1995,14 @@ promise::Promise<void> SfuConnection::reconnect()
                 assert(isOnline());
                 mCall.onSfuConnected();
             });
+        }, wptr, mAppCtx
+                     , nullptr                              // cancel function
+                     , KARERE_RECONNECT_ATTEMPT_TIMEOUT     // initial attempt timeout (increases exponentially)
+                     , KARERE_RECONNECT_MAX_ATTEMPT_TIMEOUT // maximum attempt timeout
+                     , 0                                    // max number of attempts
+                     , KARERE_RECONNECT_DELAY_MAX           // max single wait between attempts
+                     , 0));                                 // initial single wait between attempts  (increases exponentially)
 
-        }, wptr, mAppCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
 
         return static_cast<promise::Promise<void>&>(mRetryCtrl->start());
     }
@@ -2014,8 +2059,9 @@ void SfuClient::retryPendingConnections(bool disconnect)
     }
 }
 
-PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete)
-    : mComplete(complete)
+PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
