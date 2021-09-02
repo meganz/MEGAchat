@@ -3390,8 +3390,11 @@ const char *MegaChatApiImpl::getUserAliasFromCache(MegaChatHandle userhandle)
             Id userid(key.data());
             if (userid == userhandle)
             {
-                string value;
-                tlvRecords->get(key.c_str(), value);
+                string valueB64;
+                tlvRecords->get(key.c_str(), valueB64);
+
+                // convert value from B64 to "binary", since the app expects alias in plain text, ready to use
+                string value = Base64::atob(valueB64);
                 return MegaApi::strdup(value.c_str());
             }
         }
@@ -3411,7 +3414,16 @@ MegaStringMap *MegaChatApiImpl::getUserAliasesFromCache()
 
         const std::string container(buffer->buf(), buffer->size());
         std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
-        return new MegaStringMapPrivate(tlvRecords->getMap(), true);
+
+        // convert records from B64 to "binary", since the app expects aliases in plain text, ready to use
+        const string_map *stringMap = tlvRecords->getMap();
+        auto result = new MegaStringMapPrivate();
+        for (const auto &record : *stringMap)
+        {
+            string buffer = Base64::atob(record.second);
+            result->set(record.first.c_str(), buffer.c_str());
+        }
+        return result;
     }
 
     return nullptr;
