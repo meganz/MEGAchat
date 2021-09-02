@@ -2457,9 +2457,15 @@ Slot::~Slot()
     }
 }
 
-uint32_t Slot::getMid() const
+uint32_t Slot::getTransceiverMid() const
 {
-    return mTransceiver->mid().has_value() ? atoi(mTransceiver->mid()->c_str()) : 0;
+    if (!mTransceiver->mid())
+    {
+        assert(false);
+        return 0;
+    }
+
+    return atoi(mTransceiver->mid()->c_str());
 }
 
 void RemoteSlot::release()
@@ -2499,7 +2505,7 @@ void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
 
     mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv, getMid()));
+                                                                      mIv, getTransceiverMid()));
 }
 
 RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -2530,7 +2536,7 @@ void LocalSlot::createEncryptor()
 {
     mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv, getMid()));
+                                                                      mIv, getTransceiverMid()));
 }
 
 void LocalSlot::generateRandomIv()

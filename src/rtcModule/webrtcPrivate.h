@@ -73,7 +73,7 @@ public:
     virtual ~Slot();
     webrtc::RtpTransceiverInterface* getTransceiver() { return mTransceiver.get(); }
     IvStatic_t getIv() const { return mIv; }
-    uint32_t getMid() const;
+    uint32_t getTransceiverMid() const;
 protected:
     Call &mCall;
     IvStatic_t mIv = 0;
