@@ -2462,6 +2462,7 @@ uint32_t Slot::getTransceiverMid() const
     if (!mTransceiver->mid())
     {
         assert(false);
+        RTCM_LOG_WARNING("We have received a transceiver without 'mid'");
         return 0;
     }
 
