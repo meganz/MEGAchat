@@ -3030,6 +3030,63 @@ const char *MegaChatApiImpl::getUserEmailFromCache(MegaChatHandle userhandle)
     return nullptr;
 }
 
+const char *MegaChatApiImpl::getUserAliasFromCache(MegaChatHandle userhandle)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(mClient->myHandle(), ::mega::MegaApi::USER_ATTR_ALIAS);
+
+        if (!buffer || buffer->empty()) return nullptr;
+
+        const std::string container(buffer->buf(), buffer->size());
+        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
+        std::unique_ptr<std::vector<std::string>> keys(tlvRecords->getKeys());
+
+        for (auto &key : *keys)
+        {
+            Id userid(key.data());
+            if (userid == userhandle)
+            {
+                string valueB64;
+                tlvRecords->get(key.c_str(), valueB64);
+
+                // convert value from B64 to "binary", since the app expects alias in plain text, ready to use
+                string value = Base64::atob(valueB64);
+                return MegaApi::strdup(value.c_str());
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+MegaStringMap *MegaChatApiImpl::getUserAliasesFromCache()
+{
+    SdkMutexGuard g(sdkMutex);
+    if (mClient && mClient->isUserAttrCacheReady())
+    {
+        const Buffer* buffer = mClient->userAttrCache().getDataFromCache(mClient->myHandle(), ::mega::MegaApi::USER_ATTR_ALIAS);
+
+        if (!buffer || buffer->empty()) return nullptr;
+
+        const std::string container(buffer->buf(), buffer->size());
+        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
+
+        // convert records from B64 to "binary", since the app expects aliases in plain text, ready to use
+        const string_map *stringMap = tlvRecords->getMap();
+        auto result = new MegaStringMapPrivate();
+        for (const auto &record : *stringMap)
+        {
+            string buffer = Base64::atob(record.second);
+            result->set(record.first.c_str(), buffer.c_str());
+        }
+        return result;
+    }
+
+    return nullptr;
+}
+
 void MegaChatApiImpl::loadUserAttributes(MegaChatHandle chatid, MegaHandleList *userList, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES, listener);
