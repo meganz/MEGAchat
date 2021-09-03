@@ -366,14 +366,7 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
         .fail([](const ::promise::Error& err) -> ::promise::Promise<Buffer*>
         {
             ::promise::Promise<Buffer*> p;
-            if (err.code() == kErrorNoEnt)
-            {
-                p.resolve(nullptr);
-            }
-            else
-            {
-                p.reject(err);
-            }
+            p.resolve(nullptr);
 
             return p;
         });
