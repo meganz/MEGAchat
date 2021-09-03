@@ -4726,7 +4726,6 @@ public:
      *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
-     *  - if groupchatroom has no participants
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
