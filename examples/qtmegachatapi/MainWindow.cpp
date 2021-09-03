@@ -165,10 +165,8 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL))
     {
-        if (window->mMeetingView)
-        {
-            window->mMeetingView->localAudioDetected(call->isAudioDetected());
-        }
+        assert(itemController->getMeetingView());
+        itemController->getMeetingView()->localAudioDetected(call->isAudioDetected());
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
@@ -177,47 +175,52 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         {
             case megachat::MegaChatCall::CALL_STATUS_INITIAL:
             {
+                itemController->createMeetingView();
                 if (call->isRinging() && call->getCaller() != mMegaChatApi->getMyUserHandle())
                 {
-                    QMessageBox::StandardButton reply;
-                     reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
-                     if (reply == QMessageBox::Yes)
-                     {
-                        mMegaChatApi->answerChatCall(call->getCallId(), true);
-                     }
-                     else if (reply == QMessageBox::Cancel)
-                     {
-                         mMegaChatApi->hangChatCall(call->getCallId());
-                     }
-                     else if (reply == QMessageBox::Ignore)
-                     {
-                         mMegaChatApi->setIgnoredCall(call->getChatid());
-                     }
+                    itemController->getMeetingView()->createRingingWindow(call->getCallId());
                 }
 
                 break;
             }
 
-            case megachat::MegaChatCall::CALL_STATUS_JOINING:
+            case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
             {
-                window->ui->mTitlebar->hide();
-                window->ui->mTextChatWidget->hide();
-                window->createCallGui(0, 0, call->getNumParticipants());
+                assert(itemController->getMeetingView());
+                itemController->getMeetingView()->setNotParticipating();
+                break;
+            }
 
+            case megachat::MegaChatCall::CALL_STATUS_CONNECTING:
+            {
+                assert(itemController->getMeetingView());
+                itemController->getMeetingView()->setConnecting();
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
-                if (window->mMeetingView)
-                {
-                    window->mMeetingView->updateAudioButtonText(call);
-                    window->mMeetingView->updateVideoButtonText(call);
-                }
+                assert(itemController->getMeetingView());
+                itemController->getMeetingView()->joinedToCall(*call);
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
             {
-                window->hangCall();
+                assert(itemController->getMeetingView());
+                itemController->getMeetingView()->setNotParticipating();
+                return;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
+            {
+                assert(itemController->getMeetingView());
+                itemController->destroyMeetingView();
+                int termCode = call->getTermCode();
+                if (termCode != megachat::MegaChatCall::TERM_CODE_HANGUP)
+                {
+                    std::string message("Termination Code: ");
+                    message.append(std::to_string(termCode));
+                    QMessageBox::information(this, "User terminate participation", message.c_str());
+                }
+
                 return;
             }
             default:
@@ -225,52 +228,45 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 break;
             }
         }
+
+        MeetingView* meetingView = itemController->getMeetingView();
+        if (meetingView) // At destroy state meetingView doesn't exit
+        {
+            meetingView->updateLabel(call->getNumParticipants(), callStateToString(*call));
+        }
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
     {
         if (call->isRinging() && call->getCaller() != mMegaChatApi->getMyUserHandle())
         {
-            QMessageBox::StandardButton reply;
-             reply = QMessageBox::question(this, "New call", "Answer?", QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
-             if (reply == QMessageBox::Yes)
-             {
-                mMegaChatApi->answerChatCall(call->getChatid(), true);
-             }
-             else if (reply == QMessageBox::Cancel)
-             {
-                 mMegaChatApi->hangChatCall(call->getCallId());
-             }
-             else if (reply == QMessageBox::Ignore)
-             {
-                 mMegaChatApi->setIgnoredCall(call->getChatid());
-             }
+            assert(itemController->getMeetingView());
+            itemController->getMeetingView()->createRingingWindow(call->getCallId());
+        }
+        else if (!call->isRinging())
+        {
+            assert(itemController->getMeetingView());
+            itemController->getMeetingView()->destroyRingingWindow();
         }
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
     {
-        if (window->mMeetingView)
-        {
-            window->mMeetingView->updateAudioButtonText(call);
-            window->mMeetingView->updateVideoButtonText(call);
-        }
+        assert(itemController->getMeetingView());
+        itemController->getMeetingView()->updateAudioButtonText(*call);
+        itemController->getMeetingView()->updateVideoButtonText(*call);
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION))
     {
-        if (window->mMeetingView)
-        {
-            window->mMeetingView->updateNumParticipants(call->getNumParticipants());
-        }
+        assert(itemController->getMeetingView());
+        itemController->getMeetingView()->updateLabel(call->getNumParticipants(), callStateToString(*call));
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
     {
-        if (window->mMeetingView)
-        {
-            window->mMeetingView->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
-        }
+        assert(itemController->getMeetingView());
+        itemController->getMeetingView()->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
     }
 }
 
@@ -282,45 +278,43 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         throw std::runtime_error("Session notification in a call without associated item");
     }
 
-    ChatWindow *window = itemController->showChatWindow();
-    assert(window);
-    assert(window->mMeetingView);
-
-    window->mMeetingView->updateSession(*session);
+    MeetingView* meetingView = itemController->getMeetingView();
+    assert(meetingView);
+    meetingView->updateSession(*session);
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD))
     {
-        window->mMeetingView->setOnHold(session->isOnHold(), session->getClientid());
+        meetingView->setOnHold(session->isOnHold(), session->getClientid());
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES)
-            && window->mMeetingView)
+            && meetingView)
     {
         session->canRecvVideoHiRes()
-            ? window->mMeetingView->addHiResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
-            : window->mMeetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
+            ? meetingView->addHiResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
+            : meetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
     }
 
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES)
-            && window->mMeetingView)
+            && meetingView)
     {
         session->canRecvVideoLowRes()
-            ? window->mMeetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
-            : window->mMeetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
+            ? meetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
+            : meetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
     {
         if (session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
         {
-            window->mMeetingView->addSession(*session);
+            meetingView->addSession(*session);
         }
         else
         {
-            window->mMeetingView->removeLowResByCid(session->getClientid());
-            window->mMeetingView->removeHiResByCid(session->getClientid());
-            window->mMeetingView->removeSession(*session);
+            meetingView->removeLowResByCid(session->getClientid());
+            meetingView->removeHiResByCid(session->getClientid());
+            meetingView->removeSession(*session);
         }
     }
 }
@@ -342,6 +336,38 @@ void MainWindow::confirmAccount(const std::string &password)
 void MainWindow::setEphemeralAccount(bool ephemeralAccount)
 {
     mIsEphemeraAccount = ephemeralAccount;
+}
+
+std::string MainWindow::callStateToString(const MegaChatCall &call)
+{
+    switch (call.getStatus())
+    {
+        case MegaChatCall::CALL_STATUS_INITIAL:
+            return "Initial";
+        break;
+        case MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
+            return "No Present";
+        break;
+        case MegaChatCall::CALL_STATUS_CONNECTING:
+            return "Connecting";
+        break;
+        case MegaChatCall::CALL_STATUS_JOINING:
+            return "Joining";
+        break;
+        case MegaChatCall::CALL_STATUS_IN_PROGRESS:
+            return "In-Progress";
+        break;
+        case MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
+            return "Terminating";
+        break;
+        case MegaChatCall::CALL_STATUS_DESTROYED:
+            return "Destroyed";
+        break;
+        default:
+            assert(false);
+            return "Unknown";
+            break;
+    }
 }
 
 #endif

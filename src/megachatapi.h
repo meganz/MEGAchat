@@ -352,8 +352,9 @@ public:
     enum {
         TERM_CODE_INVALID = -1,     // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
         TERM_CODE_HANGUP = 0,       // Call has been finished by user
-        TERM_CODE_ERROR = 1,        // Call has been finished by error
+        TERM_CODE_TOO_MANY_PARTICIPANTS = 1, // No possible to join the call, too many participants
         TERM_CODE_REJECT = 2,       // Caller has hang up the call before no body answer the call
+        TERM_CODE_ERROR = 3,        // Call has been finished by error
     };
 
     virtual ~MegaChatCall();
@@ -526,9 +527,13 @@ public:
     /**
      * @brief Returns the termination code for this call
      *
+     * @note this value only will be valid in states CALL_STATUS_TERMINATING_USER_PARTICIPATION
+     * and CALL_STATUS_DESTROYED
+     *
      * Valid values are:
      *  - TERM_CODE_INVALID
      *  - TERM_CODE_HANGUP
+     *  - TERM_CODE_TOO_MANY_PARTICIPANTS
      *  - TERM_CODE_ERROR
      *  - TERM_CODE_REJECT
      *
@@ -606,8 +611,9 @@ public:
     /**
      * @brief Get a list with the ids of peers that are participating in the call
      *
-     * In a group call, this function returns the list of active participants,
-     * regardless your own user participates or not.
+     * This function returns a value regardless your own user participates or not.
+     *
+     * @note If client is participating with several clients, it return only one instance
      *
      * You take the ownership of the returned value.
      *
@@ -618,8 +624,9 @@ public:
     /**
      * @brief Get the number of peers participating in the call
      *
-     * In a group call, this function returns the number of active participants,
-     * regardless your own user participates or not.
+     * This function returns a value regardless your own user participates or not.
+     *
+     * @note If client is participating with several clients, it's taken as one peer
      *
      * @return Number of active participants in the call
      */
@@ -4719,17 +4726,9 @@ public:
      *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
-     *  - if groupchatroom has no participants
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
-     *
-     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it, or when the chat is public and there are too many participants
-     * to start the call.
-     *
-     * @note In case of group calls, if there is already too many peers sending video and there are no
-     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -4755,13 +4754,6 @@ public:
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
-     *
-     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it, or when the chat is public and there are too many participants
-     * to start the call.
-     *
-     * @note In case of group calls, if there is already too many peers sending video and there are no
-     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *

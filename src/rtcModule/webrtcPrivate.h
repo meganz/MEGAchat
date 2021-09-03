@@ -12,12 +12,7 @@
 
 namespace rtcModule
 {
-#ifdef KARERE_DISABLE_WEBRTC
-class IGlobalCallHandler
-{
-};
-#else
-
+#ifndef KARERE_DISABLE_WEBRTC
 class RtcModuleSfu;
 class Call;
 class Session;
@@ -77,6 +72,7 @@ class Slot
 public:
     Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     virtual ~Slot();
+    uint32_t getTransceiverMid();
     void createEncryptor();
     webrtc::RtpTransceiverInterface* getTransceiver();
     Cid_t getCid() const;
@@ -242,16 +238,12 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
     virtual ~Call();
 
 
     // ---- ICall methods ----
     //
-
-    // sets a handler to receive callbacks about the call (takes ownership)
-    void setCallHandler(CallHandler* callHanlder) override;
-
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
     CallState getState() const override;
@@ -363,8 +355,6 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
-    // request the missing tracks in ANSWER that were available before reconnection
-    void requestPeerTracks(const std::set<Cid_t> &cids);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
@@ -383,7 +373,9 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
-    bool error(unsigned int code) override;
+
+    bool error(unsigned int code, const std::string& errMsg) override;
+    void logError(const char* error) override;
 
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
@@ -414,8 +406,8 @@ protected:
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
-
-    IGlobalCallHandler& mGlobalCallHandler;
+    std::string mSfuUrl;
+    CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
@@ -429,12 +421,6 @@ protected:
     bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
-
-    // monitor the available tracks for resuming after a reconnection (requesting the same tracks)
-    std::unique_ptr<AvailableTracks> mAvailableTracks;
-
-    std::unique_ptr<CallHandler> mCallHandler;
-
     std::unique_ptr<sfu::Peer> mMyPeer;
 
     // call key for public chats (128-bit key)
@@ -448,7 +434,7 @@ protected:
     Stats mStats;
     SvcDriver mSvcDriver;
     Keyid_t generateNextKeyId();
-    void generateAndSendNewkey();
+    void generateAndSendNewkey(bool reset = false);
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)
@@ -457,7 +443,7 @@ protected:
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes, bool reuse);
+    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes);
     void enableStats();
     void disableStats();
     void adjustSvcByStats();
@@ -467,7 +453,7 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler, DNScache &dnsCache);
+    RtcModuleSfu(MyMegaApi& megaApi, CallHandler& callhandler, DNScache &dnsCache);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
@@ -504,7 +490,7 @@ public:
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
-    IGlobalCallHandler& mCallHandler;
+    CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     DNScache &mDnsCache;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
