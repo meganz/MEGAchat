@@ -354,9 +354,31 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
         // email is accessible to users as long as they provide the userhandle, but it
         // requires a valid user to request it (anonymous previews don't have a session,
         // so the API refuses the `uge` command with `ENOENT` for privacy reasons)
-        promises.push_back(getAttr(user, USER_ATTR_EMAIL, ph));
         // the `ph` is passed here only to decide whether the email should be persisted
         // in DB or not (previews/valid-ph should not persist cached data)
+        ::promise::Promise<Buffer*> promise = getAttr(user, USER_ATTR_EMAIL, ph)
+        .then([](Buffer* buff) -> ::promise::Promise<Buffer*>
+        {
+            ::promise::Promise<Buffer*> p;
+            p.resolve(buff);
+            return p;
+        })
+        .fail([](const ::promise::Error& err) -> ::promise::Promise<Buffer*>
+        {
+            ::promise::Promise<Buffer*> p;
+            if (err.code() == kErrorNoEnt)
+            {
+                p.resolve(nullptr);
+            }
+            else
+            {
+                p.reject(err);
+            }
+
+            return p;
+        });
+
+        promises.push_back(promise);
     }
 
     promises.push_back(getAttr(user, USER_ATTR_FULLNAME, ph));
@@ -376,7 +398,7 @@ const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
     return it->second->data.get();
 }
 
-UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
+UserAttrCache::Handle UserAttrCache:: getAttr(uint64_t userHandle, unsigned type,
             void* userp, UserAttrReqCbFunc cb, bool oneShot, bool fetch, uint64_t ph)
 {
     UserAttrPair key(userHandle, type, ph);
@@ -600,7 +622,7 @@ UserAttrCache::getAttr(uint64_t user, unsigned attrType, uint64_t ph)
         if (buf)
             p->resolve(buf);
         else
-            p->reject("User attribute fetch failed");
+            p->reject("User attribute fetch failed", kErrorNoEnt, kErrAbort);
         delete p;
     }, true, true, ph);
     return ret;
