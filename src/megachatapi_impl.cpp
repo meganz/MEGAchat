@@ -1514,7 +1514,7 @@ void MegaChatApiImpl::sendPendingRequests()
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-               if (mClient->rtc->isCallAttemptStarted(chatid))
+               if (mClient->rtc->isCallStartInProgress(chatid))
                {
                    API_LOG_ERROR("Start call - start call attempt already in progress");
                    errorCode = MegaChatError::ERROR_EXIST;

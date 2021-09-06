@@ -437,6 +437,8 @@ protected:
 
     // call key for public chats (128-bit key)
     std::string mCallKey;
+
+    // this flag prevents that we start multiple joining attempts for a call
     bool mIsJoining;
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
@@ -470,7 +472,7 @@ public:
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
-    bool isCallAttemptStarted(const karere::Id &chatid) const override;
+    bool isCallStartInProgress(const karere::Id &chatid) const override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) override;
@@ -513,7 +515,7 @@ private:
     std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;
-    std::set<karere::Id> mStartedCallsAttempts;
+    std::set<karere::Id> mCallStartAttempts;
 };
 
 void globalCleanup();

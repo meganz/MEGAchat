@@ -2097,9 +2097,9 @@ ICall *RtcModuleSfu::findCallByChatid(const karere::Id &chatid)
     return nullptr;
 }
 
-bool RtcModuleSfu::isCallAttemptStarted(const karere::Id &chatid) const
+bool RtcModuleSfu::isCallStartInProgress(const karere::Id &chatid) const
 {
-    return mStartedCallsAttempts.find(chatid) != mStartedCallsAttempts.end();
+    return mCallStartAttempts.find(chatid) != mCallStartAttempts.end();
 }
 
 bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
@@ -2147,7 +2147,7 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey)
 {
     // add chatid to CallsAttempts to avoid multiple start call attempts
-    mStartedCallsAttempts.insert(chatid);
+    mCallStartAttempts.insert(chatid);
 
     // we need a temp string to avoid issues with lambda shared pointer capture
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
@@ -2169,12 +2169,12 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
             mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
             mCalls[callid]->connectSfu(sfuUrl);
         }
-        mStartedCallsAttempts.erase(chatid); // remove chatid from CallsAttempts
+        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
     })
     .fail([wptr, this, chatid](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
-        mStartedCallsAttempts.erase(chatid); // remove chatid from CallsAttempts
+        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
         return err;
     });
 }

@@ -4740,8 +4740,8 @@ public:
      * - if the call already exists and we already participate
      * In case that call already exists MegaChatRequest::getUserHandle will return its callid.
      *
-     * @note In case of group calls, if there is already too many peers sending video and there are no
-     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -4775,8 +4775,8 @@ public:
      * The request will fail with MegaChatError::ERROR_EXISTS if there is already another attempt to answer a call
      * for this chat in progress.
      *
-     * @note In case of group calls, if there is already too many peers sending video and there are no
-     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
