@@ -113,6 +113,8 @@ public:
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
     virtual void onLocalAudioDetected(const ICall& call) = 0;
     virtual void onOnHold(const ICall& call) = 0;
+    virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
+    virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
 };
 
 class ICall
@@ -171,8 +173,6 @@ public:
     virtual int64_t getInitialTimeStamp() const = 0;
     virtual int64_t getFinalTimeStamp() const = 0;
     virtual int64_t getInitialOffset() const = 0;
-
-    virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual void setAudioDetected(bool audioDetected) = 0;
@@ -214,16 +214,7 @@ void globalCleanup();
 static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
 
-class IGlobalCallHandler
-{
-public:
-    virtual ~IGlobalCallHandler(){}
-    virtual void onNewCall(ICall& call) = 0;
-    virtual void onAddPeer(ICall& call, karere::Id peer) = 0;
-    virtual void onRemovePeer(ICall& call, karere::Id peer) = 0;
-};
-
-RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler);
+RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callHandler);
 
 enum RtcConstant {
    kMaxCallReceivers = 20,
@@ -236,6 +227,7 @@ enum RtcConstant {
    kVthumbWidth = 160,  // px
    kAudioMonitorTimeout = 2000, // ms
    kStatsInterval = 1000,   // ms
+   kRotateKeyUseDelay = 100, // ms
 };
 
 #endif

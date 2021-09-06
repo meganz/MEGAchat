@@ -4,31 +4,36 @@
 #include "peerWidget.h"
 #include <megachatapi.h>
 
+#include <QDialog>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QListWidget>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QHBoxLayout>
-#include <QListWidget>
-#include <QLabel>
 #include <map>
 #include "meetingSession.h"
 
 class MeetingSession;
-class MeetingView : public QWidget
+class MeetingView : public QDialog
 {
     Q_OBJECT
 public:
-    MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget* parent, unsigned numParticipants = 0);
+    MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget* parent);
     ~MeetingView();
     void addLocalVideo(PeerWidget* widget);
+    void joinedToCall(const megachat::MegaChatCall& call);
     void addSession(const megachat::MegaChatSession& session);
     void removeSession(const megachat::MegaChatSession& session);
     void updateSession(const megachat::MegaChatSession& session);
-    void updateAudioButtonText(megachat::MegaChatCall *call);
-    void updateVideoButtonText(megachat::MegaChatCall *call);
+    void updateAudioButtonText(const megachat::MegaChatCall &call);
+    void updateVideoButtonText(const megachat::MegaChatCall &call);
     void setOnHold(bool mIsOnHold, megachat::MegaChatHandle cid);
     std::string sessionToString(const megachat::MegaChatSession& session);
     void updateAudioMonitor(bool enabled);
-    void updateNumParticipants(unsigned participants);
+    void updateLabel(unsigned participants, const std::string &state);
+    void setNotParticipating();
+    void setConnecting();
 
     // methods to add/remove video widgets
     void addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid);
@@ -36,6 +41,8 @@ public:
     void removeLowResByCid(uint32_t cid);
     void removeHiResByCid(uint32_t cid);
     void localAudioDetected(bool audio);
+    void createRingingWindow(megachat::MegaChatHandle callid);
+    void destroyRingingWindow();
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
@@ -57,9 +64,11 @@ protected:
     QPushButton* mAudioMonitor;
     QPushButton* mRemOwnSpeaker;
     QPushButton* mSetOnHold;
+    QPushButton* mJoinCallWithVideo;
+    QPushButton* mJoinCallWithoutVideo;
     QLabel* mOnHoldLabel;
     QLabel* mLocalAudioDetected;
-    QLabel* mParticipantsLabel;
+    QLabel* mLabel;
 
     QListWidget* mListWidget;
 
@@ -67,6 +76,8 @@ protected:
     std::map<uint32_t, PeerWidget*> mHiResWidget;
     PeerWidget* mLocalWidget = nullptr;
     std::map<uint32_t, MeetingSession*> mSessionWidgets;
+
+    std::unique_ptr<QMessageBox> mRingingWindow;
 
 public slots:
     void onHangUp();
@@ -77,6 +88,8 @@ public slots:
     void onEnableVideo();
     void onRemoveSpeaker(uint32_t cid = megachat::MEGACHAT_INVALID_HANDLE);
     void onEnableAudioMonitor(bool audioMonitorEnable);
+    void onJoinCallWithVideo();
+    void onJoinCallWithoutVideo();
 };
 
 #endif // MEETINGVIEW_H
