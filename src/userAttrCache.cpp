@@ -391,7 +391,7 @@ const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
     return it->second->data.get();
 }
 
-UserAttrCache::Handle UserAttrCache:: getAttr(uint64_t userHandle, unsigned type,
+UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
             void* userp, UserAttrReqCbFunc cb, bool oneShot, bool fetch, uint64_t ph)
 {
     UserAttrPair key(userHandle, type, ph);
