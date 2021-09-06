@@ -916,7 +916,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 #ifndef KARERE_DISABLE_WEBRTC
          case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
          case MegaChatRequest::TYPE_START_CHAT_CALL:
-            if (error != MegaChatError::ERROR_OK)
+            if (error != MegaChatError::ERROR_OK && error != MegaChatError::ERROR_EXIST)
               {
                 QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
                 megachat::MegaChatHandle chatId = request->getChatHandle();

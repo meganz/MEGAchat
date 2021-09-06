@@ -1514,6 +1514,13 @@ void MegaChatApiImpl::sendPendingRequests()
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
+               if (mClient->rtc->isCallStartInProgress(chatid))
+               {
+                   API_LOG_ERROR("Start call - start call attempt already in progress");
+                   errorCode = MegaChatError::ERROR_EXIST;
+                   break;
+               }
+
                ::promise::Promise<std::shared_ptr<std::string>> pms;
                if (chatroom->publicChat())
                {
@@ -1550,6 +1557,14 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else if (!call->participate())
             {
+                if (call->isJoining())
+                {
+                    API_LOG_ERROR("Start call - joining call attempt already in progress");
+                    request->setUserHandle(call->getCallid());
+                    errorCode = MegaChatError::ERROR_EXIST;
+                    break;
+                }
+
                 call->join(avFlags)
                 .then([request, this]()
                 {
@@ -1568,6 +1583,7 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 // only groupchats allow to join the call in multiple clients, in 1on1 it's not allowed
                 API_LOG_ERROR("A call exists in this chatroom and we already participate or it's not a groupchat");
+                request->setUserHandle(call->getCallid());
                 errorCode = MegaChatError::ERROR_EXIST;
                 break;
             }
@@ -1611,6 +1627,13 @@ void MegaChatApiImpl::sendPendingRequests()
             if (call->participate())
             {
                 API_LOG_ERROR("Answer call - You already participate");
+                errorCode = MegaChatError::ERROR_EXIST;
+                break;
+            }
+
+            if (call->isJoining())
+            {
+                API_LOG_ERROR("Answer call - joining call attempt already in progress");
                 errorCode = MegaChatError::ERROR_EXIST;
                 break;
             }
