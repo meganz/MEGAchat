@@ -345,7 +345,7 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
         std::string sfuUrl = result->getText();
         connectSfu(sfuUrl);
 
-        mIsJoining = false;  // set flag false
+        mIsJoining = false;
         return promise::_Void();
     })
     .fail([wptr, this](const ::promise::Error& err)
@@ -353,7 +353,7 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
         if (!wptr.deleted())
             return promise::Error("Join call failed, and call has already ended");
 
-        mIsJoining = false;  // set flag false
+        mIsJoining = false;
         return err;
     });
 }
@@ -2177,7 +2177,6 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         mStartedCallsAttempts.erase(chatid); // remove chatid from CallsAttempts
         return err;
     });
-
 }
 
 void RtcModuleSfu::takeDevice()
