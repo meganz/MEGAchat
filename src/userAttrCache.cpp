@@ -357,12 +357,6 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
         // the `ph` is passed here only to decide whether the email should be persisted
         // in DB or not (previews/valid-ph should not persist cached data)
         ::promise::Promise<Buffer*> promise = getAttr(user, USER_ATTR_EMAIL, ph)
-        .then([](Buffer* buff) -> ::promise::Promise<Buffer*>
-        {
-            ::promise::Promise<Buffer*> p;
-            p.resolve(buff);
-            return p;
-        })
         .fail([](const ::promise::Error& err) -> ::promise::Promise<Buffer*>
         {
             ::promise::Promise<Buffer*> p;
