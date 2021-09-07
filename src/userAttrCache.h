@@ -136,7 +136,6 @@ protected:
     void fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
-    bool fetchIsRequired(uint64_t userHandle, uint8_t type, uint64_t ph = Id::inval());
 //==
     void onUserAttrChange(uint64_t userid, int changed);
     void onUserAttrChange(::mega::MegaUser& user);

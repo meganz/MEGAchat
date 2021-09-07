@@ -4726,7 +4726,6 @@ public:
      *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
-     *  - if groupchatroom has no participants
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
@@ -4735,8 +4734,14 @@ public:
      * in the call and we can't join to it, or when the chat is public and there are too many participants
      * to start the call.
      *
-     * @note In case of group calls, if there is already too many peers sending video and there are no
-     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
+     * The request will fail with MegaChatError::ERROR_EXISTS
+     * - if there is a previous attempt still in progress (the call doesn't exist yet)
+     * - if there is already another attempt to start a call for this chat, and call already exists but we don't participate
+     * - if the call already exists and we already participate
+     * In case that call already exists MegaChatRequest::getUserHandle will return its callid.
+     *
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -4767,8 +4772,11 @@ public:
      * in the call and we can't join to it, or when the chat is public and there are too many participants
      * to start the call.
      *
-     * @note In case of group calls, if there is already too many peers sending video and there are no
-     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
+     * The request will fail with MegaChatError::ERROR_EXISTS if there is already another attempt to answer a call
+     * for this chat in progress.
+     *
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *

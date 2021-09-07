@@ -138,6 +138,7 @@ public:
     virtual promise::Promise<void> join(karere::AvFlags avFlags) = 0;
 
     virtual bool participate() = 0;
+    virtual bool isJoining() const = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
@@ -185,6 +186,7 @@ public:
     virtual void init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings) = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
     virtual ICall* findCallByChatid(const karere::Id &chatid) = 0;
+    virtual bool isCallStartInProgress(const karere::Id &chatid) const = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
