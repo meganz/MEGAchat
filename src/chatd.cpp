@@ -2455,7 +2455,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                     rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        assert(opcode != OP_LEFTCALL);  // chatd should never send a LEFTCALL for an unknown call
+                        if (opcode == OP_LEFTCALL) // If peer is removed, we can receive LEFTCALL and call has been destroyed
+                        {
+                            CHATDS_LOG_WARNING("Receive a LEFTCALL without a call. Unique valid option is that we have been removed from chatroom");
+                            return;
+                        }
 
                         promise::Promise<std::shared_ptr<std::string>> pms;
                         if (chat.isPublic())
@@ -2476,8 +2480,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                             }
 
                             auto& chat = mChatdClient.chats(chatid);
-
-
 
                             mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, chat.isGroup(), unifiedKey);
                             // in case that OP_CALLSTATE were received first, it might have created the call already
@@ -5501,6 +5503,7 @@ void Chat::onUserLeave(Id userid)
         // remove call associated to chatRoom if our own user is not an active participant
         if (mChatdClient.mKarereClient->rtc && !previewMode())
         {
+            CHATID_LOG_DEBUG("remove call associated to chatRoom if our own user is not an active participant");
             mChatdClient.mKarereClient->rtc->removeCall(mChatId);
         }
     }
