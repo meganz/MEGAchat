@@ -71,22 +71,6 @@ public:
     bool mReuse = false;
 };
 
-class SpeakersDescriptor
-{
-public:
-    SpeakersDescriptor();
-    SpeakersDescriptor(const std::string& audioDescriptor, const std::string& videoDescriptor);
-    std::string getAudioDescriptor() const;
-    std::string getVideoDescriptor() const;
-    void setDescriptors(const std::string& audioDescriptor, const std::string& videoDescriptor);
-    IvStatic_t mIv;
-    std::string mMid;
-
-protected:
-    std::string mAudioDescriptor;
-    std::string mVideoDescriptor;
-};
-
 class Sdp
 {
 public:
@@ -190,7 +174,6 @@ public:
     static uint64_t hexToBinary(const std::string& hex);
 protected:
     Command(SfuInterface& call);
-    void parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator& it) const;
     bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
     static uint8_t hexDigitVal(char value);
 
@@ -219,8 +202,6 @@ public:
 private:
     void parsePeerObject(std::vector<Peer>&peers, rapidjson::Value::ConstMemberIterator& it) const;
     void parseTracks(const std::vector<Peer>&peers, std::map<Cid_t, TrackDescriptor> &tracks, rapidjson::Value::ConstMemberIterator& it, bool audio) const;
-    void parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator& it) const;
-    void parseVthumsObject(std::map<Cid_t, TrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
 };
 
 typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;
