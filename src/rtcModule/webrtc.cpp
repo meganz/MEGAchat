@@ -956,7 +956,7 @@ void Call::createTransceivers()
     webrtc::RtpTransceiverInit transceiverInitHiRes;
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
-    mHiRes = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
+    mHiRes = ::mega::make_unique<LocalHighResolutionSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitAudio;
@@ -2603,8 +2603,6 @@ void RemoteSlot::enableTrack(bool enable, TrackDirection direction)
 
 LocalSlot::LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : Slot(call, transceiver)
-    , mTsStart(0)
-    , mSentLayers(kTxSpatialLayerCount) // initialize mSentLayers to kTxSpatialLayerCount
 {
 }
 
@@ -2620,7 +2618,14 @@ void LocalSlot::generateRandomIv()
     randombytes_buf(&mIv, sizeof(mIv));
 }
 
-void LocalSlot::updateTxSvcEnc(int8_t sentLayers)
+LocalHighResolutionSlot::LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+    : LocalSlot(call, transceiver)
+    , mTsStart(0)
+    , mSentLayers(kTxSpatialLayerCount) // initialize mSentLayers to kTxSpatialLayerCount
+{
+}
+
+void LocalHighResolutionSlot::updateTxSvcEnc(int8_t sentLayers)
 {
     mSentLayers = sentLayers; // update mSentLayers value
 
@@ -2648,17 +2653,17 @@ void LocalSlot::updateTxSvcEnc(int8_t sentLayers)
     getTransceiver()->sender()->SetParameters(parameters);
 }
 
-void LocalSlot::setTsStart(time_t t)
+void LocalHighResolutionSlot::setTsStart(time_t t)
 {
     mTsStart = t;
 }
 
-time_t LocalSlot::getTsStart()
+time_t LocalHighResolutionSlot::getTsStart()
 {
     return mTsStart;
 }
 
-int8_t LocalSlot::getTxSvcLayerCount()
+int8_t LocalHighResolutionSlot::getTxSvcLayerCount()
 {
     return mSentLayers;
 }

@@ -91,11 +91,19 @@ public:
     void assign(Cid_t cid, IvStatic_t iv);
     bool hasTrack(bool send);
     void createDecryptor(Cid_t cid, IvStatic_t iv);
-    void updateTxSvcEnc(int8_t sentLayers);
-    void setTsStart(time_t t);
-    time_t getTsStart();
-    int8_t getTxSvcLayerCount();
     void generateRandomIv();
+
+};
+
+class LocalHighResolutionSlot : public LocalSlot
+{
+public:
+     LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+     void updateTxSvcEnc(int8_t sentLayers);
+     void setTsStart(time_t t);
+     time_t getTsStart();
+     int8_t getTxSvcLayerCount();
+
 private:
     time_t mTsStart;
     int8_t mSentLayers;
@@ -456,7 +464,7 @@ protected:
     std::unique_ptr<LocalSlot> mAudio;
     std::unique_ptr<LocalSlot> mVThumb;
     bool mVThumbActive = false;  // true when sending low res video
-    std::unique_ptr<LocalSlot> mHiRes;
+    std::unique_ptr<LocalHighResolutionSlot> mHiRes;
     bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
