@@ -2458,7 +2458,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                         if (opcode == OP_LEFTCALL) // If peer is removed, we can receive LEFTCALL and call has been destroyed
                         {
                             CHATDS_LOG_WARNING("Receive a LEFTCALL without a call. Unique valid option is that we have been removed from chatroom");
-                            return;
+                            break;
                         }
 
                         promise::Promise<std::shared_ptr<std::string>> pms;
