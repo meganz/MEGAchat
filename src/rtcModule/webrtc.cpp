@@ -765,7 +765,7 @@ void Call::updateTransmittedSvcQuality(int8_t txSpt)
     }
 
     bool update = false;
-    int8_t currentSentLayers = mHiRes->getTxSvcLayerCount();
+    int8_t currentSentLayers = mHiRes->getSentLayers();
     int8_t newSentLayers = txSpt + 1; // +1 as txSpatial component starts at zero in layers definition
 
     if (newSentLayers < currentSentLayers)
@@ -1879,7 +1879,7 @@ void Call::collectNonRTCStats()
     }
 
     // TODO: pending to implement disabledTxLayers in future if needed
-    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex | mHiRes->getTxSvcLayerCount() << 8);
+    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex | mHiRes->getSentLayers() << 8);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
@@ -2659,7 +2659,7 @@ time_t LocalHighResolutionSlot::getTsStart()
     return mTsStart;
 }
 
-int8_t LocalHighResolutionSlot::getTxSvcLayerCount()
+int8_t LocalHighResolutionSlot::getSentLayers()
 {
     return mSentLayers;
 }

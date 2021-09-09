@@ -97,7 +97,7 @@ public:
      void updateSentLayers(int8_t sentLayers);
      void setTsStart(time_t t);
      time_t getTsStart();
-     int8_t getTxSvcLayerCount();
+     int8_t getSentLayers();
 
 private:
     time_t mTsStart;
