@@ -343,10 +343,6 @@ public:
     void requestLowResolutionVideo(std::vector<Cid_t> &cids) override;
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
 
-    // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
-    void updateSvcQuality(int8_t delta);
-    void updateTransmittedSvcQuality(int8_t txSpt);
-
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
@@ -491,6 +487,9 @@ protected:
     void disableStats();
     void adjustSvcByStats();
     void collectNonRTCStats();
+    // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
+    void updateSvcQuality(int8_t delta);
+    void updateTransmittedSvcQuality(int8_t txSpt);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
