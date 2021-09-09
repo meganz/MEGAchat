@@ -2308,6 +2308,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
             call->disconnect(termCode);
         }
 
+        RTCM_LOG_WARNING("Removing call with callid: %s", call->getCallid().toString().c_str());
         mCalls.erase(call->getCallid());
     }
 }
@@ -2326,11 +2327,6 @@ void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, cons
     {
         mCalls[callid]->removeParticipant(peer);
     }
-}
-
-void RtcModuleSfu::handleCallEnd(karere::Id /*chatid*/, karere::Id callid, uint8_t /*reason*/)
-{
-    mCalls.erase(callid);
 }
 
 void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey)
