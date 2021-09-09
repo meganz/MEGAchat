@@ -134,7 +134,7 @@ SvcDriver::SvcDriver ()
 
 }
 
-bool SvcDriver::setRxSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& rxStmp, int8_t& txSpt)
+bool SvcDriver::setSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& rxStmp, int8_t& txSpt)
 {
     int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
     if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
@@ -142,22 +142,22 @@ bool SvcDriver::setRxSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t
         return false;
     }
 
-    RTCM_LOG_WARNING("switchSvcQuality: Switching rx SVC quality from %d to %d", mCurrentSvcLayerIndex, newSvcLayerIndex);
+    RTCM_LOG_WARNING("setSvcLayer: Switching SVC layer from %d to %d", mCurrentSvcLayerIndex, newSvcLayerIndex);
     mTsLastSwitch = time(nullptr); // update last Ts SVC switch
     mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
 
     // we want to provide a linear quality scale,
     // layers are defined for each of the 7 "quality" steps
-    // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial
+    // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial (resolution)
     switch (mCurrentSvcLayerIndex)
     {
-        case 0: { rxSpt = 0; rxTmp = 0; rxStmp = 0; txSpt =0; return true; }
-        case 1: { rxSpt = 0; rxTmp = 1; rxStmp = 0; txSpt =0; return true; }
-        case 2: { rxSpt = 0; rxTmp = 2; rxStmp = 0; txSpt =1; return true; }
-        case 3: { rxSpt = 1; rxTmp = 1; rxStmp = 0; txSpt =1; return true; }
-        case 4: { rxSpt = 1; rxTmp = 2; rxStmp = 1; txSpt =1; return true; }
-        case 5: { rxSpt = 2; rxTmp = 1; rxStmp = 1; txSpt =2; return true; }
-        case 6: { rxSpt = 2; rxTmp = 2; rxStmp = 2; txSpt =2; return true; }
+        case 0: { rxSpt = 0; rxTmp = 0; rxStmp = 0; txSpt = 0; return true; }
+        case 1: { rxSpt = 0; rxTmp = 1; rxStmp = 0; txSpt = 0; return true; }
+        case 2: { rxSpt = 0; rxTmp = 2; rxStmp = 0; txSpt = 1; return true; }
+        case 3: { rxSpt = 1; rxTmp = 1; rxStmp = 0; txSpt = 1; return true; }
+        case 4: { rxSpt = 1; rxTmp = 2; rxStmp = 1; txSpt = 1; return true; }
+        case 5: { rxSpt = 2; rxTmp = 1; rxStmp = 1; txSpt = 2; return true; }
+        case 6: { rxSpt = 2; rxTmp = 2; rxStmp = 2; txSpt = 2; return true; }
         default: return false;
     }
 }
@@ -757,16 +757,16 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
 }
 
-void Call::checkAdaptTxSvcQuality(int8_t txSpt)
+void Call::updateTransmittedSvcQuality(int8_t txSpt)
 {
-    if (!mHiRes || txSpt < 0)
+    if (!mHiRes)
     {
         return;
     }
 
     bool update = false;
     int8_t currentSentLayers = mHiRes->getTxSvcLayerCount();
-    int8_t newSentLayers = txSpt + 1; // +1 for layer index to count
+    int8_t newSentLayers = txSpt + 1; // +1 as txSpatial component starts at zero in layers definition
 
     if (newSentLayers < currentSentLayers)
     {
@@ -793,27 +793,31 @@ void Call::checkAdaptTxSvcQuality(int8_t txSpt)
     if (update)
     {
         RTCM_LOG_WARNING("Adjusting TX Spatial sent layers from %d to %d", currentSentLayers, newSentLayers);
-        mHiRes->updateTxSvcEnc(newSentLayers);
+        mHiRes->updateSentLayers(newSentLayers);
         mSvcDriver.mTsLastSwitch = time(nullptr); // update last Ts SVC switch
     }
 }
 
-void Call::switchRxSvcQuality(int8_t delta, int8_t &txSpt)
+void Call::updateSvcQuality(int8_t delta)
 {
-    // rx SVC layer: spatial, temporal, screen-temporal
+    // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial (resolution)
     int8_t rxSpt = 0;
     int8_t rxTmp = 0;
     int8_t rxStmp = 0;
+    int8_t txSpt = 0;
 
-    // updateCurrentSvcLayerIndex must be called before getLayerByIndex to update mCurrentSvcLayerIndex
-    if (!mSvcDriver.setRxSvcLayer(delta, rxSpt, rxTmp, rxStmp, txSpt))
+    // calculate new layer index from delta and retrieve layer components separately
+    if (!mSvcDriver.setSvcLayer(delta, rxSpt, rxTmp, rxStmp, txSpt))
     {
-        RTCM_LOG_WARNING("switchRxSvcQuality: Invalid new layer index %d", mSvcDriver.mCurrentSvcLayerIndex + delta);
+        RTCM_LOG_WARNING("updateSvcQuality: Invalid new layer index %d", mSvcDriver.mCurrentSvcLayerIndex + delta);
         return;
     }
 
-    // send LAYER command to adjust Rx SVC quality
+    // adjust Received SVC quality by sending LAYER command
     mSfuConnection->sendLayer(rxSpt, rxTmp, rxStmp);
+
+    // adjust Transmitted SVC quality by adjusting sent encodings
+    updateTransmittedSvcQuality(txSpt);
 }
 
 std::vector<karere::Id> Call::getParticipants() const
@@ -2046,14 +2050,13 @@ void Call::adjustSvcByStats()
         return; // too early
     }
 
-    int8_t txSpt = -1; // initialize to invalid value (<0)
     if (mSvcDriver.mCurrentSvcLayerIndex > 0
             && (roundTripTime > mSvcDriver.mRttUpper || packetLost > mSvcDriver.mPacketLostUpper))
     {
         // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
         // we want to decrease layer when references values (mRttUpper and mPacketLostUpper)
         // have been exceeded.
-        switchRxSvcQuality(-1, txSpt);
+        updateSvcQuality(-1);
     }
     else if (mSvcDriver.mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
              && roundTripTime < mSvcDriver.mRttLower
@@ -2062,11 +2065,8 @@ void Call::adjustSvcByStats()
         // if retrieved rtt AND packetLost have decreased respect current values increment 1 layer
         // we only want to increase layer when the improvement is bigger enough to represents a
         // faithfully improvement in network quality, we take mRttLower and mPacketLostLower as references
-        switchRxSvcQuality(+1, txSpt);
+        updateSvcQuality(+1);
     }
-
-    // check if we need to adjust txlayer SVC quality
-    checkAdaptTxSvcQuality(txSpt);
 }
 
 const std::string& Call::getCallKey() const
@@ -2625,13 +2625,13 @@ LocalHighResolutionSlot::LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<
 {
 }
 
-void LocalHighResolutionSlot::updateTxSvcEnc(int8_t sentLayers)
+void LocalHighResolutionSlot::updateSentLayers(int8_t sentLayers)
 {
     mSentLayers = sentLayers; // update mSentLayers value
 
     if (!getTransceiver()->sender()->track())
     {
-        RTCM_LOG_WARNING("updateTxSvcEnc: Currently not sending HI-RES track, will only record sentLayers value");
+        RTCM_LOG_WARNING("updateSentLayers: Currently not sending HI-RES track, will only record sentLayers value");
         return;
     }
 
@@ -2640,7 +2640,7 @@ void LocalHighResolutionSlot::updateTxSvcEnc(int8_t sentLayers)
     std::vector<webrtc::RtpEncodingParameters> encs = parameters.encodings;
     if (encs.empty() || encs.size() < 2)
     {
-        RTCM_LOG_WARNING("updateTxSvcEnc: There is no SVC enabled for this sender");
+        RTCM_LOG_WARNING("updateSentLayers: There is no SVC enabled for this sender");
         return;
     }
 
@@ -2649,7 +2649,7 @@ void LocalHighResolutionSlot::updateTxSvcEnc(int8_t sentLayers)
         encs[i].active = i < static_cast<size_t>(mSentLayers);
     }
 
-    RTCM_LOG_WARNING("updateTxSvcEnc: Enabling only first %d layers",mSentLayers);
+    RTCM_LOG_WARNING("updateSentLayers: Enabling only first %d layers",mSentLayers);
     getTransceiver()->sender()->SetParameters(parameters);
 }
 

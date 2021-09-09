@@ -99,7 +99,7 @@ class LocalHighResolutionSlot : public LocalSlot
 {
 public:
      LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
-     void updateTxSvcEnc(int8_t sentLayers);
+     void updateSentLayers(int8_t sentLayers);
      void setTsStart(time_t t);
      time_t getTsStart();
      int8_t getTxSvcLayerCount();
@@ -253,7 +253,7 @@ public:
     static const int kRttUpperHeadroom = 250;
 
     SvcDriver();
-    bool setRxSvcLayer(int8_t delta, int8_t &rxSpt, int8_t &rxTmp, int8_t &rxStmp, int8_t &txSpt);
+    bool setSvcLayer(int8_t delta, int8_t &rxSpt, int8_t &rxTmp, int8_t &rxStmp, int8_t &txSpt);
     uint8_t mCurrentSvcLayerIndex;
 
     double mPacketLostLower;
@@ -351,8 +351,8 @@ public:
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
 
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
-    void switchRxSvcQuality(int8_t delta, int8_t &txSpt) override;
-    void checkAdaptTxSvcQuality(int8_t txSpt) override;
+    void updateSvcQuality(int8_t delta) override;
+    void updateTransmittedSvcQuality(int8_t txSpt) override;
 
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;

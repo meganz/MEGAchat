@@ -164,8 +164,8 @@ public:
     virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
-    virtual void switchRxSvcQuality(int8_t delta, int8_t &txSpt) = 0;
-    virtual void checkAdaptTxSvcQuality(int8_t txSpt) = 0;
+    virtual void updateSvcQuality(int8_t delta) = 0;
+    virtual void updateTransmittedSvcQuality(int8_t txSpt) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
