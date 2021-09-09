@@ -113,7 +113,6 @@ public:
     Cid_t getCid() const { return mCid; }
 
 protected:
-    IvStatic_t mIv;
     Cid_t mCid = 0;
     RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void assign(Cid_t cid, IvStatic_t iv);
