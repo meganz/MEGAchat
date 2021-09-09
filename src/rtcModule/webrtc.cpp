@@ -2649,7 +2649,7 @@ void LocalHighResolutionSlot::updateSentLayers(int8_t sentLayers)
         encs[i].active = i < static_cast<size_t>(mSentLayers);
     }
 
-    RTCM_LOG_WARNING("updateSentLayers: Enabling only first %d layers",mSentLayers);
+    RTCM_LOG_WARNING("updateSentLayers: Enabling first %d sent layers",mSentLayers);
     getTransceiver()->sender()->SetParameters(parameters);
 }
 
