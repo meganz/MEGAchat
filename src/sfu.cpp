@@ -750,7 +750,7 @@ Sdp::Sdp(const std::string &sdp, bool mungeSdp)
     if (mungeSdp)
     {
         // modify SDP (hack to enable SVC) for hi-res track to enable SVC multicast
-        this->mungeSdpForSvc(mTracks.at(1));
+        mungeSdpForSvc(mTracks.at(1));
     }
 }
 

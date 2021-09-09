@@ -2617,13 +2617,13 @@ void LocalSlot::generateRandomIv()
 LocalHighResolutionSlot::LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : LocalSlot(call, transceiver)
     , mTsStart(0)
-    , mSentLayers(kTxSpatialLayerCount) // initialize mSentLayers to kTxSpatialLayerCount
+    , mSentLayers(kTxSpatialLayerCount)
 {
 }
 
 void LocalHighResolutionSlot::updateSentLayers(int8_t sentLayers)
 {
-    mSentLayers = sentLayers; // update mSentLayers value
+    mSentLayers = sentLayers;
 
     if (!getTransceiver()->sender()->track())
     {
