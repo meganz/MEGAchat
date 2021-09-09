@@ -103,7 +103,9 @@ private:
     // it returns the final position after reading lines
     unsigned int createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position);
 
+    // Enable SVC by modifying SDP message, generated using createOffer, and before providing it to setLocalDescription.
     void mungeSdpForSvc(Sdp::Track &track);
+
     // process 'lines' of (webrtc) session description from 'position' and adds them to 'mTracks'
     unsigned int addTrack(const std::vector<std::string>& lines, unsigned int position);
 

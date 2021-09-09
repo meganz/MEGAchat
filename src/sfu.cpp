@@ -848,8 +848,6 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
     return i;
 }
 
-/* Enable SVC by modifying SDP message, generated using createOffer before providing it
- * to setLocalDescription. */
 void Sdp::mungeSdpForSvc(Sdp::Track &track)
 {
     std::pair<uint64_t, std::string> vidSsrc1 = track.mSsrcs.at(0);
