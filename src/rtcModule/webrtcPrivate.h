@@ -87,12 +87,7 @@ class LocalSlot : public Slot
 public:
     LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void createEncryptor();
-    Cid_t getCid() const;
-    void assign(Cid_t cid, IvStatic_t iv);
-    bool hasTrack(bool send);
-    void createDecryptor(Cid_t cid, IvStatic_t iv);
     void generateRandomIv();
-
 };
 
 class LocalHighResolutionSlot : public LocalSlot
