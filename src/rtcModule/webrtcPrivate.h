@@ -345,8 +345,8 @@ public:
     void stopLowResolutionVideo(std::vector<Cid_t> &cids) override;
 
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
-    void updateSvcQuality(int8_t delta) override;
-    void updateTransmittedSvcQuality(int8_t txSpt) override;
+    void updateSvcQuality(int8_t delta);
+    void updateTransmittedSvcQuality(int8_t txSpt);
 
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
