@@ -119,7 +119,6 @@ public:
 
 protected:
     IvStatic_t mIv;
-    rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
     Cid_t mCid = 0;
     RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void assign(Cid_t cid, IvStatic_t iv);
