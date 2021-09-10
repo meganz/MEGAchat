@@ -759,7 +759,7 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
 
 void Call::updateTransmittedSvcQuality(int8_t txSpt)
 {
-    if (!mHiRes)
+    if (!mHiRes || !mHiResActive)
     {
         return;
     }
@@ -870,8 +870,8 @@ void Call::connectSfu(const std::string& sfuUrl)
 void Call::joinSfu()
 {
     mRtcConn = artc::MyPeerConnection<Call>(*this);
-
-    createTransceivers();
+    size_t hiresTrackIndex = 0;
+    createTransceivers(hiresTrackIndex);
     mSpeakerState = SpeakerState::kPending;
     getLocalStreams();
     setState(CallState::kStateJoining);
@@ -881,7 +881,7 @@ void Call::joinSfu()
     options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     auto wptr = weakHandle();
     mRtcConn.createOffer(options)
-    .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
+    .then([wptr, this, hiresTrackIndex](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
     {
         if (wptr.deleted())
         {
@@ -903,7 +903,7 @@ void Call::joinSfu()
         }
 
         KR_THROW_IF_FALSE(sdp->ToString(&mSdpStr));
-        sfu::Sdp mungedSdp(mSdpStr, true); // Create a Sdp instance from String and modify it to enable SVC
+        sfu::Sdp mungedSdp(mSdpStr, static_cast<int64_t>(hiresTrackIndex)); // Create a Sdp instance from String and modify it to enable SVC
         std::string sdpUncompress = mungedSdp.unCompress(); // get string from modified Sdp instance
 
         webrtc::SdpParseError error;
@@ -945,7 +945,7 @@ void Call::joinSfu()
     });
 }
 
-void Call::createTransceivers()
+void Call::createTransceivers(size_t &hiresTrackIndex)
 {
     assert(mRtcConn);
 
@@ -960,6 +960,7 @@ void Call::createTransceivers()
     webrtc::RtpTransceiverInit transceiverInitHiRes;
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
+    hiresTrackIndex = mRtcConn->GetTransceivers().size() - 1; // keep this sentence just after add transceiver for hiRes track
     mHiRes = ::mega::make_unique<LocalHighResolutionSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 

@@ -87,7 +87,7 @@ public:
     };
 
     // ctor from session-description provided by WebRTC (string format)
-    Sdp(const std::string& sdp, bool mungeSdp = false);
+    Sdp(const std::string& sdp, int64_t mungedTrackIndex = -1);
 
     // ctor from session-description from SFU (JSON format)
     Sdp(const rapidjson::Value& sdp);

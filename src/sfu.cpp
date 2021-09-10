@@ -688,7 +688,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
 
 }
 
-Sdp::Sdp(const std::string &sdp, bool mungeSdp)
+Sdp::Sdp(const std::string &sdp, int64_t mungedTrackIndex)
 {
     size_t pos = 0;
     std::string buffer = sdp;
@@ -747,10 +747,10 @@ Sdp::Sdp(const std::string &sdp, bool mungeSdp)
         i = addTrack(lines, i);
     }
 
-    if (mungeSdp)
+    if (mungedTrackIndex > 0 && mTracks.size() > static_cast<size_t>(mungedTrackIndex))
     {
         // modify SDP (hack to enable SVC) for hi-res track to enable SVC multicast
-        mungeSdpForSvc(mTracks.at(1));
+        mungeSdpForSvc(mTracks.at(static_cast<size_t>(mungedTrackIndex)));
     }
 }
 

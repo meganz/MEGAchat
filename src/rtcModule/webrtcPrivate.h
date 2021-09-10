@@ -371,7 +371,7 @@ public:
     void connectSfu(const std::string& sfuUrl);
     void joinSfu();
 
-    void createTransceivers();  // both, for sending your audio/video and for receiving from participants
+    void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
     void disconnect(TermCode termCode, const std::string& msg = "");
