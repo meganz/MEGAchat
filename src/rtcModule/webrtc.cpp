@@ -782,7 +782,7 @@ void Call::updateTransmittedSvcQuality(int8_t txSpt)
     }
     else if (mStats.mSamples.mVtxHiResfps.size() && mStats.mSamples.mVtxHiResfps.back() < 5
              && currentSentLayers > 1
-             && (time(nullptr) - mHiRes->getTsStart() >= mSvcDriver.kMinTimeBetweenSwitches))
+             && (::mega::m_time(nullptr) - mHiRes->getTsStart() >= mSvcDriver.kMinTimeBetweenSwitches))
     {
             // too low fps
             update = true;
@@ -1967,11 +1967,12 @@ void Call::updateVideoTracks()
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
                 mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
-                mHiRes->setTsStart(time(nullptr));
+                mHiRes->setTsStart(::mega::m_time(nullptr));
             }
             else if (!mHiResActive)
             {
                 // if there is a track, but none in the call has requested hi res video, disable the track
+                mHiRes->setTsStart(0);
                 mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
             }
         }
@@ -2649,12 +2650,12 @@ void LocalHighResolutionSlot::updateSentLayers(int8_t sentLayers)
     getTransceiver()->sender()->SetParameters(parameters);
 }
 
-void LocalHighResolutionSlot::setTsStart(time_t t)
+void LocalHighResolutionSlot::setTsStart(::mega::m_time_t t)
 {
     mTsStart = t;
 }
 
-time_t LocalHighResolutionSlot::getTsStart()
+::mega::m_time_t LocalHighResolutionSlot::getTsStart()
 {
     return mTsStart;
 }

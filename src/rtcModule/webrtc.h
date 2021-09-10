@@ -9,6 +9,7 @@
 #include <net/websocketsIO.h>
 #include "rtcCrypto.h"
 #include "sfu.h"
+#include <mega/utils.h>
 
 #define RET_ENUM_NAME(name) case name: return #name
 

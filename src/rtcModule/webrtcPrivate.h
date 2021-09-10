@@ -95,12 +95,12 @@ class LocalHighResolutionSlot : public LocalSlot
 public:
      LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
      void updateSentLayers(int8_t sentLayers);
-     void setTsStart(time_t t);
-     time_t getTsStart();
+     void setTsStart(::mega::m_time_t t);
+     ::mega::m_time_t getTsStart();
      int8_t getSentLayers();
 
 private:
-    time_t mTsStart;
+    ::mega::m_time_t mTsStart;
     int8_t mSentLayers;
 };
 
