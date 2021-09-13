@@ -747,8 +747,9 @@ Sdp::Sdp(const std::string &sdp, int64_t mungedTrackIndex)
         i = addTrack(lines, i);
     }
 
-    if (mungedTrackIndex > 0 && mTracks.size() > static_cast<size_t>(mungedTrackIndex))
+    if (mungedTrackIndex != -1) // track requires to be munged
     {
+        assert(mTracks.size() > static_cast<size_t>(mungedTrackIndex));
         // modify SDP (hack to enable SVC) for hi-res track to enable SVC multicast
         mungeSdpForSvc(mTracks.at(static_cast<size_t>(mungedTrackIndex)));
     }
