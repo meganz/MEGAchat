@@ -90,6 +90,20 @@ public:
     void generateRandomIv();
 };
 
+class LocalHighResolutionSlot : public LocalSlot
+{
+public:
+     LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+     void updateSentLayers(int8_t sentLayers);
+     void setTsStart(::mega::m_time_t t);
+     ::mega::m_time_t getTsStart();
+     int8_t getSentLayers();
+
+private:
+    ::mega::m_time_t mTsStart;
+    int8_t mSentLayers;
+};
+
 class RemoteSlot : public Slot
 {
 public:
@@ -231,9 +245,7 @@ public:
     static const int kRttUpperHeadroom = 250;
 
     SvcDriver();
-    bool updateSvcQuality(int8_t delta);
-    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
-
+    bool setSvcLayer(int8_t delta, int8_t &rxSpt, int8_t &rxTmp, int8_t &rxStmp, int8_t &txSpt);
     uint8_t mCurrentSvcLayerIndex;
 
     double mPacketLostLower;
@@ -333,9 +345,6 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
-    // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
-    void switchSvcQuality(int8_t delta) override;
-
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
@@ -362,7 +371,7 @@ public:
     void connectSfu(const std::string& sfuUrl);
     void joinSfu();
 
-    void createTransceivers();  // both, for sending your audio/video and for receiving from participants
+    void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
     void disconnect(TermCode termCode, const std::string& msg = "");
@@ -439,11 +448,11 @@ protected:
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
 
     artc::MyPeerConnection<Call> mRtcConn;
-    std::string mSdp;   // session description provided by WebRTC::createOffer()
+    std::string mSdpStr;   // session description provided by WebRTC::createOffer()
     std::unique_ptr<LocalSlot> mAudio;
     std::unique_ptr<LocalSlot> mVThumb;
     bool mVThumbActive = false;  // true when sending low res video
-    std::unique_ptr<LocalSlot> mHiRes;
+    std::unique_ptr<LocalHighResolutionSlot> mHiRes;
     bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
@@ -477,6 +486,9 @@ protected:
     void disableStats();
     void adjustSvcByStats();
     void collectNonRTCStats();
+    // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
+    void updateSvcQuality(int8_t delta);
+    void updateTransmittedSvcQuality(int8_t txSpt);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
@@ -504,7 +516,6 @@ public:
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
-    void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) override;
     void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;

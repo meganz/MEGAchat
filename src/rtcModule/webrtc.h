@@ -9,6 +9,7 @@
 #include <net/websocketsIO.h>
 #include "rtcCrypto.h"
 #include "sfu.h"
+#include <mega/utils.h>
 
 #define RET_ENUM_NAME(name) case name: return #name
 
@@ -164,7 +165,6 @@ public:
     virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
-    virtual void switchSvcQuality(int8_t delta) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
@@ -203,7 +203,6 @@ public:
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
-    virtual void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) = 0;
     virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
@@ -227,6 +226,7 @@ enum RtcConstant {
    kVthumbWidth = 160,  // px
    kAudioMonitorTimeout = 2000, // ms
    kStatsInterval = 1000,   // ms
+   kTxSpatialLayerCount = 3,
    kRotateKeyUseDelay = 100, // ms
 };
 

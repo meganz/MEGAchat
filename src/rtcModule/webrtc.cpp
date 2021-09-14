@@ -134,35 +134,34 @@ SvcDriver::SvcDriver ()
 
 }
 
-bool SvcDriver::updateSvcQuality(int8_t delta)
+bool SvcDriver::setSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& rxStmp, int8_t& txSpt)
 {
     int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
     if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
     {
         return false;
     }
-    mTsLastSwitch = time(nullptr);
-    mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
-    return true;
-}
 
-bool SvcDriver::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
-{
+    RTCM_LOG_WARNING("setSvcLayer: Switching SVC layer from %d to %d", mCurrentSvcLayerIndex, newSvcLayerIndex);
+    mTsLastSwitch = time(nullptr); // update last Ts SVC switch
+    mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
+
     // we want to provide a linear quality scale,
     // layers are defined for each of the 7 "quality" steps
-    // layer: spatial (resolution), temporal (FPS), screen-temporal (temporal layer for screen video)
-    switch (index)
+    // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial (resolution)
+    switch (mCurrentSvcLayerIndex)
     {
-        case 0: { stp = 0; tmp = 0; stmp = 0; return true; }
-        case 1: { stp = 0; tmp = 1; stmp = 0; return true; }
-        case 2: { stp = 0; tmp = 2; stmp = 0; return true; }
-        case 3: { stp = 1; tmp = 1; stmp = 0; return true; }
-        case 4: { stp = 1; tmp = 2; stmp = 1; return true; }
-        case 5: { stp = 2; tmp = 1; stmp = 1; return true; }
-        case 6: { stp = 2; tmp = 2; stmp = 2; return true; }
+        case 0: { rxSpt = 0; rxTmp = 0; rxStmp = 0; txSpt = 0; return true; }
+        case 1: { rxSpt = 0; rxTmp = 1; rxStmp = 0; txSpt = 0; return true; }
+        case 2: { rxSpt = 0; rxTmp = 2; rxStmp = 0; txSpt = 1; return true; }
+        case 3: { rxSpt = 1; rxTmp = 1; rxStmp = 0; txSpt = 1; return true; }
+        case 4: { rxSpt = 1; rxTmp = 2; rxStmp = 1; txSpt = 1; return true; }
+        case 5: { rxSpt = 2; rxTmp = 1; rxStmp = 1; txSpt = 2; return true; }
+        case 6: { rxSpt = 2; rxTmp = 2; rxStmp = 2; txSpt = 2; return true; }
         default: return false;
     }
 }
+
 Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
@@ -758,26 +757,67 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
 }
 
-void Call::switchSvcQuality(int8_t delta)
+void Call::updateTransmittedSvcQuality(int8_t txSpt)
 {
-    if (!mSvcDriver.updateSvcQuality(delta))
+    if (!mHiRes || !mHiResActive)
     {
         return;
     }
 
-    // layer: spatial, temporal, screen-temporal
-    int spt = 0;
-    int tmp = 0;
-    int stmp = 0;
-    int layerIndex = mSvcDriver.mCurrentSvcLayerIndex;
-    if (!mSvcDriver.getLayerByIndex(layerIndex, spt, tmp, stmp))
+    bool update = false;
+    int8_t currentSentLayers = mHiRes->getSentLayers();
+    int8_t newSentLayers = txSpt + 1; // +1 as txSpatial component starts at zero in layers definition
+
+    if (newSentLayers < currentSentLayers)
     {
-        RTCM_LOG_WARNING("switchSvcQuality: Invalid layer index");
+        update = true; // decrease tx SVC quality
+    }
+    else if (newSentLayers > currentSentLayers
+             && mStats.mSamples.mVtxHiResfps.size()
+             && mStats.mSamples.mVtxHiResfps.back() >= 12)
+    {
+            // increase tx SVC quality but only if not overloaded
+            newSentLayers = currentSentLayers + 1; // don't set directly to newSentLayers - just increase 1 step
+            update = true;
+    }
+    else if (mStats.mSamples.mVtxHiResfps.size() && mStats.mSamples.mVtxHiResfps.back() < 5
+             && currentSentLayers > 1
+             && (::mega::m_time(nullptr) - mHiRes->getTsStart() >= mSvcDriver.kMinTimeBetweenSwitches))
+    {
+            // too low fps
+            update = true;
+            newSentLayers = currentSentLayers - 1;  // don't set directly to newSentLayers - just decrease 1 step
+            RTCM_LOG_WARNING("Apparent local CPU/bandwidth starvation (fps = %d), disabling highest SVC resolution", mStats.mSamples.mVtxHiResfps.back());
+    }
+
+    if (update)
+    {
+        RTCM_LOG_WARNING("Adjusting TX Spatial sent layers from %d to %d", currentSentLayers, newSentLayers);
+        mHiRes->updateSentLayers(newSentLayers);
+        mSvcDriver.mTsLastSwitch = time(nullptr); // update last Ts SVC switch
+    }
+}
+
+void Call::updateSvcQuality(int8_t delta)
+{
+    // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial (resolution)
+    int8_t rxSpt = 0;
+    int8_t rxTmp = 0;
+    int8_t rxStmp = 0;
+    int8_t txSpt = 0;
+
+    // calculate new layer index from delta and retrieve layer components separately
+    if (!mSvcDriver.setSvcLayer(delta, rxSpt, rxTmp, rxStmp, txSpt))
+    {
+        RTCM_LOG_WARNING("updateSvcQuality: Invalid new layer index %d", mSvcDriver.mCurrentSvcLayerIndex + delta);
         return;
     }
 
-    mSvcDriver.mCurrentSvcLayerIndex = layerIndex;
-    mSfuConnection->sendLayer(spt, tmp, stmp);
+    // adjust Received SVC quality by sending LAYER command
+    mSfuConnection->sendLayer(rxSpt, rxTmp, rxStmp);
+
+    // adjust Transmitted SVC quality by adjusting sent encodings
+    updateTransmittedSvcQuality(txSpt);
 }
 
 std::vector<karere::Id> Call::getParticipants() const
@@ -830,8 +870,8 @@ void Call::connectSfu(const std::string& sfuUrl)
 void Call::joinSfu()
 {
     mRtcConn = artc::MyPeerConnection<Call>(*this);
-
-    createTransceivers();
+    size_t hiresTrackIndex = 0;
+    createTransceivers(hiresTrackIndex);
     mSpeakerState = SpeakerState::kPending;
     getLocalStreams();
     setState(CallState::kStateJoining);
@@ -841,7 +881,7 @@ void Call::joinSfu()
     options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     auto wptr = weakHandle();
     mRtcConn.createOffer(options)
-    .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
+    .then([wptr, this, hiresTrackIndex](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
     {
         if (wptr.deleted())
         {
@@ -862,8 +902,20 @@ void Call::joinSfu()
             return ::promise::Error("Failure at initialization. Call destroyed or disconnect");
         }
 
-        KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
-        return mRtcConn.setLocalDescription(std::unique_ptr<webrtc::SessionDescriptionInterface>(sdp));   // takes onwership of sdp
+        KR_THROW_IF_FALSE(sdp->ToString(&mSdpStr));
+        sfu::Sdp mungedSdp(mSdpStr, static_cast<int64_t>(hiresTrackIndex)); // Create a Sdp instance from String and modify it to enable SVC
+        std::string sdpUncompress = mungedSdp.unCompress(); // get string from modified Sdp instance
+
+        webrtc::SdpParseError error;
+        std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
+        if (!sdpInterface)
+        {
+            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
+        }
+
+        // update mSdpStr with modified SDP
+        KR_THROW_IF_FALSE(sdpInterface->ToString(&mSdpStr));
+        return mRtcConn.setLocalDescription(std::move(sdpInterface));   // takes onwership of sdp
     })
     .then([wptr, this]()
     {
@@ -878,8 +930,7 @@ void Call::joinSfu()
             return;
         }
 
-        sfu::Sdp sdp(mSdp);
-
+        sfu::Sdp sdp(mSdpStr);
         std::map<std::string, std::string> ivs;
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
@@ -894,7 +945,7 @@ void Call::joinSfu()
     });
 }
 
-void Call::createTransceivers()
+void Call::createTransceivers(size_t &hiresTrackIndex)
 {
     assert(mRtcConn);
 
@@ -909,7 +960,8 @@ void Call::createTransceivers()
     webrtc::RtpTransceiverInit transceiverInitHiRes;
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
-    mHiRes = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
+    hiresTrackIndex = mRtcConn->GetTransceivers().size() - 1; // keep this sentence just after add transceiver for hiRes track
+    mHiRes = ::mega::make_unique<LocalHighResolutionSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitAudio;
@@ -1828,7 +1880,7 @@ void Call::collectNonRTCStats()
     }
 
     // TODO: pending to implement disabledTxLayers in future if needed
-    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex);
+    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex | mHiRes->getSentLayers() << 8);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
@@ -1916,10 +1968,12 @@ void Call::updateVideoTracks()
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
                 mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
+                mHiRes->setTsStart(::mega::m_time(nullptr));
             }
             else if (!mHiResActive)
             {
                 // if there is a track, but none in the call has requested hi res video, disable the track
+                mHiRes->setTsStart(0);
                 mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
             }
         }
@@ -1931,7 +1985,6 @@ void Call::updateVideoTracks()
             {
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-                webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
                 mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
             }
             else if (!mVThumbActive)
@@ -2005,7 +2058,7 @@ void Call::adjustSvcByStats()
         // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
         // we want to decrease layer when references values (mRttUpper and mPacketLostUpper)
         // have been exceeded.
-        switchSvcQuality(-1);
+        updateSvcQuality(-1);
     }
     else if (mSvcDriver.mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
              && roundTripTime < mSvcDriver.mRttLower
@@ -2014,10 +2067,8 @@ void Call::adjustSvcByStats()
         // if retrieved rtt AND packetLost have decreased respect current values increment 1 layer
         // we only want to increase layer when the improvement is bigger enough to represents a
         // faithfully improvement in network quality, we take mRttLower and mPacketLostLower as references
-        switchSvcQuality(+1);
+        updateSvcQuality(+1);
     }
-
-    // TODO check if there's CPU/bandwidth starvation and disableHighestSvcRes if proceed
 }
 
 const std::string& Call::getCallKey() const
@@ -2259,6 +2310,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
             call->disconnect(termCode);
         }
 
+        RTCM_LOG_WARNING("Removing call with callid: %s", call->getCallid().toString().c_str());
         mCalls.erase(call->getCallid());
     }
 }
@@ -2277,11 +2329,6 @@ void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, cons
     {
         mCalls[callid]->removeParticipant(peer);
     }
-}
-
-void RtcModuleSfu::handleCallEnd(karere::Id /*chatid*/, karere::Id callid, uint8_t /*reason*/)
-{
-    mCalls.erase(callid);
 }
 
 void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey)
@@ -2552,7 +2599,6 @@ void RemoteSlot::enableTrack(bool enable, TrackDirection direction)
     }
 }
 
-
 LocalSlot::LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : Slot(call, transceiver)
 {
@@ -2568,6 +2614,56 @@ void LocalSlot::createEncryptor()
 void LocalSlot::generateRandomIv()
 {
     randombytes_buf(&mIv, sizeof(mIv));
+}
+
+LocalHighResolutionSlot::LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+    : LocalSlot(call, transceiver)
+    , mTsStart(0)
+    , mSentLayers(kTxSpatialLayerCount)
+{
+}
+
+void LocalHighResolutionSlot::updateSentLayers(int8_t sentLayers)
+{
+    mSentLayers = sentLayers;
+
+    if (!getTransceiver()->sender()->track())
+    {
+        RTCM_LOG_WARNING("updateSentLayers: Currently not sending HI-RES track, will only record sentLayers value");
+        return;
+    }
+
+    // each vector element describes a single configuration of a codec for an RTPSender
+    webrtc::RtpParameters parameters = getTransceiver()->sender()->GetParameters();
+    std::vector<webrtc::RtpEncodingParameters> encs = parameters.encodings;
+    if (encs.empty() || encs.size() < 2)
+    {
+        RTCM_LOG_WARNING("updateSentLayers: There is no SVC enabled for this sender");
+        return;
+    }
+
+    for (size_t i = 0; i < encs.size(); i++)
+    {
+        encs[i].active = i < static_cast<size_t>(mSentLayers);
+    }
+
+    RTCM_LOG_WARNING("updateSentLayers: Enabling first %d sent layers",mSentLayers);
+    getTransceiver()->sender()->SetParameters(parameters);
+}
+
+void LocalHighResolutionSlot::setTsStart(::mega::m_time_t t)
+{
+    mTsStart = t;
+}
+
+::mega::m_time_t LocalHighResolutionSlot::getTsStart()
+{
+    return mTsStart;
+}
+
+int8_t LocalHighResolutionSlot::getSentLayers()
+{
+    return mSentLayers;
 }
 
 RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)

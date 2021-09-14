@@ -688,7 +688,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
 
 }
 
-Sdp::Sdp(const std::string &sdp)
+Sdp::Sdp(const std::string &sdp, int64_t mungedTrackIndex)
 {
     size_t pos = 0;
     std::string buffer = sdp;
@@ -745,6 +745,13 @@ Sdp::Sdp(const std::string &sdp)
     for (i = nextMline(lines, 0); i < lines.size();)
     {
         i = addTrack(lines, i);
+    }
+
+    if (mungedTrackIndex != -1) // track requires to be munged
+    {
+        assert(mTracks.size() > static_cast<size_t>(mungedTrackIndex));
+        // modify SDP (hack to enable SVC) for hi-res track to enable SVC multicast
+        mungeSdpForSvc(mTracks.at(static_cast<size_t>(mungedTrackIndex)));
     }
 }
 
@@ -840,6 +847,53 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
     mData[type] = temp;
 
     return i;
+}
+
+void Sdp::mungeSdpForSvc(Sdp::Track &track)
+{
+    std::pair<uint64_t, std::string> vidSsrc1 = track.mSsrcs.at(0);
+    std::pair<uint64_t, std::string> fidSsrc1 = track.mSsrcs.at(1);
+    uint64_t id = vidSsrc1.first;
+
+    std::pair<uint64_t, std::string> vidSsrc2 = std::pair<uint64_t, std::string>(++id, vidSsrc1.second);
+    std::pair<uint64_t, std::string> vidSsrc3 = std::pair<uint64_t, std::string>(++id, vidSsrc1.second);
+    id = fidSsrc1.first;
+
+    std::pair<uint64_t, std::string> fidSsrc2 = std::pair<uint64_t, std::string>(++id, fidSsrc1.second);
+    std::pair<uint64_t, std::string> fidSsrc3 = std::pair<uint64_t, std::string>(++id, fidSsrc1.second);
+
+    track.mSsrcs.clear();
+    track.mSsrcs.emplace_back(vidSsrc1);
+    track.mSsrcs.emplace_back(fidSsrc1);
+    track.mSsrcs.emplace_back(vidSsrc2);
+    track.mSsrcs.emplace_back(vidSsrc3);
+    track.mSsrcs.emplace_back(fidSsrc2);
+    track.mSsrcs.emplace_back(fidSsrc3);
+
+    std::string Ssrcg1 = "SIM ";
+    Ssrcg1.append(std::to_string(vidSsrc1.first))
+            .append(" ")
+            .append(std::to_string(vidSsrc2.first))
+            .append(" ")
+            .append(std::to_string(vidSsrc3.first));
+
+    std::string Ssrcg3 = "FID ";
+    Ssrcg3.append(std::to_string(vidSsrc2.first))
+            .append(" ")
+            .append(std::to_string(fidSsrc2.first));
+
+    std::string Ssrcg2 = track.mSsrcg[0];
+
+    std::string Ssrcg4 = "FID ";
+    Ssrcg4.append(std::to_string(vidSsrc3.first))
+            .append(" ")
+            .append(std::to_string(fidSsrc3.first));
+
+    track.mSsrcg.clear();
+    track.mSsrcg.emplace_back(Ssrcg1);
+    track.mSsrcg.emplace_back(Ssrcg2);
+    track.mSsrcg.emplace_back(Ssrcg3);
+    track.mSsrcg.emplace_back(Ssrcg4);
 }
 
 unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int position)
