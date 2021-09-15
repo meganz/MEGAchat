@@ -21,16 +21,19 @@ namespace rtcModule
 
 enum TermCode: uint8_t
 {
-    kInvalidTermCode = 255,
-    kUserHangup = 0,            // < Normal user hangup
-    kTooManyParticipants = 1,   // < Too many participants
-    kErrSdp = 32,               // < error generating or setting SDP description
-    kRtcDisconn = 64,
-    kSigDisconn = 65,
-    kSvrShuttingDown = 66,      // < Server is shutting down
-    kErrSignaling = 128,
-    kErrNoCall = 129,           // < Attempted to join non-existing call
-    kUnKnownTermCode = 130,
+    kUserHangup                 = 0,   // < Normal user hangup
+    kTooManyParticipants        = 1,   // < Too many participants
+    kErrSdp                     = 32,  // < error generating or setting SDP description
+    kRtcDisconn                 = 64,
+    kSigDisconn                 = 65,
+    kSvrShuttingDown            = 66,  // < Server is shutting down
+    kErrSignaling               = 128,
+    kErrNoCall                  = 129, // < Attempted to join non-existing call
+    kErrAuth                    = 130, // < Authentication error
+    kErrApiTimeout              = 131, // < ping timeout between SFU and API
+    kErrGeneral                 = 191,
+    kUnKnownTermCode            = 254,
+    kInvalidTermCode            = 255,
 };
 
 enum CallState: uint8_t
