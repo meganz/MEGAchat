@@ -1656,6 +1656,7 @@ void Chat::onDisconnect()
     mServerFetchState = kHistNotFetching;
     setOnlineState(kChatStateOffline);
 
+#ifndef KARERE_DISABLE_WEBRTC
     if (mChatdClient.mKarereClient->rtc)
     {
         rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
@@ -1665,6 +1666,7 @@ void Chat::onDisconnect()
             call->onDisconnectFromChatd();
         }
     }
+#endif
 }
 
 HistSource Chat::getHistory(unsigned count)
@@ -2444,7 +2446,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
                 userListStr.erase(userListStr.size() - 2);
                 CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s userList: [%s]", tmpStr, ID_CSTR(chatid), ID_CSTR(callid), userListStr.c_str());
-
+#ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mKarereClient->rtc)
                 {
                     auto& chat = mChatdClient.chats(chatid);
@@ -2501,7 +2503,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
                     }
                 }
-
+#endif
                 break;
             }
             case OP_CALLSTATE:
@@ -2511,6 +2513,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(callid, 16);
                 READ_8(ringing, 24);
                 CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %d", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
+#ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mKarereClient->rtc)
                 {
                     auto& chat = mChatdClient.chats(chatid);
@@ -2567,8 +2570,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                         call->setRinging(call->isOtherClientParticipating() ? false : ringing);
                     }
                 }
+#endif
                 break;
-
             }
                 break;
             case OP_CALLEND:
@@ -2576,6 +2579,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
+#ifndef KARERE_DISABLE_WEBRTC
                 rtcModule::TermCode termCode = rtcModule::TermCode::kUserHangup;
                 if (opcode == OP_DELCALLREASON)
                 {
@@ -2591,6 +2595,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     mChatdClient.mKarereClient->rtc->removeCall(chatid, termCode);
                 }
                 break;
+#endif
             }
             default:
             {
@@ -5499,11 +5504,13 @@ void Chat::onUserLeave(Id userid)
         mUsers.clear();
             mChatdClient.mKarereClient->setCommitMode(commitEach);
 
+#ifndef KARERE_DISABLE_WEBRTC
         // remove call associated to chatRoom if our own user is not an active participant
         if (mChatdClient.mKarereClient->rtc && !previewMode())
         {
             mChatdClient.mKarereClient->rtc->removeCall(mChatId);
         }
+#endif
     }
     else
     {
@@ -5748,7 +5755,7 @@ void Chat::setOnlineState(ChatState state)
                 mChatdClient.mKarereClient->mSyncPromise.resolve();
             }
         }
-
+#ifndef KARERE_DISABLE_WEBRTC
         if (mChatdClient.mKarereClient->rtc)
         {
             rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
@@ -5766,6 +5773,7 @@ void Chat::setOnlineState(ChatState state)
                 }
             }
         }
+#endif
     }
 }
 

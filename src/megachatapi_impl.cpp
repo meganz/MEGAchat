@@ -115,7 +115,9 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     waiter = new MegaChatWaiter();
     mWebsocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
     reqtag = 0;
+#ifndef KARERE_DISABLE_WEBRTC
     mCallHandler = ::mega::make_unique<MegaChatCallHandler>(this);
+#endif
     //Start blocking thread
     threadExit = 0;
     thread.start(threadEntryPoint, this);
@@ -2561,7 +2563,11 @@ void MegaChatApiImpl::createKarereClient()
 #else
         uint8_t caps = karere::kClientIsMobile | karere::kClientSupportLastGreen;
 #endif
+#ifndef KARERE_DISABLE_WEBRTC
         mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mCallHandler, mMegaApi->getBasePath(), caps, this);
+#else
+        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, mMegaApi->getBasePath(), caps, this);
+#endif
         mTerminating = false;
     }
 }

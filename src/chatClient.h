@@ -954,7 +954,9 @@ public:
      * delete the karere.db file and re-create it from scratch.
      */
     Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
+#ifndef KARERE_DISABLE_WEBRTC
            rtcModule::CallHandler& callHandler,
+#endif
            const std::string &appDir, uint8_t caps, void *ctx);
 
     virtual ~Client();

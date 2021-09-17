@@ -359,12 +359,11 @@ private:
     bool mPeerIsRinging[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+#endif
+
     bool mLoggedInAllChats[NUM_ACCOUNTS];
     std::vector <megachat::MegaChatHandle>mChatListUpdated[NUM_ACCOUNTS];
     bool mChatsUpdated[NUM_ACCOUNTS];
-
-#endif
-
     static const std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
     static const std::string FILE_IMAGE_NAME;
