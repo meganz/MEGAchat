@@ -25,12 +25,13 @@
 #include <mega.h>
 #include <megaapi.h>
 #include "megachatapi.h"
-
 #include <chatClient.h>
-#include <sfu.h>
-
 #include <iostream>
 #include <fstream>
+
+#ifndef KARERE_DISABLE_WEBRTC
+#include <sfu.h>
+#endif
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
@@ -465,14 +466,19 @@ class MegaChatApiUnitaryTest
 {
 public:
     bool UNITARYTEST_ParseUrl();
+#ifndef KARERE_DISABLE_WEBRTC
     bool UNITARYTEST_SfuDataReception();
+#endif
 
     unsigned mOKTests = 0;
     unsigned mFailedTests = 0;
 
+#ifndef KARERE_DISABLE_WEBRTC
     friend sfu::SfuConnection;
+#endif
 };
 
+#ifndef KARERE_DISABLE_WEBRTC
 class MockupCall : public sfu::SfuInterface
 {
 public:
@@ -495,5 +501,5 @@ public:
     bool error(unsigned int, const std::string &) override;
     void logError(const char* error) override;
 };
-
+#endif
 #endif // CHATTEST_H

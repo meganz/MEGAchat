@@ -4,8 +4,11 @@
 #include "../../src/chatd.h"
 #include "../../src/megachatapi.h"
 #include "../../src/karereCommon.h" // for logging with karere facility
-#include "../../src/net/libwebsocketsIO.h"
 #include "waiter/libuvWaiter.h"
+#ifndef KARERE_DISABLE_WEBRTC
+#include "../../src/net/libwebsocketsIO.h"
+#endif
+
 
 #include <signal.h>
 #include <stdio.h>
@@ -82,7 +85,9 @@ int main(int argc, char **argv)
     MegaChatApiUnitaryTest unitaryTest;
     std::cout << "[========] Unitary tests " << std::endl;
     unitaryTest.UNITARYTEST_ParseUrl();
+#ifndef KARERE_DISABLE_WEBRTC
     unitaryTest.UNITARYTEST_SfuDataReception();
+#endif
     std::cout << "[========] End Unitary tests " << std::endl;
 
     return t.mFailedTests + unitaryTest.mFailedTests;
@@ -5032,6 +5037,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
     return succesful;
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 {
     ::mega::LibuvWaiter waiter;
@@ -5081,6 +5087,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 
     return true;
 }
+#endif
 
 TestMegaRequestListener::TestMegaRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)
     : RequestListener(megaApi, megaChatApi)
@@ -5193,6 +5200,7 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 bool MockupCall::handleAvCommand(Cid_t cid, unsigned av)
 {
     return true;
@@ -5283,4 +5291,4 @@ void MockupCall::logError(const char *error)
 {
 
 }
-
+#endif
