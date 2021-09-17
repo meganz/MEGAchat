@@ -3146,14 +3146,15 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
         // just perform following actions in case that call is still ringing
         ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
         ASSERT_CHAT_TEST(mCallIdJoining[a1] == ringingCallId, "Differents call id between caller and answer");
-        ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
-        sleep(5);
-        megaChatApi[a2]->hangChatCall(ringingCallId);
-        ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
-        ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
-        ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
-        ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
     }
+
+    sleep(5);
+    flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
+    megaChatApi[a2]->hangChatCall(ringingCallId);
+    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
+    ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
+    ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
