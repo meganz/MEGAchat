@@ -733,7 +733,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
     if (error != MegaChatError::ERROR_OK
         && (reqType != MegaChatRequest::TYPE_GET_EMAIL)
         && (reqType != MegaChatRequest::TYPE_GET_LASTNAME)
-        && (reqType != MegaChatRequest::TYPE_GET_FIRSTNAME)
         && (reqType != MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES))
     {
         QMessageBox::critical(nullptr, tr("MEGAchat Request failed: ").append(request->getRequestString()), tr("Error: ").append(e->getErrorString()));
