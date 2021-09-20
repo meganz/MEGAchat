@@ -334,7 +334,7 @@ public:
     void setState(CallState newState);
     static const char *stateToStr(CallState state);
 
-    void connectSfu(const std::string& sfuUrlStr);
+    bool connectSfu(const std::string& sfuUrlStr);
     void joinSfu();
 
     void createTransceivers();  // both, for sending your audio/video and for receiving from participants

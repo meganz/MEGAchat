@@ -336,9 +336,15 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
             return promise::Error("Join call succeed, but call has already ended");
 
         std::string sfuUrlStr = result->getText();
-        connectSfu(sfuUrlStr);
 
-        return promise::_Void();
+        if (!connectSfu(sfuUrlStr))
+        {
+           return promise::Error("connectSfu error, invalid or empty sfu URL");
+        }
+        else
+        {
+           return promise::_Void();
+        }
     });
 }
 
@@ -797,13 +803,13 @@ Session* Call::getSession(Cid_t cid)
         : nullptr;
 }
 
-void Call::connectSfu(const std::string& sfuUrlStr)
+bool Call::connectSfu(const std::string& sfuUrlStr)
 {
     if (sfuUrlStr.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
     {
         RTCM_LOG_ERROR("trying to connect to SFU with an Empty URL");
         assert(false);
-        return;
+        return false;
     }
 
     karere::Url sfuUrl(sfuUrlStr);
@@ -811,7 +817,7 @@ void Call::connectSfu(const std::string& sfuUrlStr)
     {
         RTCM_LOG_ERROR("trying to connect to SFU with an Empty Host");
         assert(sfuUrl.isValid());
-        return;
+        return false;
     }
 
     setState(CallState::kStateConnecting);
@@ -2159,7 +2165,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-    .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result)
+    .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result) -> promise::Promise<void>
     {
         std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
                 ? std::make_shared<std::string>(auxCallKey)
@@ -2173,7 +2179,15 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
             std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
             karere::Id myUserHandle(userHandle.get());
             mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
-            mCalls[callid]->connectSfu(sfuUrlStr);
+
+            if (!mCalls[callid]->connectSfu(sfuUrlStr))
+            {
+               return promise::Error("connectSfu error, invalid or empty URL");
+            }
+            else
+            {
+               return promise::_Void();
+            }
         }
     });
 }
