@@ -3,8 +3,9 @@
 #include <QObject>
 #include "megachatapi.h"
 #include "chatWindow.h"
+#ifndef KARERE_DISABLE_WEBRTC
 #include "meetingView.h"
-
+#endif
 class ChatWindow;
 class ChatItemWidget;
 class ContactItemWidget;
