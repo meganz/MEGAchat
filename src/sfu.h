@@ -1,6 +1,6 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #ifndef SFU_H
 #define SFU_H
-
 #include <thread>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
@@ -499,3 +499,4 @@ static inline const char* connStateToStr(SfuConnection::ConnState state)
 }
 
 #endif // SFU_H
+#endif
