@@ -13,10 +13,17 @@
 #include "db.h"
 #include "url.h"
 
+// WEBSOCKETS LOG
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
+
+// DNSCACHE LOG
+#define DNSCACHE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_dnscache, fmtString, ##__VA_ARGS__)
+#define DNSCACHE_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_dnscache, fmtString, ##__VA_ARGS__)
+#define DNSCACHE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_dnscache, fmtString, ##__VA_ARGS__)
+#define DNSCACHE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_dnscache, fmtString, ##__VA_ARGS__)
 
 class WebsocketsClient;
 class WebsocketsClientImpl;

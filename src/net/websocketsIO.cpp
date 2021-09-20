@@ -470,13 +470,14 @@ bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> 
     if (host.empty())
     {
         assert(false);
-        fprintf(stderr, "[dnscache] [ERR]: addRecordByHost: empty host");
+        DNSCACHE_LOG_ERROR("addRecordByHost: empty host");
         return false;
     }
 
     if (hasRecordByHost(host))
     {
-        // we already have a record in DNS cache for that host
+        assert(false);
+        DNSCACHE_LOG_ERROR("addRecordByHost: we already have a record in DNS cache for that host");
         return false;
     }
 
@@ -587,8 +588,7 @@ bool DNScache::setIpByHost(const std::string &host, const std::vector<std::strin
          *
          * The solution to this corner case, is add the host to DNS cache again.
         */
-        fprintf(stderr, "[dnscache] [WRN]: setIpByHost: host %s not found in DNS cache, "
-                        "that record could be overwritten. Adding it again", host.c_str());
+        DNSCACHE_LOG_WARNING("setIpByHost: host %s not found in DNS cache, that record could be overwritten. Adding it again", host.c_str());
         addRecordByHost(host);
     }
 
