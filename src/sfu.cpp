@@ -1964,7 +1964,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     SFU_LOG_DEBUG("Hostname resolved and there was no previous cached Ip's for this host. Connecting...");
                     mDnsCache.setIpByHost(mSfuUrl.host, ipsv4, ipsv6);
                     const std::string &resolvedIpv4 = ipsv4.empty() ? "" : ipsv4.front();
-                    const std::string &resolvedIpv6 = ipsv4.empty() ? "" : ipsv4.front();
+                    const std::string &resolvedIpv6 = ipsv6.empty() ? "" : ipsv6.front();
                     doConnect(resolvedIpv4, resolvedIpv6);
                     return;
                 }
