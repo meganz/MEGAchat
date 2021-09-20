@@ -13,7 +13,9 @@
 #include "presenced.h"
 #include "IGui.h"
 #include <base/trackDelete.h>
+#ifndef KARERE_DISABLE_WEBRTC
 #include "rtcModule/webrtc.h"
+#endif
 #include "stringUtils.h"
 
 #ifdef _WIN32
