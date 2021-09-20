@@ -476,7 +476,8 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     int error = e->getErrorCode();
     if (error != API_OK
             && (reqType != MegaRequest::TYPE_LOGIN || error != MegaError::API_EMFAREQUIRED)
-            && (reqType != MegaRequest::TYPE_GET_ATTR_USER))
+            && (reqType != MegaRequest::TYPE_GET_ATTR_USER)
+            && (reqType != MegaRequest::TYPE_GET_USER_EMAIL))
     {
         QMessageBox::critical(nullptr, tr("SDK Request failed: ").append(request->getRequestString()), tr("Error: ").append(e->getErrorString()));
     }
@@ -729,7 +730,10 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 {
     int reqType = request->getType();
     int error = e->getErrorCode();
-    if (error != MegaChatError::ERROR_OK)
+    if (error != MegaChatError::ERROR_OK
+        && (reqType != MegaChatRequest::TYPE_GET_EMAIL)
+        && (reqType != MegaChatRequest::TYPE_GET_LASTNAME)
+        && (reqType != MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES))
     {
         QMessageBox::critical(nullptr, tr("MEGAchat Request failed: ").append(request->getRequestString()), tr("Error: ").append(e->getErrorString()));
     }
