@@ -815,7 +815,12 @@ void Call::connectSfu(const std::string& sfuUrlStr)
     }
 
     setState(CallState::kStateConnecting);
-    mRtc.getDnsCache().addRecordByHost(sfuUrl.host); // Add record to db to store new URL in case it doesn't exist yet in cache
+
+    if (!mRtc.getDnsCache().getRecordByHost(sfuUrl.host))
+    {
+        mRtc.getDnsCache().addRecordByHost(sfuUrl.host); // Add record to db to store new URL in case it doesn't exist yet in cache
+    }
+
     mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
 }
 
