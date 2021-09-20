@@ -3038,8 +3038,10 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     // Remote video listener aren't necessary because call is never ging to be answered at tests
 
     // A calls B and B hangs up the call
+    bool *callAnswered = &mCallAnswered[a1]; *callAnswered = false;
     bool *flagStartCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagStartCall = false;
     bool *callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
+    mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
     mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
     bool *callDestroyed0 = &mCallDestroyed[a1]; *callDestroyed0 = false;
     bool *callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
@@ -3051,6 +3053,13 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->startChatCall(chatid, false, false);
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
+    unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
+    if (auxCall)
+    {
+        // set the callid that we expect to for account B in onChatCallUpdate
+        mCallIdExpectedReceived[a2] = auxCall->getCallId();
+    }
 
     ASSERT_CHAT_TEST(waitForResponse(callReceivedRinging), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
@@ -3069,7 +3078,9 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     // A calls B and A hangs up the call before B answers
     flagStartCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagStartCall = false;
+    callAnswered = &mCallAnswered[a1]; *callAnswered = false;
     callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
+    mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
     mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
     callDestroyed0 = &mCallDestroyed[a1]; *callDestroyed0 = false;
     callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
@@ -3081,6 +3092,13 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->startChatCall(chatid, false, false);
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
+    auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
+    if (auxCall)
+    {
+        // set the callid that we expect to for account B in onChatCallUpdate
+        mCallIdExpectedReceived[a2] = auxCall->getCallId();
+    }
 
     ASSERT_CHAT_TEST(waitForResponse(callReceivedRinging), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
@@ -3098,7 +3116,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     // A calls B(B is logged out), B logins, B receives the call and B hangs up the call
     logout(a2);
-    bool *callAnswered = &mCallAnswered[a1]; *callAnswered = false;
+    callAnswered = &mCallAnswered[a1]; *callAnswered = false;
     flagStartCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagStartCall = false;
     bool *callReceived = &mCallReceived[a2]; *callReceived = false;
     callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
@@ -3116,7 +3134,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
     ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
-    unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
+    auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     if (auxCall)
     {
         // set the callid that we expect to for account B in onChatCallUpdate
