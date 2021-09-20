@@ -3283,7 +3283,7 @@ void exec_getnodebypath(ac::ACState& s)
         //getChildren();
 #ifdef ENABLE_SYNC
         //virtual bool isSyncDeleted();
-        cout << "local sync path: " << node->getLocalPath() << endl;
+        cout << "local sync path: " << g_megaApi->getLocalPath(node.get());
 #endif
         cout << "owner handle: " << ch_s(node->getOwner()) << endl;
         cout << "serialized: " << unique_ptr<char[]>(node->serialize()).get() << endl;
