@@ -1,4 +1,5 @@
 #include "net/websocketsIO.h"
+#include <mega/utils.h>
 
 bool WebsocketsClient::publicKeyPinning = true; // needs to be defined here
 
@@ -314,7 +315,7 @@ bool DNScache::setIp(int shard, const std::vector<std::string> &ipsv4, const std
         assert (it != mRecords.end());
         it->second.ipv4 = ipsv4.empty() ? "" : ipsv4.front();
         it->second.ipv6 = ipsv6.empty() ? "" : ipsv6.front();
-        it->second.resolveTs = time(NULL);
+        it->second.resolveTs = ::mega::m_time(nullptr);
         mDb.query("update dns_cache set ipv4=?, ipv6=? where shard=?", it->second.ipv4, it->second.ipv6, shard);
         return true;
     }
@@ -329,7 +330,7 @@ bool DNScache::setIp(int shard, std::string ipv4, std::string ipv6)
         assert(it != mRecords.end());
         it->second.ipv4 = ipv4;
         it->second.ipv6 = ipv6;
-        it->second.resolveTs = time(NULL);
+        it->second.resolveTs = ::mega::m_time(nullptr);
         mDb.query("update dns_cache set ipv4=?, ipv6=? where shard=?", ipv4, ipv6, shard);
         return true;
     }
@@ -364,11 +365,11 @@ void DNScache::connectDone(int shard, const std::string &ip)
     {
         if (ip == it->second.ipv4)
         {
-            it->second.connectIpv4Ts = time(NULL);
+            it->second.connectIpv4Ts = ::mega::m_time(nullptr);
         }
         else if (ip == it->second.ipv6)
         {
-            it->second.connectIpv6Ts = time(NULL);
+            it->second.connectIpv6Ts = ::mega::m_time(nullptr);
         }
     }
 }
@@ -540,11 +541,11 @@ void DNScache::connectDoneByHost(const std::string &host, const std::string &ip)
 
     if (ip == record->ipv4)
     {
-        record->connectIpv4Ts = time(NULL);
+        record->connectIpv4Ts = ::mega::m_time(nullptr);
     }
     else if (ip == record->ipv6)
     {
-        record->connectIpv6Ts = time(NULL);
+        record->connectIpv6Ts = ::mega::m_time(nullptr);
     }
 }
 
@@ -593,7 +594,7 @@ bool DNScache::setIpByHost(const std::string &host, const std::vector<std::strin
 
     record->ipv4 = ipsv4.empty() ? "" : ipsv4.front();
     record->ipv6 = ipsv6.empty() ? "" : ipsv6.front();
-    record->resolveTs = time(NULL);
+    record->resolveTs = ::mega::m_time(nullptr);
     mDb.query("update dns_cache set ipv4=?, ipv6=? where url=?", record->ipv4, record->ipv6, host);
     return true;
 }

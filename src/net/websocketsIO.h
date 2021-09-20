@@ -54,9 +54,9 @@ public:
         std::string mHost;
         std::string ipv4;
         std::string ipv6;
-        time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
-        time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
-        time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
+        ::mega::m_time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
+        ::mega::m_time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
+        ::mega::m_time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
         std::shared_ptr<Buffer> tlsBlob; // tls session data
         DNSrecord() = default;
         DNSrecord(const std::string &host, std::shared_ptr<Buffer> sess):
