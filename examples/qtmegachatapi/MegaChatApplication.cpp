@@ -918,7 +918,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
          case MegaChatRequest::TYPE_START_CHAT_CALL:
             if (error != MegaChatError::ERROR_OK)
             {
-                QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
+                ChatListItemController *itemController = mMainWin->getChatControllerById(request->getChatHandle());
+                if (itemController && itemController->getMeetingView())
+                {
+                    itemController->destroyMeetingView();
+                }
             }
 
             break;
