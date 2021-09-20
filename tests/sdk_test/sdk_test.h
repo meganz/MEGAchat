@@ -350,7 +350,7 @@ private:
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallReceivedRinging[NUM_ACCOUNTS];
-    bool mCallAnswered[NUM_ACCOUNTS];
+    bool mCallInProgress[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
