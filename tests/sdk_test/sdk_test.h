@@ -358,7 +358,6 @@ private:
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
-    bool mPeerIsRinging[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
     bool mLoggedInAllChats[NUM_ACCOUNTS];

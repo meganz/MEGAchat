@@ -397,7 +397,6 @@ void MegaChatApiTest::SetUp()
         mCallIdRingIn[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdJoining[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdExpectedReceived[i] = MEGACHAT_INVALID_HANDLE;
-        mPeerIsRinging[i] = false;
         mLocalVideoListener[i] = NULL;
         mRemoteVideoListener[i] = NULL;
 #endif
@@ -3049,7 +3048,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     bool *flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
-    bool *flagPeerRinging = &mPeerIsRinging[a2]; *flagPeerRinging = false;
     megaChatApi[a1]->startChatCall(chatid, false, false);
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
@@ -3059,7 +3057,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(mCallIdJoining[a1] == mCallIdRingIn[a2], "Differents call id between caller and answer");
     MegaChatCall *call = megaChatApi[a2]->getChatCall(chatid);
     delete call;
-    ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
 
     sleep(5);
 
@@ -3081,7 +3078,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     flagHangUpCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
-    flagPeerRinging = &mPeerIsRinging[a2]; *flagPeerRinging = false;
     megaChatApi[a1]->startChatCall(chatid, false, false);
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
@@ -3091,7 +3087,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(mCallIdJoining[a1] == mCallIdRingIn[a2], "Differents call id between caller and answer");
     call = megaChatApi[a2]->getChatCall(chatid);
     delete call;
-    ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
 
     sleep(5);
 
@@ -3116,7 +3111,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
-    flagPeerRinging = &mPeerIsRinging[a2]; *flagPeerRinging = false;
 
     megaChatApi[a1]->startChatCall(chatid, false, false);
     ASSERT_CHAT_TEST(waitForResponse(flagStartCall), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
@@ -3129,14 +3123,13 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
         mCallIdExpectedReceived[a2] = auxCall->getCallId();
     }
 
-//    sleep(50); // to simulate a slow login where we receive a CALLSTATE with Ringing 0
     char *secondarySession2 = login(a2, secondarySession);
 
     /* we could receive onChatCallUpdate for multiple calls, so we need to know which one we are
      * expecting(mCallIdExpectedReceived).
      */
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
-    auxCall.reset(megaChatApi[a2]->getChatCall(auxCall->getCallId()));
+    auxCall.reset(megaChatApi[a2]->getChatCall(auxCall->getChatid()));
     ASSERT_CHAT_TEST(auxCall, "Can't retrieve call by callid");
 
     MegaChatHandle ringingCallId = mCallIdRingIn[a2];
@@ -4623,11 +4616,6 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         default:
             break;
         }
-    }
-
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
-    {
-        mPeerIsRinging[apiIndex] = call->isRinging();
     }
 
     LOG_debug << "On chat call change state ";
