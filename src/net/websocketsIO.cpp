@@ -506,16 +506,9 @@ bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> 
     return true;
 }
 
-bool DNScache::hasRecordByHost(const std::string &host) const
+bool DNScache::hasRecordByHost(const std::string &host)
 {
-    for (auto it = mRecords.begin(); it != mRecords.end(); it++)
-    {
-        if (it->second.isHostMatch(host))
-        {
-            return true;
-        }
-    }
-    return false;
+    return getRecordByHost(host) != nullptr;
 }
 
 DNScache::DNSrecord* DNScache::getRecordByHost(const std::string &host)
