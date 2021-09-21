@@ -9,6 +9,7 @@
 #include <net/websocketsIO.h>
 #include "rtcCrypto.h"
 #include "sfu.h"
+#include <mega/utils.h>
 
 #define RET_ENUM_NAME(name) case name: return #name
 
@@ -20,16 +21,19 @@ namespace rtcModule
 
 enum TermCode: uint8_t
 {
-    kInvalidTermCode = 255,
-    kUserHangup = 0,            // < Normal user hangup
-    kTooManyParticipants = 1,   // < Too many participants
-    kErrSdp = 32,               // < error generating or setting SDP description
-    kRtcDisconn = 64,
-    kSigDisconn = 65,
-    kSvrShuttingDown = 66,      // < Server is shutting down
-    kErrSignaling = 128,
-    kErrNoCall = 129,           // < Attempted to join non-existing call
-    kUnKnownTermCode = 130,
+    kUserHangup                 = 0,   // < Normal user hangup
+    kTooManyParticipants        = 1,   // < Too many participants
+    kErrSdp                     = 32,  // < error generating or setting SDP description
+    kRtcDisconn                 = 64,
+    kSigDisconn                 = 65,
+    kSvrShuttingDown            = 66,  // < Server is shutting down
+    kErrSignaling               = 128,
+    kErrNoCall                  = 129, // < Attempted to join non-existing call
+    kErrAuth                    = 130, // < Authentication error
+    kErrApiTimeout              = 131, // < ping timeout between SFU and API
+    kErrGeneral                 = 191,
+    kUnKnownTermCode            = 254,
+    kInvalidTermCode            = 255,
 };
 
 enum CallState: uint8_t
@@ -138,6 +142,7 @@ public:
     virtual promise::Promise<void> join(karere::AvFlags avFlags) = 0;
 
     virtual bool participate() = 0;
+    virtual bool isJoining() const = 0;
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
@@ -163,7 +168,6 @@ public:
     virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
-    virtual void switchSvcQuality(int8_t delta) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
@@ -184,6 +188,7 @@ public:
     virtual void init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings) = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
     virtual ICall* findCallByChatid(const karere::Id &chatid) = 0;
+    virtual bool isCallStartInProgress(const karere::Id &chatid) const = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
@@ -202,7 +207,6 @@ public:
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
-    virtual void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) = 0;
     virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
@@ -225,6 +229,7 @@ enum RtcConstant {
    kVthumbWidth = 160,  // px
    kAudioMonitorTimeout = 2000, // ms
    kStatsInterval = 1000,   // ms
+   kTxSpatialLayerCount = 3,
    kRotateKeyUseDelay = 100, // ms
 };
 

@@ -146,31 +146,6 @@ void Peer::setAvFlags(karere::AvFlags flags)
     mAvFlags = flags;
 }
 
-SpeakersDescriptor::SpeakersDescriptor()
-{
-}
-
-SpeakersDescriptor::SpeakersDescriptor(const std::string &audioDescriptor, const std::string &videoDescriptor)
-    : mAudioDescriptor(audioDescriptor), mVideoDescriptor(videoDescriptor)
-{
-}
-
-std::string SpeakersDescriptor::getAudioDescriptor() const
-{
-    return mAudioDescriptor;
-}
-
-std::string SpeakersDescriptor::getVideoDescriptor() const
-{
-    return mVideoDescriptor;
-}
-
-void SpeakersDescriptor::setDescriptors(const std::string &audioDescriptor, const std::string &videoDescriptor)
-{
-    mAudioDescriptor = audioDescriptor;
-    mVideoDescriptor = videoDescriptor;
-}
-
 Command::~Command()
 {
 }
@@ -178,27 +153,6 @@ Command::~Command()
 Command::Command(SfuInterface& call)
     : mCall(call)
 {
-}
-
-void Command::parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator &it) const
-{
-    rapidjson::Value::ConstMemberIterator audioIterator = it->value.FindMember("audio");
-    if (audioIterator == it->value.MemberEnd() || !audioIterator->value.IsString())
-    {
-         SFU_LOG_ERROR("Command::parseSpeakerObject: invalid 'audio' value");
-         return;
-    }
-
-    std::string audio = audioIterator->value.GetString();
-
-    std::string video;
-    rapidjson::Value::ConstMemberIterator videoIterator = it->value.FindMember("video");
-    if (videoIterator != it->value.MemberEnd() || videoIterator->value.IsString())
-    {
-         video = videoIterator->value.GetString();
-    }
-
-    speaker.setDescriptors(audio, video);
 }
 
 bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &it) const
@@ -447,40 +401,6 @@ void AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
             continue;
         }
     }
-}
-
-void AnswerCommand::parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
-{
-    assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
-    {
-        Cid_t cid;
-        rapidjson::Value::ConstMemberIterator cidIterator = it->value[j].FindMember("cid");
-        if (cidIterator == it->value.MemberEnd() || !cidIterator->value.IsUint())
-        {
-             SFU_LOG_ERROR("parseSpeakersObject: invalid 'cid' value");
-             return;
-        }
-
-        rapidjson::Value::ConstMemberIterator speakerIterator = it->value[j].FindMember("speaker");
-        if (speakerIterator == it->value[j].MemberEnd() || !speakerIterator->value.IsArray())
-        {
-            SFU_LOG_ERROR("parseSpeakersObject: Received data doesn't have 'speaker' field");
-            return;
-        }
-
-        SpeakersDescriptor speakerDescriptor;
-        parseSpeakerObject(speakerDescriptor, speakerIterator);
-
-        speakers.insert(std::pair<karere::Id, SpeakersDescriptor>(cid, speakerDescriptor));
-
-    }
-}
-
-void AnswerCommand::parseVthumsObject(std::map<Cid_t, TrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator &it) const
-{
-    assert(it->value.IsArray());
-
 }
 
 KeyCommand::KeyCommand(const KeyCompleteFunction &complete, SfuInterface &call)
@@ -768,7 +688,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
 
 }
 
-Sdp::Sdp(const std::string &sdp)
+Sdp::Sdp(const std::string &sdp, int64_t mungedTrackIndex)
 {
     size_t pos = 0;
     std::string buffer = sdp;
@@ -825,6 +745,13 @@ Sdp::Sdp(const std::string &sdp)
     for (i = nextMline(lines, 0); i < lines.size();)
     {
         i = addTrack(lines, i);
+    }
+
+    if (mungedTrackIndex != -1) // track requires to be munged
+    {
+        assert(mTracks.size() > static_cast<size_t>(mungedTrackIndex));
+        // modify SDP (hack to enable SVC) for hi-res track to enable SVC multicast
+        mungeSdpForSvc(mTracks.at(static_cast<size_t>(mungedTrackIndex)));
     }
 }
 
@@ -920,6 +847,53 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
     mData[type] = temp;
 
     return i;
+}
+
+void Sdp::mungeSdpForSvc(Sdp::Track &track)
+{
+    std::pair<uint64_t, std::string> vidSsrc1 = track.mSsrcs.at(0);
+    std::pair<uint64_t, std::string> fidSsrc1 = track.mSsrcs.at(1);
+    uint64_t id = vidSsrc1.first;
+
+    std::pair<uint64_t, std::string> vidSsrc2 = std::pair<uint64_t, std::string>(++id, vidSsrc1.second);
+    std::pair<uint64_t, std::string> vidSsrc3 = std::pair<uint64_t, std::string>(++id, vidSsrc1.second);
+    id = fidSsrc1.first;
+
+    std::pair<uint64_t, std::string> fidSsrc2 = std::pair<uint64_t, std::string>(++id, fidSsrc1.second);
+    std::pair<uint64_t, std::string> fidSsrc3 = std::pair<uint64_t, std::string>(++id, fidSsrc1.second);
+
+    track.mSsrcs.clear();
+    track.mSsrcs.emplace_back(vidSsrc1);
+    track.mSsrcs.emplace_back(fidSsrc1);
+    track.mSsrcs.emplace_back(vidSsrc2);
+    track.mSsrcs.emplace_back(vidSsrc3);
+    track.mSsrcs.emplace_back(fidSsrc2);
+    track.mSsrcs.emplace_back(fidSsrc3);
+
+    std::string Ssrcg1 = "SIM ";
+    Ssrcg1.append(std::to_string(vidSsrc1.first))
+            .append(" ")
+            .append(std::to_string(vidSsrc2.first))
+            .append(" ")
+            .append(std::to_string(vidSsrc3.first));
+
+    std::string Ssrcg3 = "FID ";
+    Ssrcg3.append(std::to_string(vidSsrc2.first))
+            .append(" ")
+            .append(std::to_string(fidSsrc2.first));
+
+    std::string Ssrcg2 = track.mSsrcg[0];
+
+    std::string Ssrcg4 = "FID ";
+    Ssrcg4.append(std::to_string(vidSsrc3.first))
+            .append(" ")
+            .append(std::to_string(fidSsrc3.first));
+
+    track.mSsrcg.clear();
+    track.mSsrcg.emplace_back(Ssrcg1);
+    track.mSsrcg.emplace_back(Ssrcg2);
+    track.mSsrcg.emplace_back(Ssrcg3);
+    track.mSsrcg.emplace_back(Ssrcg4);
 }
 
 unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int position)

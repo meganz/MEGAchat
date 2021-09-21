@@ -134,35 +134,34 @@ SvcDriver::SvcDriver ()
 
 }
 
-bool SvcDriver::updateSvcQuality(int8_t delta)
+bool SvcDriver::setSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& rxStmp, int8_t& txSpt)
 {
     int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
     if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
     {
         return false;
     }
-    mTsLastSwitch = time(nullptr);
-    mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
-    return true;
-}
 
-bool SvcDriver::getLayerByIndex(int index, int& stp, int& tmp, int& stmp)
-{
+    RTCM_LOG_WARNING("setSvcLayer: Switching SVC layer from %d to %d", mCurrentSvcLayerIndex, newSvcLayerIndex);
+    mTsLastSwitch = time(nullptr); // update last Ts SVC switch
+    mCurrentSvcLayerIndex = static_cast<uint8_t>(newSvcLayerIndex);
+
     // we want to provide a linear quality scale,
     // layers are defined for each of the 7 "quality" steps
-    // layer: spatial (resolution), temporal (FPS), screen-temporal (temporal layer for screen video)
-    switch (index)
+    // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial (resolution)
+    switch (mCurrentSvcLayerIndex)
     {
-        case 0: { stp = 0; tmp = 0; stmp = 0; return true; }
-        case 1: { stp = 0; tmp = 1; stmp = 0; return true; }
-        case 2: { stp = 0; tmp = 2; stmp = 0; return true; }
-        case 3: { stp = 1; tmp = 1; stmp = 0; return true; }
-        case 4: { stp = 1; tmp = 2; stmp = 1; return true; }
-        case 5: { stp = 2; tmp = 1; stmp = 1; return true; }
-        case 6: { stp = 2; tmp = 2; stmp = 2; return true; }
+        case 0: { rxSpt = 0; rxTmp = 0; rxStmp = 0; txSpt = 0; return true; }
+        case 1: { rxSpt = 0; rxTmp = 1; rxStmp = 0; txSpt = 0; return true; }
+        case 2: { rxSpt = 0; rxTmp = 2; rxStmp = 0; txSpt = 1; return true; }
+        case 3: { rxSpt = 1; rxTmp = 1; rxStmp = 0; txSpt = 1; return true; }
+        case 4: { rxSpt = 1; rxTmp = 2; rxStmp = 1; txSpt = 1; return true; }
+        case 5: { rxSpt = 2; rxTmp = 1; rxStmp = 1; txSpt = 2; return true; }
+        case 6: { rxSpt = 2; rxTmp = 2; rxStmp = 2; txSpt = 2; return true; }
         default: return false;
     }
 }
+
 Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
     : mCallid(callid)
     , mChatid(chatid)
@@ -173,6 +172,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mMegaApi(megaApi)
     , mSfuClient(rtc.getSfuClient())
     , mCallKey(callKey ? *callKey : std::string())
+    , mIsJoining(false)
     , mRtc(rtc)
 {
     std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
@@ -327,6 +327,7 @@ promise::Promise<void> Call::hangup()
 
 promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
+    mIsJoining = true; // set flag true to avoid multiple join call attempts
     mMyPeer->setAvFlags(avFlags);
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::joinChatCall, mChatid.val, mCallid.val)
@@ -336,6 +337,7 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
             return promise::Error("Join call succeed, but call has already ended");
 
         std::string sfuUrlStr = result->getText();
+        mIsJoining = false;
 
         if (!connectSfu(sfuUrlStr))
         {
@@ -345,12 +347,25 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
         {
            return promise::_Void();
         }
+    })
+    .fail([wptr, this](const ::promise::Error& err)
+    {
+        if (!wptr.deleted())
+            return promise::Error("Join call failed, and call has already ended");
+
+        mIsJoining = false;
+        return err;
     });
 }
 
 bool Call::participate()
 {
     return (mState > kStateClientNoParticipating && mState < kStateTerminatingUserParticipation);
+}
+
+bool Call::isJoining() const
+{
+    return mIsJoining;
 }
 
 void Call::enableAudioLevelMonitor(bool enable)
@@ -446,7 +461,7 @@ bool Call::hasVideoSlot(Cid_t cid, bool highRes) const
 {
     for (const auto& session : mSessions)
     {
-        Slot *slot = highRes
+        RemoteSlot *slot = highRes
                 ? session.second->getHiResSlot()
                 : session.second->getVthumSlot();
 
@@ -748,26 +763,67 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
 }
 
-void Call::switchSvcQuality(int8_t delta)
+void Call::updateTransmittedSvcQuality(int8_t txSpt)
 {
-    if (!mSvcDriver.updateSvcQuality(delta))
+    if (!mHiRes || !mHiResActive)
     {
         return;
     }
 
-    // layer: spatial, temporal, screen-temporal
-    int spt = 0;
-    int tmp = 0;
-    int stmp = 0;
-    int layerIndex = mSvcDriver.mCurrentSvcLayerIndex;
-    if (!mSvcDriver.getLayerByIndex(layerIndex, spt, tmp, stmp))
+    bool update = false;
+    int8_t currentSentLayers = mHiRes->getSentLayers();
+    int8_t newSentLayers = txSpt + 1; // +1 as txSpatial component starts at zero in layers definition
+
+    if (newSentLayers < currentSentLayers)
     {
-        RTCM_LOG_WARNING("switchSvcQuality: Invalid layer index");
+        update = true; // decrease tx SVC quality
+    }
+    else if (newSentLayers > currentSentLayers
+             && mStats.mSamples.mVtxHiResfps.size()
+             && mStats.mSamples.mVtxHiResfps.back() >= 12)
+    {
+            // increase tx SVC quality but only if not overloaded
+            newSentLayers = currentSentLayers + 1; // don't set directly to newSentLayers - just increase 1 step
+            update = true;
+    }
+    else if (mStats.mSamples.mVtxHiResfps.size() && mStats.mSamples.mVtxHiResfps.back() < 5
+             && currentSentLayers > 1
+             && (::mega::m_time(nullptr) - mHiRes->getTsStart() >= mSvcDriver.kMinTimeBetweenSwitches))
+    {
+            // too low fps
+            update = true;
+            newSentLayers = currentSentLayers - 1;  // don't set directly to newSentLayers - just decrease 1 step
+            RTCM_LOG_WARNING("Apparent local CPU/bandwidth starvation (fps = %d), disabling highest SVC resolution", mStats.mSamples.mVtxHiResfps.back());
+    }
+
+    if (update)
+    {
+        RTCM_LOG_WARNING("Adjusting TX Spatial sent layers from %d to %d", currentSentLayers, newSentLayers);
+        mHiRes->updateSentLayers(newSentLayers);
+        mSvcDriver.mTsLastSwitch = time(nullptr); // update last Ts SVC switch
+    }
+}
+
+void Call::updateSvcQuality(int8_t delta)
+{
+    // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial (resolution)
+    int8_t rxSpt = 0;
+    int8_t rxTmp = 0;
+    int8_t rxStmp = 0;
+    int8_t txSpt = 0;
+
+    // calculate new layer index from delta and retrieve layer components separately
+    if (!mSvcDriver.setSvcLayer(delta, rxSpt, rxTmp, rxStmp, txSpt))
+    {
+        RTCM_LOG_WARNING("updateSvcQuality: Invalid new layer index %d", mSvcDriver.mCurrentSvcLayerIndex + delta);
         return;
     }
 
-    mSvcDriver.mCurrentSvcLayerIndex = layerIndex;
-    mSfuConnection->sendLayer(spt, tmp, stmp);
+    // adjust Received SVC quality by sending LAYER command
+    mSfuConnection->sendLayer(rxSpt, rxTmp, rxStmp);
+
+    // adjust Transmitted SVC quality by adjusting sent encodings
+    updateTransmittedSvcQuality(txSpt);
 }
 
 std::vector<karere::Id> Call::getParticipants() const
@@ -834,8 +890,8 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 void Call::joinSfu()
 {
     mRtcConn = artc::MyPeerConnection<Call>(*this);
-
-    createTransceivers();
+    size_t hiresTrackIndex = 0;
+    createTransceivers(hiresTrackIndex);
     mSpeakerState = SpeakerState::kPending;
     getLocalStreams();
     setState(CallState::kStateJoining);
@@ -845,7 +901,7 @@ void Call::joinSfu()
     options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     auto wptr = weakHandle();
     mRtcConn.createOffer(options)
-    .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
+    .then([wptr, this, hiresTrackIndex](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
     {
         if (wptr.deleted())
         {
@@ -866,8 +922,20 @@ void Call::joinSfu()
             return ::promise::Error("Failure at initialization. Call destroyed or disconnect");
         }
 
-        KR_THROW_IF_FALSE(sdp->ToString(&mSdp));
-        return mRtcConn.setLocalDescription(std::unique_ptr<webrtc::SessionDescriptionInterface>(sdp));   // takes onwership of sdp
+        KR_THROW_IF_FALSE(sdp->ToString(&mSdpStr));
+        sfu::Sdp mungedSdp(mSdpStr, static_cast<int64_t>(hiresTrackIndex)); // Create a Sdp instance from String and modify it to enable SVC
+        std::string sdpUncompress = mungedSdp.unCompress(); // get string from modified Sdp instance
+
+        webrtc::SdpParseError error;
+        std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
+        if (!sdpInterface)
+        {
+            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
+        }
+
+        // update mSdpStr with modified SDP
+        KR_THROW_IF_FALSE(sdpInterface->ToString(&mSdpStr));
+        return mRtcConn.setLocalDescription(std::move(sdpInterface));   // takes onwership of sdp
     })
     .then([wptr, this]()
     {
@@ -882,8 +950,7 @@ void Call::joinSfu()
             return;
         }
 
-        sfu::Sdp sdp(mSdp);
-
+        sfu::Sdp sdp(mSdpStr);
         std::map<std::string, std::string> ivs;
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
@@ -898,7 +965,7 @@ void Call::joinSfu()
     });
 }
 
-void Call::createTransceivers()
+void Call::createTransceivers(size_t &hiresTrackIndex)
 {
     assert(mRtcConn);
 
@@ -907,19 +974,20 @@ void Call::createTransceivers()
     transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> err
             = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitVThumb);
-    mVThumb = ::mega::make_unique<RemoteVideoSlot>(*this, err.MoveValue());
+    mVThumb = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
     mVThumb->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitHiRes;
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
-    mHiRes = ::mega::make_unique<RemoteVideoSlot>(*this, err.MoveValue());
+    hiresTrackIndex = mRtcConn->GetTransceivers().size() - 1; // keep this sentence just after add transceiver for hiRes track
+    mHiRes = ::mega::make_unique<LocalHighResolutionSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitAudio;
     transceiverInitAudio.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_AUDIO, transceiverInitAudio);
-    mAudio = ::mega::make_unique<Slot>(*this, err.MoveValue());
+    mAudio = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
     mAudio->generateRandomIv();
 
     // create transceivers for receiving audio from peers
@@ -992,12 +1060,6 @@ void Call::disconnect(TermCode termCode, const std::string &)
     {
         mSfuClient.closeSfuConnection(mChatid);
         mSfuConnection = nullptr;
-    }
-
-    // I'm the last one participant, it isn't necessary set kStateClientNoParticipating
-    if (mParticipants.size() == 0 ||  (mParticipants.size() == 1 && mParticipants.at(0) == mMyPeer->getPeerid()))
-    {
-        return;
     }
 
     mTermCode = kInvalidTermCode;
@@ -1490,7 +1552,7 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
         std::string value = mid.value();
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
         {
-            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<Slot>(*this, transceiver);
+            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver);
         }
         else
         {
@@ -1672,7 +1734,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
     }
 }
 
-void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResolution hiRes)
+void Call::attachSlotToSession (Cid_t cid, RemoteSlot* slot, bool audio, VideoResolution hiRes)
 {
     Session *session = getSession(cid);
     assert(session);
@@ -1684,7 +1746,7 @@ void Call::attachSlotToSession (Cid_t cid, Slot* slot, bool audio, VideoResoluti
 
     if (audio)
     {
-        session->setAudioSlot(slot);
+        session->setAudioSlot(static_cast<RemoteAudioSlot *>(slot));
     }
     else
     {
@@ -1708,7 +1770,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
-    Slot *slot = it->second.get();
+    RemoteAudioSlot* slot = static_cast<RemoteAudioSlot*>(it->second.get());
     if (slot->getCid() != cid)
     {
         Session *oldSess = getSession(slot->getCid());
@@ -1725,7 +1787,8 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         RTCM_LOG_WARNING("AddSpeaker: unknown cid");
         return;
     }
-    slot->assign(cid, speaker.mIv);
+
+    slot->assignAudioSlot(cid, speaker.mIv);
     attachSlotToSession(cid, slot, true, kUndefined);
 }
 
@@ -1837,7 +1900,7 @@ void Call::collectNonRTCStats()
     }
 
     // TODO: pending to implement disabledTxLayers in future if needed
-    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex);
+    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex | mHiRes->getSentLayers() << 8);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
@@ -1925,10 +1988,12 @@ void Call::updateVideoTracks()
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
                 mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
+                mHiRes->setTsStart(::mega::m_time(nullptr));
             }
             else if (!mHiResActive)
             {
                 // if there is a track, but none in the call has requested hi res video, disable the track
+                mHiRes->setTsStart(0);
                 mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
             }
         }
@@ -1940,7 +2005,6 @@ void Call::updateVideoTracks()
             {
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-                webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
                 mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
             }
             else if (!mVThumbActive)
@@ -2014,7 +2078,7 @@ void Call::adjustSvcByStats()
         // if retrieved rtt OR packetLost have increased respect current values decrement 1 layer
         // we want to decrease layer when references values (mRttUpper and mPacketLostUpper)
         // have been exceeded.
-        switchSvcQuality(-1);
+        updateSvcQuality(-1);
     }
     else if (mSvcDriver.mCurrentSvcLayerIndex < mSvcDriver.kMaxQualityIndex
              && roundTripTime < mSvcDriver.mRttLower
@@ -2023,10 +2087,8 @@ void Call::adjustSvcByStats()
         // if retrieved rtt AND packetLost have decreased respect current values increment 1 layer
         // we only want to increase layer when the improvement is bigger enough to represents a
         // faithfully improvement in network quality, we take mRttLower and mPacketLostLower as references
-        switchSvcQuality(+1);
+        updateSvcQuality(+1);
     }
-
-    // TODO check if there's CPU/bandwidth starvation and disableHighestSvcRes if proceed
 }
 
 const std::string& Call::getCallKey() const
@@ -2118,6 +2180,11 @@ ICall *RtcModuleSfu::findCallByChatid(const karere::Id &chatid)
     return nullptr;
 }
 
+bool RtcModuleSfu::isCallStartInProgress(const karere::Id &chatid) const
+{
+    return mCallStartAttempts.find(chatid) != mCallStartAttempts.end();
+}
+
 bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
 {
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
@@ -2162,17 +2229,20 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 
 promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey)
 {
+    // add chatid to CallsAttempts to avoid multiple start call attempts
+    mCallStartAttempts.insert(chatid);
+
     // we need a temp string to avoid issues with lambda shared pointer capture
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
     .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result) -> promise::Promise<void>
     {
+        wptr.throwIfDeleted();
         std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
                 ? std::make_shared<std::string>(auxCallKey)
                 : nullptr;
 
-        wptr.throwIfDeleted();
         karere::Id callid = result->getParentHandle();
         std::string sfuUrlStr = result->getText();
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
@@ -2190,6 +2260,13 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
                return promise::_Void();
             }
         }
+        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
+    })
+    .fail([wptr, this, chatid](const ::promise::Error& err)
+    {
+        wptr.throwIfDeleted();
+        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
+        return err;
     });
 }
 
@@ -2267,6 +2344,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
             call->disconnect(termCode);
         }
 
+        RTCM_LOG_WARNING("Removing call with callid: %s", call->getCallid().toString().c_str());
         mCalls.erase(call->getCallid());
     }
 }
@@ -2285,11 +2363,6 @@ void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, cons
     {
         mCalls[callid]->removeParticipant(peer);
     }
-}
-
-void RtcModuleSfu::handleCallEnd(karere::Id /*chatid*/, karere::Id callid, uint8_t /*reason*/)
-{
-    mCalls.erase(callid);
 }
 
 void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey)
@@ -2489,25 +2562,46 @@ Slot::~Slot()
     }
 }
 
-uint32_t Slot::getTransceiverMid()
+uint32_t Slot::getTransceiverMid() const
 {
     if (!mTransceiver->mid())
     {
         assert(false);
+        RTCM_LOG_WARNING("We have received a transceiver without 'mid'");
         return 0;
     }
+
     return atoi(mTransceiver->mid()->c_str());
 }
 
-void Slot::createEncryptor()
+void RemoteSlot::release()
 {
-    mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
-                                                                      mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv, getTransceiverMid()));
+    if (!mCid)
+    {
+        return;
+    }
+
+    mIv = 0;
+    mCid = 0;
+
+    enableTrack(false, kRecv);
+    rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = getTransceiver()->receiver()->GetFrameDecryptor();
+    static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
+    getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
 }
 
-void Slot::createDecryptor()
+void RemoteSlot::assign(Cid_t cid, IvStatic_t iv)
 {
+    assert(!mCid);
+    createDecryptor(cid, iv);
+    enableTrack(true, kRecv);
+}
+
+void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
+{
+    mCid = cid;
+    mIv = iv;
+
     auto it = mCall.getSessions().find(mCid);
     if (it == mCall.getSessions().end())
     {
@@ -2520,79 +2614,12 @@ void Slot::createDecryptor()
                                                                       mIv, getTransceiverMid()));
 }
 
-webrtc::RtpTransceiverInterface *Slot::getTransceiver()
+RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+    : Slot(call, transceiver)
 {
-    return mTransceiver.get();
 }
 
-Cid_t Slot::getCid() const
-{
-    return mCid;
-}
-
-void Slot::assign(Cid_t cid, IvStatic_t iv)
-{
-    assert(!mCid);
-    createDecryptor(cid, iv);
-    enableTrack(true, kRecv);
-    if (mTransceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
-    {
-        enableAudioMonitor(true); // enable audio monitor
-    }
-}
-
-bool Slot::hasTrack(bool send)
-{
-    assert(mTransceiver);
-
-    if (send && !mTransceiver->sender())
-    {
-        RTCM_LOG_WARNING("Sender transceiver wrongly initialized");
-        assert(false);
-        return false;
-    }
-    if (!send && !mTransceiver->receiver())
-    {
-        RTCM_LOG_WARNING("Receiver transceiver wrongly initialized");
-        assert(false);
-        return false;
-    }
-
-    return send
-            ? mTransceiver->sender()->track()
-            : mTransceiver->receiver()->track();
-}
-
-void Slot::createDecryptor(Cid_t cid, IvStatic_t iv)
-{
-    mCid = cid;
-    mIv = iv;
-    createDecryptor();
-
-    if (mTransceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
-    {
-        mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
-    }
-}
-
-void Slot::enableAudioMonitor(bool enable)
-{
-    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
-    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
-    assert(audioTrack);
-    if (enable && !mAudioLevelMonitorEnabled)
-    {
-        mAudioLevelMonitorEnabled = true;
-        audioTrack->AddSink(mAudioLevelMonitor.get());     // enable AudioLevelMonitor for remote audio detection
-    }
-    else if (!enable && mAudioLevelMonitorEnabled)
-    {
-        mAudioLevelMonitorEnabled = false;
-        audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
-    }
-}
-
-void Slot::enableTrack(bool enable, TrackDirection direction)
+void RemoteSlot::enableTrack(bool enable, TrackDirection direction)
 {
     assert(mTransceiver);
     if (direction == kRecv)
@@ -2605,41 +2632,76 @@ void Slot::enableTrack(bool enable, TrackDirection direction)
     }
 }
 
-IvStatic_t Slot::getIv() const
+LocalSlot::LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+    : Slot(call, transceiver)
 {
-    return mIv;
 }
 
-void Slot::generateRandomIv()
+void LocalSlot::createEncryptor()
+{
+    mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
+                                                                      mCall.getSfuClient().getRtcCryptoMeetings(),
+                                                                      mIv, getTransceiverMid()));
+}
+
+void LocalSlot::generateRandomIv()
 {
     randombytes_buf(&mIv, sizeof(mIv));
 }
 
-void Slot::release()
+LocalHighResolutionSlot::LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+    : LocalSlot(call, transceiver)
+    , mTsStart(0)
+    , mSentLayers(kTxSpatialLayerCount)
 {
-    if (!mCid)
+}
+
+void LocalHighResolutionSlot::updateSentLayers(int8_t sentLayers)
+{
+    mSentLayers = sentLayers;
+
+    if (!getTransceiver()->sender()->track())
     {
+        RTCM_LOG_WARNING("updateSentLayers: Currently not sending HI-RES track, will only record sentLayers value");
         return;
     }
 
-    mIv = 0;
-    mCid = 0;
-
-    if (mAudioLevelMonitor)
+    // each vector element describes a single configuration of a codec for an RTPSender
+    webrtc::RtpParameters parameters = getTransceiver()->sender()->GetParameters();
+    std::vector<webrtc::RtpEncodingParameters> encs = parameters.encodings;
+    if (encs.empty() || encs.size() < 2)
     {
-        enableAudioMonitor(false);
-        mAudioLevelMonitor = nullptr;
-        mAudioLevelMonitorEnabled = false;
+        RTCM_LOG_WARNING("updateSentLayers: There is no SVC enabled for this sender");
+        return;
     }
 
-    enableTrack(false, kRecv);
-    rtc::scoped_refptr<webrtc::FrameDecryptorInterface> decryptor = getTransceiver()->receiver()->GetFrameDecryptor();
-    static_cast<artc::MegaDecryptor*>(decryptor.get())->setTerminating();
-    getTransceiver()->receiver()->SetFrameDecryptor(nullptr);
+    for (size_t i = 0; i < encs.size(); i++)
+    {
+        encs[i].active = i < static_cast<size_t>(mSentLayers);
+    }
+
+    RTCM_LOG_WARNING("updateSentLayers: Enabling first %d sent layers",mSentLayers);
+    getTransceiver()->sender()->SetParameters(parameters);
+}
+
+void LocalHighResolutionSlot::setTsStart(::mega::m_time_t t)
+{
+    mTsStart = t;
+}
+
+::mega::m_time_t LocalHighResolutionSlot::getTsStart()
+{
+    return mTsStart;
+}
+
+int8_t LocalHighResolutionSlot::getSentLayers()
+{
+    return mSentLayers;
 }
 
 RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : Slot(call, transceiver)
+    : RemoteSlot(call, transceiver)
+    , VideoSink()
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
@@ -2709,7 +2771,7 @@ void RemoteVideoSlot::assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution 
 
 void RemoteVideoSlot::release()
 {
-    Slot::release();
+    RemoteSlot::release();
     mVideoResolution = VideoResolution::kUndefined;
 }
 
@@ -2718,11 +2780,69 @@ VideoResolution RemoteVideoSlot::getVideoResolution() const
     return mVideoResolution;
 }
 
+bool RemoteVideoSlot::hasTrack()
+{
+    assert(mTransceiver);
+
+    if (mTransceiver->receiver())
+    {
+        return  mTransceiver->receiver()->track();
+    }
+
+    return false;
+
+}
+
 void RemoteVideoSlot::enableTrack()
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
     videoTrack->set_enabled(true);
+}
+
+RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+    : RemoteSlot(call, transceiver)
+{
+}
+
+void RemoteAudioSlot::assignAudioSlot(Cid_t cid, IvStatic_t iv)
+{
+    assign(cid, iv);
+    enableAudioMonitor(true);   // Enable audio monitor
+}
+
+void RemoteAudioSlot::enableAudioMonitor(bool enable)
+{
+    rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
+    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
+    assert(audioTrack);
+    if (enable && !mAudioLevelMonitorEnabled)
+    {
+        mAudioLevelMonitorEnabled = true;
+        audioTrack->AddSink(mAudioLevelMonitor.get());     // enable AudioLevelMonitor for remote audio detection
+    }
+    else if (!enable && mAudioLevelMonitorEnabled)
+    {
+        mAudioLevelMonitorEnabled = false;
+        audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
+    }
+}
+
+void RemoteAudioSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
+{
+    RemoteSlot::createDecryptor(cid, iv);
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
+}
+
+void RemoteAudioSlot::release()
+{
+    RemoteSlot::release();
+    if (mAudioLevelMonitor)
+    {
+        enableAudioMonitor(false);
+        mAudioLevelMonitor = nullptr;
+        mAudioLevelMonitorEnabled = false;
+    }
 }
 
 void globalCleanup()
@@ -2782,12 +2902,12 @@ void Session::setAudioDetected(bool audioDetected)
 
 bool Session::hasHighResolutionTrack() const
 {
-    return mHiresSlot && mHiresSlot->hasTrack(false);
+    return mHiresSlot && mHiresSlot->hasTrack();
 }
 
 bool Session::hasLowResolutionTrack() const
 {
-    return mVthumSlot && mVthumSlot->hasTrack(false);
+    return mVthumSlot && mVthumSlot->hasTrack();
 }
 
 void Session::notifyHiResReceived()
@@ -2819,7 +2939,7 @@ void Session::setHiResSlot(RemoteVideoSlot *slot)
     mSessionHandler->onHiResReceived(*this);
 }
 
-void Session::setAudioSlot(Slot *slot)
+void Session::setAudioSlot(RemoteAudioSlot *slot)
 {
     mAudioSlot = slot;
     setSpeakRequested(false);
@@ -2846,7 +2966,7 @@ void Session::setAvFlags(karere::AvFlags flags)
         : mSessionHandler->onRemoteFlagsChanged(*this); // notify remote AvFlags Change
 }
 
-Slot *Session::getAudioSlot()
+RemoteAudioSlot *Session::getAudioSlot()
 {
     return mAudioSlot;
 }

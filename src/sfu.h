@@ -71,22 +71,6 @@ public:
     bool mReuse = false;
 };
 
-class SpeakersDescriptor
-{
-public:
-    SpeakersDescriptor();
-    SpeakersDescriptor(const std::string& audioDescriptor, const std::string& videoDescriptor);
-    std::string getAudioDescriptor() const;
-    std::string getVideoDescriptor() const;
-    void setDescriptors(const std::string& audioDescriptor, const std::string& videoDescriptor);
-    IvStatic_t mIv;
-    std::string mMid;
-
-protected:
-    std::string mAudioDescriptor;
-    std::string mVideoDescriptor;
-};
-
 class Sdp
 {
 public:
@@ -103,7 +87,7 @@ public:
     };
 
     // ctor from session-description provided by WebRTC (string format)
-    Sdp(const std::string& sdp);
+    Sdp(const std::string& sdp, int64_t mungedTrackIndex = -1);
 
     // ctor from session-description from SFU (JSON format)
     Sdp(const rapidjson::Value& sdp);
@@ -118,6 +102,9 @@ private:
     // process 'lines' of (webrtc) session description from 'position', for 'type' (atpl, vtpl) and adds them to 'mData'
     // it returns the final position after reading lines
     unsigned int createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position);
+
+    // Enable SVC by modifying SDP message, generated using createOffer, and before providing it to setLocalDescription.
+    void mungeSdpForSvc(Sdp::Track &track);
 
     // process 'lines' of (webrtc) session description from 'position' and adds them to 'mTracks'
     unsigned int addTrack(const std::vector<std::string>& lines, unsigned int position);
@@ -190,7 +177,6 @@ public:
     static uint64_t hexToBinary(const std::string& hex);
 protected:
     Command(SfuInterface& call);
-    void parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator& it) const;
     bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
     static uint8_t hexDigitVal(char value);
 
@@ -219,8 +205,6 @@ public:
 private:
     void parsePeerObject(std::vector<Peer>&peers, rapidjson::Value::ConstMemberIterator& it) const;
     void parseTracks(const std::vector<Peer>&peers, std::map<Cid_t, TrackDescriptor> &tracks, rapidjson::Value::ConstMemberIterator& it, bool audio) const;
-    void parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator& it) const;
-    void parseVthumsObject(std::map<Cid_t, TrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
 };
 
 typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;
