@@ -204,7 +204,7 @@ void DNScache::addRecord(int shard, const std::string &url, std::shared_ptr<Buff
 {    
     if (hasRecord(shard))
     {
-        assert(false);
+        assert(hasRecord(shard));
         return;
     }
 
@@ -301,7 +301,7 @@ void DNScache::loadFromDb()
         }
         else
         {
-            assert(false);  // there shouldn't be emtpy urls in cache
+            assert(!url.size());  // there shouldn't be emtpy urls in cache
             mDb.query("delete from dns_cache where shard=?", shard);
         }
     }
@@ -469,14 +469,14 @@ bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> 
 {
     if (host.empty())
     {
-        assert(false);
+        assert(host.empty());
         DNSCACHE_LOG_ERROR("addRecordByHost: empty host");
         return false;
     }
 
     if (hasRecordByHost(host))
     {
-        assert(false);
+        assert(hasRecordByHost(host));
         DNSCACHE_LOG_ERROR("addRecordByHost: we already have a record in DNS cache for that host");
         return false;
     }
