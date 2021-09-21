@@ -103,7 +103,7 @@ public:
     // DNS cache methods to manage records based on host instead of shard
     enum: int8_t { kSfuShardStart = -20,  kSfuShardEnd = -128};
     bool addRecordByHost(const std::string &host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true);
-    bool hasRecordByHost(const std::string &host);
+    bool hasRecordByHost(const std::string &host) const;
     DNSrecord* getRecordByHost(const std::string &host);
     void connectDoneByHost(const std::string &host, const std::string &ip);
     bool getIpByHost(const std::string &host, std::string &ipv4, std::string &ipv6);
