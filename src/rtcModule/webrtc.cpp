@@ -828,6 +828,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
     }
 
     mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
+    return true;
 }
 
 void Call::joinSfu()
