@@ -277,6 +277,17 @@ const karere::Url &DNScache::getUrl(int shard)
     return it->second.mUrl;
 }
 
+void DNScache::updateCurrentShardForSfuFromDb()
+{
+    SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
+    stmt << kSfuShardStart << kSfuShardEnd;
+    if (stmt.step())
+    {
+        assert(stmt.intCol(0) <= kSfuShardStart && stmt.intCol(0) >= kSfuShardEnd);
+        mCurrentShardForSfu = stmt.intCol(0);
+    }
+}
+
 void DNScache::loadFromDb()
 {
     SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6, sess_data from dns_cache");
@@ -305,6 +316,9 @@ void DNScache::loadFromDb()
             mDb.query("delete from dns_cache where shard=?", shard);
         }
     }
+
+    // retrieve min SFU shard from DB and update mCurrentShardForSfu
+    updateCurrentShardForSfuFromDb();
 }
 
 bool DNScache::setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
