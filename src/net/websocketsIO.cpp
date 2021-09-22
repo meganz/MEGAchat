@@ -479,7 +479,7 @@ std::vector<CachedSession> DNScache::getTlsSessions()
 }
 
 // DNS cache methods to manage records based on host instead of shard
-bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb)
+bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard)
 {
     if (host.empty())
     {
@@ -488,35 +488,40 @@ bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> 
         return false;
     }
 
-    if (hasRecordByHost(host))
+    if (hasRecordByHost(host) && saveToDb)
     {
         assert(!hasRecordByHost(host));
         DNSCACHE_LOG_ERROR("addRecordByHost: we already have a record in DNS cache for that host");
         return false;
     }
 
-    if (mCurrentShardForSfu <= kSfuShardEnd)
-    {
-        /* in case we have reached kSfuShardEnd, we need to reset mCurrentShardForSfu and remove
-         * the current record in cache for that shard value
-         */
-        mCurrentShardForSfu = kSfuShardStart;
-        removeRecord(mCurrentShardForSfu);
-    }
-
-    DNSrecord record(host, sess); // add record in DNS cache based on host instead full URL
-    mRecords[mCurrentShardForSfu] = record;
-
     if (saveToDb)
     {
+        if (mCurrentShardForSfu <= kSfuShardEnd)
+        {
+            /* in case we have reached kSfuShardEnd, we need to reset mCurrentShardForSfu and remove
+             * the current record in cache for that shard value
+             */
+            mCurrentShardForSfu = kSfuShardStart;
+            removeRecord(mCurrentShardForSfu);
+        }
+        DNSrecord record(host, sess); // add record in DNS cache based on host instead full URL
+        mRecords[mCurrentShardForSfu] = record;
+
         /* For every starting/joining meeting attempt, it's mandatory to send mcms/mcmj command to API.
          * In both cases API returns the SFU server URL where we have to connect to, so we don't
          * need to store full URL(URL+path) in dns cache, as we have already stored in memory.
          */
         mDb.query("insert or replace into dns_cache(shard, url) values(?,?)", mCurrentShardForSfu, host);
+        mCurrentShardForSfu--; // decrement mCurrentShardForSfu
+    }
+    else // loading records from DB to rebuilt DNS cache (in RAM) from scratch
+    {
+        // use shard param as key and don't update mCurrentShardForSfu, this must be done outside this method
+        DNSrecord record(host, sess); // add record in DNS cache based on host instead full URL
+        mRecords[shard] = record;
     }
 
-    mCurrentShardForSfu--; // decrement mCurrentShardForSfu
     return true;
 }
 
