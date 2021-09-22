@@ -6,7 +6,9 @@
 #include <api/video_codecs/builtin_video_encoder_factory.h>
 #include <api/video_codecs/builtin_video_decoder_factory.h>
 #include <modules/video_capture/video_capture_factory.h>
+#include <modules/audio_processing/include/audio_processing.h>
 #include <rtc_base/ssl_adapter.h>
+#include <system_wrappers/include/field_trial.h>
 
 #ifdef __ANDROID__
 extern JavaVM *MEGAjvm;
@@ -18,6 +20,8 @@ extern jmethodID deviceListMID;
 extern jobject surfaceTextureHelper;
 #endif
 
+using namespace CryptoPP;
+
 namespace artc
 {
 
@@ -25,6 +29,9 @@ namespace artc
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = nullptr;
 std::unique_ptr<rtc::Thread> gWorkerThread = nullptr;
 std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
+rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing = nullptr;
+std::string gFieldTrialStr;
+
 void *gAppCtx = nullptr;
 
 static bool gIsInitialized = false;
@@ -39,11 +46,20 @@ bool init(void *appCtx)
 
     if (gWebrtcContext == nullptr)
     {
+        // Enable SVC encoding with the following configuration (3 spatial Layers | 3 temporal Layers)
+        gFieldTrialStr = (webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/", "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/"));
+        gFieldTrialStr = webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-Video-DisableAutomaticResize/Enabled/", gFieldTrialStr.c_str());
+        webrtc::field_trial::InitFieldTrialsFromString(gFieldTrialStr.c_str()); // trials_string must never be destroyed.
+
         gWorkerThread = rtc::Thread::Create();
         gWorkerThread->Start();
-
         gSignalingThread = rtc::Thread::Create();
         gSignalingThread->Start();
+
+        gAudioProcessing = rtc::scoped_refptr<webrtc::AudioProcessing>(webrtc::AudioProcessingBuilder().Create());
+        webrtc::AudioProcessing::Config audioConfig = gAudioProcessing->GetConfig();
+        audioConfig.voice_detection.enabled = true;
+        gAudioProcessing->ApplyConfig(audioConfig);
 
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
                     nullptr /*networThread*/, gWorkerThread.get() /*workThread*/,
@@ -52,13 +68,12 @@ bool init(void *appCtx)
                     webrtc::CreateBuiltinAudioDecoderFactory(),
                     webrtc::CreateBuiltinVideoEncoderFactory(),
                     webrtc::CreateBuiltinVideoDecoderFactory(),
-                    nullptr /* audio_mixer */, nullptr /* audio_processing */);
+                    nullptr /* audio_mixer */, gAudioProcessing);
     }
 
     if (!gWebrtcContext)
         throw std::runtime_error("Error creating peerconnection factory");
     gIsInitialized = true;
-
     return true;
 }
 
@@ -66,8 +81,7 @@ void cleanup()
 {
     if (!gIsInitialized)
         return;
-    gWebrtcContext.release();
-    gWebrtcContext = NULL;
+    gWebrtcContext = nullptr;
     rtc::CleanupSSL();
     rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
     gIsInitialized = false;
@@ -87,7 +101,6 @@ CaptureModuleLinux::CaptureModuleLinux(const webrtc::VideoCaptureCapability &cap
       mRemote(remote),
       mCapabilities(capabilities)
 {
-    mWorkerThreadChecker.Detach();
 }
 
 CaptureModuleLinux::~CaptureModuleLinux()
@@ -126,13 +139,11 @@ bool CaptureModuleLinux::GetStats(webrtc::VideoTrackSourceInterface::Stats *stat
 
 void CaptureModuleLinux::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
 {
-    RTC_DCHECK(mWorkerThreadChecker.IsCurrent());
     mBroadcaster.AddOrUpdateSink(sink, wants);
 }
 
 void CaptureModuleLinux::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
 {
-    RTC_DCHECK(mWorkerThreadChecker.IsCurrent());
     mBroadcaster.RemoveSink(sink);
 }
 
@@ -159,8 +170,8 @@ std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevic
     uint32_t numDevices = info->NumberOfDevices();
     for (uint32_t i = 0; i < numDevices; i++)
     {
-        char deviceName[256];
-        char uniqueName[256];
+        char deviceName[256]; // Friendly name of the capture device.
+        char uniqueName[256]; // Unique name of the capture device if it exist.
         info->GetDeviceName(i, deviceName, sizeof(deviceName), uniqueName, sizeof(uniqueName));
         videoDevices.insert(std::pair<std::string, std::string>(deviceName, uniqueName));
     }
@@ -227,7 +238,7 @@ void LocalStreamHandle::setAv(karere::AvFlags av)
         mAudio->set_enabled(audio);
     }
 
-    bool video = av.video();
+    bool video = av.videoCam();
     if (mVideo && mVideo->enabled() != video)
     {
         mVideo->set_enabled(video);
@@ -273,7 +284,7 @@ VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabil
 #endif
 }
 
-std::set<std::pair<std::string, std::string> > VideoManager::getVideoDevices()
+std::set<std::pair<std::string, std::string>> VideoManager::getVideoDevices()
 {
     #ifdef __APPLE__
         return OBJCCaptureModule::getVideoDevices();
@@ -300,12 +311,278 @@ rtc::RefCountReleaseStatus VideoManager::Release() const
     return status;
 }
 
+RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv, uint32_t mid)
+    : mPeer(peer)
+    , mCryptoMeetings(cryptoMeetings)
+    , mIv(iv)
+    , mMid(mid)
+{
+
+}
+
+void RtcCipher::setKey(const std::string &key)
+{
+    const unsigned char *newKey = reinterpret_cast<const unsigned char*>(key.data());
+    mSymCipher.setkey(newKey);
+}
+
+void RtcCipher::setTerminating()
+{
+    mTerminating = true;
+}
+
+/* frame IV format: <frameIv.12> = <frameCtr.4> <staticIv.8> */
+std::unique_ptr<byte []> RtcCipher::generateFrameIV()
+{
+    std::unique_ptr<byte []> iv(new byte[FRAME_IV_LENGTH]);
+    memcpy(iv.get(), &mCtr, FRAME_CTR_LENGTH);
+    memcpy(iv.get() + FRAME_CTR_LENGTH, &mIv, FRAME_IV_LENGTH - FRAME_CTR_LENGTH);
+    return iv;
+}
+
+MegaEncryptor::MegaEncryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv, uint32_t mid)
+    : RtcCipher(peer, cryptoMeetings, iv, mid)
+{
+}
+
+MegaEncryptor::~MegaEncryptor()
+{
+}
+
+void MegaEncryptor::incrementPacketCtr()
+{
+    (mCtr < UINT32_MAX)
+            ? mCtr++
+            : mCtr = 1;   // reset packet ctr if max value has been reached
+}
+
+/*
+ * Frame format: header.8: <keyId.1> <CID.3> <packetCTR.4>
+ * Note: (keyId.1 senderCID.3) and packetCtr.4 are little-endian (No need byte-order swap) 32-bit integers.
+ */
+void MegaEncryptor::generateHeader(uint8_t *header)
+{
+    Keyid_t keyId = mPeer.getCurrentKeyId();
+    memcpy(header, &keyId, FRAME_KEYID_LENGTH);
+
+    Cid_t cid = mPeer.getCid();
+    uint8_t offset = FRAME_KEYID_LENGTH;
+    memcpy(header + offset, &cid, FRAME_CID_LENGTH);
+
+    offset += FRAME_CID_LENGTH;
+    memcpy(header + offset, &mCtr, FRAME_CTR_LENGTH);
+}
+
+
+// encrypted_frame: <header.8> <encrypted.data.varlen> <GCM_Tag.4>
+int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc::ArrayView<const uint8_t> /*additional_data*/, rtc::ArrayView<const uint8_t> frame, rtc::ArrayView<uint8_t> encrypted_frame, size_t *bytes_written)
+{
+    if (mTerminating)
+    {
+        // kRecoverable should be returned if the failure was due to something other than a encryption failure
+        return kRecoverable;
+    }
+
+    if (!frame.size())
+    {
+        RTCM_LOG_WARNING("Encrypt: given frame to be encrypted is empty");
+        return kRecoverable;
+    }
+
+    // get keyId for peer
+    Keyid_t currentKeyId = mPeer.getCurrentKeyId();
+    if (currentKeyId != mKeyId || !mInitialized)
+    {
+        // If there's no key armed in SymCipher or keyId doesn't match with current one
+        mKeyId = currentKeyId;
+        std::string encryptionKey = mPeer.getKey(currentKeyId);
+        if (encryptionKey.empty())
+        {
+
+            RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d, MyCid %d, MyPeerid: %s, frameCtr: %d",
+                             currentKeyId, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mCtr);
+            return kRecoverable;
+        }
+        setKey(encryptionKey);
+
+        if (!mInitialized)
+        {
+            mInitialized = true;
+        }
+    }
+
+    // generate frame iv
+    mega::unique_ptr<byte []> iv = generateFrameIV();
+
+    // generate header and store in encrypted_frame
+    generateHeader(encrypted_frame.data());
+
+    // encrypt frame and store it in encrypted_frame
+    bool result = mSymCipher.gcm_encrypt_aad(frame.data(), frame.size(), encrypted_frame.data(),
+                                             FRAME_HEADER_LENGTH, iv.get(),
+                                             FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH,
+                                             encrypted_frame.data()+FRAME_HEADER_LENGTH,  // header offset
+                                             encrypted_frame.size()-FRAME_HEADER_LENGTH); // size - header
+    if (!result)
+    {
+        RTCM_LOG_WARNING("Failed gcm_encrypt_aad encryption with additional authenticated data: MyCid: %d, MyPeerId: %s, KeyId: %d, frameCtr: %d",
+                         mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr - 1);
+        return kRecoverable;
+    }
+
+    // set bytes_written to the number of bytes, written in encrypted_frame
+    assert(GetMaxCiphertextByteSize(media_type, frame.size()) == encrypted_frame.size());
+    *bytes_written = encrypted_frame.size();
+    size_t expectedSize = GetMaxCiphertextByteSize(media_type, frame.size());
+    if (expectedSize != *bytes_written)
+    {
+        RTCM_LOG_WARNING("Encrypt: Frame size: %d doesn't match with expected size: %d MyCid: %d, MyPeerId: %s, KeyId: %d, frameCtr: %d",
+                         *bytes_written, expectedSize, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr - 1);
+        return kRecoverable;
+    }
+
+    // increment packetCtr, if encryption process has succeeded
+    incrementPacketCtr();
+    return kOk;
+}
+
+size_t MegaEncryptor::GetMaxCiphertextByteSize(cricket::MediaType /*media_type*/, size_t frame_size)
+{
+    // header size + frame size + GCM authentication tag size
+    return FRAME_HEADER_LENGTH + frame_size + FRAME_GCM_TAG_LENGTH;
+}
+
+MegaDecryptor::MegaDecryptor(const sfu::Peer& peer, std::shared_ptr<::rtcModule::IRtcCryptoMeetings>cryptoMeetings, IvStatic_t iv,  uint32_t mid)
+    : RtcCipher(peer, cryptoMeetings, iv, mid)
+{
+}
+
+MegaDecryptor::~MegaDecryptor()
+{
+}
+
+
+/*
+ * header format: <header.8> = <keyId.1> <cid.3> <packetCTR.4>
+ * Note: (keyId.1 senderCID.3) and packetCtr.4 are little-endian (No need byte-order swap) 32-bit integers.
+ */
+int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header)
+{
+    assert(header.size() == FRAME_HEADER_LENGTH);
+    const uint8_t *headerData = header.data();
+
+    // extract keyId from header
+    Keyid_t auxKeyId = 0;
+    memcpy(&auxKeyId, headerData, FRAME_KEYID_LENGTH);
+
+    // extract CID from header, and check if matches with expected one
+    uint8_t offset = FRAME_KEYID_LENGTH;
+    Cid_t peerCid = 0;
+    memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
+
+    // extract packet ctr from header, and update mCtr (ctr will be used to generate an IV to decrypt the frame)
+    offset += FRAME_CID_LENGTH;
+    memcpy(&mCtr, headerData + offset, FRAME_CTR_LENGTH);
+
+    if (peerCid != mPeer.getCid())
+    {
+        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d, "
+                         "mid: %d peerid: %s, keyid: %d, frameCtr: %d", mPeer.getCid(), peerCid,
+                         mMid, mPeer.getPeerid().toString().c_str(), auxKeyId, mCtr);
+        return static_cast<int>(Status::kRecoverable); // recoverable error
+    }
+
+    if (auxKeyId != mKeyId || !mInitialized)
+    {
+        // If there's no key armed in SymCipher or keyId doesn't match with current one
+        std::string decryptionKey = mPeer.getKey(auxKeyId);
+        if (decryptionKey.empty())
+        {
+            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with Frame keyId: %d, mid: %d, peercid: %d, peerid: %s, frameCtr: %d",
+                             auxKeyId, mMid, peerCid, mPeer.getPeerid().toString().c_str(), mCtr);
+            return static_cast<int>(Status::kRecoverable); // decryption error
+        }
+
+        mKeyId = auxKeyId;
+        setKey(decryptionKey);
+
+        if (!mInitialized)
+        {
+            mInitialized = true;
+        }
+    }
+
+    return static_cast<int>(Status::kOk);
+}
+
+/* frame format: <receivedFrame.N> = <header.8> <encframeData.M> <gcmTag.4>
+ * Note: encframeData length (M) = receivedFrame_length(N) - header_length(8) - gcmTag_length(4) */
+webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaType media_type, const std::vector<uint32_t> &/*csrcs*/, rtc::ArrayView<const uint8_t> /*additional_data*/, rtc::ArrayView<const uint8_t> encrypted_frame, rtc::ArrayView<uint8_t> frame)
+{
+    if (mTerminating)
+    {
+        // kRecoverable should be returned if the failure was due to something other than a decryption failure
+        return Result(Status::kRecoverable, 0);
+    }
+
+    if (encrypted_frame.empty())
+    {
+        // error with the given frame, don't pass to the decoder, but the receive stream is still decryptable
+        RTCM_LOG_WARNING("Decrypt: received frame to be decrypted is empty");
+        return Result(Status::kRecoverable, 0);
+    }
+
+    // extract header, encrypted frame data, and gcmTag(message hash or MAC) from encrypted_frame
+    rtc::ArrayView<const byte> header = encrypted_frame.subview(0, FRAME_HEADER_LENGTH);
+    rtc::ArrayView<const byte> data   = encrypted_frame.subview(FRAME_HEADER_LENGTH, encrypted_frame.size() - FRAME_HEADER_LENGTH - FRAME_GCM_TAG_LENGTH);
+    rtc::ArrayView<const byte> gcmTag = encrypted_frame.subview(encrypted_frame.size() - FRAME_GCM_TAG_LENGTH);
+    assert(encrypted_frame.size() == (header.size() + data.size()+ gcmTag.size()));
+
+    // validate header and extract keyid, cid and Ctr
+    int checkHeader = validateAndProcessHeader(header);
+    if (checkHeader != static_cast<int>(Status::kOk))
+    {
+        // error with the given frame, don't pass to the decoder, return error returned by validateAndProcessHeader
+        return Result(static_cast<Status>(checkHeader), 0);
+    }
+
+    // re-build frame iv with staticIv and frame CTR
+    std::unique_ptr<byte []> iv = generateFrameIV();
+
+    // decrypt frame and store it in frame
+    if (!mSymCipher.gcm_decrypt_aad(data.data(), data.size(),
+                                     header.data(), FRAME_HEADER_LENGTH,
+                                     gcmTag.data(), FRAME_GCM_TAG_LENGTH,
+                                     iv.get(), FRAME_IV_LENGTH,
+                                     frame.data(), frame.size()))
+    {
+        RTCM_LOG_WARNING("Failed gcm_decrypt_aad decryption with additional authenticated data: mid: %d Cid: %d, PeerId: %s, KeyId: %d, frameCtr: %d",
+                         mMid, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr);
+        return Result(Status::kRecoverable, 0); // decryption error, don't pass to the decoder
+    }
+
+    // check if decrypted frame size is the expected one
+    assert(GetMaxPlaintextByteSize(media_type, encrypted_frame.size()) == frame.size());
+    size_t expectedFrameSize = GetMaxPlaintextByteSize(media_type, encrypted_frame.size());
+    if (expectedFrameSize != frame.size())
+    {
+        RTCM_LOG_WARNING("Decrypt: Decrypted frame size: %d doesn't match with expected size: %d Cid: %d, PeerId: %s, KeyId: %d, frameCtr: %d",
+                               frame.size(), expectedFrameSize, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr);
+        return Result(Status::kRecoverable, 0); // decryption error, don't pass to the decoder
+    }
+    return Result(Status::kOk, frame.size());
+}
+
+size_t MegaDecryptor::GetMaxPlaintextByteSize(cricket::MediaType /*media_type*/, size_t encrypted_frame_size)
+{
+    return encrypted_frame_size - FRAME_HEADER_LENGTH - FRAME_GCM_TAG_LENGTH;
+}
+
 #ifdef __ANDROID__
 CaptureModuleAndroid::CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
     : mCapabilities(capabilities)
 {
-    JNIEnv* env;
-    MEGAjvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    JNIEnv* env = webrtc::AttachCurrentThreadIfNeeded();
     startVideoCaptureMID = env->GetStaticMethodID(applicationClass, "startVideoCapture", "(IIILorg/webrtc/SurfaceTextureHelper;Lorg/webrtc/CapturerObserver;Ljava/lang/String;)V");
     if (!startVideoCaptureMID)
     {

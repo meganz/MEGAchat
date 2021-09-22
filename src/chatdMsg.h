@@ -20,11 +20,12 @@ namespace chatd
 
 enum CallDataReason
 {
+    kDefault      = 0x00, /// default reason
     kEnded        = 0x01, /// normal hangup of on-going call
     kRejected     = 0x02, /// incoming call was rejected by callee
     kNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
     kFailed       = 0x04, /// on-going call failed
-    kCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
+    kCancelled    = 0x05, /// outgoing call was cancelled by caller before receiving any answer from the callee
 };
 
 enum
@@ -270,6 +271,8 @@ enum Opcode
       *
       * C->S: send to specified recipient(s)
       * S->C: delivery from specified sender
+      *
+      * @deprecated
       */
     OP_RTMSG_BROADCAST = 25,
 
@@ -278,6 +281,8 @@ enum Opcode
       *
       * C->S: send to specified recipient(s)
       * S->C: delivery from specified sender
+      *
+      * @deprecated
       */
     OP_RTMSG_USER = 26,
 
@@ -286,6 +291,8 @@ enum Opcode
       *
       * C->S: send to specified recipient(s)
       * S->C: delivery from specified sender
+      *
+      * @deprecated
       */
     OP_RTMSG_ENDPOINT = 27,
 
@@ -466,7 +473,46 @@ enum Opcode
       */
     OP_NEWMSGIDTIMESTAMP = 50,
 
-    OP_LAST = OP_NEWMSGIDTIMESTAMP,
+    /**
+      * @brief
+      * S->C: Add user list to current in call user set
+      *
+      * Receive: <chatid.8> <callid.8> <userListCount.1> <user1.8> <user2.8> ...
+      */
+    OP_JOINEDCALL = 51,
+
+    /**
+      * @brief
+      * S->C: Remove user list to current in call user set
+      *
+      * Receive: <chatid.8> <callid.8> <userListCount.1> <user1.8> <user2.8> ...
+      */
+    OP_LEFTCALL = 52,
+
+    /**
+      * @brief
+      * S->C: Notify call state
+      *
+      * Receive: <chatid.8> <userid.8> <callid.8> <ringing.1>
+      */
+    OP_CALLSTATE = 53,
+
+    /**
+      * @brief
+      * S->C: Notify the call is finished (Deprecated)
+      *
+      * Receive: <chatid.8> <callid.8>
+      */
+    OP_CALLEND = 54,
+
+    /**
+      * @brief
+      * S->C: Notify the call is finished
+      *
+      * Receive: <chatid.8> <callid.8> <reason.1>
+      */
+    OP_DELCALLREASON = 55,
+
     OP_INVALIDCODE = 0xFF
 };
 

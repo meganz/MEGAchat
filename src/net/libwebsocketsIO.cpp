@@ -357,7 +357,7 @@ static bool check_public_key(X509_STORE_CTX* ctx)
         return true;
     }
 
-    unsigned char buf[sizeof(APISSLMODULUS1) - 1];
+    unsigned char buf[sizeof(CHATSSLMODULUS) - 1];
     EVP_PKEY* evp;
     if ((evp = X509_PUBKEY_get(X509_get_X509_PUBKEY(X509_STORE_CTX_get0_cert(ctx)))))
     {
@@ -367,15 +367,37 @@ static bool check_public_key(X509_STORE_CTX* ctx)
             return false;
         }
 
-        if (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLMODULUS1 - 1
-            && BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof APISSLEXPONENT - 1)
+        // CONNECT TO CHATD/PRESENCED
+        if ((BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLEXPONENT - 1)
+                && ((BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLMODULUS  - 1)
+                    || (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof CHATSSLMODULUS2 - 1)))
         {
             BN_bn2bin(RSA_get0_n(EVP_PKEY_get0_RSA(evp)), buf);
-            
-            if (!memcmp(buf, CHATSSLMODULUS, sizeof CHATSSLMODULUS - 1))
+
+            if (!memcmp(buf,CHATSSLMODULUS, sizeof CHATSSLMODULUS - 1)            // check main key
+                || !memcmp(buf,CHATSSLMODULUS2, sizeof CHATSSLMODULUS2 - 1))      // check backup key
             {
                 BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
-                if (!memcmp(buf, APISSLEXPONENT, sizeof APISSLEXPONENT - 1))
+                if (!memcmp(buf, CHATSSLEXPONENT, sizeof CHATSSLEXPONENT - 1))
+                {
+                    EVP_PKEY_free(evp);
+                    return true;
+                }
+            }
+        }
+
+        // CONNECT TO SFU
+        if ((BN_num_bytes(RSA_get0_e(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSSLEXPONENT - 1)
+                && ((BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSSLMODULUS  - 1)
+                    || (BN_num_bytes(RSA_get0_n(EVP_PKEY_get0_RSA(evp))) == sizeof SFUSSLMODULUS2 - 1)))
+        {
+            BN_bn2bin(RSA_get0_n(EVP_PKEY_get0_RSA(evp)), buf);
+
+            if (!memcmp(buf,SFUSSLMODULUS, sizeof SFUSSLMODULUS - 1)            // check main key
+                || !memcmp(buf,SFUSSLMODULUS2, sizeof SFUSSLMODULUS2 - 1))      // check backup key
+            {
+                BN_bn2bin(RSA_get0_e(EVP_PKEY_get0_RSA(evp)), buf);
+                if (!memcmp(buf, SFUSSLEXPONENT, sizeof SFUSSLEXPONENT - 1))
                 {
                     EVP_PKEY_free(evp);
                     return true;
@@ -563,9 +585,15 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             len = client->getOutputBufferLength();
             if (len && data)
             {
-                lws_write(wsi, (unsigned char *)data, len, LWS_WRITE_BINARY);
+                enum lws_write_protocol writeProtocol = client->client->isWriteBinary() ?
+                            LWS_WRITE_BINARY : LWS_WRITE_TEXT;
+
+                lws_write(wsi, (unsigned char *)data, len, writeProtocol);
                 client->wsSendMsgCb((const char *)data, len);
                 client->resetOutputBuffer();
+
+                // This cb will only be implemented in those clients that require messages to be sent individually
+                client->wsProcessNextMsgCb();
             }
             break;
         }

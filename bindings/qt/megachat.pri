@@ -70,6 +70,7 @@ SOURCES += megachatapi.cpp \
             url.cpp \
             karereCommon.cpp \
             userAttrCache.cpp \
+            sfu.cpp \
             base/logger.cpp \
             base/cservices.cpp \
             net/websocketsIO.cpp \
@@ -89,11 +90,9 @@ HEADERS  += asyncTest-framework.h \
             db.h \
             karereId.h \
             presenced.h \
-            serverListProvider.h \
             autoHandle.h \
             chatCommon.h  \
             chatdMsg.h \
-            dummyCrypto.h  \
             megachatapi.h  \
             rtcCrypto.h \
             stringUtils.h \
@@ -129,18 +128,17 @@ HEADERS  += asyncTest-framework.h \
             net/websocketsIO.h \
             rtcModule/IDeviceListImpl.h \
             rtcModule/IRtcCrypto.h \
-            rtcModule/IRtcStats.h \
             rtcModule/ITypes.h \
             rtcModule/ITypesImpl.h \
             rtcModule/IVideoRenderer.h \
             rtcModule/messages.h \
             rtcModule/rtcmPrivate.h \
-            rtcModule/rtcStats.h \
-            rtcModule/streamPlayer.h \
             rtcModule/webrtc.h \
             rtcModule/webrtcAdapter.h \
             rtcModule/webrtcAsyncWaiter.h \
             rtcModule/webrtcPrivate.h \
+            rtcModule/rtcStats.h \
+            sfu.h \
             strongvelope/tlvstore.h \
             strongvelope/strongvelope.h \
             strongvelope/cryptofunctions.h \
@@ -162,7 +160,6 @@ CONFIG(USE_WEBRTC) {
              rtcModule/webrtc.cpp \
              rtcModule/webrtcAdapter.cpp \
              rtcModule/rtcStats.cpp
-
 }
 else {
     DEFINES += KARERE_DISABLE_WEBRTC=1 SVC_DISABLE_STROPHE

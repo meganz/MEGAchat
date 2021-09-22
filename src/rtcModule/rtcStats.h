@@ -1,125 +1,90 @@
 #ifndef RTCSTATS_H
 #define RTCSTATS_H
-#include "webrtcAdapter.h"
-#include "IRtcStats.h"
-#include "ITypesImpl.h"
-#include <timers.hpp>
 #include <karereId.h>
+#include <api/stats/rtc_stats_collector_callback.h>
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <base/trackDelete.h>
 
 namespace rtcModule
 {
-class Session;
-class Call;
-
-namespace stats
-{
-struct StatSessInfo
-{
-    karere::Id sid;
-    std::string mTermReason;
-    std::string errInfo;
-    karere::Id caid;
-    karere::Id aaid;
-    bool isCaller;
-    std::string deviceInfo;
-    unsigned long maxIceDisconnectionTime = 0;
-    unsigned int iceDisconnections = 0;
-    unsigned int reconnections = 0;
-    karere::Id previousSessionId;
-    StatSessInfo(karere::Id aSid, uint8_t code, const std::string& aErrInfo, const std::string &aDeviceInfo);
-};
-
-class ConnInfo: public IConnInfo
+class StatSamples
 {
 public:
-    std::string mCtype;
-    std::string mProto;
-    std::string mRlySvr;
-    std::string mRRlySvr;
-    std::string mVcodec;
-    bool mRly = false;
-    bool mRRly = false;
-
-    virtual const std::string& ctype() const { return mCtype; }
-    virtual const std::string& proto() const { return mProto; }
-    virtual const std::string& rlySvr() const { return mRlySvr; }
-    virtual const std::string& rRlySvr() const { return mRRlySvr; }
-    virtual const std::string& vcodec() const { return mVcodec; }
+    std::vector<int32_t> mT;
+    std::vector<int32_t> mPacketLost;
+    std::vector<int32_t> mRoundTripTime;
+    std::vector<int32_t> mOutGoingBitrate;
+    std::vector<int32_t> mBytesReceived;
+    std::vector<int32_t> mBytesSend;
+    // Scalable video coding index
+    std::vector<int32_t> mQ;
+    // Audio video flags
+    std::vector<int32_t> mAv;
+    // number of high resolution active tracks
+    std::vector<int32_t> mNrxh;
+    // number of low resolution active tracks
+    std::vector<int32_t> mNrxl;
+    // number of audio active tracks
+    std::vector<int32_t> mNrxa;
+    // fps low res video
+    std::vector<int32_t> mVtxLowResfps;
+    // width low res video
+    std::vector<int32_t> mVtxLowResw;
+    // height low res video
+    std::vector<int32_t> mVtxLowResh;
+    // fps high res video
+    std::vector<int32_t> mVtxHiResfps;
+    // width high res video
+    std::vector<int32_t> mVtxHiResw;
+    // height high res video
+    std::vector<int32_t> mVtxHiResh;
 };
 
-class RtcStats: public IRefCountedMixin<IRtcStats>
+class Stats
 {
 public:
-    std::string mTermRsn;
-    bool mIsJoiner;
-    int mSper; //sample period
-    int64_t mStartTs;
-    int64_t mDur;
-    karere::Id mCallId;
-    karere::Id mSessionId;
-    karere::Id mOwnAnonId;
-    karere::Id mPeerAnonId;
-    std::string mDeviceInfo;
-    bool mIsGroupCall;
-    std::vector<Sample*> mSamples;
-    ConnInfo mConnInfo;
-    unsigned long mMaxIceDisconnectionTime = 0;
-    unsigned int mIceDisconnections = 0;
-    karere::Id mPreviousSessionId;
-    unsigned int mReconnections = 0;
-    ~RtcStats();
-    //IRtcStats implementation
-    virtual const std::string& termRsn() const { return mTermRsn; }
-    virtual bool isCaller() const { return !mIsJoiner; }
-    virtual karere::Id callId() const { return mCallId; }
-    virtual size_t sampleCnt() const { return mSamples.size(); }
-    virtual const std::vector<Sample*>* samples() const { return &mSamples; }
-    virtual const IConnInfo* connInfo() const { return &mConnInfo; }
-    virtual void toJson(std::string& out) const;
-};
+    std::string getJson();
+    void clear();
 
-class Recorder: public rtc::RefCountedObject<webrtc::StatsObserver>
-{
+    karere::Id mPeerId;
+    uint32_t mCid = 0;
+    karere::Id mCallid;
+    // Duration of the call before our connection to sfu
+    uint64_t mTimeOffset = 0;
+    // Duration of the call while we are participating (no call duration)
+    uint64_t mDuration = 0;
+    StatSamples mSamples;
+    int32_t mTermCode = 0;
+    bool mIsGroup = false;
+    int64_t mInitialTs = 0;
+    std::string mDevice;
+
 protected:
-    struct BwCalculator
-    {
-        BwInfo* mBwInfo = nullptr;
-        void reset(BwInfo* aBwInfo)
-        {
-            assert(aBwInfo);
-            mBwInfo = aBwInfo;
-        }
-        void calculate(uint64_t periodMs, uint64_t newTotalBytes);
-    };
+    void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<float> *periods = nullptr);
+};
 
-    int mScanPeriod;
-    int mMaxSamplePeriod;
-    webrtc::PeerConnectionInterface::StatsOutputLevel mStatsLevel =
-            webrtc::PeerConnectionInterface::kStatsOutputLevelStandard;
-    static const int STATFLAG_SEND_CPU_LIMITED_RESOLUTION = 4;
-    static const int STATFLAG_SEND_BANDWIDTH_LIMITED_RESOLUTION = 8;
-    std::unique_ptr<Sample> mCurrSample;
-    BwCalculator mVideoRxBwCalc;
-    BwCalculator mVideoTxBwCalc;
-    BwCalculator mAudioRxBwCalc;
-    BwCalculator mAudioTxBwCalc;
-    void addSample();
-    void resetBwCalculators();
-    int64_t getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
-    std::string getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
-    bool checkShouldAddSample();
+class ConnStatsCallBack : public webrtc::RTCStatsCollectorCallback, public karere::DeleteTrackable
+{
 public:
-    Session& mSession;
-    std::unique_ptr<RtcStats> mStats;
-    Recorder(Session& sess, int scanPeriod, int maxSamplePeriod);
-    ~Recorder();
-    void start();
-    std::string terminate(const StatSessInfo &info);
-    virtual void OnComplete(const webrtc::StatsReports& data);
-    void onStats(const webrtc::StatsReports &data);
-    webrtc::PeerConnectionInterface::StatsOutputLevel getStatsLevel() const;
-    std::function<void(void*, int)> onSample;
+    ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId);
+    ~ConnStatsCallBack();
+    void removeStats();
+
+    void AddRef() const override;
+    rtc::RefCountReleaseStatus Release() const override;
+    void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
+protected:
+    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double &rtt, double txBwe, int64_t &bytesRecv, int64_t &bytesSend);
+
+    Stats* mStats = nullptr; // Doesn't take ownership (Belongs to Call)
+    uint32_t mHiResId;
+    uint32_t mLowResId;
+
+private:
+    mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
+
 };
 }
-}
+
 #endif

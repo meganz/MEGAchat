@@ -1,6 +1,7 @@
 #ifndef websocketsIO_h
 #define websocketsIO_h
 
+#include <thread>
 #include <iostream>
 #include <functional>
 #include <vector>
@@ -118,8 +119,8 @@ public:
     virtual void restoreSessions(std::vector<CachedSession> &&) { }
 
 protected:
-    Mutex &mutex;
     MyMegaApi mApi;
+    Mutex &mutex;
     void *appCtx;
 
     // This function is protected to prevent a wrong direct usage
@@ -140,14 +141,13 @@ class WebsocketsClient
 {
 private:
     WebsocketsClientImpl *ctx;
-#if defined(_WIN32) && defined(_MSC_VER)
     std::thread::id thread_id;
-#else
-    pthread_t thread_id;
-#endif
+
+    // chatd/presenced use binary protocol, while SFU use text-based protocol (JSON)
+    bool mWriteBinary = true;
 
 public:
-    WebsocketsClient();
+    WebsocketsClient(bool writeBinary = true);
     virtual ~WebsocketsClient();
     bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f);
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
@@ -158,10 +158,16 @@ public:
     bool wsIsConnected();
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
 
+    bool isWriteBinary() const;
+
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
     virtual void wsSendMsgCb(const char *data, size_t len) = 0;
+
+    // Called after sending a message through the socket
+    // (it may be implemented by clients that require messages to be sent individually and sequentially)
+    virtual void wsProcessNextMsgCb() {}
     virtual bool wsSSLsessionUpdateCb(const CachedSession &) { return false; }
 
     /* Public key pinning, by default this flag is enabled (true), it only should be disabled for testing purposes */
@@ -182,6 +188,7 @@ public:
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     void wsHandleMsgCb(char *data, size_t len);
     void wsSendMsgCb(const char *data, size_t len);
+    void wsProcessNextMsgCb();
     bool wsSSLsessionUpdateCb(const CachedSession &sess);
 
     virtual bool wsSendMessage(char *msg, size_t len) = 0;

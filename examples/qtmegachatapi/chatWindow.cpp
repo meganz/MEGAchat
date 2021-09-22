@@ -10,9 +10,6 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
       ui(new Ui::ChatWindowUi)
 {
     nSending = 0;
-#ifndef KARERE_DISABLE_WEBRTC
-    mCallGui = NULL;
-#endif
     mPreview = false;
     loadedMessages = 0;
     loadedAttachments = 0;
@@ -432,28 +429,9 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
     return megachat::MEGACHAT_INVALID_HANDLE;
 }
 
-#ifndef KARERE_DISABLE_WEBRTC
-std::set<CallGui *> *ChatWindow::getCallGui()
+MeetingView *ChatWindow::getMeetingView()
 {
-    return &callParticipantsGui;
-}
-
-CallGui *ChatWindow::getMyCallGui()
-{
-    for (auto callGuiIt = callParticipantsGui.begin(); callGuiIt != callParticipantsGui.end(); callGuiIt++)
-    {
-        if ((*callGuiIt)->getPeerid() == mMegaChatApi->getMyUserHandle() && (*callGuiIt)->getClientid() == mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()))
-        {
-            return *callGuiIt;
-        }
-    }
-
-    return nullptr;
-}
-
-void ChatWindow::setCallGui(CallGui *callGui)
-{
-    mCallGui = callGui;
+    return mMeetingView;
 }
 
 ChatListItemController *ChatWindow::getChatItemController()
@@ -465,7 +443,6 @@ MainWindow *ChatWindow::getMainWin() const
 {
     return mMainWin;
 }
-#endif
 
 void ChatWindow::onMessageReceived(megachat::MegaChatApi*, megachat::MegaChatMessage *msg)
 {
@@ -1018,7 +995,8 @@ void ChatWindow::onMemberRemove()
 
     QVariant uHandle = action->property("userHandle");
     megachat::MegaChatHandle userhandle = uHandle.toLongLong();
-    if (uHandle.toString() == mMegaApi->getMyUserHandle())
+    std::unique_ptr<char []> userHandleString(mMegaApi->getMyUserHandle());
+    if (uHandle.toString() == userHandleString.get())
     {
         mMegaChatApi->leaveChat(mChatRoom->getChatId());
     }
@@ -1068,93 +1046,30 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle clientid, bool onHold)
+void ChatWindow::createCallGui(MegaChatHandle peerid, MegaChatHandle clientid, bool onHold, unsigned numParticipants)
 {
-    int row = 0;
-    int col = 0;
-    int auxIndex = 0;
-    CallGui *callGui = NULL;
-    auto layout = qobject_cast <QGridLayout*> (ui->mCentralWidget->layout());
+    if (mMeetingView)
+    {
+        std::string msg = "createCallGui: unknown peer cid ";
+        msg.append(std::to_string(clientid));
+        mLogger->postLog(msg.c_str());
+        return;
+    }
 
-    //Local callGui
-    callGui = new CallGui(this, video, peerid, clientid, true);
-    callParticipantsGui.insert(callGui);
-
-    if (peerid == mMegaChatApi->getMyUserHandle() && clientid == mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()))
-    {
-        ui->mCentralWidget->setStyleSheet("background-color:#000000");
-        auxIndex = -1;
-    }
-    else
-    {
-        for (int i = 0; i < callMaxParticipants; i++)
-        {
-            if (mFreeCallGui[i] == megachat::MEGACHAT_INVALID_HANDLE)
-            {
-               mFreeCallGui[i] = peerid;
-               auxIndex = i;
-               break;
-            }
-        }
-    }
-    callGui->setIndex(auxIndex);
-    getCallPos(auxIndex, row, col);
-    layout->addWidget(callGui,row,col);
-    ui->mTitlebar->hide();
-    ui->mTextChatWidget->hide();
-    if (onHold)
-    {
-        callGui->enableOnHold(onHold, true);
-    }
-}
-
-void ChatWindow::destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid)
-{
-    int row = 0;
-    int col = 0;
-    int auxIndex = 0;
-    std::set<CallGui *>::iterator it;
-    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
-    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
-    {
-        CallGui *call = *it;
-        if (call->getPeerid() == peerid && call->getClientid() == clientid)
-        {
-            auxIndex = call->getIndex();
-            getCallPos(auxIndex, row, col);
-            layout->removeWidget(layout->itemAtPosition(row, col)->widget());
-            call->deleteLater();
-            callParticipantsGui.erase(it);
-            if (auxIndex != -1)
-            {
-                mFreeCallGui[auxIndex] = megachat::MEGACHAT_INVALID_HANDLE;
-            }
-            break;
-        }
-    }
+    mMeetingView = new MeetingView(*mMegaChatApi, mChatRoom->getChatId(), this, numParticipants);
+    mMeetingView->setVisible(true);
+    ui->mCentralWidget->layout()->addWidget(mMeetingView);
+    PeerWidget* peerWidget = new PeerWidget(*mMegaChatApi, mChatRoom->getChatId(), 0, true, true);
+    mMeetingView->addLocalVideo(peerWidget);
 }
 
 void ChatWindow::deleteCallGui()
 {
-    int row = 0;
-    int col = 0;
-    int auxIndex = 0;
     ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
-    std::set<CallGui *>::iterator it;
-    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
-    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
-    {
-        CallGui *call = *it;
-        auxIndex = call->getIndex();
-        getCallPos(auxIndex, row, col);
-        layout->removeWidget(layout->itemAtPosition(row, col)->widget());
-        call->deleteLater();
-        if (auxIndex != -1)
-        {
-            mFreeCallGui[auxIndex] = megachat::MEGACHAT_INVALID_HANDLE;
-        }
-    }
-    callParticipantsGui.clear();
+    ui->mCentralWidget->layout()->removeWidget(mMeetingView);
+    delete mMeetingView;
+    mMeetingView = nullptr;
+
     setChatTittle(mChatRoom->getTitle());
     ui->mTextChatWidget->show();
     ui->mTitlebar->show();
@@ -1225,9 +1140,9 @@ void ChatWindow::getCallPos(int index, int &row, int &col)
 
 void ChatWindow::closeEvent(QCloseEvent *event)
 {
-    if (mCallGui)
+    if (mMeetingView)
     {
-        mCallGui->onHangCall(true);
+        deleteCallGui();
     }
     delete this;
     event->accept();
@@ -1235,30 +1150,7 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::onCallBtn(bool video)
 {
-   createCallGui(video, mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()));
-   MegaChatCall *auxCall = mMegaChatApi->getChatCall(mChatRoom->getChatId());
-   if (auxCall == NULL || (auxCall && auxCall->getStatus() == megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT))
-   {
-       mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
-       delete auxCall;
-   }
-}
-
-void ChatWindow::connectPeerCallGui(MegaChatHandle peerid, MegaChatHandle clientid)
-{
-    std::set<CallGui *>::iterator it;
-    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
-    {
-        CallGui *call = *it;
-        if (call->getPeerid() == peerid && call->getClientid() == clientid)
-        {
-            if (!call->getCall())
-            {
-                call->connectPeerCallGui();
-                break;
-            }
-        }
-    }
+    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
 }
 
 void ChatWindow::hangCall()
@@ -1326,29 +1218,6 @@ void ChatWindow::onAttachGiphy()
     mMegaChatApi->sendGiphy(mChatRoom->getChatId(), srcMp4, srcWebp, sizeMp4, sizeWebp, giphyWidth, giphyHeight, giphyTitle);
 }
 
-void ChatWindow::enableCallReconnect(bool enable)
-{
-    if (enable)
-    {
-        if (!mReconnectingDlg)
-        {
-            mReconnectingDlg = new QMessageBox;
-            mReconnectingDlg->setWindowTitle((tr("Call reconnection...")));
-            mReconnectingDlg->setIcon(QMessageBox::Information);
-            mReconnectingDlg->setText(tr("Please, wait.\nReconnection in progress."));
-            mReconnectingDlg->setStandardButtons(QMessageBox::Cancel);
-            mReconnectingDlg->setModal(true);
-            connect(mReconnectingDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelReconnection(QAbstractButton*)));
-            mReconnectingDlg->show();
-        }
-    }
-    else if (mReconnectingDlg)
-    {
-        delete mReconnectingDlg;
-        mReconnectingDlg = NULL;
-    }
-}
-
 void ChatWindow::onAttachNode(bool isVoiceClip)
 {
     QString node = QFileDialog::getOpenFileName(this, tr("All Files (*)"));
@@ -1383,13 +1252,6 @@ void ChatWindow::on_mCancelTransfer(QAbstractButton*)
     mUploadDlg->hide();
     delete mUploadDlg;
     mUploadDlg = NULL;
-}
-
-void ChatWindow::on_mCancelReconnection(QAbstractButton *)
-{
-    mReconnectingDlg->deleteLater();
-    mReconnectingDlg = nullptr;
-    mMegaChatApi->hangChatCall(mChatRoom->getChatId());
 }
 
 void ChatWindow::onAttachmentsClosed(QObject *)
