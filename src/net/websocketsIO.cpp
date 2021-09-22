@@ -306,9 +306,25 @@ void DNScache::loadFromDb()
                 stmt.blobCol(4, *blobBuff);
             }
 
-            // if the record is for chatd, need to add the protocol version to the URL
-            addRecord(shard, url, blobBuff, false);
-            setIp(shard, stmt.stringCol(2), stmt.stringCol(3));
+            if (shard <= kSfuShardStart && shard >= kSfuShardEnd)
+            {
+                karere::Url sfuUrl(url);
+                if (!sfuUrl.isValid())
+                {
+                    assert(sfuUrl.isValid());
+                    DNSCACHE_LOG_ERROR("loadFromDb: invalid SFU URL");
+                    mDb.query("delete from dns_cache where shard=?", shard);
+                    continue;
+                }
+                addRecordByHost(sfuUrl.host, blobBuff, false, shard);
+                setIpByHost(sfuUrl.host, std::vector<std::string>{stmt.stringCol(2)}, std::vector<std::string>{stmt.stringCol(3)});
+            }
+            else
+            {
+                // if the record is for chatd, need to add the protocol version to the URL
+                addRecord(shard, url, blobBuff, false);
+                setIp(shard, stmt.stringCol(2), stmt.stringCol(3));
+            }
         }
         else
         {
