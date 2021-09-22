@@ -2245,6 +2245,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
 
         karere::Id callid = result->getParentHandle();
         std::string sfuUrlStr = result->getText();
+        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
             std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
@@ -2260,7 +2261,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
                return promise::_Void();
             }
         }
-        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
+        return promise::_Void();
     })
     .fail([wptr, this, chatid](const ::promise::Error& err)
     {
