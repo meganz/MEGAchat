@@ -319,25 +319,6 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     }
 }
 
-MegaChatApplication* MainWindow::getApp() const
-{
-    return mApp;
-}
-
-void MainWindow::confirmAccount(const std::string &password)
-{
-    QString url = QInputDialog::getText(this, tr("Insert url confirmation"), tr("Url"));
-    if (url.size())
-    {
-        mMegaApi->confirmAccount(url.toStdString().c_str(), password.c_str());
-    }
-}
-
-void MainWindow::setEphemeralAccount(bool ephemeralAccount)
-{
-    mIsEphemeraAccount = ephemeralAccount;
-}
-
 std::string MainWindow::callStateToString(const MegaChatCall &call)
 {
     switch (call.getStatus())
@@ -371,6 +352,25 @@ std::string MainWindow::callStateToString(const MegaChatCall &call)
 }
 
 #endif
+
+MegaChatApplication* MainWindow::getApp() const
+{
+    return mApp;
+}
+
+void MainWindow::confirmAccount(const std::string &password)
+{
+    QString url = QInputDialog::getText(this, tr("Insert url confirmation"), tr("Url"));
+    if (url.size())
+    {
+        mMegaApi->confirmAccount(url.toStdString().c_str(), password.c_str());
+    }
+}
+
+void MainWindow::setEphemeralAccount(bool ephemeralAccount)
+{
+    mIsEphemeraAccount = ephemeralAccount;
+}
 
 ChatWindow *MainWindow::getChatWindowIfExists(MegaChatHandle chatId)
 {

@@ -1221,13 +1221,14 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
     }
     case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
     {
+#ifndef KARERE_DISABLE_WEBRTC
         ChatListItemController *itemController = mMainWin->getChatControllerById(request->getChatHandle());
         if (itemController)
         {
             assert(itemController->getMeetingView());
             itemController->getMeetingView()->updateAudioMonitor(mMegaChatApi->isAudioLevelMonitorEnabled(request->getChatHandle()));
         }
-
+#endif
         break;
     }
     default:

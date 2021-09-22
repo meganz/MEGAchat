@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #include <mega/types.h>
 #include <mega/base64.h>
 #include <rtcmPrivate.h>
@@ -3090,3 +3091,4 @@ void AudioLevelMonitor::onAudioDetected(bool audioDetected)
     sess->setAudioDetected(mAudioDetected);
 }
 }
+#endif

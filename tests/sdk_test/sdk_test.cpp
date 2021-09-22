@@ -4,8 +4,11 @@
 #include "../../src/chatd.h"
 #include "../../src/megachatapi.h"
 #include "../../src/karereCommon.h" // for logging with karere facility
-#include "../../src/net/libwebsocketsIO.h"
 #include "waiter/libuvWaiter.h"
+#ifndef KARERE_DISABLE_WEBRTC
+#include "../../src/net/libwebsocketsIO.h"
+#endif
+
 
 #include <signal.h>
 #include <stdio.h>
@@ -82,7 +85,9 @@ int main(int argc, char **argv)
     MegaChatApiUnitaryTest unitaryTest;
     std::cout << "[========] Unitary tests " << std::endl;
     unitaryTest.UNITARYTEST_ParseUrl();
+#ifndef KARERE_DISABLE_WEBRTC
     unitaryTest.UNITARYTEST_SfuDataReception();
+#endif
     std::cout << "[========] End Unitary tests " << std::endl;
 
     return t.mFailedTests + unitaryTest.mFailedTests;
@@ -3341,65 +3346,6 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
 }
 
 /**
- * @brief TEST_RichLinkUserAttribute
- *
- * This test does the following:
- *
- * - Get state for rich link user attribute
- * - Enable/disable rich link generation
- * - Check if value has been established correctly
- * - Change value for rich link counter
- * - Check if value has been established correctly
- *
- */
-void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
-{
-   char *primarySession = login(a1);
-
-   // Get rich link state
-   TestMegaRequestListener requestListener(megaApi[a1], nullptr);
-   megaApi[a1]->shouldShowRichLinkWarning(&requestListener);
-   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Expired timeout for rich Link");
-   int error = requestListener.getErrorCode();
-   ASSERT_CHAT_TEST(!error || error == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(error));
-   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getNumDetails() == 1, "Active at shouldShowRichLink");
-
-   // Enable/disable rich link generation
-   bool enableRichLink = !(requestListener.getMegaRequest()->getFlag());
-   requestListener = TestMegaRequestListener(megaApi[a1], nullptr);
-   megaApi[a1]->enableRichPreviews(enableRichLink, &requestListener);
-   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "User attribute retrieval not finished after timeout");
-   ASSERT_CHAT_TEST(!requestListener.getErrorCode(), "Failed to enable rich preview. Error: " + std::to_string(requestListener.getErrorCode()));
-
-   // Get rich link state
-   requestListener = TestMegaRequestListener(megaApi[a1], nullptr);
-   megaApi[a1]->shouldShowRichLinkWarning(&requestListener);
-   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Expired timeout for rich Link");
-   error = requestListener.getErrorCode();
-   ASSERT_CHAT_TEST(!error || error == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(error));
-   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getFlag() == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
-
-   // Change value for rich link counter
-   int counter = 1;
-   requestListener = TestMegaRequestListener(megaApi[a1], nullptr);
-   megaApi[a1]->setRichLinkWarningCounterValue(counter, &requestListener);
-   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "User attribute retrieval not finished after timeout");
-   ASSERT_CHAT_TEST(!requestListener.getErrorCode(), "Failed to set rich preview count. Error: " + std::to_string(requestListener.getErrorCode()));
-
-   requestListener = TestMegaRequestListener(megaApi[a1], nullptr);
-   megaApi[a1]->shouldShowRichLinkWarning(&requestListener);
-   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Expired timeout for rich Link");
-   error = requestListener.getErrorCode();
-   ASSERT_CHAT_TEST(!error || error == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(error));
-   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getNumDetails() == 1, "Active at shouldShowRichLink");
-   ASSERT_CHAT_TEST(counter == requestListener.getMegaRequest()->getNumber(), "Rich link count has not taken the correct value - value: " + std::to_string(requestListener.getMegaRequest()->getNumber()) + " Desired value: " + std::to_string(counter));
-   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getFlag() == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
-
-   delete [] primarySession;
-   primarySession = NULL;
-}
-
-/**
  * @brief TEST_Calls
  *
  * Requirements:
@@ -3515,6 +3461,65 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
 }
 
 #endif
+
+/**
+ * @brief TEST_RichLinkUserAttribute
+ *
+ * This test does the following:
+ *
+ * - Get state for rich link user attribute
+ * - Enable/disable rich link generation
+ * - Check if value has been established correctly
+ * - Change value for rich link counter
+ * - Check if value has been established correctly
+ *
+ */
+void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
+{
+   char *primarySession = login(a1);
+
+   // Get rich link state
+   TestMegaRequestListener requestListener(megaApi[a1], nullptr);
+   megaApi[a1]->shouldShowRichLinkWarning(&requestListener);
+   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Expired timeout for rich Link");
+   int error = requestListener.getErrorCode();
+   ASSERT_CHAT_TEST(!error || error == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(error));
+   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getNumDetails() == 1, "Active at shouldShowRichLink");
+
+   // Enable/disable rich link generation
+   bool enableRichLink = !(requestListener.getMegaRequest()->getFlag());
+   requestListener = TestMegaRequestListener(megaApi[a1], nullptr);
+   megaApi[a1]->enableRichPreviews(enableRichLink, &requestListener);
+   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "User attribute retrieval not finished after timeout");
+   ASSERT_CHAT_TEST(!requestListener.getErrorCode(), "Failed to enable rich preview. Error: " + std::to_string(requestListener.getErrorCode()));
+
+   // Get rich link state
+   requestListener = TestMegaRequestListener(megaApi[a1], nullptr);
+   megaApi[a1]->shouldShowRichLinkWarning(&requestListener);
+   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Expired timeout for rich Link");
+   error = requestListener.getErrorCode();
+   ASSERT_CHAT_TEST(!error || error == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(error));
+   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getFlag() == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
+
+   // Change value for rich link counter
+   int counter = 1;
+   requestListener = TestMegaRequestListener(megaApi[a1], nullptr);
+   megaApi[a1]->setRichLinkWarningCounterValue(counter, &requestListener);
+   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "User attribute retrieval not finished after timeout");
+   ASSERT_CHAT_TEST(!requestListener.getErrorCode(), "Failed to set rich preview count. Error: " + std::to_string(requestListener.getErrorCode()));
+
+   requestListener = TestMegaRequestListener(megaApi[a1], nullptr);
+   megaApi[a1]->shouldShowRichLinkWarning(&requestListener);
+   ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Expired timeout for rich Link");
+   error = requestListener.getErrorCode();
+   ASSERT_CHAT_TEST(!error || error == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(error));
+   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getNumDetails() == 1, "Active at shouldShowRichLink");
+   ASSERT_CHAT_TEST(counter == requestListener.getMegaRequest()->getNumber(), "Rich link count has not taken the correct value - value: " + std::to_string(requestListener.getMegaRequest()->getNumber()) + " Desired value: " + std::to_string(counter));
+   ASSERT_CHAT_TEST(requestListener.getMegaRequest()->getFlag() == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
+
+   delete [] primarySession;
+   primarySession = NULL;
+}
 
 /**
  * @brief TEST_SendRichLink
@@ -5078,6 +5083,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
     return succesful;
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 {
     ::mega::LibuvWaiter waiter;
@@ -5127,6 +5133,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 
     return true;
 }
+#endif
 
 TestMegaRequestListener::TestMegaRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)
     : RequestListener(megaApi, megaChatApi)
@@ -5239,6 +5246,7 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 bool MockupCall::handleAvCommand(Cid_t cid, unsigned av)
 {
     return true;
@@ -5329,4 +5337,4 @@ void MockupCall::logError(const char *error)
 {
 
 }
-
+#endif

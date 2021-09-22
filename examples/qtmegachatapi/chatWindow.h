@@ -8,7 +8,9 @@
 #include "chatMessage.h"
 #include "megaLoggerApplication.h"
 #include "MainWindow.h"
+#ifndef KARERE_DISABLE_WEBRTC
 #include "meetingView.h"
+#endif
 #include <QMessageBox>
 #include "QTMegaTransferListener.h"
 

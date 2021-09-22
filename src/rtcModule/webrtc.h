@@ -1,15 +1,16 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #ifndef WEBRTC_H
 #define WEBRTC_H
-
-#include "IRtcCrypto.h"
-#include "IVideoRenderer.h"
 #include "karereId.h"
 #include "karereCommon.h"
 #include "sdkApi.h"
 #include <net/websocketsIO.h>
+#include <mega/utils.h>
+#include "IVideoRenderer.h"
+#include "IRtcCrypto.h"
 #include "rtcCrypto.h"
 #include "sfu.h"
-#include <mega/utils.h>
+
 
 #define RET_ENUM_NAME(name) case name: return #name
 
@@ -239,3 +240,4 @@ enum RtcConstant {
 
 
 #endif // WEBRTC_H
+#endif
