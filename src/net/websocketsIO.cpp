@@ -277,13 +277,18 @@ const karere::Url &DNScache::getUrl(int shard)
     return it->second.mUrl;
 }
 
+bool DNScache::isSfuRecord(int shard) const
+{
+    return shard <= kSfuShardStart && shard >= kSfuShardEnd;
+}
+
 void DNScache::updateCurrentShardForSfuFromDb()
 {
     SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
     stmt << kSfuShardStart << kSfuShardEnd;
     if (stmt.step())
     {
-        assert(stmt.intCol(0) <= kSfuShardStart && stmt.intCol(0) >= kSfuShardEnd);
+        assert(isSfuRecord(stmt.intCol(0)));
         mCurrentShardForSfu = stmt.intCol(0);
     }
 }
@@ -306,7 +311,7 @@ void DNScache::loadFromDb()
                 stmt.blobCol(4, *blobBuff);
             }
 
-            if (shard <= kSfuShardStart && shard >= kSfuShardEnd)
+            if (isSfuRecord(shard))
             {
                 karere::Url sfuUrl(url);
                 if (!sfuUrl.isValid())

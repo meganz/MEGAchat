@@ -82,6 +82,7 @@ public:
     DNScache(SqliteDb &db, int chatdVersion);
     void loadFromDb();
     void updateCurrentShardForSfuFromDb(); // retrieves the min SFU shard from DB and updates mCurrentShardForSfu
+    bool isSfuRecord(int shard) const;
     void addRecord(int shard, const std::string &url, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true);
     void removeRecord(int shard);
     void updateRecord(int shard, const std::string &url, bool saveToDb);
