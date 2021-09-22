@@ -248,7 +248,6 @@ public:
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
     void removeChanges();
     void setChange(int changed);
-    void setIsRinging(bool ringing);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
 
     int availableAudioSlots();

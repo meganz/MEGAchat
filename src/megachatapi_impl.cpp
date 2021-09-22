@@ -6617,12 +6617,6 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     return TERM_CODE_INVALID;
 }
 
-void MegaChatCallPrivate::setIsRinging(bool ringing)
-{
-    mRinging = ringing;
-    mChanged |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
-}
-
 MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &/*sess*/)
 {
     return nullptr;
