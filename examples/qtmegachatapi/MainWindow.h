@@ -200,13 +200,11 @@ class MainWindow :
 
         bool mIsEphemeraAccount = false;
 
-        void updateVideoParticipants(megachat::MegaChatHandle chatid);
-
     private slots:
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();
         void onAddContact();
-        void onAddChatRoom(bool isGroup, bool isPublic);
+        void onAddChatRoom(bool isGroup, bool isPublic, bool isMeeting);
         void onWebRTCsetting();
         void setOnlineStatus();
         void onShowArchivedChats();
@@ -227,6 +225,7 @@ class MainWindow :
         void onImportMessages();
         void onAccountConfirmation(const std::string& email, const std::string& password);
         void onCancelAccountConfirmation();
+        void onJoinAsGuest();
 
     signals:
         void esidLogout();

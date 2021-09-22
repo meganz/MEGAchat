@@ -70,25 +70,25 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChat
 
 void CallGui::connectPeerCallGui()
 {
-    MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
-    setCall(auxCall);
-    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
-            mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
-    {
-        localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
-        ui->mAnswBtn->hide();
-        if (!mVideo)
-        {
-            setAvatar();
-            ui->videoRenderer->enableStaticImage();
-        }
-    }
-    else
-    {
-        remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid, mClientid);
-        MegaChatSession * session = auxCall->getMegaChatSession(mPeerid, mClientid);
-        enableOnHold(session->isOnHold(), false);
-    }
+//    MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
+//    setCall(auxCall);
+//    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
+//            mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
+//    {
+//        localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this, false);
+//        ui->mAnswBtn->hide();
+//        if (!mVideo)
+//        {
+//            setAvatar();
+//            ui->videoRenderer->enableStaticImage();
+//        }
+//    }
+//    else
+//    {
+//        remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid, mClientid);
+//        MegaChatSession * session = auxCall->getMegaChatSession(mPeerid, mClientid);
+//        enableOnHold(session->isOnHold(), false);
+//    }
 }
 
 MegaChatHandle CallGui::getPeerid() const
@@ -195,7 +195,7 @@ void CallGui::drawAvatar(QImage &image, QChar letter, uint64_t userid)
 
 void CallGui::onHangCall(bool)
 {
-     mChatWindow->mMegaChatApi->hangChatCall(mChatWindow->mChatRoom->getChatId());
+     mChatWindow->mMegaChatApi->hangChatCall(mCall->getCallId());
 }
 
 void CallGui::hangCall()

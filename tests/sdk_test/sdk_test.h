@@ -26,6 +26,9 @@
 #include <megaapi.h>
 #include "megachatapi.h"
 
+#include <chatClient.h>
+#include <sfu.h>
+
 #include <iostream>
 #include <fstream>
 
@@ -349,13 +352,11 @@ private:
     bool mCallAnswered[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
-    bool mTerminationLocal[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     bool mPeerIsRinging[NUM_ACCOUNTS];
-    bool mVideoLocal[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -450,26 +451,49 @@ public:
     bool retentionTimeUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
-    virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);
-    virtual void onMessageLoaded(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // loaded by getMessages()
-    virtual void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);
-    virtual void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // new or updated
-    virtual void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count);
-    virtual void onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg) override;
+    void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat) override;
+    void onMessageLoaded(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg) override;   // loaded by getMessages()
+    void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg) override;
+    void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg) override;   // new or updated
+    void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count) override;
+    void onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg) override;
 
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
 
-
-
 class MegaChatApiUnitaryTest
 {
 public:
     bool UNITARYTEST_ParseUrl();
+    bool UNITARYTEST_SfuDataReception();
 
     unsigned mOKTests = 0;
     unsigned mFailedTests = 0;
+
+    friend sfu::SfuConnection;
+};
+
+class MockupCall : public sfu::SfuInterface
+{
+public:
+    bool handleAvCommand(Cid_t cid, unsigned av) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers) override;
+    bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string&key) override;
+    bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
+    bool handleVThumbsStartCommand() override;
+    bool handleVThumbsStopCommand() override;
+    bool handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
+    bool handleHiResStartCommand() override;
+    bool handleHiResStopCommand() override;
+    bool handleSpeakReqsCommand(const std::vector<Cid_t>&) override;
+    bool handleSpeakReqDelCommand(Cid_t cid) override;
+    bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
+    bool handleSpeakOffCommand(Cid_t cid) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
+    bool handlePeerLeft(Cid_t cid) override;
+    void onSfuConnected() override;
+    bool error(unsigned int, const std::string &) override;
 };
 
 #endif // CHATTEST_H

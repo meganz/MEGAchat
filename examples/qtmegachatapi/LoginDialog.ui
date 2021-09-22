@@ -234,6 +234,15 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>eEmail</tabstop>
+  <tabstop>ePassword</tabstop>
+  <tabstop>bAnonymous</tabstop>
+  <tabstop>bEphimeralAccount</tabstop>
+  <tabstop>bOK</tabstop>
+  <tabstop>bCancel</tabstop>
+  <tabstop>bAnonymousText</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

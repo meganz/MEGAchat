@@ -129,7 +129,7 @@ public class MegaChatApiJava {
      *
      * @param chatid MegaChatHandle that identifies the chatroom
      * @param msgid MegaChatHandle that identifies the message
-     * @param reaction UTF-8 NULL terminated string that represents the reaction
+     * @param reaction UTF-8 NULL terminated string that represents the reactiongaC
      *
      * @return return the number of users that reacted to a message with a specific reaction,
      * or -1 if the chatroom or message is not found.
@@ -164,6 +164,18 @@ public class MegaChatApiJava {
      */
     public MegaHandleList getReactionUsers(long chatid, long msgid, String reaction) {
         return megaChatApi.getReactionUsers(chatid, msgid, reaction);
+    }
+
+    /**
+     * Enable / disable the public key pinning
+     *
+     * Public key pinning is enabled by default for all sensible communications.
+     * It is strongly discouraged to disable this feature.
+     *
+     * @param enable true to keep public key pinning enabled, false to disable it
+     */
+    public void setPublicKeyPinning(boolean enable) {
+        megaChatApi.setPublicKeyPinning(enable);
     }
 
     public void addChatRequestListener(MegaChatRequestListenerInterface listener)
@@ -218,6 +230,9 @@ public class MegaChatApiJava {
      *
      * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
      *
+     * @note if we want to receive video before start a call (openVideoDevice), we have to
+     * register a MegaChatVideoListener with chatid = MEGACHAT_INVALID_HANDLE
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatVideoListener that will receive local video
      */
@@ -227,30 +242,33 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Register a listener to receive video from remote device for an specific chat room and peer
+     * Register a listener to receive video from remote device for an specific chat room and peer
      *
      * You can use MegaChatApi::removeChatRemoteVideoListener to stop receiving events.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param peerid MegaChatHandle that identifies the peer
-     * @param clientid MegaChatHandle that identifies the client
+     * @param clientId MegaChatHandle that identifies the client
+     * @param hiRes boolean that identify if video is high resolution or low resolution
      * @param listener MegaChatVideoListener that will receive remote video
      */
-    public void addChatRemoteVideoListener(long chatid, long peerid, long clientid, MegaChatVideoListenerInterface listener)
+    public void addChatRemoteVideoListener(long chatid, long clientId, boolean hiRes, MegaChatVideoListenerInterface listener)
     {
-        megaChatApi.addChatRemoteVideoListener(chatid, peerid, clientid, createDelegateChatVideoListener(listener, true));
+        megaChatApi.addChatRemoteVideoListener(chatid, clientId, hiRes, createDelegateChatVideoListener(listener, true));
     }
 
     /**
      * Unregister a MegaChatVideoListener
      *
      * This listener won't receive more events.
+     * @note if we want to remove the listener added to receive video frames before start a call
+     * we have to use chatid = MEGACHAT_INVALID_HANDLE
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param peerid MegaChatHandle that identifies the peer (if the listener is remote)
+     * @param clientId MegaChatHandle that identifies the client
+     * @param hiRes boolean that identify if video is high resolution or low resolution
      * @param listener Object that is unregistered
      */
-    public void removeChatVideoListener(long chatid, long peerid, long clientid, MegaChatVideoListenerInterface listener) {
+    public void removeChatVideoListener(long chatid, long clientId, boolean hiRes, MegaChatVideoListenerInterface listener) {
         ArrayList<DelegateMegaChatVideoListener> listenersToRemove = new ArrayList<DelegateMegaChatVideoListener>();
         synchronized (activeChatVideoListeners) {
             Iterator<DelegateMegaChatVideoListener> it = activeChatVideoListeners.iterator();
@@ -267,7 +285,7 @@ public class MegaChatApiJava {
             DelegateMegaChatVideoListener delegateListener = listenersToRemove.get(i);
             delegateListener.setRemoved();
             if (delegateListener.isRemote()) {
-                megaChatApi.removeChatRemoteVideoListener(chatid, peerid, clientid, delegateListener);
+                megaChatApi.removeChatRemoteVideoListener(chatid, clientId, hiRes, delegateListener);
             }
             else {
                 megaChatApi.removeChatLocalVideoListener(chatid, delegateListener);
@@ -708,6 +726,47 @@ public class MegaChatApiJava {
      */
     public void createPublicChat(MegaChatPeerList peers, String title, MegaChatRequestListenerInterface listener){
         megaChatApi.createPublicChat(peers, title, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Creates a meeting
+     *
+     * This function allows to create public chats, where the moderator can create chat links to share
+     * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+     * moderator can create/get a public handle for the chatroom and generate a URL by using
+     * \c MegaChatApi::createChatLink. The chat-link can be deleted at any time by any moderator
+     * by using \c MegaChatApi::removeChatLink.
+     *
+     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::setPublicChatToPrivate.
+     *
+     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatPreview.
+     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::autojoinPublicChat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns always true, since the new chat is a groupchat
+     * - MegaChatRequest::getPrivilege - Returns one (public mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     * - MegaChatRequest::getNumber - Returns always 1, since the chatroom is a meeting
+     * -  MegaChatRequest::getUrl - Retruns url for the meeting
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - If no peer list is provided or non groupal and public is set.
+     * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
+     * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
+     * - MegaChatError::ERROR_ACCESS - If no peers are provided for a 1on1 chatroom.
+     *
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void createMeeting(String title, MegaChatRequestListenerInterface listener){
+        megaChatApi.createMeeting(title, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1487,16 +1546,15 @@ public class MegaChatApiJava {
 
 
     /**
-     * @brief Returns the client id handle of the logged in user for a chatroom
+     * Returns the client id handle of the logged in user for a chatroom
      *
-     * The clientid is not the same for all chatrooms. If \c chatid is invalid, this function
+     * The clientId is not the same for all chatrooms. If \c chatid is invalid, this function
      * returns 0
      *
      * In offline mode (MegaChatApi::INIT_OFFLINE_SESSION), this function returns 0
      *
      * @return Own client id handle
      */
-
     public long getMyClientidHandle(long chatid){
         return megaChatApi.getMyClientidHandle(chatid);
     }
@@ -1816,7 +1874,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Allows any user to preview a public chat without being a participant
+     * @brief Allows any user to preview a public chat without being a participant
      *
      * This function loads the required data to preview a public chat referenced by a
      * chat-link. It returns the actual \c chatid, the public handle, the number of peers
@@ -1837,6 +1895,7 @@ public class MegaChatApiJava {
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
+     * - MegaChatRequest::getFlag - Returns true (openChatPreview)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
@@ -1856,6 +1915,8 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
+     * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
+     * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat
@@ -1868,7 +1929,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Allows any user to obtain basic information abouts a public chat if
+     * @brief Allows any user to obtain basic information abouts a public chat if
      * a valid public handle exists.
      *
      * This function returns the actual \c chatid, the number of peers and also the title.
@@ -1876,6 +1937,7 @@ public class MegaChatApiJava {
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
+     * - MegaChatRequest::getFlag - Returns false (checkChatLink)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
@@ -1886,6 +1948,8 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
      * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
+     * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
+     * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
      *
      * @param link Null-terminated character string with the public chat link
      * @param listener MegaChatRequestListener to track this request
@@ -2765,7 +2829,6 @@ public class MegaChatApiJava {
         megaChatApi.pushReceived(beep, chatid, createDelegateRequestListener(listener));
     }
 
-
     /**
      * Select the video device to be used in calls
      *
@@ -2800,33 +2863,42 @@ public class MegaChatApiJava {
      * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
      *
-     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
-     * called without being already connected to chatd ot when the chatroom is in preview mode.
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     *  - if groupchatroom has no participants
+     *  - if peer of a 1on1 chatroom it's a non visible contact
+     *  - if this function is called without being already connected to chatd.
+     *  - if the chatroom is in preview mode.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it, or when the chat is public and there are too many
-     * participants to start the call.
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
      *
-     * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
-     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
+     * @note In case of group calls, if there is already too many peers sending video and there are no
+     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
+     * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    public void startChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
-    {
+    public void startChatCall(long chatid, boolean enableVideo, boolean enableAudio, MegaChatRequestListenerInterface listener) {
         // Always try to start the call using the front camera
         String frontCamera = VideoCaptureUtils.getFrontCamera();
         if (frontCamera != null) {
             megaChatApi.setChatVideoInDevice(frontCamera, null);
         }
 
-        megaChatApi.startChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
+        megaChatApi.startChatCall(chatid, enableVideo, enableAudio, createDelegateRequestListener(listener));
     }
 
     /**
@@ -2835,7 +2907,12 @@ public class MegaChatApiJava {
      * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
@@ -2844,51 +2921,54 @@ public class MegaChatApiJava {
      * in the call and we can't join to it, or when the chat is public and there are too many participants
      * to start the call.
      *
-     * NOTE: In case of group calls, if there is already too many peers sending video, the video flag
-     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
+     * @note In case of group calls, if there is already too many peers sending video and there are no
+     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
+     * @param enableAudio True for answering a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    public void answerChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
-    {
+    public void answerChatCall(long chatid, boolean enableVideo, boolean enableAudio, MegaChatRequestListenerInterface listener) {
         // Always try to start the call using the front camera
         String frontCamera = VideoCaptureUtils.getFrontCamera();
         if (frontCamera != null) {
             megaChatApi.setChatVideoInDevice(frontCamera, null);
         }
 
-        megaChatApi.answerChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
+        megaChatApi.answerChatCall(chatid, enableVideo, enableAudio, createDelegateRequestListener(listener));
     }
 
     /**
-     * Hang a call in a chat room
+     * Hang up a call
      *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getChatHandle - Returns the call identifier
+     * - MegaChatRequest::getFlag - Returns false
      *
-     * @param chatid MegaChatHandle that identifies the chat room
+     * @param callid MegaChatHandle that identifies the call
      * @param listener MegaChatRequestListener to track this request
      */
-
-    public void hangChatCall(long chatid, MegaChatRequestListenerInterface listener)
-    {
-        megaChatApi.hangChatCall(chatid, createDelegateRequestListener(listener));
+    public void hangChatCall(long callid, MegaChatRequestListenerInterface listener) {
+        megaChatApi.hangChatCall(callid, createDelegateRequestListener(listener));
     }
+
     /**
-     * Hang all active calls
+     * End a call in a chat room (user must be moderator)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the call identifier
+     * - MegaChatRequest::getFlag - Returns true
      *
+     * @param callid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    public void hangAllChatCalls(MegaChatRequestListenerInterface listener)
-    {
-        megaChatApi.hangAllChatCalls(createDelegateRequestListener(listener));
+    public void endChatCall(long callid, MegaChatRequestListenerInterface listener) {
+        megaChatApi.endChatCall(callid, createDelegateRequestListener(listener));
     }
 
     /**
@@ -2899,6 +2979,9 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true
      * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call sending audio already (no more audio slots are available).
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -2932,6 +3015,9 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getFlag - Returns true
      * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO
      *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call sending video already (no more video slots are available).
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
@@ -2956,6 +3042,55 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Request a high resolution quality level from a session
+     *
+     * Valid values for quality param are:
+     *  + MegaChatCall::CALL_QUALITY_HIGH_DEF = 0,     // Default hi-res quality
+     *  + MegaChatCall::CALL_QUALITY_HIGH_MEDIUM = 1,  // 2x lower resolution
+     *  + MegaChatCall::CALL_QUALITY_HIGH_LOW = 2,     // 4x lower resolution
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     * - MegaChatRequest::getParamType  - Returns the quality level requested
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientId MegaChatHandle that identifies the client
+     * @param quality The quality level requested
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void requestHiResQuality(long chatid, long clientId, int quality, MegaChatRequestListenerInterface listener){
+        megaChatApi.requestHiResQuality(chatid, clientId, quality, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Remove an active speaker from the call
+     *
+     * This method can be called by the speaker itself (voluntary action) or by any moderator of the groupchat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DEL_SPEAKER
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom
+     * - MegaChatError::ERROR_ACCESS - if clientId is not MEGACHAT_INVALID_HANDLE (own user),
+     * and our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @note This functionality is ready but it shouldn't be used at this moment
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientId MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void removeSpeaker(long chatid, long clientId, MegaChatRequestListenerInterface listener){
+        megaChatApi.removeSpeaker(chatid, clientId, createDelegateRequestListener(listener));
+    }
+
+    /**
      * Set/unset a call on hold
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CALL_ON_HOLD
@@ -2967,69 +3102,76 @@ public class MegaChatApiJava {
      * @param setOnHold indicates if call is set or unset on hold
      * @param listener MegaChatRequestListener to track this request
      */
-    public void setCallOnHold(long chatid, boolean setOnHold,MegaChatRequestListenerInterface listener){
-        megaChatApi.setCallOnHold(chatid, setOnHold,createDelegateRequestListener(listener));
+    public void setCallOnHold(long chatid, boolean setOnHold, MegaChatRequestListenerInterface listener) {
+        megaChatApi.setCallOnHold(chatid, setOnHold, createDelegateRequestListener(listener));
     }
+
     /**
-     * Search all audio and video devices at the system at that moment.
+     * Open video device
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
-     * After call this funciton, available devices can be obtained calling getChatAudioInDevices
-     * or getChatVideoInDevices
+     * The associated request type with this request is MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns true open device
+     *
+     * @note App is responsible to release device and remove MegaChatVideoListener
      *
      * @param listener MegaChatRequestListener to track this request
      */
+    public void openVideoDevice(MegaChatRequestListenerInterface listener) {
+        megaChatApi.openVideoDevice(createDelegateRequestListener(listener));
+    }
 
     /**
-     * Search all audio and video devices at the system at that moment.
+     * Release video device
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
-     * After call this funciton, available devices can be obtained calling getChatAudioInDevices
-     * or getChatVideoInDevices
+     * The associated request type with this request is MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns false close device
      *
      * @param listener MegaChatRequestListener to track this request
      */
-    public void loadAudioVideoDeviceList(MegaChatRequestListenerInterface listener)
-    {
-        megaChatApi.loadAudioVideoDeviceList(createDelegateRequestListener(listener));
+    public void releaseVideoDevice(MegaChatRequestListenerInterface listener){
+        megaChatApi.releaseVideoDevice(createDelegateRequestListener(listener));
     }
 
     /**
-     * Get the MegaChatCall associated with a chatRoom
+     * Get the MegaChatCall associated with a chatroom
      *
-     * If chatId is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
-     * returned
+     * If \c chatid is invalid or there isn't any MegaChatCall associated with the chatroom,
+     * this function returns NULL.
      *
-     * You take the ownership of the returned value
-     *
-     * @param chatId MegaChatHandle that identifies the chat room
-     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
-     */
-    public MegaChatCall getChatCall(long chatId){
-        return megaChatApi.getChatCall(chatId);
-    }
-
-    /**
-     * Mark as ignored the MegaChatCall associated with a chatroom
+     * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
+     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
      */
-    public void setIgnoredCall(long chatid){
-        megaChatApi.setIgnoredCall(chatid);
+    public MegaChatCall getChatCall(long chatid){
+        return megaChatApi.getChatCall(chatid);
     }
 
     /**
-     * Get the MegaChatCall that has a specific handle
+     * Mark as ignored the call associated with a chatroom
      *
-     * You can get the handle of  a MegaChatCall using MegaChatCall::getId().
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return true if call can be marked as ignored, otherwise return false.
+     */
+    public boolean setIgnoredCall(long chatid) {
+        return megaChatApi.setIgnoredCall(chatid);
+    }
+
+    /**
+     * Get the MegaChatCall that has a specific id
      *
-     * You take the ownership of the returned value
+     * You can get the id of a MegaChatCall using MegaChatCall::getId().
+     *
+     * You take the ownership of the returned value.
      *
      * @param callId MegaChatHandle that identifies the call
-     * @return MegaChatCall object for the specified \c chatid. NULL if call doesn't exist
+     * @return MegaChatCall object for the specified \c callId. NULL if call doesn't exist
      */
     public MegaChatCall getChatCallByCallId(long callId){
         return megaChatApi.getChatCallByCallId(callId);
+
     }
 
     /**
@@ -3042,27 +3184,34 @@ public class MegaChatApiJava {
     }
 
 
-
-    public MegaHandleList getChatCalls(){
-        return megaChatApi.getChatCalls(-1);
-    }
-
-
     /**
-     * @brief Get a list with the ids of chatrooms where there are active calls and their state is \c callState
+     * Get a list with the ids of chatrooms where there are active calls
      *
-     * If \c callState is -1 then returns all calls regardless their state
+     * The list of ids can be retrieved for calls in one specific state by setting
+     * the parameter \c callState. If state is -1, it returns all calls regardless their state.
      *
      * You take the ownership of the returned value.
      *
-     * @param callState that you want receive, -1 for all
      * @return A list of handles with the ids of chatrooms where there are active calls
      */
-
-    public MegaHandleList getChatCalls(int callState) {
-        return megaChatApi.getChatCalls(callState);
+    public MegaHandleList getChatCalls() {
+        return megaChatApi.getChatCalls(-1);
     }
 
+    /**
+     * Get a list with the ids of chatrooms where there are active calls
+     *
+     * The list of ids can be retrieved for calls in one specific state by setting
+     * the parameter \c callState. If state is -1, it returns all calls regardless their state.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param state of calls that you want receive, -1 to consider all states
+     * @return A list of handles with the ids of chatrooms where there are active calls
+     */
+    public MegaHandleList getChatCalls(int state) {
+        return megaChatApi.getChatCalls(state);
+    }
 
     /**
      * Get a list with the ids of active calls
@@ -3076,7 +3225,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Returns true if there is a call at chatroom with id \c chatid
+     * Returns true if there is a call at chatroom with id \c chatid
      *
      * @note It's not necessary that we participate in the call, but other participants do.
      *
@@ -3088,7 +3237,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Returns the maximum call participants
+     * Returns the maximum call participants
      *
      * @return Maximum call participants
      */
@@ -3097,7 +3246,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Returns the maximum video call participants
+     * Returns the maximum video call participants
      *
      * @return Maximum video call participants
      */
@@ -3110,27 +3259,27 @@ public class MegaChatApiJava {
      *
      * It's false by default
      *
-     * If there isn't a call in that chatroom in which user is participating,
+     * @note If there isn't a call in that chatroom in which user is participating,
      * audio Level monitor will be always false
      *
      * @param chatid MegaChatHandle that identifies the chat room from we want know if audio level monitor is disabled
      * @return true if audio level monitor is enabled
      */
-    public boolean isAudioLevelMonitorEnabled(long chatid) {
+    public boolean isAudioLevelMonitorEnabled(long chatid){
         return megaChatApi.isAudioLevelMonitorEnabled(chatid);
     }
 
     /**
      * Enable or disable audio level monitor
      *
-     * It's false by default and it's app responsability to enable it
+     * It's false by default and it's app responsibility to enable it
      *
      * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
      *
-     * If there isn't a call in that chatroom in which user is participating,
+     * @note If there isn't a call in that chatroom in which user is participating,
      * audio Level monitor won't be able established
      *
      * @param enable True for enable audio level monitor, False to disable
@@ -3142,23 +3291,145 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Enable or disable audio level monitor
+     * Request become a speaker
      *
-     * It's false by default and it's app responsability to enable it
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
+     * - MegaChatRequest::getFlag - true -> indicate that it is a enable request operation
      *
-     * If there isn't a call in that chatroom in which user is participating,
-     * audio Level monitor won't be able established
+     * @note This functionality is ready but it shouldn't be used at this moment
      *
-     * @param enable True for enable audio level monitor, False to disable
-     * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
      */
-    public void enableAudioLevelMonitor(boolean enable, long chatid) {
-        megaChatApi.enableAudioLevelMonitor(enable, chatid);
+    public void requestSpeak(long chatid, MegaChatRequestListenerInterface listener) {
+        megaChatApi.requestSpeak(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Remove a request to become a speaker
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - false -> indicate that it is a remove request operation
+     *
+     * @note This functionality is ready but it shouldn't be used at this moment
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void removeRequestSpeak(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.removeRequestSpeak(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Approve speak request
+     *
+     * This method has to be called only by a user with moderator role
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicate that approve the request
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     *
+     * @note This functionality is ready but it shouldn't be used at this moment
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientId MegaChatHandle that identifies client
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void approveSpeakRequest(long chatid, long clientId, MegaChatRequestListenerInterface listener) {
+        megaChatApi.approveSpeakRequest(chatid, clientId, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Reject speak request
+     *
+     * This method has to be called only by a user with moderator role
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - false -> indicate that reject the request
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientId MegaChatHandle that identifies client
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void rejectSpeakRequest(long chatid, long clientId, MegaChatRequestListenerInterface listener) {
+        megaChatApi.rejectSpeakRequest(chatid, clientId, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Request high resolution video from a client
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicate that request high resolution video
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientId MegaChatHandle that identifies client
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void requestHiResVideo(long chatid, long clientId, MegaChatRequestListenerInterface listener) {
+        megaChatApi.requestHiResVideo(chatid, clientId, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Stop high resolution video from a list of clients
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - false -> indicate that stop high resolution video
+     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Ids
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientIds List of clients Ids
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void stopHiResVideo(long chatid, MegaHandleList clientIds, MegaChatRequestListenerInterface listener) {
+        megaChatApi.stopHiResVideo(chatid, clientIds, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Request low resolution video from a list of clients
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicate that request low resolution video
+     * - MegaChatRequest::getMegaHandleList - Returns the list of client Ids
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientIds List of clients Ids
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void requestLowResVideo(long chatid, MegaHandleList clientIds, MegaChatRequestListenerInterface listener) {
+        megaChatApi.requestLowResVideo(chatid, clientIds, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Stop low resolution video from a list of clients
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - false -> indicate that stop low resolution video
+     * - MegaChatRequest::getMegaHandleList - Returns the list of clients Ids
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientIds List of clients Ids
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void stopLowResVideo(long chatid, MegaHandleList clientIds, MegaChatRequestListenerInterface listener) {
+        megaChatApi.stopLowResVideo(chatid, clientIds, createDelegateRequestListener(listener));
     }
 
     public static void setCatchException(boolean enable) {

@@ -6,6 +6,12 @@
 #include <cservices.h> //needed for timestampMs()
 #include <string.h>
 
+// MEGA Meetings types
+typedef uint8_t Keyid_t;        // 8-bit id of the encryption key
+typedef uint32_t Cid_t;         // 24-bit client id (CID) for meetings (identifies a user in a call)
+typedef uint64_t IvStatic_t;    // IV static part (8 bytes)
+typedef uint32_t Ctr_t;         // packet Ctr (4 bytes)
+
 /** @cond PRIVATE */
 
 #ifndef KARERE_SHARED
@@ -50,14 +56,6 @@
 #define KARERE_RECONNECT_ATTEMPT_TIMEOUT 1000   // starts with 1s (+2s bias), but increments exponentially: 3, 4, 6, 10...
 #define KARERE_RECONNECT_MAX_ATTEMPT_TIMEOUT 10000
 
-#define KARERE_DEFAULT_TURN_SERVERS \
-   "[{\"host\":\"turn:trn270n001.karere.mega.nz:3478?transport=udp\"}," \
-    "{\"host\":\"turn:trn302n001.karere.mega.nz:3478?transport=udp\"}," \
-    "{\"host\":\"turn:trn530n001.karere.mega.nz:3478?transport=udp\"}]"
-
-#define KARERE_TURN_USERNAME "inoo20jdnH"
-#define KARERE_TURN_PASSWORD "02nNKDBkkS"
-
 #if defined(__ANDROID__) && !defined(HAVE_STD_TO_STRING)
 //Android is missing std::to_string
 #define HAVE_STD_TO_STRING 1
@@ -95,52 +93,75 @@ void globalCleanup();
 
 /** @cond PRIVATE */
 
+// Note: You can't send camera and screen simultaneously, but you can
+// send i.e camera in hi-res and low-res over two tracks
+// screen sharing is not used at this moment in native
 struct AvFlags
 {
 protected:
-    uint8_t mFlags;
+    uint8_t mFlags = 0;
 public:
-    //Bit 3 (value 4) is occupied by kFlagRinging = 0x04
-    enum: uint8_t { kAudio = 1, kVideo = 2, kScreen = 8, kOnHold = 16, kMask = 27};
+    enum: uint8_t { kAudio          = 0x01,
+
+                    kCameraLowRes   = 0x02,
+                    kCameraHiRes    = 0x04,
+                    kCamera         = kCameraLowRes | kCameraHiRes,
+
+                    kScreenLowRes   = 0x08,
+                    kScreenHiRes    = 0x10,
+                    kScreen         = kScreenLowRes | kScreenHiRes,
+
+                    kLowResVideo    = kCameraLowRes | kScreenLowRes,
+                    kHiResVideo     = kCameraHiRes | kScreenHiRes,
+
+                    kVideo          = kLowResVideo | kHiResVideo,
+                    kOnHold         = 0x80,
+                  };
+
     AvFlags(uint8_t flags): mFlags(flags){}
-    AvFlags(bool audio, bool video)
-    : mFlags((audio ? kAudio : 0) | (video ? kVideo : 0)){}
+    AvFlags(bool audio, bool video) : mFlags((audio ? kAudio : 0) | (video ? kCamera : 0)) {}
     AvFlags(): mFlags(0){}
-    uint8_t value() const { return mFlags; }
-    void set(uint8_t val) { mFlags = val; }
-    bool audio() const { return mFlags & kAudio; }
-    bool video() const { return mFlags & kVideo; }
-    bool onHold() const { return mFlags & kOnHold; }
-    bool operator==(AvFlags other) { return (mFlags == other.mFlags); }
-    bool operator!=(AvFlags other) { return (mFlags != other.mFlags); }
-    bool any() const { return mFlags != 0; }
-    operator bool() const { return mFlags != 0; }
+
+    // setters/modifiers
+    void set(uint8_t val)       { mFlags = val; }
+    void add(uint8_t val)       { mFlags = mFlags | val; }
+    void remove(uint8_t val)    { mFlags = mFlags & ~val; }
+    void setOnHold(bool enable) { enable ? add(kOnHold) : remove(kOnHold); }
+
+    // getters
+    uint8_t value() const       { return mFlags; }
+    bool audio() const          { return mFlags & kAudio; }
+    bool video() const          { return mFlags & kVideo; }
+    bool videoHiRes() const     { return mFlags & kHiResVideo; }  //  kCameraHiRes  | kScreenHiRes
+    bool videoLowRes() const    { return mFlags & kLowResVideo; } //  kCameraLowRes | kScreenLowRes
+    bool videoCam() const       { return mFlags & kCamera; }
+    bool isOnHold() const       { return mFlags & kOnHold; }
+
+    // check methods
+    operator bool() const           { return mFlags != 0; }
+    bool operator==(AvFlags other)  { return (mFlags == other.mFlags); }
+    bool operator!=(AvFlags other)  { return (mFlags != other.mFlags); }
+    bool any() const                { return mFlags != 0; }
+    bool has(uint8_t val) const     { return mFlags & val; }
+
     std::string toString() const
     {
         std::string result;
         if (mFlags & kAudio)
             result+='a';
-        if (mFlags & kVideo)
-            result+='v';
-        if (mFlags & kScreen)
-            result+='s';
+        if (mFlags & kCameraLowRes)
+            result+= "cL";
+        if (mFlags & kCameraHiRes)
+            result+= "cH";
+        if (mFlags & kScreenLowRes)
+            result+= "sL";
+        if (mFlags & kScreenHiRes)
+            result+= "sH";
         if (mFlags & kOnHold)
             result+='h';
         if (result.empty())
             result='-';
         return result;
-    }
-    void setAudio(bool enable)
-    {
-        mFlags = ((enable ? kAudio : 0) | (video() ? kVideo : 0) | (onHold() ? kOnHold : 0));
-    }
-    void setVideo(bool enable)
-    {
-        mFlags = ((audio() ? kAudio : 0) | (enable ? kVideo : 0) | (onHold() ? kOnHold : 0));
-    }
-    void setOnHold(bool enable)
-    {
-        mFlags = ((audio() ? kAudio : 0) | (video() ? kVideo : 0) | (enable ? kOnHold : 0));
     }
 };
 

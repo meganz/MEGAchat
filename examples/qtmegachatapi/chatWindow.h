@@ -8,6 +8,7 @@
 #include "chatMessage.h"
 #include "megaLoggerApplication.h"
 #include "MainWindow.h"
+#include "meetingView.h"
 #include <QMessageBox>
 #include "QTMegaTransferListener.h"
 
@@ -64,8 +65,6 @@ class ChatWindow : public QDialog,
         void previewUpdate(MegaChatRoom *auxRoom = NULL);
         void createAttachMenu(QMenu& menu);
         void truncateChatUI();
-        void connectPeerCallGui(MegaChatHandle peerid, MegaChatHandle clientid);
-        void destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid);
         void hangCall();
         void setChatTittle(const char *title);
         bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
@@ -75,27 +74,21 @@ class ChatWindow : public QDialog,
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
+        MeetingView *getMeetingView();
 
         void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
 
         megachat::MegaChatApi *getMegaChatApi();
         void onAttachLocation();
         void onAttachGiphy();
-        void enableCallReconnect(bool enable);
 
-#ifndef KARERE_DISABLE_WEBRTC
-        std::set<CallGui *> *getCallGui();
-        CallGui* getMyCallGui();
-        void setCallGui(CallGui *callGui);
-#endif
         ChatListItemController *getChatItemController();
         MainWindow *getMainWin() const;
 
     protected:
         Ui::ChatWindowUi *ui;
 #ifndef KARERE_DISABLE_WEBRTC
-        CallGui *mCallGui;
-        std::set<CallGui *> callParticipantsGui;
+        MeetingView *mMeetingView = nullptr;
 #endif
         MainWindow *mMainWin;
         megachat::MegaChatApi *mMegaChatApi;
@@ -118,7 +111,6 @@ class ChatWindow : public QDialog,
         MyMessageList *mAttachmentList = NULL;
         QWidget *mFrameAttachments = NULL;
         QMessageBox *mUploadDlg;
-        QMessageBox *mReconnectingDlg = NULL;
 
     protected slots:
         void onMsgListRequestHistory();
@@ -131,7 +123,6 @@ class ChatWindow : public QDialog,
         void onAttachmentRequestHistory();
         void on_mAttachBtn_clicked();
         void on_mCancelTransfer(QAbstractButton *);
-        void on_mCancelReconnection(QAbstractButton *);
         void onAttachmentsClosed(QObject*);
         void on_mSettingsBtn_clicked();
         void onAttachNode(bool isVoiceClip);
@@ -139,7 +130,7 @@ class ChatWindow : public QDialog,
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
         void closeEvent(QCloseEvent *event);
-        void createCallGui(bool, MegaChatHandle peerid, MegaChatHandle clientid, bool onHold = false);
+        void createCallGui(MegaChatHandle peerid, MegaChatHandle clientid, bool onHold = false, unsigned numParticipants = 0);
         void getCallPos(int index, int &row, int &col);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);

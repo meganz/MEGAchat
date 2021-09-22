@@ -57,6 +57,12 @@ class MegaChatApplication : public QApplication,
         MainWindow *mainWindow() const;
         ::mega::MegaApi *megaApi() const;
         megachat::MegaChatApi *megaChatApi() const;
+        void setJoinAsGuest(bool joinAsGuest);
+        bool getJoinAsGuest() const;
+        void setGuestName(const std::string& name);
+        std::string getGuestName() const;
+        void setChatLink(const std::string& chatLink);
+        std::string getChatLink() const;
 
 protected:
         const char *mSid;
@@ -69,6 +75,9 @@ protected:
         ::mega::QTMegaListener *megaListenerDelegate;
         megachat::QTMegaChatRequestListener *megaChatRequestListenerDelegate;
         megachat::QTMegaChatNotificationListener *megaChatNotificationListenerDelegate;
+        bool mJoinAsGuest = false;
+        std::string mGuestUserName;
+        std::string mMeetingLink;
 
     private:
         std::map<megachat::MegaChatHandle, std::string> mFirstnamesMap;

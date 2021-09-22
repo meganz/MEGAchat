@@ -60,28 +60,32 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->getClientid() : 0;
 }
 
-- (NSInteger)networkQuality {
-    return self.megaChatSession ? self.megaChatSession->getNetworkQuality() : 0;
-}
-
 - (BOOL)audioDetected {
-    return self.megaChatSession ? self.megaChatSession->getAudioDetected() : NO;
+    return self.megaChatSession ? self.megaChatSession->isAudioDetected() : NO;
 }
 
 - (BOOL)isOnHold {
     return self.megaChatSession ? self.megaChatSession->isOnHold() : NO;
 }
 
-- (NSInteger)termCode {
-    return self.megaChatSession ? self.megaChatSession->getTermCode() : 0;
-}
-
-- (BOOL)isLocalTermCode {
-    return self.megaChatSession ? self.megaChatSession->isLocalTermCode() : NO;
-}
-
 - (NSInteger)changes {
     return self.megaChatSession ? self.megaChatSession->getChanges() : 0;
+}
+
+- (BOOL)isHighResVideo {
+    return self.megaChatSession ? self.megaChatSession->isHiResVideo() : NO;
+}
+
+- (BOOL)isLowResVideo {
+    return self.megaChatSession ? self.megaChatSession->isLowResVideo() : NO;
+}
+
+- (BOOL)canReceiveVideoHiRes {
+    return self.megaChatSession ? self.megaChatSession->canRecvVideoHiRes() : NO;
+}
+
+- (BOOL)canReceiveVideoLowRes {
+    return self.megaChatSession ? self.megaChatSession->canRecvVideoLowRes() : NO;
 }
 
 - (BOOL)hasChanged:(MEGAChatSessionChange)change {
@@ -91,13 +95,15 @@ using namespace megachat;
 - (NSString *)description {
     NSString *peerId = [MEGASdk base64HandleForUserHandle:self.peerId];
     NSString *clientId = [MEGASdk base64HandleForUserHandle:self.clientId];
-    NSString *termCode = [MEGAChatCall stringForTermCode:(MEGAChatCallTermCode)self.termCode];
     NSString *hasAudio = self.hasAudio ? @"ON" : @"OFF";
     NSString *hasVideo = self.hasVideo ? @"ON" : @"OFF";
-    NSString *localTermCode = self.isLocalTermCode ? @"YES" : @"NO";
     NSString *audioDetected = self.audioDetected ? @"YES" : @"NO";
     NSString *changes = [self stringForChanges];
-    return [NSString stringWithFormat:@"<%@: peerId=%@; clientId=%@; hasAudio=%@; hasVideo=%@; changes=%@; audioDetected=%@; networkQuality=%ld; termCode=%@; is local term code %@>", self.class, peerId, clientId, hasAudio, hasVideo, changes, audioDetected, self.networkQuality, termCode, localTermCode];
+    NSString *isHighResVideo = self.isHighResVideo ? @"YES" : @"NO";
+    NSString *isLowResVideo = self.isLowResVideo ? @"YES" : @"NO";
+    NSString *canReceiveVideoHiRes = self.canReceiveVideoHiRes ? @"YES" : @"NO";
+    NSString *canReceiveVideoLowRes = self.canReceiveVideoLowRes ? @"YES" : @"NO";
+    return [NSString stringWithFormat:@"<%@: peerId=%@; clientId=%@; hasAudio=%@; hasVideo=%@; changes=%@; audioDetected=%@, isHighResVideo: %@, isLowResVideo: %@, canReceiveVideoHiRes: %@, canReceiveVideoLowRes: %@>", self.class, peerId, clientId, hasAudio, hasVideo, changes, audioDetected, isHighResVideo, isLowResVideo, canReceiveVideoHiRes, canReceiveVideoLowRes];
 }
 
 - (NSString *)stringForChanges {
@@ -107,10 +113,6 @@ using namespace megachat;
     }
     if ([self hasChanged:MEGAChatSessionChangeStatus]) {
         switch (self.status) {
-            case MEGAChatSessionStatusInitial:
-                changes = [changes stringByAppendingString:@" | STATUS INITIAL"];
-                break;
-                
             case MEGAChatSessionStatusDestroyed:
                 changes = [changes stringByAppendingString:@" | STATUS DESTROYED"];
                 break;
@@ -127,14 +129,20 @@ using namespace megachat;
     if ([self hasChanged:MEGAChatSessionChangeRemoteAvFlags]) {
         changes = [changes stringByAppendingString:@" | AV FLAGS"];
     }
-    if ([self hasChanged:MEGAChatSessionChangeNetworkQuality]) {
-        changes = [changes stringByAppendingString:@" | NETWORK QUALITY"];
+    if ([self hasChanged:MEGAChatSessionChangeSpeakRequested]) {
+        changes = [changes stringByAppendingString:@" | SPEAK REQUESTED"];
     }
     if ([self hasChanged:MEGAChatSessionChangeAudioLevel]) {
         changes = [changes stringByAppendingString:@" | AUDIO LEVEL"];
     }
-    if ([self hasChanged:MEGAChatSessionChangeOperative]) {
-        changes = [changes stringByAppendingString:@" | OPERATIVE"];
+    if ([self hasChanged:MEGAChatSessionChangeOnLowRes]) {
+        changes = [changes stringByAppendingString:@" | ON LOW RES"];
+    }
+    if ([self hasChanged:MEGAChatSessionChangeOnHiRes]) {
+        changes = [changes stringByAppendingString:@" | ON HI RES"];
+    }
+    if ([self hasChanged:MEGAChatSessionChangeOnHold]) {
+        changes = [changes stringByAppendingString:@" | ON HOLD"];
     }
     
     if (changes.length < 4) {

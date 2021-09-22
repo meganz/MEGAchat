@@ -349,25 +349,6 @@ public:
 
 class Connection;
 
-class IRtcHandler
-{
-public:
-    virtual void handleMessage(Chat& /*chat*/, const StaticBuffer& /*msg*/) {}
-    virtual void handleCallData(Chat& /*chat*/, karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/, const StaticBuffer& /*msg*/) {}
-    virtual void onShutdown() {}
-    virtual void onClientLeftCall(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
-
-    /**
-     * @brief This function is used to stop incall timer call during reconnection process
-     * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
-     */
-    virtual void stopCallsTimers(int shard) = 0;
-    virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
-    virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
-    virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
-    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid) = 0;
-    virtual void retryCalls(int shard) = 0;
-};
 /** @brief userid + clientid map key class */
 struct EndpointId
 {
@@ -493,10 +474,10 @@ protected:
     bool mFetchingUrl = false;
 
     // ---- callbacks called from libwebsocketsIO ----
-    virtual void wsConnectCb();
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
-    virtual void wsHandleMsgCb(char *data, size_t len);
-    virtual void wsSendMsgCb(const char *data, size_t len);
+    void wsConnectCb() override;
+    void wsCloseCb(int errcode, int errtype, const char *preason, size_t preason_len) override;
+    void wsHandleMsgCb(char *data, size_t len) override;
+    void wsSendMsgCb(const char *, size_t) override;
     bool wsSSLsessionUpdateCb(const CachedSession &sess) override;
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
@@ -514,7 +495,6 @@ protected:
     void execCommand(const StaticBuffer& buf);
     promise::Promise<void> sendKeepalive();
     void sendEcho();
-    void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
 
     /** @brief reset number of succeeded connection attempts and update ts for last check **/
     void resetConnSuceededAttempts(const time_t &t);
@@ -1557,7 +1537,11 @@ public:
     //  * Add commands MSGIDTIMESTAMP NEWMSGIDTIMESTAMP
     // - Version 8:
     //  * Solves several bugs related to missing RETENTION time upon re-joins, anonymous previewers and others
-    static const unsigned chatdVersion = 8;
+    // - Version 9:
+    //  * Add commands JOINEDCALL, LEFTCALL, CALLSTATE, CALLEND
+    // - Version 10:
+    //  * Add commands DELCALLREASON
+    static const unsigned chatdVersion = 10;
 
     // Minimum retention history check period (in seconds)
     static const unsigned kMinRetentionTimeout = 60;
@@ -1569,7 +1553,6 @@ public:
 
     MyMegaApi *mApi;
     karere::Client *mKarereClient;
-    IRtcHandler *mRtcHandler = nullptr;
 
     /* --- getters --- */
     const karere::Id myHandle() const;
@@ -1596,9 +1579,6 @@ public:
     void heartbeat();
 
     promise::Promise<void> notifyUserStatus();
-
-    /** Changes the Rtc handler, returning the old one */
-    IRtcHandler* setRtcHandler(IRtcHandler* handler);
 
     /** Clean the timers set */
     void cancelSeenTimers();

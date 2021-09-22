@@ -3,8 +3,7 @@
 
 typedef NS_ENUM (NSInteger, MEGAChatSessionStatus) {
     MEGAChatSessionStatusInvalid = 0xFF,
-    MEGAChatSessionStatusInitial = 0,
-    MEGAChatSessionStatusInProgress,
+    MEGAChatSessionStatusInProgress = 0,
     MEGAChatSessionStatusDestroyed
 };
 
@@ -12,10 +11,11 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionChange) {
     MEGAChatSessionChangeNoChanges = 0x00,
     MEGAChatSessionChangeStatus = 0x01,
     MEGAChatSessionChangeRemoteAvFlags = 0x02,
-    MEGAChatSessionChangeNetworkQuality = 0x04,
-    MEGAChatSessionChangeAudioLevel = 0x08,
-    MEGAChatSessionChangeOperative = 0x10,
+    MEGAChatSessionChangeSpeakRequested = 0x04,
+    MEGAChatSessionChangeOnLowRes = 0x08,
+    MEGAChatSessionChangeOnHiRes = 0x10,
     MEGAChatSessionChangeOnHold = 0x20,
+    MEGAChatSessionChangeAudioLevel = 0x40,
 };
 
 @interface MEGAChatSession : NSObject
@@ -29,10 +29,12 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionChange) {
 @property (nonatomic, readonly) uint64_t clientId;
 @property (nonatomic, readonly) BOOL audioDetected;
 @property (nonatomic, readonly, getter=isOnHold) BOOL onHold;
-@property (nonatomic, readonly) NSInteger networkQuality;
-@property (nonatomic, readonly) NSInteger termCode;
-@property (nonatomic, readonly) BOOL isLocalTermCode;
 @property (nonatomic, readonly) NSInteger changes;
+
+@property (nonatomic, readonly, getter=isHighResVideo) BOOL highResVideo;
+@property (nonatomic, readonly, getter=isLowResVideo) BOOL lowResVideo;
+@property (nonatomic, readonly) BOOL canReceiveVideoHiRes;
+@property (nonatomic, readonly) BOOL canReceiveVideoLowRes;
 
 - (BOOL)hasChanged:(MEGAChatSessionChange)change;
 
