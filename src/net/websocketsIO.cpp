@@ -296,6 +296,10 @@ void DNScache::updateCurrentShardForSfuFromDb()
 
 void DNScache::removeRecordsByShards(const std::set<int> &removeElements)
 {
+    if (removeElements.empty())
+    {
+        return;
+    }
     std::string query ("delete from dns_cache where shard in(");
     std::ostringstream os;
     std::fill_n(std::ostream_iterator<std::string>(os), removeElements.size(), "?,");
