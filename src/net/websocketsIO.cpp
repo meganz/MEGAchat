@@ -287,7 +287,7 @@ void DNScache::updateCurrentShardForSfuFromDb()
 {
     SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
     stmt << kSfuShardStart << kSfuShardEnd;
-    if (stmt.step())
+    if (stmt.step() && sqlite3_column_type(stmt, 0) != SQLITE_NULL)
     {
         assert(isSfuRecord(stmt.intCol(0)));
         mCurrentShardForSfu = stmt.intCol(0);
