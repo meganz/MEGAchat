@@ -322,7 +322,7 @@ void DNScache::loadFromDb()
                     continue;
                 }
                 addRecordByHost(sfuUrl.host, blobBuff, false, shard);
-                setIpByHost(sfuUrl.host, std::vector<std::string>{stmt.stringCol(2)}, std::vector<std::string>{stmt.stringCol(3)});
+                setIpByHost(sfuUrl.host, {stmt.stringCol(2)}, {stmt.stringCol(3)});
             }
             else
             {
