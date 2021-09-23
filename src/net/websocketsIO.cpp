@@ -352,7 +352,7 @@ void DNScache::loadFromDb()
         else
         {
             assert(!url.empty());  // there shouldn't be emtpy urls in cache
-            //removeElements.insert(shard);
+            removeElements.insert(shard);
         }
     }
 
