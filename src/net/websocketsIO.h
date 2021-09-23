@@ -116,6 +116,7 @@ private:
     // Maps shard to DNSrecord
     std::map<int, DNSrecord> mRecords;
     int mChatdVersion;
+    void removeRecordsByShards(const std::set<int> &removeElements);
 
     /* SFU servers are not distributed in shards, but dns_cache primary key is shard number,
      * so for this purpose, we'll use a variable whose possible values are between

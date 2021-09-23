@@ -279,6 +279,7 @@ const karere::Url &DNScache::getUrl(int shard)
 
 bool DNScache::isSfuRecord(int shard) const
 {
+    // note that kSfuShardStart and kSfuShardEnd are negative values
     return shard <= kSfuShardStart && shard >= kSfuShardEnd;
 }
 
@@ -293,9 +294,26 @@ void DNScache::updateCurrentShardForSfuFromDb()
     }
 }
 
+void DNScache::removeRecordsByShards(const std::set<int> &removeElements)
+{
+    std::string query ("delete from dns_cache where shard in(");
+    std::ostringstream os;
+    std::fill_n(std::ostream_iterator<std::string>(os), removeElements.size(), "?,");
+    query.append(os.str());
+    query.pop_back();     // remove last comma => ?,?,?,?,
+    query.push_back(')'); // add close bracket for IN clause
+    SqliteStmt auxstmt(mDb, query.c_str());
+    for (auto shard: removeElements)
+    {
+        auxstmt << shard;
+    }
+    auxstmt.step();
+}
+
 void DNScache::loadFromDb()
 {
     SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6, sess_data from dns_cache");
+    std::set<int> removeElements;
     while (stmt.step())
     {
         int shard = stmt.intCol(0);
@@ -318,7 +336,7 @@ void DNScache::loadFromDb()
                 {
                     assert(sfuUrl.isValid());
                     DNSCACHE_LOG_ERROR("loadFromDb: invalid SFU URL");
-                    mDb.query("delete from dns_cache where shard=?", shard);
+                    removeElements.insert(shard);
                     continue;
                 }
                 addRecordByHost(sfuUrl.host, blobBuff, false, shard);
@@ -334,9 +352,12 @@ void DNScache::loadFromDb()
         else
         {
             assert(!url.empty());  // there shouldn't be emtpy urls in cache
-            mDb.query("delete from dns_cache where shard=?", shard);
+            //removeElements.insert(shard);
         }
     }
+
+    // remove wrong records with one query
+    removeRecordsByShards(removeElements);
 
     // retrieve min SFU shard from DB and update mCurrentShardForSfu
     updateCurrentShardForSfuFromDb();
