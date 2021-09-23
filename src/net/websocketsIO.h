@@ -58,7 +58,6 @@ public:
     struct DNSrecord
     {
         karere::Url mUrl;
-        std::string mHost;
         std::string ipv4;
         std::string ipv6;
         ::mega::m_time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
@@ -67,13 +66,13 @@ public:
         std::shared_ptr<Buffer> tlsBlob; // tls session data
         DNSrecord() = default;
         DNSrecord(const std::string &host, std::shared_ptr<Buffer> sess):
-            mHost(host),
             tlsBlob(sess && !sess->empty() ? sess : nullptr)
         {
             // no need to implement move ctr in Url class as all members are from primitive types
+            mUrl.host = host;
         }
 
-        bool isHostMatch(const std::string &host) const { return mHost == host; }
+        bool isHostMatch(const std::string &host) const { return mUrl.host == host; }
     };
 
     // reference to db-layer interface
