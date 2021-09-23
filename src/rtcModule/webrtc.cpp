@@ -2256,10 +2256,6 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
             {
                return promise::Error("connectSfu error, invalid or empty URL");
             }
-            else
-            {
-               return promise::_Void();
-            }
         }
         return promise::_Void();
     })
