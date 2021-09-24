@@ -3026,16 +3026,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     loadHistory(a1, chatid, chatroomListener);
     loadHistory(a2, chatid, chatroomListener);
 
-//    bool *audioVideoDeviceListLoaded0 = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded0 = false;
-//    megaChatApi[a1]->loadAudioVideoDeviceList();
-//    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded0), "Timeout expired for load audio video devices in account 1");
-//    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to load Device list account 1: " + std::to_string(lastErrorChat[a1]));
-
-//    bool *audioVideoDeviceListLoaded1 = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded1 = false;
-//    megaChatApi[a2]->loadAudioVideoDeviceList();
-//    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded1), "Timeout expired for load audio video devices in account 2");
-//    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to load Device list account 2: " + std::to_string(lastErrorChat[a2]));
-
     mLocalVideoListener[a1] = new TestChatVideoListener();
     mLocalVideoListener[a2] = new TestChatVideoListener();
     megaChatApi[a1]->addChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
@@ -3251,12 +3241,6 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
     logout(a2);
 
-//    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
-//    megaChatApi[a1]->loadAudioVideoDeviceList();
-//    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
-
-    ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
-
     TestChatVideoListener localVideoListener;
 
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
@@ -3333,9 +3317,6 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
-    delete videoInDevices;
-    videoInDevices = NULL;
-
     delete chatroomListener;
     chatroomListener = NULL;
 
@@ -3390,12 +3371,6 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
 
     loadHistory(a1, chatid, chatroomListener);
 
-//    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
-//    megaChatApi[a1]->loadAudioVideoDeviceList();
-//    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
-
-    ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
-
     TestChatVideoListener localVideoListener;
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
 
@@ -3449,9 +3424,6 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
-
-    delete videoInDevices;
-    videoInDevices = NULL;
 
     delete chatroomListener;
     chatroomListener = NULL;

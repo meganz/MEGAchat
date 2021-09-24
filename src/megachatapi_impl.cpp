@@ -8089,7 +8089,6 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:    // no content at all
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:    // no content at all
             case MegaChatMessage::TYPE_SET_PRIVATE_MODE:
-            case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
             default:
                 break;
         }
