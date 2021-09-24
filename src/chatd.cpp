@@ -2490,10 +2490,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                                     ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, callid, users)
                                     : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
                         })
-                        .fail([] (const ::promise::Error &/*err*/)
+                        .fail([this, chatid, callid] (const ::promise::Error &err)
                         {
-                            // Todo: check if it's necessary to throw an exception
-                            throw std::runtime_error("Failed to decrypt unified key");
+                            CHATDS_LOG_ERROR("Failed to decrypt unified key %s. Chatid: %s callid: %s", err.msg().c_str(), ID_CSTR(chatid), ID_CSTR(callid));
                         });
                     }
                     else // if call already exists.
@@ -2558,10 +2557,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                             }
 
                         })
-                        .fail([] (const ::promise::Error &err)
+                        .fail([this, chatid, callid] (const ::promise::Error &err)
                         {
-                            // Todo: check if it's necessary to throw an exception
-                            throw std::runtime_error("Failed to decrypt unified key");
+                            CHATDS_LOG_ERROR("Failed to decrypt unified key %s. Chatid: %s callid: %s", err.msg().c_str(), ID_CSTR(chatid), ID_CSTR(callid));
                         });
                     }
                     else
