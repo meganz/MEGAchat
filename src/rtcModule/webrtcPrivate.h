@@ -67,6 +67,10 @@ private:
     int32_t mCid;
 };
 
+/**
+ * This class represent a generic instance to manage webrtc Transceiver
+ * A Transceiver is an element used to send or receive datas
+ */
 class Slot
 {
 public:
@@ -82,6 +86,9 @@ protected:
     Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
 };
 
+/**
+ * This class represent a webrtc transceiver for local audio and low resolution video
+ */
 class LocalSlot : public Slot
 {
 public:
@@ -90,6 +97,9 @@ public:
     void generateRandomIv();
 };
 
+/**
+ * This class represent a webrtc transceiver for local high resolution video
+ */
 class LocalHighResolutionSlot : public LocalSlot
 {
 public:
@@ -104,6 +114,9 @@ private:
     int8_t mSentLayers;
 };
 
+/**
+ * This class represent a generic instance to manage remote webrtc Transceiver
+ */
 class RemoteSlot : public Slot
 {
 public:
@@ -132,6 +145,9 @@ private:
     std::unique_ptr<IVideoRenderer> mRenderer;
 };
 
+/**
+ * This class represent a generic instance to manage removte video webrtc Transceiver
+ */
 class RemoteVideoSlot : public RemoteSlot, public VideoSink
 {
 public:
@@ -147,6 +163,9 @@ private:
     VideoResolution mVideoResolution = kUndefined;
 };
 
+/**
+ * This class represent a generic instance to manage remote audio webrtc Transceiver
+ */
 class RemoteAudioSlot : public RemoteSlot
 {
 public:
