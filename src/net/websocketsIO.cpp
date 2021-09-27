@@ -299,6 +299,9 @@ void DNScache::removeRecordsByShards(const std::set<int> &removeElements)
 
 void DNScache::loadFromDb()
 {
+    // retrieve min SFU shard from DB and update mCurrentShardForSfu
+    bool sfuShardUpdated = updateCurrentShardForSfuFromDb();
+
     SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6, sess_data from dns_cache");
     std::set<int> removeElements;
     while (stmt.step())
@@ -320,8 +323,9 @@ void DNScache::loadFromDb()
             {
                 karere::Url sfuUrl(url);
                 assert(sfuUrl.isValid());
-                if (!sfuUrl.isValid() ||
-                        !addSfuRecordWithIp(sfuUrl.host, blobBuff, false, shard, {stmt.stringCol(2)}, {stmt.stringCol(3)}))
+                if (!sfuUrl.isValid()
+                        || !sfuShardUpdated // this case shouldn't happens, but in that case better to remove SFU records
+                        || !addSfuRecordWithIp(sfuUrl.host, blobBuff, false, shard, {stmt.stringCol(2)}, {stmt.stringCol(3)}))
                 {
                     DNSCACHE_LOG_ERROR("loadFromDb: invalid SFU record");
                     removeElements.insert(shard);
@@ -344,9 +348,6 @@ void DNScache::loadFromDb()
 
     // remove wrong records with one query
     removeRecordsByShards(removeElements);
-
-    // retrieve min SFU shard from DB and update mCurrentShardForSfu
-    updateCurrentShardForSfuFromDb();
 }
 
 bool DNScache::setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
@@ -526,15 +527,23 @@ int DNScache::calculateNextSfuShard()
     return mCurrentShardForSfu--; // return mCurrentShardForSfu and decrement
 }
 
-void DNScache::updateCurrentShardForSfuFromDb()
+bool DNScache::updateCurrentShardForSfuFromDb()
 {
     SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
     stmt << kSfuShardStart << kSfuShardEnd;
     if (stmt.step() && !stmt.isNullColumn(0))
     {
-        assert(isSfuValidShard(stmt.intCol(0)));
+        if (!isSfuValidShard(stmt.intCol(0)))
+        {
+            DNSCACHE_LOG_ERROR("updateCurrentShardForSfuFromDb: invalid SFU shard: %d retrieved from DB", stmt.intCol(0));
+            assert(isSfuValidShard(stmt.intCol(0)));
+            return false;
+        }
+
         mCurrentShardForSfu = stmt.intCol(0);
+        return true;
     }
+    return false;
 }
 
 bool DNScache::setSfuIp(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)

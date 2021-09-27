@@ -103,7 +103,7 @@ public:
     enum: int8_t { kSfuShardStart = -20,  kSfuShardEnd = -128};
     bool isSfuValidShard(int shard) const;
     int calculateNextSfuShard();
-    void updateCurrentShardForSfuFromDb(); // retrieves the min SFU shard from DB and updates mCurrentShardForSfu
+    bool updateCurrentShardForSfuFromDb(); // retrieves the min SFU shard from DB and updates mCurrentShardForSfu
     bool setSfuIp(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
     bool addSfuRecord(const std::string &host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true, int shard = kInvalidShard);
     bool addSfuRecordWithIp(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
