@@ -203,6 +203,7 @@ public:
     virtual sfu::SfuClient& getSfuClient() = 0;
 
     virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;
+    virtual void removeCallFromChatd(karere::Id chatid, uint8_t reason) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;

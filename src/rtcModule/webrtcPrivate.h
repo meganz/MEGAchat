@@ -489,6 +489,7 @@ public:
     sfu::SfuClient& getSfuClient() override;
 
     void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
+    void removeCallFromChatd(karere::Id chatid, uint8_t reason) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;

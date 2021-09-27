@@ -2251,6 +2251,20 @@ void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
     }
 }
 
+void RtcModuleSfu::removeCallFromChatd(karere::Id chatid, uint8_t reason)
+{
+    Call* call = static_cast<Call*>(findCallByChatid(chatid));
+    if (call)
+    {
+        call->setEndCallReason(reason); // set mCallEndReason that will be notified through onCallStateChange
+        if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
+        {
+            call->disconnect(rtcModule::TermCode::kErrGeneral);
+        }
+        mCalls.erase(call->getCallid());
+    }
+}
+
 void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::vector<karere::Id> &usersJoined)
 {
     for (const karere::Id &peer : usersJoined)
