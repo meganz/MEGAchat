@@ -287,7 +287,7 @@ void DNScache::updateCurrentShardForSfuFromDb()
 {
     SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
     stmt << kSfuShardStart << kSfuShardEnd;
-    if (stmt.step() && sqlite3_column_type(stmt, 0) != SQLITE_NULL)
+    if (stmt.step() && !stmt.isNullColumn(0))
     {
         assert(isSfuRecord(stmt.intCol(0)));
         mCurrentShardForSfu = stmt.intCol(0);
@@ -326,7 +326,7 @@ void DNScache::loadFromDb()
         {
             // get tls session data
             auto blobBuff = std::make_shared<Buffer>();
-            int columnbytes = sqlite3_column_bytes(stmt, 4);
+            int columnbytes = stmt.getColumnBytes(4);
             if (columnbytes)
             {
                 blobBuff->reserve(columnbytes);
