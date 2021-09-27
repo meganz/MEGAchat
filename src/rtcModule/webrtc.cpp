@@ -877,10 +877,11 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
     }
 
     setState(CallState::kStateConnecting);
-
-    if (!mRtc.getDnsCache().getRecordByHost(sfuUrl.host))
+    if (!mRtc.getDnsCache().getRecordByHost(sfuUrl.host) && !mRtc.getDnsCache().addSfuRecord(sfuUrl.host))
     {
-        mRtc.getDnsCache().addRecordByHost(sfuUrl.host); // Add record to db to store new URL in case it doesn't exist yet in cache
+        RTCM_LOG_ERROR("connectSfu: can't retrieve nor add SFU record");
+        assert(mRtc.getDnsCache().getRecordByHost(sfuUrl.host));
+        return false;
     }
 
     mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
