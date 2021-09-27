@@ -352,6 +352,7 @@ public:
 
     void disconnect(TermCode termCode, const std::string& msg = "");
     void handleCallDisconnect();
+    void setEndCallReason(uint8_t reason);
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
@@ -414,6 +415,7 @@ protected:
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
+    uint8_t mCallEndReason = UINT8_MAX; // 255
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;

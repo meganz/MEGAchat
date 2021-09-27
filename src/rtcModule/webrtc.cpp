@@ -971,6 +971,11 @@ void Call::handleCallDisconnect()
     mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video tracks
 }
 
+void Call::setEndCallReason(uint8_t reason)
+{
+    mCallEndReason = reason;
+}
+
 void Call::disconnect(TermCode termCode, const std::string &)
 {
     if ( mStats.mSamples.mT.size() > 2)
