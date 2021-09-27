@@ -514,6 +514,7 @@ bool DNScache::isSfuValidShard(int shard) const
 
 int DNScache::calculateNextSfuShard()
 {
+    assert(mCurrentShardForSfu <= kSfuShardStart);
     if (mCurrentShardForSfu <= kSfuShardEnd)
     {
         /* in case we have reached kSfuShardEnd, we need to reset mCurrentShardForSfu and remove
