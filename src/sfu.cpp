@@ -1942,7 +1942,7 @@ promise::Promise<void> SfuConnection::reconnect()
                 if (!cachedIpsByHost) // connect required DNS lookup
                 {
                     SFU_LOG_DEBUG("Hostname resolved and there was no previous cached Ip's for this host. Connecting...");
-                    mDnsCache.setIpByHost(mSfuUrl.host, ipsv4, ipsv6);
+                    mDnsCache.setSfuIp(mSfuUrl.host, ipsv4, ipsv6);
                     const std::string &resolvedIpv4 = ipsv4.empty() ? "" : ipsv4.front();
                     const std::string &resolvedIpv6 = ipsv6.empty() ? "" : ipsv6.front();
                     doConnect(resolvedIpv4, resolvedIpv6);
@@ -1973,7 +1973,7 @@ promise::Promise<void> SfuConnection::reconnect()
                 else
                 {
                     // update DNS cache
-                    mDnsCache.setIpByHost(mSfuUrl.host, ipsv4, ipsv6);
+                    mDnsCache.setSfuIp(mSfuUrl.host, ipsv4, ipsv6);
                     SFU_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (sfu)");
                 }

@@ -80,8 +80,6 @@ public:
 
     DNScache(SqliteDb &db, int chatdVersion);
     void loadFromDb();
-    void updateCurrentShardForSfuFromDb(); // retrieves the min SFU shard from DB and updates mCurrentShardForSfu
-    bool isSfuRecord(int shard) const;
     void addRecord(int shard, const std::string &url, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true);
     void removeRecord(int shard);
     void updateRecord(int shard, const std::string &url, bool saveToDb);
@@ -101,9 +99,18 @@ public:
     bool updateTlsSession(const CachedSession &sess);
     std::vector<CachedSession> getTlsSessions();
 
-    // DNS cache methods to manage records based on host instead of shard
+    // DNS cache methods to manage SFU records
     enum: int8_t { kSfuShardStart = -20,  kSfuShardEnd = -128};
-    bool addRecordByHost(const std::string &host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true, int shard = kSfuShardEnd - 1);
+    bool isSfuValidShard(int shard) const;
+    int calculateNextSfuShard();
+    bool updateCurrentShardForSfuFromDb(); // retrieves the min SFU shard from DB and updates mCurrentShardForSfu
+    bool setSfuIp(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool addSfuRecord(const std::string &host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true, int shard = kInvalidShard);
+    bool addSfuRecordWithIp(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+
+    // DNS cache methods to manage records based on host instead of shard
+    const static int kInvalidShard = INT_MIN; // invalid shard value
+    bool addRecordByHost(const std::string &host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true, int shard = kInvalidShard);
     bool hasRecordByHost(const std::string &host) const;
     DNSrecord* getRecordByHost(const std::string &host);
     void connectDoneByHost(const std::string &host, const std::string &ip);

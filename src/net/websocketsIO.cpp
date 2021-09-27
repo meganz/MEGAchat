@@ -277,23 +277,6 @@ const karere::Url &DNScache::getUrl(int shard)
     return it->second.mUrl;
 }
 
-bool DNScache::isSfuRecord(int shard) const
-{
-    // note that kSfuShardStart and kSfuShardEnd are negative values
-    return shard <= kSfuShardStart && shard >= kSfuShardEnd;
-}
-
-void DNScache::updateCurrentShardForSfuFromDb()
-{
-    SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
-    stmt << kSfuShardStart << kSfuShardEnd;
-    if (stmt.step() && sqlite3_column_type(stmt, 0) != SQLITE_NULL)
-    {
-        assert(isSfuRecord(stmt.intCol(0)));
-        mCurrentShardForSfu = stmt.intCol(0);
-    }
-}
-
 void DNScache::removeRecordsByShards(const std::set<int> &removeElements)
 {
     if (removeElements.empty())
@@ -316,6 +299,9 @@ void DNScache::removeRecordsByShards(const std::set<int> &removeElements)
 
 void DNScache::loadFromDb()
 {
+    // retrieve min SFU shard from DB and update mCurrentShardForSfu
+    bool sfuShardUpdated = updateCurrentShardForSfuFromDb();
+
     SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6, sess_data from dns_cache");
     std::set<int> removeElements;
     while (stmt.step())
@@ -326,25 +312,25 @@ void DNScache::loadFromDb()
         {
             // get tls session data
             auto blobBuff = std::make_shared<Buffer>();
-            int columnbytes = sqlite3_column_bytes(stmt, 4);
+            int columnbytes = stmt.getColumnBytes(4);
             if (columnbytes)
             {
                 blobBuff->reserve(columnbytes);
                 stmt.blobCol(4, *blobBuff);
             }
 
-            if (isSfuRecord(shard))
+            if (isSfuValidShard(shard))
             {
                 karere::Url sfuUrl(url);
-                if (!sfuUrl.isValid())
+                assert(sfuUrl.isValid());
+                if (!sfuUrl.isValid()
+                        || !sfuShardUpdated // this case shouldn't happens, but in that case better to remove SFU records
+                        || !addSfuRecordWithIp(sfuUrl.host, blobBuff, false, shard, {stmt.stringCol(2)}, {stmt.stringCol(3)}))
                 {
-                    assert(sfuUrl.isValid());
-                    DNSCACHE_LOG_ERROR("loadFromDb: invalid SFU URL");
+                    DNSCACHE_LOG_ERROR("loadFromDb: invalid SFU record");
                     removeElements.insert(shard);
                     continue;
                 }
-                addRecordByHost(sfuUrl.host, blobBuff, false, shard);
-                setIpByHost(sfuUrl.host, {stmt.stringCol(2)}, {stmt.stringCol(3)});
             }
             else
             {
@@ -362,9 +348,6 @@ void DNScache::loadFromDb()
 
     // remove wrong records with one query
     removeRecordsByShards(removeElements);
-
-    // retrieve min SFU shard from DB and update mCurrentShardForSfu
-    updateCurrentShardForSfuFromDb();
 }
 
 bool DNScache::setIp(int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
@@ -525,9 +508,104 @@ std::vector<CachedSession> DNScache::getTlsSessions()
     return sessions;
 }
 
+bool DNScache::isSfuValidShard(int shard) const
+{
+    // note that kSfuShardStart and kSfuShardEnd are negative values
+    return shard <= kSfuShardStart && shard >= kSfuShardEnd;
+}
+
+int DNScache::calculateNextSfuShard()
+{
+    assert(mCurrentShardForSfu <= kSfuShardStart);
+    if (mCurrentShardForSfu <= kSfuShardEnd)
+    {
+        /* in case we have reached kSfuShardEnd, we need to reset mCurrentShardForSfu and remove
+         * the current record in cache for that shard value
+         */
+        mCurrentShardForSfu = kSfuShardStart;
+        removeRecord(mCurrentShardForSfu);
+    }
+    return mCurrentShardForSfu--; // return mCurrentShardForSfu and decrement
+}
+
+bool DNScache::updateCurrentShardForSfuFromDb()
+{
+    SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
+    stmt << kSfuShardStart << kSfuShardEnd;
+    if (stmt.step() && !stmt.isNullColumn(0))
+    {
+        if (!isSfuValidShard(stmt.intCol(0)))
+        {
+            DNSCACHE_LOG_ERROR("updateCurrentShardForSfuFromDb: invalid SFU shard: %d retrieved from DB", stmt.intCol(0));
+            assert(isSfuValidShard(stmt.intCol(0)));
+            return false;
+        }
+
+        mCurrentShardForSfu = stmt.intCol(0);
+        return true;
+    }
+    return false;
+}
+
+bool DNScache::setSfuIp(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+{
+    DNSrecord *record = getRecordByHost(host);
+    if (!record)
+    {
+        /* Important: This is a corner case
+         * This method is called thee times:
+         * 1) Upon load DNS cache records from DB
+         *      - this case it's not problematic
+         * 2) Upon DNS resolution succeed but there's not cached IP's for this host yet
+         *      - this case it's not problematic
+         * 3) Upon DNS resolution succeed, and returned IP's by DNS doesn't match with stored in cache
+         *      - In case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
+         *        mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones
+         *
+         *        The case described above could happens, as multiple calls are allowed and all calls shares
+         *        the same DNS cache
+         *
+         * The solution to this corner case, is add the host to DNS cache again.
+        */
+        DNSCACHE_LOG_WARNING("setIpByHost: host %s not found in DNS cache, that record could be overwritten. Adding it again", host.c_str());
+        addSfuRecord(host);
+    }
+    return setIpByHost(host, ipsv4, ipsv6);
+}
+
+bool DNScache::addSfuRecord(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard)
+{
+    if (!saveToDb && !isSfuValidShard(shard))
+    {
+        assert(saveToDb && isSfuValidShard(shard));
+        DNSCACHE_LOG_ERROR("addSfuRecord: invalid shard value");
+        return false;
+    }
+
+    // if saveToDb is true, we need to calculate next sfu shard value, otherwise use shard param
+    int sfuShard = saveToDb ? calculateNextSfuShard() : shard;
+
+    /* For every starting/joining meeting attempt, it's mandatory to send mcms/mcmj command to API.
+     * In both cases API returns the SFU server URL where we have to connect to, so we don't
+     * need to store full URL(URL+path) in dns cache, as we have already stored in memory.
+     */
+    return addRecordByHost(host, sess, saveToDb, sfuShard);
+}
+
+bool DNScache::addSfuRecordWithIp(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+{
+    if (addSfuRecord(host, sess, saveToDb, shard))
+    {
+        return setIpByHost(host, ipsv4, ipsv6);
+    }
+
+    return false;
+}
+
 // DNS cache methods to manage records based on host instead of shard
 bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard)
 {
+    assert(shard != kInvalidShard);
     if (host.empty())
     {
         assert(!host.empty());
@@ -542,31 +620,11 @@ bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> 
         return false;
     }
 
+    DNSrecord record(host, sess); // add record in DNS cache based on host instead full URL
+    mRecords[shard] = record;
     if (saveToDb)
     {
-        if (mCurrentShardForSfu <= kSfuShardEnd)
-        {
-            /* in case we have reached kSfuShardEnd, we need to reset mCurrentShardForSfu and remove
-             * the current record in cache for that shard value
-             */
-            mCurrentShardForSfu = kSfuShardStart;
-            removeRecord(mCurrentShardForSfu);
-        }
-        DNSrecord record(host, sess); // add record in DNS cache based on host instead full URL
-        mRecords[mCurrentShardForSfu] = record;
-
-        /* For every starting/joining meeting attempt, it's mandatory to send mcms/mcmj command to API.
-         * In both cases API returns the SFU server URL where we have to connect to, so we don't
-         * need to store full URL(URL+path) in dns cache, as we have already stored in memory.
-         */
-        mDb.query("insert or replace into dns_cache(shard, url) values(?,?)", mCurrentShardForSfu, host);
-        mCurrentShardForSfu--; // decrement mCurrentShardForSfu
-    }
-    else // loading records from DB to rebuilt DNS cache (in RAM) from scratch
-    {
-        // use shard param as key and don't update mCurrentShardForSfu, this must be done outside this method
-        DNSrecord record(host, sess); // add record in DNS cache based on host instead full URL
-        mRecords[shard] = record;
+        mDb.query("insert or replace into dns_cache(shard, url) values(?,?)", shard, host);
     }
 
     return true;
@@ -634,21 +692,9 @@ bool DNScache::setIpByHost(const std::string &host, const std::vector<std::strin
     DNSrecord *record = getRecordByHost(host);
     if (!record)
     {
-        /* Important: This is a corner case
-         * This method is called twice:
-         * 1) Upon DNS resolution succeed but there's not cached IP's for this host yet
-         *      - this case it's not problematic
-         * 2) Upon DNS resolution succeed, and returned IP's by DNS doesn't match with stored in cache
-         *      - In case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
-         *        mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones
-         *
-         *        The case described above could happens, as multiple calls are allowed and all calls shares
-         *        the same DNS cache
-         *
-         * The solution to this corner case, is add the host to DNS cache again.
-        */
-        DNSCACHE_LOG_WARNING("setIpByHost: host %s not found in DNS cache, that record could be overwritten. Adding it again", host.c_str());
-        addRecordByHost(host);
+        assert(record);
+        DNSCACHE_LOG_WARNING("setIpByHost: host %s not found in DNS cache.", host.c_str());
+        return false;
     }
 
     record->ipv4 = ipsv4.empty() ? "" : ipsv4.front();
