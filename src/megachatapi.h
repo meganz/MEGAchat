@@ -537,8 +537,7 @@ public:
     /**
      * @brief Returns the termination code for this call
      *
-     * @note this value only will be valid in states CALL_STATUS_TERMINATING_USER_PARTICIPATION
-     * and CALL_STATUS_DESTROYED
+     * @note this value only will be valid in state CALL_STATUS_TERMINATING_USER_PARTICIPATION
      *
      * Valid values are:
      *  - TERM_CODE_INVALID
