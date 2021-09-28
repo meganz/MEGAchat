@@ -163,6 +163,7 @@ public:
     virtual int getNetworkQuality() const = 0;
     virtual bool hasRequestSpeak() const = 0;
     virtual TermCode getTermCode() const = 0;
+    virtual uint8_t getEndCallReason() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isOtherClientParticipating() = 0;

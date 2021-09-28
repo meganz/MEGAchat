@@ -262,6 +262,7 @@ public:
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
     TermCode getTermCode() const override;
+    uint8_t getEndCallReason() const override;
 
     // called upon reception of OP_JOINEDCALL from chatd
     void addParticipant(karere::Id peer) override;

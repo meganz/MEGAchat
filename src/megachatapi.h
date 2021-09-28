@@ -357,6 +357,16 @@ public:
         TERM_CODE_ERROR = 3,        // Call has been finished by error
     };
 
+    enum
+    {
+        END_CALL_REASON_INVALID     = -1,    /// Invalid endcall reason (it can be ignored)
+        END_CALL_REASON_ENDED       = 1,     /// Call finished normally
+        END_CALL_REASON_REJECTED    = 2,     /// Call was rejected by callee
+        END_CALL_REASON_NO_ANSWER   = 3,     /// Call wasn't answered
+        END_CALL_REASON_FAILED      = 4,     /// Call finished by an error
+        END_CALL_REASON_CANCELLED   = 5      /// Call was canceled by caller.
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -540,6 +550,24 @@ public:
      * @return termination code for the call
      */
     virtual int getTermCode() const;
+
+    /**
+     * @brief Returns the endcall reason returned by chatd for this call
+     *
+     * @note this value only will be valid in states CALL_STATUS_TERMINATING_USER_PARTICIPATION
+     * and CALL_STATUS_DESTROYED
+     *
+     * Valid values are:
+     *  - END_CALL_REASON_INVALID     = -1,  (Invalid endcall reason, it can be ignored)
+     *  - END_CALL_REASON_ENDED       = 1,   (Call finished normally)
+     *  - END_CALL_REASON_REJECTED    = 2,   (Call was rejected by callee)
+     *  - END_CALL_REASON_NO_ANSWER   = 3,   (Call wasn't answered)
+     *  - END_CALL_REASON_FAILED      = 4,   (Call finished by an error)
+     *  - END_CALL_REASON_CANCELLED   = 5    (Call was canceled by caller)
+     *
+     * @return endCall reason for the call
+     */
+    virtual int getEndCallReason() const;
 
     /**
      * @brief Returns the status of the remote call

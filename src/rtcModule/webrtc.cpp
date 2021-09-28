@@ -488,6 +488,11 @@ TermCode Call::getTermCode() const
     return mTermCode;
 }
 
+uint8_t Call::getEndCallReason() const
+{
+    return mEndCallReason;
+}
+
 void Call::setCallerId(karere::Id callerid)
 {
     mCallerId  = callerid;
