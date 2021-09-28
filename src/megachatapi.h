@@ -552,10 +552,9 @@ public:
     virtual int getTermCode() const;
 
     /**
-     * @brief Returns the endcall reason returned by chatd for this call
+     * @brief Returns the remote endcall reason for this call
      *
-     * @note this value only will be valid in states CALL_STATUS_TERMINATING_USER_PARTICIPATION
-     * and CALL_STATUS_DESTROYED
+     * @note this value only will be valid in state CALL_STATUS_DESTROYED
      *
      * Valid values are:
      *  - END_CALL_REASON_INVALID     = -1,  (Invalid endcall reason, it can be ignored)
