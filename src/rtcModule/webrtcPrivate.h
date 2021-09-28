@@ -415,7 +415,7 @@ protected:
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
-    uint8_t mCallEndReason = UINT8_MAX; // 255
+    uint8_t mEndCallReason = kInvalidReason;
 
     std::string mSfuUrl;
     IGlobalCallHandler& mGlobalCallHandler;
@@ -488,8 +488,7 @@ public:
     const std::string& getVideoDeviceSelected() const override;
     sfu::SfuClient& getSfuClient() override;
 
-    void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
-    void removeCallFromChatd(karere::Id chatid, uint8_t reason) override;
+    void removeCall(karere::Id chatid, uint8_t reason, bool fromChatd = false) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;

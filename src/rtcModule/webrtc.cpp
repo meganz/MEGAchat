@@ -973,7 +973,7 @@ void Call::handleCallDisconnect()
 
 void Call::setEndCallReason(uint8_t reason)
 {
-    mCallEndReason = reason;
+    mEndCallReason = reason;
 }
 
 void Call::disconnect(TermCode termCode, const std::string &)
@@ -1005,7 +1005,9 @@ void Call::disconnect(TermCode termCode, const std::string &)
         mSfuConnection = nullptr;
     }
 
+    //reset termcode and endcall reason
     mTermCode = kInvalidTermCode;
+    mEndCallReason = kInvalidReason;
     setState(CallState::kStateClientNoParticipating);
 }
 
@@ -1453,7 +1455,7 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         disconnect(static_cast<TermCode>(code), errMsg);
         if (mParticipants.empty())
         {
-            mRtc.removeCall(mChatid, static_cast<TermCode>(code));
+            mRtc.removeCall(mChatid, static_cast<uint8_t>(code));
         }
     }, mRtc.getAppCtx());
 
@@ -2237,30 +2239,24 @@ sfu::SfuClient& RtcModuleSfu::getSfuClient()
     return (*mSfuClient.get());
 }
 
-void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
+void RtcModuleSfu::removeCall(karere::Id chatid, uint8_t reason, bool fromChatd)
 {
-    Call* call = static_cast<Call*>(findCallByChatid(chatid));
+    Call *call = static_cast<Call*>(findCallByChatid(chatid));
     if (call)
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
+            TermCode termCode = static_cast<TermCode>(reason);
+            if (fromChatd)
+            {
+                /* in case we call this method upon reception of OP_CALLEND/OP_DELCALLREASON, we will set a default termcode,
+                 * and we will set received endcall reason from chatd into mEndCallReason */
+                call->setEndCallReason(reason);
+                termCode = rtcModule::TermCode::kErrGeneral;
+            }
             call->disconnect(termCode);
         }
 
-        mCalls.erase(call->getCallid());
-    }
-}
-
-void RtcModuleSfu::removeCallFromChatd(karere::Id chatid, uint8_t reason)
-{
-    Call* call = static_cast<Call*>(findCallByChatid(chatid));
-    if (call)
-    {
-        call->setEndCallReason(reason); // set mCallEndReason that will be notified through onCallStateChange
-        if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
-        {
-            call->disconnect(rtcModule::TermCode::kErrGeneral);
-        }
         mCalls.erase(call->getCallid());
     }
 }

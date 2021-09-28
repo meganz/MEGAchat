@@ -2581,7 +2581,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 if (mChatdClient.mKarereClient->rtc)
                 {
-                    mChatdClient.mKarereClient->rtc->removeCallFromChatd(chatid, reason);
+                    mChatdClient.mKarereClient->rtc->removeCall(chatid, reason, true);
                 }
                 break;
             }
@@ -5495,7 +5495,7 @@ void Chat::onUserLeave(Id userid)
         // remove call associated to chatRoom if our own user is not an active participant
         if (mChatdClient.mKarereClient->rtc && !previewMode())
         {
-            mChatdClient.mKarereClient->rtc->removeCall(mChatId);
+            mChatdClient.mKarereClient->rtc->removeCall(mChatId, rtcModule::TermCode::kUserHangup);
         }
     }
     else

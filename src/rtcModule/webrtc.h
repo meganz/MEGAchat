@@ -46,6 +46,17 @@ enum CallState: uint8_t
     kStateDestroyed                     // < Call object is not valid anymore, the call is removed from the system
 };
 
+enum CallDataReason: uint8_t
+{
+    kDefault        = 0,   /// default reason
+    kEnded          = 1,   /// normal hangup of on-going call
+    kRejected       = 2,   /// incoming call was rejected by callee
+    kNoAnswer       = 3,   /// outgoing call didn't receive any answer from the callee
+    kFailed         = 4,   /// on-going call failed
+    kCancelled      = 5,   /// outgoing call was cancelled by caller before receiving any answer from the callee
+    kInvalidReason  = 255, /// invalid endcall reason
+};
+
 enum SessionState: uint8_t
 {
     kSessStateInProgress = 0,
@@ -202,8 +213,7 @@ public:
     virtual const std::string& getVideoDeviceSelected() const = 0;
     virtual sfu::SfuClient& getSfuClient() = 0;
 
-    virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;
-    virtual void removeCallFromChatd(karere::Id chatid, uint8_t reason) = 0;
+    virtual void removeCall(karere::Id chatid, uint8_t reason, bool fromChatd = false) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
