@@ -25,12 +25,13 @@
 #include <mega.h>
 #include <megaapi.h>
 #include "megachatapi.h"
-
 #include <chatClient.h>
-#include <sfu.h>
-
 #include <iostream>
 #include <fstream>
+
+#ifndef KARERE_DISABLE_WEBRTC
+#include <sfu.h>
+#endif
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
@@ -349,22 +350,22 @@ private:
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
-    bool mCallAnswered[NUM_ACCOUNTS];
+    bool mCallReceivedRinging[NUM_ACCOUNTS];
+    bool mCallInProgress[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
-    bool mPeerIsRinging[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+#endif
+
     bool mLoggedInAllChats[NUM_ACCOUNTS];
     std::vector <megachat::MegaChatHandle>mChatListUpdated[NUM_ACCOUNTS];
     bool mChatsUpdated[NUM_ACCOUNTS];
-
-#endif
-
     static const std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
     static const std::string FILE_IMAGE_NAME;
@@ -466,14 +467,19 @@ class MegaChatApiUnitaryTest
 {
 public:
     bool UNITARYTEST_ParseUrl();
+#ifndef KARERE_DISABLE_WEBRTC
     bool UNITARYTEST_SfuDataReception();
+#endif
 
     unsigned mOKTests = 0;
     unsigned mFailedTests = 0;
 
+#ifndef KARERE_DISABLE_WEBRTC
     friend sfu::SfuConnection;
+#endif
 };
 
+#ifndef KARERE_DISABLE_WEBRTC
 class MockupCall : public sfu::SfuInterface
 {
 public:
@@ -494,6 +500,7 @@ public:
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
     bool error(unsigned int, const std::string &) override;
+    void logError(const char* error) override;
 };
-
+#endif
 #endif // CHATTEST_H

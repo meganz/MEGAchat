@@ -115,7 +115,9 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     waiter = new MegaChatWaiter();
     mWebsocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
     reqtag = 0;
-
+#ifndef KARERE_DISABLE_WEBRTC
+    mCallHandler = ::mega::make_unique<MegaChatCallHandler>(this);
+#endif
     //Start blocking thread
     threadExit = 0;
     thread.start(threadEntryPoint, this);
@@ -2561,7 +2563,11 @@ void MegaChatApiImpl::createKarereClient()
 #else
         uint8_t caps = karere::kClientIsMobile | karere::kClientSupportLastGreen;
 #endif
-        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *this, mMegaApi->getBasePath(), caps, this);
+#ifndef KARERE_DISABLE_WEBRTC
+        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mCallHandler, mMegaApi->getBasePath(), caps, this);
+#else
+        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, mMegaApi->getBasePath(), caps, this);
+#endif
         mTerminating = false;
     }
 }
@@ -5054,25 +5060,6 @@ void MegaChatApiImpl::stopLowResVideo(MegaChatHandle chatid, MegaHandleList *cli
     waiter->notify();
 }
 
-void MegaChatApiImpl::onNewCall(rtcModule::ICall &call)
-{
-    call.setCallHandler(new MegaChatCallHandler(this)); // takes ownership
-}
-
-void MegaChatApiImpl::onAddPeer(rtcModule::ICall &call, Id peer)
-{
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setPeerid(peer, true);
-    fireOnChatCallUpdate(chatCall.get());
-}
-
-void MegaChatApiImpl::onRemovePeer(rtcModule::ICall &call, Id peer)
-{
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setPeerid(peer, false);
-    fireOnChatCallUpdate(chatCall.get());
-}
-
 #endif
 
 void MegaChatApiImpl::addChatRequestListener(MegaChatRequestListener *listener)
@@ -6636,12 +6623,6 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     return TERM_CODE_INVALID;
 }
 
-void MegaChatCallPrivate::setIsRinging(bool ringing)
-{
-    mRinging = ringing;
-    mChanged |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
-}
-
 MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &/*sess*/)
 {
     return nullptr;
@@ -8108,7 +8089,6 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:    // no content at all
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:    // no content at all
             case MegaChatMessage::TYPE_SET_PRIVATE_MODE:
-            case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
             default:
                 break;
         }
@@ -8995,6 +8975,20 @@ void MegaChatCallHandler::onOnHold(const rtcModule::ICall& call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setOnHold(call.getLocalAvFlags().isOnHold());
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onAddPeer(const rtcModule::ICall &call, Id peer)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setPeerid(peer, true);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onRemovePeer(const rtcModule::ICall &call, Id peer)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setPeerid(peer, false);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

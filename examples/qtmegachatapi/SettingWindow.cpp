@@ -4,6 +4,8 @@
 #include "assert.h"
 #include <mega/utils.h>
 
+using namespace megachat;
+
 SettingWindow::SettingWindow(MegaChatApplication *app) :
     QDialog(app->mainWindow()),
     ui(new Ui::SettingWindow),

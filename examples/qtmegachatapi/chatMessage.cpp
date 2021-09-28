@@ -5,6 +5,8 @@
 #include <QClipboard>
 #include "uiSettings.h"
 
+using namespace megachat;
+
 const char *messageStatus[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"

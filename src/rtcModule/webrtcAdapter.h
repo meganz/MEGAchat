@@ -1,17 +1,19 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #pragma once
-#include <api/peer_connection_interface.h>
-#include <pc/audio_track.h>
-#include <api/jsep_session_description.h>
-#include <media/base/video_broadcaster.h>
-#include <modules/video_capture/video_capture.h>
-#include <rtc_base/ref_counter.h>
 #include "base/gcmpp.h"
 #include "base/promise.h"
 #include "base/trackDelete.h"
 #include "karereCommon.h" //only for std::string on android
 #include "rtcmPrivate.h"
 #include "rtcCrypto.h"
+#include <api/peer_connection_interface.h>
+#include <pc/audio_track.h>
+#include <api/jsep_session_description.h>
+#include <media/base/video_broadcaster.h>
+#include <modules/video_capture/video_capture.h>
+#include <rtc_base/ref_counter.h>
 #include "sfu.h"
+
 
 #ifdef __OBJC__
 @class AVCaptureDevice;
@@ -539,3 +541,4 @@ private:
 #endif
 
 }
+#endif

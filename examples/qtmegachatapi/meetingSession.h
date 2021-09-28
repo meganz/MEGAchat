@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #ifndef MEETINGSESSION_H
 #define MEETINGSESSION_H
 
@@ -39,3 +40,4 @@ private:
 };
 
 #endif // MEETINGSESSION_H
+#endif

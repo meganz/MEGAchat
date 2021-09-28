@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #ifndef PEERWIDGET_H
 #define PEERWIDGET_H
 
@@ -45,3 +46,4 @@ protected slots:
 };
 
 #endif // PEERWIDGET_H
+#endif

@@ -200,6 +200,8 @@ class MainWindow :
 
         bool mIsEphemeraAccount = false;
 
+        std::string callStateToString(const megachat::MegaChatCall& call);
+
     private slots:
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();

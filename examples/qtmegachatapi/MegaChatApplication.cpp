@@ -920,24 +920,10 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 #ifndef KARERE_DISABLE_WEBRTC
          case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
          case MegaChatRequest::TYPE_START_CHAT_CALL:
-            if (error != MegaChatError::ERROR_OK && error != MegaChatError::ERROR_EXIST)
-              {
+            if (error != MegaChatError::ERROR_OK)
+            {
                 QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
-                megachat::MegaChatHandle chatId = request->getChatHandle();
-                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
-                if (itemController)
-                {
-                    ChatItemWidget *widget = itemController->getWidget();
-                    if (widget)
-                    {
-                        ChatWindow *chatWin= itemController->showChatWindow();
-                        if(chatWin)
-                        {
-                            chatWin->hangCall();
-                        }
-                    }
-                }
-              }
+            }
 
             break;
 
@@ -946,24 +932,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
             }
-            else
-            {
-                megachat::MegaChatHandle chatId = request->getChatHandle();
-                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
 
-                if (itemController)
-                {
-                    ChatItemWidget *widget = itemController->getWidget();
-                    if (widget)
-                    {
-                        ChatWindow *chatWin= itemController->showChatWindow();
-                        if(chatWin)
-                        {
-                            chatWin->hangCall();
-                        }
-                    }
-                }
-            }
             break;
 #endif
         case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
@@ -1252,16 +1221,14 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
     }
     case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
     {
+#ifndef KARERE_DISABLE_WEBRTC
         ChatListItemController *itemController = mMainWin->getChatControllerById(request->getChatHandle());
         if (itemController)
         {
-            ChatWindow *window = itemController->showChatWindow();
-            if (window)
-            {
-                window->getMeetingView()->updateAudioMonitor(mMegaChatApi->isAudioLevelMonitorEnabled(request->getChatHandle()));
-            }
+            assert(itemController->getMeetingView());
+            itemController->getMeetingView()->updateAudioMonitor(mMegaChatApi->isAudioLevelMonitorEnabled(request->getChatHandle()));
         }
-
+#endif
         break;
     }
     default:
