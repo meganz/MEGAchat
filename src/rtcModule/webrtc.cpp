@@ -1002,6 +1002,8 @@ void Call::disconnect(TermCode termCode, const std::string &)
     }
 
     handleCallDisconnect();
+
+    // termcode is only valid at state kStateTerminatingUserParticipation
     mTermCode = termCode;
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
@@ -1010,9 +1012,8 @@ void Call::disconnect(TermCode termCode, const std::string &)
         mSfuConnection = nullptr;
     }
 
-    //reset termcode and endcall reason
+    // reset termcode upon set state kStateClientNoParticipating
     mTermCode = kInvalidTermCode;
-    mEndCallReason = kInvalidReason;
     setState(CallState::kStateClientNoParticipating);
 }
 
@@ -1457,10 +1458,11 @@ bool Call::error(unsigned int code, const std::string &errMsg)
             return;
         }
 
+        // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
         disconnect(static_cast<TermCode>(code), errMsg);
         if (mParticipants.empty())
         {
-            mRtc.removeCall(mChatid, static_cast<uint8_t>(code));
+            mRtc.removeCall(mChatid, EndCallReason::kFailed);
         }
     }, mRtc.getAppCtx());
 
@@ -2244,24 +2246,18 @@ sfu::SfuClient& RtcModuleSfu::getSfuClient()
     return (*mSfuClient.get());
 }
 
-void RtcModuleSfu::removeCall(karere::Id chatid, uint8_t reason, bool fromChatd)
+void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason)
 {
     Call *call = static_cast<Call*>(findCallByChatid(chatid));
     if (call)
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            TermCode termCode = static_cast<TermCode>(reason);
-            if (fromChatd)
-            {
-                /* in case we call this method upon reception of OP_CALLEND/OP_DELCALLREASON, we will set a default termcode,
-                 * and we will set received endcall reason from chatd into mEndCallReason */
-                call->setEndCallReason(reason);
-                termCode = rtcModule::TermCode::kErrGeneral;
-            }
-            call->disconnect(termCode);
+            call->disconnect(rtcModule::TermCode::kErrGeneral);
         }
 
+        // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
+        call->setEndCallReason(reason);
         mCalls.erase(call->getCallid());
     }
 }

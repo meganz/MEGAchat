@@ -5507,7 +5507,7 @@ void MegaChatApiImpl::cleanCalls()
         std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
         for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            mClient->rtc->removeCall(chatids[i], rtcModule::TermCode::kUserHangup);
+            mClient->rtc->removeCall(chatids[i], rtcModule::EndCallReason::kEnded);
         }
     }
 
@@ -6319,7 +6319,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
     mTermCode = convertTermCode(call.getTermCode());
-    mEndCallReason = call.getEndCallReason() == rtcModule::CallDataReason::kInvalidReason
+    mEndCallReason = call.getEndCallReason() == rtcModule::EndCallReason::kInvalidReason
             ? MegaChatCall::END_CALL_REASON_INVALID
             : call.getEndCallReason();
 
