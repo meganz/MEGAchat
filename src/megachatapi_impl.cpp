@@ -5507,7 +5507,7 @@ void MegaChatApiImpl::cleanCalls()
         std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
         for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            mClient->rtc->removeCall(chatids[i]);
+            mClient->rtc->removeCall(chatids[i], rtcModule::EndCallReason::kEnded);
         }
     }
 
@@ -6319,6 +6319,9 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
     mTermCode = convertTermCode(call.getTermCode());
+    mEndCallReason = call.getEndCallReason() == rtcModule::EndCallReason::kInvalidReason
+            ? MegaChatCall::END_CALL_REASON_INVALID
+            : call.getEndCallReason();
 
     for (auto participant: call.getParticipants())
     {
@@ -6344,6 +6347,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mInitialTs = call.mInitialTs;
     mFinalTs = call.mFinalTs;
     mTermCode = call.mTermCode;
+    mEndCallReason = call.mEndCallReason;
     mRinging = call.mRinging;
     mIgnored = call.mIgnored;
     mPeerId = call.mPeerId;
@@ -6444,6 +6448,11 @@ int64_t MegaChatCallPrivate::getFinalTimeStamp() const
 int MegaChatCallPrivate::getTermCode() const
 {
     return mTermCode;
+}
+
+int MegaChatCallPrivate::getEndCallReason() const
+{
+    return mEndCallReason;
 }
 
 bool MegaChatCallPrivate::isRinging() const

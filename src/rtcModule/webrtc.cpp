@@ -488,6 +488,11 @@ TermCode Call::getTermCode() const
     return mTermCode;
 }
 
+uint8_t Call::getEndCallReason() const
+{
+    return mEndCallReason;
+}
+
 void Call::setCallerId(karere::Id callerid)
 {
     mCallerId  = callerid;
@@ -971,6 +976,11 @@ void Call::handleCallDisconnect()
     mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video tracks
 }
 
+void Call::setEndCallReason(uint8_t reason)
+{
+    mEndCallReason = reason;
+}
+
 void Call::disconnect(TermCode termCode, const std::string &)
 {
     if ( mStats.mSamples.mT.size() > 2)
@@ -992,6 +1002,8 @@ void Call::disconnect(TermCode termCode, const std::string &)
     }
 
     handleCallDisconnect();
+
+    // termcode is only valid at state kStateTerminatingUserParticipation
     mTermCode = termCode;
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
@@ -1000,6 +1012,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
         mSfuConnection = nullptr;
     }
 
+    // reset termcode upon set state kStateClientNoParticipating
     mTermCode = kInvalidTermCode;
     setState(CallState::kStateClientNoParticipating);
 }
@@ -1445,10 +1458,11 @@ bool Call::error(unsigned int code, const std::string &errMsg)
             return;
         }
 
+        // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
         disconnect(static_cast<TermCode>(code), errMsg);
         if (mParticipants.empty())
         {
-            mRtc.removeCall(mChatid, static_cast<TermCode>(code));
+            mRtc.removeCall(mChatid, EndCallReason::kFailed);
         }
     }, mRtc.getAppCtx());
 
@@ -2232,16 +2246,19 @@ sfu::SfuClient& RtcModuleSfu::getSfuClient()
     return (*mSfuClient.get());
 }
 
-void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
+void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason)
 {
-    Call* call = static_cast<Call*>(findCallByChatid(chatid));
+    Call *call = static_cast<Call*>(findCallByChatid(chatid));
     if (call)
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            call->disconnect(termCode);
+            // return kUnKnownTermCode as is unexpected to receive an endcall reason from chatd while we are still connected to SFU
+            call->disconnect(rtcModule::TermCode::kUnKnownTermCode);
         }
 
+        // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
+        call->setEndCallReason(reason);
         mCalls.erase(call->getCallid());
     }
 }

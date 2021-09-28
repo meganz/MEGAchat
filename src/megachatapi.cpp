@@ -192,6 +192,11 @@ int MegaChatCall::getTermCode() const
     return 0;
 }
 
+int MegaChatCall::getEndCallReason() const
+{
+    return 0;
+}
+
 bool MegaChatCall::isRinging() const
 {
     return false;
