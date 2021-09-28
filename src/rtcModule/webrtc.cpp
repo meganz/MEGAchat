@@ -2253,8 +2253,8 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason)
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            // return kErrGeneral as is unexpected to receive an endcall reason from chatd while we are still connected to SFU
-            call->disconnect(rtcModule::TermCode::kErrGeneral);
+            // return kUnKnownTermCode as is unexpected to receive an endcall reason from chatd while we are still connected to SFU
+            call->disconnect(rtcModule::TermCode::kUnKnownTermCode);
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
