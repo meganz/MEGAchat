@@ -94,15 +94,15 @@ std::string Stats::getJson()
     samples.AddMember("nrxa", nrxa, json.GetAllocator());
 
     rapidjson::Value vtxfps(rapidjson::kArrayType);
-    parseSamples(mSamples.mVtxLowResfps, vtxfps, json, false);
+    parseSamples(mSamples.mVtxHiResfps, vtxfps, json, false);
     samples.AddMember("vtxfps", vtxfps, json.GetAllocator());
 
     rapidjson::Value vtxw(rapidjson::kArrayType);
-    parseSamples(mSamples.mVtxLowResw, vtxw, json, false);
+    parseSamples(mSamples.mVtxHiResw, vtxw, json, false);
     samples.AddMember("vtxw", vtxw, json.GetAllocator());
 
     rapidjson::Value vtxh(rapidjson::kArrayType);
-    parseSamples(mSamples.mVtxLowResh, vtxh, json, false);
+    parseSamples(mSamples.mVtxHiResh, vtxh, json, false);
     samples.AddMember("vtxh", vtxh, json.GetAllocator());
 
     json.AddMember("samples", samples, json.GetAllocator());
