@@ -299,9 +299,9 @@ void DNScache::removeRecordsByShards(const std::set<int> &removeElements)
 
 void DNScache::loadFromDb()
 {
-    // retrieve min SFU shard from DB and update mCurrentShardForSfu
+    /* retrieve min SFU shard from DB and update mCurrentShardForSfu. updateCurrentShardForSfuFromDb
+     * returns false in case there are no records with a valid SFU shard (check isSfuValidShard()) */
     bool sfuShardUpdated = updateCurrentShardForSfuFromDb();
-
     SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6, sess_data from dns_cache");
     std::set<int> removeElements;
     while (stmt.step())
@@ -529,17 +529,12 @@ int DNScache::calculateNextSfuShard()
 
 bool DNScache::updateCurrentShardForSfuFromDb()
 {
+    mCurrentShardForSfu = kSfuShardStart; // reset default value
     SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
     stmt << kSfuShardStart << kSfuShardEnd;
     if (stmt.step() && !stmt.isNullColumn(0))
     {
-        if (!isSfuValidShard(stmt.intCol(0)))
-        {
-            DNSCACHE_LOG_ERROR("updateCurrentShardForSfuFromDb: invalid SFU shard: %d retrieved from DB", stmt.intCol(0));
-            assert(isSfuValidShard(stmt.intCol(0)));
-            return false;
-        }
-
+        assert(isSfuValidShard(stmt.intCol(0)));
         mCurrentShardForSfu = stmt.intCol(0);
         return true;
     }
