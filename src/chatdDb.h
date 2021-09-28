@@ -15,7 +15,7 @@ protected:
 public:
     ChatdSqliteDb(chatd::Chat& chat, SqliteDb& db, const std::string& sendingTblName="sending", const std::string& histTblName="history")
         :mDb(db), mChat(chat), mSendingTblName(sendingTblName), mHistTblName(histTblName){}
-    virtual void getHistoryInfo(chatd::ChatDbInfo& info)
+    virtual void getHistoryInfo(chatd::ChatDbInfo& info) override
     {
         SqliteStmt stmt(mDb, "select min(idx), max(idx) from history where chatid=?1");
         stmt.bind(mChat.chatId()).step(); //will always return a row, even if table empty
@@ -85,7 +85,7 @@ public:
             msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId, msg.isEncrypted());
     }
 
-    void addSendingItem(chatd::Chat::SendingItem& item)
+    void addSendingItem(chatd::Chat::SendingItem& item) override
     {
         assert(item.msg);
         uint8_t opcode = item.opcode();
@@ -107,7 +107,7 @@ public:
         item.rowid = sqlite3_last_insert_rowid(mDb);
     }
 
-    virtual int updateSendingItemsKeyid(chatd::KeyId localkeyid, chatd::KeyId keyid)
+    virtual int updateSendingItemsKeyid(chatd::KeyId localkeyid, chatd::KeyId keyid) override
     {
         mDb.query("update sending set keyid = ?, key_cmd = ? where keyid = ? and chatid = ?",
                   keyid, StaticBuffer(nullptr, 0), localkeyid, mChat.chatId());
@@ -116,7 +116,7 @@ public:
     }
 
     virtual void addBlobsToSendingItem(uint64_t rowid,
-        const chatd::MsgCommand* msgCmd, const chatd::KeyCommand* keyCmd, chatd::KeyId keyid)
+        const chatd::MsgCommand* msgCmd, const chatd::KeyCommand* keyCmd, chatd::KeyId keyid) override
     {
         // possible values of `keyid`:
         // - NEWMSG/MSGUPDX: local keyxid = rowid of the KeyCmd related to this MsgCmd
@@ -128,7 +128,7 @@ public:
         assertAffectedRowCount(1,"addBlobsToSendingItem");
     }
 
-    virtual int updateSendingItemsMsgidAndOpcode(karere::Id msgxid, karere::Id msgid)
+    virtual int updateSendingItemsMsgidAndOpcode(karere::Id msgxid, karere::Id msgid) override
     {
         mDb.query(
             "update sending set opcode=?, msgid=? where chatid=? and opcode=? and msgid=?",
@@ -136,22 +136,22 @@ public:
         return sqlite3_changes(mDb);
     }
 
-    virtual void deleteSendingItem(uint64_t rowid)
+    virtual void deleteSendingItem(uint64_t rowid) override
     {
         mDb.query("delete from sending where rowid = ?1", rowid);
         assertAffectedRowCount(1, "deleteSendingItem");
     }
-    virtual int updateSendingItemsContentAndDelta(const chatd::Message& msg)
+    virtual int updateSendingItemsContentAndDelta(const chatd::Message& msg) override
     {
         mDb.query("update sending set msg = ? where msgid = ? and chatid = ?",
                   msg, msg.id(), mChat.chatId());
         return sqlite3_changes(mDb);
     }
-    virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
+    virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx) override
     {
         addMessage(msg, idx, "history");
     }
-    virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
+    virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg) override
     {
         if (msg.type == chatd::Message::kMsgTruncate)
         {
@@ -166,7 +166,7 @@ public:
         assertAffectedRowCount(1, "updateMsgInHistory");
     }
 
-    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated)
+    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) override
     {
         SqliteStmt stmt3(mDb, "select updated from history where chatid = ? and msgid = ?");
         stmt3 << mChat.chatId() << msgid;
@@ -183,7 +183,7 @@ public:
         keyid = stmt.uintCol(1);
     }
 
-    virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
+    virtual void loadSendQueue(chatd::Chat::OutputQueue& queue) override
     {
         SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, msg, type, "
             "ts, updated, backrefid, backrefs, recipients, msg_cmd, key_cmd "
@@ -252,7 +252,7 @@ public:
             }
         }
     }
-    virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
+    virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages) override
     {
         loadMessages(count, idx, messages, "history");
     }
@@ -265,11 +265,11 @@ public:
         return (stmt.step()) ? stmt.intCol(0) : CHATD_IDX_INVALID;
     }
 
-    virtual chatd::Idx getIdxOfMsgidFromHistory(karere::Id msgid)
+    virtual chatd::Idx getIdxOfMsgidFromHistory(karere::Id msgid) override
     {
         return getIdxOfMsgid(msgid, "history");
     }
-    virtual chatd::Idx getUnreadMsgCountAfterIdx(chatd::Idx idx)
+    virtual chatd::Idx getUnreadMsgCountAfterIdx(chatd::Idx idx) override
     {
         // get the unread messages count --> conditions should match the ones in Message::isValidUnread()
         std::string sql = "select count(*) from history where (chatid = ?1)"
@@ -322,7 +322,7 @@ public:
 
         return unReadCount;
     }
-    virtual void saveItemToManualSending(const chatd::Chat::SendingItem& item, int reason)
+    virtual void saveItemToManualSending(const chatd::Chat::SendingItem& item, int reason) override
     {
         auto& msg = *item.msg;
         mDb.query("insert into manual_sending(chatid, rowid, msgid, type, "
@@ -330,7 +330,7 @@ public:
             mChat.chatId(), item.rowid, item.msg->id(), msg.type, msg.ts,
             msg.updated, msg, item.opcode(), reason);
     }
-    virtual void loadManualSendItems(std::vector<chatd::Chat::ManualSendItem>& items)
+    virtual void loadManualSendItems(std::vector<chatd::Chat::ManualSendItem>& items) override
     {
         SqliteStmt stmt(mDb, "select rowid, msgid, type, ts, updated, msg, opcode, "
             "reason from manual_sending where chatid=? order by rowid asc");
@@ -345,12 +345,12 @@ public:
             items.emplace_back(msg, stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(6)), static_cast<chatd::ManualSendReason>(stmt.intCol(7)));
         }
     }
-    virtual bool deleteManualSendItem(uint64_t rowid)
+    virtual bool deleteManualSendItem(uint64_t rowid) override
     {
         mDb.query("delete from manual_sending where rowid = ?", rowid);
         return sqlite3_changes(mDb) != 0;
     }
-    virtual void loadManualSendItem(uint64_t rowid, chatd::Chat::ManualSendItem& item)
+    virtual void loadManualSendItem(uint64_t rowid, chatd::Chat::ManualSendItem& item) override
     {
         SqliteStmt stmt(mDb, "select msgid, type, ts, updated, msg, opcode, "
             "reason from manual_sending where chatid=? and rowid=?");
@@ -367,7 +367,7 @@ public:
         item.opcode = stmt.intCol(5);
         item.reason = (chatd::ManualSendReason)stmt.intCol(6);
     }
-    virtual void truncateHistory(const chatd::Message& msg)
+    virtual void truncateHistory(const chatd::Message& msg) override
     {
         auto idx = getIdxOfMsgidFromHistory(msg.id());
         if (idx == CHATD_IDX_INVALID)
@@ -385,7 +385,7 @@ public:
             throw std::runtime_error("DbInterface::truncateHistory: Truncate message type is not 'truncate'");
 #endif
     }
-    virtual chatd::Idx getOldestIdx()
+    virtual chatd::Idx getOldestIdx() override
     {
         SqliteStmt stmt(mDb, "select min(idx) from history where chatid = ?");
         stmt << mChat.chatId();
@@ -401,18 +401,18 @@ public:
         return stmt.uintCol(0);
     }
 
-    virtual void setLastSeen(karere::Id msgid)
+    virtual void setLastSeen(karere::Id msgid) override
     {
         mDb.query("update chats set last_seen=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1, "setLastSeen");
     }
-    virtual void setLastReceived(karere::Id msgid)
+    virtual void setLastReceived(karere::Id msgid) override
     {
         mDb.query("update chats set last_recv=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1);
     }
 
-    virtual void setHaveAllHistory(bool haveAllHistory)
+    virtual void setHaveAllHistory(bool haveAllHistory) override
     {
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
@@ -427,7 +427,7 @@ public:
         return stmt.step();
     }
 
-    virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs)
+    virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs) override
     {
         SqliteStmt stmt(mDb,
             "select type, idx, data, msgid, userid, ts from history where chatid=?1 and "
@@ -459,7 +459,7 @@ public:
     }
 
     //Insert a new chat var related to a chat. This function receives as parameters the var name and it's value
-    virtual void setChatVar(const char *name, bool value)
+    virtual void setChatVar(const char *name, bool value) override
     {
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
@@ -468,7 +468,7 @@ public:
     }
 
     //Returns if chat var related to a chat exists
-    virtual bool chatVar(const char *name)
+    virtual bool chatVar(const char *name) override
     {
         SqliteStmt stmt(mDb,
             "select value from chat_vars where chatid=? and name=? and value='1'");
@@ -478,7 +478,7 @@ public:
     }
 
     //Remove a chat var related to a chat
-    virtual bool removeChatVar(const char *name)
+    virtual bool removeChatVar(const char *name) override
     {
         SqliteStmt stmt(mDb,
             "delete from chat_vars where chatid = ? and name = ?");
@@ -487,13 +487,13 @@ public:
         return stmt.step();
     }
 
-    virtual void clearHistory()
+    virtual void clearHistory() override
     {
         mDb.query("delete from history where chatid = ?", mChat.chatId());
         setHaveAllHistory(false);
     }
 
-    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx &idx)
+    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx &idx) override
     {
         chatd::Idx idxOnDb = getIdxOfMsgid(msg.id(), "node_history");
         if (idxOnDb == CHATD_IDX_INVALID)
@@ -507,7 +507,7 @@ public:
         }
     }
 
-    virtual void deleteMsgFromNodeHistory(const chatd::Message& msg)
+    virtual void deleteMsgFromNodeHistory(const chatd::Message& msg) override
     {
         mDb.query("update node_history set data = ?, updated = ?, type = ? where chatid = ? and msgid = ?",
                   msg, msg.updated, msg.type, mChat.chatId(), msg.id());
@@ -530,18 +530,18 @@ public:
                || (stmt.uint64Col(1) == karere::Id::COMMANDER() && stmt.uintCol(2) == 0));
     }
 
-    virtual void truncateNodeHistory(karere::Id id)
+    virtual void truncateNodeHistory(karere::Id id) override
     {
         auto idx = getIdxOfMsgid(id, "node_history");
         mDb.query("delete from node_history where chatid = ? and idx <= ?", mChat.chatId(), idx);
     }
 
-    virtual void clearNodeHistory()
+    virtual void clearNodeHistory() override
     {
         mDb.query("delete from node_history where chatid = ?", mChat.chatId());
     }
 
-    virtual void getNodeHistoryInfo(chatd::Idx &newest, chatd::Idx &oldest)
+    virtual void getNodeHistoryInfo(chatd::Idx &newest, chatd::Idx &oldest) override
     {
         SqliteStmt stmt(mDb, "select min(idx), max(idx), count(*) from node_history where chatid=?1");
         stmt.bind(mChat.chatId()).step(); //will always return a row, even if table empty
@@ -552,12 +552,12 @@ public:
         newest = count ? stmt.intCol(1) : -1;
     }
 
-    virtual void fetchDbNodeHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
+    virtual void fetchDbNodeHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages) override
     {
         loadMessages(count, idx, messages, "node_history");
     }
 
-    virtual chatd::Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid)
+    virtual chatd::Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) override
     {
         return getIdxOfMsgid(msgid, "node_history");
     }
