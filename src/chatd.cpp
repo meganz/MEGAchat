@@ -2577,6 +2577,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
+#ifndef KARERE_DISABLE_WEBRTC
                 rtcModule::EndCallReason endCallReason = rtcModule::EndCallReason::kEnded;
                 if (opcode == OP_DELCALLREASON)
                 {
