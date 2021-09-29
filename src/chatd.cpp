@@ -2577,16 +2577,19 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
-                rtcModule::EndCallReason endCallReason = rtcModule::EndCallReason::kEnded;
+                uint8_t recvReason = 0;
                 if (opcode == OP_DELCALLREASON)
                 {
                     READ_8(reason, 16);
-                    reason = static_cast<rtcModule::EndCallReason>(reason);
+                    recvReason = reason;
                 }
 
                 CHATDS_LOG_DEBUG("recv %s chatid: %s, callid %s - reason %d", opcode == OP_CALLEND ? "CALLEND" : "DELCALLREASON",
-                                 ID_CSTR(chatid), ID_CSTR(callid), opcode == OP_CALLEND ? -1 : endCallReason);
+                                 ID_CSTR(chatid), ID_CSTR(callid), opcode == OP_CALLEND ? -1 : recvReason);
 #ifndef KARERE_DISABLE_WEBRTC
+                rtcModule::EndCallReason endCallReason = static_cast<rtcModule::EndCallReason>
+                        (opcode == OP_DELCALLREASON ? recvReason :rtcModule::EndCallReason::kEnded);
+
                 if (mChatdClient.mKarereClient->rtc)
                 {
                     mChatdClient.mKarereClient->rtc->removeCall(chatid, endCallReason);
