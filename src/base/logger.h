@@ -157,25 +157,6 @@ public:
 
 };
 
-/** @brief A logger backend that sends the webRtc error log output
- * to a remote server.
- */
-class WebRtcLogger: public karere::Logger::ILoggerBackend
-{
-private:
-    MyMegaApi& mApi;
-    std::string mAid;
-    std::string mDeviceInfo;
-public:
-    virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
-    void logError(const char* fmtString, ...);
-    WebRtcLogger(MyMegaApi& api, const std::string &aid, const std::string &deviceInfo)
-        : ILoggerBackend(krLogLevelError), mApi(api), mAid(aid), mDeviceInfo(deviceInfo)
-    {
-
-    }
-};
-
 extern KRLOGGER_DLLIMPEXP Logger gLogger;
 }
 
