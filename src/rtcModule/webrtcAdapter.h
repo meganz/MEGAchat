@@ -198,23 +198,23 @@ protected:
                      public karere::DeleteTrackable    // required to use weakHandle() at RTCM_DO_CALLBACK()
     {
         Observer(C& handler):mHandler(handler){}
-        virtual void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
+        void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream) override
         {
             tspMediaStream spStream(stream);
             RTCM_DO_CALLBACK(mHandler.onAddStream(spStream), this, spStream);
         }
 
-        virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+        void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override
         {
             RTCM_DO_CALLBACK(mHandler.onTrack(transceiver), this, transceiver);
         }
 
-        virtual void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
+        void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override
         {
             RTCM_DO_CALLBACK(mHandler.onRemoveTrack(receiver), this, receiver);
         }
 
-        virtual void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state)
+        void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override
         {
             RTCM_DO_CALLBACK(mHandler.onConnectionChange(new_state), this, new_state);
         }

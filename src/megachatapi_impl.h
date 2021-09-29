@@ -353,29 +353,29 @@ private:
     unsigned int mNumPreviewers;
 
 public:
-    virtual int getChanges() const;
-    virtual bool hasChanged(int changeType) const;
+    int getChanges() const override;
+    bool hasChanged(int changeType) const override;
 
-    virtual MegaChatHandle getChatId() const;
-    virtual const char *getTitle() const;
-    virtual int getOwnPrivilege() const;
-    virtual int getUnreadCount() const;
-    virtual const char *getLastMessage() const;
-    virtual MegaChatHandle getLastMessageId() const;
-    virtual int getLastMessageType() const;
-    virtual MegaChatHandle getLastMessageSender() const;
-    virtual int64_t getLastTimestamp() const;
-    virtual bool isGroup() const;
-    virtual bool isPublic() const;
-    virtual bool isPreview() const;
-    virtual bool isActive() const;
-    virtual bool isArchived() const;
+    MegaChatHandle getChatId() const override;
+    const char *getTitle() const override;
+    int getOwnPrivilege() const override;
+    int getUnreadCount() const override;
+    const char *getLastMessage() const override;
+    MegaChatHandle getLastMessageId() const override;
+    int getLastMessageType() const override;
+    MegaChatHandle getLastMessageSender() const override;
+    int64_t getLastTimestamp() const override;
+    bool isGroup() const override;
+    bool isPublic() const override;
+    bool isPreview() const override;
+    bool isActive() const override;
+    bool isArchived() const override;
     bool isDeleted() const override;
-    virtual bool isCallInProgress() const;
-    virtual MegaChatHandle getPeerHandle() const;
-    virtual int getLastMessagePriv() const;
-    virtual MegaChatHandle getLastMessageHandle() const;
-    virtual unsigned int getNumPreviewers() const;
+    bool isCallInProgress() const override;
+    MegaChatHandle getPeerHandle() const override;
+    int getLastMessagePriv() const override;
+    MegaChatHandle getLastMessageHandle() const override;
+    unsigned int getNumPreviewers() const override;
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
@@ -407,20 +407,20 @@ public:
     MegaChatListItemHandler(MegaChatApiImpl&, karere::ChatRoom&);
 
     // karere::IApp::IListItem::ITitleHandler implementation
-    virtual void onTitleChanged(const std::string& title);
-    virtual void onUnreadCountChanged();
+    void onTitleChanged(const std::string& title) override;
+    void onUnreadCountChanged() override;
 
     // karere::IApp::IListItem::IChatListItem implementation
-    virtual void onExcludedFromChat();
-    virtual void onRejoinedChat();
-    virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
-    virtual void onLastTsUpdated(uint32_t ts);
-    virtual void onChatOnlineState(const chatd::ChatState state);
-    virtual void onChatModeChanged(bool mode);
-    virtual void onChatArchived(bool archived);
+    void onExcludedFromChat() override;
+    void onRejoinedChat() override;
+    void onLastMessageUpdated(const chatd::LastTextMsg& msg) override;
+    void onLastTsUpdated(uint32_t ts) override;
+    void onChatOnlineState(const chatd::ChatState state) override;
+    void onChatModeChanged(bool mode) override;
+    void onChatArchived(bool archived) override;
     void onChatDeleted() const override;
-    virtual void onPreviewersCountUpdate(uint32_t numPrev);
-    virtual void onPreviewClosed();
+    void onPreviewersCountUpdate(uint32_t numPrev) override;
+    void onPreviewClosed() override;
 
 protected:
     MegaChatApiImpl &chatApi;
@@ -464,47 +464,47 @@ public:
     void fireOnHistoryReloaded(MegaChatRoom *chat);
     void fireOnReactionUpdate(MegaChatHandle msgid, const char *reaction, int count);
     // karere::IApp::IChatHandler implementation
-    virtual void onMemberNameChanged(uint64_t userid, const std::string &newName);
-    virtual void onChatArchived(bool archived);
+    virtual void onMemberNameChanged(uint64_t userid, const std::string &newName) override;
+    virtual void onChatArchived(bool archived) override;
     //virtual void* userp();
 
 
     // karere::IApp::IChatHandler::ITitleHandler implementation
-    virtual void onTitleChanged(const std::string& title);
-    virtual void onUnreadCountChanged();
-    virtual void onPreviewersCountUpdate(uint32_t numPrev);
+    void onTitleChanged(const std::string& title) override;
+    void onUnreadCountChanged() override;
+    void onPreviewersCountUpdate(uint32_t numPrev) override;
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
-    virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
-    virtual void onDestroy();
-    virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
-    virtual void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal);
-    virtual void onHistoryDone(chatd::HistSource source);
-    virtual void onUnsentMsgLoaded(chatd::Message& msg);
-    virtual void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending);
-    virtual void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx, bool tsUpdated);
-    virtual void onMessageRejected(const chatd::Message& msg, uint8_t reason);
-    virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
-    virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
-    virtual void onEditRejected(const chatd::Message& msg, chatd::ManualSendReason reason);
-    virtual void onOnlineStateChange(chatd::ChatState state);
-    virtual void onUserJoin(karere::Id userid, chatd::Priv privilege);
-    virtual void onUserLeave(karere::Id userid);
-    virtual void onExcludedFromChat();
-    virtual void onRejoinedChat();
-    virtual void onUnreadChanged();
+    void init(chatd::Chat& chat, chatd::DbInterface*&) override;
+    void onDestroy() override;
+    void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status) override;
+    void onRecvHistoryMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status, bool isLocal) override;
+    void onHistoryDone(chatd::HistSource source) override;
+    void onUnsentMsgLoaded(chatd::Message& msg) override;
+    void onUnsentEditLoaded(chatd::Message& msg, bool oriMsgIsSending) override;
+    void onMessageConfirmed(karere::Id msgxid, const chatd::Message& msg, chatd::Idx idx, bool tsUpdated) override;
+    void onMessageRejected(const chatd::Message& msg, uint8_t reason) override;
+    void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg) override;
+    void onMessageEdited(const chatd::Message& msg, chatd::Idx idx) override;
+    void onEditRejected(const chatd::Message& msg, chatd::ManualSendReason reason) override;
+    void onOnlineStateChange(chatd::ChatState state) override;
+    void onUserJoin(karere::Id userid, chatd::Priv privilege) override;
+    void onUserLeave(karere::Id userid) override;
+    void onExcludedFromChat() override;
+    void onRejoinedChat() override;
+    void onUnreadChanged() override;
     void onRetentionTimeUpdated(unsigned int period) override;
-    void onPreviewersUpdate();
-    virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
+    void onPreviewersUpdate() override;
+    void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason) override;
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
-    virtual void onUserTyping(karere::Id user);
-    virtual void onUserStopTyping(karere::Id user);
-    virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
-    virtual void onLastMessageTsUpdated(uint32_t ts);
-    virtual void onHistoryReloaded();
-    virtual void onChatModeChanged(bool mode);
-    virtual void onReactionUpdate(karere::Id msgid, const char *reaction, int count);
+    void onUserTyping(karere::Id user) override;
+    void onUserStopTyping(karere::Id user) override;
+    void onLastTextMessageUpdated(const chatd::LastTextMsg& msg) override;
+    void onLastMessageTsUpdated(uint32_t ts) override;
+    void onHistoryReloaded() override;
+    void onChatModeChanged(bool mode) override;
+    void onReactionUpdate(karere::Id msgid, const char *reaction, int count) override;
     void onHistoryTruncatedByRetentionTime(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
 
     bool isRevoked(MegaChatHandle h);
@@ -792,40 +792,40 @@ public:
     MegaChatMessagePrivate(const chatd::Message &msg, chatd::Message::Status status, chatd::Idx index);
 
     virtual ~MegaChatMessagePrivate();
-    virtual MegaChatMessage *copy() const;
+    MegaChatMessage *copy() const override;
 
     // MegaChatMessage interface
-    virtual int getStatus() const;
-    virtual MegaChatHandle getMsgId() const;
-    virtual MegaChatHandle getTempId() const;
-    virtual int getMsgIndex() const;
-    virtual MegaChatHandle getUserHandle() const;
-    virtual int getType() const;
-    virtual bool hasConfirmedReactions() const;
-    virtual int64_t getTimestamp() const;
-    virtual const char *getContent() const;
-    virtual bool isEdited() const;
-    virtual bool isDeleted() const;
-    virtual bool isEditable() const;
-    virtual bool isDeletable() const;
-    virtual bool isManagementMessage() const;
-    virtual MegaChatHandle getHandleOfAction() const;
-    virtual int getPrivilege() const;
-    virtual int getCode() const;
-    virtual MegaChatHandle getRowId() const;
-    virtual unsigned int getUsersCount() const;
-    virtual MegaChatHandle getUserHandle(unsigned int index) const;
-    virtual const char *getUserName(unsigned int index) const;
-    virtual const char *getUserEmail(unsigned int index) const;
-    virtual mega::MegaNodeList *getMegaNodeList() const;
-    virtual const MegaChatContainsMeta *getContainsMeta() const;
-    virtual mega::MegaHandleList *getMegaHandleList() const;
-    virtual int getDuration() const;
+    int getStatus() const override;
+    MegaChatHandle getMsgId() const override;
+    MegaChatHandle getTempId() const override;
+    int getMsgIndex() const override;
+    MegaChatHandle getUserHandle() const override;
+    int getType() const override;
+    bool hasConfirmedReactions() const override;
+    int64_t getTimestamp() const override;
+    const char *getContent() const override;
+    bool isEdited() const override;
+    bool isDeleted() const override;
+    bool isEditable() const override;
+    bool isDeletable() const override;
+    bool isManagementMessage() const override;
+    MegaChatHandle getHandleOfAction() const override;
+    int getPrivilege() const override;
+    int getCode() const override;
+    MegaChatHandle getRowId() const override;
+    unsigned int getUsersCount() const override;
+    MegaChatHandle getUserHandle(unsigned int index) const override;
+    const char *getUserName(unsigned int index) const override;
+    const char *getUserEmail(unsigned int index) const override;
+    mega::MegaNodeList *getMegaNodeList() const override;
+    const MegaChatContainsMeta *getContainsMeta() const override;
+    mega::MegaHandleList *getMegaHandleList() const override;
+    int getDuration() const override;
     unsigned getRetentionTime() const override;
-    virtual int getTermCode() const;
+    int getTermCode() const override;
 
-    virtual int getChanges() const;
-    virtual bool hasChanged(int changeType) const;
+    int getChanges() const override;
+    bool hasChanged(int changeType) const override;
 
     void setStatus(int status);
     void setTempId(MegaChatHandle tempId);
@@ -1326,13 +1326,13 @@ public:
     MegaChatContainsMetaPrivate(const MegaChatContainsMeta *containsMeta = NULL);
     virtual ~MegaChatContainsMetaPrivate();
 
-    virtual MegaChatContainsMeta *copy() const;
+    MegaChatContainsMeta *copy() const override;
 
-    virtual int getType() const;
-    virtual const char *getTextMessage() const;
-    virtual const MegaChatRichPreview *getRichPreview() const;
-    virtual const MegaChatGeolocation *getGeolocation() const;
-    virtual const MegaChatGiphy *getGiphy() const override;
+    int getType() const override;
+    const char *getTextMessage() const override;
+    const MegaChatRichPreview *getRichPreview() const override;
+    const MegaChatGeolocation *getGeolocation() const override;
+    const MegaChatGiphy *getGiphy() const override;
 
     // This function take the property from memory that it receives as parameter
     void setRichPreview(MegaChatRichPreview *richPreview);
