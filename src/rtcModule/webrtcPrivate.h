@@ -277,6 +277,7 @@ public:
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
     TermCode getTermCode() const override;
+    uint8_t getEndCallReason() const override;
 
     // called upon reception of OP_JOINEDCALL from chatd
     void addParticipant(karere::Id peer) override;
@@ -364,6 +365,7 @@ public:
 
     void disconnect(TermCode termCode, const std::string& msg = "");
     void handleCallDisconnect();
+    void setEndCallReason(uint8_t reason);
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
@@ -428,6 +430,7 @@ protected:
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
+    uint8_t mEndCallReason = kInvalidReason;
 
     std::string mSfuUrl;
     CallHandler& mCallHandler;
@@ -500,7 +503,7 @@ public:
     const std::string& getVideoDeviceSelected() const override;
     sfu::SfuClient& getSfuClient() override;
 
-    void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
+    void removeCall(karere::Id chatid, EndCallReason reason) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
