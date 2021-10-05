@@ -12,46 +12,10 @@
 
 namespace rtcModule
 {
-#ifdef KARERE_DISABLE_WEBRTC
-class IGlobalCallHandler
-{
-};
-#else
-
+#ifndef KARERE_DISABLE_WEBRTC
 class RtcModuleSfu;
 class Call;
 class Session;
-
-/*
- * This class represents the current available tracks keyed by peer CID.
- * Available tracks information is stored into a karere::AvFlags struct (due to efficiency)
- *
- * When a track is enabled/disabled we will update CID flags, and when we want to query which tracks
- * are available, we will check if CID flags contains these values:
- *  - HI-RES  track -> kCameraHiRes
- *  - LOW-RES track -> kCameraLowRes
- *  - AUDIO   track -> kAudio
- */
-class AvailableTracks
-{
-public:
-    AvailableTracks();
-    ~AvailableTracks();
-    bool hasHiresTrack(Cid_t cid);
-    bool hasLowresTrack(Cid_t cid);
-    bool hasVoiceTrack(Cid_t cid);
-    void updateHiresTrack(Cid_t cid, bool add);
-    void updateLowresTrack(Cid_t cid, bool add);
-    void updateSpeakTrack(Cid_t cid, bool add);
-    std::map<Cid_t, karere::AvFlags>& getTracks();
-    bool getTracksByCid(Cid_t cid, karere::AvFlags& tracksFlags);
-    void addCid(Cid_t cid);
-    void removeCid(Cid_t cid);
-    bool hasCid(Cid_t cid);
-    void clear();
-private:
-    std::map<Cid_t, karere::AvFlags> mTracksFlags;
-};
 
 class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface, public karere::DeleteTrackable
 {
@@ -72,34 +36,71 @@ private:
     int32_t mCid;
 };
 
+/**
+ * This class represent a generic instance to manage webrtc Transceiver
+ * A Transceiver is an element used to send or receive datas
+ */
 class Slot
 {
 public:
-    Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     virtual ~Slot();
-    uint32_t getTransceiverMid();
-    void createEncryptor();
-    webrtc::RtpTransceiverInterface* getTransceiver();
-    Cid_t getCid() const;
-    void assign(Cid_t cid, IvStatic_t iv);
-    bool hasTrack(bool send);
-    void createDecryptor(Cid_t cid, IvStatic_t iv);
-    IvStatic_t getIv() const;
-    void generateRandomIv();
-    virtual void release();
-
-private:
-    void createDecryptor();
-    void enableAudioMonitor(bool enable);
-    void enableTrack(bool enable, TrackDirection direction);
-
+    webrtc::RtpTransceiverInterface* getTransceiver() { return mTransceiver.get(); }
+    IvStatic_t getIv() const { return mIv; }
+    uint32_t getTransceiverMid() const;
 protected:
     Call &mCall;
-    IvStatic_t mIv;
+    IvStatic_t mIv = 0;
     rtc::scoped_refptr<webrtc::RtpTransceiverInterface> mTransceiver;
-    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
+
+    Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+};
+
+/**
+ * This class represent a webrtc transceiver for local audio and low resolution video
+ */
+class LocalSlot : public Slot
+{
+public:
+    LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void createEncryptor();
+    void generateRandomIv();
+};
+
+/**
+ * This class represent a webrtc transceiver for local high resolution video
+ */
+class LocalHighResolutionSlot : public LocalSlot
+{
+public:
+     LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+     void updateSentLayers(int8_t sentLayers);
+     void setTsStart(::mega::m_time_t t);
+     ::mega::m_time_t getTsStart();
+     int8_t getSentLayers();
+
+private:
+    ::mega::m_time_t mTsStart;
+    int8_t mSentLayers;
+};
+
+/**
+ * This class represent a generic instance to manage remote webrtc Transceiver
+ */
+class RemoteSlot : public Slot
+{
+public:
+    virtual ~RemoteSlot() {}
+    virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
+    virtual void release();
+    Cid_t getCid() const { return mCid; }
+
+protected:
     Cid_t mCid = 0;
-    bool mAudioLevelMonitorEnabled = false;
+    RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void assign(Cid_t cid, IvStatic_t iv);
+
+private:
+    void enableTrack(bool enable, TrackDirection direction);
 };
 
 class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
@@ -113,7 +114,10 @@ private:
     std::unique_ptr<IVideoRenderer> mRenderer;
 };
 
-class RemoteVideoSlot : public Slot, public VideoSink
+/**
+ * This class represent a generic instance to manage removte video webrtc Transceiver
+ */
+class RemoteVideoSlot : public RemoteSlot, public VideoSink
 {
 public:
     RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
@@ -122,11 +126,28 @@ public:
     void assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution);
     void release() override;
     VideoResolution getVideoResolution() const;
+    bool hasTrack();
 
 private:
     VideoResolution mVideoResolution = kUndefined;
 };
 
+/**
+ * This class represent a generic instance to manage remote audio webrtc Transceiver
+ */
+class RemoteAudioSlot : public RemoteSlot
+{
+public:
+    RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void assignAudioSlot(Cid_t cid, IvStatic_t iv);
+    void enableAudioMonitor(bool enable);
+    void createDecryptor(Cid_t cid, IvStatic_t iv) override;
+    void release() override;
+
+private:
+    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
+    bool mAudioLevelMonitorEnabled = false;
+};
 
 /**
  * @brief The Session class
@@ -146,11 +167,11 @@ public:
     const sfu::Peer &getPeer() const;
     void setVThumSlot(RemoteVideoSlot* slot);
     void setHiResSlot(RemoteVideoSlot* slot);
-    void setAudioSlot(Slot* slot);
+    void setAudioSlot(RemoteAudioSlot *slot);
     void addKey(Keyid_t keyid, const std::string& key);
     void setAvFlags(karere::AvFlags flags);
 
-    Slot* getAudioSlot();
+    RemoteAudioSlot* getAudioSlot();
     RemoteVideoSlot* getVthumSlot();
     RemoteVideoSlot* getHiResSlot();
 
@@ -183,7 +204,7 @@ private:
 
     RemoteVideoSlot* mVthumSlot = nullptr;
     RemoteVideoSlot* mHiresSlot = nullptr;
-    Slot* mAudioSlot = nullptr;
+    RemoteAudioSlot* mAudioSlot = nullptr;
 
     // To notify events about the session to the app (intermediate layer)
     std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
@@ -212,9 +233,7 @@ public:
     static const int kRttUpperHeadroom = 250;
 
     SvcDriver();
-    bool updateSvcQuality(int8_t delta);
-    bool getLayerByIndex(int index, int& stp, int& tmp, int& stmp);
-
+    bool setSvcLayer(int8_t delta, int8_t &rxSpt, int8_t &rxTmp, int8_t &rxStmp, int8_t &txSpt);
     uint8_t mCurrentSvcLayerIndex;
 
     double mPacketLostLower;
@@ -243,16 +262,12 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, IGlobalCallHandler &globalCallHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
     virtual ~Call();
 
 
     // ---- ICall methods ----
     //
-
-    // sets a handler to receive callbacks about the call (takes ownership)
-    void setCallHandler(CallHandler* callHanlder) override;
-
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
     CallState getState() const override;
@@ -262,6 +277,7 @@ public:
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
     TermCode getTermCode() const override;
+    uint8_t getEndCallReason() const override;
 
     // called upon reception of OP_JOINEDCALL from chatd
     void addParticipant(karere::Id peer) override;
@@ -318,9 +334,6 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
-    // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
-    void switchSvcQuality(int8_t delta) override;
-
     std::vector<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
@@ -347,11 +360,12 @@ public:
     void connectSfu(const std::string& sfuUrl);
     void joinSfu();
 
-    void createTransceivers();  // both, for sending your audio/video and for receiving from participants
+    void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
     void disconnect(TermCode termCode, const std::string& msg = "");
     void handleCallDisconnect();
+    void setEndCallReason(uint8_t reason);
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
@@ -383,7 +397,9 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
+
     bool error(unsigned int code, const std::string& errMsg) override;
+    void logError(const char* error) override;
 
     // PeerConnectionInterface events
     void onAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
@@ -414,25 +430,23 @@ protected:
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
+    uint8_t mEndCallReason = kInvalidReason;
 
     std::string mSfuUrl;
-    IGlobalCallHandler& mGlobalCallHandler;
+    CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
 
     artc::MyPeerConnection<Call> mRtcConn;
-    std::string mSdp;   // session description provided by WebRTC::createOffer()
-    std::unique_ptr<Slot> mAudio;
-    std::unique_ptr<Slot> mVThumb;
+    std::string mSdpStr;   // session description provided by WebRTC::createOffer()
+    std::unique_ptr<LocalSlot> mAudio;
+    std::unique_ptr<LocalSlot> mVThumb;
     bool mVThumbActive = false;  // true when sending low res video
-    std::unique_ptr<Slot> mHiRes;
+    std::unique_ptr<LocalHighResolutionSlot> mHiRes;
     bool mHiResActive = false;  // true when sending high res video
-    std::map<uint32_t, std::unique_ptr<Slot>> mReceiverTracks;  // maps 'mid' to 'Slot'
+    std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
-
-    std::unique_ptr<CallHandler> mCallHandler;
-
     std::unique_ptr<sfu::Peer> mMyPeer;
 
     // call key for public chats (128-bit key)
@@ -449,7 +463,7 @@ protected:
     SvcDriver mSvcDriver;
 
     Keyid_t generateNextKeyId();
-    void generateAndSendNewkey();
+    void generateAndSendNewkey(bool reset = false);
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)
@@ -458,17 +472,20 @@ protected:
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, Slot *slot, bool audio, VideoResolution hiRes);
+    void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes);
     void enableStats();
     void disableStats();
     void adjustSvcByStats();
     void collectNonRTCStats();
+    // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
+    void updateSvcQuality(int8_t delta);
+    void updateTransmittedSvcQuality(int8_t txSpt);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, IGlobalCallHandler& callhandler);
+    RtcModuleSfu(MyMegaApi& megaApi, CallHandler& callhandler);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
@@ -486,11 +503,10 @@ public:
     const std::string& getVideoDeviceSelected() const override;
     sfu::SfuClient& getSfuClient() override;
 
-    void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
+    void removeCall(karere::Id chatid, EndCallReason reason) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
-    void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) override;
     void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
@@ -505,7 +521,7 @@ public:
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
-    IGlobalCallHandler& mCallHandler;
+    CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
     std::string mVideoDeviceSelected;

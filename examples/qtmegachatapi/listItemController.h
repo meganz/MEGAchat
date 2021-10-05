@@ -3,7 +3,9 @@
 #include <QObject>
 #include "megachatapi.h"
 #include "chatWindow.h"
-
+#ifndef KARERE_DISABLE_WEBRTC
+#include "meetingView.h"
+#endif
 class ChatWindow;
 class ChatItemWidget;
 class ContactItemWidget;
@@ -29,6 +31,9 @@ private:
     ChatItemWidget *mWidget = nullptr;
     ChatWindow *mChatWindow = nullptr;
     MainWindow *mMainWindow = nullptr;
+#ifndef KARERE_DISABLE_WEBRTC
+        MeetingView *mMeetingView = nullptr;
+#endif
     ::megachat::MegaChatApi *mMegaChatApi;
     ::mega::MegaApi *mMegaApi;
 
@@ -44,6 +49,11 @@ public:
     ChatWindow* showChatWindow();
     void addOrUpdateChatWindow(ChatWindow *window);
     void invalidChatWindow();
+#ifndef KARERE_DISABLE_WEBRTC
+    void createMeetingView();
+    void destroyMeetingView();
+    MeetingView* getMeetingView();
+#endif
 
 public slots:
     void leaveGroupChat();

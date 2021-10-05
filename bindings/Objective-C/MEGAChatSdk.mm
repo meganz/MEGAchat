@@ -739,7 +739,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
-    MEGAHandleList *handleList = MEGAHandleList.alloc.init;
+    MEGAHandleList *handleList = [MEGAHandleList.alloc initWithMemoryOwn:YES];
     
     for (NSNumber *handle in usersHandles) {
         [handleList addMegaHandle:handle.unsignedLongLongValue];
@@ -751,7 +751,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
-    MEGAHandleList *handleList = MEGAHandleList.alloc.init;
+    MEGAHandleList *handleList = [MEGAHandleList.alloc initWithMemoryOwn:YES];
     
     for (NSNumber *handle in usersHandles) {
         [handleList addMegaHandle:handle.unsignedLongLongValue];
@@ -1289,7 +1289,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     if (self.megaChatApi == nil) return nil;
     char *selectedVideoDevice = self.megaChatApi->getVideoDeviceSelected();
     if (!selectedVideoDevice) return nil;
-    return [[NSString alloc] initWithUTF8String:selectedVideoDevice];
+    NSString *selectedVideoDeviceString = [NSString.alloc initWithUTF8String:selectedVideoDevice];
+    delete selectedVideoDevice;
+    return selectedVideoDeviceString;
 }
 
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -1485,7 +1487,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)stopHiResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) return;
-    MEGAHandleList *clientIdList = MEGAHandleList.alloc.init;
+    MEGAHandleList *clientIdList = [MEGAHandleList.alloc initWithMemoryOwn:YES];
     for (NSNumber *handle in clientIds) {
         [clientIdList addMegaHandle:handle.unsignedLongLongValue];
     }
@@ -1494,7 +1496,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)requestLowResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) return;
-    MEGAHandleList *clientIdList = MEGAHandleList.alloc.init;
+    MEGAHandleList *clientIdList = [MEGAHandleList.alloc initWithMemoryOwn:YES];
     for (NSNumber *handle in clientIds) {
         [clientIdList addMegaHandle:handle.unsignedLongLongValue];
     }
@@ -1503,7 +1505,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)stopLowResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) return;
-    MEGAHandleList *clientIdList = MEGAHandleList.alloc.init;
+    MEGAHandleList *clientIdList = [MEGAHandleList.alloc initWithMemoryOwn:YES];
     for (NSNumber *handle in clientIds) {
         [clientIdList addMegaHandle:handle.unsignedLongLongValue];
     }
