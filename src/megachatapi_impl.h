@@ -228,6 +228,7 @@ public:
     virtual int64_t getInitialTimeStamp() const override;
     virtual int64_t getFinalTimeStamp() const override;
     virtual int getTermCode() const override;
+    int getEndCallReason() const override;
     virtual bool isRinging() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
@@ -277,7 +278,8 @@ protected:
     MegaChatHandle mCallerId;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
-    bool mIgnored = false;;
+    int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
+    bool mIgnored = false;
     bool mAudioDetected = false;
     bool mRinging = false;
     bool mIsCaller = false;
