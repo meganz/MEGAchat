@@ -111,7 +111,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     mMegaApi = megaApi;
 
     mClient = NULL;
-    API_LOG_DEBUG("init: setting karere client to null");
+    API_LOG_DEBUG("MegaChatApiImpl::init(): karere client is invalid");
     mTerminating = false;
     waiter = new MegaChatWaiter();
     mWebsocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
@@ -2569,7 +2569,7 @@ void MegaChatApiImpl::createKarereClient()
 #else
         mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, mMegaApi->getBasePath(), caps, this);
 #endif
-        API_LOG_DEBUG("createKarereClient: contruct karere client");
+        API_LOG_DEBUG("createKarereClient: karere client instance created");
         mTerminating = false;
     }
 }
