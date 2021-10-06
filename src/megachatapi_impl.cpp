@@ -9661,9 +9661,8 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             fa = iteratorFa->value.GetString();
         }
 
-        std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, &fa, sdkFingerprint,
+                             megaHandle, &key, &fa, sdkFingerprint,
                              NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
