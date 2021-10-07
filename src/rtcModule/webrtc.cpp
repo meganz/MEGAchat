@@ -528,7 +528,7 @@ void Call::requestHighResolutionVideo(Cid_t cid, int quality)
     Session *sess= getSession(cid);
     if (!sess)
     {
-        RTCM_LOG_ERROR("requestHighResolutionVideo: session not found for %d", cid);
+        RTCM_LOG_DEBUG("requestHighResolutionVideo: session not found for %d", cid);
         return;
     }
 
@@ -574,7 +574,7 @@ void Call::stopHighResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
-            RTCM_LOG_ERROR("stopHighResolutionVideo: session not found for %d", *auxit);
+            RTCM_LOG_DEBUG("stopHighResolutionVideo: session not found for %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (!sess->hasHighResolutionTrack())
@@ -605,7 +605,7 @@ void Call::requestLowResolutionVideo(std::vector<Cid_t> &cids)
         if (!sess)
         {
             // remove cid that has no active session
-            RTCM_LOG_WARNING("requestLowResolutionVideo: session not found for cid: %d", *auxit);
+            RTCM_LOG_DEBUG("requestLowResolutionVideo: session not found for cid: %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (sess->hasLowResolutionTrack())
@@ -629,7 +629,7 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
-            RTCM_LOG_WARNING("stopLowResolutionVideo: session not found for cid: %d", *auxit);
+            RTCM_LOG_DEBUG("stopLowResolutionVideo: session not found for cid: %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (!sess->hasLowResolutionTrack())
