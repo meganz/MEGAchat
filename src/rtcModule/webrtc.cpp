@@ -916,6 +916,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
 {
     if ( mStats.mSamples.mT.size() > 2)
     {
+        mStats.mMaxPeers = mMaxPeers;
         mStats.mTermCode = static_cast<int32_t>(termCode);
         mStats.mDuration = (time(nullptr) - mInitialTs) * 1000;  // ms
         mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
@@ -999,6 +1000,9 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
     // set my own client-id (cid)
     mMyPeer->setCid(cid);
+
+    // update max peers seen in call
+    mMaxPeers = static_cast<uint8_t> (peers.size() > mMaxPeers ? peers.size() : mMaxPeers);
 
     std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers) // does not include own cid
@@ -1340,6 +1344,8 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
         return false;
     }
 
+    // update max peers seen in call
+    mMaxPeers = static_cast<uint8_t> (mSessions.size() + 1 > mMaxPeers ? mSessions.size() + 1 : mMaxPeers);
     sfu::Peer peer(userid, av, cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler.onNewSession(*mSessions[cid], *this);
@@ -1798,6 +1804,7 @@ void Call::enableStats()
     mStats.mTimeOffset = mOffset;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
+    mStats.mSfuHost = karere::Url(mSfuUrl).host;
 
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()

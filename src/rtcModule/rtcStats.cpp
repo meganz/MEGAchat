@@ -108,6 +108,10 @@ std::string Stats::getJson()
     json.AddMember("samples", samples, json.GetAllocator());
     json.AddMember("trsn", mTermCode, json.GetAllocator());
     json.AddMember("grp", static_cast<int>(mIsGroup), json.GetAllocator());
+    rapidjson::Value sfuHost(rapidjson::kStringType);
+    sfuHost.SetString(mSfuHost.c_str(), json.GetAllocator());
+    json.AddMember("sfu", sfuHost, json.GetAllocator());
+    json.AddMember("peers", mMaxPeers, json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
