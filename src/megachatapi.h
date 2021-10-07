@@ -357,6 +357,16 @@ public:
         TERM_CODE_ERROR = 3,        // Call has been finished by error
     };
 
+    enum
+    {
+        END_CALL_REASON_INVALID     = -1,    /// Invalid endcall reason (it can be ignored)
+        END_CALL_REASON_ENDED       = 1,     /// Call finished normally
+        END_CALL_REASON_REJECTED    = 2,     /// Call was rejected by callee
+        END_CALL_REASON_NO_ANSWER   = 3,     /// Call wasn't answered
+        END_CALL_REASON_FAILED      = 4,     /// Call finished by an error
+        END_CALL_REASON_CANCELLED   = 5      /// Call was canceled by caller.
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -527,8 +537,7 @@ public:
     /**
      * @brief Returns the termination code for this call
      *
-     * @note this value only will be valid in states CALL_STATUS_TERMINATING_USER_PARTICIPATION
-     * and CALL_STATUS_DESTROYED
+     * @note this value only will be valid in state CALL_STATUS_TERMINATING_USER_PARTICIPATION
      *
      * Valid values are:
      *  - TERM_CODE_INVALID
@@ -540,6 +549,23 @@ public:
      * @return termination code for the call
      */
     virtual int getTermCode() const;
+
+    /**
+     * @brief Returns the remote endcall reason for this call
+     *
+     * @note this value only will be valid in state CALL_STATUS_DESTROYED
+     *
+     * Valid values are:
+     *  - END_CALL_REASON_INVALID     = -1,  (Invalid endcall reason, it can be ignored)
+     *  - END_CALL_REASON_ENDED       = 1,   (Call finished normally)
+     *  - END_CALL_REASON_REJECTED    = 2,   (Call was rejected by callee)
+     *  - END_CALL_REASON_NO_ANSWER   = 3,   (Call wasn't answered)
+     *  - END_CALL_REASON_FAILED      = 4,   (Call finished by an error)
+     *  - END_CALL_REASON_CANCELLED   = 5    (Call was canceled by caller)
+     *
+     * @return endCall reason for the call
+     */
+    virtual int getEndCallReason() const;
 
     /**
      * @brief Returns the status of the remote call
@@ -1758,7 +1784,8 @@ public:
         TYPE_SET_BACKGROUND_STATUS, TYPE_RETRY_PENDING_CONNECTIONS,
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
-        TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
+        TYPE_LOAD_AUDIO_VIDEO_DEVICES, // Deprecated
+        TYPE_ARCHIVE_CHATROOM,
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,

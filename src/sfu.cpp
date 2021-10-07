@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #include <sfu.h>
 #include <base/promise.h>
 #include <megaapi.h>
@@ -2086,3 +2087,4 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
 }
 
 }
+#endif

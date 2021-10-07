@@ -1,15 +1,16 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #ifndef WEBRTC_H
 #define WEBRTC_H
-
-#include "IRtcCrypto.h"
-#include "IVideoRenderer.h"
 #include "karereId.h"
 #include "karereCommon.h"
 #include "sdkApi.h"
 #include <net/websocketsIO.h>
+#include <mega/utils.h>
+#include "IVideoRenderer.h"
+#include "IRtcCrypto.h"
 #include "rtcCrypto.h"
 #include "sfu.h"
-#include <mega/utils.h>
+
 
 #define RET_ENUM_NAME(name) case name: return #name
 
@@ -45,6 +46,16 @@ enum CallState: uint8_t
     kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
     kStateDestroyed                     // < Call object is not valid anymore, the call is removed from the system
+};
+
+enum EndCallReason: uint8_t
+{
+    kEnded          = 1,   /// normal hangup of on-going call
+    kRejected       = 2,   /// incoming call was rejected by callee
+    kNoAnswer       = 3,   /// outgoing call didn't receive any answer from the callee
+    kFailed         = 4,   /// on-going call failed
+    kCancelled      = 5,   /// outgoing call was cancelled by caller before receiving any answer from the callee
+    kInvalidReason  = 255, /// invalid endcall reason
 };
 
 enum SessionState: uint8_t
@@ -155,6 +166,7 @@ public:
     virtual int getNetworkQuality() const = 0;
     virtual bool hasRequestSpeak() const = 0;
     virtual TermCode getTermCode() const = 0;
+    virtual uint8_t getEndCallReason() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
     virtual bool isOtherClientParticipating() = 0;
@@ -203,7 +215,7 @@ public:
     virtual sfu::SfuClient& getSfuClient() = 0;
     virtual DNScache& getDnsCache() = 0;
 
-    virtual void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) = 0;
+    virtual void removeCall(karere::Id chatid, EndCallReason reason) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
@@ -239,3 +251,4 @@ enum RtcConstant {
 
 
 #endif // WEBRTC_H
+#endif

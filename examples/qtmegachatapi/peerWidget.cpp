@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #include "peerWidget.h"
 #include <cstring>
 #include <QPainter>
@@ -304,3 +305,4 @@ void PeerWidget::removeVideoListener()
     delete mMegaChatVideoListenerDelegate;
     mMegaChatVideoListenerDelegate = nullptr;
 }
+#endif

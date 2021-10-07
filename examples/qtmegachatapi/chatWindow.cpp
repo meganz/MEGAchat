@@ -433,7 +433,7 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
 
 ChatListItemController *ChatWindow::getChatItemController()
 {
-    mMainWin->getChatControllerById(mChatRoom->getChatId());
+   return mMainWin->getChatControllerById(mChatRoom->getChatId());
 }
 
 MainWindow *ChatWindow::getMainWin() const

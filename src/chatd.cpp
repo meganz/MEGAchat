@@ -1656,6 +1656,7 @@ void Chat::onDisconnect()
     mServerFetchState = kHistNotFetching;
     setOnlineState(kChatStateOffline);
 
+#ifndef KARERE_DISABLE_WEBRTC
     if (mChatdClient.mKarereClient->rtc)
     {
         rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
@@ -1665,6 +1666,7 @@ void Chat::onDisconnect()
             call->onDisconnectFromChatd();
         }
     }
+#endif
 }
 
 HistSource Chat::getHistory(unsigned count)
@@ -2444,7 +2446,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
                 userListStr.erase(userListStr.size() - 2);
                 CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s userList: [%s]", tmpStr, ID_CSTR(chatid), ID_CSTR(callid), userListStr.c_str());
-
+#ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mKarereClient->rtc)
                 {
                     auto& chat = mChatdClient.chats(chatid);
@@ -2456,7 +2458,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                     rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCall(callid);
                     if (!call)
                     {
-                        assert(opcode != OP_LEFTCALL);  // chatd should never send a LEFTCALL for an unknown call
+                        if (opcode == OP_LEFTCALL) // If peer is removed, we can receive LEFTCALL and call has been destroyed
+                        {
+                            CHATDS_LOG_WARNING("Receive a LEFTCALL without a call. Unique valid option is that we have been removed from chatroom");
+                            break;
+                        }
 
                         promise::Promise<std::shared_ptr<std::string>> pms;
                         if (chat.isPublic())
@@ -2478,8 +2484,6 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                             auto& chat = mChatdClient.chats(chatid);
 
-
-
                             mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, chat.isGroup(), unifiedKey);
                             // in case that OP_CALLSTATE were received first, it might have created the call already
                             // (this is just a protection, in case chatd changes the order of the opcodes)
@@ -2488,10 +2492,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                                     ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, callid, users)
                                     : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
                         })
-                        .fail([] (const ::promise::Error &/*err*/)
+                        .fail([this, chatid, callid] (const ::promise::Error &err)
                         {
-                            // Todo: check if it's necessary to throw an exception
-                            throw std::runtime_error("Failed to decrypt unified key");
+                            CHATDS_LOG_ERROR("Failed to decrypt unified key %s. Chatid: %s callid: %s", err.msg().c_str(), ID_CSTR(chatid), ID_CSTR(callid));
                         });
                     }
                     else // if call already exists.
@@ -2501,7 +2504,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
                     }
                 }
-
+#endif
                 break;
             }
             case OP_CALLSTATE:
@@ -2511,6 +2514,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(callid, 16);
                 READ_8(ringing, 24);
                 CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %d", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
+#ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mKarereClient->rtc)
                 {
                     auto& chat = mChatdClient.chats(chatid);
@@ -2555,10 +2559,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                             }
 
                         })
-                        .fail([] (const ::promise::Error &err)
+                        .fail([this, chatid, callid] (const ::promise::Error &err)
                         {
-                            // Todo: check if it's necessary to throw an exception
-                            throw std::runtime_error("Failed to decrypt unified key");
+                            CHATDS_LOG_ERROR("Failed to decrypt unified key %s. Chatid: %s callid: %s", err.msg().c_str(), ID_CSTR(chatid), ID_CSTR(callid));
                         });
                     }
                     else
@@ -2567,8 +2570,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                         call->setRinging(call->isOtherClientParticipating() ? false : ringing);
                     }
                 }
+#endif
                 break;
-
             }
                 break;
             case OP_CALLEND:
@@ -2576,20 +2579,24 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(chatid, 0);
                 READ_ID(callid, 8);
-                rtcModule::TermCode termCode = rtcModule::TermCode::kUserHangup;
+                uint8_t recvReason = 0;
                 if (opcode == OP_DELCALLREASON)
                 {
                     READ_8(reason, 16);
-                    termCode = static_cast<rtcModule::TermCode>(reason);
+                    recvReason = reason;
                 }
 
                 CHATDS_LOG_DEBUG("recv %s chatid: %s, callid %s - reason %d", opcode == OP_CALLEND ? "CALLEND" : "DELCALLREASON",
-                                 ID_CSTR(chatid), ID_CSTR(callid), opcode == OP_CALLEND ? -1 : termCode);
+                                 ID_CSTR(chatid), ID_CSTR(callid), opcode == OP_CALLEND ? -1 : recvReason);
+#ifndef KARERE_DISABLE_WEBRTC
+                rtcModule::EndCallReason endCallReason = static_cast<rtcModule::EndCallReason>
+                        (opcode == OP_DELCALLREASON ? recvReason :rtcModule::EndCallReason::kEnded);
 
                 if (mChatdClient.mKarereClient->rtc)
                 {
-                    mChatdClient.mKarereClient->rtc->removeCall(chatid, termCode);
+                    mChatdClient.mKarereClient->rtc->removeCall(chatid, endCallReason);
                 }
+#endif
                 break;
             }
             default:
@@ -5499,11 +5506,14 @@ void Chat::onUserLeave(Id userid)
         mUsers.clear();
             mChatdClient.mKarereClient->setCommitMode(commitEach);
 
+#ifndef KARERE_DISABLE_WEBRTC
         // remove call associated to chatRoom if our own user is not an active participant
         if (mChatdClient.mKarereClient->rtc && !previewMode())
         {
-            mChatdClient.mKarereClient->rtc->removeCall(mChatId);
+            CHATID_LOG_DEBUG("remove call associated to chatRoom if our own user is not an active participant");
+            mChatdClient.mKarereClient->rtc->removeCall(mChatId, rtcModule::EndCallReason::kFailed);
         }
+#endif
     }
     else
     {
@@ -5748,7 +5758,7 @@ void Chat::setOnlineState(ChatState state)
                 mChatdClient.mKarereClient->mSyncPromise.resolve();
             }
         }
-
+#ifndef KARERE_DISABLE_WEBRTC
         if (mChatdClient.mKarereClient->rtc)
         {
             rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
@@ -5757,7 +5767,7 @@ void Chat::setOnlineState(ChatState state)
                 if (call->getParticipants().empty())
                 {
                     CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s with no participants", call->getCallid().toString().c_str());
-                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::TermCode::kErrNoCall);
+                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::EndCallReason::kEnded);
                 }
                 else if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
                 {
@@ -5766,6 +5776,7 @@ void Chat::setOnlineState(ChatState state)
                 }
             }
         }
+#endif
     }
 }
 

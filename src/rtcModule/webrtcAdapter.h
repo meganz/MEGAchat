@@ -1,17 +1,19 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #pragma once
-#include <api/peer_connection_interface.h>
-#include <pc/audio_track.h>
-#include <api/jsep_session_description.h>
-#include <media/base/video_broadcaster.h>
-#include <modules/video_capture/video_capture.h>
-#include <rtc_base/ref_counter.h>
 #include "base/gcmpp.h"
 #include "base/promise.h"
 #include "base/trackDelete.h"
 #include "karereCommon.h" //only for std::string on android
 #include "rtcmPrivate.h"
 #include "rtcCrypto.h"
+#include <api/peer_connection_interface.h>
+#include <pc/audio_track.h>
+#include <api/jsep_session_description.h>
+#include <media/base/video_broadcaster.h>
+#include <modules/video_capture/video_capture.h>
+#include <rtc_base/ref_counter.h>
 #include "sfu.h"
+
 
 #ifdef __OBJC__
 @class AVCaptureDevice;
@@ -196,23 +198,23 @@ protected:
                      public karere::DeleteTrackable    // required to use weakHandle() at RTCM_DO_CALLBACK()
     {
         Observer(C& handler):mHandler(handler){}
-        virtual void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
+        void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream) override
         {
             tspMediaStream spStream(stream);
             RTCM_DO_CALLBACK(mHandler.onAddStream(spStream), this, spStream);
         }
 
-        virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+        void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override
         {
             RTCM_DO_CALLBACK(mHandler.onTrack(transceiver), this, transceiver);
         }
 
-        virtual void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
+        void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override
         {
             RTCM_DO_CALLBACK(mHandler.onRemoveTrack(receiver), this, receiver);
         }
 
-        virtual void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state)
+        void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override
         {
             RTCM_DO_CALLBACK(mHandler.onConnectionChange(new_state), this, new_state);
         }
@@ -539,3 +541,4 @@ private:
 #endif
 
 }
+#endif

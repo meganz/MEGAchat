@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #include <mega/types.h>
 #include <mega/base64.h>
 #include <rtcmPrivate.h>
@@ -7,118 +8,6 @@
 
 namespace rtcModule
 {
-
-AvailableTracks::AvailableTracks()
-{
-}
-
-AvailableTracks::~AvailableTracks()
-{
-}
-
-bool AvailableTracks::hasHiresTrack(Cid_t cid)
-{
-    karere::AvFlags tracksFlags;
-    if (!getTracksByCid(cid, tracksFlags))
-    {
-        return false;
-    }
-    return tracksFlags.videoHiRes(); // kHiResVideo => (camera and screen)
-}
-
-bool AvailableTracks::hasLowresTrack(Cid_t cid)
-{
-    karere::AvFlags tracksFlags;
-    if (!getTracksByCid(cid, tracksFlags))
-    {
-        return false;
-    }
-    return tracksFlags.videoLowRes();  // kLowResVideo => (camera and screen)
-}
-
-bool AvailableTracks::hasVoiceTrack(Cid_t cid)
-{
-    karere::AvFlags tracksFlags;
-    if (!getTracksByCid(cid, tracksFlags))
-    {
-        return false;
-    }
-    return tracksFlags.has(karere::AvFlags::kAudio);
-}
-
-void AvailableTracks::updateHiresTrack(Cid_t cid, bool add)
-{
-    karere::AvFlags tracksFlags;
-    if (!getTracksByCid(cid, tracksFlags))
-    {
-        return;
-    }
-    add
-        ? tracksFlags.add(karere::AvFlags::kHiResVideo)
-        : tracksFlags.remove(karere::AvFlags::kHiResVideo);
-}
-
-void AvailableTracks::updateLowresTrack(Cid_t cid, bool add)
-{
-    karere::AvFlags tracksFlags;
-    if (!getTracksByCid(cid, tracksFlags))
-    {
-        return;
-    }
-    add
-        ? tracksFlags.add(karere::AvFlags::kLowResVideo)
-        : tracksFlags.remove(karere::AvFlags::kLowResVideo);
-}
-
-void AvailableTracks::updateSpeakTrack(Cid_t cid, bool add)
-{
-    karere::AvFlags tracksFlags;
-    if (!getTracksByCid(cid, tracksFlags))
-    {
-        return;
-    }
-    add
-        ? tracksFlags.add(karere::AvFlags::kAudio)
-        : tracksFlags.remove(karere::AvFlags::kAudio);
-}
-
-bool AvailableTracks::getTracksByCid(Cid_t cid, karere::AvFlags& tracksFlags)
-{
-    if (!hasCid(cid))
-    {
-        return false;
-    }
-    tracksFlags = mTracksFlags[cid];
-    return true;
-}
-
-void AvailableTracks::addCid(Cid_t cid)
-{
-    if (!hasCid(cid))
-    {
-        mTracksFlags[cid] = 0;
-    }
-}
-
-void AvailableTracks::removeCid(Cid_t cid)
-{
-    mTracksFlags.erase(cid);
-}
-
-bool AvailableTracks::hasCid(Cid_t cid)
-{
-    return (mTracksFlags.find(cid) != mTracksFlags.end());
-}
-
-void AvailableTracks::clear()
-{
-    mTracksFlags.clear();
-}
-
-std::map<Cid_t, karere::AvFlags>& AvailableTracks::getTracks()
-{
-    return mTracksFlags;
-}
 
 SvcDriver::SvcDriver ()
     : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
@@ -486,6 +375,11 @@ bool Call::hasRequestSpeak() const
 TermCode Call::getTermCode() const
 {
     return mTermCode;
+}
+
+uint8_t Call::getEndCallReason() const
+{
+    return mEndCallReason;
 }
 
 void Call::setCallerId(karere::Id callerid)
@@ -1034,6 +928,11 @@ void Call::handleCallDisconnect()
     mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video tracks
 }
 
+void Call::setEndCallReason(uint8_t reason)
+{
+    mEndCallReason = reason;
+}
+
 void Call::disconnect(TermCode termCode, const std::string &)
 {
     if ( mStats.mSamples.mT.size() > 2)
@@ -1055,6 +954,8 @@ void Call::disconnect(TermCode termCode, const std::string &)
     }
 
     handleCallDisconnect();
+
+    // termcode is only valid at state kStateTerminatingUserParticipation
     mTermCode = termCode;
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
@@ -1063,6 +964,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
         mSfuConnection = nullptr;
     }
 
+    // reset termcode upon set state kStateClientNoParticipating
     mTermCode = kInvalidTermCode;
     setState(CallState::kStateClientNoParticipating);
 }
@@ -1508,10 +1410,11 @@ bool Call::error(unsigned int code, const std::string &errMsg)
             return;
         }
 
+        // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
         disconnect(static_cast<TermCode>(code), errMsg);
         if (mParticipants.empty())
         {
-            mRtc.removeCall(mChatid, static_cast<TermCode>(code));
+            mRtc.removeCall(mChatid, EndCallReason::kFailed);
         }
     }, mRtc.getAppCtx());
 
@@ -2332,17 +2235,20 @@ DNScache& RtcModuleSfu::getDnsCache()
     return mDnsCache;
 }
 
-void RtcModuleSfu::removeCall(karere::Id chatid, TermCode termCode)
+void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason)
 {
-    Call* call = static_cast<Call*>(findCallByChatid(chatid));
+    Call *call = static_cast<Call*>(findCallByChatid(chatid));
     if (call)
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            call->disconnect(termCode);
+            // return kUnKnownTermCode as is unexpected to receive an endcall reason from chatd while we are still connected to SFU
+            call->disconnect(rtcModule::TermCode::kUnKnownTermCode);
         }
 
+        // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
         RTCM_LOG_WARNING("Removing call with callid: %s", call->getCallid().toString().c_str());
+        call->setEndCallReason(reason);
         mCalls.erase(call->getCallid());
     }
 }
@@ -3121,3 +3027,4 @@ void AudioLevelMonitor::onAudioDetected(bool audioDetected)
     sess->setAudioDetected(mAudioDetected);
 }
 }
+#endif

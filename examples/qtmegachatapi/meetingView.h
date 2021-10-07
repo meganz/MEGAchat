@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #ifndef MEETINGVIEW_H
 #define MEETINGVIEW_H
 
@@ -93,3 +94,4 @@ public slots:
 };
 
 #endif // MEETINGVIEW_H
+#endif
