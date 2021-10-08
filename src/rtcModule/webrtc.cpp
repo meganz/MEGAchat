@@ -528,7 +528,7 @@ void Call::requestHighResolutionVideo(Cid_t cid, int quality)
     Session *sess= getSession(cid);
     if (!sess)
     {
-        RTCM_LOG_ERROR("requestHighResolutionVideo: session not found for %d", cid);
+        RTCM_LOG_DEBUG("requestHighResolutionVideo: session not found for %d", cid);
         return;
     }
 
@@ -574,7 +574,7 @@ void Call::stopHighResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
-            RTCM_LOG_ERROR("stopHighResolutionVideo: session not found for %d", *auxit);
+            RTCM_LOG_DEBUG("stopHighResolutionVideo: session not found for %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (!sess->hasHighResolutionTrack())
@@ -605,7 +605,7 @@ void Call::requestLowResolutionVideo(std::vector<Cid_t> &cids)
         if (!sess)
         {
             // remove cid that has no active session
-            RTCM_LOG_WARNING("requestLowResolutionVideo: session not found for cid: %d", *auxit);
+            RTCM_LOG_DEBUG("requestLowResolutionVideo: session not found for cid: %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (sess->hasLowResolutionTrack())
@@ -629,7 +629,7 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
-            RTCM_LOG_WARNING("stopLowResolutionVideo: session not found for cid: %d", *auxit);
+            RTCM_LOG_DEBUG("stopLowResolutionVideo: session not found for cid: %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (!sess->hasLowResolutionTrack())
@@ -916,6 +916,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
 {
     if ( mStats.mSamples.mT.size() > 2)
     {
+        mStats.mMaxPeers = mMaxPeers;
         mStats.mTermCode = static_cast<int32_t>(termCode);
         mStats.mDuration = (time(nullptr) - mInitialTs) * 1000;  // ms
         mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
@@ -999,6 +1000,9 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
     // set my own client-id (cid)
     mMyPeer->setCid(cid);
+
+    // update max peers seen in call
+    mMaxPeers = static_cast<uint8_t> (peers.size() > mMaxPeers ? peers.size() : mMaxPeers);
 
     std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers) // does not include own cid
@@ -1343,6 +1347,8 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     sfu::Peer peer(userid, av, cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler.onNewSession(*mSessions[cid], *this);
+    // update max peers seen in call
+    mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
     generateAndSendNewkey();
     return true;
 }
@@ -1798,6 +1804,7 @@ void Call::enableStats()
     mStats.mTimeOffset = mOffset;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
+    mStats.mSfuHost = karere::Url(mSfuUrl).host;
 
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
