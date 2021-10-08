@@ -3252,7 +3252,6 @@ void exec_getnodebypath(ac::ACState& s)
         cout << "restore handle: " << ch_s(node->getRestoreHandle()) << endl;
         cout << "parent handle: " << ch_s(node->getParentHandle()) << endl;
         //getBase64Key();
-        //cout << "tag: " << node->getTag() << endl;
         cout << "expiration time: " << node->getExpirationTime() << endl;
         cout << "public handle: " << ch_s(node->getPublicHandle()) << endl;
         //getPublicNode();
@@ -3273,7 +3272,6 @@ void exec_getnodebypath(ac::ACState& s)
         cout << "isTakenDown: " << node->isTakenDown() << endl;
         cout << "isForeign: " << node->isForeign() << endl;
         //getNodeKey();
-        //cout << "binary attriutes (hexed): " << (node->getAttrString() ? toHex(*node->getAttrString()) : "<null>") << endl;
         unique_ptr<char[]> fileattr(node->getFileAttrString());
         cout << "chatroom file attributes: " << (fileattr ? fileattr.get() : "<null>") << endl;
         //getPrivateAuth();

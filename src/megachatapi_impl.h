@@ -442,8 +442,8 @@ public:
     MegaChatGroupListItemHandler(MegaChatApiImpl&, karere::ChatRoom&);
 
     // karere::IApp::IListItem::IGroupChatListItem implementation
-    virtual void onUserJoin(uint64_t userid, chatd::Priv priv) override;
-    virtual void onUserLeave(uint64_t userid) override;
+    void onUserJoin(uint64_t userid, chatd::Priv priv) override;
+    void onUserLeave(uint64_t userid) override;
 };
 
 class MegaChatPeerListItemHandler :
