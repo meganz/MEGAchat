@@ -1344,11 +1344,11 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
         return false;
     }
 
-    // update max peers seen in call
-    mMaxPeers = static_cast<uint8_t> (mSessions.size() + 1 > mMaxPeers ? mSessions.size() + 1 : mMaxPeers);
     sfu::Peer peer(userid, av, cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler.onNewSession(*mSessions[cid], *this);
+    // update max peers seen in call
+    mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
     generateAndSendNewkey();
     return true;
 }
