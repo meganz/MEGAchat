@@ -202,7 +202,7 @@ promise::Promise<void> Call::endCall(int reason)
 
 promise::Promise<void> Call::hangup()
 {
-    if (mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
+    if (!isOtherClientParticipating() && mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
         // in 1on1 calls, the hangup (reject) by the user while ringing should end the call
         return endCall(chatd::kRejected); // reject 1on1 call while ringing
