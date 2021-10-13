@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #include <sfu.h>
 #include <base/promise.h>
 #include <megaapi.h>
@@ -135,63 +136,24 @@ void Peer::addKey(Keyid_t keyid, const std::string &key)
     mKeyMap[mCurrentkeyId] = key;
 }
 
+void Peer::resetKeys()
+{
+    mCurrentkeyId = 0;
+    mKeyMap.clear();
+}
+
 void Peer::setAvFlags(karere::AvFlags flags)
 {
     mAvFlags = flags;
-}
-
-SpeakersDescriptor::SpeakersDescriptor()
-{
-}
-
-SpeakersDescriptor::SpeakersDescriptor(const std::string &audioDescriptor, const std::string &videoDescriptor)
-    : mAudioDescriptor(audioDescriptor), mVideoDescriptor(videoDescriptor)
-{
-}
-
-std::string SpeakersDescriptor::getAudioDescriptor() const
-{
-    return mAudioDescriptor;
-}
-
-std::string SpeakersDescriptor::getVideoDescriptor() const
-{
-    return mVideoDescriptor;
-}
-
-void SpeakersDescriptor::setDescriptors(const std::string &audioDescriptor, const std::string &videoDescriptor)
-{
-    mAudioDescriptor = audioDescriptor;
-    mVideoDescriptor = videoDescriptor;
 }
 
 Command::~Command()
 {
 }
 
-Command::Command()
+Command::Command(SfuInterface& call)
+    : mCall(call)
 {
-}
-
-void Command::parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator &it) const
-{
-    rapidjson::Value::ConstMemberIterator audioIterator = it->value.FindMember("audio");
-    if (audioIterator == it->value.MemberEnd() || !audioIterator->value.IsString())
-    {
-         SFU_LOG_ERROR("Command::parseSpeakerObject: invalid 'audio' value");
-         return;
-    }
-
-    std::string audio = audioIterator->value.GetString();
-
-    std::string video;
-    rapidjson::Value::ConstMemberIterator videoIterator = it->value.FindMember("video");
-    if (videoIterator != it->value.MemberEnd() || videoIterator->value.IsString())
-    {
-         video = videoIterator->value.GetString();
-    }
-
-    speaker.setDescriptors(audio, video);
 }
 
 bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &it) const
@@ -275,8 +237,9 @@ std::string Command::binaryToHex(uint64_t value)
     return result;
 }
 
-AVCommand::AVCommand(const AvCompleteFunction &complete)
-    : mComplete(complete)
+AVCommand::AVCommand(const AvCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -301,8 +264,9 @@ bool AVCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid, av);
 }
 
-AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete)
-    : mComplete(complete)
+AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -440,42 +404,9 @@ void AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
     }
 }
 
-void AnswerCommand::parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator &it) const
-{
-    assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
-    {
-        Cid_t cid;
-        rapidjson::Value::ConstMemberIterator cidIterator = it->value[j].FindMember("cid");
-        if (cidIterator == it->value.MemberEnd() || !cidIterator->value.IsUint())
-        {
-             SFU_LOG_ERROR("parseSpeakersObject: invalid 'cid' value");
-             return;
-        }
-
-        rapidjson::Value::ConstMemberIterator speakerIterator = it->value[j].FindMember("speaker");
-        if (speakerIterator == it->value[j].MemberEnd() || !speakerIterator->value.IsArray())
-        {
-            SFU_LOG_ERROR("parseSpeakersObject: Received data doesn't have 'speaker' field");
-            return;
-        }
-
-        SpeakersDescriptor speakerDescriptor;
-        parseSpeakerObject(speakerDescriptor, speakerIterator);
-
-        speakers.insert(std::pair<karere::Id, SpeakersDescriptor>(cid, speakerDescriptor));
-
-    }
-}
-
-void AnswerCommand::parseVthumsObject(std::map<Cid_t, TrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator &it) const
-{
-    assert(it->value.IsArray());
-
-}
-
-KeyCommand::KeyCommand(const KeyCompleteFunction &complete)
-    : mComplete(complete)
+KeyCommand::KeyCommand(const KeyCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -512,8 +443,9 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
     return mComplete(id, cid, key);
 }
 
-VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete)
-    : mComplete(complete)
+VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -537,8 +469,9 @@ bool VthumbsCommand::processCommand(const rapidjson::Document &command)
     return mComplete(tracks);
 }
 
-VthumbsStartCommand::VthumbsStartCommand(const VtumbsStartCompleteFunction &complete)
-    : mComplete(complete)
+VthumbsStartCommand::VthumbsStartCommand(const VtumbsStartCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -548,8 +481,9 @@ bool VthumbsStartCommand::processCommand(const rapidjson::Document &command)
     return mComplete();
 }
 
-VthumbsStopCommand::VthumbsStopCommand(const VtumbsStopCompleteFunction &complete)
-    : mComplete(complete)
+VthumbsStopCommand::VthumbsStopCommand(const VtumbsStopCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -559,8 +493,9 @@ bool VthumbsStopCommand::processCommand(const rapidjson::Document &command)
     return mComplete();
 }
 
-HiResCommand::HiResCommand(const HiresCompleteFunction &complete)
-    : mComplete(complete)
+HiResCommand::HiResCommand(const HiresCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -585,8 +520,9 @@ bool HiResCommand::processCommand(const rapidjson::Document &command)
     return mComplete(tracks);
 }
 
-HiResStartCommand::HiResStartCommand(const HiResStartCompleteFunction &complete)
-    : mComplete(complete)
+HiResStartCommand::HiResStartCommand(const HiResStartCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -596,8 +532,9 @@ bool HiResStartCommand::processCommand(const rapidjson::Document &command)
     return mComplete();
 }
 
-HiResStopCommand::HiResStopCommand(const HiResStopCompleteFunction &complete)
-    : mComplete(complete)
+HiResStopCommand::HiResStopCommand(const HiResStopCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -607,8 +544,9 @@ bool HiResStopCommand::processCommand(const rapidjson::Document &command)
     return mComplete();
 }
 
-SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete)
-    : mComplete(complete)
+SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -639,8 +577,9 @@ bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
     return mComplete(speakRequest);
 }
 
-SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &complete)
-    : mComplete(complete)
+SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -658,8 +597,9 @@ bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid);
 }
 
-SpeakOnCommand::SpeakOnCommand(const SpeakOnCompleteFunction &complete)
-    : mComplete(complete)
+SpeakOnCommand::SpeakOnCommand(const SpeakOnCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -689,8 +629,9 @@ bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
     }
 }
 
-SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete)
-    : mComplete(complete)
+SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 
 }
@@ -708,8 +649,9 @@ bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
 }
 
 
-PeerJoinCommand::PeerJoinCommand(const PeerJoinCommandFunction &complete)
-    : mComplete(complete)
+PeerJoinCommand::PeerJoinCommand(const PeerJoinCommandFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -747,7 +689,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
 
 }
 
-Sdp::Sdp(const std::string &sdp)
+Sdp::Sdp(const std::string &sdp, int64_t mungedTrackIndex)
 {
     size_t pos = 0;
     std::string buffer = sdp;
@@ -804,6 +746,13 @@ Sdp::Sdp(const std::string &sdp)
     for (i = nextMline(lines, 0); i < lines.size();)
     {
         i = addTrack(lines, i);
+    }
+
+    if (mungedTrackIndex != -1) // track requires to be munged
+    {
+        assert(mTracks.size() > static_cast<size_t>(mungedTrackIndex));
+        // modify SDP (hack to enable SVC) for hi-res track to enable SVC multicast
+        mungeSdpForSvc(mTracks.at(static_cast<size_t>(mungedTrackIndex)));
     }
 }
 
@@ -899,6 +848,53 @@ unsigned int Sdp::createTemplate(const std::string& type, const std::vector<std:
     mData[type] = temp;
 
     return i;
+}
+
+void Sdp::mungeSdpForSvc(Sdp::Track &track)
+{
+    std::pair<uint64_t, std::string> vidSsrc1 = track.mSsrcs.at(0);
+    std::pair<uint64_t, std::string> fidSsrc1 = track.mSsrcs.at(1);
+    uint64_t id = vidSsrc1.first;
+
+    std::pair<uint64_t, std::string> vidSsrc2 = std::pair<uint64_t, std::string>(++id, vidSsrc1.second);
+    std::pair<uint64_t, std::string> vidSsrc3 = std::pair<uint64_t, std::string>(++id, vidSsrc1.second);
+    id = fidSsrc1.first;
+
+    std::pair<uint64_t, std::string> fidSsrc2 = std::pair<uint64_t, std::string>(++id, fidSsrc1.second);
+    std::pair<uint64_t, std::string> fidSsrc3 = std::pair<uint64_t, std::string>(++id, fidSsrc1.second);
+
+    track.mSsrcs.clear();
+    track.mSsrcs.emplace_back(vidSsrc1);
+    track.mSsrcs.emplace_back(fidSsrc1);
+    track.mSsrcs.emplace_back(vidSsrc2);
+    track.mSsrcs.emplace_back(vidSsrc3);
+    track.mSsrcs.emplace_back(fidSsrc2);
+    track.mSsrcs.emplace_back(fidSsrc3);
+
+    std::string Ssrcg1 = "SIM ";
+    Ssrcg1.append(std::to_string(vidSsrc1.first))
+            .append(" ")
+            .append(std::to_string(vidSsrc2.first))
+            .append(" ")
+            .append(std::to_string(vidSsrc3.first));
+
+    std::string Ssrcg3 = "FID ";
+    Ssrcg3.append(std::to_string(vidSsrc2.first))
+            .append(" ")
+            .append(std::to_string(fidSsrc2.first));
+
+    std::string Ssrcg2 = track.mSsrcg[0];
+
+    std::string Ssrcg4 = "FID ";
+    Ssrcg4.append(std::to_string(vidSsrc3.first))
+            .append(" ")
+            .append(std::to_string(fidSsrc3.first));
+
+    track.mSsrcg.clear();
+    track.mSsrcg.emplace_back(Ssrcg1);
+    track.mSsrcg.emplace_back(Ssrcg2);
+    track.mSsrcg.emplace_back(Ssrcg3);
+    track.mSsrcg.emplace_back(Ssrcg4);
 }
 
 unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int position)
@@ -1117,21 +1113,21 @@ SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketI
     , mCall(call)
     , mMainThreadId(std::this_thread::get_id())
 {
-    mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2));
-    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
-    mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1));
-    mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call));
-    mCommands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call));
-    mCommands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1));
-    mCommands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call));
-    mCommands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call));
-    mCommands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1));
-    mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1));
-    mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2));
-    mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1));
-    mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1));
+    mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), mCall);
+    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), mCall);
+    mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), mCall);
+    mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), mCall);
+    mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), mCall);
+    mCommands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), mCall);
+    mCommands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), mCall);
+    mCommands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), mCall);
+    mCommands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), mCall);
+    mCommands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), mCall);
+    mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), mCall);
+    mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), mCall);
+    mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), mCall);
+    mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), mCall);
+    mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), mCall);
 }
 
 SfuConnection::~SfuConnection()
@@ -1505,7 +1501,9 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys)
 {
     if (keys.empty())
+    {
         return true;
+    }
 
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
@@ -1605,7 +1603,11 @@ bool SfuConnection::sendGetHiRes(Cid_t cid, int r, int lo)
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
-    json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
+    if (r)
+    {
+        // avoid sending r flag if it's zero (it's useless and it could generate issues at SFU)
+        json.AddMember("r", rapidjson::Value(r), json.GetAllocator());
+    }
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
@@ -2032,8 +2034,9 @@ void SfuClient::retryPendingConnections(bool disconnect)
     }
 }
 
-PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete)
-    : mComplete(complete)
+PeerLeftCommand::PeerLeftCommand(const PeerLeftCommandFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
 {
 }
 
@@ -2051,3 +2054,4 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
 }
 
 }
+#endif

@@ -1,6 +1,6 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #ifndef SFU_H
 #define SFU_H
-
 #include <thread>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
@@ -11,7 +11,10 @@
 #define SFU_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
-#define SFU_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
+#define SFU_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__); \
+    char logLine[300]; \
+    snprintf(logLine, 300, fmtString, ##__VA_ARGS__); \
+    mCall.logError(logLine);
 
 namespace sfu
 {
@@ -50,6 +53,7 @@ public:
     Keyid_t getCurrentKeyId() const;
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
+    void resetKeys();
 
 protected:
     Cid_t mCid = 0;
@@ -65,22 +69,6 @@ public:
     IvStatic_t mIv = 0;
     uint32_t mMid;
     bool mReuse = false;
-};
-
-class SpeakersDescriptor
-{
-public:
-    SpeakersDescriptor();
-    SpeakersDescriptor(const std::string& audioDescriptor, const std::string& videoDescriptor);
-    std::string getAudioDescriptor() const;
-    std::string getVideoDescriptor() const;
-    void setDescriptors(const std::string& audioDescriptor, const std::string& videoDescriptor);
-    IvStatic_t mIv;
-    std::string mMid;
-
-protected:
-    std::string mAudioDescriptor;
-    std::string mVideoDescriptor;
 };
 
 class Sdp
@@ -99,7 +87,7 @@ public:
     };
 
     // ctor from session-description provided by WebRTC (string format)
-    Sdp(const std::string& sdp);
+    Sdp(const std::string& sdp, int64_t mungedTrackIndex = -1);
 
     // ctor from session-description from SFU (JSON format)
     Sdp(const rapidjson::Value& sdp);
@@ -114,6 +102,9 @@ private:
     // process 'lines' of (webrtc) session description from 'position', for 'type' (atpl, vtpl) and adds them to 'mData'
     // it returns the final position after reading lines
     unsigned int createTemplate(const std::string& type, const std::vector<std::string> lines, unsigned int position);
+
+    // Enable SVC by modifying SDP message, generated using createOffer, and before providing it to setLocalDescription.
+    void mungeSdpForSvc(Sdp::Track &track);
 
     // process 'lines' of (webrtc) session description from 'position' and adds them to 'mTracks'
     unsigned int addTrack(const std::vector<std::string>& lines, unsigned int position);
@@ -169,6 +160,9 @@ public:
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
+
+    // send error to server, for debugging purposes
+    virtual void logError(const char* error) = 0;
 };
 
 class Command
@@ -182,17 +176,18 @@ public:
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
 protected:
-    Command();
-    void parseSpeakerObject(SpeakersDescriptor &speaker, rapidjson::Value::ConstMemberIterator& it) const;
+    Command(SfuInterface& call);
     bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
     static uint8_t hexDigitVal(char value);
+
+    SfuInterface& mCall;
 };
 
 typedef std::function<bool(karere::Id, unsigned)> AvCompleteFunction;
 class AVCommand : public Command
 {
 public:
-    AVCommand(const AvCompleteFunction& complete);
+    AVCommand(const AvCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     AvCompleteFunction mComplete;
@@ -202,7 +197,7 @@ class AnswerCommand : public Command
 {
 public:
     typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>)> AnswerCompleteFunction;
-    AnswerCommand(const AnswerCompleteFunction& complete);
+    AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     AnswerCompleteFunction mComplete;
@@ -210,15 +205,13 @@ public:
 private:
     void parsePeerObject(std::vector<Peer>&peers, rapidjson::Value::ConstMemberIterator& it) const;
     void parseTracks(const std::vector<Peer>&peers, std::map<Cid_t, TrackDescriptor> &tracks, rapidjson::Value::ConstMemberIterator& it, bool audio) const;
-    void parseSpeakersObject(std::map<Cid_t, SpeakersDescriptor> &speakers, rapidjson::Value::ConstMemberIterator& it) const;
-    void parseVthumsObject(std::map<Cid_t, TrackDescriptor> &vthumbs, rapidjson::Value::ConstMemberIterator& it) const;
 };
 
 typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;
 class KeyCommand : public Command
 {
 public:
-    KeyCommand(const KeyCompleteFunction& complete);
+    KeyCommand(const KeyCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     KeyCompleteFunction mComplete;
@@ -228,7 +221,7 @@ typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> VtumbsCompl
 class VthumbsCommand : public Command
 {
 public:
-    VthumbsCommand(const VtumbsCompleteFunction& complete);
+    VthumbsCommand(const VtumbsCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     VtumbsCompleteFunction mComplete;
@@ -238,7 +231,7 @@ typedef std::function<bool(void)> VtumbsStartCompleteFunction;
 class VthumbsStartCommand : public Command
 {
 public:
-    VthumbsStartCommand(const VtumbsStartCompleteFunction& complete);
+    VthumbsStartCommand(const VtumbsStartCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     VtumbsStartCompleteFunction mComplete;
@@ -248,7 +241,7 @@ typedef std::function<bool(void)> VtumbsStopCompleteFunction;
 class VthumbsStopCommand : public Command
 {
 public:
-    VthumbsStopCommand(const VtumbsStopCompleteFunction& complete);
+    VthumbsStopCommand(const VtumbsStopCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     VtumbsStopCompleteFunction mComplete;
@@ -258,7 +251,7 @@ typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> HiresComple
 class HiResCommand : public Command
 {
 public:
-    HiResCommand(const HiresCompleteFunction& complete);
+    HiResCommand(const HiresCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiresCompleteFunction mComplete;
@@ -268,7 +261,7 @@ typedef std::function<bool(void)> HiResStartCompleteFunction;
 class HiResStartCommand : public Command
 {
 public:
-    HiResStartCommand(const HiResStartCompleteFunction& complete);
+    HiResStartCommand(const HiResStartCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiResStartCompleteFunction mComplete;
@@ -278,7 +271,7 @@ typedef std::function<bool(void)> HiResStopCompleteFunction;
 class HiResStopCommand : public Command
 {
 public:
-    HiResStopCommand(const HiResStopCompleteFunction& complete);
+    HiResStopCommand(const HiResStopCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiResStopCompleteFunction mComplete;
@@ -288,7 +281,7 @@ typedef std::function<bool(const std::vector<Cid_t>&)> SpeakReqsCompleteFunction
 class SpeakReqsCommand : public Command
 {
 public:
-    SpeakReqsCommand(const SpeakReqsCompleteFunction& complete);
+    SpeakReqsCommand(const SpeakReqsCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakReqsCompleteFunction mComplete;
@@ -298,7 +291,7 @@ typedef std::function<bool(karere::Id)> SpeakReqDelCompleteFunction;
 class SpeakReqDelCommand : public Command
 {
 public:
-    SpeakReqDelCommand(const SpeakReqDelCompleteFunction& complete);
+    SpeakReqDelCommand(const SpeakReqDelCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakReqDelCompleteFunction mComplete;
@@ -308,7 +301,7 @@ typedef std::function<bool(Cid_t cid, TrackDescriptor speaker)> SpeakOnCompleteF
 class SpeakOnCommand : public Command
 {
 public:
-    SpeakOnCommand(const SpeakOnCompleteFunction& complete);
+    SpeakOnCommand(const SpeakOnCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakOnCompleteFunction mComplete;
@@ -318,7 +311,7 @@ typedef std::function<bool(Cid_t cid)> SpeakOffCompleteFunction;
 class SpeakOffCommand : public Command
 {
 public:
-    SpeakOffCommand(const SpeakOffCompleteFunction& complete);
+    SpeakOffCommand(const SpeakOffCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakOffCompleteFunction mComplete;
@@ -328,7 +321,7 @@ typedef std::function<bool(Cid_t cid, uint64_t userid, int av)> PeerJoinCommandF
 class PeerJoinCommand : public Command
 {
 public:
-    PeerJoinCommand(const PeerJoinCommandFunction& complete);
+    PeerJoinCommand(const PeerJoinCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     PeerJoinCommandFunction mComplete;
@@ -338,7 +331,7 @@ typedef std::function<bool(Cid_t cid)> PeerLeftCommandFunction;
 class PeerLeftCommand : public Command
 {
 public:
-    PeerLeftCommand(const PeerLeftCommandFunction& complete);
+    PeerLeftCommand(const PeerLeftCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     PeerLeftCommandFunction mComplete;
@@ -506,3 +499,4 @@ static inline const char* connStateToStr(SfuConnection::ConnState state)
 }
 
 #endif // SFU_H
+#endif

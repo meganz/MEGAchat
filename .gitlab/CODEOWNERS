@@ -8,4 +8,5 @@
 
 /bindings/Objective-C/ @mobile/iOS
 /bindings/java/ @mobile/Android
-/bindings/qt/ @desktop
+# right now, desktop app doesn't integrate chat. Only QtApp does, so SDK devs can approve changes in path below
+#/bindings/qt/ @desktop

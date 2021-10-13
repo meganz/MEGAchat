@@ -1,14 +1,16 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #ifndef WEBRTC_H
 #define WEBRTC_H
-
-#include "IRtcCrypto.h"
-#include "IVideoRenderer.h"
 #include "karereId.h"
 #include "karereCommon.h"
 #include "sdkApi.h"
 #include <net/websocketsIO.h>
+#include <mega/utils.h>
+#include "IVideoRenderer.h"
+#include "IRtcCrypto.h"
 #include "rtcCrypto.h"
 #include "sfu.h"
+
 
 #define RET_ENUM_NAME(name) case name: return #name
 
@@ -126,6 +128,8 @@ public:
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
     virtual void onLocalAudioDetected(const ICall& call) = 0;
     virtual void onOnHold(const ICall& call) = 0;
+    virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
+    virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
 };
 
 class ICall
@@ -176,7 +180,6 @@ public:
     virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
-    virtual void switchSvcQuality(int8_t delta) = 0;
 
     virtual std::vector<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
@@ -185,8 +188,6 @@ public:
     virtual int64_t getInitialTimeStamp() const = 0;
     virtual int64_t getFinalTimeStamp() const = 0;
     virtual int64_t getInitialOffset() const = 0;
-
-    virtual void setCallHandler(CallHandler* callHanlder) = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual void setAudioDetected(bool audioDetected) = 0;
@@ -217,7 +218,6 @@ public:
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
-    virtual void handleCallEnd(karere::Id chatid, karere::Id callid, uint8_t reason) = 0;
     virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
@@ -228,16 +228,7 @@ void globalCleanup();
 static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
 
-class IGlobalCallHandler
-{
-public:
-    virtual ~IGlobalCallHandler(){}
-    virtual void onNewCall(ICall& call) = 0;
-    virtual void onAddPeer(ICall& call, karere::Id peer) = 0;
-    virtual void onRemovePeer(ICall& call, karere::Id peer) = 0;
-};
-
-RtcModule* createRtcModule(MyMegaApi& megaApi, IGlobalCallHandler &callhandler);
+RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callHandler);
 
 enum RtcConstant {
    kMaxCallReceivers = 20,
@@ -250,6 +241,8 @@ enum RtcConstant {
    kVthumbWidth = 160,  // px
    kAudioMonitorTimeout = 2000, // ms
    kStatsInterval = 1000,   // ms
+   kTxSpatialLayerCount = 3,
+   kRotateKeyUseDelay = 100, // ms
 };
 
 #endif
@@ -258,3 +251,4 @@ enum RtcConstant {
 
 
 #endif // WEBRTC_H
+#endif

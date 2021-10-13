@@ -443,8 +443,8 @@ protected:
     bool isContact(uint64_t userid);
 
     // mega::MegaGlobalListener interface, called by worker thread
-    virtual void onUsersUpdate(::mega::MegaApi*, ::mega::MegaUserList* users);
-    virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
+    void onUsersUpdate(::mega::MegaApi*, ::mega::MegaUserList* users) override;
+    void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event) override;
     
 public:
     Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);
