@@ -178,7 +178,7 @@ public:
     }
     inline int count() const
     {
-        return items.size();
+        return static_cast<int>(items.size());
     }
     inline void addListMoveItems(CallbackList& other)
     {
