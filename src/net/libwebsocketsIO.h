@@ -20,8 +20,10 @@ public:
     
     void addevents(::mega::Waiter*, int) override;
     
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool hasSessionCache() const override { return true; }
     void restoreSessions(std::vector<CachedSession> &&sessions) override;
+#endif
 
 protected:
     bool wsResolveDNS(const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f) override;
@@ -31,6 +33,7 @@ protected:
     int wsGetNoNameErrorCode() override;
 
 private:
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     // Note: While theoretically a LWS context can have multiple vhosts, it's a
     //       feature applicable to servers, and they need to be explicitly created.
     //       Implicitly, as in our case, only the default vhost will be created.
@@ -40,6 +43,7 @@ private:
     static const char constexpr *DEFAULT_VHOST = "default";
 
     static constexpr int TLS_SESSION_TIMEOUT = 180 * 24 * 3600; // ~6 months, in seconds
+#endif
 };
 
 class LibwebsocketsClient : public WebsocketsClientImpl
@@ -72,9 +76,12 @@ public:
     static int wsCallback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *data, size_t len);
 
 private:
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     CachedSession mTlsSession;
+#endif
 };
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 class LwsCache
 {
 public:
@@ -85,5 +92,6 @@ private:
     static int dumpCb(lws_context *, lws_tls_session_dump *info);
     static int loadCb(lws_context *, lws_tls_session_dump *info);
 };
+#endif
 
 #endif /* libwebsocketsIO_h */
