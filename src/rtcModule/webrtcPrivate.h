@@ -366,6 +366,7 @@ public:
     void disconnect(TermCode termCode, const std::string& msg = "");
     void handleCallDisconnect();
     void setEndCallReason(uint8_t reason);
+    std::string endCallReasonToString(const EndCallReason &reason) const;
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
