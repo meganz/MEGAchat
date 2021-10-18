@@ -84,6 +84,8 @@ enum TrackDirection
     kRecv = 1,
 };
 
+static std::string endCallReasonToString(const EndCallReason &reason);
+
 class ISession;
 class SessionHandler
 {

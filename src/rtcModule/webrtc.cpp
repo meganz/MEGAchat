@@ -8,6 +8,18 @@
 
 namespace rtcModule
 {
+std::string endCallReasonToString(const EndCallReason &reason)
+{
+    switch (reason)
+    {
+        case kEnded:            return "normal hangup of on-going call";
+        case kRejected:         return "incoming call was rejected by callee";
+        case kNoAnswer:         return "outgoing call didn't receive any answer from the callee";
+        case kFailed:           return "on-going call failed";
+        case kCancelled:        return "outgoing call was cancelled by caller before receiving any answer from the callee";
+        case kInvalidReason:    return "invalid endcall reason";
+    }
+}
 
 SvcDriver::SvcDriver ()
     : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
@@ -209,7 +221,7 @@ promise::Promise<void> Call::hangup()
     }
     else
     {
-        disconnect(TermCode::kUserHangup);
+        disconnect(TermCode::kUserHangup, "normal user hangup");
         return promise::_Void();
     }
 }
@@ -912,7 +924,7 @@ void Call::setEndCallReason(uint8_t reason)
     mEndCallReason = reason;
 }
 
-void Call::disconnect(TermCode termCode, const std::string &)
+void Call::disconnect(TermCode termCode, const std::string &msg)
 {
     if ( mStats.mSamples.mT.size() > 2)
     {
@@ -922,6 +934,7 @@ void Call::disconnect(TermCode termCode, const std::string &)
         mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
     }
 
+    RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
     mStats.clear();
     if (getLocalAvFlags().videoCam())
     {
@@ -2218,7 +2231,8 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason)
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
             // return kUnKnownTermCode as is unexpected to receive an endcall reason from chatd while we are still connected to SFU
-            call->disconnect(rtcModule::TermCode::kUnKnownTermCode);
+            call->disconnect(rtcModule::TermCode::kUnKnownTermCode,
+                             std::string("disconnect done from removeCall, reason: ") + rtcModule::endCallReasonToString(reason));
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
