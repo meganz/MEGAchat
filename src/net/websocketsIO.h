@@ -54,27 +54,8 @@ private:
 
 class DNScache
 {
+struct DNSrecord;
 public:
-    struct DNSrecord
-    {
-        karere::Url mUrl;
-        std::string ipv4;
-        std::string ipv6;
-        ::mega::m_time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
-        ::mega::m_time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
-        ::mega::m_time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
-        std::shared_ptr<Buffer> tlsBlob; // tls session data
-        DNSrecord() = default;
-        DNSrecord(const std::string &host, std::shared_ptr<Buffer> sess):
-            tlsBlob(sess && !sess->empty() ? sess : nullptr)
-        {
-            // no need to implement move ctr in Url class as all members are from primitive types
-            mUrl.host = host;
-        }
-
-        bool isHostMatch(const std::string &host) const { return mUrl.host == host; }
-    };
-
     // reference to db-layer interface
     SqliteDb &mDb;
 
@@ -112,6 +93,26 @@ public:
     bool isMatchByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
 
 private:
+    struct DNSrecord
+    {
+        karere::Url mUrl;
+        std::string ipv4;
+        std::string ipv6;
+        ::mega::m_time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
+        ::mega::m_time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
+        ::mega::m_time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
+        std::shared_ptr<Buffer> tlsBlob; // tls session data
+        DNSrecord() = default;
+        DNSrecord(const std::string &host, std::shared_ptr<Buffer> sess):
+            tlsBlob(sess && !sess->empty() ? sess : nullptr)
+        {
+            // no need to implement move ctr in Url class as all members are from primitive types
+            mUrl.host = host;
+        }
+
+        bool isHostMatch(const std::string &host) const { return mUrl.host == host; }
+    };
+
     // DNS cache methods to manage SFU records
     int calculateNextSfuShard();
     bool addSfuRecordWithIp(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
