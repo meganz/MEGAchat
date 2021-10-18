@@ -3168,8 +3168,10 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
         megaChatApi[a2]->hangChatCall(ringingCallId);
         ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
         ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
-        ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
-        ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
+
+        // in case of any of these asserts fails, logs can be checked to find a CALLSTATE with a ringing state change
+        ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "call not finished for account 1 (possible corner case where call stops ringing before request is processed)");
+        ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "call not finished for account 2 (possible corner case where call stops ringing before request is processed)");
     }
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
