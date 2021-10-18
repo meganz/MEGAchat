@@ -2142,7 +2142,11 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
     .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result) -> promise::Promise<void>
     {
-        wptr.throwIfDeleted();
+        if (wptr.deleted())
+        {
+            return promise::Error("call started successfully, but RtcModuleSfu instance was removed");
+        }
+
         std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
                 ? std::make_shared<std::string>(auxCallKey)
                 : nullptr;
@@ -2165,7 +2169,11 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
     })
     .fail([wptr, this, chatid](const ::promise::Error& err)
     {
-        wptr.throwIfDeleted();
+        if (wptr.deleted())
+        {
+            return err;
+        }
+
         mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
         return err;
     });
