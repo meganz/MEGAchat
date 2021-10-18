@@ -8,19 +8,6 @@
 
 namespace rtcModule
 {
-std::string endCallReasonToString(const EndCallReason &reason)
-{
-    switch (reason)
-    {
-        case kEnded:            return "normal hangup of on-going call";
-        case kRejected:         return "incoming call was rejected by callee";
-        case kNoAnswer:         return "outgoing call didn't receive any answer from the callee";
-        case kFailed:           return "on-going call failed";
-        case kCancelled:        return "outgoing call was cancelled by caller before receiving any answer from the callee";
-        case kInvalidReason:    return "invalid endcall reason";
-    }
-}
-
 SvcDriver::SvcDriver ()
     : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
       mPacketLostLower(0.01),
@@ -922,6 +909,19 @@ void Call::handleCallDisconnect()
 void Call::setEndCallReason(uint8_t reason)
 {
     mEndCallReason = reason;
+}
+
+std::string Call::endCallReasonToString(const EndCallReason &reason) const
+{
+    switch (reason)
+    {
+        case kEnded:            return "normal hangup of on-going call";
+        case kRejected:         return "incoming call was rejected by callee";
+        case kNoAnswer:         return "outgoing call didn't receive any answer from the callee";
+        case kFailed:           return "on-going call failed";
+        case kCancelled:        return "outgoing call was cancelled by caller before receiving any answer from the callee";
+        case kInvalidReason:    return "invalid endcall reason";
+    }
 }
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
@@ -2232,7 +2232,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason)
         {
             // return kUnKnownTermCode as is unexpected to receive an endcall reason from chatd while we are still connected to SFU
             call->disconnect(rtcModule::TermCode::kUnKnownTermCode,
-                             std::string("disconnect done from removeCall, reason: ") + rtcModule::endCallReasonToString(reason));
+                             std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason));
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
