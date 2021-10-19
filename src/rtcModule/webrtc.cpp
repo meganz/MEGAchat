@@ -1410,10 +1410,11 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         }
 
         // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
-        disconnect(static_cast<TermCode>(code), errMsg);
+        TermCode connectionTermCode = static_cast<TermCode>(code);
+        disconnect(connectionTermCode, errMsg);
         if (mParticipants.empty())
         {
-            mRtc.removeCall(mChatid, EndCallReason::kFailed);
+            mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
 
