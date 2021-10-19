@@ -2586,6 +2586,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 {
                     READ_8(reason, 16);
                     recvReason = reason;
+
+                    /* send kUserHangup as termcode in SFU stats for the following endCallReasons:
+                     *  - kEnded
+                     *  - kEnded
+                     *  - kNoAnswer
+                     *  - kCancelled
+                     * Otherwise send kErrGeneral */
                     connectionTermCode = recvReason == rtcModule::EndCallReason::kFailed
                             ? rtcModule::TermCode::kErrGeneral
                             : rtcModule::TermCode::kUserHangup;
