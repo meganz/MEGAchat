@@ -223,7 +223,7 @@ public:
     virtual const std::string& getVideoDeviceSelected() const = 0;
     virtual sfu::SfuClient& getSfuClient() = 0;
 
-    virtual void removeCall(karere::Id chatid, EndCallReason reason) = 0;
+    virtual void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
