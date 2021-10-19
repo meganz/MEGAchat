@@ -929,19 +929,24 @@ bool Call::isValidConnectionTermcode(TermCode termCode) const
     return termCode >= kUserHangup && termCode <= kFlagMaxValid;
 }
 
-void Call::disconnect(TermCode termCode, const std::string &msg)
+void Call::sendStats(const TermCode& termCode)
 {
     assert(isValidConnectionTermcode(termCode));
-    if ( mStats.mSamples.mT.size() > 2)
-    {
-        mStats.mMaxPeers = mMaxPeers;
-        mStats.mTermCode = static_cast<int32_t>(termCode);
-        mStats.mDuration = (time(nullptr) - mInitialTs) * 1000;  // ms
-        mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
-    }
-
-    RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
+    mStats.mDuration = mInitialTs
+            ? static_cast<uint64_t>((time(nullptr) - mInitialTs) * 1000)  // ms
+            : 0; // in case we have not joined SFU yet, send duration = 0
+    mStats.mMaxPeers = mMaxPeers;
+    mStats.mTermCode = static_cast<int32_t>(termCode);
+    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    RTCM_LOG_DEBUG("Clear local SFU stats");
     mStats.clear();
+}
+
+void Call::disconnect(TermCode termCode, const std::string &msg)
+{
+    RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
+    sendStats(termCode);
+
     if (getLocalAvFlags().videoCam())
     {
         releaseVideoDevice();

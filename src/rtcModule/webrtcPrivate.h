@@ -368,6 +368,7 @@ public:
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
     bool isValidConnectionTermcode(TermCode termCode) const;
+    void sendStats(const TermCode& termCode);
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
