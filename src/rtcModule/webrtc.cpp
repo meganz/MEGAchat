@@ -2237,7 +2237,6 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            // return kUnKnownTermCode as is unexpected to receive an endcall reason from chatd while we are still connected to SFU
             call->disconnect(connectionTermCode,
                              std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason));
         }
