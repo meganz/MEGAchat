@@ -17,6 +17,7 @@ public:
     std::vector<int32_t> mOutGoingBitrate;
     std::vector<int32_t> mBytesReceived;
     std::vector<int32_t> mBytesSend;
+    std::vector<int32_t> mAudioJitter;
     // Scalable video coding index
     std::vector<int32_t> mQ;
     // Audio video flags
