@@ -35,7 +35,9 @@ std::string Stats::getJson()
     rapidjson::Value userid(rapidjson::kStringType);
     userid.SetString(mPeerId.toString().c_str(), json.GetAllocator());
     json.AddMember("userid", userid, json.GetAllocator());
-    json.AddMember("cid", mCid, json.GetAllocator());
+    mCid // if we have not still joined SFU, send kUnassignedCid as CID in SFU stats
+        ? json.AddMember("cid", mCid, json.GetAllocator())
+        : json.AddMember("cid", kUnassignedCid, json.GetAllocator());
     rapidjson::Value callid(rapidjson::kStringType);
     callid.SetString(mCallid.toString().c_str(), json.GetAllocator());
     json.AddMember("callid", callid, json.GetAllocator());
