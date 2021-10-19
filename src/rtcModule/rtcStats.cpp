@@ -306,7 +306,8 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                     }
                 }
 
-                if (kind == "audio" && mStats->mSamples.mAudioJitter.back() < audioJitter)
+                // we only take care of lowest value higher than 0
+                if (kind == "audio" && (!mStats->mSamples.mAudioJitter.back() || (mStats->mSamples.mAudioJitter.back() > audioJitter && audioJitter > 0)))
                 {
                     mStats->mSamples.mAudioJitter.back() = audioJitter;
                 }
