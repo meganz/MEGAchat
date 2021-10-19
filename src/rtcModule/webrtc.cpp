@@ -924,8 +924,14 @@ std::string Call::endCallReasonToString(const EndCallReason &reason) const
     }
 }
 
+bool Call::isValidConnectionTermcode(TermCode termCode) const
+{
+    return termCode >= kUserHangup && termCode <= kFlagMaxValid;
+}
+
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
+    assert(isValidConnectionTermcode(termCode));
     if ( mStats.mSamples.mT.size() > 2)
     {
         mStats.mMaxPeers = mMaxPeers;
@@ -1409,10 +1415,11 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         }
 
         // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
-        disconnect(static_cast<TermCode>(code), errMsg);
+        TermCode connectionTermCode = static_cast<TermCode>(code);
+        disconnect(connectionTermCode, errMsg);
         if (mParticipants.empty())
         {
-            mRtc.removeCall(mChatid, EndCallReason::kFailed);
+            mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
 
@@ -2223,15 +2230,14 @@ sfu::SfuClient& RtcModuleSfu::getSfuClient()
     return (*mSfuClient.get());
 }
 
-void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason)
+void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode)
 {
     Call *call = static_cast<Call*>(findCallByChatid(chatid));
     if (call)
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            // return kUnKnownTermCode as is unexpected to receive an endcall reason from chatd while we are still connected to SFU
-            call->disconnect(rtcModule::TermCode::kUnKnownTermCode,
+            call->disconnect(connectionTermCode,
                              std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason));
         }
 

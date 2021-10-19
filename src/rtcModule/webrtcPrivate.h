@@ -367,6 +367,7 @@ public:
     void handleCallDisconnect();
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
+    bool isValidConnectionTermcode(TermCode termCode) const;
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
@@ -505,7 +506,7 @@ public:
     const std::string& getVideoDeviceSelected() const override;
     sfu::SfuClient& getSfuClient() override;
 
-    void removeCall(karere::Id chatid, EndCallReason reason) override;
+    void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
