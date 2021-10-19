@@ -924,9 +924,14 @@ std::string Call::endCallReasonToString(const EndCallReason &reason) const
     }
 }
 
+bool Call::isValidConnectionTermcode(TermCode termCode) const
+{
+    return termCode >= kUserHangup && termCode <= kFlagMaxValid;
+}
+
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
-    assert(termCode != kUnKnownTermCode && termCode != kInvalidTermCode);
+    assert(isValidConnectionTermcode(termCode));
     if ( mStats.mSamples.mT.size() > 2)
     {
         mStats.mMaxPeers = mMaxPeers;

@@ -24,6 +24,8 @@ enum TermCode: uint8_t
 {
     kFlagDisconn                = 64,
     kFlagError                  = 128,
+    kFlagMaxValid               = kFlagError | 63,      // < Current max valid value => kErrGeneral
+
     //==============================================================================================
 
     kUserHangup                 = 0,                    // < Normal user hangup
