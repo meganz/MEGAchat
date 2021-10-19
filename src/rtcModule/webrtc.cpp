@@ -926,6 +926,7 @@ std::string Call::endCallReasonToString(const EndCallReason &reason) const
 
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
+    assert(termCode != kUnKnownTermCode && termCode != kInvalidTermCode);
     if ( mStats.mSamples.mT.size() > 2)
     {
         mStats.mMaxPeers = mMaxPeers;
