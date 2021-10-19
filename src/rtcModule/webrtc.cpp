@@ -144,7 +144,7 @@ void Call::onDisconnectFromChatd()
 {
     if (participate())
     {
-        handleCallDisconnect();
+        handleCallDisconnect(TermCode::kSigDisconn);
         setState(CallState::kStateConnecting);
         mSfuConnection->disconnect(true);
     }
@@ -889,14 +889,15 @@ void Call::getLocalStreams()
     }
 }
 
-void Call::handleCallDisconnect()
+void Call::handleCallDisconnect(const TermCode& termCode)
 {
     if (mRtcConn)
     {
         mRtcConn->Close();
         mRtcConn = nullptr;
     }
-
+    RTCM_LOG_DEBUG("handle call disconnect with termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
+    sendStats(termCode);
     disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
@@ -966,8 +967,6 @@ void Call::sendStats(const TermCode& termCode)
 void Call::disconnect(TermCode termCode, const std::string &msg)
 {
     RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
-    sendStats(termCode);
-
     if (getLocalAvFlags().videoCam())
     {
         releaseVideoDevice();
@@ -978,7 +977,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         session.second->disableAudioSlot();
     }
 
-    handleCallDisconnect();
+    handleCallDisconnect(termCode);
 
     // termcode is only valid at state kStateTerminatingUserParticipation
     mTermCode = termCode;
@@ -1512,7 +1511,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
             if (mState == CallState::kStateInProgress
                     && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
             {
-                handleCallDisconnect();
+                handleCallDisconnect(TermCode::kRtcDisconn);
             }
 
             setState(CallState::kStateConnecting);
