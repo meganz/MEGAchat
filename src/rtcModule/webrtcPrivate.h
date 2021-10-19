@@ -367,6 +367,7 @@ public:
     void handleCallDisconnect();
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
+    std::string connectionTermCodeToString(const TermCode &termcode) const;
     bool isValidConnectionTermcode(TermCode termCode) const;
     void sendStats(const TermCode& termCode);
 

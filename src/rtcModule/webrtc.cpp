@@ -924,6 +924,27 @@ std::string Call::endCallReasonToString(const EndCallReason &reason) const
     }
 }
 
+std::string Call::connectionTermCodeToString(const TermCode &termcode) const
+{
+    switch (termcode)
+    {
+        case kUserHangup:               return "normal user hangup";
+        case kTooManyParticipants:      return "there are too many participants";
+        case kLeavingRoom:              return "user has been removed from chatroom";
+        case kRtcDisconn:               return "SFU connection failed";
+        case kSigDisconn:               return "chatd connection failed";
+        case kSvrShuttingDown:          return "SFU server is shutting down";
+        case kErrSignaling:             return "signalling error";
+        case kErrNoCall:                return "attempted to join non-existing call";
+        case kErrAuth:                  return "authentication error";
+        case kErrApiTimeout:            return "ping timeout between SFU and API";
+        case kErrSdp:                   return "error generating or setting SDP description";
+        case kErrGeneral:               return "general error";
+        case kUnKnownTermCode:          return "unknown error";
+        default:                        return "invalid connection termcode";
+    }
+}
+
 bool Call::isValidConnectionTermcode(TermCode termCode) const
 {
     return termCode >= kUserHangup && termCode <= kFlagMaxValid;
