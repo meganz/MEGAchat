@@ -13,6 +13,9 @@
 #include "db.h"
 #include "url.h"
 
+// Disable TLS session resumption until we figure out why Chrome using the same BoringSSL does not have any issues
+#define WEBSOCKETS_TLS_SESSION_CACHE_ENABLED 0
+
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
@@ -21,6 +24,7 @@
 class WebsocketsClient;
 class WebsocketsClientImpl;
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 struct CachedSession
 {
     std::string             hostname;    // host.domain
@@ -44,6 +48,7 @@ private:
     // in the cb to link to one of these instances, in case of connection failure.
     int                     disconnectAction = MEGA_DROP;
 };
+#endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
 class DNScache
 {
@@ -70,8 +75,10 @@ public:
     time_t age(int shard);
     const karere::Url &getUrl(int shard);
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool updateTlsSession(const CachedSession &sess);
     std::vector<CachedSession> getTlsSessions();
+#endif
 
 private:
     struct DNSrecord
@@ -115,8 +122,10 @@ public:
         }
     };
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     virtual bool hasSessionCache() const { return false; }
     virtual void restoreSessions(std::vector<CachedSession> &&) { }
+#endif
 
 protected:
     MyMegaApi mApi;
@@ -168,7 +177,9 @@ public:
     // Called after sending a message through the socket
     // (it may be implemented by clients that require messages to be sent individually and sequentially)
     virtual void wsProcessNextMsgCb() {}
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     virtual bool wsSSLsessionUpdateCb(const CachedSession &) { return false; }
+#endif
 
     /* Public key pinning, by default this flag is enabled (true), it only should be disabled for testing purposes */
     static bool publicKeyPinning;
@@ -189,7 +200,9 @@ public:
     void wsHandleMsgCb(char *data, size_t len);
     void wsSendMsgCb(const char *data, size_t len);
     void wsProcessNextMsgCb();
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool wsSSLsessionUpdateCb(const CachedSession &sess);
+#endif
 
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;
