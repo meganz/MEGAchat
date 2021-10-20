@@ -140,11 +140,11 @@ void Call::addParticipant(karere::Id peer)
 }
 
 
-void Call::onDisconnectFromChatd()
+void Call::onDisconnectFromChatd(bool wasConnected)
 {
     if (participate())
     {
-        handleCallDisconnect(TermCode::kSigDisconn);
+        handleCallDisconnect(TermCode::kSigDisconn, wasConnected); // if wasConnected is true send stats
         setState(CallState::kStateConnecting);
         mSfuConnection->disconnect(true);
     }
@@ -889,7 +889,7 @@ void Call::getLocalStreams()
     }
 }
 
-void Call::handleCallDisconnect(const TermCode& termCode)
+void Call::handleCallDisconnect(const TermCode& termCode, bool sendSfuStats)
 {
     if (mRtcConn)
     {
@@ -897,7 +897,10 @@ void Call::handleCallDisconnect(const TermCode& termCode)
         mRtcConn = nullptr;
     }
     RTCM_LOG_DEBUG("handle call disconnect with termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
-    sendStats(termCode);
+    if (sendSfuStats)
+    {
+        sendStats(termCode);
+    }
     disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback

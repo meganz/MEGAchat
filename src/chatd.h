@@ -912,7 +912,7 @@ protected:
     void handleleave();
     void joinRangeHist(const ChatDbInfo& dbInfo);
     void handlejoinRangeHist(const ChatDbInfo& dbInfo);
-    void onDisconnect();
+    void onDisconnect(bool wasConnected);
     void onHistDone(); //called upont receipt of HISTDONE from server
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
     void onNewKeys(StaticBuffer&& keybuf);

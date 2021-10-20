@@ -705,6 +705,7 @@ void Connection::setState(State state)
         mState = state;
     }
 
+    bool wasConnected = oldState == kStateConnected;
     mChatdClient.mKarereClient->initStats().handleShardStats(oldState, state, shardNo());
 
     if (mState == kStateDisconnected)
@@ -754,7 +755,7 @@ void Connection::setState(State state)
         for (auto& chatid: mChatIds)
         {
             auto& chat = mChatdClient.chats(chatid);
-            chat.onDisconnect();
+            chat.onDisconnect(wasConnected);
         }
 
         if (!mSendPromise.done())
@@ -1621,7 +1622,7 @@ void Chat::onHandleJoinRejected()
     CALL_LISTENER(onUserLeave, Id::null());
 }
 
-void Chat::onDisconnect()
+void Chat::onDisconnect(bool wasConnected)
 {
     assert(mFetchRequest.size() <= 2);  // no more than a HIST+NODEHIST in parallel are allowed
 
@@ -1663,7 +1664,7 @@ void Chat::onDisconnect()
         if (call)
         {
             CHATD_LOG_ERROR("chatd::onDisconnect stop sfu reconnection and remove participants");
-            call->onDisconnectFromChatd();
+            call->onDisconnectFromChatd(wasConnected);
         }
     }
 #endif

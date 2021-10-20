@@ -287,7 +287,7 @@ public:
     bool isOtherClientParticipating() override;
 
     // called from chatd::onDisconnect() to remove peers from the call when disconnected from chatd
-    void onDisconnectFromChatd() override;
+    void onDisconnectFromChatd(bool wasConnected) override;
     // called from chatd::setState(online) to reconnect to SFU
     void reconnectToSfu() override;
 
@@ -364,7 +364,7 @@ public:
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
     void disconnect(TermCode termCode, const std::string& msg = "");
-    void handleCallDisconnect(const TermCode &termCode);
+    void handleCallDisconnect(const TermCode &termCode, bool sendSfuStats = true);
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
     std::string connectionTermCodeToString(const TermCode &termcode) const;
