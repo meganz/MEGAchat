@@ -57,6 +57,10 @@ std::string Stats::getJson()
     parseSamples(mSamples.mT, t, json, false);
     samples.AddMember("t", t, json.GetAllocator());
 
+    rapidjson::Value q(rapidjson::kArrayType);
+    parseSamples(mSamples.mQ, q, json, false);
+    samples.AddMember("q", q, json.GetAllocator());
+
     rapidjson::Value pl(rapidjson::kArrayType);
     parseSamples(mSamples.mPacketLost, pl, json, true, &periods);
     samples.AddMember("pl", pl, json.GetAllocator());
@@ -105,9 +109,17 @@ std::string Stats::getJson()
     parseSamples(mSamples.mVtxHiResh, vtxh, json, false);
     samples.AddMember("vtxh", vtxh, json.GetAllocator());
 
+    rapidjson::Value audioJitter(rapidjson::kArrayType);
+    parseSamples(mSamples.mAudioJitter, audioJitter, json, false);
+    samples.AddMember("jtr", audioJitter, json.GetAllocator());
+
     json.AddMember("samples", samples, json.GetAllocator());
     json.AddMember("trsn", mTermCode, json.GetAllocator());
     json.AddMember("grp", static_cast<int>(mIsGroup), json.GetAllocator());
+    rapidjson::Value sfuHost(rapidjson::kStringType);
+    sfuHost.SetString(mSfuHost.c_str(), json.GetAllocator());
+    json.AddMember("sfu", sfuHost, json.GetAllocator());
+    json.AddMember("peers", mMaxPeers, json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -245,6 +257,7 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
         mStats->mSamples.mVtxLowResh.push_back(0);
         mStats->mSamples.mVtxLowResfps.push_back(0);
         mStats->mSamples.mVtxLowResw.push_back(0);
+        mStats->mSamples.mAudioJitter.push_back(0);
 
         if (mStats->mInitialTs == 0)
         {
@@ -271,6 +284,8 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
             {
                 std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
                 ts = it->timestamp_us();
+                std::string kind;
+                int32_t audioJitter;
                 for (const webrtc::RTCStatsMemberInterface* member : members)
                 {
                     if (strcmp(member->name(), "packetsLost") == 0)
@@ -278,6 +293,23 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                         packetLost = *member->cast_to<const webrtc::RTCStatsMember<int32_t>>();
                         mStats->mSamples.mPacketLost.back() = mStats->mSamples.mPacketLost.back() + packetLost;
                     }
+
+                    if (strcmp(member->name(), "jitter") == 0)
+                    {
+                        double value = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                        audioJitter = static_cast<int32_t>(round(value * 1000.0));
+                    }
+
+                    if (strcmp(member->name(), "kind") == 0)
+                    {
+                        kind = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
+                    }
+                }
+
+                // we only take care of lowest value higher than 0
+                if (kind == "audio" && (!mStats->mSamples.mAudioJitter.back() || (mStats->mSamples.mAudioJitter.back() > audioJitter && audioJitter > 0)))
+                {
+                    mStats->mSamples.mAudioJitter.back() = audioJitter;
                 }
             }
             else if (strcmp(it->type(), "outbound-rtp") == 0)

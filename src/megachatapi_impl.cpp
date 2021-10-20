@@ -5496,7 +5496,7 @@ void MegaChatApiImpl::cleanCalls()
         std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
         for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            mClient->rtc->removeCall(chatids[i], rtcModule::EndCallReason::kEnded);
+            mClient->rtc->removeCall(chatids[i], rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kUserHangup);
         }
     }
 
@@ -9661,9 +9661,8 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             fa = iteratorFa->value.GetString();
         }
 
-        std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, &fa, sdkFingerprint,
+                             megaHandle, &key, &fa, sdkFingerprint,
                              NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);

@@ -48,7 +48,7 @@
 
 #ifdef _WIN32
 #pragma warning(push)
-#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.)
 #endif
 
 #include <rapidjson/document.h>
@@ -63,9 +63,14 @@ typedef ::mega::LibuvWaiter MegaChatWaiter;
 
 namespace megachat
 {
-    
+
 typedef std::set<MegaChatVideoListener *> MegaChatVideoListener_set;
 typedef std::map<uint32_t, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
+
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4250) // many, many of this form: 'megachat::MegaChatPeerListItemHandler': inherits 'megachat::MegaChatListItemHandler::megachat::MegaChatListItemHandler::onLastMessageUpdated' via dominance
+#endif
 
 class MegaChatRequestPrivate : public MegaChatRequest
 {
@@ -437,8 +442,8 @@ public:
     MegaChatGroupListItemHandler(MegaChatApiImpl&, karere::ChatRoom&);
 
     // karere::IApp::IListItem::IGroupChatListItem implementation
-    virtual void onUserJoin(uint64_t userid, chatd::Priv priv);
-    virtual void onUserLeave(uint64_t userid);
+    void onUserJoin(uint64_t userid, chatd::Priv priv) override;
+    void onUserLeave(uint64_t userid) override;
 };
 
 class MegaChatPeerListItemHandler :
@@ -1384,6 +1389,10 @@ private:
     static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
     static std::unique_ptr<MegaChatGiphy> parseGiphy(rapidjson::Document& document);
 };
+
+#ifdef _WIN32
+#pragma warning(pop) // C2450
+#endif
 
 }
 
