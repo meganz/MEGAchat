@@ -1202,11 +1202,13 @@ void Client::initWithDbSession(const char* sid)
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
         if (websocketIO && websocketIO->hasSessionCache())
         {
             auto&& sessions = mDnsCache.getTlsSessions();
             websocketIO->restoreSessions(std::move(sessions));
         }
+#endif
 
         // Get aliases from cache
         mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,

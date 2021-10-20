@@ -68,6 +68,7 @@ void WebsocketsClientImpl::wsProcessNextMsgCb()
     client->wsProcessNextMsgCb();
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
@@ -75,6 +76,7 @@ bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
                          sess.hostname.c_str(), sess.port);
     return client->wsSSLsessionUpdateCb(sess);
 }
+#endif
 
 WebsocketsClient::WebsocketsClient(bool writeBinary)
     : ctx(nullptr)
@@ -459,6 +461,7 @@ bool DNScache::isMatch(int shard, const std::string &ipv4, const std::string &ip
     return match;
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool DNScache::updateTlsSession(const CachedSession &sess)
 {
     // find the dns record that corresponds to this session
@@ -506,6 +509,7 @@ std::vector<CachedSession> DNScache::getTlsSessions()
 
     return sessions;
 }
+#endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
 bool DNScache::isSfuValidShard(int shard) const
 {
