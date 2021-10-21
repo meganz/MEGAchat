@@ -891,13 +891,16 @@ void Call::getLocalStreams()
 
 void Call::handleCallDisconnect(const TermCode& termCode)
 {
+    RTCM_LOG_DEBUG("handle call disconnect with termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     if (mRtcConn)
     {
         mRtcConn->Close();
         mRtcConn = nullptr;
     }
-    RTCM_LOG_DEBUG("handle call disconnect with termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
-    sendStats(termCode);
+    if (mSfuConnection->isOnline())
+    {
+        sendStats(termCode);
+    }
     disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
