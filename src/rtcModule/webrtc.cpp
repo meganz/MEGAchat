@@ -762,6 +762,7 @@ void Call::connectSfu(const std::string& sfuUrl)
 
 void Call::joinSfu()
 {
+    initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this);
     size_t hiresTrackIndex = 0;
     createTransceivers(hiresTrackIndex);
@@ -1844,15 +1845,19 @@ void Call::collectNonRTCStats()
     mStats.mSamples.mAv.push_back(getLocalAvFlags().value());
 }
 
-void Call::enableStats()
+void Call::initStatsValues()
 {
     mStats.mPeerId = mMyPeer->getPeerid();
-    mStats.mCid = mMyPeer->getCid();
     mStats.mCallid = mCallid;
-    mStats.mTimeOffset = mOffset;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
     mStats.mSfuHost = karere::Url(mSfuUrl).host;
+}
+
+void Call::enableStats()
+{
+    mStats.mCid = mMyPeer->getCid();
+    mStats.mTimeOffset = mOffset;
 
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()

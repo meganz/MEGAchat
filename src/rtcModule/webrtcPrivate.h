@@ -478,6 +478,7 @@ protected:
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
     void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes);
+    void initStatsValues();
     void enableStats();
     void disableStats();
     void adjustSvcByStats();
