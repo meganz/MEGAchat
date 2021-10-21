@@ -156,7 +156,7 @@ public:
     virtual void removeParticipant(karere::Id peer) = 0;
 
     // called by chatd client when the connection to chatd is closed
-    virtual void onDisconnectFromChatd(bool wasConnected) = 0;
+    virtual void onDisconnectFromChatd() = 0;
     virtual void reconnectToSfu() = 0;
 
     virtual promise::Promise<void> hangup() = 0;
