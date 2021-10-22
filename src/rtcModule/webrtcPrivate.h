@@ -364,10 +364,12 @@ public:
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
     void disconnect(TermCode termCode, const std::string& msg = "");
-    void handleCallDisconnect();
+    void handleCallDisconnect(const TermCode &termCode);
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
+    std::string connectionTermCodeToString(const TermCode &termcode) const;
     bool isValidConnectionTermcode(TermCode termCode) const;
+    void sendStats(const TermCode& termCode);
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
@@ -476,6 +478,7 @@ protected:
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
     void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes);
+    void initStatsValues();
     void enableStats();
     void disableStats();
     void adjustSvcByStats();
