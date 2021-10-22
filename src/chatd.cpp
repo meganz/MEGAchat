@@ -2024,11 +2024,13 @@ void Connection::wsSendMsgCb(const char *, size_t)
     mSendPromise.resolve();
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool Connection::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     // update the session's data in the DNS cache
     return mDnsCache.updateTlsSession(sess);
 }
+#endif
 
 // inbound command processing
 // multiple commands can appear as one WebSocket frame, but commands never cross frame boundaries
