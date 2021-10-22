@@ -1845,7 +1845,7 @@ void Call::enableStats()
     mStats.mTimeOffset = mOffset;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
-    mStats.mSfuHost = karere::Url(mSfuUrl).host;
+    mStats.mSfuHost = mSfuConnection->getSfuUrl().host;
 
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()

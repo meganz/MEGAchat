@@ -434,7 +434,6 @@ protected:
     TermCode mTermCode = kInvalidTermCode;
     uint8_t mEndCallReason = kInvalidReason;
 
-    std::string mSfuUrl;
     CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;

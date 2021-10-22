@@ -397,6 +397,7 @@ public:
     void processNextCommand(bool resetSending = false);
     void clearCommandsQueue();
     void checkThreadId();
+    const karere::Url& getSfuUrl();
 
     bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);

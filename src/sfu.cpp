@@ -1345,6 +1345,11 @@ void SfuConnection::checkThreadId()
     }
 }
 
+const karere::Url& SfuConnection::getSfuUrl()
+{
+    return mSfuUrl;
+}
+
 bool SfuConnection::handleIncomingData(const char* data, size_t len)
 {
     SFU_LOG_DEBUG("Data received: %s", data);
