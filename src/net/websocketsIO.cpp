@@ -533,7 +533,7 @@ int DNScache::calculateNextSfuShard()
 bool DNScache::updateCurrentShardForSfuFromDb()
 {
     mCurrentShardForSfu = kSfuShardStart; // reset default value
-    SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
+    SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard > ?");
     stmt << kSfuShardStart << kSfuShardEnd;
     if (stmt.step() && !stmt.isNullColumn(0))
     {
