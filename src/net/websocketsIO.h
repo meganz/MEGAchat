@@ -13,8 +13,8 @@
 #include "db.h"
 #include "url.h"
 
-// Disable TLS session resumption until we figure out why Chrome using the same BoringSSL does not have any issues
-#define WEBSOCKETS_TLS_SESSION_CACHE_ENABLED 0
+// TLS session resumption can be disabled by turning this off
+#define WEBSOCKETS_TLS_SESSION_CACHE_ENABLED 1
 
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)

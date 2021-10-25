@@ -46,10 +46,10 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     info.options |= LWS_SERVER_OPTION_LIBUV;
     info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
-#if !WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
-    info.options |= LWS_SERVER_OPTION_DISABLE_TLS_SESSION_CACHE;
-#else
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     info.tls_session_timeout = TLS_SESSION_TIMEOUT; // default was 300 (seconds); (default cache size is 10, should be fine)
+#else
+    info.options |= LWS_SERVER_OPTION_DISABLE_TLS_SESSION_CACHE;
 #endif
     // Disable TLS 1.3 support, because session resumption did not work with it, even with "ticket" support enabled on Mega servers.
     // Note: Using this flag is deprecated. The newer API is SSL_CTX_set_max_proto_version(), but unfortunately the underlying
