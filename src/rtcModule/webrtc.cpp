@@ -144,7 +144,7 @@ void Call::onDisconnectFromChatd()
 {
     if (participate())
     {
-        handleCallDisconnect();
+        handleCallDisconnect(TermCode::kSigDisconn);
         setState(CallState::kStateConnecting);
         mSfuConnection->disconnect(true);
     }
@@ -783,6 +783,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 
 void Call::joinSfu()
 {
+    initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this);
     size_t hiresTrackIndex = 0;
     createTransceivers(hiresTrackIndex);
@@ -910,14 +911,18 @@ void Call::getLocalStreams()
     }
 }
 
-void Call::handleCallDisconnect()
+void Call::handleCallDisconnect(const TermCode& termCode)
 {
+    RTCM_LOG_DEBUG("handle call disconnect with termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     if (mRtcConn)
     {
         mRtcConn->Close();
         mRtcConn = nullptr;
     }
-
+    if (mSfuConnection->isOnline())
+    {
+        sendStats(termCode);
+    }
     disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
@@ -945,24 +950,48 @@ std::string Call::endCallReasonToString(const EndCallReason &reason) const
     }
 }
 
+std::string Call::connectionTermCodeToString(const TermCode &termcode) const
+{
+    switch (termcode)
+    {
+        case kUserHangup:               return "normal user hangup";
+        case kTooManyParticipants:      return "there are too many participants";
+        case kLeavingRoom:              return "user has been removed from chatroom";
+        case kRtcDisconn:               return "SFU connection failed";
+        case kSigDisconn:               return "chatd connection failed";
+        case kSvrShuttingDown:          return "SFU server is shutting down";
+        case kErrSignaling:             return "signalling error";
+        case kErrNoCall:                return "attempted to join non-existing call";
+        case kErrAuth:                  return "authentication error";
+        case kErrApiTimeout:            return "ping timeout between SFU and API";
+        case kErrSdp:                   return "error generating or setting SDP description";
+        case kErrGeneral:               return "general error";
+        case kUnKnownTermCode:          return "unknown error";
+        default:                        return "invalid connection termcode";
+    }
+}
+
 bool Call::isValidConnectionTermcode(TermCode termCode) const
 {
     return termCode >= kUserHangup && termCode <= kFlagMaxValid;
 }
 
-void Call::disconnect(TermCode termCode, const std::string &msg)
+void Call::sendStats(const TermCode& termCode)
 {
     assert(isValidConnectionTermcode(termCode));
-    if ( mStats.mSamples.mT.size() > 2)
-    {
-        mStats.mMaxPeers = mMaxPeers;
-        mStats.mTermCode = static_cast<int32_t>(termCode);
-        mStats.mDuration = (time(nullptr) - mInitialTs) * 1000;  // ms
-        mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
-    }
-
-    RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
+    mStats.mDuration = mInitialTs
+            ? static_cast<uint64_t>((time(nullptr) - mInitialTs) * 1000)  // ms
+            : 0; // in case we have not joined SFU yet, send duration = 0
+    mStats.mMaxPeers = mMaxPeers;
+    mStats.mTermCode = static_cast<int32_t>(termCode);
+    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    RTCM_LOG_DEBUG("Clear local SFU stats");
     mStats.clear();
+}
+
+void Call::disconnect(TermCode termCode, const std::string &msg)
+{
+    RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
     if (getLocalAvFlags().videoCam())
     {
         releaseVideoDevice();
@@ -973,7 +1002,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         session.second->disableAudioSlot();
     }
 
-    handleCallDisconnect();
+    handleCallDisconnect(termCode);
 
     // termcode is only valid at state kStateTerminatingUserParticipation
     mTermCode = termCode;
@@ -1507,7 +1536,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
             if (mState == CallState::kStateInProgress
                     && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
             {
-                handleCallDisconnect();
+                handleCallDisconnect(TermCode::kRtcDisconn);
             }
 
             setState(CallState::kStateConnecting);
@@ -1837,16 +1866,19 @@ void Call::collectNonRTCStats()
     mStats.mSamples.mAv.push_back(getLocalAvFlags().value());
 }
 
-void Call::enableStats()
+void Call::initStatsValues()
 {
     mStats.mPeerId = mMyPeer->getPeerid();
-    mStats.mCid = mMyPeer->getCid();
     mStats.mCallid = mCallid;
-    mStats.mTimeOffset = mOffset;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
     mStats.mSfuHost = mSfuConnection->getSfuUrl().host;
+}
 
+void Call::enableStats()
+{
+    mStats.mCid = mMyPeer->getCid();
+    mStats.mTimeOffset = mOffset;
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
     {

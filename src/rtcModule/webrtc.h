@@ -28,24 +28,24 @@ enum TermCode: uint8_t
 
     //==============================================================================================
 
-    kUserHangup                 = 0,                    // < Normal user hangup
-    kTooManyParticipants        = 1,                    // < Too many participants
-    kLeavingRoom                = 2,                    // < User has been removed from chatroom
+    kUserHangup                 = 0,                    // < normal user hangup
+    kTooManyParticipants        = 1,                    // < there are too many participants
+    kLeavingRoom                = 2,                    // < user has been removed from chatroom
     //==============================================================================================
 
-    kRtcDisconn                 = kFlagDisconn | 0,     // 64
-    kSigDisconn                 = kFlagDisconn | 1,     // 65
-    kSvrShuttingDown            = kFlagDisconn | 2,     // 66 < Server is shutting down
+    kRtcDisconn                 = kFlagDisconn | 0,     // < SFU connection failed
+    kSigDisconn                 = kFlagDisconn | 1,     // < chatd connection failed
+    kSvrShuttingDown            = kFlagDisconn | 2,     // < SFU server is shutting down
     //==============================================================================================
 
-    kErrSignaling               = kFlagError | 0,       // 128
-    kErrNoCall                  = kFlagError | 1,       // 129 < Attempted to join non-existing call
-    kErrAuth                    = kFlagError | 2,       // 130 < Authentication error
+    kErrSignaling               = kFlagError | 0,       // 128 < signalling error
+    kErrNoCall                  = kFlagError | 1,       // 129 < attempted to join non-existing call
+    kErrAuth                    = kFlagError | 2,       // 130 < authentication error
     kErrApiTimeout              = kFlagError | 3,       // 131 < ping timeout between SFU and API
     kErrSdp                     = kFlagError | 4,       // 132 < error generating or setting SDP description
-    kErrGeneral                 = kFlagError | 63,      // 191
-    kUnKnownTermCode            = kFlagError | 126,     // 254,
-    kInvalidTermCode            = kFlagError | 127,     // 255,
+    kErrGeneral                 = kFlagError | 63,      // 191 < general error
+    kUnKnownTermCode            = kFlagError | 126,     // 254 < unknown error
+    kInvalidTermCode            = kFlagError | 127,     // 255 < invalid connection termcode
 };
 
 enum CallState: uint8_t
