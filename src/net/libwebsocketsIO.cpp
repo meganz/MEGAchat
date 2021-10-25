@@ -454,8 +454,6 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             CachedSession *s = &client->mTlsSession;
 
             // Explicitly request to "ignore" this session info until we're sure it's valid.
-            // The default is "drop", because LWS will pass Null user data (thus client)
-            // in case of error, and we can't link to the CachedSession from there.
             s->saveToStorage(false);
 
             if (s->hostname.empty()) // filter non-SSL connections, if any

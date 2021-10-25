@@ -44,9 +44,16 @@ private:
         , MEGA_DROP
     };
 
-    // Initialize to this unusual value ("drop"), because LWS won't offer enough data
-    // in the cb to link to one of these instances, in case of connection failure.
-    int                     disconnectAction = MEGA_DROP;
+    // This can be used to set a default action for TLS session info.
+    //
+    // Typically, session info should initially be ignored, until
+    // a successful connection will explicitly request it to be saved.
+    //
+    // It can also be initialized to "drop", in order to remove a
+    // saved session from storage, upon a failed connection attempt.
+    // In case of connection failure, LWS doesn't offer enough data
+    // in the cb to identify the originally used session info.
+    int disconnectAction = MEGA_IGNORE;
 };
 #endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
