@@ -1507,6 +1507,12 @@ void Call::onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> /*rece
 void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState)
 {
     RTCM_LOG_DEBUG("onConnectionChange newstate: %d", newState);
+    if (!mSfuConnection)
+    {
+        RTCM_LOG_WARNING("onConnectionChange: mSfuConnection no longer exists");
+        return;
+    }
+
     if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
         || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
     {
