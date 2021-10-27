@@ -8,7 +8,6 @@
 
 namespace rtcModule
 {
-
 SvcDriver::SvcDriver ()
     : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
       mPacketLostLower(0.01),
@@ -202,14 +201,14 @@ promise::Promise<void> Call::endCall(int reason)
 
 promise::Promise<void> Call::hangup()
 {
-    if (mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
+    if (!isOtherClientParticipating() && mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
         // in 1on1 calls, the hangup (reject) by the user while ringing should end the call
         return endCall(chatd::kRejected); // reject 1on1 call while ringing
     }
     else
     {
-        disconnect(TermCode::kUserHangup);
+        disconnect(TermCode::kUserHangup, "normal user hangup");
         return promise::_Void();
     }
 }
@@ -528,7 +527,7 @@ void Call::requestHighResolutionVideo(Cid_t cid, int quality)
     Session *sess= getSession(cid);
     if (!sess)
     {
-        RTCM_LOG_ERROR("requestHighResolutionVideo: session not found for %d", cid);
+        RTCM_LOG_DEBUG("requestHighResolutionVideo: session not found for %d", cid);
         return;
     }
 
@@ -574,7 +573,7 @@ void Call::stopHighResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
-            RTCM_LOG_ERROR("stopHighResolutionVideo: session not found for %d", *auxit);
+            RTCM_LOG_DEBUG("stopHighResolutionVideo: session not found for %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (!sess->hasHighResolutionTrack())
@@ -605,7 +604,7 @@ void Call::requestLowResolutionVideo(std::vector<Cid_t> &cids)
         if (!sess)
         {
             // remove cid that has no active session
-            RTCM_LOG_WARNING("requestLowResolutionVideo: session not found for cid: %d", *auxit);
+            RTCM_LOG_DEBUG("requestLowResolutionVideo: session not found for cid: %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (sess->hasLowResolutionTrack())
@@ -629,7 +628,7 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
         Session *sess= getSession(*auxit);
         if (!sess)
         {
-            RTCM_LOG_WARNING("stopLowResolutionVideo: session not found for cid: %d", *auxit);
+            RTCM_LOG_DEBUG("stopLowResolutionVideo: session not found for cid: %d", *auxit);
             it = cids.erase(auxit);
         }
         else if (!sess->hasLowResolutionTrack())
@@ -912,15 +911,36 @@ void Call::setEndCallReason(uint8_t reason)
     mEndCallReason = reason;
 }
 
-void Call::disconnect(TermCode termCode, const std::string &)
+std::string Call::endCallReasonToString(const EndCallReason &reason) const
 {
+    switch (reason)
+    {
+        case kEnded:            return "normal hangup of on-going call";
+        case kRejected:         return "incoming call was rejected by callee";
+        case kNoAnswer:         return "outgoing call didn't receive any answer from the callee";
+        case kFailed:           return "on-going call failed";
+        case kCancelled:        return "outgoing call was cancelled by caller before receiving any answer from the callee";
+        case kInvalidReason:    return "invalid endcall reason";
+    }
+}
+
+bool Call::isValidConnectionTermcode(TermCode termCode) const
+{
+    return termCode >= kUserHangup && termCode <= kFlagMaxValid;
+}
+
+void Call::disconnect(TermCode termCode, const std::string &msg)
+{
+    assert(isValidConnectionTermcode(termCode));
     if ( mStats.mSamples.mT.size() > 2)
     {
+        mStats.mMaxPeers = mMaxPeers;
         mStats.mTermCode = static_cast<int32_t>(termCode);
         mStats.mDuration = (time(nullptr) - mInitialTs) * 1000;  // ms
         mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
     }
 
+    RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
     mStats.clear();
     if (getLocalAvFlags().videoCam())
     {
@@ -999,6 +1019,9 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
     // set my own client-id (cid)
     mMyPeer->setCid(cid);
+
+    // update max peers seen in call
+    mMaxPeers = static_cast<uint8_t> (peers.size() > mMaxPeers ? peers.size() : mMaxPeers);
 
     std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers) // does not include own cid
@@ -1343,6 +1366,8 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     sfu::Peer peer(userid, av, cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler.onNewSession(*mSessions[cid], *this);
+    // update max peers seen in call
+    mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
     generateAndSendNewkey();
     return true;
 }
@@ -1390,10 +1415,11 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         }
 
         // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
-        disconnect(static_cast<TermCode>(code), errMsg);
+        TermCode connectionTermCode = static_cast<TermCode>(code);
+        disconnect(connectionTermCode, errMsg);
         if (mParticipants.empty())
         {
-            mRtc.removeCall(mChatid, EndCallReason::kFailed);
+            mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
 
@@ -1783,7 +1809,7 @@ void Call::collectNonRTCStats()
     }
 
     // TODO: pending to implement disabledTxLayers in future if needed
-    mStats.mSamples.mQ.push_back(mSvcDriver.mCurrentSvcLayerIndex | mHiRes->getSentLayers() << 8);
+    mStats.mSamples.mQ.push_back(static_cast<int32_t>(mSvcDriver.mCurrentSvcLayerIndex) | static_cast<int32_t>(mHiRes->getSentLayers()) << 8);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
@@ -1798,6 +1824,7 @@ void Call::enableStats()
     mStats.mTimeOffset = mOffset;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
+    mStats.mSfuHost = karere::Url(mSfuUrl).host;
 
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
@@ -2203,15 +2230,15 @@ sfu::SfuClient& RtcModuleSfu::getSfuClient()
     return (*mSfuClient.get());
 }
 
-void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason)
+void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode)
 {
     Call *call = static_cast<Call*>(findCallByChatid(chatid));
     if (call)
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            // return kUnKnownTermCode as is unexpected to receive an endcall reason from chatd while we are still connected to SFU
-            call->disconnect(rtcModule::TermCode::kUnKnownTermCode);
+            call->disconnect(connectionTermCode,
+                             std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason));
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange

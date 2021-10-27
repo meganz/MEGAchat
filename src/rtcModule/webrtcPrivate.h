@@ -366,6 +366,8 @@ public:
     void disconnect(TermCode termCode, const std::string& msg = "");
     void handleCallDisconnect();
     void setEndCallReason(uint8_t reason);
+    std::string endCallReasonToString(const EndCallReason &reason) const;
+    bool isValidConnectionTermcode(TermCode termCode) const;
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
@@ -448,6 +450,7 @@ protected:
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
     std::unique_ptr<sfu::Peer> mMyPeer;
+    uint8_t mMaxPeers = 0; // maximum number of peers (excluding yourself), seen throughout the call
 
     // call key for public chats (128-bit key)
     std::string mCallKey;
@@ -503,7 +506,7 @@ public:
     const std::string& getVideoDeviceSelected() const override;
     sfu::SfuClient& getSfuClient() override;
 
-    void removeCall(karere::Id chatid, EndCallReason reason) override;
+    void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;

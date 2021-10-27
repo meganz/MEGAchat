@@ -3155,12 +3155,24 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     }
 
     sleep(5);
-    flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
-    megaChatApi[a2]->hangChatCall(ringingCallId);
-    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
-    ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
-    ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
+    if (auxCall->isRinging())
+    {
+        /* call hangChatCall just in case it's still ringing, otherwise mcme command won't be sent, and
+         * a1 won't receive onChatCallUpdate (MegaChatCall::CALL_STATUS_DESTROYED), so callDestroyed0 won't bet set true
+         *
+         * Note: when TYPE_HANG_CHAT_CALL request is processed, call could stop ringing, so in that case, test will fail.
+         * this is a very corner case, as call must stop ringing in the period between the ringing checkup above and the process
+         * of CALL_STATUS_DESTROYED request.
+        */
+        flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
+        megaChatApi[a2]->hangChatCall(ringingCallId);
+        ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall), "Timeout after hang up chat call " + std::to_string(maxTimeout) + " seconds");
+        ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
+
+        // in case of any of these asserts fails, logs can be checked to find a CALLSTATE with a ringing state change
+        ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "call not finished for account 1 (possible corner case where call stops ringing before request is processed)");
+        ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "call not finished for account 2 (possible corner case where call stops ringing before request is processed)");
+    }
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
