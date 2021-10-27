@@ -722,7 +722,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return ret;
 }
 
-- (NSString *)contacEmailByHandle:(uint64_t)userHandle {
+- (NSString *)contactEmailByHandle:(uint64_t)userHandle {
     if (self.megaChatApi == nil) return nil;
     const char *val = self.megaChatApi->getContactEmail(userHandle);
     if (!val) return nil;
