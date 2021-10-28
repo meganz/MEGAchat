@@ -224,6 +224,7 @@ public:
     virtual unsigned int getNumCalls() = 0;
     virtual const std::string& getVideoDeviceSelected() const = 0;
     virtual sfu::SfuClient& getSfuClient() = 0;
+    virtual DNScache& getDnsCache() = 0;
 
     virtual void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) = 0;
 
@@ -239,8 +240,7 @@ void globalCleanup();
 static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
 
-RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callHandler);
-
+RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScache &dnsCache);
 enum RtcConstant {
    kMaxCallReceivers = 20,
    kMaxCallAudioSenders = 20,

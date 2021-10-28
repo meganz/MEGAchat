@@ -16,7 +16,7 @@ public:
     std::string path;
     bool isSecure;
     Url(const std::string& url) { parse(url); }
-    Url(): isSecure(false) {}
+    Url(): port(0), isSecure(false) {}
     void parse(const std::string& url);
     bool isValid() const { return !host.empty(); }
     bool operator!=(const Url& url) const;

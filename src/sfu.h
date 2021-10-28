@@ -382,14 +382,14 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
-    SfuConnection(const std::string& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call);
+    SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     bool isOnline() const;
     bool isJoined() const;
     bool isDisconnected() const;
     promise::Promise<void> connect();
     void disconnect(bool withoutReconnection = false);
-    void doConnect();
+    void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
     bool sendCommand(const std::string& command);
     bool handleIncomingData(const char* data, size_t len);
@@ -397,6 +397,7 @@ public:
     void processNextCommand(bool resetSending = false);
     void clearCommandsQueue();
     void checkThreadId();
+    const karere::Url& getSfuUrl();
 
     bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
@@ -412,7 +413,8 @@ public:
     bool sendSpeakDel(Cid_t cid = 0);
 
 protected:
-    std::string mSfuUrl;
+    // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
+    karere::Url mSfuUrl;
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
 
@@ -433,9 +435,6 @@ protected:
      *  - If it fails: a new attempt is schedulled
      *  - If it success: the reconnection is taken as done */
     promise::Promise<void> mConnectPromise;
-    std::vector<std::string> mIpsv4;
-    std::vector<std::string> mIpsv6;
-
     void setConnState(ConnState newState);
 
     void wsConnectCb() override;
@@ -443,6 +442,7 @@ protected:
     void wsHandleMsgCb(char *data, size_t len) override;
     void wsSendMsgCb(const char *, size_t) override;
     void wsProcessNextMsgCb() override;
+    // SfuConnection::wsSSLsessionUpdateCb no needed for the moment
     promise::Promise<void> mSendPromise;
 
     void onSocketClose(int errcode, int errtype, const std::string& reason);
@@ -453,6 +453,7 @@ protected:
     SfuInterface& mCall;
     CommandsQueue mCommandsQueue;
     std::thread::id mMainThreadId; // thread id to ensure that CommandsQueue is accessed from a single thread
+    DNScache &mDnsCache;
 };
 
 /**
@@ -467,7 +468,7 @@ class SfuClient
 public:
     SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings);
 
-    SfuConnection *createSfuConnection(karere::Id chatid, const std::string& sfuUrl, SfuInterface& call);
+    SfuConnection *createSfuConnection(karere::Id chatid, karere::Url&& sfuUrl, SfuInterface& call, DNScache &dnsCache);
     void closeSfuConnection(karere::Id chatid); // does NOT retry the connection afterwards (used for errors/disconnects)
     void retryPendingConnections(bool disconnect);
 

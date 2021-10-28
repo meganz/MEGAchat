@@ -312,6 +312,8 @@ public:
 
     uint64_t uint64Col(int num) { return (uint64_t)sqlite3_column_int64(mStmt, num);}
     unsigned int uintCol(int num) { return (unsigned int)sqlite3_column_int(mStmt, num);}
+    bool isNullColumn (int num) const { return sqlite3_column_type(mStmt, num) == SQLITE_NULL; }
+    int getColumnBytes (int num) const { return sqlite3_column_bytes(mStmt, num); }
 };
 
 template <class... Args>

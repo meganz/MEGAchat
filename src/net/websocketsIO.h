@@ -16,10 +16,17 @@
 // TLS session resumption can be disabled by turning this off
 #define WEBSOCKETS_TLS_SESSION_CACHE_ENABLED 1
 
+// WEBSOCKETS LOG
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
+
+// DNSCACHE LOG
+#define DNSCACHE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_dnscache, fmtString, ##__VA_ARGS__)
+#define DNSCACHE_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_dnscache, fmtString, ##__VA_ARGS__)
+#define DNSCACHE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_dnscache, fmtString, ##__VA_ARGS__)
+#define DNSCACHE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_dnscache, fmtString, ##__VA_ARGS__)
 
 class WebsocketsClient;
 class WebsocketsClientImpl;
@@ -59,6 +66,7 @@ private:
 
 class DNScache
 {
+struct DNSrecord;
 public:
     // reference to db-layer interface
     SqliteDb &mDb;
@@ -87,21 +95,58 @@ public:
     std::vector<CachedSession> getTlsSessions();
 #endif
 
+    // DNS cache methods to manage SFU records
+    bool isSfuValidShard(int shard) const;
+    bool setSfuIp(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool addSfuRecord(const std::string &host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true, int shard = kInvalidShard);
+
+    // DNS cache methods to manage records based on host instead of shard
+    bool addRecordByHost(const std::string &host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true, int shard = kInvalidShard);
+    DNSrecord* getRecordByHost(const std::string &host);
+    void connectDoneByHost(const std::string &host, const std::string &ip);
+    bool getIpByHost(const std::string &host, std::string &ipv4, std::string &ipv6);
+    bool isMatchByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+
 private:
     struct DNSrecord
     {
         karere::Url mUrl;
         std::string ipv4;
         std::string ipv6;
-        time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
-        time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
-        time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
+        ::mega::m_time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
+        ::mega::m_time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
+        ::mega::m_time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
         std::shared_ptr<Buffer> tlsBlob; // tls session data
+        DNSrecord() = default;
+        DNSrecord(const std::string &host, std::shared_ptr<Buffer> sess):
+            tlsBlob(sess && !sess->empty() ? sess : nullptr)
+        {
+            // no need to implement move ctr in Url class as all members are from primitive types
+            mUrl.host = host;
+        }
+
+        bool isHostMatch(const std::string &host) const { return mUrl.host == host; }
     };
 
-    // Maps shard to DNSrecord
-    std::map<int, DNSrecord> mRecords;
+    // DNS cache methods to manage SFU records
+    int calculateNextSfuShard();
+    bool addSfuRecordWithIp(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool hasRecordByHost(const std::string &host) const;
+    bool setIpByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool updateCurrentShardForSfuFromDb(); // retrieves the min SFU shard from DB and updates mCurrentShardForSfu
+
+    // class members
+    static constexpr int kInvalidShard = INT_MIN; // invalid shard value
+    enum: int8_t { kSfuShardStart = -20,  kSfuShardEnd = -128};
+    std::map<int, DNSrecord> mRecords; // Maps shard to DNSrecord
     int mChatdVersion;
+    void removeRecordsByShards(const std::set<int> &removeElements);
+
+    /* SFU servers are not distributed in shards, but dns_cache primary key is shard number,
+     * so for this purpose, we'll use a variable whose possible values are between
+     * kSfuShardStart and kSfuShardEnd.
+     */
+    int mCurrentShardForSfu;
 };
 
 // Generic websockets network layer

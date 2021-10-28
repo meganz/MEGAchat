@@ -224,11 +224,17 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
         if (wptr.deleted())
             return promise::Error("Join call succeed, but call has already ended");
 
-        std::string sfuUrl = result->getText();
-        connectSfu(sfuUrl);
-
+        std::string sfuUrlStr = result->getText();
         mIsJoining = false;
-        return promise::_Void();
+
+        if (!connectSfu(sfuUrlStr))
+        {
+           return promise::Error("connectSfu error, invalid or empty sfu URL");
+        }
+        else
+        {
+           return promise::_Void();
+        }
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -746,18 +752,33 @@ Session* Call::getSession(Cid_t cid)
         : nullptr;
 }
 
-void Call::connectSfu(const std::string& sfuUrl)
+bool Call::connectSfu(const std::string& sfuUrlStr)
 {
-    if (sfuUrl.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
+    if (sfuUrlStr.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
     {
         RTCM_LOG_ERROR("trying to connect to SFU with an Empty URL");
         assert(false);
-        return;
+        return false;
     }
 
-    mSfuUrl = sfuUrl;
+    karere::Url sfuUrl(sfuUrlStr);
+    if (!sfuUrl.isValid())
+    {
+        RTCM_LOG_ERROR("trying to connect to SFU with an Empty Host");
+        assert(sfuUrl.isValid());
+        return false;
+    }
+
     setState(CallState::kStateConnecting);
-    mSfuConnection = mSfuClient.createSfuConnection(mChatid, mSfuUrl, *this);
+    if (!mRtc.getDnsCache().getRecordByHost(sfuUrl.host) && !mRtc.getDnsCache().addSfuRecord(sfuUrl.host))
+    {
+        RTCM_LOG_ERROR("connectSfu: can't retrieve nor add SFU record");
+        assert(mRtc.getDnsCache().getRecordByHost(sfuUrl.host));
+        return false;
+    }
+
+    mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
+    return true;
 }
 
 void Call::joinSfu()
@@ -1857,14 +1878,13 @@ void Call::initStatsValues()
     mStats.mCallid = mCallid;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
-    mStats.mSfuHost = karere::Url(mSfuUrl).host;
+    mStats.mSfuHost = mSfuConnection->getSfuUrl().host;
 }
 
 void Call::enableStats()
 {
     mStats.mCid = mMyPeer->getCid();
     mStats.mTimeOffset = mOffset;
-
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
     {
@@ -2076,9 +2096,10 @@ void Call::updateAudioTracks()
     }
 }
 
-RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler)
+RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache)
     : mCallHandler(callhandler)
     , mMegaApi(megaApi)
+    , mDnsCache(dnsCache)
 {
 }
 
@@ -2184,27 +2205,40 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-    .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result)
+    .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result) -> promise::Promise<void>
     {
-        wptr.throwIfDeleted();
+        if (wptr.deleted())
+        {
+            return promise::Error("call started successfully, but RtcModuleSfu instance was removed");
+        }
+
         std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
                 ? std::make_shared<std::string>(auxCallKey)
                 : nullptr;
 
         karere::Id callid = result->getParentHandle();
-        std::string sfuUrl = result->getText();
+        std::string sfuUrlStr = result->getText();
+        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
             std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
             karere::Id myUserHandle(userHandle.get());
             mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
-            mCalls[callid]->connectSfu(sfuUrl);
+
+            if (!mCalls[callid]->connectSfu(sfuUrlStr))
+            {
+               return promise::Error("connectSfu error, invalid or empty URL");
+            }
         }
-        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
+        return promise::_Void();
     })
     .fail([wptr, this, chatid](const ::promise::Error& err)
     {
-        wptr.throwIfDeleted();
+        if (wptr.deleted())
+        {
+            return err;
+        }
+
         mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
         return err;
     });
@@ -2267,6 +2301,11 @@ const std::string& RtcModuleSfu::getVideoDeviceSelected() const
 sfu::SfuClient& RtcModuleSfu::getSfuClient()
 {
     return (*mSfuClient.get());
+}
+
+DNScache& RtcModuleSfu::getDnsCache()
+{
+    return mDnsCache;
 }
 
 void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode)
@@ -2468,10 +2507,9 @@ std::string RtcModuleSfu::getDeviceInfo() const
     return deviceType + ":" + version;
 }
 
-
-RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler)
+RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler, DNScache &dnsCache)
 {
-    return new RtcModuleSfu(megaApi, callHandler);
+    return new RtcModuleSfu(megaApi, callHandler, dnsCache);
 }
 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
