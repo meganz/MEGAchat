@@ -468,7 +468,10 @@ bool DNScache::updateTlsSession(const CachedSession &sess)
     for (const auto &i : mRecords)
     {
         const DNSrecord &r = i.second;
-        if (r.mUrl.host == sess.hostname && r.mUrl.port == sess.port)
+        // Match DNS record by hostname and port, or just by hostname
+        // if it's a SFU entry (for which port is irrelevant)
+        if (r.mUrl.host == sess.hostname && (r.mUrl.port == sess.port ||
+                                             isSfuValidShard(i.first)))
         {
             // update session data for that connection
             if (sess.dropFromStorage())
