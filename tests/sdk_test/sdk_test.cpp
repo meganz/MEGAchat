@@ -428,7 +428,7 @@ void MegaChatApiTest::TearDown()
                 {
                     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
                     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-                    chatToSkip = getGroupChatRoom(i, a2, peers, false);
+                    chatToSkip = getGroupChatRoom(i, a2, peers, MegaChatPeerList::PRIV_MODERATOR, false);
                     delete peers;
                     peers = NULL;
                 }
@@ -3749,7 +3749,7 @@ bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chati
 }
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                                 MegaChatPeerList *peers, bool create, bool publicChat, const char *title)
+                                                 MegaChatPeerList *peers, int a1Priv, bool create, bool publicChat, const char *title)
 {
     MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
     bool chatroomExist = false;
@@ -3759,7 +3759,8 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         const MegaChatRoom *chat = chats->get(i);
         if (!chat->isGroup() || !chat->isActive()
                 || (chat->isPublic() != publicChat)
-                || (chat->getPeerCount() != peers->size()))
+                || (chat->getPeerCount() != peers->size())
+                || (a1Priv != megachat::MegaChatPeerList::PRIV_UNKNOWN && a1Priv != chat->getOwnPrivilege()))
         {
             continue;
         }
