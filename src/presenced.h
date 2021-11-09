@@ -416,7 +416,9 @@ protected:
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t preason_len) override;
     void wsHandleMsgCb(char *data, size_t len) override;
     void wsSendMsgCb(const char *, size_t) override {}
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool wsSSLsessionUpdateCb(const CachedSession &sess) override;
+#endif
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
@@ -443,8 +445,8 @@ protected:
     bool isContact(uint64_t userid);
 
     // mega::MegaGlobalListener interface, called by worker thread
-    virtual void onUsersUpdate(::mega::MegaApi*, ::mega::MegaUserList* users);
-    virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
+    void onUsersUpdate(::mega::MegaApi*, ::mega::MegaUserList* users) override;
+    void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event) override;
     
 public:
     Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);

@@ -41,16 +41,16 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     info.protocols = protocols;
     info.gid = -1;
     info.uid = -1;
+    info.foreign_loops = (void**)&(libuvWaiter->eventloop);
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     info.options |= LWS_SERVER_OPTION_LIBUV;
     info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
-    info.foreign_loops = (void**)&(libuvWaiter->eventloop);
-    info.tls_session_timeout = TLS_SESSION_TIMEOUT; // default: 300 (seconds); (default cache size is 10, should be fine)
-    // Disable TLS 1.3 support, because session resumption did not work with it, even with "ticket" support enabled on Mega servers.
-    // Note: Using this flag is deprecated. The newer API is SSL_CTX_set_max_proto_version(), but unfortunately the underlying
-    //       SSL_CTX is not accessible from here. Care should be taken for the next LWS upgrade.
-    info.ssl_client_options_set = SSL_OP_NO_TLSv1_3;
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
+    info.tls_session_timeout = TLS_SESSION_TIMEOUT; // default was 300 (seconds); (default cache size is 10, should be fine)
+#else
+    info.options |= LWS_SERVER_OPTION_DISABLE_TLS_SESSION_CACHE;
+#endif
 
     // For extra log messages add the following levels:
     // LLL_NOTICE | LLL_INFO | LLL_DEBUG | LLL_PARSER | LLL_HEADER | LLL_EXT | LLL_CLIENT | LLL_LATENCY | LLL_USER | LLL_THREAD
@@ -66,6 +66,7 @@ LibwebsocketsIO::~LibwebsocketsIO()
     lws_context_destroy(wscontext);
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
 {
     if (sessions.empty())  return;
@@ -91,6 +92,7 @@ void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
         }
     }
 }
+#endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
 void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 {    
@@ -256,11 +258,13 @@ bool LibwebsocketsClient::connectViaClientInfo(const char *ip, const char *host,
     i.ietf_version_or_minus_one = -1;
     i.userdata = this;
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     if (ssl)
     {
         mTlsSession.hostname = host;
         mTlsSession.port = port;
     }
+#endif
 
     wsi = lws_client_connect_via_info(&i);
 
@@ -274,6 +278,7 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
         return;
     }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     if (mTlsSession.dropFromStorage())
     {
         wsSSLsessionUpdateCb(mTlsSession);
@@ -287,6 +292,7 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
         mTlsSession.blob = nullptr;
         mTlsSession.saveToStorage(false); // done, don't do it again later
     }
+#endif
 
     if (immediate)
     {
@@ -441,14 +447,13 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
 
             client->wsConnectCb();
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
             //
             // deal with the TLS session
 
             CachedSession *s = &client->mTlsSession;
 
             // Explicitly request to "ignore" this session info until we're sure it's valid.
-            // The default is "drop", because LWS will pass Null user data (thus client)
-            // in case of error, and we can't link to the CachedSession from there.
             s->saveToStorage(false);
 
             if (s->hostname.empty()) // filter non-SSL connections, if any
@@ -500,6 +505,8 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                                      s->hostname.c_str(), s->port);
             }
             s->blob = nullptr; // stored or not, don't keep it in memory
+#endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
+
             break;
         }
         case LWS_CALLBACK_CLIENT_CLOSED:
@@ -605,6 +612,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
 }
 
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool LwsCache::dump(lws_vhost *vh, CachedSession *s)
 {
     return vh && s &&
@@ -647,3 +655,4 @@ int LwsCache::loadCb(lws_context *, lws_tls_session_dump *info)
 
     return 0;
 }
+#endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED

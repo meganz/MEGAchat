@@ -1,6 +1,6 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #ifndef SFU_H
 #define SFU_H
-
 #include <thread>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
@@ -397,6 +397,7 @@ public:
     void processNextCommand(bool resetSending = false);
     void clearCommandsQueue();
     void checkThreadId();
+    const karere::Url& getSfuUrl();
 
     bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
@@ -499,3 +500,4 @@ static inline const char* connStateToStr(SfuConnection::ConnState state)
 }
 
 #endif // SFU_H
+#endif

@@ -13,7 +13,9 @@
 #include "presenced.h"
 #include "IGui.h"
 #include <base/trackDelete.h>
+#ifndef KARERE_DISABLE_WEBRTC
 #include "rtcModule/webrtc.h"
+#endif
 #include "stringUtils.h"
 
 #ifdef _WIN32
@@ -954,7 +956,9 @@ public:
      * delete the karere.db file and re-create it from scratch.
      */
     Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
+#ifndef KARERE_DISABLE_WEBRTC
            rtcModule::CallHandler& callHandler,
+#endif
            const std::string &appDir, uint8_t caps, void *ctx);
 
     virtual ~Client();

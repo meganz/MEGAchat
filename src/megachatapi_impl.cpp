@@ -111,11 +111,14 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     mMegaApi = megaApi;
 
     mClient = NULL;
+    API_LOG_DEBUG("MegaChatApiImpl::init(): karere client is invalid");
     mTerminating = false;
     waiter = new MegaChatWaiter();
     mWebsocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
     reqtag = 0;
+#ifndef KARERE_DISABLE_WEBRTC
     mCallHandler = ::mega::make_unique<MegaChatCallHandler>(this);
+#endif
     //Start blocking thread
     threadExit = 0;
     thread.start(threadEntryPoint, this);
@@ -2561,7 +2564,12 @@ void MegaChatApiImpl::createKarereClient()
 #else
         uint8_t caps = karere::kClientIsMobile | karere::kClientSupportLastGreen;
 #endif
+#ifndef KARERE_DISABLE_WEBRTC
         mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mCallHandler, mMegaApi->getBasePath(), caps, this);
+#else
+        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, mMegaApi->getBasePath(), caps, this);
+#endif
+        API_LOG_DEBUG("createKarereClient: karere client instance created");
         mTerminating = false;
     }
 }
@@ -5488,7 +5496,7 @@ void MegaChatApiImpl::cleanCalls()
         std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
         for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            mClient->rtc->removeCall(chatids[i]);
+            mClient->rtc->removeCall(chatids[i], rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kUserHangup);
         }
     }
 
@@ -6300,6 +6308,9 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
     mTermCode = convertTermCode(call.getTermCode());
+    mEndCallReason = call.getEndCallReason() == rtcModule::EndCallReason::kInvalidReason
+            ? MegaChatCall::END_CALL_REASON_INVALID
+            : call.getEndCallReason();
 
     for (auto participant: call.getParticipants())
     {
@@ -6325,6 +6336,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mInitialTs = call.mInitialTs;
     mFinalTs = call.mFinalTs;
     mTermCode = call.mTermCode;
+    mEndCallReason = call.mEndCallReason;
     mRinging = call.mRinging;
     mIgnored = call.mIgnored;
     mPeerId = call.mPeerId;
@@ -6425,6 +6437,11 @@ int64_t MegaChatCallPrivate::getFinalTimeStamp() const
 int MegaChatCallPrivate::getTermCode() const
 {
     return mTermCode;
+}
+
+int MegaChatCallPrivate::getEndCallReason() const
+{
+    return mEndCallReason;
 }
 
 bool MegaChatCallPrivate::isRinging() const
@@ -8083,7 +8100,6 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:    // no content at all
             case MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:    // no content at all
             case MegaChatMessage::TYPE_SET_PRIVATE_MODE:
-            case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
             default:
                 break;
         }
@@ -9645,9 +9661,8 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             fa = iteratorFa->value.GetString();
         }
 
-        std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, &fa, sdkFingerprint,
+                             megaHandle, &key, &fa, sdkFingerprint,
                              NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);

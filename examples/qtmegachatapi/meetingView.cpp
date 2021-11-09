@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #include "meetingView.h"
 #include <QMenu>
 #include <QApplication>
@@ -611,4 +612,4 @@ void MeetingView::onJoinCallWithoutVideo()
 {
     mMegaChatApi.startChatCall(mChatid, false);
 }
-
+#endif

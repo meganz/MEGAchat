@@ -17,37 +17,6 @@ class RtcModuleSfu;
 class Call;
 class Session;
 
-/*
- * This class represents the current available tracks keyed by peer CID.
- * Available tracks information is stored into a karere::AvFlags struct (due to efficiency)
- *
- * When a track is enabled/disabled we will update CID flags, and when we want to query which tracks
- * are available, we will check if CID flags contains these values:
- *  - HI-RES  track -> kCameraHiRes
- *  - LOW-RES track -> kCameraLowRes
- *  - AUDIO   track -> kAudio
- */
-class AvailableTracks
-{
-public:
-    AvailableTracks();
-    ~AvailableTracks();
-    bool hasHiresTrack(Cid_t cid);
-    bool hasLowresTrack(Cid_t cid);
-    bool hasVoiceTrack(Cid_t cid);
-    void updateHiresTrack(Cid_t cid, bool add);
-    void updateLowresTrack(Cid_t cid, bool add);
-    void updateSpeakTrack(Cid_t cid, bool add);
-    std::map<Cid_t, karere::AvFlags>& getTracks();
-    bool getTracksByCid(Cid_t cid, karere::AvFlags& tracksFlags);
-    void addCid(Cid_t cid);
-    void removeCid(Cid_t cid);
-    bool hasCid(Cid_t cid);
-    void clear();
-private:
-    std::map<Cid_t, karere::AvFlags> mTracksFlags;
-};
-
 class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface, public karere::DeleteTrackable
 {
     public:
@@ -67,6 +36,10 @@ private:
     int32_t mCid;
 };
 
+/**
+ * This class represent a generic instance to manage webrtc Transceiver
+ * A Transceiver is an element used to send or receive datas
+ */
 class Slot
 {
 public:
@@ -82,6 +55,9 @@ protected:
     Slot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
 };
 
+/**
+ * This class represent a webrtc transceiver for local audio and low resolution video
+ */
 class LocalSlot : public Slot
 {
 public:
@@ -90,6 +66,9 @@ public:
     void generateRandomIv();
 };
 
+/**
+ * This class represent a webrtc transceiver for local high resolution video
+ */
 class LocalHighResolutionSlot : public LocalSlot
 {
 public:
@@ -104,6 +83,9 @@ private:
     int8_t mSentLayers;
 };
 
+/**
+ * This class represent a generic instance to manage remote webrtc Transceiver
+ */
 class RemoteSlot : public Slot
 {
 public:
@@ -132,6 +114,9 @@ private:
     std::unique_ptr<IVideoRenderer> mRenderer;
 };
 
+/**
+ * This class represent a generic instance to manage removte video webrtc Transceiver
+ */
 class RemoteVideoSlot : public RemoteSlot, public VideoSink
 {
 public:
@@ -147,6 +132,9 @@ private:
     VideoResolution mVideoResolution = kUndefined;
 };
 
+/**
+ * This class represent a generic instance to manage remote audio webrtc Transceiver
+ */
 class RemoteAudioSlot : public RemoteSlot
 {
 public:
@@ -289,6 +277,7 @@ public:
     bool hasVideoSlot(Cid_t cid, bool highRes = true) const override;
     int getNetworkQuality() const override;
     TermCode getTermCode() const override;
+    uint8_t getEndCallReason() const override;
 
     // called upon reception of OP_JOINEDCALL from chatd
     void addParticipant(karere::Id peer) override;
@@ -375,7 +364,12 @@ public:
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
     void disconnect(TermCode termCode, const std::string& msg = "");
-    void handleCallDisconnect();
+    void handleCallDisconnect(const TermCode &termCode);
+    void setEndCallReason(uint8_t reason);
+    std::string endCallReasonToString(const EndCallReason &reason) const;
+    std::string connectionTermCodeToString(const TermCode &termcode) const;
+    bool isValidConnectionTermcode(TermCode termCode) const;
+    void sendStats(const TermCode& termCode);
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
@@ -440,7 +434,8 @@ protected:
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
-    std::string mSfuUrl;
+    uint8_t mEndCallReason = kInvalidReason;
+
     CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;
@@ -456,6 +451,7 @@ protected:
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
     std::unique_ptr<sfu::Peer> mMyPeer;
+    uint8_t mMaxPeers = 0; // maximum number of peers (excluding yourself), seen throughout the call
 
     // call key for public chats (128-bit key)
     std::string mCallKey;
@@ -480,6 +476,7 @@ protected:
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
     void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes);
+    void initStatsValues();
     void enableStats();
     void disableStats();
     void adjustSvcByStats();
@@ -511,7 +508,7 @@ public:
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
-    void removeCall(karere::Id chatid, TermCode termCode = kUserHangup) override;
+    void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;

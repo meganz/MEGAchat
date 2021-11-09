@@ -13,6 +13,9 @@
 #include "db.h"
 #include "url.h"
 
+// TLS session resumption can be disabled by turning this off
+#define WEBSOCKETS_TLS_SESSION_CACHE_ENABLED 1
+
 // WEBSOCKETS LOG
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
@@ -28,6 +31,7 @@
 class WebsocketsClient;
 class WebsocketsClientImpl;
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 struct CachedSession
 {
     std::string             hostname;    // host.domain
@@ -47,34 +51,23 @@ private:
         , MEGA_DROP
     };
 
-    // Initialize to this unusual value ("drop"), because LWS won't offer enough data
-    // in the cb to link to one of these instances, in case of connection failure.
-    int                     disconnectAction = MEGA_DROP;
+    // This can be used to set a default action for TLS session info.
+    //
+    // Typically, session info should initially be ignored, until
+    // a successful connection will explicitly request it to be saved.
+    //
+    // It can also be initialized to "drop", in order to remove a
+    // saved session from storage, upon a failed connection attempt.
+    // In case of connection failure, LWS doesn't offer enough data
+    // in the cb to identify the originally used session info.
+    int disconnectAction = MEGA_IGNORE;
 };
+#endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
 class DNScache
 {
+struct DNSrecord;
 public:
-    struct DNSrecord
-    {
-        karere::Url mUrl;
-        std::string ipv4;
-        std::string ipv6;
-        ::mega::m_time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
-        ::mega::m_time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
-        ::mega::m_time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
-        std::shared_ptr<Buffer> tlsBlob; // tls session data
-        DNSrecord() = default;
-        DNSrecord(const std::string &host, std::shared_ptr<Buffer> sess):
-            tlsBlob(sess && !sess->empty() ? sess : nullptr)
-        {
-            // no need to implement move ctr in Url class as all members are from primitive types
-            mUrl.host = host;
-        }
-
-        bool isHostMatch(const std::string &host) const { return mUrl.host == host; }
-    };
-
     // reference to db-layer interface
     SqliteDb &mDb;
 
@@ -96,31 +89,56 @@ public:
     bool isMatch(int shard, const std::string &ipv4, const std::string &ipv6);
     time_t age(int shard);
     const karere::Url &getUrl(int shard);
+
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool updateTlsSession(const CachedSession &sess);
     std::vector<CachedSession> getTlsSessions();
+#endif
 
     // DNS cache methods to manage SFU records
-    enum: int8_t { kSfuShardStart = -20,  kSfuShardEnd = -128};
     bool isSfuValidShard(int shard) const;
-    int calculateNextSfuShard();
-    bool updateCurrentShardForSfuFromDb(); // retrieves the min SFU shard from DB and updates mCurrentShardForSfu
     bool setSfuIp(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
     bool addSfuRecord(const std::string &host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true, int shard = kInvalidShard);
-    bool addSfuRecordWithIp(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
 
     // DNS cache methods to manage records based on host instead of shard
-    const static int kInvalidShard = INT_MIN; // invalid shard value
     bool addRecordByHost(const std::string &host, std::shared_ptr<Buffer> sess = nullptr, bool saveToDb = true, int shard = kInvalidShard);
-    bool hasRecordByHost(const std::string &host) const;
     DNSrecord* getRecordByHost(const std::string &host);
     void connectDoneByHost(const std::string &host, const std::string &ip);
     bool getIpByHost(const std::string &host, std::string &ipv4, std::string &ipv6);
-    bool setIpByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
     bool isMatchByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
 
 private:
-    // Maps shard to DNSrecord
-    std::map<int, DNSrecord> mRecords;
+    struct DNSrecord
+    {
+        karere::Url mUrl;
+        std::string ipv4;
+        std::string ipv6;
+        ::mega::m_time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
+        ::mega::m_time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
+        ::mega::m_time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
+        std::shared_ptr<Buffer> tlsBlob; // tls session data
+        DNSrecord() = default;
+        DNSrecord(const std::string &host, std::shared_ptr<Buffer> sess):
+            tlsBlob(sess && !sess->empty() ? sess : nullptr)
+        {
+            // no need to implement move ctr in Url class as all members are from primitive types
+            mUrl.host = host;
+        }
+
+        bool isHostMatch(const std::string &host) const { return mUrl.host == host; }
+    };
+
+    // DNS cache methods to manage SFU records
+    int calculateNextSfuShard();
+    bool addSfuRecordWithIp(const std::string &host, std::shared_ptr<Buffer> sess, bool saveToDb, int shard, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool hasRecordByHost(const std::string &host) const;
+    bool setIpByHost(const std::string &host, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool updateCurrentShardForSfuFromDb(); // retrieves the min SFU shard from DB and updates mCurrentShardForSfu
+
+    // class members
+    static constexpr int kInvalidShard = INT_MIN; // invalid shard value
+    enum: int8_t { kSfuShardStart = -20,  kSfuShardEnd = -128};
+    std::map<int, DNSrecord> mRecords; // Maps shard to DNSrecord
     int mChatdVersion;
     void removeRecordsByShards(const std::set<int> &removeElements);
 
@@ -156,8 +174,10 @@ public:
         }
     };
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     virtual bool hasSessionCache() const { return false; }
     virtual void restoreSessions(std::vector<CachedSession> &&) { }
+#endif
 
 protected:
     MyMegaApi mApi;
@@ -209,7 +229,9 @@ public:
     // Called after sending a message through the socket
     // (it may be implemented by clients that require messages to be sent individually and sequentially)
     virtual void wsProcessNextMsgCb() {}
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     virtual bool wsSSLsessionUpdateCb(const CachedSession &) { return false; }
+#endif
 
     /* Public key pinning, by default this flag is enabled (true), it only should be disabled for testing purposes */
     static bool publicKeyPinning;
@@ -230,7 +252,9 @@ public:
     void wsHandleMsgCb(char *data, size_t len);
     void wsSendMsgCb(const char *data, size_t len);
     void wsProcessNextMsgCb();
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool wsSSLsessionUpdateCb(const CachedSession &sess);
+#endif
 
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;

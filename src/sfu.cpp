@@ -1,3 +1,4 @@
+#ifndef KARERE_DISABLE_WEBRTC
 #include <sfu.h>
 #include <base/promise.h>
 #include <megaapi.h>
@@ -1344,6 +1345,11 @@ void SfuConnection::checkThreadId()
     }
 }
 
+const karere::Url& SfuConnection::getSfuUrl()
+{
+    return mSfuUrl;
+}
+
 bool SfuConnection::handleIncomingData(const char* data, size_t len)
 {
     SFU_LOG_DEBUG("Data received: %s", data);
@@ -2092,3 +2098,4 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
 }
 
 }
+#endif

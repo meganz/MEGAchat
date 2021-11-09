@@ -35,7 +35,9 @@ std::string Stats::getJson()
     rapidjson::Value userid(rapidjson::kStringType);
     userid.SetString(mPeerId.toString().c_str(), json.GetAllocator());
     json.AddMember("userid", userid, json.GetAllocator());
-    json.AddMember("cid", mCid, json.GetAllocator());
+    mCid // if we have not still joined SFU, send kUnassignedCid as CID in SFU stats
+        ? json.AddMember("cid", mCid, json.GetAllocator())
+        : json.AddMember("cid", kUnassignedCid, json.GetAllocator());
     rapidjson::Value callid(rapidjson::kStringType);
     callid.SetString(mCallid.toString().c_str(), json.GetAllocator());
     json.AddMember("callid", callid, json.GetAllocator());
@@ -45,69 +47,85 @@ std::string Stats::getJson()
     device.SetString(mDevice.c_str(), json.GetAllocator());
     json.AddMember("ua", device, json.GetAllocator());
 
-    rapidjson::Value samples(rapidjson::kObjectType);
-
-    std::vector<float> periods;
-    for (unsigned int i = 1; i < mSamples.mT.size(); i++)
+    if (!mSamples.mT.empty())
     {
-        periods.push_back(static_cast<float>(mSamples.mT[i] - mSamples.mT[i - 1])/1000.0);
+        rapidjson::Value samples(rapidjson::kObjectType);
+
+        std::vector<float> periods;
+        for (unsigned int i = 1; i < mSamples.mT.size(); i++)
+        {
+            periods.push_back(static_cast<float>(mSamples.mT[i] - mSamples.mT[i - 1])/1000.0);
+        }
+
+        rapidjson::Value t(rapidjson::kArrayType);
+        parseSamples(mSamples.mT, t, json, false);
+        samples.AddMember("t", t, json.GetAllocator());
+
+        rapidjson::Value q(rapidjson::kArrayType);
+        parseSamples(mSamples.mQ, q, json, false);
+        samples.AddMember("q", q, json.GetAllocator());
+
+        rapidjson::Value pl(rapidjson::kArrayType);
+        parseSamples(mSamples.mPacketLost, pl, json, true, &periods);
+        samples.AddMember("pl", pl, json.GetAllocator());
+
+        rapidjson::Value rtt(rapidjson::kArrayType);
+        parseSamples(mSamples.mRoundTripTime, rtt, json, false);
+        samples.AddMember("rtt", rtt, json.GetAllocator());
+
+        rapidjson::Value txBwe(rapidjson::kArrayType);
+        parseSamples(mSamples.mOutGoingBitrate, txBwe, json, false);
+        samples.AddMember("txBwe", txBwe, json.GetAllocator());
+
+        rapidjson::Value rx(rapidjson::kArrayType);
+        parseSamples(mSamples.mBytesReceived, rx, json, true, &periods);
+        samples.AddMember("rx", rx, json.GetAllocator());
+
+        rapidjson::Value tx(rapidjson::kArrayType);
+        parseSamples(mSamples.mBytesSend, tx, json, true, &periods);
+        samples.AddMember("tx", tx, json.GetAllocator());
+
+        rapidjson::Value av(rapidjson::kArrayType);
+        parseSamples(mSamples.mAv, av, json, false);
+        samples.AddMember("av", av, json.GetAllocator());
+
+        rapidjson::Value nrxh(rapidjson::kArrayType);
+        parseSamples(mSamples.mNrxh, nrxh, json, false);
+        samples.AddMember("nrxh", nrxh, json.GetAllocator());
+
+        rapidjson::Value nrxl(rapidjson::kArrayType);
+        parseSamples(mSamples.mNrxl, nrxl, json, false);
+        samples.AddMember("nrxl", nrxl, json.GetAllocator());
+
+        rapidjson::Value nrxa(rapidjson::kArrayType);
+        parseSamples(mSamples.mNrxa, nrxa, json, false);
+        samples.AddMember("nrxa", nrxa, json.GetAllocator());
+
+        rapidjson::Value vtxfps(rapidjson::kArrayType);
+        parseSamples(mSamples.mVtxHiResfps, vtxfps, json, false);
+        samples.AddMember("vtxfps", vtxfps, json.GetAllocator());
+
+        rapidjson::Value vtxw(rapidjson::kArrayType);
+        parseSamples(mSamples.mVtxHiResw, vtxw, json, false);
+        samples.AddMember("vtxw", vtxw, json.GetAllocator());
+
+        rapidjson::Value vtxh(rapidjson::kArrayType);
+        parseSamples(mSamples.mVtxHiResh, vtxh, json, false);
+        samples.AddMember("vtxh", vtxh, json.GetAllocator());
+
+        rapidjson::Value audioJitter(rapidjson::kArrayType);
+        parseSamples(mSamples.mAudioJitter, audioJitter, json, false);
+        samples.AddMember("jtr", audioJitter, json.GetAllocator());
+
+        json.AddMember("samples", samples, json.GetAllocator());
     }
 
-    rapidjson::Value t(rapidjson::kArrayType);
-    parseSamples(mSamples.mT, t, json, false);
-    samples.AddMember("t", t, json.GetAllocator());
-
-    rapidjson::Value pl(rapidjson::kArrayType);
-    parseSamples(mSamples.mPacketLost, pl, json, true, &periods);
-    samples.AddMember("pl", pl, json.GetAllocator());
-
-    rapidjson::Value rtt(rapidjson::kArrayType);
-    parseSamples(mSamples.mRoundTripTime, rtt, json, false);
-    samples.AddMember("rtt", rtt, json.GetAllocator());
-
-    rapidjson::Value txBwe(rapidjson::kArrayType);
-    parseSamples(mSamples.mOutGoingBitrate, txBwe, json, false);
-    samples.AddMember("txBwe", txBwe, json.GetAllocator());
-
-    rapidjson::Value rx(rapidjson::kArrayType);
-    parseSamples(mSamples.mBytesReceived, rx, json, true, &periods);
-    samples.AddMember("rx", rx, json.GetAllocator());
-
-    rapidjson::Value tx(rapidjson::kArrayType);
-    parseSamples(mSamples.mBytesSend, tx, json, true, &periods);
-    samples.AddMember("tx", tx, json.GetAllocator());
-
-    rapidjson::Value av(rapidjson::kArrayType);
-    parseSamples(mSamples.mAv, av, json, false);
-    samples.AddMember("av", av, json.GetAllocator());
-
-    rapidjson::Value nrxh(rapidjson::kArrayType);
-    parseSamples(mSamples.mNrxh, nrxh, json, false);
-    samples.AddMember("nrxh", nrxh, json.GetAllocator());
-
-    rapidjson::Value nrxl(rapidjson::kArrayType);
-    parseSamples(mSamples.mNrxl, nrxl, json, false);
-    samples.AddMember("nrxl", nrxl, json.GetAllocator());
-
-    rapidjson::Value nrxa(rapidjson::kArrayType);
-    parseSamples(mSamples.mNrxa, nrxa, json, false);
-    samples.AddMember("nrxa", nrxa, json.GetAllocator());
-
-    rapidjson::Value vtxfps(rapidjson::kArrayType);
-    parseSamples(mSamples.mVtxLowResfps, vtxfps, json, false);
-    samples.AddMember("vtxfps", vtxfps, json.GetAllocator());
-
-    rapidjson::Value vtxw(rapidjson::kArrayType);
-    parseSamples(mSamples.mVtxLowResw, vtxw, json, false);
-    samples.AddMember("vtxw", vtxw, json.GetAllocator());
-
-    rapidjson::Value vtxh(rapidjson::kArrayType);
-    parseSamples(mSamples.mVtxLowResh, vtxh, json, false);
-    samples.AddMember("vtxh", vtxh, json.GetAllocator());
-
-    json.AddMember("samples", samples, json.GetAllocator());
     json.AddMember("trsn", mTermCode, json.GetAllocator());
     json.AddMember("grp", static_cast<int>(mIsGroup), json.GetAllocator());
+    rapidjson::Value sfuHost(rapidjson::kStringType);
+    sfuHost.SetString(mSfuHost.c_str(), json.GetAllocator());
+    json.AddMember("sfu", sfuHost, json.GetAllocator());
+    json.AddMember("peers", mMaxPeers, json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -245,6 +263,7 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
         mStats->mSamples.mVtxLowResh.push_back(0);
         mStats->mSamples.mVtxLowResfps.push_back(0);
         mStats->mSamples.mVtxLowResw.push_back(0);
+        mStats->mSamples.mAudioJitter.push_back(0);
 
         if (mStats->mInitialTs == 0)
         {
@@ -271,6 +290,8 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
             {
                 std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
                 ts = it->timestamp_us();
+                std::string kind;
+                int32_t audioJitter;
                 for (const webrtc::RTCStatsMemberInterface* member : members)
                 {
                     if (strcmp(member->name(), "packetsLost") == 0)
@@ -278,6 +299,23 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                         packetLost = *member->cast_to<const webrtc::RTCStatsMember<int32_t>>();
                         mStats->mSamples.mPacketLost.back() = mStats->mSamples.mPacketLost.back() + packetLost;
                     }
+
+                    if (strcmp(member->name(), "jitter") == 0)
+                    {
+                        double value = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                        audioJitter = static_cast<int32_t>(round(value * 1000.0));
+                    }
+
+                    if (strcmp(member->name(), "kind") == 0)
+                    {
+                        kind = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
+                    }
+                }
+
+                // we only take care of lowest value higher than 0
+                if (kind == "audio" && (!mStats->mSamples.mAudioJitter.back() || (mStats->mSamples.mAudioJitter.back() > audioJitter && audioJitter > 0)))
+                {
+                    mStats->mSamples.mAudioJitter.back() = audioJitter;
                 }
             }
             else if (strcmp(it->type(), "outbound-rtp") == 0)

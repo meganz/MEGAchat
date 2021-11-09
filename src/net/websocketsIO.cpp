@@ -68,6 +68,7 @@ void WebsocketsClientImpl::wsProcessNextMsgCb()
     client->wsProcessNextMsgCb();
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
@@ -75,6 +76,7 @@ bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
                          sess.hostname.c_str(), sess.port);
     return client->wsSSLsessionUpdateCb(sess);
 }
+#endif
 
 WebsocketsClient::WebsocketsClient(bool writeBinary)
     : ctx(nullptr)
@@ -299,9 +301,9 @@ void DNScache::removeRecordsByShards(const std::set<int> &removeElements)
 
 void DNScache::loadFromDb()
 {
-    // retrieve min SFU shard from DB and update mCurrentShardForSfu
+    /* retrieve min SFU shard from DB and update mCurrentShardForSfu. updateCurrentShardForSfuFromDb
+     * returns false in case there are no records with a valid SFU shard (check isSfuValidShard()) */
     bool sfuShardUpdated = updateCurrentShardForSfuFromDb();
-
     SqliteStmt stmt(mDb, "select shard, url, ipv4, ipv6, sess_data from dns_cache");
     std::set<int> removeElements;
     while (stmt.step())
@@ -459,6 +461,7 @@ bool DNScache::isMatch(int shard, const std::string &ipv4, const std::string &ip
     return match;
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool DNScache::updateTlsSession(const CachedSession &sess)
 {
     // find the dns record that corresponds to this session
@@ -509,6 +512,7 @@ std::vector<CachedSession> DNScache::getTlsSessions()
 
     return sessions;
 }
+#endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
 bool DNScache::isSfuValidShard(int shard) const
 {
@@ -518,12 +522,11 @@ bool DNScache::isSfuValidShard(int shard) const
 
 int DNScache::calculateNextSfuShard()
 {
-    assert(mCurrentShardForSfu <= kSfuShardStart);
-    if (mCurrentShardForSfu <= kSfuShardEnd)
+    if (mCurrentShardForSfu > kSfuShardStart || mCurrentShardForSfu <= kSfuShardEnd)
     {
-        /* in case we have reached kSfuShardEnd, we need to reset mCurrentShardForSfu and remove
-         * the current record in cache for that shard value
-         */
+        /* in case we have reached kSfuShardEnd (or mCurrentShardForSfu > kSfuShardStart), we need
+         * to reset mCurrentShardForSfu and remove the current record in cache for that shard value */
+        assert(mCurrentShardForSfu <= kSfuShardStart); // this assert should never fail
         mCurrentShardForSfu = kSfuShardStart;
         removeRecord(mCurrentShardForSfu);
     }
@@ -532,17 +535,12 @@ int DNScache::calculateNextSfuShard()
 
 bool DNScache::updateCurrentShardForSfuFromDb()
 {
-    SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard >= ?");
+    mCurrentShardForSfu = kSfuShardStart; // reset default value
+    SqliteStmt stmt(mDb, "SELECT MIN(shard) FROM dns_cache WHERE shard <= ? AND shard > ?");
     stmt << kSfuShardStart << kSfuShardEnd;
     if (stmt.step() && !stmt.isNullColumn(0))
     {
-        if (!isSfuValidShard(stmt.intCol(0)))
-        {
-            DNSCACHE_LOG_ERROR("updateCurrentShardForSfuFromDb: invalid SFU shard: %d retrieved from DB", stmt.intCol(0));
-            assert(isSfuValidShard(stmt.intCol(0)));
-            return false;
-        }
-
+        assert(isSfuValidShard(stmt.intCol(0)));
         mCurrentShardForSfu = stmt.intCol(0);
         return true;
     }

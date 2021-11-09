@@ -226,11 +226,13 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     }
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool Client::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     // update the session's data in the DNS cache
     return mDnsCache.updateTlsSession(sess);
 }
+#endif
 
 std::string Config::toString() const
 {

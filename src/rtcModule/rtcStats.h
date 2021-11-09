@@ -17,6 +17,7 @@ public:
     std::vector<int32_t> mOutGoingBitrate;
     std::vector<int32_t> mBytesReceived;
     std::vector<int32_t> mBytesSend;
+    std::vector<int32_t> mAudioJitter;
     // Scalable video coding index
     std::vector<int32_t> mQ;
     // Audio video flags
@@ -54,13 +55,17 @@ public:
     uint64_t mTimeOffset = 0;
     // Duration of the call while we are participating (no call duration)
     uint64_t mDuration = 0;
+    // maximum number of peers (excluding yourself), seen throughout the call
+    uint8_t mMaxPeers = 0;
     StatSamples mSamples;
     int32_t mTermCode = 0;
     bool mIsGroup = false;
     int64_t mInitialTs = 0;
     std::string mDevice;
+    std::string mSfuHost;
 
 protected:
+    static constexpr int kUnassignedCid = -1; // default value for unassigned CID (still not JOINED to SFU)
     void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<float> *periods = nullptr);
 };
 
