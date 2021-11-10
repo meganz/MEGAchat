@@ -3751,6 +3751,7 @@ bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chati
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
                                                  MegaChatPeerList *peers, int a1Priv, bool create, bool publicChat, const char *title)
 {
+    std::string logMsg;
     MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
     bool chatroomExist = false;
     MegaChatHandle targetChatid = MEGACHAT_INVALID_HANDLE;
@@ -3779,6 +3780,8 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
                     delete chatToCheck;
                     chatroomExist = true;
                     targetChatid = chat->getChatId();
+                    unique_ptr<char[]> base64(::MegaApi::handleToBase64(targetChatid));
+                    logMsg.append("getGroupChatRoom: existing chat found, chatid: ").append(base64.get());
 
                     // --> Ensure we are connected to chatd for the chatroom
                     ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(targetChatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
@@ -3813,6 +3816,8 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         ASSERT_CHAT_TEST(targetChatid != MEGACHAT_INVALID_HANDLE, "Wrong chat id");
         ASSERT_CHAT_TEST(waitForResponse(chatItemPrimaryReceived), "Expired timeout for receiving the new chat list item");
 
+        unique_ptr<char[]> base64(::MegaApi::handleToBase64(targetChatid));
+        logMsg.append("getGroupChatRoom: new chat created, chatid: ").append(base64.get());
         // wait for login into chatd for the new groupchat
         while (megaChatApi[a1]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
         {
@@ -3853,6 +3858,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         }
     }
 
+    postLog(logMsg);
     return targetChatid;
 }
 
