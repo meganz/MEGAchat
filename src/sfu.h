@@ -442,7 +442,7 @@ protected:
     void wsHandleMsgCb(char *data, size_t len) override;
     void wsSendMsgCb(const char *, size_t) override;
     void wsProcessNextMsgCb() override;
-    // SfuConnection::wsSSLsessionUpdateCb no needed for the moment
+    bool wsSSLsessionUpdateCb(const CachedSession &sess) override;
     promise::Promise<void> mSendPromise;
 
     void onSocketClose(int errcode, int errtype, const std::string& reason);
