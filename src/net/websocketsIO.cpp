@@ -213,7 +213,6 @@ void DNScache::addRecord(int shard, const std::string &url, std::shared_ptr<Buff
     assert(!url.empty());
 
     auto ret = mRecords.emplace(std::make_pair(shard, DNSrecord(url))); // add record in DNS cache based on URL
-    assert(ret.second == true); // it should not exist yet
     DNSrecord &record = ret.first->second;
     if (shard >= 0) // only chatd needs to append the protocol version
     {

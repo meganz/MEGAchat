@@ -16,7 +16,7 @@ public:
     std::string path;
     bool isSecure;
     Url(const std::string& url) { parse(url); }
-    Url(const std::string& aHost, const std::string aProtocol)  // 'path' is left empty
+    Url(const std::string& aHost, const std::string& aProtocol)  // 'path' is left empty
         : protocol(aProtocol), host(aHost), port(getPortFromProtocol())
         , isSecure(protocol == "https" || protocol == "wss") {}
 
