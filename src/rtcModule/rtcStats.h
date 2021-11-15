@@ -65,6 +65,7 @@ public:
     std::string mSfuHost;
 
 protected:
+    static constexpr int kUnassignedCid = -1; // default value for unassigned CID (still not JOINED to SFU)
     void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<float> *periods = nullptr);
 };
 

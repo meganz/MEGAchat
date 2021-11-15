@@ -1105,13 +1105,14 @@ std::string Sdp::unCompressTrack(const Sdp::Track& track, const std::string &tpl
     return sdp;
 }
 
-SfuConnection::SfuConnection(const std::string &sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface &call)
+SfuConnection::SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface &call, DNScache& dnsCache)
     : WebsocketsClient(false)
-    , mSfuUrl(sfuUrl)
+    , mSfuUrl(std::move(sfuUrl))
     , mWebsocketIO(websocketIO)
     , mAppCtx(appCtx)
     , mCall(call)
     , mMainThreadId(std::this_thread::get_id())
+    , mDnsCache(dnsCache)
 {
     mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), mCall);
     mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), mCall);
@@ -1172,24 +1173,24 @@ void SfuConnection::disconnect(bool withoutReconnection)
     }
 }
 
-void SfuConnection::doConnect()
+void SfuConnection::doConnect(const std::string &ipv4, const std::string &ipv6)
 {
-    const karere::Url url(mSfuUrl);
-    assert (url.isValid());
-
-    std::string ipv4 = mIpsv4.size() ? mIpsv4[0] : "";
-    std::string ipv6 = mIpsv6.size() ? mIpsv6[0] : "";
+    assert (mSfuUrl.isValid());
+    if (ipv4.empty() && ipv6.empty())
+    {
+        SFU_LOG_ERROR("Trying to connect sfu (%s) using empty Ip's (ipv4 and ipv6)", mSfuUrl.host.c_str());
+        onSocketClose(0, 0, "sfu doConnect error, empty Ip's (ipv4 and ipv6)");
+    }
 
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
-
     setConnState(kConnecting);
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
 
     bool rt = wsConnect(&mWebsocketIO, mTargetIp.c_str(),
-          url.host.c_str(),
-          url.port,
-          url.path.c_str(),
-          url.isSecure);
+          mSfuUrl.host.c_str(),
+          mSfuUrl.port,
+          mSfuUrl.path.c_str(),
+          mSfuUrl.isSecure);
 
     if (!rt)    // immediate failure --> try the other IP family (if available)
     {
@@ -1212,10 +1213,10 @@ void SfuConnection::doConnect()
         {
             SFU_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
             if (wsConnect(&mWebsocketIO, mTargetIp.c_str(),
-                          url.host.c_str(),
-                          url.port,
-                          url.path.c_str(),
-                          url.isSecure))
+                          mSfuUrl.host.c_str(),
+                          mSfuUrl.port,
+                          mSfuUrl.path.c_str(),
+                          mSfuUrl.isSecure))
             {
                 return;
             }
@@ -1235,6 +1236,11 @@ void SfuConnection::doConnect()
 
 void SfuConnection::retryPendingConnection(bool disconnect)
 {
+    /* mSfuUrl must always be valid, however we could not find the host in DNS cache
+     * as in case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
+     * mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones
+     */
+    assert(mSfuUrl.isValid());
     if (mConnState == kConnNew)
     {
         SFU_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
@@ -1337,6 +1343,11 @@ void SfuConnection::checkThreadId()
         SFU_LOG_ERROR("Current thread id doesn't match with expected");
         assert(false);
     }
+}
+
+const karere::Url& SfuConnection::getSfuUrl()
+{
+    return mSfuUrl;
 }
 
 bool SfuConnection::handleIncomingData(const char* data, size_t len)
@@ -1753,6 +1764,7 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
     {
         SFU_LOG_DEBUG("Sfu connected to %s", mTargetIp.c_str());
 
+        mDnsCache.connectDoneByHost(mSfuUrl.host, mTargetIp);
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
@@ -1831,7 +1843,11 @@ promise::Promise<void> SfuConnection::reconnect()
         if (mConnState >= kResolving) //would be good to just log and return, but we have to return a promise
             return ::promise::Error(std::string("Already connecting/connected"));
 
-        if (mSfuUrl.empty())
+        /* mSfuUrl must always be valid, however we could not find the host in DNS cache
+         * as in case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
+         * mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones
+         */
+        if (!mSfuUrl.isValid())
             return ::promise::Error("SFU reconnect: Current URL is not valid");
 
         setConnState(kResolving);
@@ -1852,14 +1868,15 @@ promise::Promise<void> SfuConnection::reconnect()
             setConnState(kDisconnected);
             mConnectPromise = promise::Promise<void>();
 
-            karere::Url url(mSfuUrl);
+            std::string ipv4, ipv6;
+            bool cachedIpsByHost = mDnsCache.getIpByHost(mSfuUrl.host, ipv4, ipv6);
 
             setConnState(kResolving);
-            SFU_LOG_DEBUG("Resolving hostname %s...", url.host.c_str());
+            SFU_LOG_DEBUG("Resolving hostname %s...", mSfuUrl.host.c_str());
 
             auto retryCtrl = mRetryCtrl.get();
-            int statusDNS = wsResolveDNS(&mWebsocketIO, url.host.c_str(),
-                         [wptr, this, retryCtrl, attemptNo](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+            int statusDNS = wsResolveDNS(&mWebsocketIO, mSfuUrl.host.c_str(),
+                         [wptr, cachedIpsByHost, this, retryCtrl, attemptNo, ipv4, ipv6](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -1872,6 +1889,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     if (isOnline())
                     {
                         SFU_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                        assert(cachedIpsByHost);
                     }
                     else
                     {
@@ -1893,7 +1911,7 @@ promise::Promise<void> SfuConnection::reconnect()
 
                 if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
                 {
-                    if (isOnline())
+                    if (isOnline() && cachedIpsByHost)
                     {
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
                         SFU_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
@@ -1921,24 +1939,42 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
                 }
 
-                if (mIpsv4.empty() && mIpsv6.empty()) // connect required DNS lookup
+                if (!cachedIpsByHost) // connect required DNS lookup
                 {
-                    SFU_LOG_DEBUG("Hostname resolved by first time. Connecting...");
-                    mIpsv4 = ipsv4;
-                    mIpsv6 = ipsv6;
-                    doConnect();
+                    SFU_LOG_DEBUG("Hostname resolved and there was no previous cached Ip's for this host. Connecting...");
+                    mDnsCache.setSfuIp(mSfuUrl.host, ipsv4, ipsv6);
+                    const std::string &resolvedIpv4 = ipsv4.empty() ? "" : ipsv4.front();
+                    const std::string &resolvedIpv6 = ipsv6.empty() ? "" : ipsv6.front();
+                    doConnect(resolvedIpv4, resolvedIpv6);
                     return;
                 }
 
-                if (mIpsv4 == ipsv4 && mIpsv6 == ipsv6)
+                if (mDnsCache.isMatchByHost(mSfuUrl.host, ipsv4, ipsv6))
                 {
-                    SFU_LOG_DEBUG("DNS resolve matches cached IPs.");
+                    if (!ipv4.empty() && !ipsv4.empty() && !ipv6.empty() && !ipsv6.empty()
+                                     && std::find(ipsv4.begin(), ipsv4.end(), ipv4) == ipsv4.end()
+                                     && std::find(ipsv6.begin(), ipsv6.end(), ipv6) == ipsv6.end())
+                    {
+                       /* If there are multiple calls trying to reconnect in parallel against the same SFU server, and
+                        * IP's have been changed for that moment, first DNS resolution attempt that finishes,
+                        * will update IP's in cache (and will call onsocket close), but for the rest of calls,
+                        * when DNS resolution ends (with same IP's returned) returned IP's will already match in cache.
+                        *
+                        * In this case Ip's used for that reconnection attempt are outdated, so we need to force reconnect
+                        */
+                        SFU_LOG_WARNING("DNS resolve matches cached IPs, but Ip's used for this reconnection attempt are outdated. Forcing reconnect...");
+                        onSocketClose(0, 0, "Outdated Ip's. Forcing reconnect... (sfu)");
+                    }
+                    else
+                    {
+                        SFU_LOG_DEBUG("DNS resolve matches cached IPs, let current attempt finish.");
+                    }
                 }
                 else
                 {
+                    // update DNS cache
+                    mDnsCache.setSfuIp(mSfuUrl.host, ipsv4, ipsv6);
                     SFU_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
-                    mIpsv4 = ipsv4;
-                    mIpsv6 = ipsv6;
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (sfu)");
                 }
             });
@@ -1955,10 +1991,12 @@ promise::Promise<void> SfuConnection::reconnect()
                 // reject promise, so the RetryController starts a new attempt
                 mConnectPromise.reject(errStr, statusDNS, promise::kErrorTypeGeneric);
             }
-            else if (mIpsv4.size() || mIpsv6.size()) // if wsResolveDNS() failed immediately, very likely there's
+            else if (cachedIpsByHost) // if wsResolveDNS() failed immediately, very likely there's
             // no network connetion, so it's futile to attempt to connect
             {
-                doConnect();
+                // this connect attempt is made in parallel with DNS resolution, use cached IP's
+                SFU_LOG_DEBUG("Connection attempt (with Cached Ip's) in parallel to DNS resolution");
+                doConnect(ipv4, ipv6);
             }
 
             return mConnectPromise
@@ -2006,10 +2044,10 @@ SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryp
 
 }
 
-SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, const std::string &sfuUrl, SfuInterface &call)
+SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, karere::Url&& sfuUrl, SfuInterface &call, DNScache &dnsCache)
 {
     assert(mConnections.find(chatid) == mConnections.end());
-    mConnections[chatid] = mega::make_unique<SfuConnection>(sfuUrl, mWebsocketIO, mAppCtx, call);
+    mConnections[chatid] = mega::make_unique<SfuConnection>(std::move(sfuUrl), mWebsocketIO, mAppCtx, call, dnsCache);
     SfuConnection* sfuConnection = mConnections[chatid].get();
     sfuConnection->connect();
     return sfuConnection;

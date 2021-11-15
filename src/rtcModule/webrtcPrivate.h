@@ -357,17 +357,19 @@ public:
     void setState(CallState newState);
     static const char *stateToStr(CallState state);
 
-    void connectSfu(const std::string& sfuUrl);
+    bool connectSfu(const std::string& sfuUrlStr);
     void joinSfu();
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
     void disconnect(TermCode termCode, const std::string& msg = "");
-    void handleCallDisconnect();
+    void handleCallDisconnect(const TermCode &termCode);
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
+    std::string connectionTermCodeToString(const TermCode &termcode) const;
     bool isValidConnectionTermcode(TermCode termCode) const;
+    void sendStats(const TermCode& termCode);
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
@@ -434,7 +436,6 @@ protected:
     TermCode mTermCode = kInvalidTermCode;
     uint8_t mEndCallReason = kInvalidReason;
 
-    std::string mSfuUrl;
     CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;
@@ -464,7 +465,6 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
-
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey(bool reset = false);
     // associate slots with their corresponding sessions (video)
@@ -476,6 +476,7 @@ protected:
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
     void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes);
+    void initStatsValues();
     void enableStats();
     void disableStats();
     void adjustSvcByStats();
@@ -488,7 +489,7 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, CallHandler& callhandler);
+    RtcModuleSfu(MyMegaApi& megaApi, CallHandler& callhandler, DNScache &dnsCache);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
@@ -505,6 +506,7 @@ public:
     unsigned int getNumCalls() override;
     const std::string& getVideoDeviceSelected() const override;
     sfu::SfuClient& getSfuClient() override;
+    DNScache& getDnsCache() override;
 
     void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
 
@@ -526,6 +528,7 @@ private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
     CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
+    DNScache &mDnsCache;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
     std::string mVideoDeviceSelected;
     rtc::scoped_refptr<artc::VideoManager> mVideoDevice;

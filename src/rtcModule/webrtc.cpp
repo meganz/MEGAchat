@@ -144,7 +144,7 @@ void Call::onDisconnectFromChatd()
 {
     if (participate())
     {
-        handleCallDisconnect();
+        handleCallDisconnect(TermCode::kSigDisconn);
         setState(CallState::kStateConnecting);
         mSfuConnection->disconnect(true);
     }
@@ -224,11 +224,17 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
         if (wptr.deleted())
             return promise::Error("Join call succeed, but call has already ended");
 
-        std::string sfuUrl = result->getText();
-        connectSfu(sfuUrl);
-
+        std::string sfuUrlStr = result->getText();
         mIsJoining = false;
-        return promise::_Void();
+
+        if (!connectSfu(sfuUrlStr))
+        {
+           return promise::Error("connectSfu error, invalid or empty sfu URL");
+        }
+        else
+        {
+           return promise::_Void();
+        }
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -746,22 +752,38 @@ Session* Call::getSession(Cid_t cid)
         : nullptr;
 }
 
-void Call::connectSfu(const std::string& sfuUrl)
+bool Call::connectSfu(const std::string& sfuUrlStr)
 {
-    if (sfuUrl.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
+    if (sfuUrlStr.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
     {
         RTCM_LOG_ERROR("trying to connect to SFU with an Empty URL");
         assert(false);
-        return;
+        return false;
     }
 
-    mSfuUrl = sfuUrl;
+    karere::Url sfuUrl(sfuUrlStr);
+    if (!sfuUrl.isValid())
+    {
+        RTCM_LOG_ERROR("trying to connect to SFU with an Empty Host");
+        assert(sfuUrl.isValid());
+        return false;
+    }
+
     setState(CallState::kStateConnecting);
-    mSfuConnection = mSfuClient.createSfuConnection(mChatid, mSfuUrl, *this);
+    if (!mRtc.getDnsCache().getRecordByHost(sfuUrl.host) && !mRtc.getDnsCache().addSfuRecord(sfuUrl.host))
+    {
+        RTCM_LOG_ERROR("connectSfu: can't retrieve nor add SFU record");
+        assert(mRtc.getDnsCache().getRecordByHost(sfuUrl.host));
+        return false;
+    }
+
+    mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
+    return true;
 }
 
 void Call::joinSfu()
 {
+    initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this);
     size_t hiresTrackIndex = 0;
     createTransceivers(hiresTrackIndex);
@@ -889,14 +911,18 @@ void Call::getLocalStreams()
     }
 }
 
-void Call::handleCallDisconnect()
+void Call::handleCallDisconnect(const TermCode& termCode)
 {
+    RTCM_LOG_DEBUG("handle call disconnect with termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     if (mRtcConn)
     {
         mRtcConn->Close();
         mRtcConn = nullptr;
     }
-
+    if (mSfuConnection->isOnline())
+    {
+        sendStats(termCode);
+    }
     disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
@@ -924,24 +950,48 @@ std::string Call::endCallReasonToString(const EndCallReason &reason) const
     }
 }
 
+std::string Call::connectionTermCodeToString(const TermCode &termcode) const
+{
+    switch (termcode)
+    {
+        case kUserHangup:               return "normal user hangup";
+        case kTooManyParticipants:      return "there are too many participants";
+        case kLeavingRoom:              return "user has been removed from chatroom";
+        case kRtcDisconn:               return "SFU connection failed";
+        case kSigDisconn:               return "chatd connection failed";
+        case kSvrShuttingDown:          return "SFU server is shutting down";
+        case kErrSignaling:             return "signalling error";
+        case kErrNoCall:                return "attempted to join non-existing call";
+        case kErrAuth:                  return "authentication error";
+        case kErrApiTimeout:            return "ping timeout between SFU and API";
+        case kErrSdp:                   return "error generating or setting SDP description";
+        case kErrGeneral:               return "general error";
+        case kUnKnownTermCode:          return "unknown error";
+        default:                        return "invalid connection termcode";
+    }
+}
+
 bool Call::isValidConnectionTermcode(TermCode termCode) const
 {
     return termCode >= kUserHangup && termCode <= kFlagMaxValid;
 }
 
-void Call::disconnect(TermCode termCode, const std::string &msg)
+void Call::sendStats(const TermCode& termCode)
 {
     assert(isValidConnectionTermcode(termCode));
-    if ( mStats.mSamples.mT.size() > 2)
-    {
-        mStats.mMaxPeers = mMaxPeers;
-        mStats.mTermCode = static_cast<int32_t>(termCode);
-        mStats.mDuration = (time(nullptr) - mInitialTs) * 1000;  // ms
-        mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
-    }
-
-    RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
+    mStats.mDuration = mInitialTs
+            ? static_cast<uint64_t>((time(nullptr) - mInitialTs) * 1000)  // ms
+            : 0; // in case we have not joined SFU yet, send duration = 0
+    mStats.mMaxPeers = mMaxPeers;
+    mStats.mTermCode = static_cast<int32_t>(termCode);
+    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    RTCM_LOG_DEBUG("Clear local SFU stats");
     mStats.clear();
+}
+
+void Call::disconnect(TermCode termCode, const std::string &msg)
+{
+    RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
     if (getLocalAvFlags().videoCam())
     {
         releaseVideoDevice();
@@ -952,7 +1002,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg)
         session.second->disableAudioSlot();
     }
 
-    handleCallDisconnect();
+    handleCallDisconnect(termCode);
 
     // termcode is only valid at state kStateTerminatingUserParticipation
     mTermCode = termCode;
@@ -1478,6 +1528,12 @@ void Call::onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> /*rece
 void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState)
 {
     RTCM_LOG_DEBUG("onConnectionChange newstate: %d", newState);
+    if (!mSfuConnection)
+    {
+        RTCM_LOG_WARNING("onConnectionChange: mSfuConnection no longer exists");
+        return;
+    }
+
     if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
         || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
     {
@@ -1486,7 +1542,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
             if (mState == CallState::kStateInProgress
                     && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
             {
-                handleCallDisconnect();
+                handleCallDisconnect(TermCode::kRtcDisconn);
             }
 
             setState(CallState::kStateConnecting);
@@ -1816,16 +1872,19 @@ void Call::collectNonRTCStats()
     mStats.mSamples.mAv.push_back(getLocalAvFlags().value());
 }
 
-void Call::enableStats()
+void Call::initStatsValues()
 {
     mStats.mPeerId = mMyPeer->getPeerid();
-    mStats.mCid = mMyPeer->getCid();
     mStats.mCallid = mCallid;
-    mStats.mTimeOffset = mOffset;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
-    mStats.mSfuHost = karere::Url(mSfuUrl).host;
+    mStats.mSfuHost = mSfuConnection->getSfuUrl().host;
+}
 
+void Call::enableStats()
+{
+    mStats.mCid = mMyPeer->getCid();
+    mStats.mTimeOffset = mOffset;
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
     {
@@ -2037,9 +2096,10 @@ void Call::updateAudioTracks()
     }
 }
 
-RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler)
+RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache)
     : mCallHandler(callhandler)
     , mMegaApi(megaApi)
+    , mDnsCache(dnsCache)
 {
 }
 
@@ -2145,27 +2205,40 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
     return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
-    .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result)
+    .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result) -> promise::Promise<void>
     {
-        wptr.throwIfDeleted();
+        if (wptr.deleted())
+        {
+            return promise::Error("call started successfully, but RtcModuleSfu instance was removed");
+        }
+
         std::shared_ptr<std::string> sharedUnifiedKey = !auxCallKey.empty()
                 ? std::make_shared<std::string>(auxCallKey)
                 : nullptr;
 
         karere::Id callid = result->getParentHandle();
-        std::string sfuUrl = result->getText();
+        std::string sfuUrlStr = result->getText();
+        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
         if (mCalls.find(callid) == mCalls.end()) // it can be created by JOINEDCALL command
         {
             std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
             karere::Id myUserHandle(userHandle.get());
             mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
-            mCalls[callid]->connectSfu(sfuUrl);
+
+            if (!mCalls[callid]->connectSfu(sfuUrlStr))
+            {
+               return promise::Error("connectSfu error, invalid or empty URL");
+            }
         }
-        mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
+        return promise::_Void();
     })
     .fail([wptr, this, chatid](const ::promise::Error& err)
     {
-        wptr.throwIfDeleted();
+        if (wptr.deleted())
+        {
+            return err;
+        }
+
         mCallStartAttempts.erase(chatid); // remove chatid from CallsAttempts
         return err;
     });
@@ -2228,6 +2301,11 @@ const std::string& RtcModuleSfu::getVideoDeviceSelected() const
 sfu::SfuClient& RtcModuleSfu::getSfuClient()
 {
     return (*mSfuClient.get());
+}
+
+DNScache& RtcModuleSfu::getDnsCache()
+{
+    return mDnsCache;
 }
 
 void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode)
@@ -2429,10 +2507,9 @@ std::string RtcModuleSfu::getDeviceInfo() const
     return deviceType + ":" + version;
 }
 
-
-RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler)
+RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler, DNScache &dnsCache)
 {
-    return new RtcModuleSfu(megaApi, callHandler);
+    return new RtcModuleSfu(megaApi, callHandler, dnsCache);
 }
 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
