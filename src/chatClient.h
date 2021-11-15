@@ -1071,7 +1071,6 @@ public:
 
     /**
      * @brief Retry pending connections to chatd and presenced
-     * @return A promise to track the result of the action.
      */
     void retryPendingConnections(bool disconnect, bool refreshURL = false);
 
