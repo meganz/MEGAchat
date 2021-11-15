@@ -211,8 +211,9 @@ void DNScache::addRecord(int shard, const std::string &url, std::shared_ptr<Buff
     }
 
     assert(!url.empty());
-    DNSrecord record;
-    record.mUrl.parse(url);
+
+    auto ret = mRecords.emplace(std::make_pair(shard, DNSrecord(url))); // add record in DNS cache based on URL
+    DNSrecord &record = ret.first->second;
     if (shard >= 0) // only chatd needs to append the protocol version
     {
         record.mUrl.path.append("/").append(std::to_string(mChatdVersion));
@@ -221,7 +222,6 @@ void DNScache::addRecord(int shard, const std::string &url, std::shared_ptr<Buff
     {
         record.tlsBlob = sess;
     }
-    mRecords[shard] = record;
 
     if (saveToDb)
     {
@@ -237,10 +237,15 @@ void DNScache::removeRecord(int shard)
 
 void DNScache::updateRecord(int shard, const std::string &url, bool saveToDb)
 {
-    assert(hasRecord(shard));   // The record for this shard should already exist
+    if (!hasRecord(shard))
+    {
+        assert(hasRecord(shard));   // The record for this shard should already exist
+        WEBSOCKETS_LOG_ERROR("The record for shard %d should already exist. Adding new one", shard);
+        addRecord(shard, url);
+    }
     assert(!url.empty());
 
-    DNSrecord &record = mRecords[shard];
+    DNSrecord &record = mRecords.at(shard);
     record.mUrl.parse(url);
     if (shard >= 0) // only chatd needs to append the protocol version
     {
@@ -620,8 +625,7 @@ bool DNScache::addRecordByHost(const std::string &host, std::shared_ptr<Buffer> 
         return false;
     }
 
-    DNSrecord record(host, sess); // add record in DNS cache based on host instead full URL
-    mRecords[shard] = record;
+    mRecords.emplace(std::make_pair(shard, DNSrecord(host,sess)));    // add record in DNS cache based on host instead full URL
     if (saveToDb)
     {
         mDb.query("insert or replace into dns_cache(shard, url) values(?,?)", shard, host);

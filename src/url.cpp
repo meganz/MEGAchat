@@ -24,8 +24,7 @@ void Url::parse(const std::string& url)
         ss = 0;
         protocol = "http";
     }
-    char last = protocol[protocol.size()-1];
-    isSecure = (last == 's');
+    isSecure = (protocol == "https") || (protocol == "wss");
 
     size_t i = ss;
     for (; i<url.size(); i++)
