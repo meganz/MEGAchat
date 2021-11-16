@@ -16,8 +16,13 @@ public:
     std::string path;
     bool isSecure;
     Url(const std::string& url) { parse(url); }
-    Url(): port(0), isSecure(false) {}
+    Url(const std::string& aHost, const std::string& aProtocol)  // 'path' is left empty
+        : protocol(aProtocol), host(aHost), port(getPortFromProtocol())
+        , isSecure(protocol == "https" || protocol == "wss") {}
+
+    // initializes all members: protocol, host, port, path, isSecure
     void parse(const std::string& url);
+
     bool isValid() const { return !host.empty(); }
     bool operator!=(const Url& url) const;
 };
