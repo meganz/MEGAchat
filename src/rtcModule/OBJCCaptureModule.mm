@@ -17,10 +17,9 @@ namespace artc
         
         mCaptureDevice = nil;
         
-        AVCaptureDeviceDiscoverySession *captureDeviceDiscoverySession = [AVCaptureDeviceDiscoverySession
-                                                                          discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera]
-                                                                          mediaType:AVMediaTypeVideo
-                                                                          position:AVCaptureDevicePositionUnspecified];
+        AVCaptureDeviceDiscoverySession *captureDeviceDiscoverySession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera]
+                                                                                                                                mediaType:AVMediaTypeVideo
+                                                                                                                                 position:AVCaptureDevicePositionUnspecified];
         
         for (AVCaptureDevice *captureDevice in captureDeviceDiscoverySession.devices)
         {
@@ -67,10 +66,9 @@ namespace artc
     {
         std::set<std::pair<std::string, std::string>> devices;
         
-        AVCaptureDeviceDiscoverySession *captureDeviceDiscoverySession = [AVCaptureDeviceDiscoverySession
-                                                                          discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera]
-                                                                          mediaType:AVMediaTypeVideo
-                                                                          position:AVCaptureDevicePositionUnspecified];
+        AVCaptureDeviceDiscoverySession *captureDeviceDiscoverySession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera]
+                                                                                                                                mediaType:AVMediaTypeVideo
+                                                                                                                                 position:AVCaptureDevicePositionUnspecified];
         
         for (AVCaptureDevice *captureDevice in captureDeviceDiscoverySession.devices)
         {
