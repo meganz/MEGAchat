@@ -428,7 +428,7 @@ void MegaChatApiTest::TearDown()
                 {
                     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
                     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-                    chatToSkip = getGroupChatRoom(i, a2, peers, MegaChatPeerList::PRIV_MODERATOR, false);
+                    chatToSkip = getGroupChatRoom(i, a2, peers, MegaChatPeerList::PRIV_UNKNOWN, false);
                     delete peers;
                     peers = NULL;
                 }
