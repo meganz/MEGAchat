@@ -16,7 +16,12 @@ namespace artc
         }
         
         mCaptureDevice = nil;
-        for (AVCaptureDevice *captureDevice in AVCaptureDevice.devices)
+        
+        AVCaptureDeviceDiscoverySession *captureDeviceDiscoverySession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera]
+                                                                                                                                mediaType:AVMediaTypeVideo
+                                                                                                                                 position:AVCaptureDevicePositionUnspecified];
+        
+        for (AVCaptureDevice *captureDevice in captureDeviceDiscoverySession.devices)
         {
             if ([captureDevice.localizedName isEqualToString:[NSString stringWithUTF8String:deviceName.c_str()]])
             {
@@ -60,13 +65,15 @@ namespace artc
     std::set<std::pair<std::string, std::string>> OBJCCaptureModule::getVideoDevices()
     {
         std::set<std::pair<std::string, std::string>> devices;
-        for (AVCaptureDevice *captureDevice in AVCaptureDevice.devices)
+        
+        AVCaptureDeviceDiscoverySession *captureDeviceDiscoverySession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera]
+                                                                                                                                mediaType:AVMediaTypeVideo
+                                                                                                                                 position:AVCaptureDevicePositionUnspecified];
+        
+        for (AVCaptureDevice *captureDevice in captureDeviceDiscoverySession.devices)
         {
-            if ([captureDevice hasMediaType:AVMediaTypeVideo])
-            {
-                std::string deviceName = captureDevice.localizedName.UTF8String;
-                devices.insert(std::pair<std::string, std::string>(deviceName, deviceName));
-            }
+            std::string deviceName = captureDevice.localizedName.UTF8String;
+            devices.insert(std::pair<std::string, std::string>(deviceName, deviceName));
         }
         
         return devices;
