@@ -2369,6 +2369,7 @@ public class MegaChatApiJava {
      * @param nodes Array of nodes that the user want to attach
      * @param listener MegaChatRequestListener to track this request
      */
+    @Deprecated
     public void attachNodes(long chatid, MegaNodeList nodes, MegaChatRequestListenerInterface listener){
         megaChatApi.attachNodes(chatid, nodes, createDelegateRequestListener(listener));
     }
@@ -2468,6 +2469,7 @@ public class MegaChatApiJava {
      * @param nodeHandle MegaChatHandle that identifies the node to revoke access to
      * @param listener MegaChatRequestListener to track this request
      */
+    @Deprecated
     public void revokeAttachment(long chatid, long nodeHandle, MegaChatRequestListenerInterface listener){
         megaChatApi.revokeAttachment(chatid, nodeHandle, createDelegateRequestListener(listener));
     }
@@ -2586,6 +2588,7 @@ public class MegaChatApiJava {
      *
      * @return True if the user has access to the node in this chat.
      */
+    @Deprecated
     public boolean isRevoked(long chatid, long nodeHandle){
         return megaChatApi.isRevoked(chatid, nodeHandle);
     }
