@@ -919,7 +919,7 @@ void Call::handleCallDisconnect(const TermCode& termCode)
         mRtcConn->Close();
         mRtcConn = nullptr;
     }
-    if (mSfuConnection->isOnline())
+    if (mSfuConnection && mSfuConnection->isOnline())
     {
         sendStats(termCode);
     }
