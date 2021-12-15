@@ -24,11 +24,6 @@ Before compile, you need to modify the file `./buildtools/third_party/libc++/tru
  #endif
 ```
 
-and apply patch in webrtc source directory
-```
-git apply ${MEGA_SDK_PATH}/patches/webRtcPatch.patch
-```
-
 Now, you are ready to start building the library. We recommend to compile every architecture in different console in order to reset the environment variable `LD_LIBRARY_PATH`, and always use absolute paths.
 
 ### Arm 32 ###
