@@ -369,6 +369,7 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_SPEAK_RQ;
     static const std::string CSFU_SPEAK_RQ_DEL;
     static const std::string CSFU_SPEAK_DEL;
+    static const std::string CSFU_BYE;
 
 public:
     enum ConnState
@@ -411,6 +412,7 @@ public:
     bool sendSpeakReq(Cid_t cid = 0);
     bool sendSpeakReqDel(Cid_t cid = 0);
     bool sendSpeakDel(Cid_t cid = 0);
+    bool sendBye(int termCode);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
