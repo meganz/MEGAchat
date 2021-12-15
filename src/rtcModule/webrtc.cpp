@@ -921,6 +921,7 @@ void Call::handleCallDisconnect(const TermCode& termCode)
     }
     if (mSfuConnection->isOnline())
     {
+        mSfuConnection->sendBye(termCode);
         sendStats(termCode);
     }
     disableStats();
