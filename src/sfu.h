@@ -157,6 +157,7 @@ public:
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
     virtual bool handlePeerLeft(Cid_t cid) = 0;
     virtual void onSfuConnected() = 0;
+    virtual void onSfuDisconnected() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;

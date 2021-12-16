@@ -1827,7 +1827,7 @@ bool SfuConnection::wsSSLsessionUpdateCb(const CachedSession &sess)
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
 {
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
-
+    mCall.onSfuDisconnected();
     auto oldState = mConnState;
     setConnState(kDisconnected);
 

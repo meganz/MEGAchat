@@ -5322,6 +5322,10 @@ void MockupCall::onSfuConnected()
 
 }
 
+void MockupCall::onSfuDisconnected()
+{
+
+}
 bool MockupCall::error(unsigned int, const string &)
 {
     return true;
