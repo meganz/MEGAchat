@@ -967,6 +967,8 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kErrApiTimeout:            return "ping timeout between SFU and API";
         case kErrSdp:                   return "error generating or setting SDP description";
         case kErrGeneral:               return "general error";
+        case kChatDisconn:              return "chatd connection is broken";
+        case kApiEndCall:               return "API/chatd ended call";
         case kUnKnownTermCode:          return "unknown error";
         default:                        return "invalid connection termcode";
     }
