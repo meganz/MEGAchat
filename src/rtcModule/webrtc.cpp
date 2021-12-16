@@ -144,7 +144,7 @@ void Call::onDisconnectFromChatd()
 {
     if (participate())
     {
-        handleCallDisconnect(TermCode::kSigDisconn);
+        handleCallDisconnect(TermCode::kChatDisconn);
         setState(CallState::kStateConnecting);
         mSfuConnection->disconnect(true);
     }
