@@ -35,7 +35,7 @@ enum TermCode: uint8_t
     //==============================================================================================
 
     kRtcDisconn                 = kFlagDisconn | 0,     // 64 < SFU connection failed
-    kSigDisconn                 = kFlagDisconn | 1,     // 65 < chatd connection failed
+    kSigDisconn                 = kFlagDisconn | 1,     // 65 < socket error on the signalling connection
     kSvrShuttingDown            = kFlagDisconn | 2,     // 66 < SFU server is shutting down
     kChatDisconn                = kFlagDisconn | 3,     // 67 < chatd connection is broken
     //==============================================================================================
