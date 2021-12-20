@@ -117,13 +117,13 @@ private:
         ::mega::m_time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
         ::mega::m_time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
         std::shared_ptr<Buffer> tlsBlob; // tls session data
-        DNSrecord() = default;
+
+        // ctor to use when URL is available (ie. chatd and presenced)
+        DNSrecord(const std::string &url) : mUrl(url) {}
+
+        // ctor to use when URL is not available, but hostname exclusively (only for SFU records -> protocol="wss")
         DNSrecord(const std::string &host, std::shared_ptr<Buffer> sess):
-            tlsBlob(sess && !sess->empty() ? sess : nullptr)
-        {
-            // no need to implement move ctr in Url class as all members are from primitive types
-            mUrl.host = host;
-        }
+            mUrl(host, "wss"), tlsBlob(sess && !sess->empty() ? sess : nullptr) {}
 
         bool isHostMatch(const std::string &host) const { return mUrl.host == host; }
     };
