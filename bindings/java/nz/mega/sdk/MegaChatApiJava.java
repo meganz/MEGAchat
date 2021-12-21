@@ -2339,42 +2339,6 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Sends a node or a group of nodes to the specified chatroom
-     *
-     * In contrast to other functions to send messages, such as
-     * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
-     * is asynchronous and does not return a MegaChatMessage directly. Instead, the
-     * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getNodeList - Returns the list of nodes
-     *
-     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
-     *
-     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
-     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
-     * At this point, the app should refresh the message identified by the temporal id and move it to
-     * the final position in the history, based on the reported index in the callback.
-     *
-     * If the message is rejected by the server, the message will keep its temporal id and will have its
-     * a message id set to MEGACHAT_INVALID_HANDLE.
-     *
-     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param nodes Array of nodes that the user want to attach
-     * @param listener MegaChatRequestListener to track this request
-     */
-    @Deprecated
-    public void attachNodes(long chatid, MegaNodeList nodes, MegaChatRequestListenerInterface listener){
-        megaChatApi.attachNodes(chatid, nodes, createDelegateRequestListener(listener));
-    }
-
-    /**
      * Share a geolocation in the specified chatroom
      *
      * The MegaChatMessage object returned by this function includes a message transaction id,
@@ -2436,42 +2400,6 @@ public class MegaChatApiJava {
      */
     public MegaChatMessage editGeolocation(long chatid, long msgid, float longitude, float latitude, String img) {
         return megaChatApi.editGeolocation(chatid, msgid, longitude, latitude, img);
-    }
-
-    /**
-     * Revoke the access to a node in the specified chatroom
-     *
-     * In contrast to other functions to send messages, such as
-     * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
-     * is asynchronous and does not return a MegaChatMessage directly. Instead, the
-     * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::geUserHandle - Returns the handle of the node
-     *
-     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
-     *
-     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
-     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
-     * At this point, the app should refresh the message identified by the temporal id and move it to
-     * the final position in the history, based on the reported index in the callback.
-     *
-     * If the message is rejected by the server, the message will keep its temporal id and will have its
-     * a message id set to MEGACHAT_INVALID_HANDLE.
-     *
-     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param nodeHandle MegaChatHandle that identifies the node to revoke access to
-     * @param listener MegaChatRequestListener to track this request
-     */
-    @Deprecated
-    public void revokeAttachment(long chatid, long nodeHandle, MegaChatRequestListenerInterface listener){
-        megaChatApi.revokeAttachment(chatid, nodeHandle, createDelegateRequestListener(listener));
     }
 
     /**
@@ -2566,31 +2494,6 @@ public class MegaChatApiJava {
      */
     public MegaChatMessage revokeAttachmentMessage(long chatid, long msgid){
         return megaChatApi.revokeAttachmentMessage(chatid, msgid);
-    }
-
-    /** Returns whether the logged in user has been granted access to the node
-     *
-     * Access to attached nodes received in chatrooms is granted when the message
-     * is sent, but it can be revoked afterwards.
-     *
-     * This convenience method allows to check if you still have access to a node
-     * or it was revoked. Usually, apps will show the attachment differently when
-     * access has been revoked.
-     *
-     * @note The returned value will be valid only for nodes attached to messages
-     * already loaded in an opened chatroom. The list of revoked nodes is updated
-     * accordingly while the chatroom is open, based on new messages received.
-     *
-     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param nodeHandle MegaChatHandle that identifies the node to check its access
-     *
-     * @return True if the user has access to the node in this chat.
-     */
-    @Deprecated
-    public boolean isRevoked(long chatid, long nodeHandle){
-        return megaChatApi.isRevoked(chatid, nodeHandle);
     }
 
     /**
