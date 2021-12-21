@@ -4148,7 +4148,12 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
                 }
             }
 
-            if (contact->email() != user.getEmail())
+            bool contactEmailChanged = contact->email() != user.getEmail();
+            bool isItOurUser = client.myHandle() == user.getHandle();
+            bool clientEmailChanged = (isItOurUser
+                                        && (client.getMyEmail() != user.getEmail()
+                                            || client.getMyEmail() != contact->email()));
+            if (contactEmailChanged || clientEmailChanged)
             {
                 std::string newEmail;
                 const char *userEmail = user.getEmail();
@@ -4157,13 +4162,16 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
                     newEmail.assign(userEmail);
                 }
 
-                // Update contact email in memory and cache
-                contact->mEmail = newEmail;
-                client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
-
-                // If user it's our own user, we need to update our own email in client and cache
-                if (client.myHandle() == user.getHandle())
+                if (contactEmailChanged)
                 {
+                    // Update contact email in memory and cache
+                    contact->mEmail = newEmail;
+                    client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
+                }
+
+                if (isItOurUser)
+                {
+                // Update our own email in client and caches
                     client.setMyEmail(newEmail);
                     client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
                 }
