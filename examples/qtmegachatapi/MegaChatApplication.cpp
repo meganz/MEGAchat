@@ -286,6 +286,7 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
         {
             mMainWin->addOrUpdateContactControllersItems(userList);
             mMainWin->reorderAppContactList();
+            mMainWin->updateToolTipMyInfo();
         }
 
         // if notification settings have changed for our own user, update the value
