@@ -441,9 +441,10 @@ void Client::createDbSchema()
     db.simpleQuery(gDbSchema); //db.query() uses a prepared statement and will execute only the first statement up to the first semicolon
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
-    db.query("insert into vars(name, value) values('schema_version', ?)", ver); // not replaced by saveVarsValue encapsulation
-    db.commit();                                                                //because this is a direct INSERT, thus the
-}                                                                               //fallback is an ABORT not a REPLACE
+    // not replaced by saveVarsValue encapsulation because this is a direct INSERT, thus the fallback is an ABORT not a REPLACE
+    db.query("insert into vars(name, value) values('schema_version', ?)", ver);
+    db.commit();
+}
 
 int Client::importMessages(const char *externalDbPath)
 {
@@ -4171,7 +4172,7 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
 
                 if (isItOurUser)
                 {
-                // Update our own email in client and caches
+                    // Update our own email in client and caches
                     client.setMyEmail(newEmail);
                     client.saveVarsEmail(newEmail);
                 }
