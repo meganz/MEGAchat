@@ -18,19 +18,22 @@ public:
     LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
     virtual ~LibwebsocketsIO();
     
-    virtual void addevents(::mega::Waiter*, int);
-
+    void addevents(::mega::Waiter*, int) override;
+    
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool hasSessionCache() const override { return true; }
     void restoreSessions(std::vector<CachedSession> &&sessions) override;
+#endif
 
 protected:
-    virtual bool wsResolveDNS(const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f);
-    virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
+    bool wsResolveDNS(const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f) override;
+    WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
-                                           WebsocketsClient *client);
+                                           WebsocketsClient *client) override;
     int wsGetNoNameErrorCode() override;
 
 private:
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     // Note: While theoretically a LWS context can have multiple vhosts, it's a
     //       feature applicable to servers, and they need to be explicitly created.
     //       Implicitly, as in our case, only the default vhost will be created.
@@ -40,6 +43,7 @@ private:
     static const char constexpr *DEFAULT_VHOST = "default";
 
     static constexpr int TLS_SESSION_TIMEOUT = 180 * 24 * 3600; // ~6 months, in seconds
+#endif
 };
 
 class LibwebsocketsClient : public WebsocketsClientImpl
@@ -63,18 +67,21 @@ protected:
     size_t getOutputBufferLength();
     void resetOutputBuffer();
     
-    virtual bool wsSendMessage(char *msg, size_t len);
-    virtual void wsDisconnect(bool immediate);
-    virtual bool wsIsConnected();
+    bool wsSendMessage(char *msg, size_t len) override;
+    void wsDisconnect(bool immediate) override;
+    bool wsIsConnected() override;
     
 public:
     struct lws *wsi;
     static int wsCallback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *data, size_t len);
 
 private:
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     CachedSession mTlsSession;
+#endif
 };
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 class LwsCache
 {
 public:
@@ -85,5 +92,6 @@ private:
     static int dumpCb(lws_context *, lws_tls_session_dump *info);
     static int loadCb(lws_context *, lws_tls_session_dump *info);
 };
+#endif
 
 #endif /* libwebsocketsIO_h */

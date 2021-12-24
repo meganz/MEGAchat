@@ -226,11 +226,13 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     }
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool Client::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     // update the session's data in the DNS cache
     return mDnsCache.updateTlsSession(sess);
 }
+#endif
 
 std::string Config::toString() const
 {
@@ -490,9 +492,15 @@ Client::reconnect()
 
                 if (!mRetryCtrl)
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
-                    assert(isOnline());
-                    assert(cachedIPs);
+                    if (isOnline())
+                    {
+                        PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                        assert(cachedIPs);
+                    }
+                    else
+                    {
+                        PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection was aborted");
+                    }
                     return;
                 }
                 if (mRetryCtrl.get() != retryCtrl)

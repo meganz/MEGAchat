@@ -384,7 +384,7 @@ protected:
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
     encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const karere::SetOfIds &participants, chatd::KeyId localkeyid = CHATD_KEYID_UNCONFIRMED);
 
-    promise::Promise<std::string> encryptUnifiedKeyToUser(karere::Id user);
+    promise::Promise<std::string> encryptUnifiedKeyToUser(karere::Id user) override;
 
     void msgEncryptWithKey(const chatd::Message &src, chatd::MsgCommand& dest, const StaticBuffer& key);
 

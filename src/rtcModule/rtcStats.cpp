@@ -1,464 +1,390 @@
-#include "rtcStats.h"
-#include "webrtcPrivate.h"
-#include <timers.hpp>
-#include <string.h> //for memset
-#include <karereCommon.h> //for timestampMs()
-#include <chatClient.h>
-#include <mega/utils.h>
-#define RPTYPE(name) webrtc::StatsReport::kStatsReportType##name
-#define VALNAME(name) webrtc::StatsReport::kStatsValueName##name
+#include <rtcModule/rtcStats.h>
+#include <math.h>
+#include <webrtcAdapter.h>
 
-namespace rtcModule
-{
-using namespace artc;
-using namespace std::placeholders;
-using namespace karere;
-#if WIN32
-using ::mega::mega_snprintf;   // enables the calls to snprintf below which are #defined
-#endif
+#include <iostream>
 
-namespace stats
+namespace  rtcModule
 {
 
-StatSessInfo::StatSessInfo(karere::Id aSid, uint8_t termCode, const std::string& aErrInfo, const std::string& aDeviceInfo)
-:sid(aSid), errInfo(aErrInfo), deviceInfo(aDeviceInfo)
+void ConnStatsCallBack::removeStats()
 {
-    if (termCode & TermCode::kPeer)
-        mTermReason = std::string("peer-")+termCodeToStr(static_cast<TermCode>(termCode & ~TermCode::kPeer));
-    else
-        mTermReason = termCodeToStr(static_cast<TermCode>(termCode));
+    mStats = nullptr;
 }
 
-Recorder::Recorder(Session& sess, int scanPeriod, int maxSamplePeriod)
-    :mScanPeriod(scanPeriod * 1000), mMaxSamplePeriod(maxSamplePeriod * 1000),
-    mCurrSample(new Sample), mSession(sess), mStats(new RtcStats)
+void ConnStatsCallBack::AddRef() const
+{
+    mRefCount.IncRef();
+}
+
+rtc::RefCountReleaseStatus ConnStatsCallBack::Release() const
+{
+    const auto status = mRefCount.DecRef();
+    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
+    {
+        delete this;
+    }
+
+    return status;
+}
+
+std::string Stats::getJson()
+{
+    rapidjson::Document json(rapidjson::kObjectType);
+
+    rapidjson::Value userid(rapidjson::kStringType);
+    userid.SetString(mPeerId.toString().c_str(), json.GetAllocator());
+    json.AddMember("userid", userid, json.GetAllocator());
+    mCid // if we have not still joined SFU, send kUnassignedCid as CID in SFU stats
+        ? json.AddMember("cid", mCid, json.GetAllocator())
+        : json.AddMember("cid", kUnassignedCid, json.GetAllocator());
+    rapidjson::Value callid(rapidjson::kStringType);
+    callid.SetString(mCallid.toString().c_str(), json.GetAllocator());
+    json.AddMember("callid", callid, json.GetAllocator());
+    json.AddMember("toffs", mTimeOffset, json.GetAllocator());
+    json.AddMember("dur", mDuration, json.GetAllocator());
+    rapidjson::Value device(rapidjson::kStringType);
+    device.SetString(mDevice.c_str(), json.GetAllocator());
+    json.AddMember("ua", device, json.GetAllocator());
+
+    if (!mSamples.mT.empty())
+    {
+        rapidjson::Value samples(rapidjson::kObjectType);
+
+        std::vector<float> periods;
+        for (unsigned int i = 1; i < mSamples.mT.size(); i++)
+        {
+            periods.push_back(static_cast<float>(mSamples.mT[i] - mSamples.mT[i - 1])/1000.0);
+        }
+
+        rapidjson::Value t(rapidjson::kArrayType);
+        parseSamples(mSamples.mT, t, json, false);
+        samples.AddMember("t", t, json.GetAllocator());
+
+        rapidjson::Value q(rapidjson::kArrayType);
+        parseSamples(mSamples.mQ, q, json, false);
+        samples.AddMember("q", q, json.GetAllocator());
+
+        rapidjson::Value pl(rapidjson::kArrayType);
+        parseSamples(mSamples.mPacketLost, pl, json, true, &periods);
+        samples.AddMember("pl", pl, json.GetAllocator());
+
+        rapidjson::Value rtt(rapidjson::kArrayType);
+        parseSamples(mSamples.mRoundTripTime, rtt, json, false);
+        samples.AddMember("rtt", rtt, json.GetAllocator());
+
+        rapidjson::Value txBwe(rapidjson::kArrayType);
+        parseSamples(mSamples.mOutGoingBitrate, txBwe, json, false);
+        samples.AddMember("txBwe", txBwe, json.GetAllocator());
+
+        rapidjson::Value rx(rapidjson::kArrayType);
+        parseSamples(mSamples.mBytesReceived, rx, json, true, &periods);
+        samples.AddMember("rx", rx, json.GetAllocator());
+
+        rapidjson::Value tx(rapidjson::kArrayType);
+        parseSamples(mSamples.mBytesSend, tx, json, true, &periods);
+        samples.AddMember("tx", tx, json.GetAllocator());
+
+        rapidjson::Value av(rapidjson::kArrayType);
+        parseSamples(mSamples.mAv, av, json, false);
+        samples.AddMember("av", av, json.GetAllocator());
+
+        rapidjson::Value nrxh(rapidjson::kArrayType);
+        parseSamples(mSamples.mNrxh, nrxh, json, false);
+        samples.AddMember("nrxh", nrxh, json.GetAllocator());
+
+        rapidjson::Value nrxl(rapidjson::kArrayType);
+        parseSamples(mSamples.mNrxl, nrxl, json, false);
+        samples.AddMember("nrxl", nrxl, json.GetAllocator());
+
+        rapidjson::Value nrxa(rapidjson::kArrayType);
+        parseSamples(mSamples.mNrxa, nrxa, json, false);
+        samples.AddMember("nrxa", nrxa, json.GetAllocator());
+
+        rapidjson::Value vtxfps(rapidjson::kArrayType);
+        parseSamples(mSamples.mVtxHiResfps, vtxfps, json, false);
+        samples.AddMember("vtxfps", vtxfps, json.GetAllocator());
+
+        rapidjson::Value vtxw(rapidjson::kArrayType);
+        parseSamples(mSamples.mVtxHiResw, vtxw, json, false);
+        samples.AddMember("vtxw", vtxw, json.GetAllocator());
+
+        rapidjson::Value vtxh(rapidjson::kArrayType);
+        parseSamples(mSamples.mVtxHiResh, vtxh, json, false);
+        samples.AddMember("vtxh", vtxh, json.GetAllocator());
+
+        rapidjson::Value audioJitter(rapidjson::kArrayType);
+        parseSamples(mSamples.mAudioJitter, audioJitter, json, false);
+        samples.AddMember("jtr", audioJitter, json.GetAllocator());
+
+        json.AddMember("samples", samples, json.GetAllocator());
+    }
+
+    json.AddMember("trsn", mTermCode, json.GetAllocator());
+    json.AddMember("grp", static_cast<int>(mIsGroup), json.GetAllocator());
+    rapidjson::Value sfuHost(rapidjson::kStringType);
+    sfuHost.SetString(mSfuHost.c_str(), json.GetAllocator());
+    json.AddMember("sfu", sfuHost, json.GetAllocator());
+    json.AddMember("peers", mMaxPeers, json.GetAllocator());
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string jsonStats(buffer.GetString(), buffer.GetSize());
+    return jsonStats;
+}
+
+void Stats::clear()
+{
+    mPeerId = karere::Id::inval();
+    mCid = 0;
+    mCallid = karere::Id::inval();
+    mTimeOffset = 0;
+    mDuration = 0;
+    mSamples.mT.clear();
+    mSamples.mPacketLost.clear();
+    mSamples.mRoundTripTime.clear();
+    mSamples.mOutGoingBitrate.clear();
+    mSamples.mBytesReceived.clear();
+    mSamples.mBytesSend.clear();
+    mSamples.mQ.clear();
+    mSamples.mAv.clear();
+    mSamples.mNrxh.clear();
+    mSamples.mNrxl.clear();
+    mSamples.mNrxa.clear();
+    mSamples.mVtxLowResfps.clear();
+    mSamples.mVtxLowResw.clear();
+    mSamples.mVtxLowResh.clear();
+    mTermCode = 0;
+    mIsGroup = false;
+    mInitialTs = 0;
+    mDevice.clear();
+}
+
+void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &value, rapidjson::Document& json, bool diff, const std::vector<float> *periods)
+{
+    std::vector<int32_t> datas;
+    if (diff)
+    {
+        for (unsigned int i = 1; i < samples.size(); i++)
+        {
+            datas.push_back(samples[i] - samples[i - 1]);
+        }
+
+        datas.insert(datas.begin(), 0);
+    }
+    else
+    {
+        datas = samples;
+    }
+
+    if (datas.empty())
+    {
+        // Force to add empty brackets
+        value.PushBack(0, json.GetAllocator());
+        value.Erase(value.Begin());
+        return;
+    }
+
+    int32_t lastValue = datas[0];
+    unsigned int lastIndex = 0;
+    for (unsigned int i = 1; i < datas.size(); i++)
+    {
+        int32_t data = datas[i];
+
+        if (periods)
+        {
+            if (i < periods->size())
+            {
+                data = static_cast<int32_t>(static_cast<float>(data) / periods->at(i));
+            }
+            else
+            {
+                data = static_cast<int32_t>(static_cast<float>(data) / periods->back());
+            }
+        }
+
+        if (lastValue == data && i < (datas.size() - 1))
+        {
+            continue;
+        }
+
+        int numDuplicatedValues = i - lastIndex;
+        if (numDuplicatedValues < 2)
+        {
+            value.PushBack(lastValue, json.GetAllocator());
+        }
+        else
+        {
+            rapidjson::Value pair(rapidjson::kArrayType);
+            pair.PushBack(lastValue, json.GetAllocator());
+            pair.PushBack(numDuplicatedValues, json.GetAllocator());
+            value.PushBack(pair, json.GetAllocator());
+        }
+
+        lastIndex = i;
+        lastValue = datas[i];
+    }
+}
+
+ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lowResId)
+    : mStats(stats)
+    , mHiResId(hiResId)
+    , mLowResId(lowResId)
 {
     AddRef();
-    if (mScanPeriod < 0)
-        mScanPeriod = 1000;
-    if (mMaxSamplePeriod < 0)
-        mMaxSamplePeriod = 5000;
-    resetBwCalculators();
 }
 
-void Recorder::addSample()
+ConnStatsCallBack::~ConnStatsCallBack()
 {
-    Sample* sample = mCurrSample.release();
-    assert(sample);
-    mStats->mSamples.push_back(sample);
-    mCurrSample.reset(new Sample(*sample));
-    resetBwCalculators();
-}
-void Recorder::resetBwCalculators()
-{
-    mVideoRxBwCalc.reset(&(mCurrSample->vstats.r));
-    mVideoTxBwCalc.reset(&(mCurrSample->vstats.s));
-    mAudioRxBwCalc.reset(&(mCurrSample->astats.r));
-    mAudioTxBwCalc.reset(&(mCurrSample->astats.s));
+
 }
 
-int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
+void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport> &report)
 {
-    int64_t numericalValue = 0;
-
-#ifdef NDEBUG
-    static bool failTypeLog = true;
-    const webrtc::StatsReport::Value *value = item->FindValue(name);
-    if (value)
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, this, report]()
     {
-        webrtc::StatsReport::Value::Type type = value->type();
-
-#ifdef __ANDROID__
-// Avoid a crash with type mixture in Android
-        if (name == webrtc::StatsReport::StatsValueName::kStatsValueNameRtt
-            || name == webrtc::StatsReport::StatsValueName::kStatsValueNameBytesReceived
-            || name == webrtc::StatsReport::StatsValueName::kStatsValueNameBytesSent)
+        if (wptr.deleted() || !mStats)
         {
-            type = webrtc::StatsReport::Value::kInt64;
+            return;
         }
-#endif
 
-        if (type == webrtc::StatsReport::Value::kInt)
+        int64_t ts = 0;
+        uint32_t packetLost = 0;
+        mStats->mSamples.mRoundTripTime.push_back(0.0);
+        mStats->mSamples.mOutGoingBitrate.push_back(0.0);
+        mStats->mSamples.mBytesReceived.push_back(0);
+        mStats->mSamples.mBytesSend.push_back(0);
+        mStats->mSamples.mPacketLost.push_back(0);
+        mStats->mSamples.mVtxHiResh.push_back(0);
+        mStats->mSamples.mVtxHiResfps.push_back(0);
+        mStats->mSamples.mVtxHiResw.push_back(0);
+        mStats->mSamples.mVtxLowResh.push_back(0);
+        mStats->mSamples.mVtxLowResfps.push_back(0);
+        mStats->mSamples.mVtxLowResw.push_back(0);
+        mStats->mSamples.mAudioJitter.push_back(0);
+
+        if (mStats->mInitialTs == 0)
         {
-            numericalValue = value->int_val();
+            mStats->mInitialTs = report->timestamp_us();
         }
-        else if (type == webrtc::StatsReport::Value::kInt64)
+
+        mStats->mSamples.mT.push_back((report->timestamp_us() - mStats->mInitialTs)/ 1000);
+
+        for (auto it = report->begin(); it != report->end(); it++)
         {
-            numericalValue = value->int64_val();
-        }
-        else if (failTypeLog)
-        {
-            //This fail is almost always produced due to incompatibilities between webRtc
-            // in release mode and karere in debug mode. We only report once to avoid unnecessary log output
-            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), type);
-            failTypeLog = false;
-        }
-    }
-#endif
-
-    return numericalValue;
-}
-
-std::string Recorder::getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
-{
-    std::string stringValue;
-    const webrtc::StatsReport::Value *value = item->FindValue(name);
-    if (value)
-    {
-        stringValue = value->ToString();
-    }
-
-    return stringValue;
-}
-
-bool Recorder::checkShouldAddSample()
-{
-    if (mStats->mSamples.empty())
-    {
-        return true;
-    }
-
-    Sample *last = mStats->mSamples.back();
-
-    mCurrSample->astats.plDifference = mCurrSample->astats.r.pl - last->astats.r.pl;
-    if (mCurrSample->astats.plDifference)
-    {
-        return true;
-    }
-
-    if (mCurrSample->f != last->f)
-    {
-        return true;
-    }
-
-    if ((mCurrSample->ts - last->ts) >= mMaxSamplePeriod)
-    {
-        return true;
-    }
-
-    if (mCurrSample->vstats.r.width != last->vstats.r.width)
-    {
-        return true;
-    }
-
-    if (mCurrSample->vstats.s.width != last->vstats.s.width)
-    {
-        return true;
-    }
-
-    if (abs(mCurrSample->vstats.r.dly - last->vstats.r.dly) >= 100)
-    {
-        return true;
-    }
-
-    if (abs(mCurrSample->vstats.rtt - last->vstats.rtt) >= 50)
-    {
-        return true;
-    }
-
-    if (abs(mCurrSample->astats.rtt - last->astats.rtt) >= 50)
-    {
-        return true;
-    }
-
-    if (abs(mCurrSample->astats.r.jtr - last->astats.r.jtr) >= 40)
-    {
-        return true;
-    }
-
-    return false;
-}
-
-void Recorder::BwCalculator::calculate(uint64_t periodMs, uint64_t newTotalBytes)
-{
-    uint64_t deltaBytes = newTotalBytes - mBwInfo->bt;
-    mBwInfo->bps = (!periodMs) ? 0 : ((float)(deltaBytes) / 128.0) / (periodMs / 1000.0); //from bytes/s to kbits/s
-    mBwInfo->bt = newTotalBytes;
-    mBwInfo->abps = (mBwInfo->abps * 4 + mBwInfo->bps) / 5;
-}
-
-void Recorder::OnComplete(const webrtc::StatsReports& data)
-{
-    onStats(data);
-}
-
-#define AVG(name, var) var = round((float)var + getLongValue(VALNAME(name), item)) / 2
-
-void Recorder::onStats(const webrtc::StatsReports &data)
-{
-    long ts = karere::timestampMs() - mStats->mStartTs;
-    long period = ts - mCurrSample->ts;
-    mCurrSample->ts = ts;
-    mCurrSample->f = mSession.call().sentFlags().value();
-    for (const webrtc::StatsReport* item: data)
-    {
-        if (item->id()->type() == RPTYPE(Ssrc))
-        {
-            long width;
-            if (item->FindValue(VALNAME(FrameWidthReceived))) //video rx
+            if (strcmp(it->type(), "candidate-pair") == 0)
             {
-                width = getLongValue(VALNAME(FrameWidthReceived), item);
-                auto& sample = mCurrSample->vstats.r;
-                mVideoRxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
-                AVG(FrameRateReceived, sample.fps);
-                AVG(CurrentDelayMs, sample.dly);
-                AVG(JitterBufferMs, sample.jtr);
-                sample.pl = getLongValue(VALNAME(PacketsLost), item);
-//              vstat.fpsSent = res.stat('googFrameRateOutput'); -- this should be for screen output
-                sample.width = width;
-                sample.height = getLongValue(VALNAME(FrameHeightReceived), item);
-                sample.nacktx = getLongValue(VALNAME(NacksSent), item);
-                sample.plitx = getLongValue(VALNAME(PlisSent), item);
-                sample.firtx = getLongValue(VALNAME(FirsSent), item);
+                double rtt = 0.0;
+                double txBwe = 0.0;
+                int64_t bytesRecv = 0;
+                int64_t bytesSend = 0;
+                getConnStats(it, rtt, txBwe, bytesRecv, bytesSend);
+                mStats->mSamples.mRoundTripTime.back() += rtt;
+                mStats->mSamples.mOutGoingBitrate.back() += txBwe;
+                mStats->mSamples.mBytesReceived.back() += bytesRecv;
+                mStats->mSamples.mBytesSend.back() += bytesSend;
             }
-            else if (item->FindValue(VALNAME(FrameWidthSent))) //video tx
+            else if (strcmp(it->type(), "inbound-rtp") == 0)
             {
-                width = getLongValue(VALNAME(FrameWidthSent), item);
-                auto& sample = mCurrSample->vstats;
-                AVG(Rtt, sample.rtt);
-                AVG(FrameRateSent, sample.s.fps);
-                AVG(FrameRateInput, sample.s.cfps);
-                sample.s.width = width;
-                sample.s.height = getLongValue(VALNAME(FrameHeightSent), item);
-                if (mStats->mConnInfo.mVcodec.empty())
+                std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
+                ts = it->timestamp_us();
+                std::string kind;
+                int32_t audioJitter;
+                for (const webrtc::RTCStatsMemberInterface* member : members)
                 {
-                    mStats->mConnInfo.mVcodec = getStringValue(VALNAME(CodecName), item);
-                }
-//              s.et = stat('googAvgEncodeMs');
-                AVG(EncodeUsagePercent, sample.s.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
-                if (getStringValue(VALNAME(CpuLimitedResolution), item) == "true")
-                {
-                    mCurrSample->f |= STATFLAG_SEND_CPU_LIMITED_RESOLUTION;
-                }
-                if (getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true")
-                {
-                    mCurrSample->f |= STATFLAG_SEND_BANDWIDTH_LIMITED_RESOLUTION;
+                    if (strcmp(member->name(), "packetsLost") == 0)
+                    {
+                        packetLost = *member->cast_to<const webrtc::RTCStatsMember<int32_t>>();
+                        mStats->mSamples.mPacketLost.back() = mStats->mSamples.mPacketLost.back() + packetLost;
+                    }
+
+                    if (strcmp(member->name(), "jitter") == 0)
+                    {
+                        double value = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                        audioJitter = static_cast<int32_t>(round(value * 1000.0));
+                    }
+
+                    if (strcmp(member->name(), "kind") == 0)
+                    {
+                        kind = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
+                    }
                 }
 
-                mVideoTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
-            }
-            else if (item->FindValue(VALNAME(AudioInputLevel))) //audio rx
-            {
-                mAudioRxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
-                if (item->FindValue(VALNAME(Rtt)))
+                // we only take care of lowest value higher than 0
+                if (kind == "audio" && (!mStats->mSamples.mAudioJitter.back() || (mStats->mSamples.mAudioJitter.back() > audioJitter && audioJitter > 0)))
                 {
-                    AVG(Rtt, mCurrSample->astats.rtt);
+                    mStats->mSamples.mAudioJitter.back() = audioJitter;
                 }
             }
-            else if (item->FindValue(VALNAME(AudioOutputLevel))) //audio tx
+            else if (strcmp(it->type(), "outbound-rtp") == 0)
             {
-                mAudioTxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
-                AVG(JitterReceived, mCurrSample->astats.r.jtr);
-                mCurrSample->astats.r.pl = getLongValue(VALNAME(PacketsLost), item);
-                AVG(CurrentDelayMs, mCurrSample->astats.r.dly);
-                mCurrSample->astats.r.al = ((((float)getLongValue(VALNAME(AudioOutputLevel), item))/327.67) >= 10) ? 1 : 0;
+                uint32_t width = 0;
+                uint32_t height = 0;
+                double fps = 0;
+                uint32_t ssrc = 0;
+                for (const webrtc::RTCStatsMemberInterface* member : it->Members())
+                {
+                    if (strcmp(member->name(), "frameWidth") == 0)
+                    {
+                        width = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                    }
+                    else if (strcmp(member->name(), "frameHeight") == 0)
+                    {
+                        height = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                    }
+                    else if (strcmp(member->name(), "framesPerSecond") == 0)
+                    {
+                        fps = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                    }
+                    else if (strcmp(member->name(), "ssrc") == 0)
+                    {
+                        ssrc = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                    }
+                }
+
+                if (ssrc == mHiResId && mHiResId)
+                {
+                    mStats->mSamples.mVtxHiResh.back() = height;
+                    mStats->mSamples.mVtxHiResfps.back() = static_cast<int32_t>(fps);
+                    mStats->mSamples.mVtxHiResw.back() = width;
+                }
+                else if (ssrc == mLowResId && mLowResId)
+                {
+                    mStats->mSamples.mVtxLowResh.back() = height;
+                    mStats->mSamples.mVtxLowResfps.back() = static_cast<int32_t>(fps);
+                    mStats->mSamples.mVtxLowResw.back() = width;
+                }
             }
         }
-        else if ((item->id()->type() == RPTYPE(CandidatePair)) && (getStringValue(VALNAME(ActiveConnection), item) == "true"))
+    }, artc::gAppCtx);
+
+    Release();
+}
+
+void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double txBwe, int64_t& bytesRecv, int64_t& bytesSend)
+{
+    std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
+    for (const webrtc::RTCStatsMemberInterface* member : members)
+    {
+        if (strcmp(member->name(), "currentRoundTripTime") == 0)
         {
-            mStats->mConnInfo.mRly = (getStringValue(VALNAME(LocalCandidateType), item) == "relay");
-            if (mStats->mConnInfo.mRly)
-            {
-                mStats->mConnInfo.mRlySvr = getStringValue(VALNAME(LocalAddress), item);
-            }
-
-            mStats->mConnInfo.mRRly = (getStringValue(VALNAME(RemoteCandidateType), item) == "relay");
-            if (mStats->mConnInfo.mRRly)
-            {
-                mStats->mConnInfo.mRRlySvr = getStringValue(VALNAME(RemoteAddress), item);
-            }
-
-            mStats->mConnInfo.mCtype = getStringValue(VALNAME(RemoteCandidateType), item);
-            mStats->mConnInfo.mProto = getStringValue(VALNAME(TransportType), item);
-
-            auto& cstat = mCurrSample->cstats;
-            AVG(Rtt, cstat.rtt);
+            rtt = *member->cast_to<const webrtc::RTCStatsMember<double>>() * 1000;
         }
-        else if (item->id()->type() == RPTYPE(Bwe))
+        else if (strcmp(member->name(), "availableOutgoingBitrate") == 0)
         {
-            mCurrSample->vstats.r.bwav = round((float)getLongValue(VALNAME(AvailableReceiveBandwidth), item)/1024);
-            auto& sample = mCurrSample->vstats.s;
-            sample.bwav = round((float)getLongValue(VALNAME(AvailableSendBandwidth), item)/1024);
-            sample.gbps = round((float)getLongValue(VALNAME(TransmitBitrate), item)/1024); //chrome returns it in bits/s, should be near our calculated bps
-            sample.targetEncBitrate = round((float)getLongValue(VALNAME(TargetEncBitrate), item)/1024);
+            txBwe = round(static_cast<double>(*member->cast_to<const webrtc::RTCStatsMember<double>>()) / 128.0);
         }
-    } //end item loop
-
-
-    mCurrSample->lq = mSession.calculateNetworkQuality(mCurrSample.get());
-
-    bool shouldAddSample = checkShouldAddSample();
-    if (shouldAddSample)
-    {
-        addSample();
-    }
-
-    if (onSample)
-    {
-        if ((mStats->mSamples.size() == 1) && shouldAddSample) //first sample that we just added
-            onSample(&(mStats->mConnInfo), 0);
-        onSample(mCurrSample.get(), 1);
+        else if (strcmp(member->name(), "bytesReceived") == 0)
+        {
+           bytesRecv = *member->cast_to<const webrtc::RTCStatsMember<uint64_t>>() / 128;
+        }
+        else if (strcmp(member->name(), "bytesSent") == 0)
+        {
+            bytesSend = *member->cast_to<const webrtc::RTCStatsMember<uint64_t>>() / 128;
+        }
     }
 }
 
-webrtc::PeerConnectionInterface::StatsOutputLevel Recorder::getStatsLevel() const
-{
-    return mStatsLevel;
-}
-
-void Recorder::start()
-{
-    assert(mSession.mRtcConn);
-    mStats->mIsJoiner = !mSession.isCaller();
-    mStats->mCallId = mSession.call().id();
-    mStats->mSessionId = mSession.sessionId();
-    mStats->mOwnAnonId = mSession.call().manager().ownAnonId();
-    mStats->mPeerAnonId = mSession.peerAnonId();
-    mStats->mSper = mScanPeriod;
-    mStats->mStartTs = karere::timestampMs();
-    mStats->mIsGroupCall = mSession.call().chat().isGroup();
-}
-
-std::string Recorder::terminate(const StatSessInfo& info)
-{
-    mStats->mDur = karere::timestampMs() - mStats->mStartTs;
-    mStats->mTermRsn = info.mTermReason;
-    mStats->mDeviceInfo = info.deviceInfo;
-    mStats->mMaxIceDisconnectionTime = info.maxIceDisconnectionTime;
-    mStats->mIceDisconnections = info.iceDisconnections;
-    mStats->mPreviousSessionId = info.previousSessionId;
-    mStats->mReconnections = info.reconnections;
-    std::string json;
-    mStats->toJson(json);
-    return json;
-}
-
-Recorder::~Recorder()
-{
-}
-
-RtcStats::~RtcStats()
-{
-    for (unsigned int i = 0; i < mSamples.size(); i++)
-    {
-        delete mSamples[i];
-    }
-
-    mSamples.clear();
-}
-
-const char* decToString(float v)
-{
-    static char buf[128];
-    int integerPart = static_cast<int>(v);
-    int decimalPart = static_cast<int>(fabs((v - integerPart)) * 10.0);
-    snprintf(buf, 127, "%d.%d", integerPart, decimalPart);
-    return buf;
-}
-
-#define JSON_ADD_STR(name, val) json.append("\"" #name "\":\"").append(val)+="\",";
-#define JSON_ADD_INT(name, val) json.append("\"" #name "\":").append(std::to_string((long)val))+=',';
-#define JSON_ADD_DECNUM(name, val) json.append("\"" #name "\":").append(decToStr(val))+=',';
-
-#define JSON_SUBOBJ(name) json+="\"" name "\":{";
-#define JSON_END_SUBOBJ() json[json.size()-1]='}'; json+=','
-
-#define JSON_ADD_SAMPLES_WITH_CONV(path, name, conv)   \
-    json.append("\"" #name "\":[");    \
-    if (mSamples.empty())              \
-        json+=']';                     \
-    else                               \
-    {                                  \
-        for (auto sample: mSamples)    \
-            json.append(conv(sample->path name))+=","; \
-        json[json.size()-1]=']';       \
-    }\
-    json+=',';
-
-#define JSON_ADD_SAMPLES(path, name) JSON_ADD_SAMPLES_WITH_CONV(path, name, std::to_string)
-#define JSON_ADD_DEC_SAMPLES(path, name) JSON_ADD_SAMPLES_WITH_CONV(path, name, decToString)
-
-#define JSON_ADD_BWINFO(path)           \
-    JSON_ADD_SAMPLES(path., bt);        \
-    JSON_ADD_SAMPLES(path., bps);       \
-    JSON_ADD_SAMPLES(path., abps)
-
-void RtcStats::toJson(std::string& json) const
-{
-    json.reserve(10240);
-    json ="{";
-    JSON_ADD_STR(cid, mCallId.toString());
-    JSON_ADD_STR(sid, mSessionId.toString());
-    JSON_ADD_INT(ts, round((float)mStartTs/1000));
-    JSON_ADD_INT(dur, round((float)mDur/1000));
-    JSON_SUBOBJ("samples");
-        JSON_ADD_SAMPLES(, ts);
-        JSON_ADD_SAMPLES(, lq);
-        JSON_ADD_SAMPLES(, f);
-        JSON_SUBOBJ("v");
-            JSON_ADD_SAMPLES(vstats., rtt);
-            JSON_SUBOBJ("s");
-                JSON_ADD_BWINFO(vstats.s);
-                JSON_ADD_SAMPLES(vstats.s., fps);
-                JSON_ADD_SAMPLES(vstats.s., cfps);
-                JSON_ADD_SAMPLES(vstats.s., width);
-                JSON_ADD_SAMPLES(vstats.s., height);
-                JSON_ADD_DEC_SAMPLES(vstats.s., el);
-                JSON_ADD_SAMPLES(vstats.s., bwav);
-                JSON_ADD_SAMPLES(vstats.s., gbps);
-            JSON_END_SUBOBJ();
-            JSON_SUBOBJ("r");
-                JSON_ADD_BWINFO(vstats.r);
-                JSON_ADD_SAMPLES(vstats.r., pl);
-                JSON_ADD_SAMPLES(vstats.r., jtr);
-                JSON_ADD_SAMPLES(vstats.r., fps);
-                JSON_ADD_SAMPLES(vstats.r., dly);
-                JSON_ADD_SAMPLES(vstats.r., width);
-                JSON_ADD_SAMPLES(vstats.r., height);
-                JSON_ADD_SAMPLES(vstats.r., firtx);
-                JSON_ADD_SAMPLES(vstats.r., plitx);
-                JSON_ADD_SAMPLES(vstats.r., nacktx);
-            JSON_END_SUBOBJ(); //r
-        JSON_END_SUBOBJ(); //v
-        JSON_SUBOBJ("a");
-            JSON_ADD_SAMPLES(astats., rtt);
-            JSON_SUBOBJ("s");
-                JSON_ADD_BWINFO(astats.s);
-            JSON_END_SUBOBJ();
-            JSON_SUBOBJ("r");
-                JSON_ADD_BWINFO(astats.r);
-                JSON_ADD_SAMPLES(astats.r., jtr);
-                JSON_ADD_SAMPLES(astats.r., pl);
-                JSON_ADD_SAMPLES(astats.r., dly);
-                JSON_ADD_SAMPLES(astats.r., al);
-            JSON_END_SUBOBJ();
-        JSON_END_SUBOBJ(); //a
-    JSON_END_SUBOBJ(); //samples
-    JSON_ADD_STR(bws, mDeviceInfo);
-    JSON_ADD_INT(rly, mConnInfo.mRly);
-    JSON_ADD_INT(rrly, mConnInfo.mRRly);
-    JSON_ADD_STR(proto, mConnInfo.mProto);
-    JSON_ADD_INT(isJoiner, mIsJoiner);
-    JSON_ADD_STR(caid, mIsJoiner ? mOwnAnonId.toString() : mPeerAnonId.toString());
-    JSON_ADD_STR(aaid, mIsJoiner ? mPeerAnonId.toString() : mOwnAnonId.toString());
-    JSON_ADD_STR(termRsn, mTermRsn);
-    JSON_ADD_INT(grp, mIsGroupCall ? 1 : 0);
-    if (mIceDisconnections > 0)
-    {
-        JSON_SUBOBJ("hicc");
-        JSON_ADD_INT(cnt, mIceDisconnections);
-        JSON_ADD_INT(maxDur, mMaxIceDisconnectionTime);
-        JSON_END_SUBOBJ();
-    }
-
-    if (mReconnections > 0)
-    {
-        JSON_SUBOBJ("reconn");
-        JSON_ADD_INT(cnt, mReconnections);
-        JSON_ADD_STR(prevSid, mPreviousSessionId.toString());
-        JSON_END_SUBOBJ();
-    }
-    json[json.size()-1]='}'; //all
-}
-}
 }

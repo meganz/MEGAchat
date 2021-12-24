@@ -13,7 +13,9 @@
 #include "presenced.h"
 #include "IGui.h"
 #include <base/trackDelete.h>
+#ifndef KARERE_DISABLE_WEBRTC
 #include "rtcModule/webrtc.h"
+#endif
 #include "stringUtils.h"
 
 #ifdef _WIN32
@@ -107,6 +109,7 @@ public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
     virtual bool isMember(karere::Id peerid) const = 0;
+    virtual bool isMeeting() const { return false; }
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
@@ -204,18 +207,6 @@ public:
 
     /** @brief Returns the retention time of the chatroom */
     uint32_t getRetentionTime() const { return mChat->getRetentionTime();}
-
-#ifndef KARERE_DISABLE_WEBRTC
-    /** @brief Initiates a webrtc call in the chatroom
-     *  @param av Whether to initially send video and/or audio
-     */
-    virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
-
-    /** @brief Joins a webrtc call in the chatroom
-     *  @param av Whether to initially send video and/or audio
-     */
-    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler, Id callid);
-#endif
 
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
@@ -355,6 +346,7 @@ protected:
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
     bool mAutoJoining = false;
+    bool mMeeting = false;
 
     void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
@@ -386,13 +378,13 @@ protected:
     //Resume from cache
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
-                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
+                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting);
 
     //Load chatLink
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title,
-                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey);
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting);
 
     ~GroupChatRoom();
 
@@ -464,6 +456,8 @@ public:
     bool isMember(karere::Id peerid) const override;
 
     unsigned long numMembers() const override;
+
+    bool isMeeting() const override;
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -677,7 +671,8 @@ class InitStats
             kStatsLogin             = 1,
             kStatsFetchNodes        = 2,
             kStatsPostFetchNodes    = 3,
-            kStatsConnection        = 4
+            kStatsConnection        = 4,
+            kStatsCreateAccount     = 5
         };
 
 
@@ -893,7 +888,8 @@ public:
     std::unique_ptr<chatd::Client> mChatdClient;
 
 #ifndef KARERE_DISABLE_WEBRTC
-    std::unique_ptr<rtcModule::IRtcModule> rtc;
+    rtcModule::CallHandler& mCallHandler; // interface for global events in calls
+    std::unique_ptr<rtcModule::RtcModule> rtc;
 #endif
 
     char mMyPrivCu25519[32] = {0};
@@ -955,8 +951,11 @@ public:
      * inconsistent, karere will behave as if \c false was specified - will
      * delete the karere.db file and re-create it from scratch.
      */
-    Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& app, const std::string& appDir,
-           uint8_t caps, void *ctx = NULL);
+    Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
+#ifndef KARERE_DISABLE_WEBRTC
+           rtcModule::CallHandler& callHandler,
+#endif
+           const std::string &appDir, uint8_t caps, void *ctx);
 
     virtual ~Client();
 
@@ -1001,7 +1000,7 @@ public:
      * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
      * to avoid that openChatPreview creates the chat room
      */
-    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts);
+    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting);
 
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
@@ -1058,7 +1057,6 @@ public:
 
     /**
      * @brief Retry pending connections to chatd and presenced
-     * @return A promise to track the result of the action.
      */
     void retryPendingConnections(bool disconnect, bool refreshURL = false);
 
@@ -1102,7 +1100,7 @@ public:
      * the participants.
      */
     promise::Promise<karere::Id>
-    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title = NULL);
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, const char *title = NULL);
     void setCommitMode(bool commitEach);
     bool commitEach();
     void saveDb();  // forces a commit

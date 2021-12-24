@@ -159,8 +159,8 @@ void MegaChatApplication::onEphemeral()
     QString name = QInputDialog::getText(mLoginDialog, tr("Insert ephemeral account name"), tr("Name"));
     if (name.size())
     {
-        mMegaApi->createEphemeralAccountPlusPlus(name.toStdString().c_str(), name.toStdString().c_str());
         mMegaChatApi->init(nullptr);
+        mMegaApi->createEphemeralAccountPlusPlus(name.toStdString().c_str(), name.toStdString().c_str());
     }
 }
 
@@ -190,6 +190,7 @@ bool MegaChatApplication::initAnonymous(std::string chatlink)
     connect(mMainWin, SIGNAL(onAnonymousLogout()), this, SLOT(onAnonymousLogout()));
     mMainWin->show();
     mMainWin->activeControls(false);
+    setChatLink(chatlink);
     return true;
 }
 
@@ -395,7 +396,8 @@ void MegaChatApplication::enableStaging(bool enable)
         mMegaApi->changeApiUrl("https://g.api.mega.co.nz/");
     }
 
-    if (mMegaChatApi->getOnlineStatus() != MegaChatApi::DISCONNECTED)
+    if (mMegaChatApi->getConnectionState() != MegaChatApi::DISCONNECTED
+            && mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS) // don't need login and cannot refresh url
     {
         // force a reload upon api-url changes
         mMegaApi->fastLogin(mSid);
@@ -426,6 +428,36 @@ MainWindow *MegaChatApplication::mainWindow() const
 megachat::MegaChatApi *MegaChatApplication::megaChatApi() const
 {
     return mMegaChatApi;
+}
+
+void MegaChatApplication::setJoinAsGuest(bool joinAsGuest)
+{
+    mJoinAsGuest = joinAsGuest;
+}
+
+bool MegaChatApplication::getJoinAsGuest() const
+{
+    return mJoinAsGuest;
+}
+
+void MegaChatApplication::setGuestName(const string &name)
+{
+    mGuestUserName = name;
+}
+
+string MegaChatApplication::getGuestName() const
+{
+    return mGuestUserName;
+}
+
+void MegaChatApplication::setChatLink(const string &chatLink)
+{
+    mMeetingLink = chatLink;
+}
+
+string MegaChatApplication::getChatLink() const
+{
+    return mMeetingLink;
 }
 
 const char *MegaChatApplication::sid() const
@@ -475,7 +507,8 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     int error = e->getErrorCode();
     if (error != API_OK
             && (reqType != MegaRequest::TYPE_LOGIN || error != MegaError::API_EMFAREQUIRED)
-            && (reqType != MegaRequest::TYPE_GET_ATTR_USER))
+            && (reqType != MegaRequest::TYPE_GET_ATTR_USER)
+            && (reqType != MegaRequest::TYPE_GET_USER_EMAIL))
     {
         QMessageBox::critical(nullptr, tr("SDK Request failed: ").append(request->getRequestString()), tr("Error: ").append(e->getErrorString()));
     }
@@ -657,6 +690,8 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             break;
         case MegaRequest::TYPE_FETCH_TIMEZONE:
         {
+            if (error != MegaError::API_OK) break;
+
             mTimeZoneDetails.reset(request->getMegaTimeZoneDetails()->copy());
 
             if (mMainWin && mMainWin->mSettings && mNotificationSettings)
@@ -681,8 +716,11 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                     mSid = request->getSessionKey();
                     saveSid(mSid);
                 }
+                else // --> request->getParamType() == 4
+                {
+                    mMegaApi->fetchNodes();
+                }
 
-                api->fetchNodes();
                 mMainWin->setEphemeralAccount(true);
             }
             else if (error != MegaError::API_OK)
@@ -721,7 +759,10 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 {
     int reqType = request->getType();
     int error = e->getErrorCode();
-    if (error != MegaChatError::ERROR_OK)
+    if (error != MegaChatError::ERROR_OK
+        && (reqType != MegaChatRequest::TYPE_GET_EMAIL)
+        && (reqType != MegaChatRequest::TYPE_GET_LASTNAME)
+        && (reqType != MegaChatRequest::TYPE_GET_PEER_ATTRIBUTES))
     {
         QMessageBox::critical(nullptr, tr("MEGAchat Request failed: ").append(request->getRequestString()), tr("Error: ").append(e->getErrorString()));
     }
@@ -734,6 +775,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 removeSid();
                 removeEphemeralFile();
                 init();
+                if (mJoinAsGuest)
+                {
+                    mMegaChatApi->init(nullptr);
+                    mMegaApi->createEphemeralAccountPlusPlus(mGuestUserName.c_str(), mGuestUserName.c_str());
+                }
             }
             break;
          case MegaChatRequest::TYPE_GET_FIRSTNAME:
@@ -843,33 +889,14 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
          case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
          case MegaChatRequest::TYPE_START_CHAT_CALL:
             if (error != MegaChatError::ERROR_OK)
-              {
-                QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
-                megachat::MegaChatHandle chatId = request->getChatHandle();
-                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
-                if (itemController)
-                {
-                    ChatItemWidget *widget = itemController->getWidget();
-                    if (widget)
-                    {
-                        ChatWindow *chatWin= itemController->showChatWindow();
-                        if(chatWin)
-                        {
-                            chatWin->hangCall();
-                        }
-                    }
-                }
-              }
-            else
             {
-                megachat::MegaChatHandle chatId = request->getChatHandle();
-                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
-                if(itemController)
+                ChatListItemController *itemController = mMainWin->getChatControllerById(request->getChatHandle());
+                if (itemController && itemController->getMeetingView())
                 {
-                    ChatWindow *chatWin = itemController->showChatWindow();
-                    chatWin->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(chatId));
+                    itemController->destroyMeetingView();
                 }
             }
+
             break;
 
           case MegaChatRequest::TYPE_HANG_CHAT_CALL:
@@ -877,28 +904,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
             }
-            else
-            {
-                megachat::MegaChatHandle chatId = request->getChatHandle();
-                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
 
-                if (itemController)
-                {
-                    ChatItemWidget *widget = itemController->getWidget();
-                    if (widget)
-                    {
-                        ChatWindow *chatWin= itemController->showChatWindow();
-                        if(chatWin)
-                        {
-                            chatWin->hangCall();
-                        }
-                    }
-                }
-            }
-            break;
-
-         case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
-                mMainWin->createSettingsMenu();
             break;
 #endif
         case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
@@ -1035,6 +1041,14 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                             auxWin->previewUpdate(mMegaChatApi->getChatRoom(request->getChatHandle()));
                         }
                         delete chatListItem;
+
+                        if (mJoinAsGuest)
+                        {
+                            mMegaChatApi->autojoinPublicChat(chatid);
+                            mJoinAsGuest = false;
+                            mGuestUserName = "";
+                            mMeetingLink = "";
+                        }
                     }
                     else
                     {
@@ -1175,6 +1189,18 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
         ChatListItemController* itemController = mMainWin->getChatControllerById(request->getChatHandle());
         ChatItemWidget *chatWidget = itemController->getWidget();
         chatWidget->onUpdateTooltip();
+        break;
+    }
+    case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
+    {
+#ifndef KARERE_DISABLE_WEBRTC
+        ChatListItemController *itemController = mMainWin->getChatControllerById(request->getChatHandle());
+        if (itemController)
+        {
+            assert(itemController->getMeetingView());
+            itemController->getMeetingView()->updateAudioMonitor(mMegaChatApi->isAudioLevelMonitorEnabled(request->getChatHandle()));
+        }
+#endif
         break;
     }
     default:

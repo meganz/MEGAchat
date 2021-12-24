@@ -8,14 +8,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rtcModule/webrtc.h"
 #ifndef KARERE_DISABLE_WEBRTC
     #include "rtcCrypto.h"
-    #include "dummyCrypto.h" //for makeRandomString
 #endif
 #include "base/services.h"
 #include "sdkApi.h"
-#include <serverListProvider.h>
 #include <memory>
 #include <chatd.h>
 #include <db.h>
@@ -43,6 +40,7 @@
 #define _QUICK_LOGIN_NO_RTC
 using namespace promise;
 
+
 namespace karere
 {
 
@@ -65,18 +63,31 @@ bool Client::isInBackground() const
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
+Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
+#ifndef KARERE_DISABLE_WEBRTC
+               rtcModule::CallHandler &callHandler,
+#endif
+               const std::string &appDir, uint8_t caps, void *ctx)
     : mAppDir(appDir),
-          websocketIO(websocketsIO),
-          appCtx(ctx),
-          api(sdk, ctx),
-          app(aApp),
-          mDnsCache(db, chatd::Client::chatdVersion),
-          mContactList(new ContactList(*this)),
-          chats(new ChatRoomList(*this)),
-          mPresencedClient(&api, this, *this, caps)
+      websocketIO(websocketsIO),
+      appCtx(ctx),
+      api(sdk, ctx),
+      app(aApp),
+      mDnsCache(db, chatd::Client::chatdVersion),
+#ifndef KARERE_DISABLE_WEBRTC
+      mCallHandler(callHandler),
+#endif
+      mContactList(new ContactList(*this)),
+      chats(new ChatRoomList(*this)),
+      mPresencedClient(&api, this, *this, caps)
 {
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::createRtcModule(api, mCallHandler, mDnsCache));
+    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this));
+#endif
 }
+
 
 KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *envVarName)
 {
@@ -158,18 +169,28 @@ bool Client::openDb(const std::string& sid)
         KR_LOG_WARNING("Error opening database");
         return false;
     }
-    SqliteStmt stmt(db, "select value from vars where name = 'schema_version'");
-    if (!stmt.step())
+
+    std::string cachedVersion;
+    std::string currentVersion;
+    bool result;
+    {
+        SqliteStmt stmt(db, "select value from vars where name = 'schema_version'");
+        result = stmt.step();
+        if (result)
+        {
+            currentVersion.assign(gDbSchemaHash);
+            currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
+
+            cachedVersion.assign(stmt.stringCol(0));
+        }
+    }
+    if (!result)
     {
         db.close();
         KR_LOG_WARNING("Can't get local database version");
         return false;
     }
 
-    std::string currentVersion(gDbSchemaHash);
-    currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
-
-    std::string cachedVersion(stmt.stringCol(0));
     if (cachedVersion != currentVersion)
     {
         ok = false;
@@ -367,6 +388,38 @@ bool Client::openDb(const std::string& sid)
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
+            else if (cachedVersionSuffix == "12" && (strcmp(gDbSchemaVersionSuffix, "13") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+
+                // We check if we have some pulic chat with creation ts higher than meeting release
+                // in that case we invalidate the cache, because it could a meetings
+                // ts -> 1625140800000 -> 1 July 2021 12:00 GTM
+                SqliteStmt stmt(db, "select count(*) from chats where mode == 1 and ts_created > 1618488000");
+                stmt.stepMustHaveData("get chats count");
+                if (stmt.intCol(0) > 0)
+                {
+                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
+                    api.sdk.invalidateCache();
+                }
+                else //
+                {
+                    // Add meeting to chats table
+                    try
+                    {
+                        db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
+                    }
+                    catch (const std::runtime_error& e)
+                    {
+                        // meeting column is already added
+                    }
+
+                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                    db.commit();
+                    ok = true;
+                    KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                }
             }
         }
     }
@@ -684,27 +737,23 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
         return;
     }
 
-    mPresencedClient.retryPendingConnection(disconnect, refreshURL);
     if (mChatdClient)
     {
         mChatdClient->retryPendingConnections(disconnect, refreshURL);
     }
 
 #ifndef KARERE_DISABLE_WEBRTC
-    if (rtc && disconnect)
+    if (rtc && !disconnect) // In case of disconnect, reconnection will be launched after chatd::Chat::setOnlineState
     {
-        int index = 0;
-        while (mDnsCache.isValidUrl(TURNSERVER_SHARD - index) && index < MAX_TURN_SERVERS)
-        {
-            // invalidate IPs
-            mDnsCache.invalidateIps(TURNSERVER_SHARD - index);
-            index++;
-        }
-
-        rtc->updateTurnServers();
-        rtc->refreshTurnServerIp();
+        // force reconnect all SFU connections
+        rtc->getSfuClient().retryPendingConnections(disconnect);
     }
 #endif
+
+    if (!anonymousMode())   // avoid to connect to presenced (no user, no peerstatus)
+    {
+        mPresencedClient.retryPendingConnection(disconnect, refreshURL);
+    }
 }
 
 promise::Promise<void> Client::notifyUserStatus(bool background)
@@ -736,9 +785,9 @@ promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
     return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle);
 }
 
-void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts)
+void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting)
 {
-    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey);
+    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, meeting);
     chats->emplace(chatId, room);
     if (!mDnsCache.hasRecord(shard))
     {
@@ -1153,11 +1202,13 @@ void Client::initWithDbSession(const char* sid)
         mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
         if (websocketIO && websocketIO->hasSessionCache())
         {
             auto&& sessions = mDnsCache.getTlsSessions();
             websocketIO->restoreSessions(std::move(sessions));
         }
+#endif
 
         // Get aliases from cache
         mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
@@ -1245,6 +1296,14 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
     int reqType = request->getType();
     switch (reqType)
     {
+        case ::mega::MegaRequest::TYPE_CREATE_ACCOUNT:
+        {
+            if (request->getParamType() == 3)     // if creating E++ account...
+            {
+                mInitStats.stageStart(InitStats::kStatsCreateAccount);
+            }
+            break;
+        }
         case ::mega::MegaRequest::TYPE_LOGIN:
         {
             mInitStats.stageStart(InitStats::kStatsLogin);
@@ -1309,10 +1368,26 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         break;
     }
+    case ::mega::MegaRequest::TYPE_CREATE_ACCOUNT:  // fall-through
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
+        if (reqType == ::mega::MegaRequest::TYPE_CREATE_ACCOUNT)  // if not creating E++ account, do nothing
+        {
+            if (request->getParamType() != 3)     // if not creating E++ account, do nothing
+            {
+                break;
+            }
+            else    // -> create account E++ includes the fetchnodes (but not only, so new stage)
+            {
+                mInitStats.stageEnd(InitStats::kStatsCreateAccount);
+            }
+        }
+        else
+        {
+            mInitStats.stageEnd(InitStats::kStatsFetchNodes);
+        }
+
         api.sdk.pauseActionPackets();
-        mInitStats.stageEnd(InitStats::kStatsFetchNodes);
         mInitStats.stageStart(InitStats::kStatsPostFetchNodes);
 
         auto state = mInitState;
@@ -1556,12 +1631,10 @@ void Client::connect()
         heartbeat();
     }, kHeartbeatTimeout, appCtx);
 
-
     if (anonymousMode())
     {
         // avoid to connect to presenced (no user, no peerstatus)
         // avoid to retrieve own user-attributes (no user, no attributes)
-        // avoid to initialize WebRTC (no user, no calls)
         setConnState(kConnected);
         return;
     }
@@ -1576,13 +1649,7 @@ void Client::connect()
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
-#ifndef KARERE_DISABLE_WEBRTC
-// Create the rtc module
-    rtc.reset(rtcModule::create(*this, app, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
-    rtc->init();
-#endif
     mPresencedClient.connect();
-
     setConnState(kConnected);
 }
 
@@ -1629,8 +1696,6 @@ std::string Client::getMyEmailFromDb()
 
     std::string email = stmt.stringCol(0);
 
-    if (email.length() < 5)
-        throw std::runtime_error("loadOwnEmailFromDb: Own email in db is invalid");
     return email;
 }
 
@@ -1796,13 +1861,6 @@ void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 
 void Client::terminate(bool deleteDb)
 {
-#ifndef KARERE_DISABLE_WEBRTC
-    if (rtc)
-    {
-            rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
-    }
-#endif
-
     setInitState(kInitTerminated);
 
     api.sdk.removeRequestListener(this);
@@ -1905,7 +1963,7 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
 }
 
 promise::Promise<karere::Id>
-Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title)
+Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, const char *title)
 {
     // prepare set of participants
     std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
@@ -1951,7 +2009,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
     auto wptr = getDelTracker();
-    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
+    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat, meeting](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
     {
         if (wptr.deleted())
         {
@@ -1969,7 +2027,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         if (publicchat)
         {
             createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
-            .then([wptr, this, crypto, sdkPeers, enctitleB64](chatd::KeyCommand *keyCmd) -> ApiPromise
+            .then([wptr, this, crypto, sdkPeers, enctitleB64, meeting](chatd::KeyCommand *keyCmd) -> ApiPromise
             {
                 mega::MegaStringMap *userKeyMap;
                 userKeyMap = mega::MegaStringMap::createInstance();
@@ -2008,7 +2066,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 //Add entry to map
                 userKeyMap->set(mMyHandle.toString().c_str(), oKeyB64.c_str());
                 return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap,
-                                !enctitleB64.empty() ? enctitleB64.c_str() : nullptr);
+                                !enctitleB64.empty() ? enctitleB64.c_str() : nullptr, meeting);
             });
         }
         else
@@ -2129,18 +2187,6 @@ void PeerChatRoom::connect()
     mChat->connect();
 }
 
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
-{
-    return parent.mKarereClient.rtc->startCall(chatid(), av, handler);
-}
-
-rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler, karere::Id callid)
-{
-    return parent.mKarereClient.rtc->joinCall(chatid(), av, handler, callid);
-}
-#endif
-
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
     std::vector<ApiPromise> promises;
@@ -2231,14 +2277,14 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
-  mRoomGui(nullptr)
+  mRoomGui(nullptr), mMeeting(aChat.isMeeting())
 {
     bool isPublicChat = aChat.isPublicChat();
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
     db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
-             "own_priv, ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
-             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
+             "own_priv, ts_created, archived, mode, meeting) values(?,?,-1,0,?,?,?,?,?)",
+             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat, mMeeting);
     db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
 
     // Initialize list of peers and fetch their names
@@ -2302,9 +2348,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 //Resume from cache
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
-    const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted)
+    const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting)
     : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived)
-    , mRoomGui(nullptr)
+    , mRoomGui(nullptr), mMeeting(meeting)
 {
     // Initialize list of peers
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
@@ -2335,9 +2381,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey)
+    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting)
   : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title)
-  , mRoomGui(nullptr)
+  , mRoomGui(nullptr), mMeeting(meeting)
 {
     Buffer unifiedKeyBuf;
     unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
@@ -2348,8 +2394,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     auto db = parent.mKarereClient.db;
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
-        "own_priv, ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
-        mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
+        "own_priv, ts_created, mode, unified_key, meeting) values(?,?,-1,0,?,?,2,?,?)",
+        mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf, mMeeting);
 
     initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
@@ -2754,7 +2800,7 @@ void ChatRoomList::loadFromDb()
         deleteRoomFromDb(chatid);
     }
 
-    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key from chats");
+    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key, meeting from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -2801,7 +2847,7 @@ void ChatRoomList::loadFromDb()
                 auxTitle.assign(posTitle, len);
             }
 
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted);
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted, stmt.intCol(10));
         }
         emplace(chatid, room);
     }
@@ -3488,6 +3534,11 @@ bool GroupChatRoom::isMember(Id peerid) const
 unsigned long GroupChatRoom::numMembers() const
 {
     return mPeers.size() + 1;
+}
+
+bool GroupChatRoom::isMeeting() const
+{
+    return mMeeting;
 }
 
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
@@ -4225,7 +4276,8 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     if (mTitleString.empty()) // user attrib fetch was not synchronous
     {
         updateTitle(email);
-        assert(!mTitleString.empty());
+        assert(!mTitleString.empty()
+               || mClist.client.api.sdk.isLoggedIn() == ::mega::EPHEMERALACCOUNTPLUSPLUS);
     }
 
     mIsInitializing = false;
@@ -4341,7 +4393,11 @@ bool Client::isCallActive(Id chatid) const
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callActive = rtc->isCallActive(chatid);
+        rtcModule::ICall* call = rtc->findCallByChatid(chatid);
+        if (call)
+        {
+            callActive = call->participate();
+        }
     }
 #endif
 
@@ -4355,7 +4411,11 @@ bool Client::isCallInProgress(karere::Id chatid) const
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        participantingInCall = rtc->isCallInProgress(chatid);
+        rtcModule::ICall* call = rtc->findCallByChatid(chatid);
+        if (call)
+        {
+            participantingInCall = (call->getState() == rtcModule::CallState::kStateInProgress);
+        }
     }
 #endif
 
@@ -4709,6 +4769,7 @@ std::string InitStats::stageToString(uint8_t stage)
         case kStatsFetchNodes: return "Fetch nodes";
         case kStatsPostFetchNodes: return "Post fetch nodes";
         case kStatsConnection: return "Connection";
+        case kStatsCreateAccount: return "Create account";
         default: return "(unknown)";
     }
 }

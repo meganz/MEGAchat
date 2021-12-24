@@ -74,17 +74,15 @@ FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
     ../../../examples/qtmegachatapi/confirmAccount.ui
 
 CONFIG(USE_WEBRTC) {
-    SOURCES +=  ../../../examples/qtmegachatapi/callGui.cpp \
-        ../../../examples/qtmegachatapi/callListener.cpp \
-        ../../../examples/qtmegachatapi/remoteCallListener.cpp \
-        ../../../examples/qtmegachatapi/localCallListener.cpp \
-        ../../src/videoRenderer_Qt.cpp
+    SOURCES +=  ../../src/videoRenderer_Qt.cpp \
+                ../../../examples/qtmegachatapi/peerWidget.cpp \
+                ../../../examples/qtmegachatapi/meetingView.cpp \
+                ../../../examples/qtmegachatapi/meetingSession.cpp
 
-    HEADERS +=  ../../../examples/qtmegachatapi/callGui.h \
-        ../../../examples/qtmegachatapi/callListener.h \
-        ../../../examples/qtmegachatapi/remoteCallListener.h \
-        ../../../examples/qtmegachatapi/localCallListener.h \
-        ../../src/videoRenderer_Qt.h
+    HEADERS +=  ../../src/videoRenderer_Qt.h \
+                ../../../examples/qtmegachatapi/peerWidget.h \
+                ../../../examples/qtmegachatapi/meetingView.h \
+                ../../../examples/qtmegachatapi/meetingSession.h
 
     FORMS += ../../../examples/qtmegachatapi/callGui.ui
 }

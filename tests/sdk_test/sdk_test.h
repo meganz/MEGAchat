@@ -25,9 +25,13 @@
 #include <mega.h>
 #include <megaapi.h>
 #include "megachatapi.h"
-
+#include <chatClient.h>
 #include <iostream>
 #include <fstream>
+
+#ifndef KARERE_DISABLE_WEBRTC
+#include <sfu.h>
+#endif
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
@@ -259,8 +263,11 @@ private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
+
+    /* select a group chat room, by default with PRIV_MODERATOR for primary account
+     * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param */
     megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                              megachat::MegaChatPeerList *peers, bool create = true, bool publicChat = false, const char *title = NULL);
+                                              megachat::MegaChatPeerList *peers, int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN, bool create = true, bool publicChat = false, const char *title = NULL);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
@@ -346,24 +353,22 @@ private:
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
-    bool mCallAnswered[NUM_ACCOUNTS];
+    bool mCallReceivedRinging[NUM_ACCOUNTS];
+    bool mCallInProgress[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
-    bool mTerminationLocal[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
-    bool mPeerIsRinging[NUM_ACCOUNTS];
-    bool mVideoLocal[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+#endif
+
     bool mLoggedInAllChats[NUM_ACCOUNTS];
     std::vector <megachat::MegaChatHandle>mChatListUpdated[NUM_ACCOUNTS];
     bool mChatsUpdated[NUM_ACCOUNTS];
-
-#endif
-
     static const std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
     static const std::string FILE_IMAGE_NAME;
@@ -450,26 +455,55 @@ public:
     bool retentionTimeUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
-    virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);
-    virtual void onMessageLoaded(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // loaded by getMessages()
-    virtual void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);
-    virtual void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg);   // new or updated
-    virtual void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count);
-    virtual void onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg) override;
+    void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat) override;
+    void onMessageLoaded(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg) override;   // loaded by getMessages()
+    void onMessageReceived(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg) override;
+    void onMessageUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatMessage *msg) override;   // new or updated
+    void onReactionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid, const char *reaction, int count) override;
+    void onHistoryTruncatedByRetentionTime(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg) override;
 
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
 
-
-
 class MegaChatApiUnitaryTest
 {
 public:
     bool UNITARYTEST_ParseUrl();
+#ifndef KARERE_DISABLE_WEBRTC
+    bool UNITARYTEST_SfuDataReception();
+#endif
 
     unsigned mOKTests = 0;
     unsigned mFailedTests = 0;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    friend sfu::SfuConnection;
+#endif
 };
 
+#ifndef KARERE_DISABLE_WEBRTC
+class MockupCall : public sfu::SfuInterface
+{
+public:
+    bool handleAvCommand(Cid_t cid, unsigned av) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers) override;
+    bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string&key) override;
+    bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
+    bool handleVThumbsStartCommand() override;
+    bool handleVThumbsStopCommand() override;
+    bool handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
+    bool handleHiResStartCommand() override;
+    bool handleHiResStopCommand() override;
+    bool handleSpeakReqsCommand(const std::vector<Cid_t>&) override;
+    bool handleSpeakReqDelCommand(Cid_t cid) override;
+    bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
+    bool handleSpeakOffCommand(Cid_t cid) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
+    bool handlePeerLeft(Cid_t cid) override;
+    void onSfuConnected() override;
+    bool error(unsigned int, const std::string &) override;
+    void logError(const char* error) override;
+};
+#endif
 #endif // CHATTEST_H
