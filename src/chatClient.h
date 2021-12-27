@@ -672,7 +672,8 @@ class InitStats
             kStatsFetchNodes        = 2,
             kStatsPostFetchNodes    = 3,
             kStatsConnection        = 4,
-            kStatsCreateAccount     = 5
+            kStatsCreateAccount     = 5,
+            kStatsEphAccConfirmed   = 6,
         };
 
 

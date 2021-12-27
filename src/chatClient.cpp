@@ -1312,6 +1312,11 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
             mInitStats.stageStart(InitStats::kStatsFetchNodes);
             break;
         }
+        case ::mega::MegaRequest::TYPE_CONFIRM_ACCOUNT:
+        {
+            mInitStats.stageStart(InitStats::kStatsEphAccConfirmed);
+            break;
+        }
         default:    // no action to be taken for other type of requests
         {
             break;
@@ -1371,7 +1376,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
         if (reqType == ::mega::MegaRequest::TYPE_CREATE_ACCOUNT)  // if not creating E++ account, do nothing
         {
-            if (request->getParamType() != 3)     // if not creating E++ account, do nothing
+            if (request->getParamType() != ::mega::MegaApi::CREATE_EPLUSPLUS_ACCOUNT)     // if not creating E++ account, do nothing
             {
                 break;
             }
@@ -1487,6 +1492,24 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }, appCtx);
         break;
     }
+
+    case ::mega::MegaRequest::TYPE_CONFIRM_ACCOUNT:
+    {
+        std::string email = request->getEmail();
+        // if statement to be replaced by (request->getParamType() == ::mega::MegaApi::CREATE_EPLUSPLUS_ACCOUNT) once
+        //megaapi_impl.cpp:confirmAccount and :fastConfirmAccount are updated to setParamType(::mega::MegaApi::CREATE_EPLUSPLUS_ACCOUNT)
+        //if client is EPHEMERALACCOUNTPLUSPLUS
+        if (email != getMyEmail())
+        {
+            mInitStats.stageEnd(InitStats::kStatsEphAccConfirmed);
+
+            setMyEmail(email);
+            saveVarsEmail(email);
+        }
+
+        break;
+    }
+
     default:    // no action to be taken for other type of requests
     {
         break;
@@ -4175,12 +4198,7 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
                 }
             }
 
-            bool contactEmailChanged = contact->email() != user.getEmail();
-            bool isItOurUser = client.myHandle() == user.getHandle();
-            bool clientEmailChanged = (isItOurUser
-                                        && (client.getMyEmail() != user.getEmail()
-                                            || client.getMyEmail() != contact->email()));
-            if (contactEmailChanged || clientEmailChanged)
+            if (contact->email() != user.getEmail())
             {
                 std::string newEmail;
                 const char *userEmail = user.getEmail();
@@ -4189,19 +4207,9 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
                     newEmail.assign(userEmail);
                 }
 
-                if (contactEmailChanged)
-                {
-                    // Update contact email in memory and cache
-                    contact->mEmail = newEmail;
-                    client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
-                }
-
-                if (isItOurUser)
-                {
-                    // Update our own email in client and caches
-                    client.setMyEmail(newEmail);
-                    client.saveVarsEmail(newEmail);
-                }
+                // Update contact email in memory and cache
+                contact->mEmail = newEmail;
+                client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
 
                 // We need to update user email in attr cache
                 updateCache = true;
