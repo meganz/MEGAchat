@@ -286,7 +286,6 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
         {
             mMainWin->addOrUpdateContactControllersItems(userList);
             mMainWin->reorderAppContactList();
-            mMainWin->updateToolTipMyInfo();
         }
 
         // if notification settings have changed for our own user, update the value
@@ -295,6 +294,7 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
             ::mega::MegaUser *user = userList->get(i);
             if (user->getHandle() == mMegaApi->getMyUserHandleBinary())
             {
+                mMainWin->updateToolTipMyInfo();
                 if (user->hasChanged(MegaUser::CHANGE_TYPE_PUSH_SETTINGS) && !user->isOwnChange())
                 {
                     mMegaApi->getPushNotificationSettings();
