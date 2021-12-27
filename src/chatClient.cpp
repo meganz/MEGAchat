@@ -2005,6 +2005,27 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
         }
 
         mContactList->syncWithApi(*users);
+
+        // check changes for own user
+        int count = users->size();
+        for (int i = 0; i < count; i++)
+        {
+            ::mega::MegaUser &user = *users->get(i);
+            if (user.getHandle() != myHandle()) continue;
+
+            if (user.hasChanged(::mega::MegaUser::CHANGE_TYPE_EMAIL))
+            {
+                // Update our own email in client and caches
+                std::string email = user.getEmail();
+                setMyEmail(email);
+                saveVarsEmail(email);
+            }
+
+            if (!user.isOwnChange())
+            {
+                userAttrCache().onUserAttrChange(user);
+            }
+        }
     }, appCtx);
 }
 
@@ -4113,6 +4134,11 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
     for (int i = 0; i < count; i++)
     {
         ::mega::MegaUser &user = *users.get(i);
+        if (user.getHandle() == client.myHandle())
+        {
+            continue;
+        }
+
         auto newVisibility = user.getVisibility();
 
         int changed = user.getChanges();
