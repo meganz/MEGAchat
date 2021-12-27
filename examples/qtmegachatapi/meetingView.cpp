@@ -149,6 +149,7 @@ void MeetingView::setNotParticipating()
     mAudioMonitor->setVisible(false);
     mRemOwnSpeaker->setVisible(false);
     mSetOnHold->setVisible(false);
+    mOnHoldLabel->setVisible(false);
     mJoinCallWithVideo->setVisible(true);
     mJoinCallWithoutVideo->setVisible(true);
 }
