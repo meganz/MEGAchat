@@ -105,42 +105,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->getInitState();
 }
 
-- (void)connectWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (self.megaChatApi) {
-        self.megaChatApi->connect([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
-    }
-}
-
-- (void)connect {
-    if (self.megaChatApi) {
-        self.megaChatApi->connect();
-    }
-}
-
-- (void)connectInBackgroundWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (self.megaChatApi) {
-        self.megaChatApi->connectInBackground([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
-    }
-}
-
-- (void)connectInBackground {
-    if (self.megaChatApi) {
-        self.megaChatApi->connectInBackground();
-    }
-}
-
-- (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (self.megaChatApi) {
-        self.megaChatApi->disconnect([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
-    }
-}
-
-- (void)disconnect {
-    if (self.megaChatApi) {
-        self.megaChatApi->disconnect();
-    }
-}
-
 - (MEGAChatConnection)chatConnectionState:(uint64_t)chatId {
     if (self.megaChatApi == nil) return MEGAChatConnectionOffline;
     return (MEGAChatConnection) self.megaChatApi->getChatConnectionState(chatId);
