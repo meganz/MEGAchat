@@ -369,9 +369,7 @@ public:
     std::string endCallReasonToString(const EndCallReason &reason) const;
     std::string connectionTermCodeToString(const TermCode &termcode) const;
     bool isValidConnectionTermcode(TermCode termCode) const;
-    bool isDisconnectionTermcode(const TermCode& termCode) const;
     void sendStats(const TermCode& termCode);
-    void resetLocalAvFlags();
 
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
@@ -486,6 +484,8 @@ protected:
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
     void updateSvcQuality(int8_t delta);
     void updateTransmittedSvcQuality(int8_t txSpt);
+    void resetLocalAvFlags();
+    bool isDisconnectionTermcode(const TermCode& termCode) const;
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
