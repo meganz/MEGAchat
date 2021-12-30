@@ -1099,7 +1099,7 @@ public:
     }
     Command&& operator+(const Buffer& msg)
     {
-        append<uint32_t>(msg.dataSize());
+        append<uint32_t>(static_cast<uint32_t>(msg.dataSize()));
         append(msg.buf(), msg.dataSize());
         return std::move(*this);
     }
@@ -1248,7 +1248,7 @@ public:
     }
     void updateMsgSize()
     {
-        write<uint32_t>(35, dataSize()-39);
+        write<uint32_t>(35, static_cast<const unsigned int>(dataSize()-39));
     }
 };
 
