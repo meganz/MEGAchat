@@ -12,7 +12,7 @@
 #include "sfu.h"
 
 
-#define RET_ENUM_NAME(name) case name: return #name
+#define RET_ENUM_RTC_NAME(name) case name: return #name
 
 namespace rtcModule
 {
