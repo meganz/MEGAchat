@@ -2294,12 +2294,12 @@ public:
  * so the chat SDK can create its client and register listeners to receive the own handle, list of users and chats
  *     3. Call MegaChatApi::init() to initialize the chat engine.
  *         [at this stage, if the app provided a session id, it can retrieve chatrooms and can operate in offline mode (INIT_HAS_OFFLINE_SESSION)]
- *         [If the app provided a email+pwd, it will enter into INIT_WAITING_NEW_SESSION and needs to wait for INIT_HAS_ONLINE_SESSION]
+ *         [If the app provided a email+pwd, it will enter into INIT_WAITING_NEW_SESSION and needs to wait for INIT_ONLINE_SESSION]
  *     4. Call MegaApi::login() and wait for completion
  *     5. Call MegaApi::fetchnodes() and wait for completion
  *         [at this stage, cloud storage apps are ready, but chat-engine is offline]
  *     6. The app is ready to operate when the callback onChatInitStateUpdate() notifies a valid
- *          session: INIT_HAS_ONLINE_SESSION
+ *          session: INIT_ONLINE_SESSION
  *
  * Important considerations:
  *  - In order to logout from the account, the app should call MegaApi::logout before MegaChatApi::logout.
