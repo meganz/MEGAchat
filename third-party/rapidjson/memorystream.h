@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
 // 
-// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -15,7 +15,7 @@
 #ifndef RAPIDJSON_MEMORYSTREAM_H_
 #define RAPIDJSON_MEMORYSTREAM_H_
 
-#include "rapidjson.h"
+#include "stream.h"
 
 #ifdef __clang__
 RAPIDJSON_DIAG_PUSH
@@ -42,8 +42,8 @@ struct MemoryStream {
 
     MemoryStream(const Ch *src, size_t size) : src_(src), begin_(src), end_(src + size), size_(size) {}
 
-    Ch Peek() const { return (src_ == end_) ? '\0' : *src_; }
-    Ch Take() { return (src_ == end_) ? '\0' : *src_++; }
+    Ch Peek() const { return RAPIDJSON_UNLIKELY(src_ == end_) ? '\0' : *src_; }
+    Ch Take() { return RAPIDJSON_UNLIKELY(src_ == end_) ? '\0' : *src_++; }
     size_t Tell() const { return static_cast<size_t>(src_ - begin_); }
 
     Ch* PutBegin() { RAPIDJSON_ASSERT(false); return 0; }
