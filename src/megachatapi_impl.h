@@ -65,7 +65,7 @@ namespace megachat
 {
 
 typedef std::set<MegaChatVideoListener *> MegaChatVideoListener_set;
-typedef std::map<uint32_t, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
+typedef std::map<Cid_t, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
 
 #ifdef _WIN32
 #pragma warning(push)
