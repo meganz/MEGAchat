@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
 // 
-// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -15,7 +15,8 @@
 #ifndef RAPIDJSON_ENCODEDSTREAM_H_
 #define RAPIDJSON_ENCODEDSTREAM_H_
 
-#include "rapidjson.h"
+#include "stream.h"
+#include "memorystream.h"
 
 #ifdef __GNUC__
 RAPIDJSON_DIAG_PUSH
@@ -60,6 +61,34 @@ private:
 
     InputByteStream& is_;
     Ch current_;
+};
+
+//! Specialized for UTF8 MemoryStream.
+template <>
+class EncodedInputStream<UTF8<>, MemoryStream> {
+public:
+    typedef UTF8<>::Ch Ch;
+
+    EncodedInputStream(MemoryStream& is) : is_(is) {
+        if (static_cast<unsigned char>(is_.Peek()) == 0xEFu) is_.Take();
+        if (static_cast<unsigned char>(is_.Peek()) == 0xBBu) is_.Take();
+        if (static_cast<unsigned char>(is_.Peek()) == 0xBFu) is_.Take();
+    }
+    Ch Peek() const { return is_.Peek(); }
+    Ch Take() { return is_.Take(); }
+    size_t Tell() const { return is_.Tell(); }
+
+    // Not implemented
+    void Put(Ch) {}
+    void Flush() {} 
+    Ch* PutBegin() { return 0; }
+    size_t PutEnd(Ch*) { return 0; }
+
+    MemoryStream& is_;
+
+private:
+    EncodedInputStream(const EncodedInputStream&);
+    EncodedInputStream& operator=(const EncodedInputStream&);
 };
 
 //! Output byte stream wrapper with statically bound encoding.
@@ -171,7 +200,7 @@ private:
         // xx xx xx xx  UTF-8
 
         if (!hasBOM_) {
-            unsigned pattern = (c[0] ? 1 : 0) | (c[1] ? 2 : 0) | (c[2] ? 4 : 0) | (c[3] ? 8 : 0);
+            int pattern = (c[0] ? 1 : 0) | (c[1] ? 2 : 0) | (c[2] ? 4 : 0) | (c[3] ? 8 : 0);
             switch (pattern) {
             case 0x08: type_ = kUTF32BE; break;
             case 0x0A: type_ = kUTF16BE; break;
