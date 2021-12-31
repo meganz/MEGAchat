@@ -1496,9 +1496,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_CONFIRM_ACCOUNT:
     {
         std::string email = request->getEmail();
-        // if statement to be replaced by (request->getParamType() == ::mega::MegaApi::CREATE_EPLUSPLUS_ACCOUNT) once
-        //megaapi_impl.cpp:confirmAccount and :fastConfirmAccount are updated to setParamType(::mega::MegaApi::CREATE_EPLUSPLUS_ACCOUNT)
-        //if client is EPHEMERALACCOUNTPLUSPLUS
+        // checking if there is a change in the e-mail we cover 2 use cases:
+        //1) the confirmation of an ephemeral account ++ where there was no email
+        //2) the confirmation of an account where the signing email is different than the one used
+        //during the initial step of the account creation
         if (email != getMyEmail())
         {
             mInitStats.stageEnd(InitStats::kStatsEphAccConfirmed);
