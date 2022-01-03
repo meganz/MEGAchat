@@ -18,8 +18,6 @@ using ::mega::mega_snprintf;   // enables the calls to snprintf below which are 
 
 #define CHATD_LOG_LISTENER_CALLS
 
-#define ID_CSTR(id) id.toString().c_str()
-
 // logging for a specific chatid - prepends the chatid and calls the normal logging macro
 #define CHATID_LOG_DEBUG(fmtString,...) CHATD_LOG_DEBUG("[shard %d]: %s: " fmtString, mConnection.shardNo(), ID_CSTR(chatId()), ##__VA_ARGS__)
 #define CHATID_LOG_WARNING(fmtString,...) CHATD_LOG_WARNING("[shard %d]: %s: " fmtString, mConnection.shardNo(), ID_CSTR(chatId()), ##__VA_ARGS__)
