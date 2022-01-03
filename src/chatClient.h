@@ -672,7 +672,8 @@ class InitStats
             kStatsFetchNodes        = 2,
             kStatsPostFetchNodes    = 3,
             kStatsConnection        = 4,
-            kStatsCreateAccount     = 5
+            kStatsCreateAccount     = 5,
+            kStatsEphAccConfirmed   = 6,
         };
 
 
@@ -1153,6 +1154,7 @@ public:
     std::string getUserAlias(uint64_t userId);
     void setMyEmail(const std::string &email);
     const std::string& getMyEmail() const;
+    bool saveVarsEmail(const std::string& newEmail);
 
 protected:
     void heartbeat();
@@ -1164,6 +1166,14 @@ protected:
     void createDb();
     void wipeDb(const std::string& sid);
     void createDbSchema();
+    template <class... Args>
+    inline bool saveVarsValue(const std::string& name, Args&&... args)
+    {
+        std::string query ("insert or replace into vars(name,value) values('"+ name +"', ?)");
+        db.query(query.c_str(), args...);
+    }
+    bool updateVarsSchemaVersion(const std::string& newValue);
+
 
     // initialization of own handle/email/identity/keys/contacts...
     karere::Id getMyHandleFromDb();

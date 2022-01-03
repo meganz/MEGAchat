@@ -209,7 +209,7 @@ bool Client::openDb(const std::string& sid)
                 // in order to fetch fresh history including the missing management messages
                 db.query("delete from history");
                 db.query("update chat_vars set value = 0 where name = 'have_all_history'");
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                updateVarsSchemaVersion(currentVersion);
                 db.commit();
 
                 KR_LOG_WARNING("Successfully cleared cached history. Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -259,7 +259,7 @@ bool Client::openDb(const std::string& sid)
                 int count = sqlite3_changes(db);
 
                 // Update DB version number
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                updateVarsSchemaVersion(currentVersion);
                 db.commit();
 
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -284,7 +284,7 @@ bool Client::openDb(const std::string& sid)
                     KR_LOG_WARNING("Updating schema of MEGAchat cache...");
                     db.query("ALTER TABLE `chats` ADD mode tinyint");
                     db.query("ALTER TABLE `chats` ADD unified_key blob");
-                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                    updateVarsSchemaVersion(currentVersion);
                     db.commit();
                     ok = true;
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -292,7 +292,7 @@ bool Client::openDb(const std::string& sid)
             }
             else if (cachedVersionSuffix == "6" && (strcmp(gDbSchemaVersionSuffix, "7") == 0))
             {
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                updateVarsSchemaVersion(currentVersion);
                 db.query("update history set keyid=0 where type=?", chatd::Message::Type::kMsgTruncate);
                 db.commit();
                 ok = true;
@@ -311,7 +311,7 @@ bool Client::openDb(const std::string& sid)
                                "    UNIQUE(chatid, msgid, userid, reaction),"
                                "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
 
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                updateVarsSchemaVersion(currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -322,7 +322,7 @@ bool Client::openDb(const std::string& sid)
 
                 // Add dns_cache table
                 db.simpleQuery("CREATE TABLE dns_cache(shard tinyint primary key, url text, ipv4 text, ipv6 text);");
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                updateVarsSchemaVersion(currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -355,7 +355,7 @@ bool Client::openDb(const std::string& sid)
                     db.query("ALTER TABLE tempkeys RENAME TO sendkeys");
 
                     // update cache schema version
-                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                    updateVarsSchemaVersion(currentVersion);
                     db.commit();
                     ok = true;
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -373,7 +373,7 @@ bool Client::openDb(const std::string& sid)
                    db.query("delete from chat_vars where chatid = ? and name = 'have_all_history'", chatid);
                 }
 
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                updateVarsSchemaVersion(currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -384,7 +384,7 @@ bool Client::openDb(const std::string& sid)
 
                 // Add tls session blob to dns_cache table
                 db.query("ALTER TABLE `dns_cache` ADD sess_data blob");
-                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                updateVarsSchemaVersion(currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -415,7 +415,7 @@ bool Client::openDb(const std::string& sid)
                         // meeting column is already added
                     }
 
-                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                    updateVarsSchemaVersion(currentVersion);
                     db.commit();
                     ok = true;
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -441,6 +441,7 @@ void Client::createDbSchema()
     db.simpleQuery(gDbSchema); //db.query() uses a prepared statement and will execute only the first statement up to the first semicolon
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
+    // not replaced by saveVarsValue encapsulation because this is a direct INSERT, thus the fallback is an ABORT not a REPLACE
     db.query("insert into vars(name, value) values('schema_version', ?)", ver);
     db.commit();
 }
@@ -1060,10 +1061,10 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
 // We have a complete snapshot of the SDK contact and chat list state.
 // Commit it with the accompanying scsn
     mMyHandle = getMyHandleFromSdk();
-    db.query("insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
+    saveVarsValue("my_handle", mMyHandle);
 
     mMyEmail = getMyEmailFromSdk();
-    db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
+    saveVarsEmail(mMyEmail);
 
     mMyIdentity = initMyIdentity();
 
@@ -1119,7 +1120,7 @@ void Client::commit(const std::string& scsn)
         return;
     }
 
-    db.query("insert or replace into vars(name,value) values('scsn',?)", scsn);
+    saveVarsValue("scsn", scsn);
     db.commit();
     mLastScsn = scsn;
     KR_LOG_DEBUG("Commit with scsn %s", scsn.c_str());
@@ -1311,6 +1312,11 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
             mInitStats.stageStart(InitStats::kStatsFetchNodes);
             break;
         }
+        case ::mega::MegaRequest::TYPE_CONFIRM_ACCOUNT:
+        {
+            mInitStats.stageStart(InitStats::kStatsEphAccConfirmed);
+            break;
+        }
         default:    // no action to be taken for other type of requests
         {
             break;
@@ -1370,7 +1376,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
         if (reqType == ::mega::MegaRequest::TYPE_CREATE_ACCOUNT)  // if not creating E++ account, do nothing
         {
-            if (request->getParamType() != 3)     // if not creating E++ account, do nothing
+            if (request->getParamType() != ::mega::MegaApi::CREATE_EPLUSPLUS_ACCOUNT)     // if not creating E++ account, do nothing
             {
                 break;
             }
@@ -1486,6 +1492,25 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }, appCtx);
         break;
     }
+
+    case ::mega::MegaRequest::TYPE_CONFIRM_ACCOUNT:
+    {
+        std::string email = request->getEmail();
+        // checking if there is a change in the e-mail we cover 2 use cases:
+        //1) the confirmation of an ephemeral account ++ where there was no email
+        //2) the confirmation of an account where the signing email is different than the one used
+        //during the initial step of the account creation
+        if (email != getMyEmail())
+        {
+            mInitStats.stageEnd(InitStats::kStatsEphAccConfirmed);
+
+            setMyEmail(email);
+            saveVarsEmail(email);
+        }
+
+        break;
+    }
+
     default:    // no action to be taken for other type of requests
     {
         break;
@@ -1798,7 +1823,7 @@ void Client::resetMyIdentity()
 uint64_t Client::initMyIdentity()
 {
     uint64_t result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+    saveVarsValue("clientid_seed", result);
     return result;
 }
 
@@ -1829,8 +1854,8 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
     .then([this](ReqResult result) -> promise::Promise<void>
     {
         // write to db
-        db.query("insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
-        db.query("insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
+        saveVarsValue("pr_cu25519", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+        saveVarsValue("pr_ed25519", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
@@ -2004,6 +2029,27 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
         }
 
         mContactList->syncWithApi(*users);
+
+        // check changes for own user
+        int count = users->size();
+        for (int i = 0; i < count; i++)
+        {
+            ::mega::MegaUser &user = *users->get(i);
+            if (user.getHandle() != myHandle()) continue;
+
+            if (user.hasChanged(::mega::MegaUser::CHANGE_TYPE_EMAIL))
+            {
+                // Update our own email in client and caches
+                std::string email = user.getEmail();
+                setMyEmail(email);
+                saveVarsEmail(email);
+            }
+
+            if (!user.isOwnChange())
+            {
+                userAttrCache().onUserAttrChange(user);
+            }
+        }
     }, appCtx);
 }
 
@@ -4112,6 +4158,11 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
     for (int i = 0; i < count; i++)
     {
         ::mega::MegaUser &user = *users.get(i);
+        if (user.getHandle() == client.myHandle())
+        {
+            continue;
+        }
+
         auto newVisibility = user.getVisibility();
 
         int changed = user.getChanges();
@@ -4160,13 +4211,6 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
                 // Update contact email in memory and cache
                 contact->mEmail = newEmail;
                 client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
-
-                // If user it's our own user, we need to update our own email in client and cache
-                if (client.myHandle() == user.getHandle())
-                {
-                    client.setMyEmail(newEmail);
-                    client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
-                }
 
                 // We need to update user email in attr cache
                 updateCache = true;
@@ -4594,6 +4638,17 @@ const std::string& Client::getMyEmail() const
 {
     return mMyEmail;
 }
+
+bool Client::saveVarsEmail(const std::string& newEmail)
+{
+    return saveVarsValue("my_email", newEmail);
+}
+
+bool Client::updateVarsSchemaVersion(const std::string& newValue)
+{
+    return db.query("update vars set value = ? where name = 'schema_version'", newValue);
+}
+
 
 std::string encodeFirstName(const std::string& first)
 {
