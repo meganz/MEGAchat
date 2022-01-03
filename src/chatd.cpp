@@ -2328,11 +2328,13 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_CLIENTID:
             {
-                // clientid.4 reserved.4
+                // clientid.4 reserved.4 (unused at this moment)
                 READ_32(clientid, 0);
                 READ_32(unused, 4);
                 mClientId = clientid;
-                CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
+                unused
+                    ? CHATDS_LOG_DEBUG("recv CLIENTID - %x reserved: %d", clientid, unused)
+                    : CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
                 break;
             }
             case OP_ECHO:
