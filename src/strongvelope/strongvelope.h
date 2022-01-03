@@ -285,7 +285,8 @@ protected:
     std::shared_ptr<SendKey> mCurrentKey;
     chatd::KeyId mCurrentKeyId = CHATD_KEYID_INVALID;
     karere::SetOfIds mCurrentKeyParticipants;
-    chatd::KeyId mCurrentLocalKeyId = CHATD_KEYID_MAX;
+    // Shared transactional keyxid among all the chats in the same chatd-shard
+    static chatd::KeyId mCurrentLocalKeyId;
 
     /**
      * @brief The NewKeyEntry struct represents a Key in the list of unconfirmed keys (mUnconfirmedKeys)
@@ -390,6 +391,13 @@ protected:
 
     promise::Promise<chatd::Message*> handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);
+
+    /**
+     * @brief Getter method to local static variable for temporal.
+     *
+     * Id will be decreasing as used and start from CHATD_KEYID_MAX when it reaches zero.
+     */
+    chatd::KeyId getCurrentLocalKeyId();
 
 public:
 //chatd::ICrypto interface

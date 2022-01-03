@@ -44,6 +44,8 @@ struct Context
     EcKey edKey;
 };
 
+chatd::KeyId ProtocolHandler::mCurrentLocalKeyId = CHATD_KEYID_MAX;
+
 const std::string SVCRYPTO_PAIRWISE_KEY = "strongvelope pairwise key\x01";
 const std::string SVCRYPTO_SIG = "strongvelopesig";
 void deriveNonceSecret(const StaticBuffer& masterNonce, const StaticBuffer &result,
@@ -1436,10 +1438,7 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
 
 KeyId ProtocolHandler::createLocalKeyId()
 {
-    if (--mCurrentLocalKeyId < CHATD_KEYID_MIN)
-        mCurrentLocalKeyId = CHATD_KEYID_MAX;
-
-    return mCurrentLocalKeyId;
+    return getCurrentLocalKeyId();
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
@@ -1737,6 +1736,16 @@ ProtocolHandler::NewKeyEntry::NewKeyEntry(const std::shared_ptr<SendKey> &aKey, 
     : key(aKey), recipients(aRecipients), localKeyid(aLocalKeyid)
 {
 
+}
+
+KeyId ProtocolHandler::getCurrentLocalKeyId()
+{
+    if (--mCurrentLocalKeyId < CHATD_KEYID_MIN)
+    {
+        mCurrentLocalKeyId = CHATD_KEYID_MAX;
+    }
+
+    return mCurrentLocalKeyId;
 }
 
 } //end strongvelope namespace
