@@ -25,7 +25,6 @@
 ../../src/busConstants.h
 ../../src/chatClient.cpp
 ../../src/chatClient.h
-../../src/chatCommon.h
 ../../src/chatd.cpp
 ../../src/chatd.h
 ../../src/chatdDb.h

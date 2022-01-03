@@ -91,7 +91,6 @@
 		947565F31F18D4E900FE8664 /* base64url.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = base64url.h; sourceTree = "<group>"; };
 		947565F41F18D4E900FE8664 /* buffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = buffer.h; sourceTree = "<group>"; };
 		947565F51F18D4E900FE8664 /* chatClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = chatClient.h; sourceTree = "<group>"; };
-		947565F61F18D4E900FE8664 /* chatCommon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = chatCommon.h; sourceTree = "<group>"; };
 		947565F71F18D4E900FE8664 /* chatd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = chatd.h; sourceTree = "<group>"; };
 		947565F81F18D4E900FE8664 /* chatdDb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = chatdDb.h; sourceTree = "<group>"; };
 		947565F91F18D4E900FE8664 /* chatdICrypto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = chatdICrypto.h; sourceTree = "<group>"; };
@@ -274,7 +273,6 @@
 				947565F31F18D4E900FE8664 /* base64url.h */,
 				947565F41F18D4E900FE8664 /* buffer.h */,
 				947565F51F18D4E900FE8664 /* chatClient.h */,
-				947565F61F18D4E900FE8664 /* chatCommon.h */,
 				947565F71F18D4E900FE8664 /* chatd.h */,
 				947565F81F18D4E900FE8664 /* chatdDb.h */,
 				947565F91F18D4E900FE8664 /* chatdICrypto.h */,
