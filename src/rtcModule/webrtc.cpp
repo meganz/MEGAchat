@@ -415,13 +415,13 @@ const char *Call::stateToStr(CallState state)
 {
     switch(state)
     {
-        RET_ENUM_NAME(kStateInitial);
-        RET_ENUM_NAME(kStateClientNoParticipating);
-        RET_ENUM_NAME(kStateConnecting);
-        RET_ENUM_NAME(kStateJoining);    // < Joining a call
-        RET_ENUM_NAME(kStateInProgress);
-        RET_ENUM_NAME(kStateTerminatingUserParticipation);
-        RET_ENUM_NAME(kStateDestroyed);
+        RET_ENUM_RTC_NAME(kStateInitial);
+        RET_ENUM_RTC_NAME(kStateClientNoParticipating);
+        RET_ENUM_RTC_NAME(kStateConnecting);
+        RET_ENUM_RTC_NAME(kStateJoining);    // < Joining a call
+        RET_ENUM_RTC_NAME(kStateInProgress);
+        RET_ENUM_RTC_NAME(kStateTerminatingUserParticipation);
+        RET_ENUM_RTC_NAME(kStateDestroyed);
         default: return "(invalid call state)";
     }
 }
