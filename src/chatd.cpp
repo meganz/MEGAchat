@@ -239,7 +239,7 @@ promise::Promise<void> Client::sendKeepalive()
     auto wptr = weakHandle();
     if (mConnections.size())
     {
-        mKeepaliveCount += mConnections.size();
+        mKeepaliveCount += static_cast<int>(mConnections.size());
         for (auto& conn: mConnections)
         {
             conn.second->sendKeepalive()
@@ -428,7 +428,7 @@ void Client::setRetentionTimer()
             }
         }
         updateRetentionCheckTs(minTs, true);
-    }, retentionPeriod * 1000 , mKarereClient->appCtx);
+    }, static_cast<unsigned int> (retentionPeriod * 1000) , mKarereClient->appCtx);
 }
 
 uint8_t Client::richLinkState() const
@@ -705,7 +705,7 @@ void Connection::setState(State state)
         mState = state;
     }
 
-    mChatdClient.mKarereClient->initStats().handleShardStats(oldState, state, shardNo());
+    mChatdClient.mKarereClient->initStats().handleShardStats(oldState, state, static_cast<uint8_t>(shardNo()));
 
     if (mState == kStateDisconnected)
     {
@@ -854,7 +854,7 @@ Promise<void> Connection::reconnect()
             }
 
             //GET start ts for QueryDns
-            mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns, shardNo());
+            mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, host.c_str(),
@@ -916,7 +916,7 @@ Promise<void> Connection::reconnect()
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
                     }
 
-                    mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
+                    mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
                     assert(!isOnline());
 
                     if (statusDNS == wsGetNoNameErrorCode(mChatdClient.mKarereClient->websocketIO))
@@ -935,7 +935,7 @@ Promise<void> Connection::reconnect()
                     CHATDS_LOG_DEBUG("Hostname resolved by first time. Connecting...");
 
                     //GET end ts for QueryDns
-                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
+                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
                     mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
                     doConnect();
                     return;
@@ -948,7 +948,7 @@ Promise<void> Connection::reconnect()
                 else
                 {
                     //GET end ts for QueryDns
-                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
+                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
                     // update DNS cache
                     mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
@@ -963,7 +963,7 @@ Promise<void> Connection::reconnect()
                 string errStr = "Inmediate DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS);
                 CHATDS_LOG_ERROR("%s", errStr.c_str());
 
-                mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
+                mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
                 assert(!mConnectPromise.done());
                 mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
@@ -4546,7 +4546,7 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
         if (msg->dataSize() < 2)
             CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
         else
-            msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
+            msg->type = static_cast<unsigned char>(msg->buf()[1] + Message::Type::kMsgOffset);
     }
 
     //update in memory, if loaded
@@ -5275,7 +5275,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             if (msg.dataSize() < 2)
                 CHATID_LOG_ERROR("Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
-                msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
+                msg.type = static_cast<unsigned char>(msg.buf()[1] + Message::Type::kMsgOffset);
         }
 
         verifyMsgOrder(msg, idx);
@@ -5751,7 +5751,7 @@ void Chat::setOnlineState(ChatState state)
     {
         if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
-            mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsLoginChatd, connection().shardNo());
+            mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsLoginChatd, static_cast<uint8_t>(connection().shardNo()));
         }
 
         if (mChatdClient.areAllChatsLoggedIn())
@@ -6236,7 +6236,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
 {
     if (msg.size()) // protect against deleted node-attachment messages
     {
-        msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
+        msg.type = static_cast<unsigned char>(msg.buf()[1] + Message::Type::kMsgOffset);
         assert(msg.type == Message::Type::kMsgAttachment);
     }
 
@@ -6345,7 +6345,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
         auto it = mNextMsgToNotify;
         while ((it != mBuffer.end()) && (msgsLoadedFromRam < count))
         {
-            Idx index = mNewestIdx - std::distance(mBuffer.begin(), it);
+            Idx index = static_cast<Idx>(mNewestIdx - std::distance(mBuffer.begin(), it));
             CALL_LISTENER_FH(onLoaded,  it->get(), index);
             msgsLoadedFromRam++;
 

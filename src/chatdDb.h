@@ -171,7 +171,7 @@ public:
         SqliteStmt stmt3(mDb, "select updated from history where chatid = ? and msgid = ?");
         stmt3 << mChat.chatId() << msgid;
         stmt3.stepMustHaveData();
-        *updated = stmt3.intCol(0);
+        *updated = static_cast<uint16_t>(stmt3.intCol(0));
     }
 
     void getMessageUserKeyId(const karere::Id &msgid, karere::Id &userid, uint32_t &keyid) override
@@ -179,7 +179,7 @@ public:
         SqliteStmt stmt(mDb, "select userid, keyid from history where msgid = ?");
         stmt << msgid;
         stmt.stepMustHaveData("getMessageUserKeyId");
-        userid = stmt.int64Col(0);
+        userid = static_cast<uint16_t>(stmt.int64Col(0));
         keyid = stmt.uintCol(1);
     }
 
@@ -195,13 +195,13 @@ public:
         while(stmt.step())
         {
             int rowid = stmt.intCol(0);
-            uint8_t opcode = stmt.intCol(1);
-            karere::Id msgid = stmt.int64Col(2);
+            uint8_t opcode = static_cast<uint8_t>(stmt.intCol(1));
+            karere::Id msgid = static_cast<const uint64_t>(stmt.int64Col(2));
             karere::Id userid = mChat.client().myHandle();
             chatd::KeyId keyid = (chatd::KeyId)stmt.intCol(3);
             unsigned char type = (unsigned char)stmt.intCol(5);
-            uint32_t ts = stmt.intCol(6);
-            uint16_t updated = stmt.intCol(7);
+            uint32_t ts = static_cast<uint32_t>(stmt.intCol(6));
+            uint16_t updated = static_cast<uint16_t>(stmt.intCol(7));
 
             assert((opcode == chatd::OP_NEWMSG)
                    || (opcode == chatd::OP_NEWNODEMSG)
@@ -232,7 +232,7 @@ public:
                 chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, keyid);
                 Buffer buf;
                 stmt.blobCol(11, buf);
-                msgCmd->setMsg(buf.buf(), buf.dataSize());
+                msgCmd->setMsg(buf.buf(), static_cast<uint32_t>(buf.dataSize()));
 
                 queue.back().msgCmd = msgCmd;
             }
@@ -246,7 +246,7 @@ public:
                 chatd::KeyCommand *keyCmd = new chatd::KeyCommand(mChat.chatId(), keyid);
                 Buffer buf;
                 stmt.blobCol(12, buf);
-                keyCmd->setKeyBlobs(buf.buf(), buf.dataSize());
+                keyCmd->setKeyBlobs(buf.buf(), static_cast<uint32_t>(buf.dataSize()));
 
                 queue.back().keyCmd = keyCmd;
             }

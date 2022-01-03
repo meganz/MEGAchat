@@ -381,14 +381,14 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
         {
-            int status = request->getNumber();
+            int status = static_cast<int>(request->getNumber());
             if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_BUSY)
             {
                 fireOnChatRequestFinish(request, new MegaChatErrorPrivate("Invalid online status", MegaChatError::ERROR_ARGS));
                 break;
             }
 
-            mClient->setPresence(request->getNumber())
+            mClient->setPresence(static_cast<::karere::Presence::Code>(status))
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -920,7 +920,7 @@ void MegaChatApiImpl::sendPendingRequests()
                            std::string url = result->getLink() ? result->getLink() : "";
                            int shard = result->getAccess();
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
-                           uint32_t ts = result->getNumber();
+                           uint32_t ts = static_cast<uint32_t>(result->getNumber());
 
                            mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting);
                            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2201,7 +2201,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            call->approveSpeakRequest(request->getUserHandle(), enable);
+            call->approveSpeakRequest(static_cast<Cid_t>(request->getUserHandle()), enable);
 
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -4193,7 +4193,7 @@ MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid,
             delete msg;
 
             megaMsg->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
-            megaMsg->setRowId(rowid);
+            megaMsg->setRowId(static_cast<int>(rowid));
             megaMsg->setCode(reason);
         }
         else
@@ -4244,7 +4244,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        Message *m = chatroom->chat().msgSubmit(msg, msgLen, type, NULL);
+        Message *m = chatroom->chat().msgSubmit(msg, msgLen, static_cast<unsigned char>(type), NULL);
 
         if (!m)
         {
@@ -5177,11 +5177,11 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
     }
     else if (videoResolution == rtcModule::VideoResolution::kHiRes)
     {
-        mVideoListenersHiRes[chatid][clientId].insert(listener);
+        mVideoListenersHiRes[chatid][static_cast<uint32_t>(clientId)].insert(listener);
     }
     else if (videoResolution == rtcModule::VideoResolution::kLowRes)
     {
-        mVideoListenersLowRes[chatid][clientId].insert(listener);
+        mVideoListenersLowRes[chatid][static_cast<uint32_t>(clientId)].insert(listener);
     }
 
     videoMutex.unlock();
@@ -5224,7 +5224,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
         if (itHiRes != mVideoListenersHiRes.end())
         {
             MegaChatPeerVideoListener_map &videoListenersMap = itHiRes->second;
-            auto auxit = videoListenersMap.find(clientId);
+            auto auxit = videoListenersMap.find(static_cast<Cid_t>(clientId));
             if (auxit != videoListenersMap.end())
             {
                 // remove listener from MegaChatVideoListener_set
@@ -5233,7 +5233,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
                 if (videoListener_set.empty())
                 {
                     // if MegaChatVideoListener_set is empty, remove entry from MegaChatPeerVideoListener_map
-                    videoListenersMap.erase(clientId);
+                    videoListenersMap.erase(static_cast<Cid_t>(clientId));
                 }
             }
 
@@ -5251,7 +5251,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
         if (itLowRes != mVideoListenersLowRes.end())
         {
             MegaChatPeerVideoListener_map &videoListenersMap = itLowRes->second;
-            auto auxit = videoListenersMap.find(clientId);
+            auto auxit = videoListenersMap.find(static_cast<Cid_t>(clientId));
             if (auxit != videoListenersMap.end())
             {
                 // remove listener from MegaChatVideoListener_set
@@ -5260,7 +5260,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
                 if (videoListener_set.empty())
                 {
                     // if MegaChatVideoListener_set is empty, remove entry from MegaChatPeerVideoListener_map
-                    videoListenersMap.erase(clientId);
+                    videoListenersMap.erase(static_cast<Cid_t>(clientId));
                 }
             }
 
@@ -6168,9 +6168,9 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
 }
 
 MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &session)
-    : mState(session.getStatus())
+    : mState(static_cast<uint8_t>(session.getStatus()))
     , mPeerId(session.getPeerid())
-    , mClientId(session.getClientid())
+    , mClientId(static_cast<Cid_t>(session.getClientid()))
     , mAvFlags(session.getAvFlags())
     , mChanged(session.getChanges())
     , mHasRequestSpeak(session.hasRequestSpeak())
@@ -7174,7 +7174,7 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
     if (reason == ManualSendReason::kManualSendEditNoChange)
     {
         API_LOG_WARNING("Edit message rejected because of same content");
-        message->setStatus(mChat->getMsgStatus(msg, msg.id()));
+        message->setStatus(mChat->getMsgStatus(msg, static_cast<Idx>(msg.id())));
     }
     else
     {
@@ -7306,7 +7306,7 @@ void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id,
     delete msg; // we take ownership of the Message
 
     message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
-    message->setRowId(id); // identifier for the manual-send queue, for removal from queue
+    message->setRowId(static_cast<int>(id)); // identifier for the manual-send queue, for removal from queue
     message->setCode(reason);
     fireOnMessageLoaded(message);
 }
@@ -7416,7 +7416,7 @@ const MegaChatRoom *MegaChatRoomListPrivate::get(unsigned int i) const
 
 unsigned int MegaChatRoomListPrivate::size() const
 {
-    return mList.size();
+    return static_cast<unsigned int>(mList.size());
 }
 
 void MegaChatRoomListPrivate::addChatRoom(MegaChatRoom *chat)
@@ -7643,7 +7643,7 @@ int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
 
 unsigned int MegaChatRoomPrivate::getPeerCount() const
 {
-    return mPeers.size();
+    return static_cast<unsigned int>(mPeers.size());
 }
 
 MegaChatHandle MegaChatRoomPrivate::getPeerHandle(unsigned int i) const
@@ -7869,7 +7869,7 @@ char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
     unsigned int firstNameLength = buffer.length() ? static_cast<unsigned char>(buffer.at(0)) : 0;
     if (buffer.length() && (unsigned int)buffer.length() >= firstNameLength)
     {
-        int lenLastname = buffer.length() - firstNameLength - 1;
+        unsigned long lenLastname = static_cast<unsigned long>(buffer.length() - firstNameLength - 1);
         if (lenLastname)
         {
             const char *start = buffer.data() + 1 + firstNameLength;
@@ -7985,7 +7985,7 @@ int MegaChatPeerListPrivate::getPeerPrivilege(int i) const
 
 int MegaChatPeerListPrivate::size() const
 {
-    return list.size();
+    return static_cast<int>(list.size());
 }
 
 const userpriv_vector *MegaChatPeerListPrivate::getList() const
@@ -8775,7 +8775,7 @@ unsigned int MegaChatMessagePrivate::getUsersCount() const
     unsigned int size = 0;
     if (megaChatUsers != NULL)
     {
-        size = megaChatUsers->size();
+        size = static_cast<unsigned int>(megaChatUsers->size());
     }
 
     return size;
@@ -8876,7 +8876,7 @@ void LoggerHandler::setMegaChatLogger(MegaChatLogger *logger)
 void LoggerHandler::setLogLevel(int logLevel)
 {
     mutex.lock();
-    maxLogLevel = logLevel;
+    maxLogLevel = static_cast<krLogLevel>(logLevel);
     switch (logLevel)
     {
         case MegaChatApi::LOG_LEVEL_ERROR:
@@ -9134,7 +9134,7 @@ const MegaChatListItem *MegaChatListItemListPrivate::get(unsigned int i) const
 
 unsigned int MegaChatListItemListPrivate::size() const
 {
-    return mList.size();
+    return static_cast<unsigned int>(mList.size());
 }
 
 void MegaChatListItemListPrivate::addChatListItem(MegaChatListItem *item)
@@ -9445,7 +9445,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         std::string handleString(base64Handle);
         delete [] base64Handle;
         rapidjson::Value nodeHandleValue(rapidjson::kStringType);
-        nodeHandleValue.SetString(handleString.c_str(), handleString.length(), jSonAttachmentNodes.GetAllocator());
+        nodeHandleValue.SetString(handleString.c_str(), static_cast<rapidjson::SizeType>(handleString.length()), jSonAttachmentNodes.GetAllocator());
         jsonNode.AddMember(rapidjson::Value("h"), nodeHandleValue, jSonAttachmentNodes.GetAllocator());
 
         // k -> binary key
@@ -9475,7 +9475,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         // name -> name
         std::string nameString = std::string(megaNode->getName());
         rapidjson::Value nameValue(rapidjson::kStringType);
-        nameValue.SetString(nameString.c_str(), nameString.length(), jSonAttachmentNodes.GetAllocator());
+        nameValue.SetString(nameString.c_str(), static_cast<rapidjson::SizeType>(nameString.length()), jSonAttachmentNodes.GetAllocator());
         jsonNode.AddMember(rapidjson::Value("name"), nameValue, jSonAttachmentNodes.GetAllocator());
 
         // s -> size
@@ -9492,7 +9492,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         if (fingerprint)
         {
             rapidjson::Value fpValue(rapidjson::kStringType);
-            fpValue.SetString(fingerprint, strlen(fingerprint), jSonAttachmentNodes.GetAllocator());
+            fpValue.SetString(fingerprint, static_cast<rapidjson::SizeType>(strlen(fingerprint)), jSonAttachmentNodes.GetAllocator());
             jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
             delete [] fingerprint;
         }
@@ -9505,7 +9505,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
             delete [] fa;
 
             rapidjson::Value faValue(rapidjson::kStringType);
-            faValue.SetString(faString.c_str(), faString.length(), jSonAttachmentNodes.GetAllocator());
+            faValue.SetString(faString.c_str(), static_cast<rapidjson::SizeType>(faString.length()), jSonAttachmentNodes.GetAllocator());
             jsonNode.AddMember(rapidjson::Value("fa"), faValue, jSonAttachmentNodes.GetAllocator());
         }
         else
@@ -9526,7 +9526,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
     jSonAttachmentNodes.Accept(writer);
 
     ret.assign(buffer.GetString(), buffer.GetSize());
-    ret.insert(ret.begin(), type - Message::kMsgOffset);
+    ret.insert(ret.begin(), static_cast<char>(type - Message::kMsgOffset));
     ret.insert(ret.begin(), 0x0);
 
     return ret;
@@ -9694,17 +9694,17 @@ std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, Conta
             const char *base64Handle = MegaApi::userHandleToBase64(contact->userId());
             std::string handleString(base64Handle);
             rapidjson::Value userHandleValue(rapidjson::kStringType);
-            userHandleValue.SetString(handleString.c_str(), handleString.length(), jSonDocument.GetAllocator());
+            userHandleValue.SetString(handleString.c_str(), static_cast<rapidjson::SizeType>(handleString.length()), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("u"), userHandleValue, jSonDocument.GetAllocator());
             delete [] base64Handle;
 
             rapidjson::Value emailValue(rapidjson::kStringType);
-            emailValue.SetString(contact->email().c_str(), contact->email().length(), jSonDocument.GetAllocator());
+            emailValue.SetString(contact->email().c_str(), static_cast<rapidjson::SizeType>(contact->email().length()), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("email"), emailValue, jSonDocument.GetAllocator());
 
             std::string nameString = contact->getContactName();
             rapidjson::Value nameValue(rapidjson::kStringType);
-            nameValue.SetString(nameString.c_str(), nameString.length(), jSonDocument.GetAllocator());
+            nameValue.SetString(nameString.c_str(), static_cast<rapidjson::SizeType>(nameString.length()), jSonDocument.GetAllocator());
             jSonContact.AddMember(rapidjson::Value("name"), nameValue, jSonDocument.GetAllocator());
 
             jSonDocument.PushBack(jSonContact, jSonDocument.GetAllocator());
@@ -9796,7 +9796,7 @@ std::string JSonUtils::generateGeolocationJSon(float longitude, float latitude, 
     // Add generic `textMessage`
     rapidjson::Document jsonContainsMeta(rapidjson::kObjectType);
     rapidjson::Value jsonTextMessage(rapidjson::kStringType);
-    jsonTextMessage.SetString(textMessage.c_str(), textMessage.length(), jsonContainsMeta.GetAllocator());
+    jsonTextMessage.SetString(textMessage.c_str(), static_cast<rapidjson::SizeType>(textMessage.length()), jsonContainsMeta.GetAllocator());
     jsonContainsMeta.AddMember(rapidjson::Value("textMessage"), jsonTextMessage, jsonContainsMeta.GetAllocator());
 
     // prepare geolocation object: longitude, latitude, image
@@ -9804,18 +9804,18 @@ std::string JSonUtils::generateGeolocationJSon(float longitude, float latitude, 
     // longitud
     rapidjson::Value jsonLongitude(rapidjson::kStringType);
     std::string longitudeString = std::to_string(longitude);
-    jsonLongitude.SetString(longitudeString.c_str(), longitudeString.length());
+    jsonLongitude.SetString(longitudeString.c_str(), static_cast<rapidjson::SizeType>(longitudeString.length()));
     jsonGeolocation.AddMember(rapidjson::Value("lng"), jsonLongitude, jsonContainsMeta.GetAllocator());
     // latitude
     rapidjson::Value jsonLatitude(rapidjson::kStringType);
     std::string latitudeString = std::to_string(latitude);
-    jsonLatitude.SetString(latitudeString.c_str(), latitudeString.length());
+    jsonLatitude.SetString(latitudeString.c_str(), static_cast<rapidjson::SizeType>(latitudeString.length()));
     jsonGeolocation.AddMember(rapidjson::Value("la"), jsonLatitude, jsonContainsMeta.GetAllocator());
     // image/thumbnail
     if (img)
     {
         rapidjson::Value jsonImage(rapidjson::kStringType);
-        jsonImage.SetString(img, strlen(img), jsonContainsMeta.GetAllocator());
+        jsonImage.SetString(img, static_cast<rapidjson::SizeType>(strlen(img)), jsonContainsMeta.GetAllocator());
         jsonGeolocation.AddMember(rapidjson::Value("img"), jsonImage, jsonContainsMeta.GetAllocator());
     }
 
@@ -9851,7 +9851,7 @@ std::string JSonUtils::generateGiphyJSon(const char* srcMp4, const char* srcWebp
     // Add generic `textMessage`
     rapidjson::Value jsonTextMessage(rapidjson::kStringType);
     std::string textMessage(title);
-    jsonTextMessage.SetString(textMessage.c_str(), textMessage.length(), jsonContainsMeta.GetAllocator());
+    jsonTextMessage.SetString(textMessage.c_str(), static_cast<rapidjson::SizeType>(textMessage.length()), jsonContainsMeta.GetAllocator());
     jsonContainsMeta.AddMember(rapidjson::Value("textMessage"), jsonTextMessage, jsonContainsMeta.GetAllocator());
 
     // prepare giphy object: mp4, webp, mp4 size, webp size, giphy width and giphy height
@@ -9860,37 +9860,37 @@ std::string JSonUtils::generateGiphyJSon(const char* srcMp4, const char* srcWebp
     // srcMp4
     rapidjson::Value jsonMp4(rapidjson::kStringType);
     std::string mp4String(srcMp4);
-    jsonMp4.SetString(mp4String.c_str(), mp4String.length());
+    jsonMp4.SetString(mp4String.c_str(), static_cast<rapidjson::SizeType>(mp4String.length()));
     jsonContainsMeta.AddMember(rapidjson::Value("src"), jsonMp4, jsonContainsMeta.GetAllocator());
 
     // srcWebp
     rapidjson::Value jsonWebp(rapidjson::kStringType);
     std::string webpString(srcWebp);
-    jsonWebp.SetString(webpString.c_str(), webpString.length());
+    jsonWebp.SetString(webpString.c_str(), static_cast<rapidjson::SizeType>(webpString.length()));
     jsonContainsMeta.AddMember(rapidjson::Value("src_webp"), jsonWebp, jsonContainsMeta.GetAllocator());
 
     // mp4 size
     rapidjson::Value jsonMp4Size(rapidjson::kStringType);
     std::string mp4sizeString = std::to_string(sizeMp4);
-    jsonMp4Size.SetString(mp4sizeString.c_str(), mp4sizeString.length());
+    jsonMp4Size.SetString(mp4sizeString.c_str(), static_cast<rapidjson::SizeType>(mp4sizeString.length()));
     jsonContainsMeta.AddMember(rapidjson::Value("s"), jsonMp4Size, jsonContainsMeta.GetAllocator());
 
     // webp size
     rapidjson::Value jsonWebpSize(rapidjson::kStringType);
     std::string webpsizeString = std::to_string(sizeWebp);
-    jsonWebpSize.SetString(webpsizeString.c_str(), webpsizeString.length());
+    jsonWebpSize.SetString(webpsizeString.c_str(), static_cast<rapidjson::SizeType>(webpsizeString.length()));
     jsonContainsMeta.AddMember(rapidjson::Value("s_webp"), jsonWebpSize, jsonContainsMeta.GetAllocator());
 
     // width
     rapidjson::Value jsonGiphyWidth(rapidjson::kStringType);
     std::string giphyWidthString = std::to_string(width);
-    jsonGiphyWidth.SetString(giphyWidthString.c_str(), giphyWidthString.length());
+    jsonGiphyWidth.SetString(giphyWidthString.c_str(), static_cast<rapidjson::SizeType>(giphyWidthString.length()));
     jsonContainsMeta.AddMember(rapidjson::Value("w"), jsonGiphyWidth, jsonContainsMeta.GetAllocator());
 
     // height
     rapidjson::Value jsonGiphyHeight(rapidjson::kStringType);
     std::string giphyHeightString = std::to_string(height);
-    jsonGiphyHeight.SetString(giphyHeightString.c_str(), giphyHeightString.length());
+    jsonGiphyHeight.SetString(giphyHeightString.c_str(), static_cast<rapidjson::SizeType>(giphyHeightString.length()));
     jsonContainsMeta.AddMember(rapidjson::Value("h"), jsonGiphyHeight, jsonContainsMeta.GetAllocator());
 
     rapidjson::StringBuffer buffer;

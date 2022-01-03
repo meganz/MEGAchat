@@ -299,7 +299,7 @@ protected:
     {
         if (!mTimer)
             return;
-        cancelTimeout(mTimer, appCtx);
+        cancelTimeout(static_cast<megaHandle>(mTimer), appCtx);
         mTimer = 0;
     }
 
@@ -362,7 +362,7 @@ protected:
 
         RETRY_LOG("Starting attempt %zu...", mCurrentAttemptNo);
         auto pms = mFunc(mCurrentAttemptNo, wptr);
-        attachThenHandler(pms, attempt);
+        attachThenHandler(pms, static_cast<unsigned int>(attempt));
         pms.fail([this, attempt](const ::promise::Error& err)
         {
             if (attempt != mCurrentAttemptId)//we are already in another attempt and this callback is from the old attempt, ignore it
@@ -420,7 +420,7 @@ protected:
                 return;
             mTimer = 0;
             nextTry();
-        }, waitTime, appCtx);
+        }, static_cast<unsigned int>(waitTime), appCtx);
         return true;
     }
 };
@@ -484,7 +484,7 @@ static inline rh::RetryController<Func, CancelFunc>* createRetryController(
                 , maxAttemptTimeout
                 , wptr
                 , ctx
-                , maxSingleWaitTime
+                , static_cast<unsigned int>(maxSingleWaitTime)
                 , maxRetries
                 , backoffStart);
 
