@@ -106,7 +106,6 @@
 		947566051F18D4E900FE8664 /* messageBus.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = messageBus.h; sourceTree = "<group>"; };
 		947566061F18D4E900FE8664 /* presenced.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = presenced.h; sourceTree = "<group>"; };
 		947566071F18D4E900FE8664 /* sdkApi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sdkApi.h; sourceTree = "<group>"; };
-		947566081F18D4E900FE8664 /* serverListProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = serverListProvider.h; sourceTree = "<group>"; };
 		9475660A1F18D4E900FE8664 /* stringUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stringUtils.h; sourceTree = "<group>"; };
 		9475660E1F18D4E900FE8664 /* url.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = url.h; sourceTree = "<group>"; };
 		9475660F1F18D4E900FE8664 /* userAttrCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = userAttrCache.h; sourceTree = "<group>"; };
@@ -292,7 +291,6 @@
 				A87D1057220C6F0C007CC424 /* rtcCrypto.h */,
 				947566071F18D4E900FE8664 /* sdkApi.h */,
 				5B4A6C32261324FA00E0A117 /* sfu.h */,
-				947566081F18D4E900FE8664 /* serverListProvider.h */,
 				9475660A1F18D4E900FE8664 /* stringUtils.h */,
 				9475660E1F18D4E900FE8664 /* url.h */,
 				9475660F1F18D4E900FE8664 /* userAttrCache.h */,
