@@ -4320,9 +4320,9 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
 
 void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 {
-    if (keyxid != CHATD_KEYID_UNCONFIRMED)
+    if (keyxid >= CHATD_KEYID_MAX || keyxid < CHATD_KEYID_MIN)
     {
-        CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xfffffffe");
+        CHATID_LOG_ERROR("keyConfirm: Key transaction id [%s] is out of range [0xffff0000, 0xfffffffe)", ID_CSTR(keyxid));
         return;
     }
 
