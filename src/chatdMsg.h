@@ -1144,9 +1144,7 @@ public:
     : Command(OP_NEWKEY, reserve), mLocalKeyid(aLocalkeyid)
     {
         assert(isLocalKeyId(mLocalKeyid));
-
-        KeyId keyid = CHATD_KEYID_UNCONFIRMED;
-        append(chatid.val).append<KeyId>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
+        append(chatid.val).append<KeyId>(mLocalKeyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
 
     KeyId localKeyid() const { return mLocalKeyid; }
