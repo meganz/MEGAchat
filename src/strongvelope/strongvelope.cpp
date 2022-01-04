@@ -754,7 +754,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
         stmt.blobCol(1, keyBlobs);
 
         // read keyid
-        KeyId keyid = (KeyId)stmt.intCol(2);
+        KeyId keyid = static_cast<KeyId>(stmt.intCol(2));
         assert(isLocalKeyId(keyid));
 
         //pick the version that is encrypted for us
@@ -796,8 +796,15 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
             mCurrentKey = key;
             mCurrentKeyId = keyid;
             mCurrentKeyParticipants = recipients;
-            mCurrentLocalKeyId = keyid;
+            if (keyid > mCurrentLocalKeyId)
+            {
+                STRONGVELOPE_LOG_ERROR("Loaded keyid(%s) is greater than mCurrentLocalKeyId current value (%s)",
+                        (static_cast<::karere::Id>(keyid)).toString().c_str(),
+                        (static_cast<::karere::Id>(mCurrentLocalKeyId)).toString().c_str());
+                assert(keyid <= mCurrentLocalKeyId);
+            }
 
+            mCurrentLocalKeyId = keyid;
             NewKeyEntry entry(key, recipients, keyid);
             mUnconfirmedKeys.push_back(entry);
         });
