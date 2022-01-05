@@ -383,7 +383,7 @@ protected:
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
 
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-    encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const karere::SetOfIds &participants, chatd::KeyId localkeyid = CHATD_KEYID_UNCONFIRMED);
+    encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const karere::SetOfIds &participants, chatd::KeyId localkeyid = CHATD_KEYID_MIN);
 
     promise::Promise<std::string> encryptUnifiedKeyToUser(karere::Id user) override;
 

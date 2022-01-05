@@ -997,7 +997,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
         if (mCurrentKey && mCurrentKeyParticipants == recipients)
         {
             msg->keyid = mCurrentKeyId;
-            msgCmd->setKeyId(isLocalKeyId(mCurrentKeyId) ? CHATD_KEYID_UNCONFIRMED : mCurrentKeyId);
+            msgCmd->setKeyId(mCurrentKeyId);
             msgEncryptWithKey(*msg, *msgCmd, *mCurrentKey);
             return std::make_pair(msgCmd, (KeyCommand*)nullptr);
         }
@@ -1008,7 +1008,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
             {
                 wptr.throwIfDeleted();
                 msg->keyid = result.first->localKeyid();
-                msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
+                msgCmd->setKeyId(mCurrentKeyId);
                 msgEncryptWithKey(*msg, *msgCmd, *result.second);
                 return std::make_pair(msgCmd, result.first);
             });
@@ -1027,7 +1027,8 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
             NewKeyEntry entry = it;
             if (entry.recipients == recipients && entry.localKeyid == msg->keyid)
             {
-                msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
+                assert(isValidKeyxId(msg->keyid));
+                msgCmd->setKeyId(msg->keyid);
                 msgEncryptWithKey(*msg, *msgCmd, *entry.key);
                 return std::make_pair(msgCmd, (KeyCommand*)nullptr);
             }
