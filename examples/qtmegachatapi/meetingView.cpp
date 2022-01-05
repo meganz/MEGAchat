@@ -152,6 +152,7 @@ void MeetingView::setNotParticipating()
     mOnHoldLabel->setVisible(false);
     mJoinCallWithVideo->setVisible(true);
     mJoinCallWithoutVideo->setVisible(true);
+    mLocalWidget->setOnHold(false);
 }
 
 void MeetingView::setConnecting()
