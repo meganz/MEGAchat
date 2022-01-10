@@ -2591,12 +2591,12 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                     /* send kUserHangup as termcode in SFU stats for the following endCallReasons:
                      *  - kEnded
-                     *  - kEnded
+                     *  - kRejected
                      *  - kNoAnswer
                      *  - kCancelled
-                     * Otherwise send kErrGeneral */
+                     * Otherwise send kApiEndCall */
                     connectionTermCode = recvReason == rtcModule::EndCallReason::kFailed
-                            ? rtcModule::TermCode::kErrGeneral
+                            ? rtcModule::TermCode::kApiEndCall
                             : rtcModule::TermCode::kUserHangup;
                 }
 

@@ -144,7 +144,7 @@ void Call::onDisconnectFromChatd()
 {
     if (participate())
     {
-        handleCallDisconnect(TermCode::kSigDisconn);
+        handleCallDisconnect(TermCode::kChatDisconn);
         setState(CallState::kStateConnecting);
         mSfuConnection->disconnect(true);
     }
@@ -921,6 +921,10 @@ void Call::handleCallDisconnect(const TermCode& termCode)
     }
     if (mSfuConnection && mSfuConnection->isOnline())
     {
+        if (termCode != kSigDisconn)
+        {
+            mSfuConnection->sendBye(termCode);
+        }
         sendStats(termCode);
     }
     disableStats();
@@ -967,7 +971,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kTooManyParticipants:      return "there are too many participants";
         case kLeavingRoom:              return "user has been removed from chatroom";
         case kRtcDisconn:               return "SFU connection failed";
-        case kSigDisconn:               return "chatd connection failed";
+        case kSigDisconn:               return "socket error on the signalling connection";
         case kSvrShuttingDown:          return "SFU server is shutting down";
         case kErrSignaling:             return "signalling error";
         case kErrNoCall:                return "attempted to join non-existing call";
@@ -975,6 +979,8 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kErrApiTimeout:            return "ping timeout between SFU and API";
         case kErrSdp:                   return "error generating or setting SDP description";
         case kErrGeneral:               return "general error";
+        case kChatDisconn:              return "chatd connection is broken";
+        case kApiEndCall:               return "API/chatd ended call";
         case kUnKnownTermCode:          return "unknown error";
         default:                        return "invalid connection termcode";
     }
@@ -1462,6 +1468,11 @@ bool Call::handlePeerLeft(Cid_t cid)
 void Call::onSfuConnected()
 {
     joinSfu();
+}
+
+void Call::onSfuDisconnected()
+{
+    handleCallDisconnect(kSigDisconn);
 }
 
 bool Call::error(unsigned int code, const std::string &errMsg)
