@@ -929,7 +929,16 @@ void Call::handleCallDisconnect(const TermCode& termCode)
     mVThumb.reset();
     mHiRes.reset();
     mAudio.reset();
-    mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video tracks
+    mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video local tracks
+    if (!isDisconnectionTermcode(termCode))
+    {
+        resetLocalAvFlags();        // reset local AvFlags: Audio | Video | OnHold => disabled
+    }
+}
+
+void Call::resetLocalAvFlags()
+{
+    mMyPeer->setAvFlags(karere::AvFlags::kEmpty);
 }
 
 void Call::setEndCallReason(uint8_t reason)
@@ -969,6 +978,11 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kUnKnownTermCode:          return "unknown error";
         default:                        return "invalid connection termcode";
     }
+}
+
+bool Call::isDisconnectionTermcode(const TermCode& termCode) const
+{
+    return termCode & kFlagDisconn;
 }
 
 bool Call::isValidConnectionTermcode(TermCode termCode) const

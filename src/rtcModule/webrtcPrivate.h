@@ -484,6 +484,8 @@ protected:
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
     void updateSvcQuality(int8_t delta);
     void updateTransmittedSvcQuality(int8_t txSpt);
+    void resetLocalAvFlags();
+    bool isDisconnectionTermcode(const TermCode& termCode) const;
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
