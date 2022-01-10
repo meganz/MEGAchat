@@ -171,7 +171,7 @@ public:
         SqliteStmt stmt3(mDb, "select updated from history where chatid = ? and msgid = ?");
         stmt3 << mChat.chatId() << msgid;
         stmt3.stepMustHaveData();
-        *updated = stmt3.intCol(0);
+        *updated = uint16_t(stmt3.intCol(0));
     }
 
     void getMessageUserKeyId(const karere::Id &msgid, karere::Id &userid, uint32_t &keyid) override
@@ -195,13 +195,13 @@ public:
         while(stmt.step())
         {
             int rowid = stmt.intCol(0);
-            uint8_t opcode = stmt.intCol(1);
+            uint8_t opcode = uint8_t(stmt.intCol(1));
             karere::Id msgid = stmt.int64Col(2);
             karere::Id userid = mChat.client().myHandle();
             chatd::KeyId keyid = (chatd::KeyId)stmt.intCol(3);
             unsigned char type = (unsigned char)stmt.intCol(5);
             uint32_t ts = stmt.intCol(6);
-            uint16_t updated = stmt.intCol(7);
+            uint16_t updated = uint16_t(stmt.intCol(7));
 
             assert((opcode == chatd::OP_NEWMSG)
                    || (opcode == chatd::OP_NEWNODEMSG)
@@ -232,7 +232,7 @@ public:
                 chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, keyid);
                 Buffer buf;
                 stmt.blobCol(11, buf);
-                msgCmd->setMsg(buf.buf(), buf.dataSize());
+                msgCmd->setMsg(buf.buf(), uint32_t(buf.dataSize()));
 
                 queue.back().msgCmd = msgCmd;
             }
@@ -246,7 +246,7 @@ public:
                 chatd::KeyCommand *keyCmd = new chatd::KeyCommand(mChat.chatId(), keyid);
                 Buffer buf;
                 stmt.blobCol(12, buf);
-                keyCmd->setKeyBlobs(buf.buf(), buf.dataSize());
+                keyCmd->setKeyBlobs(buf.buf(), uint32_t(buf.dataSize()));
 
                 queue.back().keyCmd = keyCmd;
             }
@@ -340,7 +340,7 @@ public:
             Buffer buf;
             stmt.blobCol(5, buf);
             auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().myHandle(),
-                stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
+                stmt.uintCol(3), uint16_t(stmt.intCol(4)), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(6)), static_cast<chatd::ManualSendReason>(stmt.intCol(7)));
         }
@@ -360,11 +360,11 @@ public:
         Buffer buf;
         stmt.blobCol(4, buf);
         auto msg = new chatd::Message(stmt.uint64Col(0), mChat.client().myHandle(),
-                                      stmt.int64Col(2), stmt.intCol(3), std::move(buf), true,
+                                      stmt.uintCol(2), uint16_t(stmt.intCol(3)), std::move(buf), true,
                                       CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(1));
         item.msg = msg;
         item.rowid = rowid;
-        item.opcode = stmt.intCol(5);
+        item.opcode = uint8_t(stmt.intCol(5));
         item.reason = (chatd::ManualSendReason)stmt.intCol(6);
     }
     void truncateHistory(const chatd::Message& msg) override
@@ -454,8 +454,8 @@ public:
         }
         Buffer buf(128);
         stmt.blobCol(2, buf);
-        msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
-        lastTs = stmt.intCol(5);
+        msg.assign(buf, uint8_t(stmt.intCol(0)), stmt.uint64Col(3), static_cast<chatd::Idx>(stmt.intCol(1)), stmt.uint64Col(4));
+        lastTs = stmt.uintCol(5);
     }
 
     //Insert a new chat var related to a chat. This function receives as parameters the var name and it's value
@@ -589,7 +589,7 @@ public:
                 assert(false);
             }
 #endif
-            auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
+            auto msg = new chatd::Message(msgid, userid, ts, uint16_t(stmt.intCol(8)), std::move(buf),
                 false, keyid, (unsigned char)stmt.intCol(3));
             msg->backRefId = stmt.uint64Col(7);
             msg->setEncrypted((uint8_t)stmt.intCol(9));
@@ -662,7 +662,7 @@ public:
         stmt << mChat.chatId();
         while (stmt.step())
         {
-            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), karere::Id (stmt.uint64Col(3)), stmt.uint64Col(4)));
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), karere::Id(stmt.uint64Col(3)), uint8_t(stmt.intCol(4))));
         }
     }
 

@@ -147,19 +147,20 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
 
     va_list vaList;
     va_copy(vaList, aVaList);
-    int sprintfSpace = LOGGER_SPRINTF_BUF_SIZE-2-bytesLogged;
+    size_t sprintfSpace = LOGGER_SPRINTF_BUF_SIZE-2-bytesLogged;
     int sprintfRv = vsnprintf(buf+bytesLogged, sprintfSpace, fmtString, vaList); //maybe check return value
     if (sprintfRv < 0) //nothing logged if zero, or error if negative, silently ignore the error and return
     {
         va_end(vaList);
         return;
     }
-    if (sprintfRv >= sprintfSpace)
+    size_t auxSprintfRv = size_t(sprintfRv);
+    if (auxSprintfRv >= sprintfSpace)
     {
         //static buffer was not enough for the message! Message was truncated
         va_copy(vaList, aVaList); //reuse the arg list. GCC printf invalidaes the arg_list after its used
-        size_t bufSize = sprintfRv+bytesLogged+2;
-        sprintfSpace = sprintfRv+1;
+        size_t bufSize = auxSprintfRv+bytesLogged+2;
+        sprintfSpace = auxSprintfRv+1;
         buf = new char[bufSize];
         if (!buf)
         {
@@ -169,14 +170,22 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
         }
         memcpy(buf, statBuf, bytesLogged);
         sprintfRv = vsnprintf(buf+bytesLogged, sprintfSpace, fmtString, vaList); //maybe check return value
-        if (sprintfRv >= sprintfSpace)
+        /* ToDo: rethink the need of this to be safe on the next if-statement condition:
+        if (sprintfRv < 0) //nothing logged if zero, or error if negative, silently ignore the error and return
+        {
+            va_end(vaList);
+            return;
+        }
+        */
+        // if previous vsnprintf return negative value, this may fail
+        if (size_t(sprintfRv) >= sprintfSpace)
         {
             perror("Error: vsnprintf wants to write more data than the size of buffer it requested");
-            sprintfRv = sprintfSpace-1;
+            auxSprintfRv = sprintfSpace-1;
         }
     }
     va_end(vaList);
-    bytesLogged+=sprintfRv;
+    bytesLogged+=auxSprintfRv;
     buf[bytesLogged] = 0;
     logString(level, buf, flags, bytesLogged);
     if (buf != statBuf)
@@ -277,7 +286,7 @@ void Logger::setupFromEnvVar()
         return;
     struct ParamVal: public std::string
     {
-        unsigned numVal;
+        krLogLevel numVal;
         ParamVal(std::string&& str): std::string(std::forward<std::string>(str)){};
     };
 
@@ -288,7 +297,7 @@ void Logger::setupFromEnvVar()
         //verify log level names
         for (auto& param: config)
         {
-            unsigned level = krLogLevelStrToNum(param.second.c_str());
+            auto level = krLogLevelStrToNum(param.second.c_str());
             if (level == (krLogLevel)-1)
                 throw std::runtime_error("can't recognize log level name '"+param.second+"'");
             param.second.numVal = level;

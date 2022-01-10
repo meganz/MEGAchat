@@ -35,7 +35,7 @@ namespace chatd
 {
 
 /// This type is used for ordered indexes in the message buffer
-typedef int32_t Idx;
+typedef size_t Idx;
 
 /// We want to fit in the positive range of a signed int64_t, for compatibility with sqlite which has no unsigned types
 /// Don't use an enum as its implicit type may screw up our value
@@ -1504,7 +1504,7 @@ protected:
     // to track changes in the richPreview's user-attribute
     karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
 
-    int mKeepaliveCount = 0;                    // number of keepalives to be sent (one per connection)
+    size_t mKeepaliveCount = 0;                    // number of keepalives to be sent (one per connection)
     bool mKeepaliveFailed = false;              // true means any pending keepalive failed to send
     promise::Promise<void> mKeepalivePromise;   // resolved when all keepalive have been sent (or failed)
     void onKeepaliveSent();

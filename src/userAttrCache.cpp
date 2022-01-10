@@ -198,7 +198,7 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
     {
         std::unique_ptr<Buffer> data(new Buffer((size_t)sqlite3_column_bytes(stmt, 2)));
         stmt.blobCol(2, *data);
-        UserAttrPair key(stmt.uint64Col(0), stmt.intCol(1));
+        UserAttrPair key(stmt.uint64Col(0), uint8_t(stmt.intCol(1)));
         emplace(std::make_pair(key, std::make_shared<UserAttrCacheItem>(
                 *this, data.release(), kCacheFetchNotPending)));
 //        UACACHE_LOG_DEBUG("loaded attr %s", key.toString().c_str());
@@ -236,7 +236,7 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
         if ((changed & desc.changeMask) == 0)
             continue; //the change is not of this attrib type
 
-        int type = it->first;
+        uint8_t type = uint8_t(it->first);
         UserAttrPair key(userid, type);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
@@ -373,7 +373,7 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
     return ::promise::when(promises);
 }
 
-const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
+const Buffer *UserAttrCache::getDataFromCache(uint64_t user, uint8_t attrType)
 {
     UserAttrPair key(user, attrType);
     auto it = find(key);
@@ -385,7 +385,7 @@ const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
     return it->second->data.get();
 }
 
-UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
+UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, uint8_t type,
             void* userp, UserAttrReqCbFunc cb, bool oneShot, bool fetch, uint64_t ph)
 {
     UserAttrPair key(userHandle, type, ph);
@@ -553,7 +553,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
             fn.resize(252);
             fn.append("...");
         }
-        data.append<uint8_t>(fn.size());
+        data.append<uint8_t>(uint8_t(fn.size()));
         if (!fn.empty())
         {
             data.append(fn);
@@ -599,7 +599,7 @@ void UserAttrCache::onLogOut()
 }
 
 promise::Promise<Buffer*>
-UserAttrCache::getAttr(uint64_t user, unsigned attrType, uint64_t ph)
+UserAttrCache::getAttr(uint64_t user, uint8_t attrType, uint64_t ph)
 {
     auto pms = new Promise<Buffer*>;
     auto ret = *pms;

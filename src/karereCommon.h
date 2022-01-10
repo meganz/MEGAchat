@@ -119,13 +119,13 @@ public:
                   };
 
     AvFlags(uint8_t flags): mFlags(flags){}
-    AvFlags(bool audio, bool video) : mFlags((audio ? kAudio : 0) | (video ? kCamera : 0)) {}
+    AvFlags(bool audio, bool video) : mFlags(uint8_t(audio ? kAudio : 0) | uint8_t(video ? kCamera : 0)) {}
     AvFlags(): mFlags(0){}
 
     // setters/modifiers
     void set(uint8_t val)       { mFlags = val; }
     void add(uint8_t val)       { mFlags = mFlags | val; }
-    void remove(uint8_t val)    { mFlags = mFlags & ~val; }
+    void remove(uint8_t val)    { mFlags = mFlags & uint8_t(~val); }
     void setOnHold(bool enable) { enable ? add(kOnHold) : remove(kOnHold); }
 
     // getters

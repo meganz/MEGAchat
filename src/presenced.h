@@ -44,7 +44,7 @@ public:
     };
 
     Presence(Code pres = kUnknown): mPres(pres){}
-    Code code() const { return mPres & ~kFlagsMask; }
+    Code code() const { return mPres & uint8_t(~kFlagsMask); }
     Code status() const { return code(); }
     operator Code() const { return code(); }
     Code raw() const { return mPres; }
@@ -263,7 +263,7 @@ public:
     enum { kLastGreenVisibleMask = 0x8000 }; // mask for bit 15 in prefs
 
     Config(){}
-    explicit Config(uint16_t code) { fromCode(code); }
+    explicit Config(karere::Presence::Code code) { fromCode(code); }
 
     karere::Presence presence() const { return mPresence; }
     bool persist() const { return mPersist; }
@@ -274,7 +274,7 @@ public:
     /** True if the autoaway should be considered to signal user's activity or not */
     bool autoAwayInEffect() const;
 
-    void fromCode(uint16_t code);
+    void fromCode(karere::Presence::Code code);
     uint16_t toCode() const;
     std::string toString() const;
 

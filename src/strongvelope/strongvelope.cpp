@@ -84,7 +84,7 @@ EncryptedMessage::EncryptedMessage(const Message& msg, const StaticBuffer& aKey)
     size_t binsize = 10+brsize;
     Buffer buf(binsize+msg.dataSize());
     buf.append<uint64_t>(msg.backRefId)
-       .append<uint16_t>(brsize);
+       .append<uint16_t>(uint16_t(brsize));
     if (brsize)
     {
         buf.append((const char*)(&msg.backRefs[0]), brsize);
@@ -425,7 +425,7 @@ void ParsedMessage::parsePayloadWithUtfBackrefs(const StaticBuffer &data, Messag
     {
 //            if (u16[i] > 255)
 //                  printf("char > 255: 0x%x, at offset %zu\n", u16[i], i);
-        *(data8.buf()+i) = u16[i] & 0xff;
+        *(data8.buf()+i) = char(u16[i] & 0xff);
     }
     msg.backRefId = data8.read<uint64_t>(0);
     uint16_t refsSize = data8.read<uint16_t>(8);
@@ -637,7 +637,7 @@ ProtocolHandler::reactionEncrypt(const Message &msg, const std::string &reaction
     std::vector<uint32_t> emoji32 = ::mega::Utils::str_to_a32<uint32_t>(buf);
 
     // Encrypt reaction
-    ::mega::xxteaEncrypt(emoji32.data(), emoji32.size(), cypherKey.data(), false);
+    ::mega::xxteaEncrypt(emoji32.data(), uint32_t(emoji32.size()), cypherKey.data(), false);
 
     // Convert encrypted reaction to uint32 array
     std::string result = ::mega::Utils::a32_to_str<uint32_t>(emoji32);
@@ -686,7 +686,7 @@ ProtocolHandler::reactionDecrypt(const karere::Id &msgid, const karere::Id &user
         }
 
         std::vector<uint32_t> reaction32 = ::mega::Utils::str_to_a32<uint32_t>(reaction);
-        ::mega::xxteaDecrypt(reaction32.data(), reaction32.size(), cypherKey.data(), false);
+        ::mega::xxteaDecrypt(reaction32.data(), uint32_t(reaction32.size()), cypherKey.data(), false);
         std::string decrypted = ::mega::Utils::a32_to_str<uint32_t>(reaction32);
 
         // skip the msgid's part (4 most significat bytes) and the left-padding (if any)
@@ -1459,7 +1459,7 @@ ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key
         .then([keyCmd, user](const std::shared_ptr<Buffer>& encryptedKey)
         {
             assert(encryptedKey && !encryptedKey->empty());
-            keyCmd->addKey(user, encryptedKey->buf(), encryptedKey->dataSize());
+            keyCmd->addKey(user, encryptedKey->buf(), uint16_t(encryptedKey->dataSize()));
         });
         promises.push_back(pms);
     }

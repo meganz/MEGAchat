@@ -166,7 +166,7 @@ public:
      * the attribute data. If there is an error obraining the attribute, the callback
      * will be called with a \c null Buffer object.
      * @param user User from attribute is request
-     * @param attrType Attriute type
+     * @param attrType Attribute type
      * @param userp An arbitrary user-supplied pointer that will be passed to the
      * callback
      * @param cb Callback called when attribute is available
@@ -176,12 +176,12 @@ public:
      * be unregistered immediately after that. If \false, the callback will be called
      * every time the attribute changes on the server and the new value is fetched.
      */
-    Handle getAttr(uint64_t user, unsigned attrType, void* userp,
+    Handle getAttr(uint64_t user, uint8_t attrType, void* userp,
                              UserAttrReqCbFunc cb, bool oneShot=false, bool fetch = true, uint64_t ph = Id::inval());
     /** @brief A promise-based version of \c getAttr. The request
      * is implicitly one-shot, as a promise can be resolved only once.
      */
-    promise::Promise<Buffer*> getAttr(uint64_t user, unsigned attrType, uint64_t ph = Id::inval());
+    promise::Promise<Buffer*> getAttr(uint64_t user, uint8_t attrType, uint64_t ph = Id::inval());
     /** @brief Unregisters an attribute request/subsequent callbacks.
      * It can be a not-yet-fetched single shot request as well. Use this method
      * to unsubscribe from further calling the corresponding callback.
@@ -192,7 +192,7 @@ public:
 
     promise::Promise<void> getAttributes(uint64_t user, uint64_t ph = Id::inval());
 
-    const Buffer *getDataFromCache(uint64_t user, unsigned attrType);
+    const Buffer *getDataFromCache(uint64_t user, uint8_t attrType);
 };
 
 }

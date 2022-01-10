@@ -38,7 +38,7 @@ public:
 class Peer
 {
 public:
-    Peer(karere::Id peerid, unsigned avFlags, Cid_t cid = 0);
+    Peer(karere::Id peerid, uint8_t avFlags, Cid_t cid = 0);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;

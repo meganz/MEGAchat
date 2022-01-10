@@ -19,7 +19,7 @@ std::string base64urlencode(const void *data, size_t inlen)
         encoded_data+= b64enctable[(triple >> 6) & 0x3F];
         encoded_data+= b64enctable[triple & 0x3F];
     }
-    int mod = inlen % 3;
+    size_t mod = inlen % 3;
     if (mod)
     {
         encoded_data.resize(encoded_data.size() - (3 - mod));
@@ -67,14 +67,14 @@ size_t base64urldecode(const char* str, size_t len, void* bin, size_t binlen)
         if (two > 63)
             throw std::runtime_error(std::string("Invalid char "+std::to_string(*(in-1))+ " in base64 stream at offset ") + std::to_string(((char*)(in-1)-str)));
 
-        *out++ = (one << 2) | (two >> 4);
+        *out++ = uint8_t(one << 2) | uint8_t(two >> 4);
         if (in > last)
             break;
 
         unsigned char three = b64dectable[*in++];
         if (three > 63)
             throw std::runtime_error(std::string("Invalid char "+std::to_string(*(in-1))+ " in base64 stream at offset ") + std::to_string(((char*)(in-1)-str)));
-        *out++ = (two << 4) | (three >> 2);
+        *out++ = uint8_t(two << 4) | uint8_t(three >> 2);
 
         if (in > last)
             break;
@@ -83,8 +83,8 @@ size_t base64urldecode(const char* str, size_t len, void* bin, size_t binlen)
         if (four > 63)
             throw std::runtime_error(std::string("Invalid char "+std::to_string(*(in-1))+ " in base64 stream at offset ") + std::to_string(((char*)(in-1)-str)));
 
-        *out++ = (three << 6) | four;
+        *out++ = uint8_t(three << 6) | four;
     }
-    return out-(unsigned char*)bin;
+    return size_t(out-(uint8_t*)bin);
 }
 
