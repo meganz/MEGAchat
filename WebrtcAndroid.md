@@ -63,7 +63,7 @@ The resulting libraries `libwebrtc.a` for each platform should be located in eac
 
 Furthermore, you need to copy the following folders from `<webRTCAndroid>/src` as below:
 
-  `cp -R third_party/abseil-cpp <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R third_party/abseil-cpp <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/third_party/`  
   `cp -R third_party/boringssl <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/third_party/`  
   `cp -R third_party/libyuv <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/third_party/`  
   `cp -R api <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
