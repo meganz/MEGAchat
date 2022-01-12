@@ -395,7 +395,7 @@ protected:
     /**
      * @brief Getter method to local static variable for temporal.
      *
-     * Id will be decreasing as used and start from CHATD_KEYID_MAX when it reaches zero.
+     * Id will be decreasing as used and start from CHATD_KEYID_MAX when it reaches CHATD_KEYID_MIN.
      */
     chatd::KeyId getCurrentLocalKeyId();
 
