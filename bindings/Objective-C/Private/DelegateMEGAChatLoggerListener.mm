@@ -10,6 +10,6 @@ DelegateMEGAChatLoggerListener::DelegateMEGAChatLoggerListener(id<MEGAChatLogger
 
 void DelegateMEGAChatLoggerListener::log(int logLevel, const char *message) {
     if (listener != nil && [listener respondsToSelector:@selector(logWithTime:logLevel:source:message:)]) {
-        [listener logWithLevel:(NSInteger)logLevel message:(message ? [NSString stringWithUTF8String:message] : nil)];
+        [listener logWithLevel:(MEGAChatLogLevel)logLevel message:(message ? [NSString stringWithUTF8String:message] : nil)];
     }
 }

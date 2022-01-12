@@ -91,7 +91,6 @@ HEADERS  += asyncTest-framework.h \
             karereId.h \
             presenced.h \
             autoHandle.h \
-            chatCommon.h  \
             chatdMsg.h \
             megachatapi.h  \
             rtcCrypto.h \
