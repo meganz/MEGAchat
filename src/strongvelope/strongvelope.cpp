@@ -796,14 +796,6 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
             mCurrentKey = key;
             mCurrentKeyId = keyid;
             mCurrentKeyParticipants = recipients;
-            if (keyid > mCurrentLocalKeyId)
-            {
-                STRONGVELOPE_LOG_ERROR("Loaded keyid(%s) is greater than mCurrentLocalKeyId current value (%s)",
-                        (static_cast<::karere::Id>(keyid)).toString().c_str(),
-                        (static_cast<::karere::Id>(mCurrentLocalKeyId)).toString().c_str());
-                assert(keyid <= mCurrentLocalKeyId);
-            }
-
             mCurrentLocalKeyId = keyid;
             NewKeyEntry entry(key, recipients, keyid);
             mUnconfirmedKeys.push_back(entry);
