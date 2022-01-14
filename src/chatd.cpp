@@ -18,8 +18,6 @@ using ::mega::mega_snprintf;   // enables the calls to snprintf below which are 
 
 #define CHATD_LOG_LISTENER_CALLS
 
-#define ID_CSTR(id) id.toString().c_str()
-
 // logging for a specific chatid - prepends the chatid and calls the normal logging macro
 #define CHATID_LOG_DEBUG(fmtString,...) CHATD_LOG_DEBUG("[shard %d]: %s: " fmtString, mConnection.shardNo(), ID_CSTR(chatId()), ##__VA_ARGS__)
 #define CHATID_LOG_WARNING(fmtString,...) CHATD_LOG_WARNING("[shard %d]: %s: " fmtString, mConnection.shardNo(), ID_CSTR(chatId()), ##__VA_ARGS__)
@@ -2328,11 +2326,13 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_CLIENTID:
             {
-                // clientid.4 reserved.4
+                // clientid.4 reserved.4 (unused at this moment)
                 READ_32(clientid, 0);
                 READ_32(unused, 4);
                 mClientId = clientid;
-                CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
+                unused
+                    ? CHATDS_LOG_DEBUG("recv CLIENTID - %x reserved: %d", clientid, unused)
+                    : CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
                 break;
             }
             case OP_ECHO:
@@ -2591,12 +2591,12 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                     /* send kUserHangup as termcode in SFU stats for the following endCallReasons:
                      *  - kEnded
-                     *  - kEnded
+                     *  - kRejected
                      *  - kNoAnswer
                      *  - kCancelled
-                     * Otherwise send kErrGeneral */
+                     * Otherwise send kApiEndCall */
                     connectionTermCode = recvReason == rtcModule::EndCallReason::kFailed
-                            ? rtcModule::TermCode::kErrGeneral
+                            ? rtcModule::TermCode::kApiEndCall
                             : rtcModule::TermCode::kUserHangup;
                 }
 

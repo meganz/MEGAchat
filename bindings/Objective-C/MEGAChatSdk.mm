@@ -1525,9 +1525,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 + (void)setLogObject:(id<MEGAChatLoggerDelegate>)delegate {
-    DelegateMEGAChatLoggerListener *newLogger = new DelegateMEGAChatLoggerListener(delegate);
-    delete externalLogger;
-    externalLogger = newLogger;
+    if (delegate) {
+        DelegateMEGAChatLoggerListener *newLogger = new DelegateMEGAChatLoggerListener(delegate);
+        delete externalLogger;
+        externalLogger = newLogger;
+    } else {
+        MegaChatApi::setLoggerObject(NULL);
+    }
 }
 
 + (void)setLogWithColors:(BOOL)userColors {

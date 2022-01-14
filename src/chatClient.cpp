@@ -211,7 +211,6 @@ bool Client::openDb(const std::string& sid)
                 db.query("update chat_vars set value = 0 where name = 'have_all_history'");
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
-
                 KR_LOG_WARNING("Successfully cleared cached history. Database version has been updated to %s", gDbSchemaVersionSuffix);
 
                 ok = true;
@@ -441,6 +440,7 @@ void Client::createDbSchema()
     db.simpleQuery(gDbSchema); //db.query() uses a prepared statement and will execute only the first statement up to the first semicolon
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
+    // not replaced by saveVarsValue encapsulation because this is a direct INSERT, thus the fallback is an ABORT not a REPLACE
     db.query("insert into vars(name, value) values('schema_version', ?)", ver);
     db.commit();
 }
@@ -1119,7 +1119,7 @@ void Client::commit(const std::string& scsn)
         return;
     }
 
-    db.query("insert or replace into vars(name,value) values('scsn',?)", scsn);
+    db.query("insert or replace into vars(name,value) values('scsn', ?)", scsn);
     db.commit();
     mLastScsn = scsn;
     KR_LOG_DEBUG("Commit with scsn %s", scsn.c_str());
@@ -1311,6 +1311,11 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
             mInitStats.stageStart(InitStats::kStatsFetchNodes);
             break;
         }
+        case ::mega::MegaRequest::TYPE_CONFIRM_ACCOUNT:
+        {
+            mInitStats.stageStart(InitStats::kStatsEphAccConfirmed);
+            break;
+        }
         default:    // no action to be taken for other type of requests
         {
             break;
@@ -1370,7 +1375,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
         if (reqType == ::mega::MegaRequest::TYPE_CREATE_ACCOUNT)  // if not creating E++ account, do nothing
         {
-            if (request->getParamType() != 3)     // if not creating E++ account, do nothing
+            if (request->getParamType() != ::mega::MegaApi::CREATE_EPLUSPLUS_ACCOUNT)     // if not creating E++ account, do nothing
             {
                 break;
             }
@@ -1486,6 +1491,25 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }, appCtx);
         break;
     }
+
+    case ::mega::MegaRequest::TYPE_CONFIRM_ACCOUNT:
+    {
+        std::string email = request->getEmail();
+        // checking if there is a change in the e-mail we cover 2 use cases:
+        //1) the confirmation of an ephemeral account ++ where there was no email
+        //2) the confirmation of an account where the signing email is different than the one used
+        //during the initial step of the account creation
+        if (email != getMyEmail())
+        {
+            mInitStats.stageEnd(InitStats::kStatsEphAccConfirmed);
+
+            setMyEmail(email);
+            db.query("insert or replace into vars(name,value) values('my_email', ?)", email);
+        }
+
+        break;
+    }
+
     default:    // no action to be taken for other type of requests
     {
         break;
@@ -1829,8 +1853,8 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
     .then([this](ReqResult result) -> promise::Promise<void>
     {
         // write to db
-        db.query("insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
-        db.query("insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
+        db.query("insert or replace into vars(name,value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+        db.query("insert or replace into vars(name,value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
@@ -2004,6 +2028,27 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
         }
 
         mContactList->syncWithApi(*users);
+
+        // check changes for own user
+        int count = users->size();
+        for (int i = 0; i < count; i++)
+        {
+            ::mega::MegaUser &user = *users->get(i);
+            if (user.getHandle() != myHandle()) continue;
+
+            if (user.hasChanged(::mega::MegaUser::CHANGE_TYPE_EMAIL))
+            {
+                // Update our own email in client and caches
+                std::string email = user.getEmail();
+                setMyEmail(email);
+                db.query("insert or replace into vars(name,value) values('my_email', ?)", email);
+            }
+
+            if (!user.isOwnChange())
+            {
+                userAttrCache().onUserAttrChange(user);
+            }
+        }
     }, appCtx);
 }
 
@@ -4112,6 +4157,11 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
     for (int i = 0; i < count; i++)
     {
         ::mega::MegaUser &user = *users.get(i);
+        if (user.getHandle() == client.myHandle())
+        {
+            continue;
+        }
+
         auto newVisibility = user.getVisibility();
 
         int changed = user.getChanges();
@@ -4160,13 +4210,6 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
                 // Update contact email in memory and cache
                 contact->mEmail = newEmail;
                 client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
-
-                // If user it's our own user, we need to update our own email in client and cache
-                if (client.myHandle() == user.getHandle())
-                {
-                    client.setMyEmail(newEmail);
-                    client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
-                }
 
                 // We need to update user email in attr cache
                 updateCache = true;

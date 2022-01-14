@@ -1836,7 +1836,7 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
     chatroomListener->clearMessages(a1);
     chatroomListener->clearMessages(a2);
-    MegaChatMessage *messageSent = megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
+    megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
     ASSERT_CHAT_TEST(waitForResponse(msgConfirmed), "Timeout expired for receiving confirmation by server");    // for confirmation, sendMessage() is synchronous
     MegaChatHandle msgId = chatroomListener->mConfirmedMessageHandle[a1];
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a1, msgId), "Message not received");
@@ -5322,6 +5322,10 @@ void MockupCall::onSfuConnected()
 
 }
 
+void MockupCall::onSfuDisconnected()
+{
+
+}
 bool MockupCall::error(unsigned int, const string &)
 {
     return true;

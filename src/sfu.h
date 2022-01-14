@@ -58,7 +58,7 @@ public:
 protected:
     Cid_t mCid = 0;
     karere::Id mPeerid;
-    karere::AvFlags mAvFlags = 0;
+    karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
 };
@@ -157,6 +157,7 @@ public:
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
     virtual bool handlePeerLeft(Cid_t cid) = 0;
     virtual void onSfuConnected() = 0;
+    virtual void onSfuDisconnected() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
@@ -369,6 +370,7 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_SPEAK_RQ;
     static const std::string CSFU_SPEAK_RQ_DEL;
     static const std::string CSFU_SPEAK_DEL;
+    static const std::string CSFU_BYE;
 
 public:
     enum ConnState
@@ -411,6 +413,7 @@ public:
     bool sendSpeakReq(Cid_t cid = 0);
     bool sendSpeakReqDel(Cid_t cid = 0);
     bool sendSpeakDel(Cid_t cid = 0);
+    bool sendBye(int termCode);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands

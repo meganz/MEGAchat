@@ -200,7 +200,7 @@ private:
     uint8_t mState = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id mPeerId;
     uint32_t mClientId;
-    karere::AvFlags mAvFlags = 0;
+    karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     bool mHasRequestSpeak = false;
     bool mAudioDetected = false;

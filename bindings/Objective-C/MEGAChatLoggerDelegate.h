@@ -1,9 +1,10 @@
 #import <Foundation/Foundation.h>
+#import "MEGAChatLogLevel.h"
 
 @protocol MEGAChatLoggerDelegate <NSObject>
 
 @optional
 
-- (void)logWithLevel:(NSInteger)logLevel message:(NSString *)message;
+- (void)logWithLevel:(MEGAChatLogLevel)logLevel message:(NSString *)message;
 
 @end
