@@ -344,7 +344,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (void)setLogLevel:(MEGAChatLogLevel)level;
 + (void)setLogToConsole:(BOOL)enable;
-+ (void)setLogObject:(id<MEGAChatLoggerDelegate>)delegate;
++ (void)setLogObject:(nullable id<MEGAChatLoggerDelegate>)delegate;
 + (void)setLogWithColors:(BOOL)userColors;
 
 #pragma mark - Exceptions
