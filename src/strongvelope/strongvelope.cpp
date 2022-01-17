@@ -801,7 +801,8 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
             mUnconfirmedKeys.push_back(entry);
         });
     }
-
+    // we have retrieved min LocalKeyxId (transactional keyid) from sending table, we need to obtain next valid value (decrement)
+    getNextValidLocalKeyId();
     STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu unconfirmed keys from database", chatid.val, mUnconfirmedKeys.size());
 }
 
