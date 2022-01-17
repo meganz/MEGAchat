@@ -20,7 +20,7 @@ typedef uint64_t BackRefId;
 typedef uint32_t KeyId;
 inline bool isValidKeyxId(KeyId keyxid)
 {
-    return keyxid < CHATD_KEYID_MAX && keyxid >= CHATD_KEYID_MIN;
+    return keyxid <= CHATD_KEYID_MAX && keyxid >= CHATD_KEYID_MIN;
 }
 
 enum CallDataReason
