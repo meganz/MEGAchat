@@ -401,6 +401,7 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
+    void onSfuDisconnected() override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
@@ -484,6 +485,8 @@ protected:
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
     void updateSvcQuality(int8_t delta);
     void updateTransmittedSvcQuality(int8_t txSpt);
+    void resetLocalAvFlags();
+    bool isDisconnectionTermcode(const TermCode& termCode) const;
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink

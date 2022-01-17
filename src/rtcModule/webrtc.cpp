@@ -144,7 +144,7 @@ void Call::onDisconnectFromChatd()
 {
     if (participate())
     {
-        handleCallDisconnect(TermCode::kSigDisconn);
+        handleCallDisconnect(TermCode::kChatDisconn);
         setState(CallState::kStateConnecting);
         mSfuConnection->disconnect(true);
     }
@@ -415,13 +415,13 @@ const char *Call::stateToStr(CallState state)
 {
     switch(state)
     {
-        RET_ENUM_NAME(kStateInitial);
-        RET_ENUM_NAME(kStateClientNoParticipating);
-        RET_ENUM_NAME(kStateConnecting);
-        RET_ENUM_NAME(kStateJoining);    // < Joining a call
-        RET_ENUM_NAME(kStateInProgress);
-        RET_ENUM_NAME(kStateTerminatingUserParticipation);
-        RET_ENUM_NAME(kStateDestroyed);
+        RET_ENUM_RTC_NAME(kStateInitial);
+        RET_ENUM_RTC_NAME(kStateClientNoParticipating);
+        RET_ENUM_RTC_NAME(kStateConnecting);
+        RET_ENUM_RTC_NAME(kStateJoining);    // < Joining a call
+        RET_ENUM_RTC_NAME(kStateInProgress);
+        RET_ENUM_RTC_NAME(kStateTerminatingUserParticipation);
+        RET_ENUM_RTC_NAME(kStateDestroyed);
         default: return "(invalid call state)";
     }
 }
@@ -919,8 +919,12 @@ void Call::handleCallDisconnect(const TermCode& termCode)
         mRtcConn->Close();
         mRtcConn = nullptr;
     }
-    if (mSfuConnection->isOnline())
+    if (mSfuConnection && mSfuConnection->isOnline())
     {
+        if (termCode != kSigDisconn)
+        {
+            mSfuConnection->sendBye(termCode);
+        }
         sendStats(termCode);
     }
     disableStats();
@@ -929,7 +933,16 @@ void Call::handleCallDisconnect(const TermCode& termCode)
     mVThumb.reset();
     mHiRes.reset();
     mAudio.reset();
-    mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video tracks
+    mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video local tracks
+    if (!isDisconnectionTermcode(termCode))
+    {
+        resetLocalAvFlags();        // reset local AvFlags: Audio | Video | OnHold => disabled
+    }
+}
+
+void Call::resetLocalAvFlags()
+{
+    mMyPeer->setAvFlags(karere::AvFlags::kEmpty);
 }
 
 void Call::setEndCallReason(uint8_t reason)
@@ -958,7 +971,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kTooManyParticipants:      return "there are too many participants";
         case kLeavingRoom:              return "user has been removed from chatroom";
         case kRtcDisconn:               return "SFU connection failed";
-        case kSigDisconn:               return "chatd connection failed";
+        case kSigDisconn:               return "socket error on the signalling connection";
         case kSvrShuttingDown:          return "SFU server is shutting down";
         case kErrSignaling:             return "signalling error";
         case kErrNoCall:                return "attempted to join non-existing call";
@@ -966,9 +979,16 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kErrApiTimeout:            return "ping timeout between SFU and API";
         case kErrSdp:                   return "error generating or setting SDP description";
         case kErrGeneral:               return "general error";
+        case kChatDisconn:              return "chatd connection is broken";
+        case kApiEndCall:               return "API/chatd ended call";
         case kUnKnownTermCode:          return "unknown error";
         default:                        return "invalid connection termcode";
     }
+}
+
+bool Call::isDisconnectionTermcode(const TermCode& termCode) const
+{
+    return termCode & kFlagDisconn;
 }
 
 bool Call::isValidConnectionTermcode(TermCode termCode) const
@@ -1448,6 +1468,11 @@ bool Call::handlePeerLeft(Cid_t cid)
 void Call::onSfuConnected()
 {
     joinSfu();
+}
+
+void Call::onSfuDisconnected()
+{
+    handleCallDisconnect(kSigDisconn);
 }
 
 bool Call::error(unsigned int code, const std::string &errMsg)

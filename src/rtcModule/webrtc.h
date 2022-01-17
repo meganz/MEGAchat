@@ -12,7 +12,7 @@
 #include "sfu.h"
 
 
-#define RET_ENUM_NAME(name) case name: return #name
+#define RET_ENUM_RTC_NAME(name) case name: return #name
 
 namespace rtcModule
 {
@@ -31,11 +31,13 @@ enum TermCode: uint8_t
     kUserHangup                 = 0,                    // < normal user hangup
     kTooManyParticipants        = 1,                    // < there are too many participants
     kLeavingRoom                = 2,                    // < user has been removed from chatroom
+    kApiEndCall                 = 3,                    // < API/chatd ended call
     //==============================================================================================
 
-    kRtcDisconn                 = kFlagDisconn | 0,     // < SFU connection failed
-    kSigDisconn                 = kFlagDisconn | 1,     // < chatd connection failed
-    kSvrShuttingDown            = kFlagDisconn | 2,     // < SFU server is shutting down
+    kRtcDisconn                 = kFlagDisconn | 0,     // 64 < SFU connection failed
+    kSigDisconn                 = kFlagDisconn | 1,     // 65 < socket error on the signalling connection
+    kSvrShuttingDown            = kFlagDisconn | 2,     // 66 < SFU server is shutting down
+    kChatDisconn                = kFlagDisconn | 3,     // 67 < chatd connection is broken
     //==============================================================================================
 
     kErrSignaling               = kFlagError | 0,       // 128 < signalling error

@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
 // 
-// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -29,6 +29,7 @@ namespace internal {
 #ifdef __GNUC__
 RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(effc++)
+RAPIDJSON_DIAG_OFF(array-bounds) // some gcc versions generate wrong warnings https://gcc.gnu.org/bugzilla/show_bug.cgi?id=59124
 #endif
 
 inline void GrisuRound(char* buffer, int len, uint64_t delta, uint64_t rest, uint64_t ten_kappa, uint64_t wp_w) {
@@ -40,7 +41,7 @@ inline void GrisuRound(char* buffer, int len, uint64_t delta, uint64_t rest, uin
     }
 }
 
-inline unsigned CountDecimalDigit32(uint32_t n) {
+inline int CountDecimalDigit32(uint32_t n) {
     // Simple pure C++ implementation was faster than __builtin_clz version in this situation.
     if (n < 10) return 1;
     if (n < 100) return 2;
@@ -57,12 +58,16 @@ inline unsigned CountDecimalDigit32(uint32_t n) {
 }
 
 inline void DigitGen(const DiyFp& W, const DiyFp& Mp, uint64_t delta, char* buffer, int* len, int* K) {
-    static const uint32_t kPow10[] = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 };
+    static const uint64_t kPow10[] = { 1U, 10U, 100U, 1000U, 10000U, 100000U, 1000000U, 10000000U, 100000000U,
+                                       1000000000U, 10000000000U, 100000000000U, 1000000000000U,
+                                       10000000000000U, 100000000000000U, 1000000000000000U,
+                                       10000000000000000U, 100000000000000000U, 1000000000000000000U,
+                                       10000000000000000000U };
     const DiyFp one(uint64_t(1) << -Mp.e, Mp.e);
     const DiyFp wp_w = Mp - W;
     uint32_t p1 = static_cast<uint32_t>(Mp.f >> -one.e);
     uint64_t p2 = Mp.f & (one.f - 1);
-    unsigned kappa = CountDecimalDigit32(p1); // kappa in [0, 9]
+    int kappa = CountDecimalDigit32(p1); // kappa in [0, 9]
     *len = 0;
 
     while (kappa > 0) {
@@ -85,7 +90,7 @@ inline void DigitGen(const DiyFp& W, const DiyFp& Mp, uint64_t delta, char* buff
         uint64_t tmp = (static_cast<uint64_t>(p1) << -one.e) + p2;
         if (tmp <= delta) {
             *K += kappa;
-            GrisuRound(buffer, *len, delta, tmp, static_cast<uint64_t>(kPow10[kappa]) << -one.e, wp_w.f);
+            GrisuRound(buffer, *len, delta, tmp, kPow10[kappa] << -one.e, wp_w.f);
             return;
         }
     }
@@ -101,7 +106,8 @@ inline void DigitGen(const DiyFp& W, const DiyFp& Mp, uint64_t delta, char* buff
         kappa--;
         if (p2 < delta) {
             *K += kappa;
-            GrisuRound(buffer, *len, delta, p2, one.f, wp_w.f * kPow10[-static_cast<int>(kappa)]);
+            int index = -kappa;
+            GrisuRound(buffer, *len, delta, p2, one.f, wp_w.f * (index < 20 ? kPow10[index] : 0));
             return;
         }
     }
@@ -145,10 +151,10 @@ inline char* WriteExponent(int K, char* buffer) {
     return buffer;
 }
 
-inline char* Prettify(char* buffer, int length, int k) {
+inline char* Prettify(char* buffer, int length, int k, int maxDecimalPlaces) {
     const int kk = length + k;  // 10^(kk-1) <= v < 10^kk
 
-    if (length <= kk && kk <= 21) {
+    if (0 <= k && kk <= 21) {
         // 1234e7 -> 12340000000
         for (int i = length; i < kk; i++)
             buffer[i] = '0';
@@ -160,7 +166,16 @@ inline char* Prettify(char* buffer, int length, int k) {
         // 1234e-2 -> 12.34
         std::memmove(&buffer[kk + 1], &buffer[kk], static_cast<size_t>(length - kk));
         buffer[kk] = '.';
-        return &buffer[length + 1];
+        if (0 > k + maxDecimalPlaces) {
+            // When maxDecimalPlaces = 2, 1.2345 -> 1.23, 1.102 -> 1.1
+            // Remove extra trailing zeros (at least one) after truncation.
+            for (int i = kk + maxDecimalPlaces; i > kk + 1; i--)
+                if (buffer[i] != '0')
+                    return &buffer[i + 1];
+            return &buffer[kk + 2]; // Reserve one zero
+        }
+        else
+            return &buffer[length + 1];
     }
     else if (-6 < kk && kk <= 0) {
         // 1234e-6 -> 0.001234
@@ -170,7 +185,23 @@ inline char* Prettify(char* buffer, int length, int k) {
         buffer[1] = '.';
         for (int i = 2; i < offset; i++)
             buffer[i] = '0';
-        return &buffer[length + offset];
+        if (length - kk > maxDecimalPlaces) {
+            // When maxDecimalPlaces = 2, 0.123 -> 0.12, 0.102 -> 0.1
+            // Remove extra trailing zeros (at least one) after truncation.
+            for (int i = maxDecimalPlaces + 1; i > 2; i--)
+                if (buffer[i] != '0')
+                    return &buffer[i + 1];
+            return &buffer[3]; // Reserve one zero
+        }
+        else
+            return &buffer[length + offset];
+    }
+    else if (kk < -maxDecimalPlaces) {
+        // Truncate to zero
+        buffer[0] = '0';
+        buffer[1] = '.';
+        buffer[2] = '0';
+        return &buffer[3];
     }
     else if (length == 1) {
         // 1e30
@@ -186,7 +217,8 @@ inline char* Prettify(char* buffer, int length, int k) {
     }
 }
 
-inline char* dtoa(double value, char* buffer) {
+inline char* dtoa(double value, char* buffer, int maxDecimalPlaces = 324) {
+    RAPIDJSON_ASSERT(maxDecimalPlaces >= 1);
     Double d(value);
     if (d.IsZero()) {
         if (d.Sign())
@@ -203,7 +235,7 @@ inline char* dtoa(double value, char* buffer) {
         }
         int length, K;
         Grisu2(value, buffer, &length, &K);
-        return Prettify(buffer, length, K);
+        return Prettify(buffer, length, K, maxDecimalPlaces);
     }
 }
 
