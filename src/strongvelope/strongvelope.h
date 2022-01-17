@@ -397,7 +397,7 @@ protected:
      *
      * Id will be decreasing as used and start from CHATD_KEYID_MAX when it reaches CHATD_KEYID_MIN.
      */
-    chatd::KeyId getCurrentLocalKeyId();
+    chatd::KeyId getNextValidLocalKeyId();
 
 public:
 //chatd::ICrypto interface

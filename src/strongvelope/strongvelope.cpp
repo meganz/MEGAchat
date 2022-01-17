@@ -1438,7 +1438,7 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
 
 KeyId ProtocolHandler::createLocalKeyId()
 {
-    return getCurrentLocalKeyId();
+    return getNextValidLocalKeyId();
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
@@ -1739,14 +1739,14 @@ ProtocolHandler::NewKeyEntry::NewKeyEntry(const std::shared_ptr<SendKey> &aKey, 
 
 }
 
-KeyId ProtocolHandler::getCurrentLocalKeyId()
+KeyId ProtocolHandler::getNextValidLocalKeyId()
 {
-    if (--mCurrentLocalKeyId < CHATD_KEYID_MIN)
+    chatd::KeyId ret = mCurrentLocalKeyId;
+    if (!isValidKeyxId(--mCurrentLocalKeyId))
     {
         mCurrentLocalKeyId = CHATD_KEYID_MAX;
     }
-
-    return mCurrentLocalKeyId;
+    return ret;
 }
 
 } //end strongvelope namespace
