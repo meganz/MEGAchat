@@ -1501,7 +1501,8 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser, b
         wptr.throwIfDeleted();
         assert(!key->empty());
 
-        return encryptKeyToAllParticipants(key, participants)
+        // we provide invalid KeyId as it's not used upon chat title encryption
+        return encryptKeyToAllParticipants(key, participants, CHATD_KEYID_INVALID)
         .then([this, wptr, data, createNewKey](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
         {
             wptr.throwIfDeleted();
@@ -1557,7 +1558,7 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
         wptr.throwIfDeleted();
         assert(!key->empty());
 
-        return encryptKeyToAllParticipants(key, participants)
+        return encryptKeyToAllParticipants(key, participants, CHATD_KEYID_INVALID)
         .then([this, wptr](const std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
         {
             wptr.throwIfDeleted();
