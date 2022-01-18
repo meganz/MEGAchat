@@ -1146,7 +1146,7 @@ public:
     explicit KeyCommand(karere::Id chatid, KeyId aLocalkeyid, size_t reserve=128)
     : Command(OP_NEWKEY, reserve), mLocalKeyid(aLocalkeyid)
     {
-        assert(isLocalKeyId(mLocalKeyid));
+        assert(isValidKeyxId(mLocalKeyid) || mLocalKeyid == CHATD_KEYID_INVALID);
         append(chatid.val).append<KeyId>(mLocalKeyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
 
