@@ -86,14 +86,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (MEGAChatInit)initState;
 
-- (void)connectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)connect;
-
-- (void)connectInBackgroundWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)connectInBackground;
-
-- (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)disconnect;
 - (MEGAChatConnection)chatConnectionState:(uint64_t)chatId;
 - (void)retryPendingConnections;
 - (void)reconnect;
