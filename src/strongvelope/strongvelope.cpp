@@ -44,6 +44,8 @@ struct Context
     EcKey edKey;
 };
 
+chatd::KeyId ProtocolHandler::mCurrentLocalKeyId = CHATD_KEYID_MAX;
+
 const std::string SVCRYPTO_PAIRWISE_KEY = "strongvelope pairwise key\x01";
 const std::string SVCRYPTO_SIG = "strongvelopesig";
 void deriveNonceSecret(const StaticBuffer& masterNonce, const StaticBuffer &result,
@@ -752,7 +754,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
         stmt.blobCol(1, keyBlobs);
 
         // read keyid
-        KeyId keyid = (KeyId)stmt.intCol(2);
+        KeyId keyid = static_cast<KeyId>(stmt.intCol(2));
         assert(isLocalKeyId(keyid));
 
         //pick the version that is encrypted for us
@@ -795,12 +797,12 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
             mCurrentKeyId = keyid;
             mCurrentKeyParticipants = recipients;
             mCurrentLocalKeyId = keyid;
-
             NewKeyEntry entry(key, recipients, keyid);
             mUnconfirmedKeys.push_back(entry);
         });
     }
-
+    // we have retrieved min LocalKeyxId (transactional keyid) from sending table, we need to obtain next valid value (decrement)
+    getNextValidLocalKeyId();
     STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu unconfirmed keys from database", chatid.val, mUnconfirmedKeys.size());
 }
 
@@ -988,7 +990,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
         if (mCurrentKey && mCurrentKeyParticipants == recipients)
         {
             msg->keyid = mCurrentKeyId;
-            msgCmd->setKeyId(isLocalKeyId(mCurrentKeyId) ? CHATD_KEYID_UNCONFIRMED : mCurrentKeyId);
+            msgCmd->setKeyId(mCurrentKeyId);
             msgEncryptWithKey(*msg, *msgCmd, *mCurrentKey);
             return std::make_pair(msgCmd, (KeyCommand*)nullptr);
         }
@@ -999,7 +1001,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
             {
                 wptr.throwIfDeleted();
                 msg->keyid = result.first->localKeyid();
-                msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
+                msgCmd->setKeyId(mCurrentKeyId);
                 msgEncryptWithKey(*msg, *msgCmd, *result.second);
                 return std::make_pair(msgCmd, result.first);
             });
@@ -1018,7 +1020,8 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
             NewKeyEntry entry = it;
             if (entry.recipients == recipients && entry.localKeyid == msg->keyid)
             {
-                msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
+                assert(isValidKeyxId(msg->keyid));
+                msgCmd->setKeyId(msg->keyid);
                 msgEncryptWithKey(*msg, *msgCmd, *entry.key);
                 return std::make_pair(msgCmd, (KeyCommand*)nullptr);
             }
@@ -1436,10 +1439,7 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
 
 KeyId ProtocolHandler::createLocalKeyId()
 {
-    if (--mCurrentLocalKeyId < CHATD_KEYID_MIN)
-        mCurrentLocalKeyId = CHATD_KEYID_MAX;
-
-    return mCurrentLocalKeyId;
+    return getNextValidLocalKeyId();
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
@@ -1502,7 +1502,8 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser, b
         wptr.throwIfDeleted();
         assert(!key->empty());
 
-        return encryptKeyToAllParticipants(key, participants)
+        // we provide invalid KeyId as it's not used upon chat title encryption
+        return encryptKeyToAllParticipants(key, participants, CHATD_KEYID_INVALID)
         .then([this, wptr, data, createNewKey](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
         {
             wptr.throwIfDeleted();
@@ -1558,7 +1559,7 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
         wptr.throwIfDeleted();
         assert(!key->empty());
 
-        return encryptKeyToAllParticipants(key, participants)
+        return encryptKeyToAllParticipants(key, participants, CHATD_KEYID_INVALID)
         .then([this, wptr](const std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
         {
             wptr.throwIfDeleted();
@@ -1737,6 +1738,16 @@ ProtocolHandler::NewKeyEntry::NewKeyEntry(const std::shared_ptr<SendKey> &aKey, 
     : key(aKey), recipients(aRecipients), localKeyid(aLocalKeyid)
 {
 
+}
+
+KeyId ProtocolHandler::getNextValidLocalKeyId()
+{
+    chatd::KeyId ret = mCurrentLocalKeyId;
+    if (!isValidKeyxId(--mCurrentLocalKeyId))
+    {
+        mCurrentLocalKeyId = CHATD_KEYID_MAX;
+    }
+    return ret;
 }
 
 } //end strongvelope namespace
