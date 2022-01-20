@@ -84,7 +84,7 @@ You need to copy the following folders from `<webRTCAndroid>/src` as below:
   `cp -R sdk <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R system_wrappers <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`
   
-Furthermore, you should copy the library, libwebrtc.jar, to Android project. This jar is located in `<WebRTC_output_XXX>/lib.java/sdk/android/`. You can take for one of four `WebRTC_output_XXX` (arm32, arm64, x64 and x86_64) because it is present in all and it is the same
-  `cp <WebRTC_output_XXX>/lib.java/sdk/android/libwebrtc.jar <Android_Path>/app/src/main/libs/libwebrtc.jar`
+Furthermore, you should copy the library, libwebrtc.jar. This jar is located in `<WebRTC_output_XXX>/lib.java/sdk/android/`. You can take one of four `WebRTC_output_XXX` (arm32, arm64, x64 and x86_64) because it is present in all and it is the same
+  `cp <WebRTC_output_XXX>/lib.java/sdk/android/libwebrtc.jar <Android_Path>/android/app/src/main/jni/megachat/webrtc/libwebrtc.jar`
  
 Should you have any question about the Android project, you can check https://github.com/meganz/android.
