@@ -1115,6 +1115,17 @@ int MegaChatApi::loadAttachments(MegaChatHandle chatid, int count)
     return pImpl->loadAttachments(chatid, count);
 }
 
+const char *MegaChatApi::dbErrorToString(int errCode)
+{
+    switch (errCode)
+    {
+        case MegaChatApi::DB_ERROR_IO:      return "Input/Output error";
+        case MegaChatApi::DB_ERROR_FULL:    return "Database is full";
+        default:                            return "Invalid database error";
+    }
+}
+
+
 MegaChatMessage* megachat::MegaChatApi::sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title)
 {
     return pImpl->sendGiphy(chatid, srcMp4, srcWebp, sizeMp4, sizeWebp, width, height, title);

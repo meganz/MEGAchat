@@ -5573,6 +5573,13 @@ public:
      */
     int loadAttachments(MegaChatHandle chatid, int count);
 
+    /**
+     * @brief Returns a readable description of the karere Db error
+     *
+     * @return Readable description of the error
+     */
+    static const char *dbErrorToString(int errCode);
+
 private:
     MegaChatApiImpl *pImpl;
 };

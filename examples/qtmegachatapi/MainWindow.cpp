@@ -1252,6 +1252,20 @@ void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle us
     delete [] firstname;
 }
 
+void MainWindow::onDbError(MegaChatApi */*api*/, int error, const char *msg)
+{
+    std::string text(msg);
+    text.append(": ").append(MegaChatApi::dbErrorToString(error));
+    QMessageBox *msgBox = new QMessageBox(this);
+    msgBox->setIcon( QMessageBox::Information );
+    msgBox->setAttribute(Qt::WA_DeleteOnClose);
+    msgBox->setStandardButtons(QMessageBox::Ok);
+    msgBox->setWindowTitle( tr("Karere DB error"));
+    msgBox->setText(text.c_str());
+    msgBox->setModal(false);
+    msgBox->show();
+}
+
 void MainWindow::setNContacts(int nContacts)
 {
     this->mNContacts = nContacts;

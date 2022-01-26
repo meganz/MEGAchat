@@ -60,6 +60,14 @@ void QTMegaChatListener::onChatPresenceLastGreen(MegaChatApi *api, MegaChatHandl
     QCoreApplication::postEvent(this, event, INT_MIN);
 }
 
+void QTMegaChatListener::onDbError(MegaChatApi *api, int error, const char *msg)
+{
+    QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::OnDbError);
+    event->setStatus(error);
+    event->setBuffer(::mega::MegaApi::strdup(msg));
+    QCoreApplication::postEvent(this, event, INT_MIN);
+}
+
 void QTMegaChatListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
@@ -82,6 +90,9 @@ void QTMegaChatListener::customEvent(QEvent *e)
             break;
         case QTMegaChatEvent::OnChatPresenceLastGreen:
             if (listener) listener->onChatPresenceLastGreen(event->getMegaChatApi(), event->getChatHandle(), event->getStatus());
+            break;
+        case QTMegaChatEvent::OnDbError:
+            if (listener) listener->onDbError(event->getMegaChatApi(), event->getStatus(), event->getBuffer());
             break;
         default:
             break;

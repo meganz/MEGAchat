@@ -161,6 +161,7 @@ class MainWindow :
         void onChatOnlineStatusUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config);
         void onChatPresenceLastGreen(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int lastGreen);
+        void onDbError(megachat::MegaChatApi */*api*/, int error, const char *msg);
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
