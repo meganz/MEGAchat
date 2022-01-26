@@ -2369,6 +2369,12 @@ public:
         CHAT_CONNECTION_ONLINE      = 3     /// Connection with chatd is ready and logged in
     };
 
+    enum
+    {
+        DB_ERROR_INVALID            = -1,   /// Invalid database error
+        DB_ERROR_IO                 = 0,    /// I/O error in Data base
+        DB_ERROR_FULL               = 1,    /// Database is full
+    };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -6309,7 +6315,15 @@ public:
      */
     virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
 
-    // TODO: add documentation
+    /** @brief This function is called when an error occurred in an operation with karere Db
+     * Possible returned values:
+     *   - MegaChatApi::DB_ERROR_INVALID          = -1,   /// Invalid database error
+     *   - MegaChatApi::DB_ERROR_IO               = 0,    /// I/O error in Data base
+     *   - MegaChatApi::DB_ERROR_FULL             = 1,    /// Database is full
+     *
+     * @param error Numeric error code
+     * @param errStr Error message
+     */
     virtual void onDbError(MegaChatApi *api, int error, const char* msg);
 };
 

@@ -957,6 +957,7 @@ private:
     void cleanChatHandlers();
 
     static int convertInitState(int state);
+    static int convertDbError(int errCode);
 
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);

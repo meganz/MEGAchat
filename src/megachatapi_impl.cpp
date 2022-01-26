@@ -5539,7 +5539,7 @@ void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, 
 
 void MegaChatApiImpl::onDbError(int error, const string &msg)
 {
-    fireOnDbError(error, msg.c_str());
+    fireOnDbError(MegaChatApiImpl::convertDbError(error), msg.c_str());
 }
 
 int MegaChatApiImpl::convertInitState(int state)
@@ -5574,6 +5574,20 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrSidInvalid:
     default:
         return state;
+    }
+}
+
+int MegaChatApiImpl::convertDbError(int errCode)
+{
+    switch (errCode)
+    {
+        case SQLITE_IOERR:  return MegaChatApi::DB_ERROR_IO;
+        case SQLITE_FULL:   return MegaChatApi::DB_ERROR_FULL;
+        default:
+        {
+            API_LOG_ERROR("convertDbError: Invalid errCode(%d)", errCode);
+            return MegaChatApi::DB_ERROR_INVALID;
+        }
     }
 }
 
