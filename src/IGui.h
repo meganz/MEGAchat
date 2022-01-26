@@ -250,6 +250,9 @@ public:
 
     virtual void onChatNotification(karere::Id /*chatid*/, const chatd::Message &/*msg*/, chatd::Message::Status /*status*/, chatd::Idx /*idx*/) {}
 
+    // TODO: add documentation
+    virtual void onDbError(int error, const std::string &errStr);
+
     virtual ~IApp() {}
 };
 }

@@ -6308,6 +6308,9 @@ public:
      * @param lastGreen Time elapsed (minutes) since the last time user was green
      */
     virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
+
+    // TODO: add documentation
+    virtual void onDbError(MegaChatApi *api, int error, const char* msg);
 };
 
 /**

@@ -3,6 +3,7 @@
 
 #include <sqlite3.h>
 #include "karereCommon.h"
+#include "IGui.h"
 
 struct SqliteString
 {
@@ -21,6 +22,7 @@ class SqliteDb
 {
 protected:
     friend class SqliteStmt;
+    karere::IApp &mApp;
     sqlite3* mDb = nullptr;
     bool mCommitEach = true;
     bool mHasOpenTransaction = false;
@@ -60,8 +62,8 @@ protected:
         return true;
     }
 public:
-    SqliteDb(sqlite3* db=nullptr, uint16_t commitInterval=20)
-    : mDb(db), mCommitInterval(commitInterval)
+    SqliteDb(karere::IApp &app)
+        : mApp(app)
     {}
     bool open(const char* fname, bool commitEach=true)
     {
@@ -143,6 +145,12 @@ public:
             msg.append("': ").append(err.mStr);
         else
             msg+='\'';
+
+        if (ret == SQLITE_FULL || ret == SQLITE_IOERR)
+        {
+            mApp.onDbError(ret, msg);
+            return;
+        }
 
         throw std::runtime_error(msg);
     }

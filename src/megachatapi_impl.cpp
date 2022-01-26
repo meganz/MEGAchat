@@ -3070,6 +3070,14 @@ void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int
     }
 }
 
+void MegaChatApiImpl::fireOnDbError(int error, const char *msg)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onDbError(error, msg);
+    }
+}
+
 void MegaChatApiImpl::fireOnChatNotification(MegaChatHandle chatid, MegaChatMessage *msg)
 {
     for(set<MegaChatNotificationListener *>::iterator it = notificationListeners.begin(); it != notificationListeners.end() ; it++)
@@ -5527,6 +5535,11 @@ void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, 
          MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
          fireOnChatNotification(chatid, message);
      }
+}
+
+void MegaChatApiImpl::onDbError(int error, const string &msg)
+{
+    fireOnDbError(error, msg.c_str());
 }
 
 int MegaChatApiImpl::convertInitState(int state)

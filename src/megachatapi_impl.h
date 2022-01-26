@@ -1042,6 +1042,7 @@ public:
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
     void fireOnChatPresenceLastGreenUpdated(MegaChatHandle userhandle, int lastGreen);
     void fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState);
+    void fireOnDbError(int error, const char* msg);
 
     // MegaChatNotificationListener callbacks
     void fireOnChatNotification(MegaChatHandle chatid, MegaChatMessage *msg);
@@ -1211,6 +1212,7 @@ public:
     virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
     virtual void onInitStateChange(int newState);
     virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
+    virtual void onDbError(int error, const std::string &msg) override;
 
     // rtcModule::IChatListHandler implementation
     virtual IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &chat);
