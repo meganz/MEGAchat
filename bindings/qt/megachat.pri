@@ -76,7 +76,8 @@ SOURCES += megachatapi.cpp \
             net/websocketsIO.cpp \
             karereDbSchema.cpp \
             net/libwebsocketsIO.cpp \
-            waiter/libuvWaiter.cpp
+            waiter/libuvWaiter.cpp \
+            kareredb.cpp \
 
 HEADERS  += asyncTest-framework.h \
             buffer.h \
