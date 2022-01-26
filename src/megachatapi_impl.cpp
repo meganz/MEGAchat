@@ -3074,7 +3074,7 @@ void MegaChatApiImpl::fireOnDbError(int error, const char *msg)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
-        (*it)->onDbError(error, msg);
+        (*it)->onDbError(mChatApi, error, msg);
     }
 }
 

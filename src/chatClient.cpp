@@ -73,6 +73,7 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
       appCtx(ctx),
       api(sdk, ctx),
       app(aApp),
+      db(app),
       mDnsCache(db, chatd::Client::chatdVersion),
 #ifndef KARERE_DISABLE_WEBRTC
       mCallHandler(callHandler),
@@ -447,7 +448,7 @@ void Client::createDbSchema()
 
 int Client::importMessages(const char *externalDbPath)
 {
-    SqliteDb dbExternal;
+    SqliteDb dbExternal(app);
     if (!dbExternal.open(externalDbPath, false))
     {
         KR_LOG_ERROR("importMessages: failed to open external DB (%s)", externalDbPath);

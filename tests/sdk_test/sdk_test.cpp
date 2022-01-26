@@ -5030,7 +5030,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     mOKTests ++;
     ::mega::MegaApi megaApi(nullptr);
     MockupCall call;
-    SqliteDb mockupDb;
+    SqliteDb mockupDb(*this);
     DNScache mockupCache(mockupDb, chatd::Client::chatdVersion);
     karere::Url sfuUrl("SFU-URL");
     sfu::SfuConnection sfuConnection(std::move(sfuUrl), webSocket, nullptr, call, mockupCache);
@@ -5074,6 +5074,27 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 
     return true;
 }
+
+karere::IApp::IChatListHandler* MegaChatApiUnitaryTest::chatListHandler()
+{
+    return nullptr;
+}
+
+void MegaChatApiUnitaryTest::onPresenceConfigChanged(const presenced::Config& /*config*/, bool /*pending*/)
+{
+
+}
+
+void MegaChatApiUnitaryTest::onPresenceLastGreenUpdated(karere::Id /*userid*/, uint16_t /*lastGreen*/)
+{
+
+}
+
+void MegaChatApiUnitaryTest::onDbError(int /*error*/, const std::string &/*msg*/)
+{
+
+}
+
 #endif
 
 TestMegaRequestListener::TestMegaRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)

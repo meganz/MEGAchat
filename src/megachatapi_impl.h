@@ -1212,7 +1212,7 @@ public:
     virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
     virtual void onInitStateChange(int newState);
     virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
-    virtual void onDbError(int error, const std::string &msg) override;
+    void onDbError(int error, const std::string &msg) override;
 
     // rtcModule::IChatListHandler implementation
     virtual IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &chat);
