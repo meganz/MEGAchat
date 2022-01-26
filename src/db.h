@@ -224,9 +224,9 @@ public:
     SqliteStmt& bind(int col, int val) { retCheck(sqlite3_bind_int(mStmt, col, val), "bind"); return *this; }
     SqliteStmt& bind(int col, int64_t val) { retCheck(sqlite3_bind_int64(mStmt, col, val), "bind"); return *this; }
     SqliteStmt& bind(int col, const std::string& val) { retCheck(sqlite3_bind_text(mStmt, col, val.c_str(), (int)val.size(), SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const char* val, size_t size) { retCheck(sqlite3_bind_text(mStmt, col, val, int(size), SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const void* val, size_t size) { retCheck(sqlite3_bind_blob(mStmt, col, val, int(size), SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const StaticBuffer& buf) { retCheck(sqlite3_bind_blob(mStmt, col, buf.buf(), int(buf.dataSize()), SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, const char* val, size_t size) { retCheck(sqlite3_bind_text(mStmt, col, val, static_cast<int>(size), SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, const void* val, size_t size) { retCheck(sqlite3_bind_blob(mStmt, col, val, static_cast<int>(size), SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, const StaticBuffer& buf) { retCheck(sqlite3_bind_blob(mStmt, col, buf.buf(), static_cast<int>(buf.dataSize()), SQLITE_STATIC), "bind"); return *this; }
     SqliteStmt& bind(int col, uint64_t val) { retCheck(sqlite3_bind_int64(mStmt, col, (int64_t)val), "bind"); return *this; }
     SqliteStmt& bind(int col, unsigned int val) { retCheck(sqlite3_bind_int(mStmt, col, (int)val), "bind"); return *this; }
     SqliteStmt& bind(int col, const char* val) { retCheck(sqlite3_bind_text(mStmt, col, val, -1, SQLITE_TRANSIENT), "bind"); return *this; }

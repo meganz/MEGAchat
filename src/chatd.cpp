@@ -1995,7 +1995,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
     // more unseen messages
     if ((messages.size() < count) && mHasMoreHistoryInDb)
         throw std::runtime_error(mChatId.toString()+": Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of "+std::to_string((int64_t)mOldestKnownMsgId.val));
-    return (Idx)messages.size();
+    return static_cast<Idx>(messages.size());
 }
 
 #define READ_ID(varname, offset)\
@@ -3478,7 +3478,7 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
             }
 
             backrefs.insert(idx);
-            Message &msg = (idx < (Idx)sendingIdx.size())
+            Message &msg = (idx < static_cast<Idx>(sendingIdx.size()))
                     ? *(sendingIdx[sendingIdx.size()-1-idx]->msg)   // msg is from sending queue
                     : at(highnum()-(idx-sendingIdx.size()));        // msg is from history buffer
 

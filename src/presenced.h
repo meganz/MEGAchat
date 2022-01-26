@@ -44,7 +44,7 @@ public:
     };
 
     Presence(Code pres = kUnknown): mPres(pres){}
-    Code code() const { return mPres & uint8_t(~kFlagsMask); }
+    Code code() const { return mPres & static_cast<uint8_t>(~kFlagsMask); }
     Code status() const { return code(); }
     operator Code() const { return code(); }
     Code raw() const { return mPres; }

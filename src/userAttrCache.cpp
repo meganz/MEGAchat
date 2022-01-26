@@ -198,7 +198,7 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
     {
         std::unique_ptr<Buffer> data(new Buffer((size_t)sqlite3_column_bytes(stmt, 2)));
         stmt.blobCol(2, *data);
-        UserAttrPair key(stmt.uint64Col(0), uint8_t(stmt.intCol(1)));
+        UserAttrPair key(stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(1)));
         emplace(std::make_pair(key, std::make_shared<UserAttrCacheItem>(
                 *this, data.release(), kCacheFetchNotPending)));
 //        UACACHE_LOG_DEBUG("loaded attr %s", key.toString().c_str());
@@ -236,7 +236,7 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
         if ((changed & desc.changeMask) == 0)
             continue; //the change is not of this attrib type
 
-        uint8_t type = uint8_t(it->first);
+        uint8_t type = static_cast<uint8_t>(it->first);
         UserAttrPair key(userid, type);
         auto it = find(key);
         if (it == end()) //we don't have such attribute
@@ -553,7 +553,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
             fn.resize(252);
             fn.append("...");
         }
-        data.append<uint8_t>(uint8_t(fn.size()));
+        data.append<uint8_t>(static_cast<uint8_t>(fn.size()));
         if (!fn.empty())
         {
             data.append(fn);

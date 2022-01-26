@@ -83,7 +83,7 @@ std::shared_ptr<Logger::LogBuffer> loadLog() //Logger must be locked!!!
 void rotateLog()
 {
     auto buf = loadLog();
-    long slicePos = long(mLogSize - (mRotateSize / 2));
+    long slicePos = static_cast<long>(mLogSize - (mRotateSize / 2));
     if (slicePos <= 1)
         throw std::runtime_error("FileLogger::rotate: The slice offset is less than 1");
     if (slicePos >= mLogSize - 1)
@@ -105,7 +105,7 @@ void rotateLog()
     FILE* writeFile = fopen(mFileName.c_str(), "wb");
     if (!writeFile)
         throw std::runtime_error("FileLogger::rotate: Cannot open log file for rewriting");
-    size_t writeLen = mLogSize - size_t(slicePos);
+    size_t writeLen = mLogSize - static_cast<size_t>(slicePos);
     size_t ret = fwrite(buf->data+slicePos, 1, writeLen, writeFile);
     if (ret != writeLen)
     {

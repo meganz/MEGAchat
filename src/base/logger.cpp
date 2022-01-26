@@ -154,7 +154,7 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
         va_end(vaList);
         return;
     }
-    size_t auxSprintfRv = size_t(sprintfRv);
+    size_t auxSprintfRv = static_cast<size_t>(sprintfRv);
     if (auxSprintfRv >= sprintfSpace)
     {
         //static buffer was not enough for the message! Message was truncated
@@ -170,15 +170,16 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
         }
         memcpy(buf, statBuf, bytesLogged);
         sprintfRv = vsnprintf(buf+bytesLogged, sprintfSpace, fmtString, vaList); //maybe check return value
-        /* ToDo: rethink the need of this to be safe on the next if-statement condition:
+        /* Bug? Why don't we check the value like in the outer if:
         if (sprintfRv < 0) //nothing logged if zero, or error if negative, silently ignore the error and return
         {
             va_end(vaList);
             return;
         }
         */
-        // if previous vsnprintf return negative value, this may fail
-        if (size_t(sprintfRv) >= sprintfSpace)
+        // Bug? if previous vsnprintf returns negative value, this may fail doesn't it?
+        auxSprintfRv = static_cast<size_t>(sprintfRv);
+        if (auxSprintfRv >= sprintfSpace)
         {
             perror("Error: vsnprintf wants to write more data than the size of buffer it requested");
             auxSprintfRv = sprintfSpace-1;

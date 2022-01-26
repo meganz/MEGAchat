@@ -104,9 +104,9 @@ void Client::pushPeers()
     size_t numPeers = mContacts.size();
     size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
 
-    Command cmd(OP_SNSETPEERS, uint8_t(totalSize));
+    Command cmd(OP_SNSETPEERS, static_cast<uint8_t>(totalSize));
     cmd.append<uint64_t>(mLastScsn.val);
-    cmd.append<uint32_t>(uint32_t(numPeers));
+    cmd.append<uint32_t>(static_cast<uint32_t>(numPeers));
     for (auto it = mContacts.begin(); it != mContacts.end(); it++)
     {
         cmd.append<uint64_t>(it->first);
@@ -1180,11 +1180,11 @@ uint16_t Config::toCode() const
         autoawayTimeout = 600 + (mAutoawayTimeout - 600) / 60;
     }
 
-    return uint16_t(((mPresence.code() - karere::Presence::kOffline) & 3)
-                      | (mPersist ? 4 : 0)
-                      | (mAutoawayActive ? 0 : 8)
-                      | (autoawayTimeout << 4)
-                      | (mLastGreenVisible ? 0 : Config::kLastGreenVisibleMask));
+    return static_cast<uint16_t>(((mPresence.code() - karere::Presence::kOffline) & 3)
+                                 | (mPersist ? 4 : 0)
+                                 | (mAutoawayActive ? 0 : 8)
+                                 | (autoawayTimeout << 4)
+                                 | (mLastGreenVisible ? 0 : Config::kLastGreenVisibleMask));
 }
 
 Client::~Client()
