@@ -2371,7 +2371,7 @@ public:
 
     enum
     {
-        DB_ERROR_INVALID            = -1,   /// Invalid database error
+        DB_ERROR_UNEXPECTED         = -1,   /// Unexpected database error
         DB_ERROR_IO                 = 0,    /// I/O error in Data base
         DB_ERROR_FULL               = 1,    /// Database or disk is full
     };
@@ -6324,7 +6324,7 @@ public:
 
     /** @brief This function is called when an error occurred in an operation with karere Db
      * Possible returned values:
-     *   - MegaChatApi::DB_ERROR_INVALID          = -1,   /// Invalid database error
+     *   - MegaChatApi::DB_ERROR_UNEXPECTED       = -1,   /// Unexpected database error
      *   - MegaChatApi::DB_ERROR_IO               = 0,    /// I/O error in Data base
      *   - MegaChatApi::DB_ERROR_FULL             = 1,    /// Database or disk is full
      *
