@@ -190,13 +190,13 @@ bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::
 uint64_t Command::hexToBinary(const std::string &hex)
 {
     uint64_t value = 0;
-    unsigned int bufferSize = hex.length() >> 1;
+    unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
     assert(bufferSize <= 8);
     std::unique_ptr<uint8_t []> buffer = std::unique_ptr<uint8_t []>(new uint8_t[bufferSize]);
     unsigned int binPos = 0;
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
-        buffer[binPos] = (hexDigitVal(hex[i++])) << 4 | hexDigitVal(hex[i++]);
+        buffer[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4 | hexDigitVal(hex[i++]));
     }
 
     memcpy(&value, buffer.get(), bufferSize);
