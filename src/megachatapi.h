@@ -2373,7 +2373,7 @@ public:
     {
         DB_ERROR_INVALID            = -1,   /// Invalid database error
         DB_ERROR_IO                 = 0,    /// I/O error in Data base
-        DB_ERROR_FULL               = 1,    /// Database is full
+        DB_ERROR_FULL               = 1,    /// Database or disk is full
     };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
@@ -6326,7 +6326,7 @@ public:
      * Possible returned values:
      *   - MegaChatApi::DB_ERROR_INVALID          = -1,   /// Invalid database error
      *   - MegaChatApi::DB_ERROR_IO               = 0,    /// I/O error in Data base
-     *   - MegaChatApi::DB_ERROR_FULL             = 1,    /// Database is full
+     *   - MegaChatApi::DB_ERROR_FULL             = 1,    /// Database or disk is full
      *
      * @param error Numeric error code
      * @param errStr Error message
