@@ -353,6 +353,12 @@ std::string MainWindow::callStateToString(const MegaChatCall &call)
 
 #endif
 
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    delete this;
+    event->accept();
+}
+
 MegaChatApplication* MainWindow::getApp() const
 {
     return mApp;
@@ -1256,14 +1262,28 @@ void MainWindow::onDbError(MegaChatApi */*api*/, int error, const char *msg)
 {
     std::string text(msg);
     text.append(": ").append(MegaChatApi::dbErrorToString(error));
-    QMessageBox *msgBox = new QMessageBox(this);
-    msgBox->setIcon( QMessageBox::Information );
-    msgBox->setAttribute(Qt::WA_DeleteOnClose);
-    msgBox->setStandardButtons(QMessageBox::Ok);
-    msgBox->setWindowTitle( tr("Karere DB error"));
-    msgBox->setText(text.c_str());
-    msgBox->setModal(false);
-    msgBox->show();
+    mLogger->postLog(text.c_str());
+
+    if (!mCriticalMsgBox)
+    {
+        text.append("\n\nApplication will be closed when you accept this dialog");
+        mCriticalMsgBox.reset(new QMessageBox(this));
+        mCriticalMsgBox->setIcon( QMessageBox::Critical );
+        mCriticalMsgBox->setAttribute(Qt::WA_DeleteOnClose);
+        mCriticalMsgBox->setStandardButtons(QMessageBox::Ok);
+        mCriticalMsgBox->setWindowTitle( tr("Karere DB error"));
+        mCriticalMsgBox->setText(text.c_str());
+        mCriticalMsgBox->setModal(true);
+        switch (mCriticalMsgBox->exec())
+        {
+            case QMessageBox::Ok:
+            default:
+            {
+                mCriticalMsgBox->deleteLater();
+                mApp->closeAllWindows();
+            }
+        }
+    }
 }
 
 void MainWindow::setNContacts(int nContacts)

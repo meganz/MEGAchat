@@ -22,6 +22,7 @@ const int chatArchivedStatus = 1;
 class MegaChatApplication;
 class ContactListItemController;
 class ChatListItemController;
+class QMessageBox;
 
 struct Chat
 {
@@ -198,10 +199,11 @@ class MainWindow :
 
         SettingWindow *mSettings = NULL;
         ConfirmAccount* mConfirmAccount = nullptr;
-
+        std::unique_ptr<QMessageBox> mCriticalMsgBox;
         bool mIsEphemeraAccount = false;
 
         std::string callStateToString(const megachat::MegaChatCall& call);
+        void closeEvent(QCloseEvent *event);
 
     private slots:
         void on_bSettings_clicked();
