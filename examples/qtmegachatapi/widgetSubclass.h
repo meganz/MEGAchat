@@ -57,7 +57,7 @@ protected:
             auto now = time(NULL);
             if (now - mLastHistReqTs >= 2) //minimum two seconds between sequential hist fetches
             {
-                mLastHistReqTs = now;
+                mLastHistReqTs = static_cast<uint32_t>(now);
                 emit requestHistory();
             }
         }

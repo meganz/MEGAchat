@@ -77,7 +77,7 @@ std::string CommandsQueue::pop()
 
 
 Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid)
-    : mCid(cid), mPeerid(peerid), mAvFlags(avFlags)
+    : mCid(cid), mPeerid(peerid), mAvFlags(static_cast<uint8_t>(avFlags))
 {
 }
 
@@ -208,15 +208,15 @@ uint8_t Command::hexDigitVal(char value)
 {
     if (value <= 57)
     { // ascii code if '9'
-        return value - 48; // ascii code of '0'
+        return static_cast<uint8_t>(value - 48); // ascii code of '0'
     }
     else if (value >= 97)
     { // 'a'
-        return 10 + value - 97;
+        return static_cast<uint8_t>(10 + value - 97);
     }
     else
     {
-        return 10 + value - 65; // 'A'
+        return static_cast<uint8_t>(10 + value - 65); // 'A'
     }
 }
 
@@ -939,7 +939,7 @@ unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int p
         else if (name == "msid")
         {
             std::string subLine = line.substr(7);
-            unsigned int pos = subLine.find(" ");
+            unsigned int pos = static_cast<unsigned int>(subLine.find(" "));
             track.mSid = subLine.substr(0, pos);
             track.mId = subLine.substr(pos + 1, subLine.length());
         }
@@ -1408,15 +1408,15 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_JOIN.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value sdpValue(rapidjson::kObjectType);
     auto data = sdp.data();
     for (const auto& data : data)
     {
         rapidjson::Value dataValue(rapidjson::kStringType);
-        dataValue.SetString(data.second.c_str(), data.second.length());
-        sdpValue.AddMember(rapidjson::Value(data.first.c_str(), data.first.length()), dataValue, json.GetAllocator());
+        dataValue.SetString(data.second.c_str(),  static_cast<rapidjson::SizeType>(data.second.length()));
+        sdpValue.AddMember(rapidjson::Value(data.first.c_str(), static_cast<rapidjson::SizeType>(data.first.length())), dataValue, json.GetAllocator());
     }
 
     rapidjson::Value tracksValue(rapidjson::kArrayType);
@@ -1430,17 +1430,17 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
         }
 
         rapidjson::Value dataValue(rapidjson::kObjectType);
-        dataValue.AddMember("t", rapidjson::Value(track.mType.c_str(), track.mType.length()), json.GetAllocator());
+        dataValue.AddMember("t", rapidjson::Value(track.mType.c_str(), static_cast<rapidjson::SizeType>(track.mType.length())), json.GetAllocator());
         dataValue.AddMember("mid", rapidjson::Value(track.mMid), json.GetAllocator());
-        dataValue.AddMember("dir", rapidjson::Value(track.mDir.c_str(), track.mDir.length()), json.GetAllocator());
+        dataValue.AddMember("dir", rapidjson::Value(track.mDir.c_str(), static_cast<rapidjson::SizeType>(track.mDir.length())), json.GetAllocator());
         if (track.mSid.length())
         {
-            dataValue.AddMember("sid", rapidjson::Value(track.mSid.c_str(), track.mSid.length()), json.GetAllocator());
+            dataValue.AddMember("sid", rapidjson::Value(track.mSid.c_str(), static_cast<rapidjson::SizeType>(track.mSid.length())), json.GetAllocator());
         }
 
         if (track.mId.length())
         {
-            dataValue.AddMember("id", rapidjson::Value(track.mId.c_str(), track.mId.length()), json.GetAllocator());
+            dataValue.AddMember("id", rapidjson::Value(track.mId.c_str(), static_cast<rapidjson::SizeType>(track.mId.length())), json.GetAllocator());
         }
 
         if (track.mSsrcg.size())
@@ -1448,7 +1448,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
             rapidjson::Value ssrcgValue(rapidjson::kArrayType);
             for (const auto& element : track.mSsrcg)
             {
-                ssrcgValue.PushBack(rapidjson::Value(element.c_str(), element.length()), json.GetAllocator());
+                ssrcgValue.PushBack(rapidjson::Value(element.c_str(), static_cast<rapidjson::SizeType>(element.length())), json.GetAllocator());
             }
 
             dataValue.AddMember("ssrcg", ssrcgValue, json.GetAllocator());
@@ -1461,7 +1461,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
             {
                 rapidjson::Value elementValue(rapidjson::kObjectType);
                 elementValue.AddMember("id", rapidjson::Value(element.first), json.GetAllocator());
-                elementValue.AddMember("cname", rapidjson::Value(element.second.c_str(), element.second.size()), json.GetAllocator());
+                elementValue.AddMember("cname", rapidjson::Value(element.second.c_str(), static_cast<rapidjson::SizeType>(element.second.size())), json.GetAllocator());
 
                 ssrcsValue.PushBack(elementValue, json.GetAllocator());
             }
@@ -1479,7 +1479,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
     rapidjson::Value ivsValue(rapidjson::kObjectType);
     for (const auto& iv : ivs)
     {
-        ivsValue.AddMember(rapidjson::Value(iv.first.c_str(), iv.first.size()), rapidjson::Value(iv.second.c_str(), iv.second.size()), json.GetAllocator());
+        ivsValue.AddMember(rapidjson::Value(iv.first.c_str(), static_cast<rapidjson::SizeType>(iv.first.size())), rapidjson::Value(iv.second.c_str(), static_cast<rapidjson::SizeType>(iv.second.size())), json.GetAllocator());
     }
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
@@ -1519,7 +1519,7 @@ bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SENDKEY.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value idValue(rapidjson::kNumberType);
     idValue.SetUint(id);
@@ -1530,7 +1530,7 @@ bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys
     {
         rapidjson::Value keyValue(rapidjson::kArrayType);
         keyValue.PushBack(rapidjson::Value(key.first), json.GetAllocator());
-        keyValue.PushBack(rapidjson::Value(key.second.c_str(), key.second.length()), json.GetAllocator());
+        keyValue.PushBack(rapidjson::Value(key.second.c_str(), static_cast<rapidjson::SizeType>(key.second.length())), json.GetAllocator());
 
         dataValue.PushBack(keyValue, json.GetAllocator());
     }
@@ -1549,7 +1549,7 @@ bool SfuConnection::sendAv(unsigned av)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_AV.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value avValue(rapidjson::kNumberType);
     avValue.SetUint(av);
@@ -1567,7 +1567,7 @@ bool SfuConnection::sendGetVtumbs(const std::vector<Cid_t> &cids)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_GET_VTHUMBS.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
     for(Cid_t cid : cids)
@@ -1589,7 +1589,7 @@ bool SfuConnection::sendDelVthumbs(const std::vector<Cid_t> &cids)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_DEL_VTHUMBS.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
     for(Cid_t cid : cids)
@@ -1611,7 +1611,7 @@ bool SfuConnection::sendGetHiRes(Cid_t cid, int r, int lo)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_GET_HIRES.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
     if (r)
@@ -1633,7 +1633,7 @@ bool SfuConnection::sendDelHiRes(const std::vector<Cid_t> &cids)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_DEL_HIRES.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
     for(Cid_t cid : cids)
@@ -1654,7 +1654,7 @@ bool SfuConnection::sendHiResSetLo(Cid_t cid, int lo)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_HIRES_SET_LO.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
@@ -1671,7 +1671,7 @@ bool SfuConnection::sendLayer(int spt, int tmp, int stmp)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_LAYER.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
     json.AddMember("spt", rapidjson::Value(spt), json.GetAllocator());
     json.AddMember("tmp", rapidjson::Value(tmp), json.GetAllocator());
     json.AddMember("stmp", rapidjson::Value(stmp), json.GetAllocator());
@@ -1687,7 +1687,7 @@ bool SfuConnection::sendSpeakReq(Cid_t cid)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SPEAK_RQ.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     if (cid)
     {
@@ -1706,7 +1706,7 @@ bool SfuConnection::sendSpeakReqDel(Cid_t cid)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SPEAK_RQ_DEL.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     if (cid)
     {
@@ -1725,7 +1725,7 @@ bool SfuConnection::sendSpeakDel(Cid_t cid)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SPEAK_DEL.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     if (cid)
     {
@@ -2094,7 +2094,7 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
     }
 
     ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
-    return mComplete(cid);
+    return mComplete(static_cast<Cid_t>(cid));
 }
 
 }

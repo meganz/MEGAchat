@@ -136,7 +136,7 @@ fs::path getExeDirectory()
         cout << "Error: Unable to retrieve exe path" << endl;
         exit(1);
     }
-    path[count] = '\0';
+     path[static_cast<size_t>(count)] = '\0';
     return fs::path{path.data()}.parent_path();
 #endif
 }
@@ -160,7 +160,7 @@ string extractChatLink(const char* message)
     {
         return {};
     }
-    if (hashPtr - chatPtr - base.size() != handleSize)
+    if (static_cast<unsigned long>(hashPtr - chatPtr) - base.size() != handleSize)
     {
         return {};
     }
@@ -2031,7 +2031,7 @@ void exec_setRetentionTime(ac::ACState& s)
         }
     });
 
-    g_chatApi->setChatRetentionTime(s_ch(s.words[1].s), atoi(s.words[2].s.c_str()), &g_chatListener);
+    g_chatApi->setChatRetentionTime(s_ch(s.words[1].s), static_cast<unsigned int>(atoi(s.words[2].s.c_str())), &g_chatListener);
 }
 
 
@@ -2672,7 +2672,7 @@ string toHex(const string& binary)
     ostringstream s;
     s << std::hex;
 
-    for (unsigned char c : binary)
+    for (const char c : binary)
     {
         s << setw(2) << setfill('0') << (unsigned)c;
     }
@@ -2682,9 +2682,9 @@ string toHex(const string& binary)
 
 unsigned char toBinary(unsigned char c)
 {
-    if (c >= 0 && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'z') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'Z') return c - 'A' + 10;
+    if (c >= 0 && c <= '9')   return static_cast<unsigned char>(c - '0');
+    if (c >= 'a' && c <= 'z') return static_cast<unsigned char>(c - 'a' + 10);
+    if (c >= 'A' && c <= 'Z') return static_cast<unsigned char>(c - 'A' + 10);
     return 0;
 }
 
@@ -2693,14 +2693,14 @@ string toBinary(const string& hex)
     string bin;
     for (string::const_iterator i = hex.cbegin(); i != hex.cend(); ++i)
     {
-        unsigned char c = toBinary(*i);
-        c <<= 4;
+        unsigned char c = toBinary(static_cast<unsigned char>(*i));
+        c <<= 4; // note: upon update to GCC > 9 this warning should disappear
         ++i;
         if (i != hex.cend())
         {
-            c |= toBinary(*i);
+            c |= toBinary(static_cast<unsigned char>(*i));
         }
-        bin.push_back(c);
+        bin.push_back(static_cast<char>(c));
     }
     return bin;
 }
@@ -2879,7 +2879,7 @@ string loadfile(const string& filename)
     f.seekg(0, std::ios::end);
     filedata.resize(unsigned(f.tellg()));
     f.seekg(0, std::ios::beg);
-    f.read((char*)filedata.data(), filedata.size());
+    f.read((char*)filedata.data(), static_cast<std::streamsize>(filedata.size()));
     return filedata;
 }
 
@@ -3098,7 +3098,7 @@ void exec_createthumbnail(ac::ACState& s)
         }));
     }
 
-    for (int i = atoi(parallelcount.c_str()); i--; )
+    for (size_t i = static_cast<size_t>(atoi(parallelcount.c_str())); i--; )
     {
         ts[i]->join();
     }
@@ -3126,7 +3126,8 @@ void exec_recentactions(ac::ACState& s)
 
     if (s.words.size() == 3)
     {
-        ra.reset(g_megaApi->getRecentActions(atoi(s.words[1].s.c_str()), atoi(s.words[2].s.c_str())));
+        ra.reset(g_megaApi->getRecentActions(static_cast<unsigned>(atoi(s.words[1].s.c_str())),
+                 static_cast<unsigned>(atoi(s.words[2].s.c_str()))));
     }
     else
     {
@@ -3642,7 +3643,7 @@ void PrintAchievements(m::MegaAchievementsDetails & ad)
         cl << "  getAwardEmails: <todo>" << endl; // << ad.getAwardEmails(i) << endl;
     }
     cl << "getRewardsCount: " << ad.getRewardsCount() << endl;
-    for (int i = 0; i < ad.getRewardsCount(); ++i)
+    for (unsigned i = 0; i < static_cast<unsigned>(ad.getRewardsCount()); ++i)
     {
         cl << "Reward " << i << endl;
         cl << "  getRewardAwardId: " << ad.getRewardAwardId(i) << endl;
@@ -3978,11 +3979,11 @@ bool buildLocalFolders(fs::path targetfolder, const string& prefix, int foldersp
         fs::path fp = p / fs::u8path(filename);
         ofstream fs(fp.u8string(), std::ios::binary);
 
-        for (unsigned j = filesize / sizeof(int); j--; )
+        for (unsigned j = static_cast<unsigned>(filesize) / sizeof(int); j--; )
         {
             fs.write((char*)&totalfilecount, sizeof(int));
         }
-        fs.write((char*)&totalfilecount, filesize % sizeof(int));
+        fs.write((char*)&totalfilecount, static_cast<unsigned>(filesize) % sizeof(int));
     }
 
     if (recurselevel > 1)
@@ -4081,7 +4082,7 @@ void exec_syncexport(ac::ACState& s)
     auto flags = std::ios::binary | std::ios::out | std::ios::trunc;
     std::ofstream ostream(s.words[2].s, flags);
 
-    ostream.write(configs.get(), strlen(configs.get()));
+    ostream.write(configs.get(), static_cast<std::streamsize>(strlen(configs.get())));
     ostream.close();
 
     if (!ostream.good())
@@ -4113,7 +4114,7 @@ void exec_syncimport(ac::ACState& s)
 
         if (auto nRead = istream.gcount())
         {
-            data.append(buffer, nRead);
+            data.append(buffer, static_cast<size_t>(nRead));
         }
     }
 
@@ -4374,7 +4375,7 @@ void exec_logFilenameAnomalies(ac::ACState& s)
                 typeName = "NAME_RESERVED";
                 break;
             default:
-                assert(!"Unknown anomaly type!");
+                assert(false); // "Unknown anomaly type"
                 typeName = "UNKNOWN";
                 break;
             }
@@ -4690,7 +4691,7 @@ static void process_line(const char* l)
 char* longestCommonPrefix(ac::CompletionState& acs)
 {
     string s = acs.completions[0].s;
-    for (int i = acs.completions.size(); i--; )
+    for (size_t i = acs.completions.size(); i--; )
     {
         for (unsigned j = 0; j < s.size() && j < acs.completions[i].s.size(); ++j)
         {
@@ -4708,7 +4709,7 @@ char** my_rl_completion(const char *, int , int end)
 {
     rl_attempted_completion_over = 1;
 
-    std::string line(rl_line_buffer, end);
+    std::string line(rl_line_buffer, static_cast<size_t>(end));
     ac::CompletionState acs = ac::autoComplete(line, line.size(), autocompleteTemplate, true);
 
     if (acs.completions.empty())
@@ -4722,7 +4723,7 @@ char** my_rl_completion(const char *, int , int end)
     }
 
     char** result = (char**)malloc((sizeof(char*)*(2 + acs.completions.size())));
-    for (int i = acs.completions.size(); i--; )
+    for (size_t i = acs.completions.size(); i--; )
     {
         result[i + 1] = _strdup(acs.completions[i].s.c_str());
     }

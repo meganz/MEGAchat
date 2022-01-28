@@ -286,15 +286,15 @@ void MeetingView::addSession(const megachat::MegaChatSession &session)
     item->setData(Qt::UserRole, data);
     item->setSizeHint(QSize(item->sizeHint().height(), 35));
     widget->setWidgetItem(item);
-    mListWidget->insertItem(mSessionWidgets.size(), item);
+    mListWidget->insertItem(static_cast<int>(mSessionWidgets.size()), item);
     mListWidget->setItemWidget(item, widget);
-    assert(mSessionWidgets.find(session.getClientid()) == mSessionWidgets.end());
-    mSessionWidgets[session.getClientid()] = widget;
+    assert(mSessionWidgets.find(static_cast<uint32_t>(session.getClientid())) == mSessionWidgets.end());
+    mSessionWidgets[static_cast<uint32_t>(session.getClientid())] = widget;
 }
 
 void MeetingView::removeSession(const megachat::MegaChatSession& session)
 {
-    auto it = mSessionWidgets.find(session.getClientid());
+    auto it = mSessionWidgets.find(static_cast<uint32_t>(session.getClientid()));
     if (it != mSessionWidgets.end())
     {
         MeetingSession *meetingSession = it->second;
@@ -308,7 +308,7 @@ void MeetingView::removeSession(const megachat::MegaChatSession& session)
 
 void MeetingView::updateSession(const megachat::MegaChatSession &session)
 {
-    auto it = mSessionWidgets.find(session.getClientid());
+    auto it = mSessionWidgets.find(static_cast<uint32_t>(session.getClientid()));
     if (it != mSessionWidgets.end())
     {
         it->second->updateWidget(session);
@@ -355,21 +355,21 @@ void MeetingView::setOnHold(bool isOnHold, megachat::MegaChatHandle cid)
     else
     {
         // update session item
-        auto sessIt = mSessionWidgets.find(cid);
+        auto sessIt = mSessionWidgets.find(static_cast<uint32_t>(cid));
         if (sessIt != mSessionWidgets.end())
         {
             sessIt->second->setOnHold(isOnHold);
         }
 
         // set low-res widget onHold
-        auto it = mThumbsWidget.find(cid);
+        auto it = mThumbsWidget.find(static_cast<uint32_t>(cid));
         if (it != mThumbsWidget.end())
         {
             it->second->setOnHold(isOnHold);
         }
 
         // set hi-res widget onHold
-        auto auxit = mHiResWidget.find(cid);
+        auto auxit = mHiResWidget.find(static_cast<uint32_t>(cid));
         if (auxit != mHiResWidget.end())
         {
             auxit->second->setOnHold(isOnHold);
@@ -383,15 +383,15 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
     std::unique_ptr<megachat::MegaChatRoom> chatRoom(mMegaChatApi.getChatRoom(mChatid));
     for (size_t i = 0; i < chatRoom->getPeerCount(); i++)
     {
-        if (chatRoom->getPeerHandle(i) == session.getPeerid())
+        if (chatRoom->getPeerHandle(static_cast<unsigned int>(i)) == session.getPeerid())
         {
-            const char *firstName = chatRoom->getPeerFirstname(i);
+            const char *firstName = chatRoom->getPeerFirstname(static_cast<unsigned int>(i));
             if (firstName)
             {
                 returnedString.append(firstName);
             }
 
-            const char *email = chatRoom->getPeerEmail(i);
+            const char *email = chatRoom->getPeerEmail(static_cast<unsigned int>(i));
             if (email)
             {
                 returnedString.append(" (");

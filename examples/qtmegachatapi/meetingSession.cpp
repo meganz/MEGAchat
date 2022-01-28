@@ -29,7 +29,7 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     mLayout.reset(new QHBoxLayout());
     mLayout->setAlignment(Qt::AlignLeft);
     setLayout(mLayout.get());
-    mCid = session.getClientid();
+    mCid = static_cast<uint32_t>(session.getClientid());
 
     // status lbl
     QPixmap statusImg = session.isOnHold()

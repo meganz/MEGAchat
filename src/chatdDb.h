@@ -215,6 +215,7 @@ public:
             {
                 Buffer refs;
                 stmt.blobCol(9, refs);
+                // todo review this one and adjust
                 refs.read(0, msg->backRefs);
             }
 
@@ -340,7 +341,7 @@ public:
             Buffer buf;
             stmt.blobCol(5, buf);
             auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().myHandle(),
-                stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
+                static_cast<uint32_t>(stmt.int64Col(3)), static_cast<uint16_t>(stmt.intCol(4)), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(6)), static_cast<chatd::ManualSendReason>(stmt.intCol(7)));
         }
@@ -360,11 +361,11 @@ public:
         Buffer buf;
         stmt.blobCol(4, buf);
         auto msg = new chatd::Message(stmt.uint64Col(0), mChat.client().myHandle(),
-                                      stmt.int64Col(2), stmt.intCol(3), std::move(buf), true,
+                                      static_cast<uint32_t>(stmt.int64Col(2)), static_cast<uint16_t>(stmt.intCol(3)), std::move(buf), true,
                                       CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(1));
         item.msg = msg;
         item.rowid = rowid;
-        item.opcode = stmt.intCol(5);
+        item.opcode = static_cast<uint8_t>(stmt.intCol(5));
         item.reason = (chatd::ManualSendReason)stmt.intCol(6);
     }
     void truncateHistory(const chatd::Message& msg) override
@@ -390,7 +391,7 @@ public:
         SqliteStmt stmt(mDb, "select min(idx) from history where chatid = ?");
         stmt << mChat.chatId();
         stmt.stepMustHaveData(__FUNCTION__);
-        return stmt.uint64Col(0);
+        return static_cast<chatd::Idx>(stmt.uint64Col(0));
     }
 
     uint32_t getOldestMsgTs() override
@@ -454,7 +455,7 @@ public:
         }
         Buffer buf(128);
         stmt.blobCol(2, buf);
-        msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
+        msg.assign(buf, static_cast<uint8_t>(stmt.intCol(0)), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
         lastTs = stmt.intCol(5);
     }
 
@@ -589,8 +590,8 @@ public:
                 assert(false);
             }
 #endif
-            auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
-                false, keyid, (unsigned char)stmt.intCol(3));
+            auto msg = new chatd::Message(msgid, userid, ts, static_cast<uint16_t> (stmt.intCol(8)), std::move(buf),
+                false, keyid, static_cast<unsigned char>(stmt.intCol(3)));
             msg->backRefId = stmt.uint64Col(7);
             msg->setEncrypted((uint8_t)stmt.intCol(9));
             messages.push_back(msg);
@@ -662,7 +663,7 @@ public:
         stmt << mChat.chatId();
         while (stmt.step())
         {
-            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), karere::Id (stmt.uint64Col(3)), stmt.uint64Col(4)));
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), karere::Id (stmt.uint64Col(3)), static_cast<uint8_t>(stmt.uint64Col(4))));
         }
     }
 

@@ -3378,7 +3378,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     }
 
     // write the new message to the message buffer and mark as in sending state
-    auto message = new Message(makeRandomId(), client().myHandle(), time(NULL),
+    auto message = new Message(makeRandomId(), client().myHandle(), static_cast<uint32_t>(time(NULL)),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp, generateRefId(mCrypto));
 
     auto wptr = weakHandle();
@@ -3399,7 +3399,7 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
     int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
-    postMsgToSending(opcode, msg, recipients);
+    postMsgToSending(static_cast<uint8_t>(opcode), msg, recipients);
 
     // last text msg stuff
     if (msg->isValidLastMessage())
@@ -3430,7 +3430,7 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
         sendingIdx.push_back(&(*it));
     }
 
-    Idx maxEnd = size() - sendingIdx.size();
+    Idx maxEnd = size() - static_cast<Idx>(sendingIdx.size());
     if (maxEnd <= 0)
     {
         return;
@@ -3479,8 +3479,8 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
 
             backrefs.insert(idx);
             Message &msg = (idx < (Idx)sendingIdx.size())
-                    ? *(sendingIdx[sendingIdx.size()-1-idx]->msg)   // msg is from sending queue
-                    : at(highnum()-(idx-sendingIdx.size()));        // msg is from history buffer
+                    ? *(sendingIdx[sendingIdx.size()-1-static_cast<size_t>(idx)]->msg)   // msg is from sending queue
+                    : at(highnum()-(idx - static_cast<Idx>(sendingIdx.size())));        // msg is from history buffer
 
             if (!msg.isManagementMessage()) // management-msgs don't have a valid backrefid
             {
@@ -3631,7 +3631,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 // Can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
 Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype)
 {
-    uint32_t now = time(NULL);
+    uint32_t now = static_cast<uint32_t>(time(NULL));
     uint32_t age = now - msg.ts;
     if (!msg.isSending() && age > CHATD_MAX_EDIT_AGE)
     {
@@ -3692,7 +3692,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         }
 
         // update original content+delta of the message being edited...
-        msg.updated = age;
+        msg.updated = static_cast<uint16_t>(age);
         msg.assign((void*)newdata, newlen);
         // ...and also for all messages with same msgid in the sending queue , trying to avoid sending the original content
         int count = 0;
@@ -3721,7 +3721,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         age++;
     }
 
-    auto upd = new Message(msg.id(), msg.userid, msg.ts, age, newdata, newlen,
+    auto upd = new Message(msg.id(), msg.userid, msg.ts, static_cast<uint16_t>(age), newdata, newlen,
         msg.isSending(), msg.keyid, newtype, userp, msg.backRefId, msg.backRefs);
 
     auto wptr = weakHandle();

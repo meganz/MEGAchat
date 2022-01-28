@@ -10111,7 +10111,7 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
     if (iteratorLongitude != geolocationValue.MemberEnd() && iteratorLongitude->value.IsString())
     {
         const char *longitudeString = iteratorLongitude->value.GetString();
-        longitude = atof(longitudeString);
+        longitude = static_cast<float>(atof(longitudeString));
     }
     else
     {
@@ -10123,7 +10123,7 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
     if (iteratorLatitude != geolocationValue.MemberEnd() && iteratorLatitude->value.IsString())
     {
         const char *latitudeString = iteratorLatitude->value.GetString();
-        latitude = atof(latitudeString);
+        latitude = static_cast<float>(atof(latitudeString));
     }
     else
     {
