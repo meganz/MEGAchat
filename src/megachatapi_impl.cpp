@@ -5585,8 +5585,8 @@ int MegaChatApiImpl::convertDbError(int errCode)
         case SQLITE_FULL:   return MegaChatApi::DB_ERROR_FULL;
         default:
         {
-            API_LOG_ERROR("convertDbError: Unexpected errCode(%d)", errCode);
-            return MegaChatApi::DB_ERROR_UNEXPECTED;
+            API_LOG_ERROR("convertDbError: Unknown errCode(%d)", errCode);
+            return MegaChatApi::DB_ERROR_UNKNOWN;
         }
     }
 }

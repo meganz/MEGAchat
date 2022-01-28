@@ -1121,7 +1121,7 @@ const char *MegaChatApi::dbErrorToString(int errCode)
     {
         case MegaChatApi::DB_ERROR_IO:      return "Input/Output error";
         case MegaChatApi::DB_ERROR_FULL:    return "Database or disk is full";
-        default:                            return "Unexpected database error";
+        default:                            return "Unknown database error";
     }
 }
 

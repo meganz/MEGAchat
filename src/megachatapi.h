@@ -2371,9 +2371,10 @@ public:
 
     enum
     {
-        DB_ERROR_UNEXPECTED         = -1,   /// Unexpected database error
-        DB_ERROR_IO                 = 0,    /// I/O error in Data base
-        DB_ERROR_FULL               = 1,    /// Database or disk is full
+        DB_ERROR_UNKNOWN            = -1,   /// Unknown database error
+        DB_NO_ERROR                 = 0,    /// No database error
+        DB_ERROR_IO                 = 1,    /// I/O error in Data base
+        DB_ERROR_FULL               = 2,    /// Database or disk is full
     };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
@@ -6324,9 +6325,9 @@ public:
 
     /** @brief This function is called when an error occurred in an operation with karere Db
      * Possible returned values:
-     *   - MegaChatApi::DB_ERROR_UNEXPECTED       = -1,   /// Unexpected database error
-     *   - MegaChatApi::DB_ERROR_IO               = 0,    /// I/O error in Data base
-     *   - MegaChatApi::DB_ERROR_FULL             = 1,    /// Database or disk is full
+     *   - MegaChatApi::DB_ERROR_UNKNOWN          = -1,   /// Unknown database error
+     *   - MegaChatApi::DB_ERROR_IO               = 1,    /// I/O error in Data base
+     *   - MegaChatApi::DB_ERROR_FULL             = 2,    /// Database or disk is full
      *
      * @param error Numeric error code
      * @param errStr Error message
