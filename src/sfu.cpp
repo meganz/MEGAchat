@@ -46,6 +46,7 @@ const std::string SfuConnection::CSFU_LAYER        = "LAYER";
 const std::string SfuConnection::CSFU_SPEAK_RQ     = "SPEAK_RQ";
 const std::string SfuConnection::CSFU_SPEAK_RQ_DEL = "SPEAK_RQ_DEL";
 const std::string SfuConnection::CSFU_SPEAK_DEL    = "SPEAKER_DEL";
+const std::string SfuConnection::CSFU_BYE          = "BYE";
 
 
 CommandsQueue::CommandsQueue():
@@ -1739,6 +1740,20 @@ bool SfuConnection::sendSpeakDel(Cid_t cid)
     return sendCommand(command);
 }
 
+bool SfuConnection::sendBye(int termCode)
+{
+    rapidjson::Document json(rapidjson::kObjectType);
+    rapidjson::Value cmdValue(rapidjson::kStringType);
+    cmdValue.SetString(SfuConnection::CSFU_BYE.c_str(), json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember("rsn", rapidjson::Value(termCode), json.GetAllocator());
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string command(buffer.GetString(), buffer.GetSize());
+    return sendCommand(command);
+}
+
 void SfuConnection::setConnState(SfuConnection::ConnState newState)
 {
     if (newState == mConnState)
@@ -1812,7 +1827,7 @@ bool SfuConnection::wsSSLsessionUpdateCb(const CachedSession &sess)
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
 {
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
-
+    mCall.onSfuDisconnected();
     auto oldState = mConnState;
     setConnState(kDisconnected);
 

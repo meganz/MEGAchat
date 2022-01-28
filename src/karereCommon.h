@@ -101,7 +101,8 @@ struct AvFlags
 protected:
     uint8_t mFlags = 0;
 public:
-    enum: uint8_t { kAudio          = 0x01,
+    enum: uint8_t { kEmpty          = 0x00,
+                    kAudio          = 0x01,
 
                     kCameraLowRes   = 0x02,
                     kCameraHiRes    = 0x04,
@@ -120,7 +121,7 @@ public:
 
     AvFlags(uint8_t flags): mFlags(flags){}
     AvFlags(bool audio, bool video) : mFlags(static_cast<uint8_t>(audio ? kAudio : 0) | static_cast<uint8_t>(video ? kCamera : 0)) {}
-    AvFlags(): mFlags(0){}
+    AvFlags(): mFlags(karere::AvFlags::kEmpty){}
 
     // setters/modifiers
     void set(uint8_t val)       { mFlags = val; }

@@ -10,13 +10,18 @@
 enum
 {
     CHATD_KEYID_INVALID = 0,                // used when no keyid is set
-    CHATD_KEYID_UNCONFIRMED = 0xfffffffe,   // used when a new keyid has been requested. Should be kept as constant as possible and in the range of 0xffff0001 to 0xffffffff
     CHATD_KEYID_MAX = 0xffffffff,           // higher keyid allowed for unconfirmed new keys
     CHATD_KEYID_MIN = 0xffff0000            // lower keyid allowed for unconfirmed new keys
 };
 
 namespace chatd
 {
+typedef uint64_t BackRefId;
+typedef uint32_t KeyId;
+inline bool isValidKeyxId(KeyId keyxid)
+{
+    return keyxid <= CHATD_KEYID_MAX && keyxid >= CHATD_KEYID_MIN;
+}
 
 enum CallDataReason
 {
@@ -33,8 +38,7 @@ enum
     kTsMissingCallUnread = 1592222400,  // This ts enable missing call as unread message from 15th June of 2020
 };
 
-typedef uint32_t KeyId;
-typedef uint64_t BackRefId;
+
 
 static bool isLocalKeyId(KeyId localKeyid)
 {
@@ -1131,8 +1135,7 @@ public:
  *      userid.8 + keylen.2 + key.keylen
  *
  * Additionally, the KeyCommand stores the given local keyid, which is used
- * internally. The keyid encoded in the command is always hardwire to the
- * constant value CHATD_KEYID_UNCONFIRMED.
+ * internally.
  */
 class KeyCommand: public Command
 {
@@ -1143,10 +1146,8 @@ public:
     explicit KeyCommand(karere::Id chatid, KeyId aLocalkeyid, size_t reserve=128)
     : Command(OP_NEWKEY, reserve), mLocalKeyid(aLocalkeyid)
     {
-        assert(isLocalKeyId(mLocalKeyid));
-
-        KeyId keyid = CHATD_KEYID_UNCONFIRMED;
-        append(chatid.val).append<KeyId>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
+        assert(isValidKeyxId(mLocalKeyid) || mLocalKeyid == CHATD_KEYID_INVALID);
+        append(chatid.val).append<KeyId>(mLocalKeyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
 
     KeyId localKeyid() const { return mLocalKeyid; }

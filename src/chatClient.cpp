@@ -209,9 +209,8 @@ bool Client::openDb(const std::string& sid)
                 // in order to fetch fresh history including the missing management messages
                 db.query("delete from history");
                 db.query("update chat_vars set value = 0 where name = 'have_all_history'");
-                updateVarsSchemaVersion(currentVersion);
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
-
                 KR_LOG_WARNING("Successfully cleared cached history. Database version has been updated to %s", gDbSchemaVersionSuffix);
 
                 ok = true;
@@ -259,7 +258,7 @@ bool Client::openDb(const std::string& sid)
                 int count = sqlite3_changes(db);
 
                 // Update DB version number
-                updateVarsSchemaVersion(currentVersion);
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
 
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -284,7 +283,7 @@ bool Client::openDb(const std::string& sid)
                     KR_LOG_WARNING("Updating schema of MEGAchat cache...");
                     db.query("ALTER TABLE `chats` ADD mode tinyint");
                     db.query("ALTER TABLE `chats` ADD unified_key blob");
-                    updateVarsSchemaVersion(currentVersion);
+                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();
                     ok = true;
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -292,7 +291,7 @@ bool Client::openDb(const std::string& sid)
             }
             else if (cachedVersionSuffix == "6" && (strcmp(gDbSchemaVersionSuffix, "7") == 0))
             {
-                updateVarsSchemaVersion(currentVersion);
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.query("update history set keyid=0 where type=?", chatd::Message::Type::kMsgTruncate);
                 db.commit();
                 ok = true;
@@ -311,7 +310,7 @@ bool Client::openDb(const std::string& sid)
                                "    UNIQUE(chatid, msgid, userid, reaction),"
                                "    FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE)");
 
-                updateVarsSchemaVersion(currentVersion);
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -322,7 +321,7 @@ bool Client::openDb(const std::string& sid)
 
                 // Add dns_cache table
                 db.simpleQuery("CREATE TABLE dns_cache(shard tinyint primary key, url text, ipv4 text, ipv6 text);");
-                updateVarsSchemaVersion(currentVersion);
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -355,7 +354,7 @@ bool Client::openDb(const std::string& sid)
                     db.query("ALTER TABLE tempkeys RENAME TO sendkeys");
 
                     // update cache schema version
-                    updateVarsSchemaVersion(currentVersion);
+                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();
                     ok = true;
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -373,7 +372,7 @@ bool Client::openDb(const std::string& sid)
                    db.query("delete from chat_vars where chatid = ? and name = 'have_all_history'", chatid);
                 }
 
-                updateVarsSchemaVersion(currentVersion);
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -384,7 +383,7 @@ bool Client::openDb(const std::string& sid)
 
                 // Add tls session blob to dns_cache table
                 db.query("ALTER TABLE `dns_cache` ADD sess_data blob");
-                updateVarsSchemaVersion(currentVersion);
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -415,7 +414,7 @@ bool Client::openDb(const std::string& sid)
                         // meeting column is already added
                     }
 
-                    updateVarsSchemaVersion(currentVersion);
+                    db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();
                     ok = true;
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
@@ -1043,7 +1042,7 @@ Client::InitState Client::initWithAnonymousSession()
     mMyHandle = Id::null(); // anonymous mode should use ownHandle set to all zeros
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this));
-    mSessionReadyPromise.resolve();
+    connect();
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
     return mInitState;
@@ -1061,10 +1060,10 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
 // We have a complete snapshot of the SDK contact and chat list state.
 // Commit it with the accompanying scsn
     mMyHandle = getMyHandleFromSdk();
-    saveVarsValue("my_handle", mMyHandle);
+    db.query("insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
 
     mMyEmail = getMyEmailFromSdk();
-    saveVarsEmail(mMyEmail);
+    db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
     mMyIdentity = initMyIdentity();
 
@@ -1120,7 +1119,7 @@ void Client::commit(const std::string& scsn)
         return;
     }
 
-    saveVarsValue("scsn", scsn);
+    db.query("insert or replace into vars(name,value) values('scsn', ?)", scsn);
     db.commit();
     mLastScsn = scsn;
     KR_LOG_DEBUG("Commit with scsn %s", scsn.c_str());
@@ -1278,8 +1277,11 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
             return kInitErrGeneric;
         }
 
-        mSessionReadyPromise.resolve();
         mInitStats.onCanceled();    // do not collect stats for this initialization mode
+
+        // connect() should be done in main thread, not app's thread, since LWS is single threaded
+        // and the `wsi` context must be created by the main thread, where it runs the event's loop
+        marshallCall([this]() { connect(); }, appCtx);
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);
@@ -1428,9 +1430,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 //              }
                 checkSyncWithSdkDb(scsn, *contactList, *chatList, false);
                 setInitState(kInitHasOnlineSession);
-                mSessionReadyPromise.resolve();
                 mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                 api.sdk.resumeActionPackets();
+
+                connect();
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
@@ -1439,16 +1442,18 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 initWithNewSession(sid.get(), scsn, contactList, chatList)
                 .fail([this](const ::promise::Error& err)
                 {
-                    mSessionReadyPromise.reject(err);
+                    setInitState(kInitErrGeneric);
+                    KR_LOG_ERROR("Failed to initialize MEGAchat");
                     api.sdk.resumeActionPackets();
                     return err;
                 })
                 .then([this]()
                 {
                     setInitState(kInitHasOnlineSession);
-                    mSessionReadyPromise.resolve();
                     mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                     api.sdk.resumeActionPackets();
+
+                    connect();
                 });
             }
             else    // a full reload happened (triggered by API or by the user)
@@ -1505,7 +1510,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             mInitStats.stageEnd(InitStats::kStatsEphAccConfirmed);
 
             setMyEmail(email);
-            saveVarsEmail(email);
+            db.query("insert or replace into vars(name,value) values('my_email', ?)", email);
         }
 
         break;
@@ -1614,63 +1619,30 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(bool isInBackground)
+void Client::connect()
 {
-    mIsInBackground = isInBackground;
-
+    // cancel stats if connection is done in background (not reliable times)
     if (mIsInBackground && !mInitStats.isCompleted())
     {
         mInitStats.onCanceled();
     }
 
-// only the first connect() needs to wait for the mSessionReadyPromise.
-// Any subsequent connect()-s (preceded by disconnect()) can initiate
-// the connect immediately
-    if (mConnState == kConnecting)      // already connecting, wait for completion
+    if (mConnState != kDisconnected)
     {
-        return mConnectPromise;
-    }
-    else if (mConnState == kConnected)  // nothing to do
-    {
-        return promise::_Void();
+        KR_LOG_WARNING("connect(): current state is %s", connStateToStr(mConnState));
+        return;
     }
 
-    assert(mConnState == kDisconnected);
-
-    auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
-    switch (sessDone)
-    {
-        case promise::kSucceeded:   // if session is ready...
-            return doConnect();
-
-        case promise::kFailed:      // if session failed...
-            return mSessionReadyPromise.error();
-
-        default:                    // if session is not ready yet... wait for it and then connect
-            assert(sessDone == promise::kNotResolved);
-            mConnectPromise = mSessionReadyPromise
-            .then([this]() mutable
-            {
-                return doConnect();
-            });
-            return mConnectPromise;
-    }
-}
-
-promise::Promise<void> Client::doConnect()
-{
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     mInitStats.stageStart(InitStats::kStatsConnection);
-
     setConnState(kConnecting);
-    assert(mSessionReadyPromise.succeeded());
-    assert(mUserAttrCache);
 
     // notify user-attr cache
-    assert(mUserAttrCache);
     mUserAttrCache->onLogin();
+
     connectToChatd();
 
+    // start heartbeats
     auto wptr = weakHandle();
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this, wptr]()
@@ -1688,7 +1660,7 @@ promise::Promise<void> Client::doConnect()
         // avoid to connect to presenced (no user, no peerstatus)
         // avoid to retrieve own user-attributes (no user, no attributes)
         setConnState(kConnected);
-        return ::promise::_Void();
+        return;
     }
 
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
@@ -1701,23 +1673,8 @@ promise::Promise<void> Client::doConnect()
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
-    auto pms = mPresencedClient.connect()
-    .then([this, wptr]()
-    {
-        if (wptr.deleted())
-        {
-            return;
-        }
-
-        setConnState(kConnected);
-    })
-    .fail([this](const ::promise::Error& err)
-    {
-        setConnState(kDisconnected);
-        return err;
-    });
-
-    return pms;
+    mPresencedClient.connect();
+    setConnState(kConnected);
 }
 
 void Client::setConnState(ConnState newState)
@@ -1823,14 +1780,14 @@ void Client::resetMyIdentity()
 uint64_t Client::initMyIdentity()
 {
     uint64_t result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-    saveVarsValue("clientid_seed", result);
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
     return result;
 }
 
 promise::Promise<void> Client::loadOwnKeysFromApi()
 {
     return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
-    .then([this](ReqResult result) -> ApiPromise
+    .then([this](ReqResult result) -> promise::Promise<void>
     {
         auto keys = result->getMegaStringMap();
         auto cu25519 = keys->get("prCu255");
@@ -1849,13 +1806,10 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         if (b64len != 43)
             return ::promise::Error("prEd255 base64 key length is not 43 bytes");
         base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
-        return api.call(&mega::MegaApi::getUserData);
-    })
-    .then([this](ReqResult result) -> promise::Promise<void>
-    {
+
         // write to db
-        saveVarsValue("pr_cu25519", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
-        saveVarsValue("pr_ed25519", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
+        db.query("insert or replace into vars(name,value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+        db.query("insert or replace into vars(name,value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
@@ -2042,7 +1996,7 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
                 // Update our own email in client and caches
                 std::string email = user.getEmail();
                 setMyEmail(email);
-                saveVarsEmail(email);
+                db.query("insert or replace into vars(name,value) values('my_email', ?)", email);
             }
 
             if (!user.isOwnChange())
@@ -4362,7 +4316,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         }
     });
 
-    if (mTitleString.empty()) // user attrib fetch was not synchornous
+    if (mTitleString.empty()) // user attrib fetch was not synchronous
     {
         updateTitle(email);
         assert(!mTitleString.empty()
@@ -4638,17 +4592,6 @@ const std::string& Client::getMyEmail() const
 {
     return mMyEmail;
 }
-
-bool Client::saveVarsEmail(const std::string& newEmail)
-{
-    return saveVarsValue("my_email", newEmail);
-}
-
-bool Client::updateVarsSchemaVersion(const std::string& newValue)
-{
-    return db.query("update vars set value = ? where name = 'schema_version'", newValue);
-}
-
 
 std::string encodeFirstName(const std::string& first)
 {

@@ -186,6 +186,7 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     // 3. fetchnodes
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     bool *flagRequestFectchNodes = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flagRequestFectchNodes = false;
+    bool *loggedInFlag = &mLoggedInAllChats[accountIndex]; *loggedInFlag = false;
     megaApi[accountIndex]->fetchNodes();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestFectchNodes), "Expired timeout for fetch nodes");
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Error fetch nodes. Error: " + std::to_string(lastError[accountIndex]));
@@ -194,14 +195,6 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     initStateValue = initState[accountIndex];
     ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
                      "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
-
-    // 4. Connect to chat servers
-    bool *flagRequestConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
-    bool *loggedInFlag = &mLoggedInAllChats[accountIndex]; *loggedInFlag = false;
-    mChatConnectionOnline[accountIndex] = false;
-    megaChatApi[accountIndex]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect to chat. Error: " + std::to_string(lastErrorChat[accountIndex]));
 
     // if there are chatrooms in this account, wait to be joined to all of them
     std::unique_ptr<MegaChatListItemList> items(megaChatApi[accountIndex]->getChatListItems());
@@ -780,10 +773,6 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
                      "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
 
-    bool *flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
-    megaChatApi[accountIndex]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
     ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
@@ -827,11 +816,6 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
                      "Bad Megachat state expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
 
-    // connect in Karere
-    flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
-    megaChatApi[accountIndex]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
     ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
@@ -855,36 +839,6 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
         logger->postLog("========== Enter foreground status ================= ");
         sleep(5);
     }
-
-
-//  MegaChatApi::disconnect() is now obsolete and always returns ERROR_EACCESS (is not allowed anymore)
-//    // ___ Disconnect from chat server and reconnect ___
-//    for (int i = 0; i < 5; i++)
-//    {
-//        int conState = megaChatApi[accountIndex]->getConnectionState();
-//        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
-
-//        bool *flagDisconnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_DISCONNECT]; *flagDisconnect = false;
-//        megaChatApi[accountIndex]->disconnect();
-//        ASSERT_CHAT_TEST(waitForResponse(flagDisconnect), "Expired timeout for disconnect");
-//        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error disconect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
-//        conState = megaChatApi[accountIndex]->getConnectionState();
-//        ASSERT_CHAT_TEST(conState == MegaChatApi::DISCONNECTED, "Wrong connection state: " + std::to_string(conState));
-
-//        // reconnect
-//        flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
-//        megaChatApi[accountIndex]->connect();
-//        ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
-//        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
-//        conState = megaChatApi[accountIndex]->getConnectionState();
-//        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
-
-//        // check there's a list of chats already available
-//        list = megaChatApi[accountIndex]->getChatListItems();
-//        ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
-//        delete list;
-//        list = NULL;
-//    }
 
     delete [] session; session = NULL;
 }
@@ -1544,13 +1498,6 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     initState[a2] = megaChatApi[a2]->initAnonymous();
     ASSERT_CHAT_TEST(initState[a2] == MegaChatApi::INIT_ANONYMOUS, "Init sesion in anonymous mode failed");
     char *sessionAnonymous = megaApi[a2]->dumpSession();
-
-    bool *flagRequestConnect = &requestFlagsChat[a2][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
-    bool *loggedInFlag = &mLoggedInAllChats[a2]; *loggedInFlag = false;
-    mChatConnectionOnline[a2] = false;
-    megaChatApi[a2]->connect();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
-    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Error connect to chat. Error: " + std::to_string(lastErrorChat[a2]));
 
     // Create a public chat with no peers nor title, this chat will be reused by the rest of the tests
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
@@ -5322,6 +5269,10 @@ void MockupCall::onSfuConnected()
 
 }
 
+void MockupCall::onSfuDisconnected()
+{
+
+}
 bool MockupCall::error(unsigned int, const string &)
 {
     return true;
