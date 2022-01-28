@@ -1261,7 +1261,6 @@ void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle us
 void MainWindow::onDbError(MegaChatApi */*api*/, int error, const char *msg)
 {
     std::string text(msg);
-    text.append(": ").append(MegaChatApi::dbErrorToString(error));
     mLogger->postLog(text.c_str());
 
     if (!mCriticalMsgBox)
