@@ -1152,6 +1152,10 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
             setWindowTitle(auxTitle);
         }
 
+        std::unique_ptr<MegaUserList> contactList(mMegaApi->getContacts());
+        addOrUpdateContactControllersItems(contactList.get());
+        reorderAppContactList();
+
         //Update chatListItems in chatControllers
         updateChatControllersItems();
 
@@ -1160,6 +1164,16 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
 
         //Update my user info tooltip
         updateToolTipMyInfo();
+
+        if (newState == MegaChatApi::INIT_ONLINE_SESSION)
+        {
+            //Fetch alias attr
+            mMegaApi->getUserAttribute(::mega::MegaApi::USER_ATTR_ALIAS);
+            if (mApp->getJoinAsGuest())
+            {
+                mMegaChatApi->openChatPreview(mApp->getChatLink().c_str());
+            }
+        }
     }
 }
 

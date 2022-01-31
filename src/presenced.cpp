@@ -10,7 +10,6 @@ using namespace karere;
 using ::mega::mega_snprintf;   // enables the calls to snprintf below which are #defined
 #endif
 
-#define ID_CSTR(id) id.toString().c_str()
 #define PRESENCED_LOG_LISTENER_CALLS
 
 #ifdef PRESENCED_LOG_LISTENER_CALLS
@@ -80,13 +79,13 @@ Promise<void> Client::fetchUrl()
     });
 }
 
-Promise<void> Client::connect()
+void Client::connect()
 {
     assert (mConnState == kConnNew);
-    return fetchUrl()
+    fetchUrl()
     .then([this]
     {
-        return reconnect()
+        reconnect()
         .fail([](const ::promise::Error& err)
         {
             PRESENCED_LOG_DEBUG("Presenced::connect(): Error connecting to server after getting URL: %s", err.what());

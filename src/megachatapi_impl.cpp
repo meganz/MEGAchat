@@ -227,32 +227,6 @@ void MegaChatApiImpl::sendPendingRequests()
 
         switch (request->getType())
         {
-        case MegaChatRequest::TYPE_CONNECT:
-        {
-            bool isInBackground = request->getFlag();
-
-            mClient->connect(isInBackground)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& e)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
-
-            break;
-        }
-        case MegaChatRequest::TYPE_DISCONNECT:
-        {
-            // mClient->disconnect();   --> obsolete
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-            fireOnChatRequestFinish(request, megaChatError);
-
-            break;
-        }
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
             bool disconnect = request->getFlag();
@@ -3104,28 +3078,6 @@ void MegaChatApiImpl::fireOnChatNotification(MegaChatHandle chatid, MegaChatMess
     }
 
     delete msg;
-}
-
-void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
-    requestQueue.push(request);
-    waiter->notify();
-}
-
-void MegaChatApiImpl::connectInBackground(MegaChatRequestListener *listener)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
-    request->setFlag(true);
-    requestQueue.push(request);
-    waiter->notify();
-}
-
-void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISCONNECT, listener);
-    requestQueue.push(request);
-    waiter->notify();
 }
 
 int MegaChatApiImpl::getConnectionState()
@@ -6618,6 +6570,8 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrAuth:
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrGeneral:
+        case rtcModule::TermCode::kChatDisconn:
+        case rtcModule::TermCode::kApiEndCall:
         case rtcModule::TermCode::kUnKnownTermCode:
             return TERM_CODE_ERROR;
 

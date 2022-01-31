@@ -200,7 +200,7 @@ private:
     uint8_t mState = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id mPeerId;
     Cid_t mClientId;
-    karere::AvFlags mAvFlags = 0;
+    karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
@@ -1049,9 +1049,6 @@ public:
     // ============= API requests ================
 
     // General chat methods
-    void connect(MegaChatRequestListener *listener = NULL);
-    void connectInBackground(MegaChatRequestListener *listener = NULL);
-    void disconnect(MegaChatRequestListener *listener = NULL);
     int getConnectionState();
     int getChatConnectionState(MegaChatHandle chatid);
     bool areAllChatsLoggedIn();

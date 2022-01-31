@@ -211,7 +211,6 @@ bool Client::openDb(const std::string& sid)
                 db.query("update chat_vars set value = 0 where name = 'have_all_history'");
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
-
                 KR_LOG_WARNING("Successfully cleared cached history. Database version has been updated to %s", gDbSchemaVersionSuffix);
 
                 ok = true;
@@ -441,6 +440,7 @@ void Client::createDbSchema()
     db.simpleQuery(gDbSchema); //db.query() uses a prepared statement and will execute only the first statement up to the first semicolon
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
+    // not replaced by saveVarsValue encapsulation because this is a direct INSERT, thus the fallback is an ABORT not a REPLACE
     db.query("insert into vars(name, value) values('schema_version', ?)", ver);
     db.commit();
 }
@@ -1042,7 +1042,7 @@ Client::InitState Client::initWithAnonymousSession()
     mMyHandle = Id::null(); // anonymous mode should use ownHandle set to all zeros
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this));
-    mSessionReadyPromise.resolve();
+    connect();
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
     return mInitState;
@@ -1119,7 +1119,7 @@ void Client::commit(const std::string& scsn)
         return;
     }
 
-    db.query("insert or replace into vars(name,value) values('scsn',?)", scsn);
+    db.query("insert or replace into vars(name,value) values('scsn', ?)", scsn);
     db.commit();
     mLastScsn = scsn;
     KR_LOG_DEBUG("Commit with scsn %s", scsn.c_str());
@@ -1277,8 +1277,11 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
             return kInitErrGeneric;
         }
 
-        mSessionReadyPromise.resolve();
         mInitStats.onCanceled();    // do not collect stats for this initialization mode
+
+        // connect() should be done in main thread, not app's thread, since LWS is single threaded
+        // and the `wsi` context must be created by the main thread, where it runs the event's loop
+        marshallCall([this]() { connect(); }, appCtx);
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);
@@ -1309,6 +1312,11 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
         case ::mega::MegaRequest::TYPE_FETCH_NODES:
         {
             mInitStats.stageStart(InitStats::kStatsFetchNodes);
+            break;
+        }
+        case ::mega::MegaRequest::TYPE_CONFIRM_ACCOUNT:
+        {
+            mInitStats.stageStart(InitStats::kStatsEphAccConfirmed);
             break;
         }
         default:    // no action to be taken for other type of requests
@@ -1370,7 +1378,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
         if (reqType == ::mega::MegaRequest::TYPE_CREATE_ACCOUNT)  // if not creating E++ account, do nothing
         {
-            if (request->getParamType() != 3)     // if not creating E++ account, do nothing
+            if (request->getParamType() != ::mega::MegaApi::CREATE_EPLUSPLUS_ACCOUNT)     // if not creating E++ account, do nothing
             {
                 break;
             }
@@ -1422,9 +1430,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 //              }
                 checkSyncWithSdkDb(scsn, *contactList, *chatList, false);
                 setInitState(kInitHasOnlineSession);
-                mSessionReadyPromise.resolve();
                 mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                 api.sdk.resumeActionPackets();
+
+                connect();
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
@@ -1433,16 +1442,18 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 initWithNewSession(sid.get(), scsn, contactList, chatList)
                 .fail([this](const ::promise::Error& err)
                 {
-                    mSessionReadyPromise.reject(err);
+                    setInitState(kInitErrGeneric);
+                    KR_LOG_ERROR("Failed to initialize MEGAchat");
                     api.sdk.resumeActionPackets();
                     return err;
                 })
                 .then([this]()
                 {
                     setInitState(kInitHasOnlineSession);
-                    mSessionReadyPromise.resolve();
                     mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                     api.sdk.resumeActionPackets();
+
+                    connect();
                 });
             }
             else    // a full reload happened (triggered by API or by the user)
@@ -1486,6 +1497,25 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }, appCtx);
         break;
     }
+
+    case ::mega::MegaRequest::TYPE_CONFIRM_ACCOUNT:
+    {
+        std::string email = request->getEmail();
+        // checking if there is a change in the e-mail we cover 2 use cases:
+        //1) the confirmation of an ephemeral account ++ where there was no email
+        //2) the confirmation of an account where the signing email is different than the one used
+        //during the initial step of the account creation
+        if (email != getMyEmail())
+        {
+            mInitStats.stageEnd(InitStats::kStatsEphAccConfirmed);
+
+            setMyEmail(email);
+            db.query("insert or replace into vars(name,value) values('my_email', ?)", email);
+        }
+
+        break;
+    }
+
     default:    // no action to be taken for other type of requests
     {
         break;
@@ -1589,63 +1619,30 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(bool isInBackground)
+void Client::connect()
 {
-    mIsInBackground = isInBackground;
-
+    // cancel stats if connection is done in background (not reliable times)
     if (mIsInBackground && !mInitStats.isCompleted())
     {
         mInitStats.onCanceled();
     }
 
-// only the first connect() needs to wait for the mSessionReadyPromise.
-// Any subsequent connect()-s (preceded by disconnect()) can initiate
-// the connect immediately
-    if (mConnState == kConnecting)      // already connecting, wait for completion
+    if (mConnState != kDisconnected)
     {
-        return mConnectPromise;
-    }
-    else if (mConnState == kConnected)  // nothing to do
-    {
-        return promise::_Void();
+        KR_LOG_WARNING("connect(): current state is %s", connStateToStr(mConnState));
+        return;
     }
 
-    assert(mConnState == kDisconnected);
-
-    auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
-    switch (sessDone)
-    {
-        case promise::kSucceeded:   // if session is ready...
-            return doConnect();
-
-        case promise::kFailed:      // if session failed...
-            return mSessionReadyPromise.error();
-
-        default:                    // if session is not ready yet... wait for it and then connect
-            assert(sessDone == promise::kNotResolved);
-            mConnectPromise = mSessionReadyPromise
-            .then([this]() mutable
-            {
-                return doConnect();
-            });
-            return mConnectPromise;
-    }
-}
-
-promise::Promise<void> Client::doConnect()
-{
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     mInitStats.stageStart(InitStats::kStatsConnection);
-
     setConnState(kConnecting);
-    assert(mSessionReadyPromise.succeeded());
-    assert(mUserAttrCache);
 
     // notify user-attr cache
-    assert(mUserAttrCache);
     mUserAttrCache->onLogin();
+
     connectToChatd();
 
+    // start heartbeats
     auto wptr = weakHandle();
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this, wptr]()
@@ -1663,7 +1660,7 @@ promise::Promise<void> Client::doConnect()
         // avoid to connect to presenced (no user, no peerstatus)
         // avoid to retrieve own user-attributes (no user, no attributes)
         setConnState(kConnected);
-        return ::promise::_Void();
+        return;
     }
 
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
@@ -1676,23 +1673,8 @@ promise::Promise<void> Client::doConnect()
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
-    auto pms = mPresencedClient.connect()
-    .then([this, wptr]()
-    {
-        if (wptr.deleted())
-        {
-            return;
-        }
-
-        setConnState(kConnected);
-    })
-    .fail([this](const ::promise::Error& err)
-    {
-        setConnState(kDisconnected);
-        return err;
-    });
-
-    return pms;
+    mPresencedClient.connect();
+    setConnState(kConnected);
 }
 
 void Client::setConnState(ConnState newState)
@@ -1805,7 +1787,7 @@ uint64_t Client::initMyIdentity()
 promise::Promise<void> Client::loadOwnKeysFromApi()
 {
     return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
-    .then([this](ReqResult result) -> ApiPromise
+    .then([this](ReqResult result) -> promise::Promise<void>
     {
         auto keys = result->getMegaStringMap();
         auto cu25519 = keys->get("prCu255");
@@ -1824,13 +1806,10 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         if (b64len != 43)
             return ::promise::Error("prEd255 base64 key length is not 43 bytes");
         base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
-        return api.call(&mega::MegaApi::getUserData);
-    })
-    .then([this](ReqResult result) -> promise::Promise<void>
-    {
+
         // write to db
-        db.query("insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
-        db.query("insert or replace into vars(name, value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
+        db.query("insert or replace into vars(name,value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+        db.query("insert or replace into vars(name,value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
         KR_LOG_DEBUG("loadOwnKeysFromApi: success");
         return promise::_Void();
     });
@@ -2004,6 +1983,27 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
         }
 
         mContactList->syncWithApi(*users);
+
+        // check changes for own user
+        int count = users->size();
+        for (int i = 0; i < count; i++)
+        {
+            ::mega::MegaUser &user = *users->get(i);
+            if (user.getHandle() != myHandle()) continue;
+
+            if (user.hasChanged(::mega::MegaUser::CHANGE_TYPE_EMAIL))
+            {
+                // Update our own email in client and caches
+                std::string email = user.getEmail();
+                setMyEmail(email);
+                db.query("insert or replace into vars(name,value) values('my_email', ?)", email);
+            }
+
+            if (!user.isOwnChange())
+            {
+                userAttrCache().onUserAttrChange(user);
+            }
+        }
     }, appCtx);
 }
 
@@ -4113,6 +4113,11 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
     for (int i = 0; i < count; i++)
     {
         ::mega::MegaUser &user = *users.get(i);
+        if (user.getHandle() == client.myHandle())
+        {
+            continue;
+        }
+
         auto newVisibility = user.getVisibility();
 
         int changed = user.getChanges();
@@ -4161,13 +4166,6 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
                 // Update contact email in memory and cache
                 contact->mEmail = newEmail;
                 client.db.query("update contacts set email = ? where userid = ?", newEmail, handle);
-
-                // If user it's our own user, we need to update our own email in client and cache
-                if (client.myHandle() == user.getHandle())
-                {
-                    client.setMyEmail(newEmail);
-                    client.db.query("insert or replace into vars(name,value) values('my_email', ?)", newEmail);
-                }
 
                 // We need to update user email in attr cache
                 updateCache = true;
@@ -4319,7 +4317,7 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         }
     });
 
-    if (mTitleString.empty()) // user attrib fetch was not synchornous
+    if (mTitleString.empty()) // user attrib fetch was not synchronous
     {
         updateTitle(email);
         assert(!mTitleString.empty()

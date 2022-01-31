@@ -16,19 +16,10 @@
 #import "MEGAChatVideoDelegate.h"
 #import "MEGAChatNotificationDelegate.h"
 #import "MEGAChatNodeHistoryDelegate.h"
+#import "MEGAChatLogLevel.h"
 
 
 #import "MEGASdk.h"
-
-typedef NS_ENUM (NSInteger, MEGAChatLogLevel) {
-    MEGAChatLogLevelFatal = 0,
-    MEGAChatLogLevelError,
-    MEGAChatLogLevelWarning,
-    MEGAChatLogLevelInfo,
-    MEGAChatLogLevelVerbose,
-    MEGAChatLogLevelDebug,
-    MEGAChatLogLevelMax
-};
 
 typedef NS_ENUM (NSInteger, MEGAChatStatus) {
     MEGAChatStatusOffline = 1,
@@ -95,14 +86,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (MEGAChatInit)initState;
 
-- (void)connectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)connect;
-
-- (void)connectInBackgroundWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)connectInBackground;
-
-- (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)disconnect;
 - (MEGAChatConnection)chatConnectionState:(uint64_t)chatId;
 - (void)retryPendingConnections;
 - (void)reconnect;
@@ -353,7 +336,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (void)setLogLevel:(MEGAChatLogLevel)level;
 + (void)setLogToConsole:(BOOL)enable;
-+ (void)setLogObject:(id<MEGAChatLoggerDelegate>)delegate;
++ (void)setLogObject:(nullable id<MEGAChatLoggerDelegate>)delegate;
 + (void)setLogWithColors:(BOOL)userColors;
 
 #pragma mark - Exceptions

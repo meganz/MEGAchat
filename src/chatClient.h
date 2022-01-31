@@ -672,7 +672,8 @@ class InitStats
             kStatsFetchNodes        = 2,
             kStatsPostFetchNodes    = 3,
             kStatsConnection        = 4,
-            kStatsCreateAccount     = 5
+            kStatsCreateAccount     = 5,
+            kStatsEphAccConfirmed   = 6,
         };
 
 
@@ -784,15 +785,14 @@ private:
  *  A sequence of how the client has to be initialized:
  *  1. create a new MegaApi instance of the Mega SDK
  *  2. create a new karere::Client instance and pass it the Mega SDK instance
- *  3. Call MegaApi::login() and wait for completion
- *  4. Call MegaApi::fetchnodes() and wait for completion
- *     [at this stage, cloud storage apps show the main GUI, but apps with
- *      with chat enabled are not ready to be shown yet]
- *  5. Call karere::Client::init() to initialize the chat engine.
+ *  3. Call karere::Client::init() to initialize the chat engine.
  *     [at this stage, a chat-enabled app can load chatrooms and history
  *      from the local karere cache db, and can operate in offline mode]
- *  6. Call karere::Client::connect() and wait for completion
- *  7. The app is ready to operate
+ *  4. Call MegaApi::login() and wait for completion
+ *  5. Call MegaApi::fetchnodes() and wait for completion
+ *     [at this stage, cloud storage apps show the main GUI, but apps with
+ *      with chat enabled are not ready to be shown yet]
+ *  6. The app is ready to operate when the init state reaches kInitHasOnlineSession
  */
 class Client: public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
@@ -925,9 +925,6 @@ protected:
     InitState mInitState = kInitCreated;
     ConnState mConnState = kDisconnected;
 
-    // resolved when fetchnodes is completed
-    promise::Promise<void> mSessionReadyPromise;
-
     // resolved when connection to presenced is established
     promise::Promise<void> mConnectPromise;
 
@@ -1059,16 +1056,6 @@ public:
     const char* connStateStr() const { return connStateToStr(mConnState); }
     static const char* connStateToStr(ConnState state);
 
-    /** @brief Does the actual connection to chatd and presenced. Assumes the
-     * Mega SDK is already logged in. This must be called after
-     * \c initNewSession() or \c initExistingSession() completes
-     * @param isInBackground In case the app requests to connect from a service in
-     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY to chatd. Hence, it will
-     * avoid to tell chatd that the client is active. Also, the presenced client will
-     * prevent to send USERACTIVE 1 in background, since the user is not active.
-     */
-    promise::Promise<void> connect(bool isInBackground = false);
-
     /**
      * @brief Retry pending connections to chatd and presenced
      */
@@ -1185,11 +1172,16 @@ protected:
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats, bool forceReload);
     void commit(const std::string& scsn);
 
-    /** @brief Does the actual connect, once the SDK is online.
-     * connect() waits for the mCanConnect promise to be resolved and then calls
-     * this method
+    /** @brief Does the actual connection to chatd and presenced. Assumes the
+     * Mega SDK is already logged in. This must be called after
+     * \c initWithNewSession() or \c checkSyncWithDb() completes
+     *
+     * It uses mIsInBackground. In case the app requests to connect from a service in
+     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY to chatd. Hence, it will
+     * avoid to tell chatd that the client is active. Also, the presenced client will
+     * prevent to send USERACTIVE 1 in background, since the user is not active.
      */
-    promise::Promise<void> doConnect();
+    void connect();
     void setConnState(ConnState newState);
 
     // mega::MegaGlobalListener interface, called by worker thread
