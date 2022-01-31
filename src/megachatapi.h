@@ -1767,7 +1767,7 @@ class MegaChatRequest
 public:
     enum {
         TYPE_INITIALIZE,// (obsolete)
-        TYPE_CONNECT,   // connect to chatd (call it after login+fetchnodes with MegaApi)
+        TYPE_CONNECT,   // (obsolete) connect to chatd (call it after login+fetchnodes with MegaApi)
         TYPE_DELETE,    // delete MegaChatApi instance
         TYPE_LOGOUT,    // delete existing Client and creates a new one
         TYPE_SET_ONLINE_STATUS,
@@ -2293,12 +2293,13 @@ public:
  *     2. Create an object of MegaChatApi class: passing the MegaApi instance to the constructor,
  * so the chat SDK can create its client and register listeners to receive the own handle, list of users and chats
  *     3. Call MegaChatApi::init() to initialize the chat engine.
- *         [at this stage, the app can retrieve chatrooms and can operate in offline mode]
+ *         [at this stage, if the app provided a session id, it can retrieve chatrooms and can operate in offline mode (INIT_HAS_OFFLINE_SESSION)]
+ *         [If the app provided a email+pwd, it will enter into INIT_WAITING_NEW_SESSION and needs to wait for INIT_ONLINE_SESSION]
  *     4. Call MegaApi::login() and wait for completion
  *     5. Call MegaApi::fetchnodes() and wait for completion
  *         [at this stage, cloud storage apps are ready, but chat-engine is offline]
- *     6. Call MegaChatApi::connect() and wait for completion
- *     7. The app is ready to operate
+ *     6. The app is ready to operate when the callback onChatInitStateUpdate() notifies a valid
+ *          session: INIT_ONLINE_SESSION
  *
  * Important considerations:
  *  - In order to logout from the account, the app should call MegaApi::logout before MegaChatApi::logout.
@@ -2454,6 +2455,10 @@ public:
      *
      * This function should be called before MegaApi::login and MegaApi::fetchnodes.
      *
+     * In case of background services, like CameraUploads or NSE, the init() should be followed by
+     * a call to MegaChatApi::setBackgroundStatus(true), so the client connects to chatd/presenced
+     * signalling the background state appropriately.
+     *
      * @param sid Session id that wants to be resumed, or NULL if a new session will be created.
      * @return The initialization state
      */
@@ -2462,8 +2467,8 @@ public:
     /**
      * @brief Initializes karere in Lean Mode
      *
-     * In Lean Mode, the app may skip the fetchnodes steps and call MegaChatApi::connect directly
-     * after login. MEGAchat will not wait for the completion of fetchnodes. It will resume the cached
+     * In Lean Mode, the app may skip the fetchnodes step after login.
+     * MEGAchat will not wait for the completion of fetchnodes. It will resume the cached
      * state from persistent storage.
      *
      * @note This mode is required by iOS Notification Service Extension (NSE). The extension restricts
@@ -2536,8 +2541,7 @@ public:
      *
      * This function should be called to preview chat-links without a valid session (anonymous mode).
      *
-     * @note The app will not call MegaApi::login nor MegaApi::fetchnodes, but still need to
-     * call MegaChatApi::connect.
+     * @note The app will not call MegaApi::login nor MegaApi::fetchnodes.
      *
      * The anonymous mode is going to initialize the chat engine but is not going to login in MEGA,
      * so the way to logout in anoymous mode is call MegaChatApi::logout manually.
@@ -2570,58 +2574,6 @@ public:
     // ============= Requests ================
 
     /**
-     * @brief Establish the connection with chat-related servers (chatd, presenced and Gelb).
-     *
-     * This function must be called only after calling:
-     *  - MegaChatApi::init to initialize the chat engine
-     *  - MegaApi::login to login in MEGA
-     *  - MegaApi::fetchNodes to retrieve current state of the account
-     *
-     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
-     *
-     * The online status after connecting will be whatever was last used.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
-     *
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void connect(MegaChatRequestListener *listener = NULL);
-
-    /**
-     * @brief Establish the connection with chat-related servers (chatd, presenced and Gelb).
-     *
-     * This function is intended to be used instead of MegaChatApi::connect when the connection
-     * is done by a service in background, which is launched without user-interaction. It avoids
-     * to notify to the server that this client is active, but actually the user is away.
-     *
-     * This function must be called only after calling:
-     *  - MegaChatApi::init to initialize the chat engine
-     *  - MegaApi::login to login in MEGA
-     *  - MegaApi::fetchNodes to retrieve current state of the account
-     *
-     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
-     * The online status after connecting will be whatever was last used.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getFlag - Returns true.
-     *
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void connectInBackground(MegaChatRequestListener *listener = NULL);
-
-    /**
-     * @brief Disconnect from chat-related servers (chatd, presenced and Gelb).
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_DISCONNECT
-     *
-     * @obsolete This function must NOT be used in new developments and has no effect. It will eventually be removed.
-     *
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void disconnect(MegaChatRequestListener *listener = NULL);
-
-    /**
      * @brief Returns the current state of the client
      *
      * It can be one of the following values:
@@ -2630,8 +2582,7 @@ public:
      *  - MegaChatApi::CONNECTED    = 2
      *
      * @note Even if this function returns CONNECTED, it does not mean the client
-     * is fully connected to chatd and presenced. It means the client has been requested
-     * to connect, in contrast to the offline mode.
+     * is fully connected to chatd and presenced.
      * @see MegaChatApi::getChatConnectionState and MegaChatApi::areAllChatsLoggedIn.
      *
      * @return The connection's state of the client

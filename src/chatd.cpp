@@ -3570,8 +3570,8 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         MsgCommand *msgCmd = pms.value().first;
         KeyCommand *keyCmd = pms.value().second;
         assert(!keyCmd                                              // no newkey required...
-               || (keyCmd && keyCmd->localKeyid() == msg->keyid     // ... or localkeyid is assigned to message
-                   && msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED)); // and msgCmd's keyid is unconfirmed
+               || (keyCmd->localKeyid() == msg->keyid               // ... or localkeyid is assigned to message
+                   && isValidKeyxId(msgCmd->keyId())));             // and msgCmd's keyid is within the range of valid keyxid's
 
         it->msgCmd = pms.value().first;
         it->keyCmd = pms.value().second;
@@ -3600,9 +3600,9 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         }
         else
         {
-            assert(keyCmd);
-            assert(keyCmd->localKeyid() == msg->keyid);
-            assert(msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED);
+            assert(keyCmd                                              // key command required
+                   && keyCmd->localKeyid() == msg->keyid               // and localkeyid is assigned to message
+                   && isValidKeyxId(msgCmd->keyId()));                 // and msgCmd's keyid is within the range of valid keyxid's
         }
 
         SendingItem &item = mSending.front();
@@ -4320,9 +4320,9 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
 
 void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 {
-    if (keyxid != CHATD_KEYID_UNCONFIRMED)
+    if (!isValidKeyxId(keyxid))
     {
-        CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xfffffffe");
+        CHATID_LOG_ERROR("keyConfirm: Key transaction id [%s] is out of range [0xffff0000, 0xfffffffe)", ID_CSTR(keyxid));
         return;
     }
 
