@@ -2698,6 +2698,7 @@ string toBinary(const string& hex)
         ++i;
         if (i != hex.cend())
         {
+            // note: upon update to GCC > 9 this warning should disappear
             c |= toBinary(static_cast<unsigned char>(*i));
         }
         bin.push_back(static_cast<char>(c));
@@ -3979,7 +3980,7 @@ bool buildLocalFolders(fs::path targetfolder, const string& prefix, int foldersp
         fs::path fp = p / fs::u8path(filename);
         ofstream fs(fp.u8string(), std::ios::binary);
 
-        for (unsigned j = static_cast<unsigned>(filesize) / sizeof(int); j--; )
+        for (unsigned j = static_cast<unsigned>(filesize) / static_cast<unsigned>(sizeof(int)); j--; )
         {
             fs.write((char*)&totalfilecount, sizeof(int));
         }

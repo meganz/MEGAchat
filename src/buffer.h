@@ -95,7 +95,7 @@ public:
     {
         assert((mDataSize-offset) % sizeof(T) == 0);
         size_t count = (mDataSize-offset)/sizeof(T);
-        read(offset, output, count);
+        read(offset, output, static_cast<int>(count));
     }
     template <class T>
     void read(size_t offset, T& output)
