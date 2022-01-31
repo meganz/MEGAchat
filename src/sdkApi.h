@@ -144,9 +144,10 @@ class MyMegaLogger: public ::mega::MegaLogger
         }
 
 #ifdef ENABLE_LOG_PERFORMANCE
-        if (numberMessages > 0 && directMessages != NULL) {
+        if (numberMessages > 0 && directMessages != NULL) 
+        {
             std::string messages;
-            for (unsigned i = 0; i < numberMessages; i++)
+            for (int i = 0; i < numberMessages; i++)
             {
                 messages += directMessages[i];
             }
