@@ -152,12 +152,12 @@ class MyMegaLogger: public ::mega::MegaLogger
             }
             
             KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s %s", messages.c_str(), sourceFile.c_str());
-        } else {
+        }
+#endif
+        if (message && message[0] != '\0')
+        {
             KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s %s", message, sourceFile.c_str());
         }
-#else
-        KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s %s", message, sourceFile.c_str());
-#endif
     }
 };
 
