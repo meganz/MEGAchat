@@ -142,7 +142,22 @@ class MyMegaLogger: public ::mega::MegaLogger
                 sourceFile = "(" + tmp.substr(start+1) + ")";
             }
         }
+
+#ifdef ENABLE_LOG_PERFORMANCE
+        if (numberMessages > 0 && directMessages != NULL) {
+            std::string messages;
+            for (unsigned i = 0; i < numberMessages; i++)
+            {
+                messages += directMessages[i];
+            }
+            
+            KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s %s", messages.c_str(), sourceFile.c_str());
+        } else {
+            KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s %s", message, sourceFile.c_str());
+        }
+#else
         KARERE_LOG(krLogChannel_megasdk, sdkToKarereLogLevels[loglevel], "%s %s", message, sourceFile.c_str());
+#endif
     }
 };
 
