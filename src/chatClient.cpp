@@ -1561,6 +1561,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
 
     // We are not in sync, probably karere is one or more commits behind
     KR_LOG_WARNING("Karere db out of sync with sdk - scsn-s don't match. Will reload all state from SDK");
+    api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99012, "Karere db out of sync with sdk - scsn-s don't match");
 
     // invalidate user attrib cache
     mUserAttrCache->invalidate();
