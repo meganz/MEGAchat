@@ -1829,6 +1829,11 @@ void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &r
     if (mConnState == kDisconnected)
     {
         SFU_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
+        if (!mRetryCtrl)
+        {
+            SFU_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            reconnect(); // start retry controller
+        }
         return;
     }
 

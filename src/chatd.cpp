@@ -599,6 +599,11 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     if (mState == kStateDisconnected)
     {
         CHATDS_LOG_DEBUG("onSocketClose: we are already in kStateDisconnected state");
+        if (!mRetryCtrl)
+        {
+            CHATDS_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            reconnect(); // start retry controller
+        }
         return;
     }
 

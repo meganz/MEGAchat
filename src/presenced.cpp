@@ -190,6 +190,11 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     if (mConnState == kDisconnected)
     {
         PRESENCED_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
+        if (!mRetryCtrl)
+        {
+            PRESENCED_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            reconnect(); //start retry controller
+        }
         return;
     }
 
