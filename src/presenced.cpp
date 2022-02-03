@@ -193,6 +193,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         if (!mRetryCtrl)
         {
             PRESENCED_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state");
             reconnect(); //start retry controller
         }
         return;
