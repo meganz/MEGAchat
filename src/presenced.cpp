@@ -187,6 +187,12 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         return;
     }
 
+    if (mConnState == kDisconnected)
+    {
+        PRESENCED_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
+        return;
+    }
+
     PRESENCED_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     if (mConnState == kFetchingUrl)

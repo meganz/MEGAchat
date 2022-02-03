@@ -596,6 +596,12 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         return;
     }
 
+    if (mState == kStateDisconnected)
+    {
+        CHATDS_LOG_DEBUG("onSocketClose: we are already in kStateDisconnected state");
+        return;
+    }
+
     CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     if (mState == kStateFetchingUrl)
