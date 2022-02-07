@@ -897,6 +897,15 @@ void MegaChatApiImpl::sendPendingRequests()
                        }
                        else
                        {
+                           if (mClient->mChatdClient->chatFromId(chatId))
+                           {
+                              assert(!mClient->mChatdClient->chatFromId(chatId));
+                              API_LOG_ERROR("Chatid (%s) already exists at mChatForChatId but not at ChatRoomList", karere::Id(chatId).toString().c_str());
+                              MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
+                              fireOnChatRequestFinish(request, megaChatError);
+                              return;
+                           }
+
                            std::string url = result->getLink() ? result->getLink() : "";
                            int shard = result->getAccess();
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
