@@ -207,6 +207,14 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 assert(itemController->getMeetingView());
                 itemController->getMeetingView()->setNotParticipating();
+                // termcode is only valid at state CALL_STATUS_TERMINATING_USER_PARTICIPATION
+                int termCode = call->getTermCode();
+                if (termCode != megachat::MegaChatCall::TERM_CODE_HANGUP)
+                {
+                    std::string message("Termination Code: ");
+                    message.append(std::to_string(termCode));
+                    QMessageBox::information(this, "User terminate participation", message.c_str());
+                }
                 return;
             }
             case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
