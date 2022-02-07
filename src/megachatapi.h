@@ -350,11 +350,12 @@ public:
     };
 
     enum {
-        TERM_CODE_INVALID = -1,     // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
-        TERM_CODE_HANGUP = 0,       // Call has been finished by user
-        TERM_CODE_TOO_MANY_PARTICIPANTS = 1, // No possible to join the call, too many participants
-        TERM_CODE_REJECT = 2,       // Caller has hang up the call before no body answer the call
-        TERM_CODE_ERROR = 3,        // Call has been finished by error
+        TERM_CODE_INVALID                   = -1,   // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
+        TERM_CODE_HANGUP                    = 0,    // Call has been finished by user
+        TERM_CODE_TOO_MANY_PARTICIPANTS     = 1,    // No possible to join the call, too many participants
+        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before no body answer the call
+        TERM_CODE_ERROR                     = 3,    // Call has been finished by error
+        TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
     };
 
     enum
@@ -545,6 +546,7 @@ public:
      *  - TERM_CODE_TOO_MANY_PARTICIPANTS
      *  - TERM_CODE_ERROR
      *  - TERM_CODE_REJECT
+     *  - TERM_CODE_NO_PARTICIPATE
      *
      * @return termination code for the call
      */

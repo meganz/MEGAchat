@@ -6578,6 +6578,9 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kUserHangup:
             return TERM_CODE_HANGUP;
 
+        case rtcModule::TermCode::kLeavingRoom:
+            return TERM_CODE_NO_PARTICIPATE;
+
        case rtcModule::TermCode::kTooManyParticipants:
             return TERM_CODE_TOO_MANY_PARTICIPANTS;
 
