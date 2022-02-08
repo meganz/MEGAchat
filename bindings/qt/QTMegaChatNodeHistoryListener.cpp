@@ -45,7 +45,7 @@ void QTMegaChatNodeHistoryListener::onTruncate(MegaChatApi *api, MegaChatHandle 
 void QTMegaChatNodeHistoryListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
-    switch(event->type())
+    switch(static_cast<QTMegaChatEvent::MegaType>(event->type()))
     {
         case QTMegaChatEvent::OnAttachmentLoaded:
             if (listener) listener->onAttachmentLoaded(event->getMegaChatApi(), event->getChatMessage());
