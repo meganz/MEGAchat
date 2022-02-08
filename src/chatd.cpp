@@ -3967,7 +3967,8 @@ bool Chat::setMessageSeen(Idx idx)
 
     auto wptr = weakHandle();
     karere::Id id = msg.id();
-    megaHandle seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
+    megaHandle seenTimer = 0;
+    seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
     {
         if (wptr.deleted())
           return;
