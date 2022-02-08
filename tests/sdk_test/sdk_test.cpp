@@ -94,8 +94,8 @@ int main(int argc, char **argv)
 }
 
 ChatTestException::ChatTestException(const std::string &file, int line, const std::string &msg)
-    : mFile(file)
-    , mLine(line)
+    : mLine(line)
+    , mFile(file)
     , mMsg(msg)
 {
     mExceptionText = mFile + ":" + std::to_string(mLine) + ": Failure";
