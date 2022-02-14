@@ -3420,14 +3420,16 @@ void exec_startupload(ac::ACState& s)
     {
         if (!set_filename)
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), 0, nullptr, nullptr, false, false, nullptr,
+                    new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
                 }));
         }
         else
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), newfilename.c_str(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), 0, newfilename.c_str(), nullptr, false, false, nullptr,
+                    new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
                 }));
@@ -3439,7 +3441,8 @@ void exec_startdownload(ac::ACState& s)
 {
     if (auto node = GetNodeByPath(s.words[1].s))
     {
-        g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+        g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), nullptr, nullptr, false, nullptr,
+                new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
             {
                 check_err("startDownload", e, ReportResult);
             }));
