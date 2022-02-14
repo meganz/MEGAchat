@@ -1563,7 +1563,11 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     {
         // if mState is kDisconnected | kFailed | kClosed we need to clear commands queue and set sending as false
         // otherwise nextcommand could get stucked
-        mSfuConnection->clearCommandsQueue();
+        if (mSfuConnection)
+        {
+            mSfuConnection->clearCommandsQueue();
+        }
+
         if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateConnecting isn't included to avoid interrupting a reconnection in progress
         {
             if (mState == CallState::kStateInProgress)
