@@ -833,8 +833,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            auto wptr = mClient->weakHandle();
             mClient->openChatPreview(ph)
-            .then([request, this, unifiedKey, ph](ReqResult result)
+            .then([request, this, unifiedKey, ph, wptr](ReqResult result)
             {
                 assert(result);
 
@@ -844,8 +845,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 uint64_t chatId = result->getParentHandle();
 
                 mClient->decryptChatTitle(chatId, unifiedKey, encTitle, ph)
-                .then([request, this, unifiedKey, result, chatId](std::string decryptedTitle)
+                .then([request, this, unifiedKey, result, chatId, wptr](std::string decryptedTitle)
                 {
+                   if (wptr.deleted())
+                   {
+                       mMegaApi->sendEvent(99014, "karere client instance was removed upon TYPE_LOAD_PREVIEW");
+                   }
+
                    bool createChat = request->getFlag();
                    int numPeers = result->getNumDetails();
                    request->setChatHandle(chatId);
@@ -891,6 +897,15 @@ void MegaChatApiImpl::sendPendingRequests()
                        }
                        else
                        {
+                           if (mClient->mChatdClient->chatFromId(chatId))
+                           {
+                              assert(!mClient->mChatdClient->chatFromId(chatId));
+                              API_LOG_ERROR("Chatid (%s) already exists at mChatForChatId but not at ChatRoomList", karere::Id(chatId).toString().c_str());
+                              MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
+                              fireOnChatRequestFinish(request, megaChatError);
+                              return;
+                           }
+
                            std::string url = result->getLink() ? result->getLink() : "";
                            int shard = result->getAccess();
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);

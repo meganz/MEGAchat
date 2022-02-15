@@ -1557,6 +1557,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
             KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
             return true;
         }
+        api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99012, "Karere db out of sync with sdk - scsn-s don't match");
     }
 
     // We are not in sync, probably karere is one or more commits behind
