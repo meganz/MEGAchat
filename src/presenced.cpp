@@ -187,6 +187,18 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         return;
     }
 
+    if (mConnState == kDisconnected)
+    {
+        PRESENCED_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
+        if (!mRetryCtrl)
+        {
+            PRESENCED_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            reconnect(); //start retry controller
+        }
+        return;
+    }
+
     PRESENCED_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     if (mConnState == kFetchingUrl)

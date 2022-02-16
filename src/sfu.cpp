@@ -1826,6 +1826,17 @@ bool SfuConnection::wsSSLsessionUpdateCb(const CachedSession &sess)
 
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
 {
+    if (mConnState == kDisconnected)
+    {
+        SFU_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
+        if (!mRetryCtrl)
+        {
+            SFU_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            reconnect(); // start retry controller
+        }
+        return;
+    }
+
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mCall.onSfuDisconnected();
     auto oldState = mConnState;
