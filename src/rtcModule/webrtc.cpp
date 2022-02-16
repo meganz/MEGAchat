@@ -1559,20 +1559,24 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
         return;
     }
 
-    if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
-        || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
+    if (newState >= webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
     {
+        // if mState is kDisconnected | kFailed | kClosed we need to clear commands queue and set sending as false
+        // otherwise nextcommand could get stucked
+        if (mSfuConnection)
+        {
+            mSfuConnection->clearCommandsQueue();
+        }
+
         if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateConnecting isn't included to avoid interrupting a reconnection in progress
         {
-            if (mState == CallState::kStateInProgress
-                    && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
+            if (mState == CallState::kStateInProgress)
             {
                 handleCallDisconnect(TermCode::kRtcDisconn);
             }
 
             setState(CallState::kStateConnecting);
             mSfuConnection->retryPendingConnection(true);
-            mSfuConnection->clearCommandsQueue();
         }
     }
     else if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected)

@@ -1312,6 +1312,10 @@ void SfuConnection::processNextCommand(bool resetSending)
 
     if (mCommandsQueue.empty() || mCommandsQueue.sending())
     {
+        std::string msg = "processNextCommand: skip processing next command";
+        if (mCommandsQueue.empty())     { msg.append(", mCommandsQueue is empty"); }
+        if (mCommandsQueue.sending())   { msg.append(", sending is true"); }
+        SFU_LOG_DEBUG("%s", msg.c_str());
         return;
     }
 
@@ -1332,7 +1336,7 @@ void SfuConnection::processNextCommand(bool resetSending)
 void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
-
+    SFU_LOG_ERROR("SfuConnection: clearing commands queue");
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
