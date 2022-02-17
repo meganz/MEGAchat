@@ -246,7 +246,7 @@ public:
                 chatd::KeyCommand *keyCmd = new chatd::KeyCommand(mChat.chatId(), keyid);
                 Buffer buf;
                 stmt.blobCol(12, buf);
-                keyCmd->setKeyBlobs(buf.buf(), static_cast<uint32_t>(buf.dataSize()));
+                keyCmd->setKeyBlobs(buf.buf(), buf.dataSize());
 
                 queue.back().keyCmd = keyCmd;
             }

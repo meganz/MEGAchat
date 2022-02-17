@@ -355,7 +355,7 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
         {
-            int status = static_cast<int>(request->getNumber());
+            auto status = request->getNumber();
             if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_BUSY)
             {
                 fireOnChatRequestFinish(request, new MegaChatErrorPrivate("Invalid online status", MegaChatError::ERROR_ARGS));

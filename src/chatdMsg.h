@@ -1198,7 +1198,7 @@ public:
         auto len = keybloblen();
         return StaticBuffer(readPtr(17, len), len);
     }
-    void setKeyBlobs(const char* keyblob, uint32_t len)
+    void setKeyBlobs(const char* keyblob, size_t len)
     {
         write(13, len);
         memcpy(writePtr(17, len), keyblob, len);

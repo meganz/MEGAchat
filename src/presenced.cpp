@@ -1174,10 +1174,10 @@ void Config::fromCode(uint16_t code)
 
 uint16_t Config::toCode() const
 {
-    uint32_t autoawayTimeout = static_cast<uint32_t>(mAutoawayTimeout);
+    auto autoawayTimeout = mAutoawayTimeout;
     if (autoawayTimeout > 600)  // if longer than 10 minutes, convert into 10m (in seconds) + number of minutes
     {
-        autoawayTimeout = static_cast<uint32_t>(600 + (mAutoawayTimeout - 600) / 60);
+        autoawayTimeout = 600 + (mAutoawayTimeout - 600) / 60;
     }
 
     return static_cast<uint16_t>(((mPresence.code() - karere::Presence::kOffline) & 3)
