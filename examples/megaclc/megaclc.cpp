@@ -2872,7 +2872,7 @@ string loadfile(const string& filename)
     f.seekg(0, std::ios::end);
     filedata.resize(unsigned(f.tellg()));
     f.seekg(0, std::ios::beg);
-    f.read((char*)filedata.data(), static_cast<std::streamsize>(filedata.size()));
+    f.read(const_cast<char*>(filedata.data()), static_cast<std::streamsize>(filedata.size()));
     return filedata;
 }
 

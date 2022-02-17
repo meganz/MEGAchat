@@ -1242,7 +1242,7 @@ public:
             memset(buf()+39, 0, msglen()); //clear old message memory
         write(35, (uint32_t)0);
     }
-    void setMsg(const char* msg, uint32_t msglen)
+    void setMsg(const char* msg, size_t msglen)
     {
         write(35, msglen);
         memcpy(writePtr(39, msglen), msg, msglen);
