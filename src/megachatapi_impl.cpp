@@ -7823,7 +7823,7 @@ char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
     unsigned int firstNameLength = buffer.length() ? static_cast<unsigned char>(buffer.at(0)) : 0;
     if (buffer.length() && (unsigned int)buffer.length() >= firstNameLength)
     {
-        unsigned long lenLastname = static_cast<unsigned long>(buffer.length() - firstNameLength - 1);
+        size_t lenLastname = buffer.length() - firstNameLength - 1;
         if (lenLastname)
         {
             const char *start = buffer.data() + 1 + firstNameLength;

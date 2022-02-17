@@ -22,7 +22,7 @@ std::string base64urlencode(const void *data, size_t inlen)
     int mod = static_cast<int>(inlen % 3);
     if (mod)
     {
-        encoded_data.resize(encoded_data.size() - static_cast<unsigned long>((3 - mod)));
+        encoded_data.resize(encoded_data.size() - static_cast<size_t>((3 - mod)));
     }
     return encoded_data;
 }

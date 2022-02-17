@@ -1249,7 +1249,7 @@ public:
     }
     void updateMsgSize()
     {
-        write<uint32_t>(35, static_cast<const unsigned int>(dataSize()-39));
+        write<uint32_t>(35, static_cast<uint32_t>(dataSize()-39));
     }
 };
 

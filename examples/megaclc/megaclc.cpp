@@ -160,7 +160,7 @@ string extractChatLink(const char* message)
     {
         return {};
     }
-    if (static_cast<unsigned long>(hashPtr - chatPtr) - base.size() != handleSize)
+    if (static_cast<size_t>(hashPtr - chatPtr) - base.size() != handleSize)
     {
         return {};
     }
