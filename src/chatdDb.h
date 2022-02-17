@@ -179,7 +179,7 @@ public:
         SqliteStmt stmt(mDb, "select userid, keyid from history where msgid = ?");
         stmt << msgid;
         stmt.stepMustHaveData("getMessageUserKeyId");
-        userid = static_cast<uint16_t>(stmt.int64Col(0));
+        userid = static_cast<uint64_t>(stmt.int64Col(0));
         keyid = stmt.uintCol(1);
     }
 
@@ -662,7 +662,7 @@ public:
         stmt << mChat.chatId();
         while (stmt.step())
         {
-            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), static_cast<karere::Id>(stmt.uint64Col(3)), static_cast<uint8_t>(stmt.uint64Col(4))));
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), static_cast<uint64_t>(stmt.uint64Col(3)), static_cast<uint8_t>(stmt.uint64Col(4))));
         }
     }
 
