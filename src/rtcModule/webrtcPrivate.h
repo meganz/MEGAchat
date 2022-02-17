@@ -33,6 +33,8 @@ private:
     time_t mPreviousTime = 0;
     Call &mCall;
     bool mAudioDetected = false;
+
+    // Note that currently max CID allowed by this class is 65535
     int32_t mCid;
 };
 
