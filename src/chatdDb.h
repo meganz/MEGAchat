@@ -590,7 +590,7 @@ public:
                 assert(false);
             }
 #endif
-            auto msg = new chatd::Message(msgid, userid, ts, static_cast<uint16_t> (stmt.intCol(8)), std::move(buf),
+            auto msg = new chatd::Message(msgid, userid, ts, static_cast<uint16_t>(stmt.intCol(8)), std::move(buf),
                 false, keyid, static_cast<unsigned char>(stmt.intCol(3)));
             msg->backRefId = stmt.uint64Col(7);
             msg->setEncrypted((uint8_t)stmt.intCol(9));
@@ -663,7 +663,7 @@ public:
         stmt << mChat.chatId();
         while (stmt.step())
         {
-            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), karere::Id (stmt.uint64Col(3)), static_cast<uint8_t>(stmt.uint64Col(4))));
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), static_cast<karere::Id>(stmt.uint64Col(3)), static_cast<uint8_t>(stmt.uint64Col(4))));
         }
     }
 
