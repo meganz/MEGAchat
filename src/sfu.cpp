@@ -1822,11 +1822,13 @@ void SfuConnection::wsProcessNextMsgCb()
     processNextCommand(true);
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool SfuConnection::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     // update the session's data in the DNS cache
     return mDnsCache.updateTlsSession(sess);
 }
+#endif
 
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
 {

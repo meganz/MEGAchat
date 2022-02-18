@@ -72,8 +72,6 @@ void WebsocketsClientImpl::wsProcessNextMsgCb()
 bool WebsocketsClientImpl::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
-    WEBSOCKETS_LOG_DEBUG("TLS session updated for %s:%d",
-                         sess.hostname.c_str(), sess.port);
     return client->wsSSLsessionUpdateCb(sess);
 }
 #endif
@@ -482,19 +480,29 @@ bool DNScache::updateTlsSession(const CachedSession &sess)
             if (sess.dropFromStorage())
             {
                 mDb.query("update dns_cache set sess_data=? where shard=?", Buffer(), i.first);
+                WEBSOCKETS_LOG_DEBUG("TLS session info dropped from persistent storage"
+                                     " for %s:%d", sess.hostname.c_str(), sess.port);
             }
             else if (sess.saveToStorage())
             {
                 if (!sess.blob)
+                {
+                    WEBSOCKETS_LOG_ERROR("TLS session blob was missing. Persistent storage not updated"
+                                         " for %s:%d", sess.hostname.c_str(), sess.port);
                     return false;
+                }
 
                 mDb.query("update dns_cache set sess_data=? where shard=?", *sess.blob, i.first);
+                WEBSOCKETS_LOG_DEBUG("TLS session info updated in persistent storage"
+                                     " for %s:%d", sess.hostname.c_str(), sess.port);
             }
 
             return true;
         }
     }
 
+    WEBSOCKETS_LOG_ERROR("TLS session info did not match any entry in persistent storage."
+                         " Not updated for %s:%d", sess.hostname.c_str(), sess.port);
     return false;
 }
 
