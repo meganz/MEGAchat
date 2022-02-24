@@ -5291,10 +5291,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
 
         verifyMsgOrder(msg, idx);
-        if (msg.type == Message::Type::kMsgAttachment)
-        {
-            mAttachmentNodes->addMessage(msg, isNew, false);
-        }
         CALL_DB(addMsgToHistory, msg, idx);
         if (checkRetentionHist)
         {
@@ -5313,6 +5309,14 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
     }
+
+    /* add attachment messages into FilterHistory when receiving from chatd,
+     * but also when we load history from DB */
+    if (msg.type == Message::Type::kMsgAttachment)
+    {
+        mAttachmentNodes->addMessage(msg, isNew, false);
+    }
+
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
     {
         CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
