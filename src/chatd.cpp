@@ -5314,7 +5314,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
      * but also when we load history from DB */
     if (msg.type == Message::Type::kMsgAttachment)
     {
-        mAttachmentNodes->addMessage(msg, isNew, false);
+        mAttachmentNodes->addMessage(msg, isNew, isLocal);
     }
 
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
