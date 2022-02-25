@@ -5310,8 +5310,8 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
     }
 
-    /* add attachment messages into FilterHistory when receiving from chatd,
-     * but also when we load history from DB */
+    // Add attachment messages into FilterHistory when receiving from chatd,
+    // but also when we load history from DB
     if (msg.type == Message::Type::kMsgAttachment)
     {
         mAttachmentNodes->addMessage(msg, isNew, isLocal);
