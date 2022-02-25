@@ -5314,7 +5314,8 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     // but also when we load history from DB
     if (msg.type == Message::Type::kMsgAttachment)
     {
-        mAttachmentNodes->addMessage(msg, isNew, isLocal);
+        // if it's local (from DB), addMessage takes the ownership of message
+        mAttachmentNodes->addMessage(isLocal ? *(new Message(msg)): msg, isNew, isLocal);
     }
 
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
@@ -6265,7 +6266,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewestIdx);
         CALL_LISTENER_FH(onReceived, mBuffer.front().get(), mNewestIdx);
     }
-    else    // from DB or from NODEHIST/HIST
+    else    // from DB (from history or node_history) or from NODEHIST/HIST
     {
         if (mIdToMsgMap.find(msgid) == mIdToMsgMap.end())  // if it doesn't exist
         {
