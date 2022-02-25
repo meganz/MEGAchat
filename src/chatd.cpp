@@ -5291,10 +5291,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
 
         verifyMsgOrder(msg, idx);
-        if (msg.type == Message::Type::kMsgAttachment)
-        {
-            mAttachmentNodes->addMessage(msg, isNew, false);
-        }
         CALL_DB(addMsgToHistory, msg, idx);
         if (checkRetentionHist)
         {
@@ -5313,6 +5309,15 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
     }
+
+    // Add attachment messages into FilterHistory when receiving from chatd,
+    // but also when we load history from DB
+    if (msg.type == Message::Type::kMsgAttachment)
+    {
+        // if it's local (from DB), addMessage takes the ownership of message
+        mAttachmentNodes->addMessage(!isNew && isLocal ? *(new Message(msg)): msg, isNew, isLocal);
+    }
+
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
     {
         CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
@@ -6261,7 +6266,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewestIdx);
         CALL_LISTENER_FH(onReceived, mBuffer.front().get(), mNewestIdx);
     }
-    else    // from DB or from NODEHIST/HIST
+    else    // from DB (from history or node_history) or from NODEHIST/HIST
     {
         if (mIdToMsgMap.find(msgid) == mIdToMsgMap.end())  // if it doesn't exist
         {
