@@ -5315,7 +5315,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     if (msg.type == Message::Type::kMsgAttachment)
     {
         // if it's local (from DB), addMessage takes the ownership of message
-        mAttachmentNodes->addMessage(isLocal ? *(new Message(msg)): msg, isNew, isLocal);
+        mAttachmentNodes->addMessage(!isNew && isLocal ? *(new Message(msg)): msg, isNew, isLocal);
     }
 
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
