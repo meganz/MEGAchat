@@ -787,7 +787,7 @@ promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
 
 void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting)
 {
-    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, meeting);
+    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, static_cast<unsigned char>(shard), chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, meeting);
     chats->emplace(chatId, room);
     if (!mDnsCache.hasRecord(shard))
     {
@@ -1874,7 +1874,7 @@ void Client::updateAndNotifyLastGreen(Id userid)
     bool changed = mPresencedClient.updateLastGreen(userid.val, lastGreen);
     if (changed)
     {
-        uint16_t lastGreenMinutes = (time(NULL) - lastGreen) / 60;
+        uint16_t lastGreenMinutes = static_cast<uint16_t>((time(NULL) - lastGreen) / 60);
         app.onPresenceLastGreenUpdated(userid, lastGreenMinutes);
     }
 }
@@ -2202,7 +2202,8 @@ void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers, bool isPubl
 {
     mChat = &parent.mKarereClient.mChatdClient->createChat(
         mChatid, mShardNo, this, initialUsers,
-        parent.mKarereClient.newStrongvelope(mChatid, isPublic, unifiedKey, isUnifiedKeyEncrypted, ph), mCreationTs, mIsGroup);
+        parent.mKarereClient.newStrongvelope(mChatid, isPublic, unifiedKey, isUnifiedKeyEncrypted, ph),
+        static_cast<uint32_t>(mCreationTs), mIsGroup);
 }
 
 template <class T, typename F>
@@ -2321,7 +2322,7 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 
 //Create chat or receive an invitation
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
-:ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
+:ChatRoom(parent, aChat.getHandle(), true, static_cast<unsigned char>(aChat.getShard()),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
   mRoomGui(nullptr), mMeeting(aChat.isMeeting())
 {
@@ -2507,7 +2508,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 
 //Create chat or receive an invitation
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
-    :ChatRoom(parent, chat.getHandle(), false, chat.getShard(),
+    :ChatRoom(parent, chat.getHandle(), false, static_cast<unsigned char>(chat.getShard()),
      (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime(), chat.isArchived()),
       mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)), mRoomGui(nullptr)
 {
@@ -2859,7 +2860,7 @@ void ChatRoomList::loadFromDb()
         ChatRoom* room;
         if (peer != uint64_t(-1))
         {
-            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1), stmt.intCol(7));
+            room = new PeerChatRoom(*this, chatid, static_cast<unsigned char>(stmt.intCol(2)), static_cast<chatd::Priv>(stmt.intCol(3)), peer, static_cast<chatd::Priv>(stmt.intCol(5)), stmt.intCol(1), stmt.intCol(7));
         }
         else
         {
@@ -2893,7 +2894,7 @@ void ChatRoomList::loadFromDb()
                 auxTitle.assign(posTitle, len);
             }
 
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted, stmt.intCol(10));
+            room = new GroupChatRoom(*this, chatid, static_cast<unsigned char>(stmt.intCol(2)), static_cast<chatd::Priv>(stmt.intCol(3)), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted, stmt.intCol(10));
         }
         emplace(chatid, room);
     }
@@ -4658,7 +4659,7 @@ mega::dstime InitStats::currentTime()
 #else
     timespec ts;
     mega::m_clock_getmonotonictime(&ts);
-    return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    return static_cast<uint32_t>((ts.tv_sec * 1000 + ts.tv_nsec / 1000000));
 #endif
 }
 
@@ -4852,7 +4853,7 @@ std::string InitStats::toJson()
 
         std::string tag = stageToString(stage);
         rapidjson::Value stageTag(rapidjson::kStringType);
-        stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
+        stageTag.SetString(tag.c_str(), static_cast<unsigned int>(tag.length()), jSonDocument.GetAllocator());
         jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
 
         // Add stage elapsed time
@@ -4905,7 +4906,7 @@ std::string InitStats::toJson()
 
         std::string tag = shardStageToString(stage);
         rapidjson::Value stageTag(rapidjson::kStringType);
-        stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
+        stageTag.SetString(tag.c_str(), static_cast<unsigned int>(tag.length()), jSonDocument.GetAllocator());
         jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
 
         jSonStage.AddMember(rapidjson::Value("sa"), shardArray, jSonDocument.GetAllocator());

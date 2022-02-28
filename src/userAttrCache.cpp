@@ -198,7 +198,7 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
     {
         std::unique_ptr<Buffer> data(new Buffer((size_t)sqlite3_column_bytes(stmt, 2)));
         stmt.blobCol(2, *data);
-        UserAttrPair key(stmt.uint64Col(0), stmt.intCol(1));
+        UserAttrPair key(stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(1)));
         emplace(std::make_pair(key, std::make_shared<UserAttrCacheItem>(
                 *this, data.release(), kCacheFetchNotPending)));
 //        UACACHE_LOG_DEBUG("loaded attr %s", key.toString().c_str());
@@ -237,11 +237,11 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
             continue; //the change is not of this attrib type
 
         int type = it->first;
-        UserAttrPair key(userid, type);
+        UserAttrPair key(userid, static_cast<uint8_t>(type));
         auto it = find(key);
         if (it == end()) //we don't have such attribute
         {
-            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(type));
+            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(static_cast<uint8_t>(type)));
             continue;
         }
         auto& item = it->second;
@@ -375,7 +375,7 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
 
 const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
 {
-    UserAttrPair key(user, attrType);
+    UserAttrPair key(user, static_cast<uint8_t>(attrType));
     auto it = find(key);
     if (it == end())
     {
@@ -388,7 +388,7 @@ const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
             void* userp, UserAttrReqCbFunc cb, bool oneShot, bool fetch, uint64_t ph)
 {
-    UserAttrPair key(userHandle, type, ph);
+    UserAttrPair key(userHandle, static_cast<uint8_t>(type), ph);
     auto it = find(key);
     if (it != end())
     {
@@ -553,7 +553,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
             fn.resize(252);
             fn.append("...");
         }
-        data.append<uint8_t>(fn.size());
+        data.append<uint8_t>(static_cast<uint8_t>(fn.size()));
         if (!fn.empty())
         {
             data.append(fn);

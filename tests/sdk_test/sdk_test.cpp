@@ -919,7 +919,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     LOG_debug << "Going to sleep for longer than autoaway timeout";
     MegaChatPresenceConfig *config = megaChatApi[accountIndex]->getPresenceConfig();
 
-    sleep(config->getAutoawayTimeout() + 12);   // +12 to ensure at least one heartbeat (every 10s), where the `USERACTIVE 0` is sent for transition to Away
+    sleep(static_cast<unsigned int>(config->getAutoawayTimeout() + 12));   // +12 to ensure at least one heartbeat (every 10s), where the `USERACTIVE 0` is sent for transition to Away
 
     // and check the status is away
     ASSERT_CHAT_TEST(mOnlineStatus[accountIndex] == MegaChatApi::STATUS_AWAY,
@@ -1783,7 +1783,7 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
     chatroomListener->clearMessages(a1);
     chatroomListener->clearMessages(a2);
-    megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
+    std::unique_ptr<MegaChatMessage> messageSent(megaChatApi[a1]->sendMessage(chatid, msg0.c_str()));
     ASSERT_CHAT_TEST(waitForResponse(msgConfirmed), "Timeout expired for receiving confirmation by server");    // for confirmation, sendMessage() is synchronous
     MegaChatHandle msgId = chatroomListener->mConfirmedMessageHandle[a1];
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a1, msgId), "Message not received");
