@@ -42,7 +42,7 @@ void Url::parse(const std::string& url)
                     break;
                 }
             }
-            port = std::stol(url.substr(ps, i-ps));
+            port = static_cast<uint16_t>(std::stol(url.substr(ps, i-ps)));
             break;
         }
         else if ((ch == '/') || (ch == '?'))

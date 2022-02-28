@@ -1103,7 +1103,7 @@ public:
     }
     Command&& operator+(const Buffer& msg)
     {
-        append<uint32_t>(msg.dataSize());
+        append<uint32_t>(static_cast<uint32_t>(msg.dataSize()));
         append(msg.buf(), msg.dataSize());
         return std::move(*this);
     }
@@ -1198,7 +1198,7 @@ public:
         auto len = keybloblen();
         return StaticBuffer(readPtr(17, len), len);
     }
-    void setKeyBlobs(const char* keyblob, uint32_t len)
+    void setKeyBlobs(const char* keyblob, size_t len)
     {
         write(13, len);
         memcpy(writePtr(17, len), keyblob, len);
@@ -1242,14 +1242,14 @@ public:
             memset(buf()+39, 0, msglen()); //clear old message memory
         write(35, (uint32_t)0);
     }
-    void setMsg(const char* msg, uint32_t msglen)
+    void setMsg(const char* msg, size_t msglen)
     {
         write(35, msglen);
         memcpy(writePtr(39, msglen), msg, msglen);
     }
     void updateMsgSize()
     {
-        write<uint32_t>(35, dataSize()-39);
+        write<uint32_t>(35, static_cast<uint32_t>(dataSize()-39));
     }
 };
 

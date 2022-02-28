@@ -237,7 +237,7 @@ promise::Promise<void> Client::sendKeepalive()
     auto wptr = weakHandle();
     if (mConnections.size())
     {
-        mKeepaliveCount += mConnections.size();
+        mKeepaliveCount += static_cast<int>(mConnections.size());
         for (auto& conn: mConnections)
         {
             conn.second->sendKeepalive()
@@ -426,7 +426,7 @@ void Client::setRetentionTimer()
             }
         }
         updateRetentionCheckTs(minTs, true);
-    }, retentionPeriod * 1000 , mKarereClient->appCtx);
+    }, static_cast<unsigned int> (retentionPeriod * 1000) , mKarereClient->appCtx);
 }
 
 uint8_t Client::richLinkState() const
@@ -715,7 +715,7 @@ void Connection::setState(State state)
         mState = state;
     }
 
-    mChatdClient.mKarereClient->initStats().handleShardStats(oldState, state, shardNo());
+    mChatdClient.mKarereClient->initStats().handleShardStats(oldState, state, static_cast<uint8_t>(shardNo()));
 
     if (mState == kStateDisconnected)
     {
@@ -864,7 +864,7 @@ Promise<void> Connection::reconnect()
             }
 
             //GET start ts for QueryDns
-            mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns, shardNo());
+            mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, host.c_str(),
@@ -926,7 +926,7 @@ Promise<void> Connection::reconnect()
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
                     }
 
-                    mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
+                    mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
                     assert(!isOnline());
 
                     if (statusDNS == wsGetNoNameErrorCode(mChatdClient.mKarereClient->websocketIO))
@@ -945,7 +945,7 @@ Promise<void> Connection::reconnect()
                     CHATDS_LOG_DEBUG("Hostname resolved by first time. Connecting...");
 
                     //GET end ts for QueryDns
-                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
+                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
                     mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
                     doConnect();
                     return;
@@ -958,7 +958,7 @@ Promise<void> Connection::reconnect()
                 else
                 {
                     //GET end ts for QueryDns
-                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
+                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
                     // update DNS cache
                     mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
@@ -973,7 +973,7 @@ Promise<void> Connection::reconnect()
                 string errStr = "Inmediate DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS);
                 CHATDS_LOG_ERROR("%s", errStr.c_str());
 
-                mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
+                mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
                 assert(!mConnectPromise.done());
                 mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
@@ -3390,7 +3390,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     }
 
     // write the new message to the message buffer and mark as in sending state
-    auto message = new Message(makeRandomId(), client().myHandle(), time(NULL),
+    auto message = new Message(makeRandomId(), client().myHandle(), static_cast<uint32_t>(time(NULL)),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp, generateRefId(mCrypto));
 
     auto wptr = weakHandle();
@@ -3411,7 +3411,7 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
     int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
-    postMsgToSending(opcode, msg, recipients);
+    postMsgToSending(static_cast<uint8_t>(opcode), msg, recipients);
 
     // last text msg stuff
     if (msg->isValidLastMessage())
@@ -3442,7 +3442,7 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
         sendingIdx.push_back(&(*it));
     }
 
-    Idx maxEnd = size() - sendingIdx.size();
+    Idx maxEnd = size() - static_cast<Idx>(sendingIdx.size());
     if (maxEnd <= 0)
     {
         return;
@@ -3491,8 +3491,8 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
 
             backrefs.insert(idx);
             Message &msg = (idx < (Idx)sendingIdx.size())
-                    ? *(sendingIdx[sendingIdx.size()-1-idx]->msg)   // msg is from sending queue
-                    : at(highnum()-(idx-sendingIdx.size()));        // msg is from history buffer
+                    ? *(sendingIdx[sendingIdx.size()-1-static_cast<size_t>(idx)]->msg)   // msg is from sending queue
+                    : at(highnum()-(idx - static_cast<Idx>(sendingIdx.size())));        // msg is from history buffer
 
             if (!msg.isManagementMessage()) // management-msgs don't have a valid backrefid
             {
@@ -3643,7 +3643,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 // Can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
 Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype)
 {
-    uint32_t now = time(NULL);
+    uint32_t now = static_cast<uint32_t>(time(NULL));
     uint32_t age = now - msg.ts;
     if (!msg.isSending() && age > CHATD_MAX_EDIT_AGE)
     {
@@ -3704,7 +3704,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         }
 
         // update original content+delta of the message being edited...
-        msg.updated = age;
+        msg.updated = static_cast<uint16_t>(age);
         msg.assign((void*)newdata, newlen);
         // ...and also for all messages with same msgid in the sending queue , trying to avoid sending the original content
         int count = 0;
@@ -3733,7 +3733,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         age++;
     }
 
-    auto upd = new Message(msg.id(), msg.userid, msg.ts, age, newdata, newlen,
+    auto upd = new Message(msg.id(), msg.userid, msg.ts, static_cast<uint16_t>(age), newdata, newlen,
         msg.isSending(), msg.keyid, newtype, userp, msg.backRefId, msg.backRefs);
 
     auto wptr = weakHandle();
@@ -4558,7 +4558,7 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
         if (msg->dataSize() < 2)
             CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
         else
-            msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
+            msg->type = static_cast<unsigned char>(msg->buf()[1] + Message::Type::kMsgOffset);
     }
 
     //update in memory, if loaded
@@ -5287,7 +5287,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             if (msg.dataSize() < 2)
                 CHATID_LOG_ERROR("Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
-                msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
+                msg.type = static_cast<unsigned char>(msg.buf()[1] + Message::Type::kMsgOffset);
         }
 
         verifyMsgOrder(msg, idx);
@@ -5768,7 +5768,7 @@ void Chat::setOnlineState(ChatState state)
     {
         if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
-            mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsLoginChatd, connection().shardNo());
+            mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsLoginChatd, static_cast<uint8_t>(connection().shardNo()));
         }
 
         if (mChatdClient.areAllChatsLoggedIn())
@@ -6253,7 +6253,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
 {
     if (msg.size()) // protect against deleted node-attachment messages
     {
-        msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
+        msg.type = static_cast<unsigned char>(msg.buf()[1] + Message::Type::kMsgOffset);
         assert(msg.type == Message::Type::kMsgAttachment);
     }
 
@@ -6362,7 +6362,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
         auto it = mNextMsgToNotify;
         while ((it != mBuffer.end()) && (msgsLoadedFromRam < count))
         {
-            Idx index = mNewestIdx - std::distance(mBuffer.begin(), it);
+            Idx index = static_cast<Idx>(mNewestIdx - std::distance(mBuffer.begin(), it));
             CALL_LISTENER_FH(onLoaded,  it->get(), index);
             msgsLoadedFromRam++;
 

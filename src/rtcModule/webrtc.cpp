@@ -24,7 +24,7 @@ SvcDriver::SvcDriver ()
 
 bool SvcDriver::setSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& rxStmp, int8_t& txSpt)
 {
-    int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
+    int8_t newSvcLayerIndex = static_cast<int8_t>(mCurrentSvcLayerIndex + delta);
     if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
     {
         return false;
@@ -665,7 +665,7 @@ void Call::updateTransmittedSvcQuality(int8_t txSpt)
 
     bool update = false;
     int8_t currentSentLayers = mHiRes->getSentLayers();
-    int8_t newSentLayers = txSpt + 1; // +1 as txSpatial component starts at zero in layers definition
+    int8_t newSentLayers = static_cast<int8_t>(txSpt + 1); // +1 as txSpatial component starts at zero in layers definition
 
     if (newSentLayers < currentSentLayers)
     {
@@ -676,7 +676,7 @@ void Call::updateTransmittedSvcQuality(int8_t txSpt)
              && mStats.mSamples.mVtxHiResfps.back() >= 12)
     {
             // increase tx SVC quality but only if not overloaded
-            newSentLayers = currentSentLayers + 1; // don't set directly to newSentLayers - just increase 1 step
+            newSentLayers = static_cast<int8_t>(currentSentLayers + 1); // don't set directly to newSentLayers - just increase 1 step
             update = true;
     }
     else if (mStats.mSamples.mVtxHiResfps.size() && mStats.mSamples.mVtxHiResfps.back() < 5
@@ -685,7 +685,7 @@ void Call::updateTransmittedSvcQuality(int8_t txSpt)
     {
             // too low fps
             update = true;
-            newSentLayers = currentSentLayers - 1;  // don't set directly to newSentLayers - just decrease 1 step
+            newSentLayers = static_cast<int8_t>(currentSentLayers - 1);  // don't set directly to newSentLayers - just decrease 1 step
             RTCM_LOG_WARNING("Apparent local CPU/bandwidth starvation (fps = %d), disabling highest SVC resolution", mStats.mSamples.mVtxHiResfps.back());
     }
 
@@ -1433,7 +1433,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
         return false;
     }
 
-    sfu::Peer peer(userid, av, cid);
+    sfu::Peer peer(userid, static_cast<unsigned>(av), cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler.onNewSession(*mSessions[cid], *this);
     // update max peers seen in call
@@ -1536,11 +1536,11 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
         std::string value = mid.value();
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
         {
-            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver);
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver);
         }
         else
         {
-            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver);
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver);
         }
     }
 }
@@ -1598,7 +1598,7 @@ Keyid_t Call::generateNextKeyId()
     }
     else
     {
-        return mMyPeer->getCurrentKeyId() + 1;
+        return static_cast<Keyid_t>(mMyPeer->getCurrentKeyId() + 1);
     }
 }
 
@@ -1913,7 +1913,7 @@ void Call::initStatsValues()
 void Call::enableStats()
 {
     mStats.mCid = mMyPeer->getCid();
-    mStats.mTimeOffset = mOffset;
+    mStats.mTimeOffset = static_cast<uint64_t>(mOffset);
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
     {
@@ -2319,7 +2319,7 @@ std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
 
 unsigned int RtcModuleSfu::getNumCalls()
 {
-    return mCalls.size();
+    return static_cast<unsigned int>(mCalls.size());
 }
 
 const std::string& RtcModuleSfu::getVideoDeviceSelected() const
@@ -2577,7 +2577,7 @@ uint32_t Slot::getTransceiverMid() const
         return 0;
     }
 
-    return atoi(mTransceiver->mid()->c_str());
+    return static_cast<uint32_t>(atoi(mTransceiver->mid()->c_str()));
 }
 
 void RemoteSlot::release()
@@ -2837,7 +2837,7 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
 void RemoteAudioSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
 {
     RemoteSlot::createDecryptor(cid, iv);
-    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, static_cast<int32_t>(mCid)));
 }
 
 void RemoteAudioSlot::release()
@@ -3113,7 +3113,7 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
 
 bool AudioLevelMonitor::hasAudio()
 {
-    Session *sess = mCall.getSession(mCid);
+    Session *sess = mCall.getSession(static_cast<Cid_t>(mCid));
     if (sess)
     {
         return sess->getAvFlags().audio();
@@ -3124,8 +3124,8 @@ bool AudioLevelMonitor::hasAudio()
 void AudioLevelMonitor::onAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
-    assert(mCall.getSession(mCid));
-    Session *sess = mCall.getSession(mCid);
+    assert(mCall.getSession(static_cast<Cid_t>(mCid)));
+    Session *sess = mCall.getSession(static_cast<Cid_t>(mCid));
     sess->setAudioDetected(mAudioDetected);
 }
 }

@@ -546,7 +546,7 @@ std::string ChatMessage::managementInfoToString() const
 void ChatMessage::setTimestamp(int64_t ts)
 {
     QDateTime t;
-    t.setTime_t(ts);
+    t.setTime_t(static_cast<unsigned int>(ts));
     ui->mTimestampDisplay->setText(t.toString("hh:mm:ss - dd.MM.yy"));
 }
 

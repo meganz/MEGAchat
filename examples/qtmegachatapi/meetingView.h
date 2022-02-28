@@ -87,7 +87,7 @@ public slots:
     void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
-    void onRemoveSpeaker(uint32_t cid = megachat::MEGACHAT_INVALID_HANDLE);
+    void onRemoveSpeaker(uint32_t cid);
     void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();
     void onJoinCallWithoutVideo();

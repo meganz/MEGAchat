@@ -38,7 +38,7 @@ public:
     /** Sets the aspect ratio to be kept constant when resizing the Qt widget */
     void setAspectRatio(double ar)
     {
-        mAspectRatio = ar*10;
+        mAspectRatio = static_cast<int>(ar*10);
     }
     void setStaticImage(QImage* image);
     void clearStaticImage();
