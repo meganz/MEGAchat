@@ -1767,6 +1767,11 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         SFU_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(newState));
         return;
     }
+    else if(newState == SfuConnection::ConnState::kConnected && mConnState > newState)
+    {
+        SFU_LOG_DEBUG("Tried to change connection state to kConnected but current state is: %s", connStateToStr(mConnState));
+        return;
+    }
     else
     {
         SFU_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mConnState), connStateToStr(newState));
