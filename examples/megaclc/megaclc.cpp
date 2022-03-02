@@ -4232,7 +4232,10 @@ void exec_syncremove(ac::ACState& s)
             return;
         }
 
-        g_megaApi->removeSync(targetNode.get(),
+        std::unique_ptr<m::MegaSync> sync(g_megaApi->getSyncByNode(targetNode.get()));
+        m::MegaHandle backupId = sync ? sync->getBackupId() : m::INVALID_HANDLE;
+
+        g_megaApi->removeSync(backupId, m::INVALID_HANDLE,
             new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
             {
                 conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
@@ -4240,7 +4243,7 @@ void exec_syncremove(ac::ACState& s)
     }
     else if (byId)
     {
-        g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()),
+        g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()), m::INVALID_HANDLE,
             new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
                 {
                     conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
