@@ -1786,7 +1786,7 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
             wsDisconnect(true);
         }
 
-        // if connect-timer is running, it must be reset (kStateResolving --> kStateDisconnected)
+        // if connect-timer is running, it must be reset (kResolving --> kDisconnected)
         if (mConnectTimer)
         {
             karere::cancelTimeout(mConnectTimer, mAppCtx);
@@ -1801,14 +1801,9 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
                 if (wptr.deleted())
                     return;
 
+                SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
                 mConnectTimer = 0;
-
-               // CHATDS_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
-               // mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out");
-
                 retryPendingConnection(true);
-                //also cancel when chatd detect no connectivity
-
             }, kConnectTimeout * 1000, mAppCtx);
         }
     }
