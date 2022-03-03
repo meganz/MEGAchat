@@ -291,7 +291,7 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
                 ts = it->timestamp_us();
                 std::string kind;
-                int32_t audioJitter;
+                int32_t audioJitter = 0;
                 for (const webrtc::RTCStatsMemberInterface* member : members)
                 {
                     if (strcmp(member->name(), "packetsLost") == 0)
