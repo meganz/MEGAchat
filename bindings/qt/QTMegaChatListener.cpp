@@ -63,7 +63,7 @@ void QTMegaChatListener::onChatPresenceLastGreen(MegaChatApi *api, MegaChatHandl
 void QTMegaChatListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
-    switch(event->type())
+    switch(static_cast<QTMegaChatEvent::MegaType>(event->type()))
     {
         case QTMegaChatEvent::OnChatListItemUpdate:
             if (listener) listener->onChatListItemUpdate(event->getMegaChatApi(), event->getChatListItem());

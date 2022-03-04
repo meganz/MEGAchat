@@ -756,7 +756,7 @@ public:
             KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr,
             BackRefId aBackRefId = 0, std::vector<BackRefId> aBackRefs = std::vector<BackRefId>())
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
-            updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp), backRefId(aBackRefId), backRefs(aBackRefs){}
+            updated(aUpdated), keyid(aKeyid), type(aType), backRefId(aBackRefId), backRefs(aBackRefs), userp(aUserp){}
 
     Message(const Message& msg)
         : Buffer(msg.buf(), msg.dataSize()), mId(msg.id()), mIdIsXid(msg.mIdIsXid), mIsEncrypted(msg.mIsEncrypted),

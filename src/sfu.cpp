@@ -197,7 +197,9 @@ uint64_t Command::hexToBinary(const std::string &hex)
     unsigned int binPos = 0;
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
-        buffer[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4 | hexDigitVal(hex[i++]));
+        // compiler doesn't guarantees the order "++" operation performed in relation to the second access of variable i (better to split in two operations)
+        buffer[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
+        buffer[binPos] |= static_cast<uint8_t>(hexDigitVal(hex[i++]));
     }
 
     memcpy(&value, buffer.get(), bufferSize);

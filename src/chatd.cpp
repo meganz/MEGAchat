@@ -517,10 +517,10 @@ void Chat::login()
 
 Connection::Connection(Client& chatdClient, int shardNo)
     : mChatdClient(chatdClient),
-      mShardNo(shardNo),
-      mSendPromise(promise::_Void()),
       mDnsCache(chatdClient.mKarereClient->mDnsCache),
-      mTsConnSuceeded(time(nullptr))
+      mShardNo(shardNo),
+      mTsConnSuceeded(time(nullptr)),
+      mSendPromise(promise::_Void())
 {
 }
 
@@ -3979,7 +3979,8 @@ bool Chat::setMessageSeen(Idx idx)
 
     auto wptr = weakHandle();
     karere::Id id = msg.id();
-    megaHandle seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
+    megaHandle seenTimer = 0;
+    seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
     {
         if (wptr.deleted())
           return;

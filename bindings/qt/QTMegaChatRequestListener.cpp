@@ -56,7 +56,7 @@ void QTMegaChatRequestListener::onRequestTemporaryError(MegaChatApi *api, MegaCh
 void QTMegaChatRequestListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
-    switch(event->type())
+    switch(static_cast<QTMegaChatEvent::MegaType>(event->type()))
     {
         case QTMegaChatEvent::OnRequestStart:
             if (listener) listener->onRequestStart(event->getMegaChatApi(), event->getChatRequest());
