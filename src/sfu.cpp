@@ -1312,6 +1312,10 @@ void SfuConnection::processNextCommand(bool resetSending)
 
     if (mCommandsQueue.empty() || mCommandsQueue.sending())
     {
+        std::string msg = "processNextCommand: skip processing next command";
+        if (mCommandsQueue.empty())     { msg.append(", mCommandsQueue is empty"); }
+        if (mCommandsQueue.sending())   { msg.append(", sending is true"); }
+        SFU_LOG_DEBUG("%s", msg.c_str());
         return;
     }
 
@@ -1332,7 +1336,7 @@ void SfuConnection::processNextCommand(bool resetSending)
 void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
-
+    SFU_LOG_ERROR("SfuConnection: clearing commands queue");
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
@@ -1826,6 +1830,17 @@ bool SfuConnection::wsSSLsessionUpdateCb(const CachedSession &sess)
 
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
 {
+    if (mConnState == kDisconnected)
+    {
+        SFU_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
+        if (!mRetryCtrl)
+        {
+            SFU_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            reconnect(); // start retry controller
+        }
+        return;
+    }
+
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mCall.onSfuDisconnected();
     auto oldState = mConnState;
