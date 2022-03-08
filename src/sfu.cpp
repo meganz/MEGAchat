@@ -1793,7 +1793,6 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
             mConnectTimer = 0;
         }
 
-        {
             // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
             auto wptr = weakHandle();
             mConnectTimer = karere::setTimeout([this, wptr]()
@@ -1805,7 +1804,6 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
                 mConnectTimer = 0;
                 retryPendingConnection(true);
             }, kConnectTimeout * 1000, mAppCtx);
-        }
     }
     else if (mConnState == kConnected)
     {
