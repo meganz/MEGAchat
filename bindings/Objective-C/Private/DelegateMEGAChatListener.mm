@@ -76,3 +76,14 @@ void DelegateMEGAChatListener::onChatPresenceLastGreen(megachat::MegaChatApi *ap
         });
     }
 }
+
+void DelegateMEGAChatListener::onDbError(megachat::MegaChatApi *api, int error, const char *message) {
+    if (listener != nil && [listener respondsToSelector:@selector(onDbError:error:message:)]) {
+        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
+        id<MEGAChatDelegate> tempListener = this->listener;
+        NSString *msg = [NSString stringWithUTF8String:message];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [tempListener onDbError:tempMegaChatSDK error:error message:msg];
+        });
+    }
+}
