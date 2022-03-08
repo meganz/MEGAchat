@@ -1171,6 +1171,7 @@ void SfuConnection::disconnect(bool withoutReconnection)
     if (withoutReconnection)
     {
         abortRetryController();
+        // It isn't required check mConnectTimer because it's set at setConnState(kDisconnected);
         karere::cancelTimeout(mConnectTimer, mAppCtx);
         mConnectTimer = 0;
     }
