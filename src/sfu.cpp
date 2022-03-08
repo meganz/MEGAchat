@@ -1173,6 +1173,9 @@ void SfuConnection::disconnect(bool withoutReconnection)
     if (withoutReconnection)
     {
         abortRetryController();
+        // It isn't required check mConnectTimer because it's set at setConnState(kDisconnected);
+        karere::cancelTimeout(mConnectTimer, mAppCtx);
+        mConnectTimer = 0;
     }
 }
 
@@ -1767,6 +1770,11 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         SFU_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(newState));
         return;
     }
+    else if(newState == SfuConnection::ConnState::kConnected && mConnState > newState)
+    {
+        SFU_LOG_DEBUG("Tried to change connection state to kConnected but current state is: %s", connStateToStr(mConnState));
+        return;
+    }
     else
     {
         SFU_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mConnState), connStateToStr(newState));
@@ -1780,6 +1788,25 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         {
             wsDisconnect(true);
         }
+
+        // if connect-timer is running, it must be reset (kResolving --> kDisconnected)
+        if (mConnectTimer)
+        {
+            karere::cancelTimeout(mConnectTimer, mAppCtx);
+            mConnectTimer = 0;
+        }
+
+        // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
+        auto wptr = weakHandle();
+        mConnectTimer = karere::setTimeout([this, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+            mConnectTimer = 0;
+            retryPendingConnection(true);
+        }, kConnectTimeout * 1000, mAppCtx);
     }
     else if (mConnState == kConnected)
     {
@@ -1789,6 +1816,12 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
+
+        if (mConnectTimer)
+        {
+            karere::cancelTimeout(mConnectTimer, mAppCtx);
+            mConnectTimer = 0;
+        }
     }
 }
 
