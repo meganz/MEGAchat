@@ -31,7 +31,7 @@ void QTMegaChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatHandle c
 void QTMegaChatVideoListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
-    switch(event->type())
+    switch(static_cast<QTMegaChatEvent::MegaType>(event->type()))
     {
         case QTMegaChatEvent::OnChatVideoData:
             if (listener)

@@ -445,7 +445,9 @@ protected:
     void wsHandleMsgCb(char *data, size_t len) override;
     void wsSendMsgCb(const char *, size_t) override;
     void wsProcessNextMsgCb() override;
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool wsSSLsessionUpdateCb(const CachedSession &sess) override;
+#endif
     promise::Promise<void> mSendPromise;
 
     void onSocketClose(int errcode, int errtype, const std::string& reason);

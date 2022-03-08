@@ -71,7 +71,7 @@ void QTMegaChatListener::onDbError(MegaChatApi *api, int error, const char *msg)
 void QTMegaChatListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
-    switch(event->type())
+    switch(static_cast<QTMegaChatEvent::MegaType>(event->type()))
     {
         case QTMegaChatEvent::OnChatListItemUpdate:
             if (listener) listener->onChatListItemUpdate(event->getMegaChatApi(), event->getChatListItem());

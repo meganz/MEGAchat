@@ -104,9 +104,9 @@ void Client::pushPeers()
     size_t numPeers = mContacts.size();
     size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
 
-    Command cmd(OP_SNSETPEERS, totalSize);
+    Command cmd(OP_SNSETPEERS, static_cast <uint8_t>(totalSize));
     cmd.append<uint64_t>(mLastScsn.val);
-    cmd.append<uint32_t>(numPeers);
+    cmd.append<uint32_t>(static_cast<uint32_t>(numPeers));
     for (auto it = mContacts.begin(); it != mContacts.end(); it++)
     {
         cmd.append<uint64_t>(it->first);
@@ -184,6 +184,18 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     if (mKarereClient->isTerminated())
     {
         PRESENCED_LOG_WARNING("Socket close but karere client was terminated.");
+        return;
+    }
+
+    if (mConnState == kDisconnected)
+    {
+        PRESENCED_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
+        if (!mRetryCtrl)
+        {
+            PRESENCED_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            reconnect(); //start retry controller
+        }
         return;
     }
 
@@ -1161,7 +1173,7 @@ bool Config::autoAwayInEffect() const
 
 void Config::fromCode(uint16_t code)
 {
-    mPresence = (code & 3) + karere::Presence::kOffline;
+    mPresence = static_cast<karere::Presence::Code>((code & 3) + karere::Presence::kOffline);
     mPersist = !!(code & 4);
     mAutoawayActive = !(code & 8);
     mAutoawayTimeout = (code & ~Config::kLastGreenVisibleMask) >> 4;
@@ -1174,17 +1186,17 @@ void Config::fromCode(uint16_t code)
 
 uint16_t Config::toCode() const
 {
-    uint32_t autoawayTimeout = mAutoawayTimeout;
+    auto autoawayTimeout = mAutoawayTimeout;
     if (autoawayTimeout > 600)  // if longer than 10 minutes, convert into 10m (in seconds) + number of minutes
     {
         autoawayTimeout = 600 + (mAutoawayTimeout - 600) / 60;
     }
 
-    return ((mPresence.code() - karere::Presence::kOffline) & 3)
+    return static_cast<uint16_t>(((mPresence.code() - karere::Presence::kOffline) & 3)
           | (mPersist ? 4 : 0)
           | (mAutoawayActive ? 0 : 8)
           | (autoawayTimeout << 4)
-          | (mLastGreenVisible ? 0 : Config::kLastGreenVisibleMask);
+          | (mLastGreenVisible ? 0 : Config::kLastGreenVisibleMask));
 }
 
 Client::~Client()

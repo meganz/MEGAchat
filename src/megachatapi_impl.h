@@ -65,7 +65,7 @@ namespace megachat
 {
 
 typedef std::set<MegaChatVideoListener *> MegaChatVideoListener_set;
-typedef std::map<uint32_t, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
+typedef std::map<Cid_t, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -199,7 +199,7 @@ public:
 private:
     uint8_t mState = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id mPeerId;
-    uint32_t mClientId;
+    Cid_t mClientId;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     bool mHasRequestSpeak = false;

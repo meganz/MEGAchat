@@ -286,7 +286,8 @@ void ChatListItemController::onSetDND()
     bool ok = false;
     ::mega::m_time_t newValue = QInputDialog::getInt(mMainWindow, tr("Push notification restriction - DND"),
                                                  tr("Set DND mode for this chatroom for (in seconds)"
-                                                    "\n(0 to disable notifications, -1 to unset DND): "), currentValue, -1, 2147483647, 1, &ok);
+                                                    "\n(0 to disable notifications, -1 to unset DND): "),
+                                                     static_cast<int>(currentValue), -1, 2147483647, 1, &ok);
     ::mega::m_time_t newDND = (newValue > 0) ? newValue + now : newValue;
     if (ok && currentDND != newDND)
     {

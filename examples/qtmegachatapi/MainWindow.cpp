@@ -312,8 +312,8 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         }
         else
         {
-            meetingView->removeLowResByCid(session->getClientid());
-            meetingView->removeHiResByCid(session->getClientid());
+            meetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
+            meetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
             meetingView->removeSession(*session);
         }
     }
@@ -513,7 +513,7 @@ void MainWindow::reorderAppChatList()
 void MainWindow::addQtContactWidgets()
 {
     ui->mContacsSeparator->setText(" Loading contacts");
-    setNContacts(mContactControllers.size());
+    setNContacts(static_cast<int>(mContactControllers.size()));
 
     std::map<megachat::MegaChatHandle, ContactListItemController *>::iterator it;
     for (it = mContactControllers.begin(); it != mContactControllers.end(); it++)
