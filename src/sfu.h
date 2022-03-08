@@ -385,7 +385,7 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
-    static constexpr uint8_t kConnectTimeout = 15;           // (in seconds) timeout reconnection to succeeed
+    static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
 
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
