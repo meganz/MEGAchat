@@ -1987,17 +1987,17 @@ promise::Promise<void> SfuConnection::reconnect()
                     if (isOnline() && cachedIpsByHost)
                     {
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
-                        SFU_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        SFU_LOG_ERROR_NO_STATS("DNS error, but connection is established. Relaying on cached IPs...");
                         return;
                     }
 
                     if (statusDNS < 0)
                     {
-                        SFU_LOG_ERROR("Async DNS error in sfu. Error code: %d", statusDNS);
+                        SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Error code: %d", statusDNS);
                     }
                     else
                     {
-                        SFU_LOG_ERROR("Async DNS error in sfu. Empty set of IPs");
+                        SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Empty set of IPs");
                     }
 
                     assert(!isOnline());
@@ -2056,7 +2056,7 @@ promise::Promise<void> SfuConnection::reconnect()
             if (statusDNS < 0)
             {
                 std::string errStr = "Immediate DNS error in sfu. Error code: " + std::to_string(statusDNS);
-                SFU_LOG_ERROR("%s", errStr.c_str());
+                SFU_LOG_ERROR_NO_STATS("%s", errStr.c_str());
 
                 assert(mConnState == kResolving);
                 assert(!mConnectPromise.done());
