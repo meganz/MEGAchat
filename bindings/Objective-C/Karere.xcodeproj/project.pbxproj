@@ -13,6 +13,7 @@
 		77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */; };
 		77CB2DCF2356FFD50095FF8C /* OBJCCaptureModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */; };
 		8394CF9E211992A200A1634A /* MEGAChatSession.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8394CF9D211992A200A1634A /* MEGAChatSession.mm */; };
+		83BFB99C27D8D67E001755B6 /* kareredb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 83BFB99B27D8D67E001755B6 /* kareredb.cpp */; };
 		941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977321F163DDE00A76EE3 /* websocketsIO.cpp */; };
 		947566561F3397AE00FE8664 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947566551F3397AE00FE8664 /* cservices.cpp */; };
 		A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */; };
@@ -83,6 +84,7 @@
 		8394CF9C211992A200A1634A /* MEGAChatSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatSession.h; sourceTree = "<group>"; };
 		8394CF9D211992A200A1634A /* MEGAChatSession.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatSession.mm; sourceTree = "<group>"; };
 		8394CFA02119F3E700A1634A /* MEGAChatSession+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatSession+init.h"; sourceTree = "<group>"; };
+		83BFB99B27D8D67E001755B6 /* kareredb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kareredb.cpp; sourceTree = "<group>"; };
 		941977321F163DDE00A76EE3 /* websocketsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = websocketsIO.cpp; path = ../../src/net/websocketsIO.cpp; sourceTree = "<group>"; };
 		947565EE1F168CB400FE8664 /* timers.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = timers.hpp; path = ../../src/base/timers.hpp; sourceTree = "<group>"; };
 		947565F01F18D4E900FE8664 /* asyncTest-framework.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "asyncTest-framework.h"; sourceTree = "<group>"; };
@@ -493,6 +495,7 @@
 		A838B20D1E9685AD00875D96 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				83BFB99B27D8D67E001755B6 /* kareredb.cpp */,
 				A83D5BF01F974AC200A038F7 /* rtcModule */,
 				941977311F163CEB00A76EE3 /* waiter */,
 				941977271F16377400A76EE3 /* net */,
@@ -645,6 +648,7 @@
 				5B4A6C34261324FA00E0A117 /* sfu.cpp in Sources */,
 				A879F3B61F9667F5007C5394 /* karereDbSchema.cpp in Sources */,
 				A838B20A1E9685A200875D96 /* logger.cpp in Sources */,
+				83BFB99C27D8D67E001755B6 /* kareredb.cpp in Sources */,
 				A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */,
 				A835A8B31F97A74B0075646F /* DelegateMEGAChatCallListener.mm in Sources */,
 				A879F3C51F96683A007C5394 /* chatd.cpp in Sources */,
