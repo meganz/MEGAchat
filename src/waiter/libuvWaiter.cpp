@@ -18,9 +18,11 @@ LibuvWaiter::LibuvWaiter()
 
 LibuvWaiter::~LibuvWaiter()
 {
+    asynchandle->data = (void*)asynchandle;
     uv_close((uv_handle_t*)asynchandle, [](uv_handle_t* handle)
     {
-        delete handle;
+             uv_async_s *asynchandle = (uv_async_s*)handle->data;
+             delete asynchandle;
     });
     uv_run(eventloop, UV_RUN_DEFAULT);
     uv_loop_close(eventloop);
