@@ -75,14 +75,6 @@ class LocalHighResolutionSlot : public LocalSlot
 {
 public:
      LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
-     void updateSentLayers(int8_t sentLayers);
-     void setTsStart(::mega::m_time_t t);
-     ::mega::m_time_t getTsStart();
-     int8_t getSentLayers();
-
-private:
-    ::mega::m_time_t mTsStart;
-    int8_t mSentLayers;
 };
 
 /**
@@ -486,7 +478,6 @@ protected:
     void collectNonRTCStats();
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
     void updateSvcQuality(int8_t delta);
-    void updateTransmittedSvcQuality(int8_t txSpt);
     void resetLocalAvFlags();
     bool isDisconnectionTermcode(const TermCode& termCode) const;
 };

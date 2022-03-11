@@ -656,47 +656,6 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
 }
 
-void Call::updateTransmittedSvcQuality(int8_t txSpt)
-{
-    if (!mHiRes || !mHiResActive)
-    {
-        return;
-    }
-
-    bool update = false;
-    int8_t currentSentLayers = mHiRes->getSentLayers();
-    int8_t newSentLayers = static_cast<int8_t>(txSpt + 1); // +1 as txSpatial component starts at zero in layers definition
-
-    if (newSentLayers < currentSentLayers)
-    {
-        update = true; // decrease tx SVC quality
-    }
-    else if (newSentLayers > currentSentLayers
-             && mStats.mSamples.mVtxHiResfps.size()
-             && mStats.mSamples.mVtxHiResfps.back() >= 12)
-    {
-            // increase tx SVC quality but only if not overloaded
-            newSentLayers = static_cast<int8_t>(currentSentLayers + 1); // don't set directly to newSentLayers - just increase 1 step
-            update = true;
-    }
-    else if (mStats.mSamples.mVtxHiResfps.size() && mStats.mSamples.mVtxHiResfps.back() < 5
-             && currentSentLayers > 1
-             && (::mega::m_time(nullptr) - mHiRes->getTsStart() >= mSvcDriver.kMinTimeBetweenSwitches))
-    {
-            // too low fps
-            update = true;
-            newSentLayers = static_cast<int8_t>(currentSentLayers - 1);  // don't set directly to newSentLayers - just decrease 1 step
-            RTCM_LOG_WARNING("Apparent local CPU/bandwidth starvation (fps = %d), disabling highest SVC resolution", mStats.mSamples.mVtxHiResfps.back());
-    }
-
-    if (update)
-    {
-        RTCM_LOG_WARNING("Adjusting TX Spatial sent layers from %d to %d", currentSentLayers, newSentLayers);
-        mHiRes->updateSentLayers(newSentLayers);
-        mSvcDriver.mTsLastSwitch = time(nullptr); // update last Ts SVC switch
-    }
-}
-
 void Call::updateSvcQuality(int8_t delta)
 {
     // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial (resolution)
@@ -714,9 +673,6 @@ void Call::updateSvcQuality(int8_t delta)
 
     // adjust Received SVC quality by sending LAYER command
     mSfuConnection->sendLayer(rxSpt, rxTmp, rxStmp);
-
-    // adjust Transmitted SVC quality by adjusting sent encodings
-    updateTransmittedSvcQuality(txSpt);
 }
 
 std::vector<karere::Id> Call::getParticipants() const
@@ -1986,12 +1942,10 @@ void Call::updateVideoTracks()
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
                 mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
-                mHiRes->setTsStart(::mega::m_time(nullptr));
             }
             else if (!mHiResActive)
             {
                 // if there is a track, but none in the call has requested hi res video, disable the track
-                mHiRes->setTsStart(0);
                 mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
             }
         }
@@ -2657,52 +2611,7 @@ void LocalSlot::generateRandomIv()
 
 LocalHighResolutionSlot::LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
     : LocalSlot(call, transceiver)
-    , mTsStart(0)
-    , mSentLayers(kTxSpatialLayerCount)
 {
-}
-
-void LocalHighResolutionSlot::updateSentLayers(int8_t sentLayers)
-{
-    mSentLayers = sentLayers;
-
-    if (!getTransceiver()->sender()->track())
-    {
-        RTCM_LOG_WARNING("updateSentLayers: Currently not sending HI-RES track, will only record sentLayers value");
-        return;
-    }
-
-    // each vector element describes a single configuration of a codec for an RTPSender
-    webrtc::RtpParameters parameters = getTransceiver()->sender()->GetParameters();
-    std::vector<webrtc::RtpEncodingParameters> encs = parameters.encodings;
-    if (encs.empty() || encs.size() < 2)
-    {
-        RTCM_LOG_WARNING("updateSentLayers: There is no SVC enabled for this sender");
-        return;
-    }
-
-    for (size_t i = 0; i < encs.size(); i++)
-    {
-        encs[i].active = i < static_cast<size_t>(mSentLayers);
-    }
-
-    RTCM_LOG_WARNING("updateSentLayers: Enabling first %d sent layers",mSentLayers);
-    getTransceiver()->sender()->SetParameters(parameters);
-}
-
-void LocalHighResolutionSlot::setTsStart(::mega::m_time_t t)
-{
-    mTsStart = t;
-}
-
-::mega::m_time_t LocalHighResolutionSlot::getTsStart()
-{
-    return mTsStart;
-}
-
-int8_t LocalHighResolutionSlot::getSentLayers()
-{
-    return mSentLayers;
 }
 
 RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
