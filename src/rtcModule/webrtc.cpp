@@ -1850,7 +1850,7 @@ void Call::collectNonRTCStats()
     }
 
     // TODO: pending to implement disabledTxLayers in future if needed
-    mStats.mSamples.mQ.push_back(static_cast<int32_t>(mSvcDriver.mCurrentSvcLayerIndex) | static_cast<int32_t>(mHiRes->getSentLayers()) << 8);
+    mStats.mSamples.mQ.push_back(static_cast<int32_t>(mSvcDriver.mCurrentSvcLayerIndex) | static_cast<int32_t>(kTxSpatialLayerCount) << 8);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
