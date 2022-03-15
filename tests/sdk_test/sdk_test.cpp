@@ -5027,7 +5027,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     ::mega::LibuvWaiter waiter;
     LibwebsocketsIO::Mutex mutex;
     LibwebsocketsIO webSocket(mutex, &waiter, nullptr, nullptr);
-    mOKTests ++;
+    mOKTests++;
     ::mega::MegaApi megaApi(nullptr);
     MockupCall call;
     SqliteDb mockupDb;
@@ -5054,7 +5054,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 
     for (auto testCase : checkCommands)
     {
-        executedTests ++;
+        executedTests++;
         if (sfuConnection.handleIncomingData(testCase.first.c_str(), testCase.first.length()) != testCase.second)
         {
             failedTest++;
@@ -5065,7 +5065,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 
     if (failedTest > 0)
     {
-        mFailedTests ++;
+        mFailedTests++;
         succesful = false;
     }
 
