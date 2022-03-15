@@ -2,6 +2,7 @@
 #import <Foundation/Foundation.h>
 #import "MEGAChatListItem.h"
 #import "MEGAChatPresenceConfig.h"
+#import "MEGAChatDBError.h"
 
 @class MEGAChatSdk;
 
@@ -17,6 +18,6 @@ typedef NS_ENUM (NSInteger, MEGAChatInit);
 - (void)onChatPresenceConfigUpdate:(MEGAChatSdk *)api presenceConfig:(MEGAChatPresenceConfig *)presenceConfig;
 - (void)onChatConnectionStateUpdate:(MEGAChatSdk *)api chatId:(uint64_t)chatId newState:(int)newState;
 - (void)onChatPresenceLastGreen:(MEGAChatSdk *)api userHandle:(uint64_t)userHandle lastGreen:(NSInteger)lastGreen;
-- (void)onDbError:(MEGAChatSdk *)api error:(int)error message:(NSString *)message;
+- (void)onDbError:(MEGAChatSdk *)api error:(MEGAChatDBError)error message:(NSString *)message;
 
 @end

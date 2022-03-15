@@ -229,6 +229,7 @@
 		A8E1D8EF277F3794009093C5 /* MEGAChatLogLevel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatLogLevel.h; sourceTree = "<group>"; };
 		A8F96C18219DE3A2005A3EB6 /* MEGAChatGeolocation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatGeolocation.h; sourceTree = "<group>"; };
 		A8F96C19219DE3A2005A3EB6 /* MEGAChatGeolocation.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatGeolocation.mm; sourceTree = "<group>"; };
+		B5371A1327E0229D00B2A6E5 /* MEGAChatDBError.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatDBError.h; sourceTree = "<group>"; };
 		BF1146FC26AD60CD006E30F5 /* RTCAudioSessionConfiguration.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RTCAudioSessionConfiguration.h; path = ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/components/audio/RTCAudioSessionConfiguration.h; sourceTree = "<group>"; };
 		BF1146FD26AD60F3006E30F5 /* RTCDispatcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RTCDispatcher.h; path = ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/helpers/RTCDispatcher.h; sourceTree = "<group>"; };
 		BF959683269715090076E5F6 /* RTCAudioSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RTCAudioSession.h; path = ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/components/audio/RTCAudioSession.h; sourceTree = "<group>"; };
@@ -460,6 +461,7 @@
 				A8F96C18219DE3A2005A3EB6 /* MEGAChatGeolocation.h */,
 				A8F96C19219DE3A2005A3EB6 /* MEGAChatGeolocation.mm */,
 				A8E1D8EF277F3794009093C5 /* MEGAChatLogLevel.h */,
+				B5371A1327E0229D00B2A6E5 /* MEGAChatDBError.h */,
 			);
 			name = binding;
 			sourceTree = "<group>";

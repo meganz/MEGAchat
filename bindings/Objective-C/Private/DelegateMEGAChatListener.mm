@@ -83,7 +83,7 @@ void DelegateMEGAChatListener::onDbError(megachat::MegaChatApi *api, int error, 
         id<MEGAChatDelegate> tempListener = this->listener;
         NSString *msg = [NSString stringWithUTF8String:message];
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onDbError:tempMegaChatSDK error:error message:msg];
+            [tempListener onDbError:tempMegaChatSDK error:(MEGAChatDBError)error message:msg];
         });
     }
 }
