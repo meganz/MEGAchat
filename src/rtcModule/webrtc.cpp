@@ -832,7 +832,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
     hiresTrackIndex = mRtcConn->GetTransceivers().size() - 1; // keep this sentence just after add transceiver for hiRes track
-    mHiRes = ::mega::make_unique<LocalHighResolutionSlot>(*this, err.MoveValue());
+    mHiRes = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitAudio;
@@ -2607,11 +2607,6 @@ void LocalSlot::createEncryptor()
 void LocalSlot::generateRandomIv()
 {
     randombytes_buf(&mIv, sizeof(mIv));
-}
-
-LocalHighResolutionSlot::LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : LocalSlot(call, transceiver)
-{
 }
 
 RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)

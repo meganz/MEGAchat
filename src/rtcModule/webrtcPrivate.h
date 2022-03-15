@@ -69,15 +69,6 @@ public:
 };
 
 /**
- * This class represent a webrtc transceiver for local high resolution video
- */
-class LocalHighResolutionSlot : public LocalSlot
-{
-public:
-     LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
-};
-
-/**
  * This class represent a generic instance to manage remote webrtc Transceiver
  */
 class RemoteSlot : public Slot
@@ -441,7 +432,7 @@ protected:
     std::unique_ptr<LocalSlot> mAudio;
     std::unique_ptr<LocalSlot> mVThumb;
     bool mVThumbActive = false;  // true when sending low res video
-    std::unique_ptr<LocalHighResolutionSlot> mHiRes;
+    std::unique_ptr<LocalSlot> mHiRes;
     bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
