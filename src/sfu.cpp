@@ -1172,11 +1172,9 @@ void SfuConnection::disconnect(bool withoutReconnection)
     setConnState(kDisconnected);
     if (withoutReconnection)
     {
-        if (mConnectTimer)
-        {
-            karere::cancelTimeout(mConnectTimer, mAppCtx);
-            mConnectTimer = 0;
-        }
+        // It isn't required check mConnectTimer because it's set at setConnState(kDisconnected);
+        karere::cancelTimeout(mConnectTimer, mAppCtx);
+        mConnectTimer = 0;
         abortRetryController();
     }
 }
@@ -1812,12 +1810,6 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         if (wsIsConnected())
         {
             wsDisconnect(true);
-        }
-
-        if (!mAppCtx)
-        {
-            // don't set timer if there isn't a valid ctx (currently only possible in SfuConnection unitary test)
-            return;
         }
 
         // if connect-timer is running, it must be reset (kResolving --> kDisconnected)
