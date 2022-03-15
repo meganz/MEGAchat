@@ -5024,53 +5024,73 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
 #ifndef KARERE_DISABLE_WEBRTC
 bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 {
-    ::mega::LibuvWaiter waiter;
-    LibwebsocketsIO::Mutex mutex;
-    LibwebsocketsIO webSocket(mutex, &waiter, nullptr, nullptr);
+    std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
     mOKTests++;
-    ::mega::MegaApi megaApi(nullptr);
     MockupCall call;
-    SqliteDb mockupDb;
-    DNScache mockupCache(mockupDb, chatd::Client::chatdVersion);
-    karere::Url sfuUrl("SFU-URL");
-    sfu::SfuConnection sfuConnection(std::move(sfuUrl), webSocket, nullptr, call, mockupCache);
+    std::map<std::string, std::unique_ptr<sfu::Command>> mCommands;
+    mCommands[sfu::AVCommand::COMMAND_NAME]             = ::mega::make_unique<sfu::AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    mCommands[sfu::AnswerCommand::COMMAND_NAME]         = ::mega::make_unique<sfu::AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
+    mCommands[sfu::KeyCommand::COMMAND_NAME]            = ::mega::make_unique<sfu::KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    mCommands[sfu::VthumbsCommand::COMMAND_NAME]        = ::mega::make_unique<sfu::VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
+    mCommands[sfu::VthumbsStartCommand::COMMAND_NAME]   = ::mega::make_unique<sfu::VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
+    mCommands[sfu::VthumbsStopCommand::COMMAND_NAME]    = ::mega::make_unique<sfu::VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), call);
+    mCommands[sfu::HiResCommand::COMMAND_NAME]          = ::mega::make_unique<sfu::HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
+    mCommands[sfu::HiResStartCommand::COMMAND_NAME]     = ::mega::make_unique<sfu::HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
+    mCommands[sfu::HiResStopCommand::COMMAND_NAME]      = ::mega::make_unique<sfu::HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
+    mCommands[sfu::SpeakReqsCommand::COMMAND_NAME]      = ::mega::make_unique<sfu::SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
+    mCommands[sfu::SpeakReqDelCommand::COMMAND_NAME]    = ::mega::make_unique<sfu::SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
+    mCommands[sfu::SpeakOnCommand::COMMAND_NAME]        = ::mega::make_unique<sfu::SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    mCommands[sfu::SpeakOffCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
+    mCommands[sfu::PeerJoinCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    mCommands[sfu::PeerLeftCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
+
+    std::map<std::string, bool> checkCommands;
+    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"]     = false;
+    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"]                            = false;
+    checkCommands["{\"a\":\"HIRES_STOP\"}"]                                                     = true;
+    checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2}"]                                             = true;
+    checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"]         = true;
+    checkCommands["{\"a\":\"HIRES_START\"}"]                                                    = true;
+    checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"]                             = false;
+    checkCommands["{\"err\":129}"]                                                              = true;
 
     int failedTest = 0;
     int executedTests = 0;
-    bool succesful = true;
-
-    std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
-    std::map<std::string, bool> checkCommands;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"] = false;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"] = false;
-    checkCommands["{\"a\":\"HIRES_STOP\"}"] = true;
-    checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2}"] = true;
-    checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"] = true;
-    checkCommands["{\"a\":\"HIRES_START\"}"] = true;
-    checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"] = false;
-    checkCommands["{\"err\":129}"] = true;
-
-
-
     for (auto testCase : checkCommands)
     {
         executedTests++;
-        if (sfuConnection.handleIncomingData(testCase.first.c_str(), testCase.first.length()) != testCase.second)
+        int32_t errCode = INT32_MIN;
+        std::string command;
+        std::string errMsg;
+        rapidjson::Document document;
+        bool parseSuccess = sfu::SfuConnection::parseSfuStream(testCase.first.c_str(), document, command, errMsg, errCode);
+
+        /* Command processing is considered failed if:
+         * 1) An error happened upon parsing "SFU" incoming data
+         * 2) Parsed command could not be found at mCommands
+         * 3) An error happened processing parsed command (processCommand)
+         */
+        bool commandProcSuccess = parseSuccess
+               && (errCode != INT32_MIN
+                    || (mCommands.find(command) != mCommands.end() && mCommands[command]->processCommand(document)));
+
+        if (commandProcSuccess != testCase.second)
         {
+            std::string errStr = "[FAILED processing SFU command] :";
+            errStr.append(testCase.first).append(". ").append(errMsg);
             failedTest++;
-            std::cout << "         [" << " FAILED processing SFU command: " << "] " << testCase.first << std::endl;
-            LOG_debug << "Failed processing SFU command: " << testCase.first;
+            std::cout << errStr << std::endl;
+            LOG_debug << errStr;
         }
     }
 
     if (failedTest > 0)
     {
         mFailedTests++;
-        succesful = false;
     }
 
     std::cout << "          TEST - SfuConnection::handleIncomingData() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
-    return succesful;
+    return !failedTest;
 }
 #endif
 
