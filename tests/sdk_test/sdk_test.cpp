@@ -5071,8 +5071,6 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 
     std::cout << "          TEST - Message::parseUrl() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
     return succesful;
-
-    return true;
 }
 #endif
 
