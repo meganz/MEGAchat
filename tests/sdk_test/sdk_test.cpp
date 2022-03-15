@@ -5058,8 +5058,8 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
         if (sfuConnection.handleIncomingData(testCase.first.c_str(), testCase.first.length()) != testCase.second)
         {
             failedTest++;
-            std::cout << "         [" << " FAILED Parse" << "] " << testCase.first << std::endl;
-            LOG_debug << "Failed to parse: " << testCase.first;
+            std::cout << "         [" << " FAILED processing SFU command: " << "] " << testCase.first << std::endl;
+            LOG_debug << "Failed processing SFU command: " << testCase.first;
         }
     }
 
@@ -5069,7 +5069,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
         succesful = false;
     }
 
-    std::cout << "          TEST - Message::parseUrl() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
+    std::cout << "          TEST - SfuConnection::handleIncomingData() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
     return succesful;
 }
 #endif
