@@ -1793,7 +1793,7 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
 
         if (!mAppCtx)
         {
-            // don't set timer if there isn't a valid ctx
+            // don't set timer if there isn't a valid ctx (currently only possible in SfuConnection unitary test)
             return;
         }
 
