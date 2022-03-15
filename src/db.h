@@ -224,9 +224,9 @@ public:
     SqliteStmt& bind(int col, int val) { retCheck(sqlite3_bind_int(mStmt, col, val), "bind"); return *this; }
     SqliteStmt& bind(int col, int64_t val) { retCheck(sqlite3_bind_int64(mStmt, col, val), "bind"); return *this; }
     SqliteStmt& bind(int col, const std::string& val) { retCheck(sqlite3_bind_text(mStmt, col, val.c_str(), (int)val.size(), SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const char* val, size_t size) { retCheck(sqlite3_bind_text(mStmt, col, val, size, SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const void* val, size_t size) { retCheck(sqlite3_bind_blob(mStmt, col, val, size, SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const StaticBuffer& buf) { retCheck(sqlite3_bind_blob(mStmt, col, buf.buf(), buf.dataSize(), SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, const char* val, size_t size) { retCheck(sqlite3_bind_text(mStmt, col, val, static_cast<int>(size), SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, const void* val, size_t size) { retCheck(sqlite3_bind_blob(mStmt, col, val, static_cast<int>(size), SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, const StaticBuffer& buf) { retCheck(sqlite3_bind_blob(mStmt, col, buf.buf(), static_cast<int>(buf.dataSize()), SQLITE_STATIC), "bind"); return *this; }
     SqliteStmt& bind(int col, uint64_t val) { retCheck(sqlite3_bind_int64(mStmt, col, (int64_t)val), "bind"); return *this; }
     SqliteStmt& bind(int col, unsigned int val) { retCheck(sqlite3_bind_int(mStmt, col, (int)val), "bind"); return *this; }
     SqliteStmt& bind(int col, const char* val) { retCheck(sqlite3_bind_text(mStmt, col, val, -1, SQLITE_TRANSIENT), "bind"); return *this; }
@@ -264,7 +264,7 @@ public:
         const unsigned char* data = sqlite3_column_text(mStmt, num);
         if (!data)
             return std::string();
-        int size = sqlite3_column_bytes(mStmt, num);
+        size_t size = static_cast<size_t>(sqlite3_column_bytes(mStmt, num));
         return std::string((const char*)data, size);
     }
     bool hasBlobCol(int num)
@@ -302,7 +302,7 @@ public:
         const void* data = sqlite3_column_blob(mStmt, num);
         if (!data)
             return 0;
-        size_t size = sqlite3_column_bytes(mStmt, num);
+        size_t size = static_cast<size_t>(sqlite3_column_bytes(mStmt, num));
         if (size > buflen)
             throw std::runtime_error("blobCol: Insufficient buffer space for blob: required "+
                 std::to_string(size)+", provided "+std::to_string(buflen));
@@ -310,8 +310,9 @@ public:
         return size;
     }
 
-    uint64_t uint64Col(int num) { return (uint64_t)sqlite3_column_int64(mStmt, num);}
-    unsigned int uintCol(int num) { return (unsigned int)sqlite3_column_int(mStmt, num);}
+    // TODO: ensure that callers invoke the right prototype to avoid unnecessary castings
+    uint64_t uint64Col(int num) { return static_cast<uint64_t>(sqlite3_column_int64(mStmt, num));}
+    unsigned int uintCol(int num) { return static_cast<unsigned int>(sqlite3_column_int(mStmt, num));}
     bool isNullColumn (int num) const { return sqlite3_column_type(mStmt, num) == SQLITE_NULL; }
     int getColumnBytes (int num) const { return sqlite3_column_bytes(mStmt, num); }
 };

@@ -77,6 +77,7 @@ public:
 
 private:
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
+    void saveTlsSessionToPersistentStorage();
     CachedSession mTlsSession;
 #endif
 };

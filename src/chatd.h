@@ -954,7 +954,7 @@ public:
     /** The number of messages currently in the history buffer (in RAM).
      * @note Note that there may be more messages in history db, but not loaded
      * into memory*/
-    Idx size() const { return mForwardList.size() + mBackwardList.size(); }
+    Idx size() const { return static_cast<Idx>(mForwardList.size() + mBackwardList.size()); }
     /** @brief Whether we have any messages in the history buffer */
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     bool isDisabled() const { return mIsDisabled; }

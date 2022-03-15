@@ -25,7 +25,7 @@ void QTMegaChatNotificationListener::onChatNotification(MegaChatApi *api, MegaCh
 void QTMegaChatNotificationListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
-    switch(event->type())
+    switch(static_cast<QTMegaChatEvent::MegaType>(event->type()))
     {
         case QTMegaChatEvent::OnChatNotification:
             if (listener) listener->onChatNotification(event->getMegaChatApi(), event->getChatHandle(), event->getChatMessage());

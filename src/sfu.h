@@ -7,6 +7,7 @@
 #include <karereId.h>
 #include <rapidjson/document.h>
 #include "rtcCrypto.h"
+#include <base/timers.hpp>
 
 #define SFU_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
@@ -384,6 +385,8 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
+    static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
+
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     bool isOnline() const;
@@ -434,6 +437,9 @@ protected:
     /** RetryController that manages the reconnection's attempts */
     std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
 
+    /** Handler of the timeout for the connection establishment */
+    megaHandle mConnectTimer = 0;
+
     /** Input promise for the RetryController
      *  - If it fails: a new attempt is schedulled
      *  - If it success: the reconnection is taken as done */
@@ -445,7 +451,9 @@ protected:
     void wsHandleMsgCb(char *data, size_t len) override;
     void wsSendMsgCb(const char *, size_t) override;
     void wsProcessNextMsgCb() override;
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool wsSSLsessionUpdateCb(const CachedSession &sess) override;
+#endif
     promise::Promise<void> mSendPromise;
 
     void onSocketClose(int errcode, int errtype, const std::string& reason);

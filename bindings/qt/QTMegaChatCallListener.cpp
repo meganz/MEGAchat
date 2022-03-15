@@ -34,7 +34,7 @@ void QTMegaChatCallListener::onChatSessionUpdate(MegaChatApi *api, MegaChatHandl
 void QTMegaChatCallListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
-    switch(event->type())
+    switch(static_cast<QTMegaChatEvent::MegaType>(event->type()))
     {
         case QTMegaChatEvent::OnChatCallUpdate:
             if (listener) listener->onChatCallUpdate(event->getMegaChatApi(), event->getChatCall());
