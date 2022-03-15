@@ -397,7 +397,8 @@ public:
     void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
     bool sendCommand(const std::string& command);
-    bool handleIncomingData(const char* data, size_t len);
+    static bool parseSfuStream(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode);
+    bool handleIncomingData(const char *data, size_t len);
     void addNewCommand(const std::string &command);
     void processNextCommand(bool resetSending = false);
     void clearCommandsQueue();

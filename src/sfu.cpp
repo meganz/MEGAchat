@@ -1362,16 +1362,15 @@ const karere::Url& SfuConnection::getSfuUrl()
     return mSfuUrl;
 }
 
-bool SfuConnection::handleIncomingData(const char* data, size_t len)
+bool SfuConnection::parseSfuStream(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
 {
     SFU_LOG_DEBUG("Data received: %s", data);
     rapidjson::StringStream stringStream(data);
-    rapidjson::Document document;
     document.ParseStream(stringStream);
 
     if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
     {
-        SFU_LOG_ERROR("Failure at: Parser json error");
+        errMsg = "Failure at: Parser json error";
         return false;
     }
 
@@ -1379,24 +1378,48 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
     rapidjson::Value::ConstMemberIterator jsonErrIterator = document.FindMember(Command::ERROR_IDENTIFIER.c_str());
     if ((jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString()) && (jsonErrIterator == document.MemberEnd()))
     {
-        SFU_LOG_ERROR("Received data doesn't have 'a' field");
+        errMsg = "Received data doesn't have 'a' field";
         return false;
     }
 
     if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
     {
-        std::string error = "Unknown reason";
+        errMsg = "Unknown reason";
         rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = document.FindMember(Command::ERROR_MESSAGE.c_str());
         if (jsonErrMsgIterator != document.MemberEnd() && jsonErrMsgIterator->value.IsString())
         {
-            error = jsonErrMsgIterator->value.GetString();
+            errMsg = jsonErrMsgIterator->value.GetString();
         }
-
-        mCall.error(jsonErrIterator->value.GetInt(), error);
+        errCode = jsonErrIterator->value.GetInt();
         return true;
     }
 
-    std::string command = jsonIterator->value.GetString();
+    command = jsonIterator->value.GetString();
+    return true;
+}
+
+bool SfuConnection::handleIncomingData(const char *data, size_t len)
+{
+    // init errCode to invalid value, to check if a valid errCode has been returned by SFU
+    int32_t errCode = INT32_MIN;
+    std::string command;
+    std::string errMsg;
+    rapidjson::Document document;
+
+    if (!parseSfuStream(data, document, command, errMsg, errCode))
+    {
+        // error parsing incoming data from SFU
+        SFU_LOG_ERROR("%s", errMsg.c_str());
+        return false;
+    }
+
+    if (errCode != INT32_MIN)
+    {
+        // process errCode returned by SFU
+        mCall.error(static_cast<unsigned int>(errCode), errMsg);
+        return true;
+    }
+
     auto commandIterator = mCommands.find(command);
     if (commandIterator == mCommands.end())
     {
