@@ -5027,22 +5027,22 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
     mOKTests++;
     MockupCall call;
-    std::map<std::string, std::unique_ptr<sfu::Command>> mCommands;
-    mCommands[sfu::AVCommand::COMMAND_NAME]             = ::mega::make_unique<sfu::AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    mCommands[sfu::AnswerCommand::COMMAND_NAME]         = ::mega::make_unique<sfu::AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
-    mCommands[sfu::KeyCommand::COMMAND_NAME]            = ::mega::make_unique<sfu::KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    mCommands[sfu::VthumbsCommand::COMMAND_NAME]        = ::mega::make_unique<sfu::VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
-    mCommands[sfu::VthumbsStartCommand::COMMAND_NAME]   = ::mega::make_unique<sfu::VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
-    mCommands[sfu::VthumbsStopCommand::COMMAND_NAME]    = ::mega::make_unique<sfu::VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), call);
-    mCommands[sfu::HiResCommand::COMMAND_NAME]          = ::mega::make_unique<sfu::HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
-    mCommands[sfu::HiResStartCommand::COMMAND_NAME]     = ::mega::make_unique<sfu::HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
-    mCommands[sfu::HiResStopCommand::COMMAND_NAME]      = ::mega::make_unique<sfu::HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
-    mCommands[sfu::SpeakReqsCommand::COMMAND_NAME]      = ::mega::make_unique<sfu::SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
-    mCommands[sfu::SpeakReqDelCommand::COMMAND_NAME]    = ::mega::make_unique<sfu::SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
-    mCommands[sfu::SpeakOnCommand::COMMAND_NAME]        = ::mega::make_unique<sfu::SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    mCommands[sfu::SpeakOffCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
-    mCommands[sfu::PeerJoinCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    mCommands[sfu::PeerLeftCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
+    std::map<std::string, std::unique_ptr<sfu::Command>> commands;
+    commands[sfu::AVCommand::COMMAND_NAME]             = ::mega::make_unique<sfu::AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[sfu::AnswerCommand::COMMAND_NAME]         = ::mega::make_unique<sfu::AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
+    commands[sfu::KeyCommand::COMMAND_NAME]            = ::mega::make_unique<sfu::KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[sfu::VthumbsCommand::COMMAND_NAME]        = ::mega::make_unique<sfu::VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
+    commands[sfu::VthumbsStartCommand::COMMAND_NAME]   = ::mega::make_unique<sfu::VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
+    commands[sfu::VthumbsStopCommand::COMMAND_NAME]    = ::mega::make_unique<sfu::VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), call);
+    commands[sfu::HiResCommand::COMMAND_NAME]          = ::mega::make_unique<sfu::HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
+    commands[sfu::HiResStartCommand::COMMAND_NAME]     = ::mega::make_unique<sfu::HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
+    commands[sfu::HiResStopCommand::COMMAND_NAME]      = ::mega::make_unique<sfu::HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
+    commands[sfu::SpeakReqsCommand::COMMAND_NAME]      = ::mega::make_unique<sfu::SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
+    commands[sfu::SpeakReqDelCommand::COMMAND_NAME]    = ::mega::make_unique<sfu::SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
+    commands[sfu::SpeakOnCommand::COMMAND_NAME]        = ::mega::make_unique<sfu::SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[sfu::SpeakOffCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
+    commands[sfu::PeerJoinCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[sfu::PeerLeftCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
 
     std::map<std::string, bool> checkCommands;
     checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"]     = false;
@@ -5059,7 +5059,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     for (auto testCase : checkCommands)
     {
         executedTests++;
-        int32_t errCode = INT32_MIN;
+        int32_t errCode = INT32_MIN; // init errCode to invalid value, to check if a valid errCode has been returned by SFU
         std::string command;
         std::string errMsg;
         rapidjson::Document document;
@@ -5067,16 +5067,16 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 
         /* Command processing is considered failed if:
          * 1) An error happened upon parsing "SFU" incoming data
-         * 2) Parsed command could not be found at mCommands
+         * 2) Parsed command could not be found at commands
          * 3) An error happened processing parsed command (processCommand)
          */
         bool commandProcSuccess = parseSuccess
                && (errCode != INT32_MIN
-                    || (mCommands.find(command) != mCommands.end() && mCommands[command]->processCommand(document)));
+                    || (commands.find(command) != commands.end() && commands[command]->processCommand(document)));
 
         if (commandProcSuccess != testCase.second)
         {
-            std::string errStr = "[FAILED processing SFU command] :";
+            std::string errStr = "          [FAILED processing SFU command] :";
             errStr.append(testCase.first).append(". ").append(errMsg);
             failedTest++;
             std::cout << errStr << std::endl;
