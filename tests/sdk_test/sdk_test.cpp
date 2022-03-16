@@ -5048,7 +5048,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
         std::string command;
         std::string errMsg;
         rapidjson::Document document;
-        bool parseSuccess = sfu::SfuConnection::parseSfuStream(testCase.first.c_str(), document, command, errMsg, errCode);
+        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, command, errMsg, errCode);
 
         /* Command processing is considered failed if:
          * 1) An error happened upon parsing "SFU" incoming data

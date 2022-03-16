@@ -1365,7 +1365,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
 }
 
-bool SfuConnection::parseSfuStream(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
+bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
 {
     SFU_LOG_DEBUG("Data received: %s", data);
     rapidjson::StringStream stringStream(data);
@@ -1409,7 +1409,7 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
     std::string errMsg;
     rapidjson::Document document;
 
-    if (!parseSfuStream(data, document, command, errMsg, errCode))
+    if (!parseSfuData(data, document, command, errMsg, errCode))
     {
         // error parsing incoming data from SFU
         SFU_LOG_ERROR("%s", errMsg.c_str());
