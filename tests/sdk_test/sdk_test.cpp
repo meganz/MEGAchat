@@ -5028,22 +5028,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     mOKTests++;
     MockupCall call;
     std::map<std::string, std::unique_ptr<sfu::Command>> commands;
-    commands[sfu::AVCommand::COMMAND_NAME]             = ::mega::make_unique<sfu::AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[sfu::AnswerCommand::COMMAND_NAME]         = ::mega::make_unique<sfu::AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
-    commands[sfu::KeyCommand::COMMAND_NAME]            = ::mega::make_unique<sfu::KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[sfu::VthumbsCommand::COMMAND_NAME]        = ::mega::make_unique<sfu::VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
-    commands[sfu::VthumbsStartCommand::COMMAND_NAME]   = ::mega::make_unique<sfu::VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
-    commands[sfu::VthumbsStopCommand::COMMAND_NAME]    = ::mega::make_unique<sfu::VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), call);
-    commands[sfu::HiResCommand::COMMAND_NAME]          = ::mega::make_unique<sfu::HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
-    commands[sfu::HiResStartCommand::COMMAND_NAME]     = ::mega::make_unique<sfu::HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
-    commands[sfu::HiResStopCommand::COMMAND_NAME]      = ::mega::make_unique<sfu::HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
-    commands[sfu::SpeakReqsCommand::COMMAND_NAME]      = ::mega::make_unique<sfu::SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
-    commands[sfu::SpeakReqDelCommand::COMMAND_NAME]    = ::mega::make_unique<sfu::SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
-    commands[sfu::SpeakOnCommand::COMMAND_NAME]        = ::mega::make_unique<sfu::SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[sfu::SpeakOffCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
-    commands[sfu::PeerJoinCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[sfu::PeerLeftCommand::COMMAND_NAME]       = ::mega::make_unique<sfu::PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
-
+    sfu::SfuConnection::setCallbackToCommands(call, commands);
     std::map<std::string, bool> checkCommands;
     checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"]     = false;
     checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"]                            = false;

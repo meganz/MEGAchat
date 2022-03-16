@@ -398,6 +398,7 @@ public:
     void retryPendingConnection(bool disconnect);
     bool sendCommand(const std::string& command);
     static bool parseSfuStream(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode);
+    static void setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands);
     bool handleIncomingData(const char *data, size_t len);
     void addNewCommand(const std::string &command);
     void processNextCommand(bool resetSending = false);
