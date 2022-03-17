@@ -2371,7 +2371,6 @@ public:
 
     enum
     {
-        DB_ERROR_UNKNOWN            = -1,   /// Unknown database error
         DB_NO_ERROR                 = 0,    /// No database error
         DB_ERROR_IO                 = 1,    /// I/O error in Data base   (non recoverable)
         DB_ERROR_FULL               = 2,    /// Database or disk is full (non recoverable)
@@ -6318,7 +6317,6 @@ public:
 
     /** @brief This function is called when an error occurred in an operation with karere Db
      * Possible returned values:
-     *   - MegaChatApi::DB_ERROR_UNKNOWN          = -1,   /// Unknown database error
      *   - MegaChatApi::DB_ERROR_IO               = 1,    /// I/O error in Data base
      *   - MegaChatApi::DB_ERROR_FULL             = 2,    /// Database or disk is full
      *

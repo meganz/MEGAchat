@@ -5598,12 +5598,7 @@ int MegaChatApiImpl::convertDbError(int errCode)
     {
         case SQLITE_IOERR:  return MegaChatApi::DB_ERROR_IO;
         case SQLITE_FULL:   return MegaChatApi::DB_ERROR_FULL;
-        default:
-        {
-            assert(false);  // this should not happen
-            API_LOG_ERROR("convertDbError: Unknown errCode(%d)", errCode);
-            return MegaChatApi::DB_ERROR_UNKNOWN;
-        }
+        default:            throw std::runtime_error("convertDbError: Unknown errCode(%d)" + std::to_string(errCode));
     }
 }
 
