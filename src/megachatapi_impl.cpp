@@ -5600,6 +5600,7 @@ int MegaChatApiImpl::convertDbError(int errCode)
         case SQLITE_FULL:   return MegaChatApi::DB_ERROR_FULL;
         default:
         {
+            assert(false);  // this should not happen
             API_LOG_ERROR("convertDbError: Unknown errCode(%d)", errCode);
             return MegaChatApi::DB_ERROR_UNKNOWN;
         }

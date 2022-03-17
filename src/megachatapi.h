@@ -2373,8 +2373,8 @@ public:
     {
         DB_ERROR_UNKNOWN            = -1,   /// Unknown database error
         DB_NO_ERROR                 = 0,    /// No database error
-        DB_ERROR_IO                 = 1,    /// I/O error in Data base
-        DB_ERROR_FULL               = 2,    /// Database or disk is full
+        DB_ERROR_IO                 = 1,    /// I/O error in Data base   (non recoverable)
+        DB_ERROR_FULL               = 2,    /// Database or disk is full (non recoverable)
     };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
