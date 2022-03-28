@@ -2371,6 +2371,7 @@ public:
 
     enum
     {
+        DB_ERROR_UNEXPECTED         = -1,   /// Unexpected database error (not received by apps, just for internal use)
         DB_NO_ERROR                 = 0,    /// No database error
         DB_ERROR_IO                 = 1,    /// I/O error in Data base   (non recoverable)
         DB_ERROR_FULL               = 2,    /// Database or disk is full (non recoverable)
