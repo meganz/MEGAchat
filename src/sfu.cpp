@@ -1327,7 +1327,7 @@ void SfuConnection::processNextCommand(bool resetSending)
 void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
-    SFU_LOG_ERROR("SfuConnection: clearing commands queue");
+    SFU_LOG_WARNING("SfuConnection: clearing commands queue");
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
@@ -2015,17 +2015,24 @@ promise::Promise<void> SfuConnection::reconnect()
                     if (isOnline() && cachedIpsByHost)
                     {
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
-                        SFU_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        SFU_LOG_ERROR_NO_STATS("DNS error, but connection is established. Relaying on cached IPs...");
                         return;
                     }
 
                     if (statusDNS < 0)
                     {
-                        SFU_LOG_ERROR("Async DNS error in sfu. Error code: %d", statusDNS);
+                        /* don't send log error to SFU stats server, if DNS error is:
+                         *  - UV__EAI_AGAIN  (-3001)
+                         *  - UV__EAI_NODATA (-3007)
+                         *  - UV__EAI_NONAME (-3008)
+                         */
+                        (statusDNS == 3001 || statusDNS == 3007 || statusDNS == 3008)
+                            ? SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Error code: %d", statusDNS)
+                            : SFU_LOG_ERROR("Async DNS error in sfu. Error code: %d", statusDNS);
                     }
                     else
                     {
-                        SFU_LOG_ERROR("Async DNS error in sfu. Empty set of IPs");
+                        SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Empty set of IPs");
                     }
 
                     assert(!isOnline());
@@ -2084,7 +2091,7 @@ promise::Promise<void> SfuConnection::reconnect()
             if (statusDNS < 0)
             {
                 std::string errStr = "Immediate DNS error in sfu. Error code: " + std::to_string(statusDNS);
-                SFU_LOG_ERROR("%s", errStr.c_str());
+                SFU_LOG_ERROR_NO_STATS("%s", errStr.c_str());
 
                 assert(mConnState == kResolving);
                 assert(!mConnectPromise.done());
