@@ -5554,17 +5554,8 @@ void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, 
 
 void MegaChatApiImpl::onDbError(int error, const string &msg)
 {
-    int dberr = MegaChatApiImpl::convertDbError(error);
-    if (dberr == MegaChatApi::DB_ERROR_UNEXPECTED)
-    {
-        // Any caller to this method, is responsible to provide an expected db error as param,
-        // otherwise we need to throw a runtime error to keep the expected behavior by apps
-        throw std::runtime_error("onDbError: Unexpected errCode(%d)" + std::to_string(dberr));
-    }
-    else
-    {
-        fireOnDbError(dberr, msg.c_str());
-    }
+    // any caller to this method, is responsible to provide a valid and expected error code by apps
+    fireOnDbError(MegaChatApiImpl::convertDbError(error), msg.c_str());
 }
 
 int MegaChatApiImpl::convertInitState(int state)
@@ -5606,10 +5597,13 @@ int MegaChatApiImpl::convertDbError(int errCode)
 {
     switch (errCode)
     {
-        case SQLITE_OK:     return MegaChatApi::DB_NO_ERROR;
         case SQLITE_IOERR:  return MegaChatApi::DB_ERROR_IO;
         case SQLITE_FULL:   return MegaChatApi::DB_ERROR_FULL;
-        default:            return MegaChatApi::DB_ERROR_UNEXPECTED;
+        default:
+        {
+            assert (false);
+            return MegaChatApi::DB_ERROR_UNEXPECTED;
+        }
     }
 }
 
