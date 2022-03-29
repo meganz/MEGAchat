@@ -27,6 +27,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
     MEGAChatCallTermCodeTooManyParticipants = 1,
     MEGAChatCallTermCodeCallReject = 2,
     MEGAChatCallTermCodeError = 3,
+    MEGAChatCallTermCodeNoParticipate = 4,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
