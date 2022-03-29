@@ -192,6 +192,9 @@ using namespace megachat;
         case MEGAChatCallTermCodeError:
             result = @"Error";
             break;
+        case MEGAChatCallTermCodeNoParticipate:
+            result = @"Removed from chatroom";
+            break;
     }
     return result;
 }
