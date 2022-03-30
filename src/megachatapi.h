@@ -2371,6 +2371,12 @@ public:
         CHAT_CONNECTION_ONLINE      = 3     /// Connection with chatd is ready and logged in
     };
 
+    enum
+    {
+        DB_ERROR_UNEXPECTED         = -1,   /// Unexpected database error (not received by apps, just for internal use)
+        DB_ERROR_IO                 = 1,    /// I/O error in Data base    (non recoverable)
+        DB_ERROR_FULL               = 2,    /// Database or disk is full  (non recoverable)
+    };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -6310,6 +6316,16 @@ public:
      * @param lastGreen Time elapsed (minutes) since the last time user was green
      */
     virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
+
+    /** @brief This function is called when an error occurred in an operation with karere Db
+     * Possible returned values:
+     *   - MegaChatApi::DB_ERROR_IO               = 1,    /// I/O error in Data base
+     *   - MegaChatApi::DB_ERROR_FULL             = 2,    /// Database or disk is full
+     *
+     * @param error Numeric error code
+     * @param errStr Error message
+     */
+    virtual void onDbError(MegaChatApi *api, int error, const char* msg);
 };
 
 /**

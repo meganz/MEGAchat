@@ -466,7 +466,7 @@ private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
 
-class MegaChatApiUnitaryTest
+class MegaChatApiUnitaryTest: public karere::IApp
 {
 public:
     bool UNITARYTEST_ParseUrl();
@@ -480,6 +480,12 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     friend sfu::SfuConnection;
 #endif
+
+   // karere::IApp implementation
+   IChatListHandler* chatListHandler() override;
+   void onPresenceConfigChanged(const presenced::Config& config, bool pending) override;
+   void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) override;
+   void onDbError(int error, const std::string &msg) override;
 };
 
 #ifndef KARERE_DISABLE_WEBRTC

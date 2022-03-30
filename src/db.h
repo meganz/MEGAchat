@@ -2,7 +2,14 @@
 #define _KARERE_DB_H
 
 #include <sqlite3.h>
+#include <assert.h>
+#include "buffer.h"
 #include "karereCommon.h"
+
+namespace karere
+{
+    class IApp;
+}
 
 struct SqliteString
 {
@@ -21,6 +28,7 @@ class SqliteDb
 {
 protected:
     friend class SqliteStmt;
+    karere::IApp &mApp;
     sqlite3* mDb = nullptr;
     bool mCommitEach = true;
     bool mHasOpenTransaction = false;
@@ -60,8 +68,8 @@ protected:
         return true;
     }
 public:
-    SqliteDb(sqlite3* db=nullptr, uint16_t commitInterval=20)
-    : mDb(db), mCommitInterval(commitInterval)
+    SqliteDb(karere::IApp &app)
+        : mApp(app)
     {}
     bool open(const char* fname, bool commitEach=true)
     {
@@ -131,21 +139,7 @@ public:
     operator const sqlite3*() const { return mDb; }
     template <class... Args>
     inline bool query(const char* sql, Args&&... args);
-    void simpleQuery(const char* sql)
-    {
-        SqliteString err;
-        auto ret = sqlite3_exec(mDb, sql, nullptr, nullptr, &err.mStr);
-        if (ret == SQLITE_OK)
-            return;
-        std::string msg("Error executing '");
-        msg.append(sql);
-        if (err.mStr)
-            msg.append("': ").append(err.mStr);
-        else
-            msg+='\'';
-
-        throw std::runtime_error(msg);
-    }
+    void simpleQuery(const char* sql);
     void commit()
     {
         if (mCommitEach)

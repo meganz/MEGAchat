@@ -5077,6 +5077,27 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     std::cout << "          TEST - SfuConnection::handleIncomingData() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
     return !failedTest;
 }
+
+karere::IApp::IChatListHandler* MegaChatApiUnitaryTest::chatListHandler()
+{
+    return nullptr;
+}
+
+void MegaChatApiUnitaryTest::onPresenceConfigChanged(const presenced::Config& /*config*/, bool /*pending*/)
+{
+
+}
+
+void MegaChatApiUnitaryTest::onPresenceLastGreenUpdated(karere::Id /*userid*/, uint16_t /*lastGreen*/)
+{
+
+}
+
+void MegaChatApiUnitaryTest::onDbError(int /*error*/, const std::string &/*msg*/)
+{
+
+}
+
 #endif
 
 TestMegaRequestListener::TestMegaRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)

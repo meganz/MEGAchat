@@ -20,6 +20,7 @@ public:
     virtual void onChatPresenceConfigUpdate(MegaChatApi* api, MegaChatPresenceConfig *config);
     virtual void onChatConnectionStateUpdate(MegaChatApi* api, MegaChatHandle chatid, int newState);
     virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
+    virtual void onDbError(MegaChatApi *api, int error, const char *msg);
 
 protected:
     virtual void customEvent(QEvent * event);
