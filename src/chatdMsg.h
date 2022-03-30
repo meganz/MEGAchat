@@ -756,7 +756,7 @@ public:
             KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr,
             BackRefId aBackRefId = 0, std::vector<BackRefId> aBackRefs = std::vector<BackRefId>())
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
-            updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp), backRefId(aBackRefId), backRefs(aBackRefs){}
+            updated(aUpdated), keyid(aKeyid), type(aType), backRefId(aBackRefId), backRefs(aBackRefs), userp(aUserp){}
 
     Message(const Message& msg)
         : Buffer(msg.buf(), msg.dataSize()), mId(msg.id()), mIdIsXid(msg.mIdIsXid), mIsEncrypted(msg.mIsEncrypted),
@@ -1198,7 +1198,7 @@ public:
         auto len = keybloblen();
         return StaticBuffer(readPtr(17, len), len);
     }
-    void setKeyBlobs(const char* keyblob, uint32_t len)
+    void setKeyBlobs(const char* keyblob, size_t len)
     {
         write(13, len);
         memcpy(writePtr(17, len), keyblob, len);
@@ -1242,14 +1242,14 @@ public:
             memset(buf()+39, 0, msglen()); //clear old message memory
         write(35, (uint32_t)0);
     }
-    void setMsg(const char* msg, uint32_t msglen)
+    void setMsg(const char* msg, size_t msglen)
     {
         write(35, msglen);
         memcpy(writePtr(39, msglen), msg, msglen);
     }
     void updateMsgSize()
     {
-        write<uint32_t>(35, static_cast<uint32_t>(dataSize())-39);
+        write<uint32_t>(35, static_cast<uint32_t>(dataSize()-39));
     }
 };
 

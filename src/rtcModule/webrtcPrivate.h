@@ -33,6 +33,8 @@ private:
     time_t mPreviousTime = 0;
     Call &mCall;
     bool mAudioDetected = false;
+
+    // Note that currently max CID allowed by this class is 65535
     int32_t mCid;
 };
 
@@ -64,23 +66,6 @@ public:
     LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void createEncryptor();
     void generateRandomIv();
-};
-
-/**
- * This class represent a webrtc transceiver for local high resolution video
- */
-class LocalHighResolutionSlot : public LocalSlot
-{
-public:
-     LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
-     void updateSentLayers(int8_t sentLayers);
-     void setTsStart(::mega::m_time_t t);
-     ::mega::m_time_t getTsStart();
-     int8_t getSentLayers();
-
-private:
-    ::mega::m_time_t mTsStart;
-    int8_t mSentLayers;
 };
 
 /**
@@ -447,7 +432,7 @@ protected:
     std::unique_ptr<LocalSlot> mAudio;
     std::unique_ptr<LocalSlot> mVThumb;
     bool mVThumbActive = false;  // true when sending low res video
-    std::unique_ptr<LocalHighResolutionSlot> mHiRes;
+    std::unique_ptr<LocalSlot> mHiRes;
     bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
@@ -484,7 +469,6 @@ protected:
     void collectNonRTCStats();
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
     void updateSvcQuality(int8_t delta);
-    void updateTransmittedSvcQuality(int8_t txSpt);
     void resetLocalAvFlags();
     bool isDisconnectionTermcode(const TermCode& termCode) const;
 };

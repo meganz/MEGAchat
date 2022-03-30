@@ -2,7 +2,14 @@
 #define _KARERE_DB_H
 
 #include <sqlite3.h>
+#include <assert.h>
+#include "buffer.h"
 #include "karereCommon.h"
+
+namespace karere
+{
+    class IApp;
+}
 
 struct SqliteString
 {
@@ -21,6 +28,7 @@ class SqliteDb
 {
 protected:
     friend class SqliteStmt;
+    karere::IApp &mApp;
     sqlite3* mDb = nullptr;
     bool mCommitEach = true;
     bool mHasOpenTransaction = false;
@@ -60,8 +68,8 @@ protected:
         return true;
     }
 public:
-    SqliteDb(sqlite3* db=nullptr, uint16_t commitInterval=20)
-    : mDb(db), mCommitInterval(commitInterval)
+    SqliteDb(karere::IApp &app)
+        : mApp(app)
     {}
     bool open(const char* fname, bool commitEach=true)
     {
@@ -131,21 +139,7 @@ public:
     operator const sqlite3*() const { return mDb; }
     template <class... Args>
     inline bool query(const char* sql, Args&&... args);
-    void simpleQuery(const char* sql)
-    {
-        SqliteString err;
-        auto ret = sqlite3_exec(mDb, sql, nullptr, nullptr, &err.mStr);
-        if (ret == SQLITE_OK)
-            return;
-        std::string msg("Error executing '");
-        msg.append(sql);
-        if (err.mStr)
-            msg.append("': ").append(err.mStr);
-        else
-            msg+='\'';
-
-        throw std::runtime_error(msg);
-    }
+    void simpleQuery(const char* sql);
     void commit()
     {
         if (mCommitEach)
@@ -264,7 +258,7 @@ public:
         const unsigned char* data = sqlite3_column_text(mStmt, num);
         if (!data)
             return std::string();
-        int size = sqlite3_column_bytes(mStmt, num);
+        size_t size = static_cast<size_t>(sqlite3_column_bytes(mStmt, num));
         return std::string((const char*)data, size);
     }
     bool hasBlobCol(int num)
@@ -302,7 +296,7 @@ public:
         const void* data = sqlite3_column_blob(mStmt, num);
         if (!data)
             return 0;
-        size_t size = sqlite3_column_bytes(mStmt, num);
+        size_t size = static_cast<size_t>(sqlite3_column_bytes(mStmt, num));
         if (size > buflen)
             throw std::runtime_error("blobCol: Insufficient buffer space for blob: required "+
                 std::to_string(size)+", provided "+std::to_string(buflen));
@@ -310,8 +304,9 @@ public:
         return size;
     }
 
-    uint64_t uint64Col(int num) { return (uint64_t)sqlite3_column_int64(mStmt, num);}
-    unsigned int uintCol(int num) { return (unsigned int)sqlite3_column_int(mStmt, num);}
+    // TODO: ensure that callers invoke the right prototype to avoid unnecessary castings
+    uint64_t uint64Col(int num) { return static_cast<uint64_t>(sqlite3_column_int64(mStmt, num));}
+    unsigned int uintCol(int num) { return static_cast<unsigned int>(sqlite3_column_int(mStmt, num));}
     bool isNullColumn (int num) const { return sqlite3_column_type(mStmt, num) == SQLITE_NULL; }
     int getColumnBytes (int num) const { return sqlite3_column_bytes(mStmt, num); }
 };

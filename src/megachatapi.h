@@ -350,11 +350,12 @@ public:
     };
 
     enum {
-        TERM_CODE_INVALID = -1,     // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
-        TERM_CODE_HANGUP = 0,       // Call has been finished by user
-        TERM_CODE_TOO_MANY_PARTICIPANTS = 1, // No possible to join the call, too many participants
-        TERM_CODE_REJECT = 2,       // Caller has hang up the call before no body answer the call
-        TERM_CODE_ERROR = 3,        // Call has been finished by error
+        TERM_CODE_INVALID                   = -1,   // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
+        TERM_CODE_HANGUP                    = 0,    // Call has been finished by user
+        TERM_CODE_TOO_MANY_PARTICIPANTS     = 1,    // No possible to join the call, too many participants
+        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before no body answer the call
+        TERM_CODE_ERROR                     = 3,    // Call has been finished by error
+        TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
     };
 
     enum
@@ -545,6 +546,7 @@ public:
      *  - TERM_CODE_TOO_MANY_PARTICIPANTS
      *  - TERM_CODE_ERROR
      *  - TERM_CODE_REJECT
+     *  - TERM_CODE_NO_PARTICIPATE
      *
      * @return termination code for the call
      */
@@ -2369,6 +2371,12 @@ public:
         CHAT_CONNECTION_ONLINE      = 3     /// Connection with chatd is ready and logged in
     };
 
+    enum
+    {
+        DB_ERROR_UNEXPECTED         = -1,   /// Unexpected database error (not received by apps, just for internal use)
+        DB_ERROR_IO                 = 1,    /// I/O error in Data base    (non recoverable)
+        DB_ERROR_FULL               = 2,    /// Database or disk is full  (non recoverable)
+    };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -6308,6 +6316,16 @@ public:
      * @param lastGreen Time elapsed (minutes) since the last time user was green
      */
     virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
+
+    /** @brief This function is called when an error occurred in an operation with karere Db
+     * Possible returned values:
+     *   - MegaChatApi::DB_ERROR_IO               = 1,    /// I/O error in Data base
+     *   - MegaChatApi::DB_ERROR_FULL             = 2,    /// Database or disk is full
+     *
+     * @param error Numeric error code
+     * @param errStr Error message
+     */
+    virtual void onDbError(MegaChatApi *api, int error, const char* msg);
 };
 
 /**

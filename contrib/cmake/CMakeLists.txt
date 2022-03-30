@@ -82,6 +82,7 @@ set (SRCS
     ${KarereDir}/src/presenced.cpp
     ${KarereDir}/src/megachatapi.cpp
     ${KarereDir}/src/megachatapi_impl.cpp
+    ${KarereDir}/src/kareredb.cpp
 
     ${KarereDir}/src/base/logger.cpp
     ${KarereDir}/src/net/websocketsIO.cpp

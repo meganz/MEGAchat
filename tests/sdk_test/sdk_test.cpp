@@ -94,8 +94,8 @@ int main(int argc, char **argv)
 }
 
 ChatTestException::ChatTestException(const std::string &file, int line, const std::string &msg)
-    : mFile(file)
-    , mLine(line)
+    : mLine(line)
+    , mFile(file)
     , mMsg(msg)
 {
     mExceptionText = mFile + ":" + std::to_string(mLine) + ": Failure";
@@ -919,7 +919,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     LOG_debug << "Going to sleep for longer than autoaway timeout";
     MegaChatPresenceConfig *config = megaChatApi[accountIndex]->getPresenceConfig();
 
-    sleep(config->getAutoawayTimeout() + 12);   // +12 to ensure at least one heartbeat (every 10s), where the `USERACTIVE 0` is sent for transition to Away
+    sleep(static_cast<unsigned int>(config->getAutoawayTimeout() + 12));   // +12 to ensure at least one heartbeat (every 10s), where the `USERACTIVE 0` is sent for transition to Away
 
     // and check the status is away
     ASSERT_CHAT_TEST(mOnlineStatus[accountIndex] == MegaChatApi::STATUS_AWAY,
@@ -1783,7 +1783,7 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
     chatroomListener->clearMessages(a1);
     chatroomListener->clearMessages(a2);
-    megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
+    std::unique_ptr<MegaChatMessage> messageSent(megaChatApi[a1]->sendMessage(chatid, msg0.c_str()));
     ASSERT_CHAT_TEST(waitForResponse(msgConfirmed), "Timeout expired for receiving confirmation by server");    // for confirmation, sendMessage() is synchronous
     MegaChatHandle msgId = chatroomListener->mConfirmedMessageHandle[a1];
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a1, msgId), "Message not received");
@@ -5024,56 +5024,80 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
 #ifndef KARERE_DISABLE_WEBRTC
 bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 {
-    ::mega::LibuvWaiter waiter;
-    LibwebsocketsIO::Mutex mutex;
-    LibwebsocketsIO webSocket(mutex, &waiter, nullptr, nullptr);
-    mOKTests ++;
-    ::mega::MegaApi megaApi(nullptr);
+    std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
+    mOKTests++;
     MockupCall call;
-    SqliteDb mockupDb;
-    DNScache mockupCache(mockupDb, chatd::Client::chatdVersion);
-    karere::Url sfuUrl("SFU-URL");
-    sfu::SfuConnection sfuConnection(std::move(sfuUrl), webSocket, nullptr, call, mockupCache);
+    std::map<std::string, std::unique_ptr<sfu::Command>> commands;
+    sfu::SfuConnection::setCallbackToCommands(call, commands);
+    std::map<std::string, bool> checkCommands;
+    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"]     = false;
+    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"]                            = false;
+    checkCommands["{\"a\":\"HIRES_STOP\"}"]                                                     = true;
+    checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2}"]                                             = true;
+    checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"]         = true;
+    checkCommands["{\"a\":\"HIRES_START\"}"]                                                    = true;
+    checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"]                             = false;
+    checkCommands["{\"err\":129}"]                                                              = true;
 
     int failedTest = 0;
     int executedTests = 0;
-    bool succesful = true;
-
-    std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
-    std::map<std::string, bool> checkCommands;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"] = false;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"] = false;
-    checkCommands["{\"a\":\"HIRES_STOP\"}"] = true;
-    checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2}"] = true;
-    checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"] = true;
-    checkCommands["{\"a\":\"HIRES_START\"}"] = true;
-    checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"] = false;
-    checkCommands["{\"err\":129}"] = true;
-
-
-
     for (auto testCase : checkCommands)
     {
-        executedTests ++;
-        if (sfuConnection.handleIncomingData(testCase.first.c_str(), testCase.first.length()) != testCase.second)
+        executedTests++;
+        int32_t errCode = INT32_MIN; // init errCode to invalid value, to check if a valid errCode has been returned by SFU
+        std::string command;
+        std::string errMsg;
+        rapidjson::Document document;
+        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, command, errMsg, errCode);
+
+        /* Command processing is considered failed if:
+         * 1) An error happened upon parsing "SFU" incoming data
+         * 2) Parsed command could not be found at commands
+         * 3) An error happened processing parsed command (processCommand)
+         */
+        bool commandProcSuccess = parseSuccess
+               && (errCode != INT32_MIN
+                    || (commands.find(command) != commands.end() && commands[command]->processCommand(document)));
+
+        if (commandProcSuccess != testCase.second)
         {
+            std::string errStr = "          [FAILED processing SFU command] :";
+            errStr.append(testCase.first).append(". ").append(errMsg);
             failedTest++;
-            std::cout << "         [" << " FAILED Parse" << "] " << testCase.first << std::endl;
-            LOG_debug << "Failed to parse: " << testCase.first;
+            std::cout << errStr << std::endl;
+            LOG_debug << errStr;
         }
     }
 
     if (failedTest > 0)
     {
-        mFailedTests ++;
-        succesful = false;
+        mFailedTests++;
     }
 
-    std::cout << "          TEST - Message::parseUrl() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
-    return succesful;
-
-    return true;
+    std::cout << "          TEST - SfuConnection::handleIncomingData() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
+    return !failedTest;
 }
+
+karere::IApp::IChatListHandler* MegaChatApiUnitaryTest::chatListHandler()
+{
+    return nullptr;
+}
+
+void MegaChatApiUnitaryTest::onPresenceConfigChanged(const presenced::Config& /*config*/, bool /*pending*/)
+{
+
+}
+
+void MegaChatApiUnitaryTest::onPresenceLastGreenUpdated(karere::Id /*userid*/, uint16_t /*lastGreen*/)
+{
+
+}
+
+void MegaChatApiUnitaryTest::onDbError(int /*error*/, const std::string &/*msg*/)
+{
+
+}
+
 #endif
 
 TestMegaRequestListener::TestMegaRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)

@@ -257,7 +257,7 @@ void PeerWidget::drawAvatar(QImage &image, QChar letter, uint64_t userid, bool o
     painter.setBrush(QBrush(Qt::white));
     painter.drawEllipse(QPointF(cx, cy), (float)w/3.7, (float)h/3.7);
 
-    QFont font("Helvetica", h/3.3);
+    QFont font("Helvetica", static_cast<int>(h/3.3));
     font.setWeight(QFont::Light);
     painter.setFont(font);
     painter.setPen(QPen(color));

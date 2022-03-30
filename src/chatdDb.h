@@ -179,7 +179,7 @@ public:
         SqliteStmt stmt(mDb, "select userid, keyid from history where msgid = ?");
         stmt << msgid;
         stmt.stepMustHaveData("getMessageUserKeyId");
-        userid = stmt.int64Col(0);
+        userid = static_cast<const uint64_t>(stmt.int64Col(0));
         keyid = stmt.uintCol(1);
     }
 
@@ -196,11 +196,11 @@ public:
         {
             int rowid = stmt.intCol(0);
             uint8_t opcode = static_cast<uint8_t>(stmt.intCol(1));
-            karere::Id msgid = stmt.int64Col(2);
+            karere::Id msgid = static_cast<const uint64_t>(stmt.int64Col(2));
             karere::Id userid = mChat.client().myHandle();
             chatd::KeyId keyid = (chatd::KeyId)stmt.intCol(3);
             unsigned char type = (unsigned char)stmt.intCol(5);
-            uint32_t ts = stmt.intCol(6);
+            uint32_t ts = static_cast<uint32_t>(stmt.intCol(6));
             uint16_t updated = static_cast<uint16_t>(stmt.intCol(7));
 
             assert((opcode == chatd::OP_NEWMSG)
@@ -340,7 +340,7 @@ public:
             Buffer buf;
             stmt.blobCol(5, buf);
             auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().myHandle(),
-                stmt.uintCol(3), static_cast<uint16_t>(stmt.intCol(4)), std::move(buf), true,
+                static_cast<uint32_t>(stmt.int64Col(3)), static_cast<uint16_t>(stmt.intCol(4)), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(6)), static_cast<chatd::ManualSendReason>(stmt.intCol(7)));
         }
@@ -360,7 +360,7 @@ public:
         Buffer buf;
         stmt.blobCol(4, buf);
         auto msg = new chatd::Message(stmt.uint64Col(0), mChat.client().myHandle(),
-                                      stmt.uintCol(2), static_cast<uint16_t>(stmt.intCol(3)), std::move(buf), true,
+                                      static_cast<uint32_t>(stmt.int64Col(2)), static_cast<uint16_t>(stmt.intCol(3)), std::move(buf), true,
                                       CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(1));
         item.msg = msg;
         item.rowid = rowid;
@@ -390,7 +390,7 @@ public:
         SqliteStmt stmt(mDb, "select min(idx) from history where chatid = ?");
         stmt << mChat.chatId();
         stmt.stepMustHaveData(__FUNCTION__);
-        return stmt.uint64Col(0);
+        return static_cast<chatd::Idx>(stmt.uint64Col(0));
     }
 
     uint32_t getOldestMsgTs() override
@@ -454,8 +454,8 @@ public:
         }
         Buffer buf(128);
         stmt.blobCol(2, buf);
-        msg.assign(buf, static_cast<uint8_t>(stmt.intCol(0)), stmt.uint64Col(3), static_cast<chatd::Idx>(stmt.intCol(1)), stmt.uint64Col(4));
-        lastTs = stmt.uintCol(5);
+        msg.assign(buf, static_cast<uint8_t>(stmt.intCol(0)), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
+        lastTs = stmt.intCol(5);
     }
 
     //Insert a new chat var related to a chat. This function receives as parameters the var name and it's value
@@ -590,7 +590,7 @@ public:
             }
 #endif
             auto msg = new chatd::Message(msgid, userid, ts, static_cast<uint16_t>(stmt.intCol(8)), std::move(buf),
-                false, keyid, (unsigned char)stmt.intCol(3));
+                false, keyid, static_cast<unsigned char>(stmt.intCol(3)));
             msg->backRefId = stmt.uint64Col(7);
             msg->setEncrypted((uint8_t)stmt.intCol(9));
             messages.push_back(msg);
@@ -662,7 +662,7 @@ public:
         stmt << mChat.chatId();
         while (stmt.step())
         {
-            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), karere::Id(stmt.uint64Col(3)), static_cast<uint8_t>(stmt.intCol(4))));
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), stmt.uint64Col(3), static_cast<uint8_t>(stmt.uint64Col(4))));
         }
     }
 

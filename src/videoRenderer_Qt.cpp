@@ -18,7 +18,7 @@ void VideoRendererQt::updateImageSlot()
 
 void VideoRendererQt::showEvent(QShowEvent *)
 {
-    mFrozen &= ~kFrozenByHide;
+    mFrozen &= static_cast<unsigned char>(~kFrozenByHide);
 }
 
 void VideoRendererQt::hideEvent(QHideEvent *)
@@ -44,12 +44,12 @@ void VideoRendererQt::enableStaticImage()
 
 void VideoRendererQt::disableStaticImage()
 {
-    mFrozen &= ~kFrozenForStaticImage;
+    mFrozen &= static_cast<unsigned char>(~kFrozenForStaticImage);
 }
 
 void VideoRendererQt::clearStaticImage()
 {
-    mFrozen &= ~kFrozenForStaticImage;
+    mFrozen &= static_cast<unsigned char>(~kFrozenForStaticImage);
     mStaticImage.reset();
 }
 

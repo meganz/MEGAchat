@@ -627,7 +627,7 @@ ProtocolHandler::reactionEncrypt(const Message &msg, const std::string &reaction
     }
 
     // Add padding to reaction
-    size_t emojiLenWithPadding = ceil(static_cast<float>(reaction.size()) / 4) * 4;
+    size_t emojiLenWithPadding = static_cast<size_t>(ceil(static_cast<float>(reaction.size()) / 4) * 4);
     size_t paddingSize = emojiLenWithPadding - reaction.size();
 
     // Concat msgid[0..3] with emoji and padding

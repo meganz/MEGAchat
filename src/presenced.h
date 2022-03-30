@@ -44,7 +44,7 @@ public:
     };
 
     Presence(Code pres = kUnknown): mPres(pres){}
-    Code code() const { return mPres & static_cast<uint8_t>(~kFlagsMask); }
+    Code code() const { return static_cast<Code>(mPres & ~kFlagsMask); }
     Code status() const { return code(); }
     operator Code() const { return code(); }
     Code raw() const { return mPres; }
@@ -274,7 +274,7 @@ public:
     /** True if the autoaway should be considered to signal user's activity or not */
     bool autoAwayInEffect() const;
 
-    void fromCode(karere::Presence::Code code);
+    void fromCode(uint16_t code);
     uint16_t toCode() const;
     std::string toString() const;
 

@@ -24,7 +24,7 @@ SvcDriver::SvcDriver ()
 
 bool SvcDriver::setSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& rxStmp, int8_t& txSpt)
 {
-    int8_t newSvcLayerIndex = mCurrentSvcLayerIndex + delta;
+    int8_t newSvcLayerIndex = static_cast<int8_t>(mCurrentSvcLayerIndex + delta);
     if (newSvcLayerIndex < 0 || newSvcLayerIndex > kMaxQualityIndex)
     {
         return false;
@@ -656,47 +656,6 @@ void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
     }
 }
 
-void Call::updateTransmittedSvcQuality(int8_t txSpt)
-{
-    if (!mHiRes || !mHiResActive)
-    {
-        return;
-    }
-
-    bool update = false;
-    int8_t currentSentLayers = mHiRes->getSentLayers();
-    int8_t newSentLayers = txSpt + 1; // +1 as txSpatial component starts at zero in layers definition
-
-    if (newSentLayers < currentSentLayers)
-    {
-        update = true; // decrease tx SVC quality
-    }
-    else if (newSentLayers > currentSentLayers
-             && mStats.mSamples.mVtxHiResfps.size()
-             && mStats.mSamples.mVtxHiResfps.back() >= 12)
-    {
-            // increase tx SVC quality but only if not overloaded
-            newSentLayers = currentSentLayers + 1; // don't set directly to newSentLayers - just increase 1 step
-            update = true;
-    }
-    else if (mStats.mSamples.mVtxHiResfps.size() && mStats.mSamples.mVtxHiResfps.back() < 5
-             && currentSentLayers > 1
-             && (::mega::m_time(nullptr) - mHiRes->getTsStart() >= mSvcDriver.kMinTimeBetweenSwitches))
-    {
-            // too low fps
-            update = true;
-            newSentLayers = currentSentLayers - 1;  // don't set directly to newSentLayers - just decrease 1 step
-            RTCM_LOG_WARNING("Apparent local CPU/bandwidth starvation (fps = %d), disabling highest SVC resolution", mStats.mSamples.mVtxHiResfps.back());
-    }
-
-    if (update)
-    {
-        RTCM_LOG_WARNING("Adjusting TX Spatial sent layers from %d to %d", currentSentLayers, newSentLayers);
-        mHiRes->updateSentLayers(newSentLayers);
-        mSvcDriver.mTsLastSwitch = time(nullptr); // update last Ts SVC switch
-    }
-}
-
 void Call::updateSvcQuality(int8_t delta)
 {
     // layer: rxSpatial (resolution), rxTemporal (FPS), rxScreenTemporal (for screen video), txSpatial (resolution)
@@ -714,9 +673,6 @@ void Call::updateSvcQuality(int8_t delta)
 
     // adjust Received SVC quality by sending LAYER command
     mSfuConnection->sendLayer(rxSpt, rxTmp, rxStmp);
-
-    // adjust Transmitted SVC quality by adjusting sent encodings
-    updateTransmittedSvcQuality(txSpt);
 }
 
 std::vector<karere::Id> Call::getParticipants() const
@@ -876,7 +832,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
     hiresTrackIndex = mRtcConn->GetTransceivers().size() - 1; // keep this sentence just after add transceiver for hiRes track
-    mHiRes = ::mega::make_unique<LocalHighResolutionSlot>(*this, err.MoveValue());
+    mHiRes = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitAudio;
@@ -1433,7 +1389,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
         return false;
     }
 
-    sfu::Peer peer(userid, av, cid);
+    sfu::Peer peer(userid, static_cast<unsigned>(av), cid);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler.onNewSession(*mSessions[cid], *this);
     // update max peers seen in call
@@ -1536,11 +1492,11 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
         std::string value = mid.value();
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
         {
-            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver);
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver);
         }
         else
         {
-            mReceiverTracks[atoi(value.c_str())] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver);
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver);
         }
     }
 }
@@ -1559,20 +1515,24 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
         return;
     }
 
-    if ((newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
-        || (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed))
+    if (newState >= webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
     {
+        // if mState is kDisconnected | kFailed | kClosed we need to clear commands queue and set sending as false
+        // otherwise nextcommand could get stucked
+        if (mSfuConnection)
+        {
+            mSfuConnection->clearCommandsQueue();
+        }
+
         if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateConnecting isn't included to avoid interrupting a reconnection in progress
         {
-            if (mState == CallState::kStateInProgress
-                    && newState == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
+            if (mState == CallState::kStateInProgress)
             {
                 handleCallDisconnect(TermCode::kRtcDisconn);
             }
 
             setState(CallState::kStateConnecting);
             mSfuConnection->retryPendingConnection(true);
-            mSfuConnection->clearCommandsQueue();
         }
     }
     else if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected)
@@ -1594,7 +1554,7 @@ Keyid_t Call::generateNextKeyId()
     }
     else
     {
-        return mMyPeer->getCurrentKeyId() + 1;
+        return static_cast<Keyid_t>(mMyPeer->getCurrentKeyId() + 1);
     }
 }
 
@@ -1890,7 +1850,7 @@ void Call::collectNonRTCStats()
     }
 
     // TODO: pending to implement disabledTxLayers in future if needed
-    mStats.mSamples.mQ.push_back(static_cast<int32_t>(mSvcDriver.mCurrentSvcLayerIndex) | static_cast<int32_t>(mHiRes->getSentLayers()) << 8);
+    mStats.mSamples.mQ.push_back(static_cast<int32_t>(mSvcDriver.mCurrentSvcLayerIndex) | static_cast<int32_t>(kTxSpatialLayerCount) << 8);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
@@ -1909,7 +1869,7 @@ void Call::initStatsValues()
 void Call::enableStats()
 {
     mStats.mCid = mMyPeer->getCid();
-    mStats.mTimeOffset = mOffset;
+    mStats.mTimeOffset = static_cast<uint64_t>(mOffset);
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
     {
@@ -1982,12 +1942,10 @@ void Call::updateVideoTracks()
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
                 mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
-                mHiRes->setTsStart(::mega::m_time(nullptr));
             }
             else if (!mHiResActive)
             {
                 // if there is a track, but none in the call has requested hi res video, disable the track
-                mHiRes->setTsStart(0);
                 mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
             }
         }
@@ -2315,7 +2273,7 @@ std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
 
 unsigned int RtcModuleSfu::getNumCalls()
 {
-    return mCalls.size();
+    return static_cast<unsigned int>(mCalls.size());
 }
 
 const std::string& RtcModuleSfu::getVideoDeviceSelected() const
@@ -2573,7 +2531,7 @@ uint32_t Slot::getTransceiverMid() const
         return 0;
     }
 
-    return atoi(mTransceiver->mid()->c_str());
+    return static_cast<uint32_t>(atoi(mTransceiver->mid()->c_str()));
 }
 
 void RemoteSlot::release()
@@ -2649,56 +2607,6 @@ void LocalSlot::createEncryptor()
 void LocalSlot::generateRandomIv()
 {
     randombytes_buf(&mIv, sizeof(mIv));
-}
-
-LocalHighResolutionSlot::LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : LocalSlot(call, transceiver)
-    , mTsStart(0)
-    , mSentLayers(kTxSpatialLayerCount)
-{
-}
-
-void LocalHighResolutionSlot::updateSentLayers(int8_t sentLayers)
-{
-    mSentLayers = sentLayers;
-
-    if (!getTransceiver()->sender()->track())
-    {
-        RTCM_LOG_WARNING("updateSentLayers: Currently not sending HI-RES track, will only record sentLayers value");
-        return;
-    }
-
-    // each vector element describes a single configuration of a codec for an RTPSender
-    webrtc::RtpParameters parameters = getTransceiver()->sender()->GetParameters();
-    std::vector<webrtc::RtpEncodingParameters> encs = parameters.encodings;
-    if (encs.empty() || encs.size() < 2)
-    {
-        RTCM_LOG_WARNING("updateSentLayers: There is no SVC enabled for this sender");
-        return;
-    }
-
-    for (size_t i = 0; i < encs.size(); i++)
-    {
-        encs[i].active = i < static_cast<size_t>(mSentLayers);
-    }
-
-    RTCM_LOG_WARNING("updateSentLayers: Enabling first %d sent layers",mSentLayers);
-    getTransceiver()->sender()->SetParameters(parameters);
-}
-
-void LocalHighResolutionSlot::setTsStart(::mega::m_time_t t)
-{
-    mTsStart = t;
-}
-
-::mega::m_time_t LocalHighResolutionSlot::getTsStart()
-{
-    return mTsStart;
-}
-
-int8_t LocalHighResolutionSlot::getSentLayers()
-{
-    return mSentLayers;
 }
 
 RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -2833,7 +2741,7 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
 void RemoteAudioSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
 {
     RemoteSlot::createDecryptor(cid, iv);
-    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mCid));
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, static_cast<int32_t>(mCid)));
 }
 
 void RemoteAudioSlot::release()
@@ -3109,7 +3017,7 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
 
 bool AudioLevelMonitor::hasAudio()
 {
-    Session *sess = mCall.getSession(mCid);
+    Session *sess = mCall.getSession(static_cast<Cid_t>(mCid));
     if (sess)
     {
         return sess->getAvFlags().audio();
@@ -3120,8 +3028,8 @@ bool AudioLevelMonitor::hasAudio()
 void AudioLevelMonitor::onAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
-    assert(mCall.getSession(mCid));
-    Session *sess = mCall.getSession(mCid);
+    assert(mCall.getSession(static_cast<Cid_t>(mCid)));
+    Session *sess = mCall.getSession(static_cast<Cid_t>(mCid));
     sess->setAudioDetected(mAudioDetected);
 }
 }

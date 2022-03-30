@@ -236,12 +236,12 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
         if ((changed & desc.changeMask) == 0)
             continue; //the change is not of this attrib type
 
-        uint8_t type = static_cast<uint8_t>(it->first);
-        UserAttrPair key(userid, type);
+        int type = it->first;
+        UserAttrPair key(userid, static_cast<uint8_t>(type));
         auto it = find(key);
         if (it == end()) //we don't have such attribute
         {
-            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(type));
+            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(static_cast<uint8_t>(type)));
             continue;
         }
         auto& item = it->second;
@@ -375,7 +375,7 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
 
 const Buffer *UserAttrCache::getDataFromCache(uint64_t user, uint8_t attrType)
 {
-    UserAttrPair key(user, attrType);
+    UserAttrPair key(user, static_cast<uint8_t>(attrType));
     auto it = find(key);
     if (it == end())
     {
@@ -388,7 +388,7 @@ const Buffer *UserAttrCache::getDataFromCache(uint64_t user, uint8_t attrType)
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, uint8_t type,
             void* userp, UserAttrReqCbFunc cb, bool oneShot, bool fetch, uint64_t ph)
 {
-    UserAttrPair key(userHandle, type, ph);
+    UserAttrPair key(userHandle, static_cast<uint8_t>(type), ph);
     auto it = find(key);
     if (it != end())
     {
