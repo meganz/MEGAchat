@@ -60,6 +60,8 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
     MEGAChatMessageEndCallReasonCancelled = 5
 };
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface MEGAChatMessage : NSObject
 
 @property (readonly, nonatomic) MEGAChatMessageStatus status;
@@ -69,8 +71,8 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
 @property (readonly, nonatomic) uint64_t userHandle;
 @property (readonly, nonatomic) MEGAChatMessageType type;
 @property (readonly, nonatomic) BOOL hasConfirmedReactions;
-@property (readonly, nonatomic) NSDate *timestamp;
-@property (readonly, nonatomic) NSString *content;
+@property (readonly, nonatomic, nullable) NSDate *timestamp;
+@property (readonly, nonatomic, nullable) NSString *content;
 @property (readonly, nonatomic, getter=isEdited) BOOL edited;
 @property (readonly, nonatomic, getter=isDeleted) BOOL deleted;
 @property (readonly, nonatomic, getter=isEditable) BOOL editable;
@@ -81,20 +83,20 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
 @property (readonly, nonatomic) MEGAChatMessageChangeType changes;
 @property (readonly, nonatomic) MEGAChatMessageReason code;
 @property (readonly, nonatomic) NSUInteger usersCount;
-@property (readonly, nonatomic) MEGANodeList *nodeList;
-@property (readonly, nonatomic) MEGAHandleList *handleList;
+@property (readonly, nonatomic, nullable) MEGANodeList *nodeList;
+@property (readonly, nonatomic, nullable) MEGAHandleList *handleList;
 @property (readonly, nonatomic) NSInteger duration;
 @property (readonly, nonatomic) NSUInteger retentionTime;
 @property (readonly, nonatomic) MEGAChatMessageEndCallReason termCode;
 @property (readonly, nonatomic) uint64_t rowId;
-@property (readonly, nonatomic) MEGAChatContainsMeta *containsMeta;
+@property (readonly, nonatomic, nullable) MEGAChatContainsMeta *containsMeta;
 
 - (instancetype)clone;
 
 - (BOOL)hasChangedForType:(MEGAChatMessageChangeType)changeType;
 - (uint64_t)userHandleAtIndex:(NSUInteger)index;
-- (NSString *)userNameAtIndex:(NSUInteger)index;
-- (NSString *)userEmailAtIndex:(NSUInteger)index;
+- (nullable NSString *)userNameAtIndex:(NSUInteger)index;
+- (nullable NSString *)userEmailAtIndex:(NSUInteger)index;
 
 + (NSString *)stringForChangeType:(MEGAChatMessageChangeType)changeType;
 + (NSString *)stringForStatus:(MEGAChatMessageStatus)status;
@@ -103,3 +105,5 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
 + (NSString *)stringForEndCallReason:(MEGAChatMessageEndCallReason)reason;
 
 @end
+
+NS_ASSUME_NONNULL_END
