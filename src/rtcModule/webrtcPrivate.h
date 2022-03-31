@@ -265,6 +265,8 @@ public:
     uint8_t getEndCallReason() const override;
 
     // called upon reception of OP_JOINEDCALL from chatd
+    void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) override;
+    // called from joinedCallUpdateParticipants (upon reception of OP_JOINEDCALL from chatd)
     void addParticipant(karere::Id peer) override;
     // called upon reception of OP_LEFTCALL from chatd
     void removeParticipant(karere::Id peer) override;
@@ -408,6 +410,8 @@ protected:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
+    // this flag indicates if we are connected to chatd or not, in order to update mParticipants from chatd or SFU (in case we lost chatd connectivity)
+    bool mIsConnectedToChatd = false;
 
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;

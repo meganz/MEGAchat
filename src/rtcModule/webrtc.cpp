@@ -128,6 +128,43 @@ CallState Call::getState() const
     return mState;
 }
 
+void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
+{
+    if (mIsConnectedToChatd)
+    {
+        for (const karere::Id &peer : usersJoined)
+        {
+            // if we haven't experimented a chatd connection lost (mIsConnectedToChatd == true) just add received peers
+            mParticipants.insert(peer);
+            mCallHandler.onAddPeer(*this, peer);
+        }
+    }
+    else
+    {
+        for (const karere::Id &recvPeer : usersJoined)
+        {
+            if (mParticipants.find(recvPeer) == mParticipants.end())
+            {
+                // add new participant received at OP_JOINEDCALL
+                mParticipants.insert(recvPeer);
+                mCallHandler.onAddPeer(*this, recvPeer);
+            }
+        }
+
+        for (const karere::Id &peer : mParticipants)
+        {
+            if (usersJoined.find(peer) == usersJoined.end())
+            {
+                // remove participant from mParticipants, not present at list received at OP_JOINEDCALL
+                mParticipants.erase(peer);
+                mCallHandler.onRemovePeer(*this, peer);
+            }
+        }
+
+        mIsConnectedToChatd = true; // we can assume that we are connected to chatd, and our participants list is up to date
+    }
+}
+
 void Call::addParticipant(karere::Id peer)
 {
     if (peer == mMyPeer->getPeerid())
@@ -142,18 +179,7 @@ void Call::addParticipant(karere::Id peer)
 
 void Call::onDisconnectFromChatd()
 {
-    if (participate())
-    {
-        handleCallDisconnect(TermCode::kChatDisconn);
-        setState(CallState::kStateConnecting);
-        mSfuConnection->disconnect(true);
-    }
-
-    for (auto &it : mParticipants)
-    {
-        mCallHandler.onRemovePeer(*this, it);
-    }
-    mParticipants.clear();
+    mIsConnectedToChatd = false;
 }
 
 void Call::reconnectToSfu()
@@ -1395,6 +1421,15 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     // update max peers seen in call
     mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
     generateAndSendNewkey();
+
+    if (!mIsConnectedToChatd)
+    {
+        // if we are disconnected from chatd, but still connected to SFU and participating in a call
+        // we need to update participants list with SFU information
+        mParticipants.insert(peer.getPeerid());
+        mCallHandler.onAddPeer(*this, peer.getPeerid());
+    }
+
     return true;
 }
 
@@ -1412,6 +1447,14 @@ bool Call::handlePeerLeft(Cid_t cid)
     {
         RTCM_LOG_ERROR("handlePeerLeft: unknown cid");
         return false;
+    }
+
+    if (!mIsConnectedToChatd)
+    {
+        // if we are disconnected from chatd but still connected to SFU, and participating in a call
+        // we need to update participants list with SFU information
+        mParticipants.erase(it->second->getPeerid());
+        mCallHandler.onRemovePeer(*this, it->second->getPeerid());
     }
 
     it->second->disableAudioSlot();
@@ -2311,10 +2354,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
 
 void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersJoined)
 {
-    for (const karere::Id &peer : usersJoined)
-    {
-        mCalls[callid]->addParticipant(peer);
-    }
+    mCalls[callid]->joinedCallUpdateParticipants(usersJoined);
 }
 
 void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersLeft)
