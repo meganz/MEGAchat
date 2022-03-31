@@ -135,7 +135,7 @@ void Call::addParticipant(karere::Id peer)
         setRinging(false);
     }
 
-    mParticipants.push_back(peer);
+    mParticipants.insert(peer);
     mCallHandler.onAddPeer(*this, peer);
 }
 
@@ -675,7 +675,7 @@ void Call::updateSvcQuality(int8_t delta)
     mSfuConnection->sendLayer(rxSpt, rxTmp, rxStmp);
 }
 
-std::vector<karere::Id> Call::getParticipants() const
+std::set<karere::Id> Call::getParticipants() const
 {
     return mParticipants;
 }
@@ -2309,7 +2309,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
     }
 }
 
-void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::vector<karere::Id> &usersJoined)
+void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersJoined)
 {
     for (const karere::Id &peer : usersJoined)
     {
@@ -2317,7 +2317,7 @@ void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, co
     }
 }
 
-void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, const std::vector<karere::Id> &usersLeft)
+void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersLeft)
 {
     for (const karere::Id &peer : usersLeft)
     {

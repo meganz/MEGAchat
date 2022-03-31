@@ -194,7 +194,7 @@ public:
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
 
-    virtual std::vector<karere::Id> getParticipants() const = 0;
+    virtual std::set<karere::Id> getParticipants() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
     virtual ISession* getIsession(Cid_t cid) const = 0;
     virtual bool isOutgoing() const = 0;
@@ -230,8 +230,8 @@ public:
 
     virtual void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) = 0;
 
-    virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) = 0;
-    virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) = 0;
+    virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) = 0;
+    virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) = 0;
     virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 

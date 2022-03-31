@@ -319,7 +319,7 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
-    std::vector<karere::Id> getParticipants() const override;
+    std::set<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
 
@@ -398,7 +398,10 @@ public:
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
 
 protected:
-    std::vector<karere::Id> mParticipants; // managed exclusively by meetings related chatd commands
+    /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands
+     * if we are disconnected from chatd (chatd connectivity lost), but still participating in a call, peerleft and peerjoin SFU commands
+     * could also add/remove participants to this list, in order to keep participants up to date */
+    std::set<karere::Id> mParticipants;
     karere::Id mCallid;
     karere::Id mChatid;
     karere::Id mCallerId;
@@ -497,8 +500,8 @@ public:
 
     void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
 
-    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
-    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
+    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
+    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;
     void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
