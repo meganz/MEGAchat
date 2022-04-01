@@ -71,6 +71,7 @@ int main(int argc, char **argv)
 
 #ifndef KARERE_DISABLE_WEBRTC
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
+    EXECUTE_TEST(t.TEST_EstablishedCalls(0, 1), "TEST Groupal meeting without audio nor video");
 #endif
 
     // The tests below are manual tests. They require the call to be answered from another client
@@ -3389,6 +3390,207 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
 
     delete [] primarySession;
     primarySession = NULL;
+}
+
+/**
+ * @brief TEST_EstablishedCalls
+ *
+ * Requirements:
+ *      - Both accounts should be conctacts
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ * + A starts a groupal Meeting in chat1 (without audio nor video)
+ * - B answers call (without audio nor video)
+ * - B puts call in hold on
+ * + A puts call in hold on
+ * + A releases hold on
+ * - B releases hold on
+ * - B enables audio monitor
+ * - B disables audio monitor
+ * + A force reconnect => retryPendingConnections(true)
+ * - B hangs up call
+ * + A hangs up call
+ */
+void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
+{
+    // Prepare users, and chat room
+    std::unique_ptr<char[]> primarySession(login(a1));
+    std::unique_ptr<char[]> secondarySession(login(a2));
+
+    std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str()));
+    if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+    {
+        makeContact(a1, a2);
+    }
+    // Get a group chatroom with both users
+    MegaChatHandle uh = user->getHandle();
+    std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
+    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers.get());
+    ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE,
+                     "Common chat for both users not found.");
+    ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(chatid)
+                      == MegaChatApi::CHAT_CONNECTION_ONLINE),
+                     "Not connected to chatd for account " + std::to_string(a1+1) + ": "
+                     + mAccounts[a1].getEmail());
+
+    std::unique_ptr<TestChatRoomListener>chatroomListener(new TestChatRoomListener(this,
+                                                                                   megaChatApi,
+                                                                                   chatid));
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener.get()),
+                     "Can't open chatRoom account 1");
+    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener.get()),
+                     "Can't open chatRoom account 2");
+
+    loadHistory(a1, chatid, chatroomListener.get());
+    loadHistory(a2, chatid, chatroomListener.get());
+
+    TestChatVideoListener localVideoListenerA1, localVideoListenerA2;
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListenerA1);
+    megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerA2);
+
+    bool* callInProgress = &mCallInProgress[a1]; *callInProgress = false;
+    bool* callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
+    bool* callDestroyed0 = &mCallDestroyed[a1]; *callDestroyed0 = false;
+    bool* callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
+    int* termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
+    int* termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
+    bool* flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL];
+    *flagRequest = false;
+    bool* flagHangUpCall1 = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL];
+    bool* flagHangUpCall0 = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL];
+    *flagHangUpCall0 = false; *flagHangUpCall1 = false;
+    mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
+    mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
+    mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
+    mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
+    mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
+
+    // // A starts a groupal meeting without audio, nor video
+    std::cerr << "Start Call" << std::endl;
+    megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false);
+    ASSERT_CHAT_TEST(waitForResponse(flagRequest),
+                     "Timeout after start chat call " + std::to_string(maxTimeout)
+                     + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1],
+                     "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_CHAT_TEST(waitForResponse(callInProgress),
+                     "Timeout expired for the groupal call to be in progress");
+
+    // B picks up the call
+    std::cerr << "B picking up the call" << std::endl;
+    unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
+    if (auxCall)
+    {
+        mCallIdExpectedReceived[a2] = auxCall->getCallId();
+    }
+
+    ASSERT_CHAT_TEST(waitForResponse(callReceivedRinging),
+                     "Timeout expired on B for receiving a call");
+    ASSERT_CHAT_TEST(mChatIdRingInCall[a2] != MEGACHAT_INVALID_HANDLE,
+                     "Invalid Chatid from call emisor");
+    ASSERT_CHAT_TEST(((mCallIdJoining[a1] == mCallIdRingIn[a2])
+                      && (mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE))
+                     , "A and B are in different call");
+    ASSERT_CHAT_TEST(mChatIdRingInCall[a2] != MEGACHAT_INVALID_HANDLE,
+                     "Invalid Chatid for B from A (call emisor)");
+    std::cerr << "B received the call" << std::endl;
+    megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false);
+
+    // ToDo: Seen at TEST_Calls but not sure about the purpose of this delete
+    MegaChatCall* call = megaChatApi[a2]->getChatCall(chatid);
+    delete call;
+
+    // std::cerr << "***sleeping 1s" << std::endl;
+    sleep(1);
+
+
+    // B puts the call on hold
+    std::cerr << "B setting the call on hold" << std::endl;
+    megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ true);
+    // std::cerr << "***sleeping 1s" << std::endl;
+    sleep(1);
+
+
+    // A puts the call on hold
+    std::cerr << "A setting the call on hold" << std::endl;
+    megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ true);
+    // std::cerr << "***sleeping 1s" << std::endl;
+    sleep(1);
+
+
+    // A releases on hold
+    std::cerr << "A resuming the call from hold" << std::endl;
+    megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ false);
+    // std::cerr << "***sleeping 1s" << std::endl;
+    sleep(5);
+
+
+    // B releases on hold
+    std::cerr << "B resuming the call from hold" << std::endl;
+    megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ false);
+    // std::cerr << "***sleeping 1s" << std::endl;
+    sleep(5);
+
+
+    // B enables audio monitor
+    std::cerr << "B enabling audio in the call" << std::endl;
+    megaChatApi[a2]->enableAudio(chatid);
+    // std::cerr << "***sleeping 1s" << std::endl;
+    sleep(5);
+
+
+    // B disables audio monitor
+    std::cerr << "B disabling audio in the call" << std::endl;
+    megaChatApi[a2]->disableAudio(chatid);
+    // std::cerr << "***sleeping 1s" << std::endl;
+    sleep(5);
+
+
+    // A forces reconnect => retryPendingConnections(true)
+    std::cerr << "A forcing a reconnect" << std::endl;
+    megaChatApi[a1]->retryPendingConnections(/*disconnect*/ false);
+    // std::cerr << "***sleeping 1s" << std::endl;
+    sleep(1);
+
+
+    // B hangs up
+    std::cerr << "B hangs up the call mCallIdRingIn[a2]|" << mCallIdRingIn[a2] << "| "
+              << std::endl;
+    megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]);
+    std::cerr << "Call finished for B" << std::endl;
+    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall1), "Timout after hang up chat call "
+                     + std::to_string(maxTimeout) + " seconds.");
+    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: "
+                     + std::to_string(lastErrorChat[a2]));
+
+
+    // A hangs up
+    std::cerr << "A hangs up the call mCallIdJoining[a1]|" << mCallIdJoining[a1]
+              << "| mChatIdInProgressCall[a1]|" << mChatIdInProgressCall[a1] << "|"
+              << std::endl;
+    megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]);
+    std::cerr << "Call finished for A" << std::endl;
+    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCall0), "Timout after A's hang up chat call "
+                     + std::to_string(maxTimeout) + " seconds.");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: "
+                     + std::to_string(lastErrorChat[a1]));
+
+    // Check the call was destroyed at both ends
+    std::cerr << "Now that A and B hung up, we can check if the call is destroyed" << std::endl;
+    ASSERT_CHAT_TEST(waitForResponse(callDestroyed0),
+                     "The call for A should be already finished and it is not");
+    std::cerr << "Destroyed for A is OK, checking for B" << std::endl;
+    ASSERT_CHAT_TEST(waitForResponse(callDestroyed1),
+                     "The call for B should be already finished and it is not");
+    std::cerr << "Destroyed for B is OK." << std::endl;
+
+    // close & cleanup
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener.get());
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener.get());
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListenerA1);
+    megaChatApi[a2]->removeChatLocalVideoListener(chatid, &localVideoListenerA2);
 }
 
 #endif

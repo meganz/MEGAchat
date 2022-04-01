@@ -248,6 +248,7 @@ public:
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
     void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
+    void TEST_EstablishedCalls(unsigned int a1, unsigned int a2);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
