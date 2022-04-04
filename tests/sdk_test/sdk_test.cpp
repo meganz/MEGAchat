@@ -5283,7 +5283,7 @@ bool MockupCall::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     return true;
 }
 
-bool MockupCall::handlePeerLeft(Cid_t cid)
+bool MockupCall::handlePeerLeft(Cid_t cid, int termcode)
 {
     return true;
 }
