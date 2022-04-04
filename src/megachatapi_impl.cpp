@@ -6609,7 +6609,7 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kRtcDisconn:
         case rtcModule::TermCode::kSigDisconn:
         case rtcModule::TermCode::kErrSignaling:
-        case rtcModule::TermCode::kSvrShuttingDown:
+        case rtcModule::TermCode::kSfuShuttingDown:
         case rtcModule::TermCode::kErrAuth:
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrGeneral:

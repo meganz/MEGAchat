@@ -928,7 +928,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kLeavingRoom:              return "user has been removed from chatroom";
         case kRtcDisconn:               return "SFU connection failed";
         case kSigDisconn:               return "socket error on the signalling connection";
-        case kSvrShuttingDown:          return "SFU server is shutting down";
+        case kSfuShuttingDown:          return "SFU server is shutting down";
         case kErrSignaling:             return "signalling error";
         case kErrNoCall:                return "attempted to join non-existing call";
         case kErrAuth:                  return "authentication error";
