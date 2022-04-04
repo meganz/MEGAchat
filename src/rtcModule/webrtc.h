@@ -242,7 +242,7 @@ void globalCleanup();
 static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
 
-RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScache &dnsCache);
+RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScache &dnsCache, void* appCtx);
 enum RtcConstant {
    kMaxCallReceivers = 20,
    kMaxCallAudioSenders = 20,

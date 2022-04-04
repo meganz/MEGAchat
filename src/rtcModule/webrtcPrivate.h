@@ -20,7 +20,7 @@ class Session;
 class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface, public karere::DeleteTrackable
 {
     public:
-    AudioLevelMonitor(Call &call, int32_t cid = -1);
+    AudioLevelMonitor(Call &call, void* appCtx, int32_t cid = -1);
     void OnData(const void *audio_data,
                         int bits_per_sample,
                         int sample_rate,
@@ -36,6 +36,7 @@ private:
 
     // Note that currently max CID allowed by this class is 65535
     int32_t mCid;
+    void* mAppCtx;
 };
 
 /**
@@ -81,7 +82,8 @@ public:
 
 protected:
     Cid_t mCid = 0;
-    RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void* mAppCtx;
+    RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assign(Cid_t cid, IvStatic_t iv);
 
 private:
@@ -91,12 +93,13 @@ private:
 class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
 {
 public:
-    VideoSink();
+    VideoSink(void* appCtx);
     virtual ~VideoSink();
     void setVideoRender(IVideoRenderer* videoRenderer);
     virtual void OnFrame(const webrtc::VideoFrame& frame) override;
 private:
     std::unique_ptr<IVideoRenderer> mRenderer;
+    void* mAppCtx;
 };
 
 /**
@@ -105,7 +108,7 @@ private:
 class RemoteVideoSlot : public RemoteSlot, public VideoSink
 {
 public:
-    RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     ~RemoteVideoSlot();
     void enableTrack();
     void assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution);
@@ -123,7 +126,7 @@ private:
 class RemoteAudioSlot : public RemoteSlot
 {
 public:
-    RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assignAudioSlot(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
     void createDecryptor(Cid_t cid, IvStatic_t iv) override;
@@ -476,7 +479,7 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, CallHandler& callhandler, DNScache &dnsCache);
+    RtcModuleSfu(MyMegaApi& megaApi, CallHandler& callhandler, DNScache &dnsCache, void* appCtx);
     void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
