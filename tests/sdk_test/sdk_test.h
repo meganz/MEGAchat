@@ -365,6 +365,13 @@ private:
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+    bool mChatCallOnHold[NUM_ACCOUNTS];
+    bool mChatCallOnHoldResumed[NUM_ACCOUNTS];
+    bool mChatCallAudioEnabled[NUM_ACCOUNTS];
+    bool mChatCallAudioDisabled[NUM_ACCOUNTS];
+    bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
+    bool mChatCallSilenceReq[NUM_ACCOUNTS];
+    bool mChatCallReconnection[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -410,6 +417,9 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
+    virtual void onChatSessionUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid,
+                                     megachat::MegaChatHandle callid,
+                                     megachat::MegaChatSession *session);
 #endif
 };
 
