@@ -969,31 +969,20 @@ void Call::sendStats(const TermCode& termCode)
 
 void Call::disconnectFromSfu(TermCode termCode, const std::string &msg)
 {
+    // to intentionally get disconnected from SFU, we need to send BYE command,
+    // once we can ensure it has been sent, then we can close socket and signaling connections
     RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
-    if (getLocalAvFlags().videoCam())
+    mAuxTermCode = termCode;
+    if (mSfuConnection && mSfuConnection->isOnline())
     {
-        releaseVideoDevice();
+        if (termCode != kSigDisconn)
+        {
+            // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
+            mSfuConnection->sendBye(termCode);
+        }
+        sendStats(termCode);
     }
-
-    for (const auto& session : mSessions)
-    {
-        session.second->disableAudioSlot();
-    }
-
-    handleCallDisconnect(termCode);
-
-    // termcode is only valid at state kStateTerminatingUserParticipation
-    mTermCode = termCode;
-    setState(CallState::kStateTerminatingUserParticipation);
-    if (mSfuConnection)
-    {
-        mSfuClient.closeSfuConnection(mChatid);
-        mSfuConnection = nullptr;
-    }
-
-    // reset termcode upon set state kStateClientNoParticipating
-    mTermCode = kInvalidTermCode;
-    setState(CallState::kStateClientNoParticipating);
+    return;
 }
 
 std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
