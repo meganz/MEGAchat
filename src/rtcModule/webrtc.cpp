@@ -172,6 +172,16 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
 
 void Call::onDisconnectFromChatd()
 {
+    if (!participate())
+    {
+        // if we don't participate in a meeting, and we are disconnected from chatd, we need to clear participants
+        for (auto &it : mParticipants)
+        {
+            mCallHandler.onRemovePeer(*this, it);
+        }
+        mParticipants.clear();
+    }
+
     mIsConnectedToChatd = false;
 }
 
