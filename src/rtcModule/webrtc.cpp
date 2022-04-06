@@ -130,6 +130,11 @@ CallState Call::getState() const
 
 void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
 {
+    if (usersJoined.find(mMyPeer->getPeerid()) != mParticipants.end())
+    {
+        setRinging(false);
+    }
+
     if (mIsConnectedToChatd)
     {
         for (const karere::Id &peer : usersJoined)
@@ -164,18 +169,6 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
         mIsConnectedToChatd = true; // we can assume that we are connected to chatd, and our participants list is up to date
     }
 }
-
-void Call::addParticipant(karere::Id peer)
-{
-    if (peer == mMyPeer->getPeerid())
-    {
-        setRinging(false);
-    }
-
-    mParticipants.insert(peer);
-    mCallHandler.onAddPeer(*this, peer);
-}
-
 
 void Call::onDisconnectFromChatd()
 {

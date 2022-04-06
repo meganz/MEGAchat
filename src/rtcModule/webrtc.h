@@ -155,7 +155,6 @@ public:
     virtual CallState getState() const = 0;
 
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
-    virtual void addParticipant(karere::Id peer) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
 
     // called by chatd client when the connection to chatd is closed
