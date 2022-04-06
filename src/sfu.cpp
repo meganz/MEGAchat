@@ -1304,6 +1304,11 @@ void SfuConnection::processNextCommand(bool resetSending)
     {
         // upon wsSendMsgCb we need to reset isSending flag
         mCommandsQueue.setSending(false);
+        if (mIsSendingBye)
+        {
+            mCall.onSendByeCommand();
+            return; // we have sent BYE command to SFU, following commands will be ignored
+        }
     }
 
     if (mCommandsQueue.empty() || mCommandsQueue.sending())
@@ -1317,6 +1322,14 @@ void SfuConnection::processNextCommand(bool resetSending)
 
     mCommandsQueue.setSending(true);
     std::string command = mCommandsQueue.pop();
+
+    // mCommandsQueue is a sequencial queue, so new commands just can be processed if previous commands have already been sent
+    if (command.find("{\"a\":\"BYE\",\"rsn\":") != std::string::npos)
+    {
+        // set mIsSendingBye flag true, to indicate that we are going to send BYE command
+        mIsSendingBye = true;
+    }
+
     assert(!command.empty());
     SFU_LOG_DEBUG("Send command: %s", command.c_str());
     std::unique_ptr<char[]> buffer(mega::MegaApi::strdup(command.c_str()));
@@ -1782,8 +1795,9 @@ bool SfuConnection::sendSpeakDel(Cid_t cid)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendBye(int termCode)
+bool SfuConnection::sendBye(int termCode, bool isDefinitive)
 {
+    mIsDefinitiveDisconnect = isDefinitive;
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_BYE.c_str(), json.GetAllocator());

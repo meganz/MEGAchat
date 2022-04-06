@@ -1447,6 +1447,25 @@ void Call::callDisconnect(const TermCode& termCode)
     setState(CallState::kStateClientNoParticipating);
 }
 
+void Call::onSendByeCommand()
+{
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, this]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        assert (mTempTermCode != kInvalidTermCode);
+        (!mSfuConnection->isDefinitiveDisconnect())
+                ? signalingDisconnectAndClear(mTempTermCode)
+                : callDisconnect(mTempTermCode);
+
+        mTempTermCode = kInvalidTermCode;
+    }, mRtc.getAppCtx());
+}
+
 bool Call::error(unsigned int code, const std::string &errMsg)
 {
     auto wptr = weakHandle();

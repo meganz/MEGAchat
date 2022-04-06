@@ -388,6 +388,7 @@ public:
     bool handlePeerLeft(Cid_t cid) override;
     void onSfuConnected() override;
     void onSfuDisconnected() override;
+    void onSendByeCommand() override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;

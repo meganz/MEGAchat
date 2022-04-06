@@ -5293,6 +5293,11 @@ void MockupCall::onSfuConnected()
 
 }
 
+void MockupCall::onSendByeCommand()
+{
+
+}
+
 void MockupCall::onSfuDisconnected()
 {
 

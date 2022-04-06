@@ -160,6 +160,7 @@ public:
     virtual bool handlePeerLeft(Cid_t cid) = 0;
     virtual void onSfuConnected() = 0;
     virtual void onSfuDisconnected() = 0;
+    virtual void onSendByeCommand() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
@@ -420,7 +421,7 @@ public:
     bool sendSpeakReq(Cid_t cid = 0);
     bool sendSpeakReqDel(Cid_t cid = 0);
     bool sendSpeakDel(Cid_t cid = 0);
-    bool sendBye(int termCode);
+    bool sendBye(int termCode, bool isDefinitive);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
@@ -464,6 +465,8 @@ protected:
     promise::Promise<void> reconnect();
     void abortRetryController();
 
+    // this flag is set true when BYE command is sent to SFU
+    bool mIsSendingBye = false;
 
     // this flag differenciates between a definitive call disconnect from non-definitive
     bool mIsDefinitiveDisconnect = false;
