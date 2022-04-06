@@ -2081,15 +2081,13 @@ void Call::updateAudioTracks()
     }
 }
 
-RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache, void* appCtx)
+RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
+                           WebsocketsIO& websocketIO, void *appCtx,
+                           rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
     : VideoSink(appCtx)
     , mCallHandler(callhandler)
     , mMegaApi(megaApi)
     , mDnsCache(dnsCache)
-{
-}
-
-void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
 {
     mAppCtx = appCtx;
 
@@ -2493,9 +2491,12 @@ std::string RtcModuleSfu::getDeviceInfo() const
     return deviceType + ":" + version;
 }
 
-RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler, DNScache &dnsCache, void* appCtx)
+RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler,
+                           DNScache &dnsCache, WebsocketsIO& websocketIO, void *appCtx,
+                           rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
 {
-    return new RtcModuleSfu(megaApi, callHandler, dnsCache, appCtx);
+    return new RtcModuleSfu(megaApi, callHandler, dnsCache, websocketIO, appCtx,
+                            rRtcCryptoMeetings);
 }
 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)

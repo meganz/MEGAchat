@@ -479,8 +479,9 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, CallHandler& callhandler, DNScache &dnsCache, void* appCtx);
-    void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
+    RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
+                 WebsocketsIO& websocketIO, void *appCtx,
+                 rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
     bool isCallStartInProgress(const karere::Id &chatid) const override;
