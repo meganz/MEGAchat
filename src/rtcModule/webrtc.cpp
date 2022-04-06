@@ -208,7 +208,7 @@ promise::Promise<void> Call::hangup()
     }
     else
     {
-        disconnect(TermCode::kUserHangup, "normal user hangup");
+        disconnectFromSfu(TermCode::kUserHangup, "normal user hangup");
         return promise::_Void();
     }
 }
@@ -781,7 +781,7 @@ void Call::joinSfu()
         std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
         if (!sdpInterface)
         {
-            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
+            disconnectFromSfu(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
         }
 
         // update mSdpStr with modified SDP
@@ -812,7 +812,7 @@ void Call::joinSfu()
     {
         if (wptr.deleted())
             return;
-        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
+        disconnectFromSfu(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
     });
 }
 
@@ -967,7 +967,7 @@ void Call::sendStats(const TermCode& termCode)
     mStats.clear();
 }
 
-void Call::disconnect(TermCode termCode, const std::string &msg)
+void Call::disconnectFromSfu(TermCode termCode, const std::string &msg)
 {
     RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
     if (getLocalAvFlags().videoCam())
@@ -1066,7 +1066,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
     if (!sdpInterface)
     {
-        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
+        disconnectFromSfu(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
         return false;
     }
 
@@ -1113,7 +1113,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             return;
 
         std::string msg = "Error setting SDP answer: " + err.msg();
-        disconnect(TermCode::kErrSdp, msg);
+        disconnectFromSfu(TermCode::kErrSdp, msg);
     });
 
     return true;
@@ -1449,7 +1449,7 @@ bool Call::error(unsigned int code, const std::string &errMsg)
 
         // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
         TermCode connectionTermCode = static_cast<TermCode>(code);
-        disconnect(connectionTermCode, errMsg);
+        disconnectFromSfu(connectionTermCode, errMsg);
         if (mParticipants.empty())
         {
             mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
@@ -2300,7 +2300,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            call->disconnect(connectionTermCode,
+            call->disconnectFromSfu(connectionTermCode,
                              std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason));
         }
 
