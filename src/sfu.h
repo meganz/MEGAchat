@@ -390,6 +390,7 @@ public:
 
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
+    bool isDefinitiveDisconnect() const;
     bool isOnline() const;
     bool isJoined() const;
     bool isDisconnected() const;
@@ -463,6 +464,9 @@ protected:
     promise::Promise<void> reconnect();
     void abortRetryController();
 
+
+    // this flag differenciates between a definitive call disconnect from non-definitive
+    bool mIsDefinitiveDisconnect = false;
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;
     CommandsQueue mCommandsQueue;

@@ -208,7 +208,7 @@ promise::Promise<void> Call::hangup()
     }
     else
     {
-        disconnect(TermCode::kUserHangup, "normal user hangup");
+        onCallDisconnect(TermCode::kUserHangup, "normal user hangup", true);
         return promise::_Void();
     }
 }
@@ -781,7 +781,7 @@ void Call::joinSfu()
         std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
         if (!sdpInterface)
         {
-            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
+            onCallDisconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description, true);
         }
 
         // update mSdpStr with modified SDP
@@ -812,7 +812,7 @@ void Call::joinSfu()
     {
         if (wptr.deleted())
             return;
-        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
+        onCallDisconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg(), true);
     });
 }
 
@@ -867,18 +867,31 @@ void Call::getLocalStreams()
     }
 }
 
-void Call::handleCallDisconnect(const TermCode& termCode)
-{
-    RTCM_LOG_DEBUG("handle call disconnect with termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
-    if (mSfuConnection && mSfuConnection->isOnline())
-    {
-        if (termCode != kSigDisconn)
-        {
-            mSfuConnection->sendBye(termCode);
-        }
-        sendStats(termCode);
-    }
 
+void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool isDefinitive)
+{
+    RTCM_LOG_DEBUG("onCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
+    sendStats(termCode);
+    if (termCode != kSigDisconn && mSfuConnection && mSfuConnection->isOnline())
+    {
+        // we need to store termcode temporarily until confirm BYE command has been sent
+        mTempTermCode = termCode;
+
+        // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
+        mSfuConnection->sendBye(termCode, isDefinitive);
+    }
+    else
+    {
+        isDefinitive
+                ? callDisconnect(termCode)
+                : signalingDisconnectAndClear(termCode);
+    }
+    return;
+}
+
+void Call::signalingDisconnectAndClear(const TermCode& termCode)
+{
+    RTCM_LOG_DEBUG("signalingDisconnectAndClear, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     if (mRtcConn)
     {
         mRtcConn->Close();
@@ -967,24 +980,6 @@ void Call::sendStats(const TermCode& termCode)
     mStats.clear();
 }
 
-void Call::disconnect(TermCode termCode, const std::string &msg)
-{
-    // to intentionally get disconnected from SFU, we need to send BYE command,
-    // once we can ensure it has been sent, then we can close socket and signaling connections
-    RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
-    mAuxTermCode = termCode;
-    if (mSfuConnection && mSfuConnection->isOnline())
-    {
-        if (termCode != kSigDisconn)
-        {
-            // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
-            mSfuConnection->sendBye(termCode);
-        }
-        sendStats(termCode);
-    }
-    return;
-}
-
 std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
 {
     Session *session = getSession(cid);
@@ -1055,7 +1050,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
     if (!sdpInterface)
     {
-        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
+        onCallDisconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description, true);
         return false;
     }
 
@@ -1102,7 +1097,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             return;
 
         std::string msg = "Error setting SDP answer: " + err.msg();
-        disconnect(TermCode::kErrSdp, msg);
+        onCallDisconnect(TermCode::kErrSdp, msg, true);
     });
 
     return true;
@@ -1419,7 +1414,37 @@ void Call::onSfuConnected()
 
 void Call::onSfuDisconnected()
 {
-    handleCallDisconnect(kSigDisconn);
+    onCallDisconnect(kSigDisconn, "SFU connection onSocketClose", false);
+}
+
+void Call::callDisconnect(const TermCode& termCode)
+{
+    RTCM_LOG_DEBUG("callDisconnect, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
+    if (getLocalAvFlags().videoCam())
+    {
+        releaseVideoDevice();
+    }
+
+    for (const auto& session : mSessions)
+    {
+        session.second->disableAudioSlot();
+    }
+
+    // close signaling connection and clear some call stuff
+    signalingDisconnectAndClear(termCode);
+
+    // termcode is only valid at state kStateTerminatingUserParticipation
+    mTermCode = termCode;
+    setState(CallState::kStateTerminatingUserParticipation);
+    if (mSfuConnection)
+    {
+        mSfuClient.closeSfuConnection(mChatid);
+        mSfuConnection = nullptr;
+    }
+
+    // reset termcode upon set state kStateClientNoParticipating
+    mTermCode = kInvalidTermCode;
+    setState(CallState::kStateClientNoParticipating);
 }
 
 bool Call::error(unsigned int code, const std::string &errMsg)
@@ -1438,7 +1463,7 @@ bool Call::error(unsigned int code, const std::string &errMsg)
 
         // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
         TermCode connectionTermCode = static_cast<TermCode>(code);
-        disconnect(connectionTermCode, errMsg);
+        onCallDisconnect(connectionTermCode, errMsg, true);
         if (mParticipants.empty())
         {
             mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
@@ -1519,7 +1544,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
         {
             if (mState == CallState::kStateInProgress)
             {
-                handleCallDisconnect(TermCode::kRtcDisconn);
+                onCallDisconnect(TermCode::kRtcDisconn, "onConnectionChange received with PeerConnectionState::kDisconnected", false);
             }
 
             setState(CallState::kStateConnecting);
@@ -2289,8 +2314,8 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            call->disconnect(connectionTermCode,
-                             std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason));
+            call->onCallDisconnect(connectionTermCode,
+                             std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason), true);
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange

@@ -347,9 +347,10 @@ public:
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
+    void onCallDisconnect(TermCode termCode, const std::string &msg, bool isDefinitive);
 
-    void disconnect(TermCode termCode, const std::string& msg = "");
-    void handleCallDisconnect(const TermCode &termCode);
+    void callDisconnect(const TermCode &termCode);
+    void signalingDisconnectAndClear(const TermCode &termCode);
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
     std::string connectionTermCodeToString(const TermCode &termcode) const;
@@ -420,6 +421,7 @@ protected:
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
+    TermCode mTempTermCode = kInvalidTermCode;
     uint8_t mEndCallReason = kInvalidReason;
 
     CallHandler& mCallHandler;

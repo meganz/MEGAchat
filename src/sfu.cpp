@@ -1128,6 +1128,11 @@ SfuConnection::~SfuConnection()
     }
 }
 
+bool SfuConnection::isDefinitiveDisconnect() const
+{
+    return mIsDefinitiveDisconnect;
+}
+
 bool SfuConnection::isJoined() const
 {
     return (mConnState == kJoined);
