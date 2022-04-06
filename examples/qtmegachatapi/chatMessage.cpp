@@ -46,12 +46,21 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     delete chatRoom;
     updateContent();
 
-    mega::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
-    for (int i = 0; i < reactions->size(); i++)
+    switch(mMessage->getStatus())
     {
-        int count = megaChatApi->getMessageReactionCount(mChatId, mMessage->getMsgId(), reactions->get(i));
-        Reaction *reaction = new Reaction(this, reactions->get(i), count);
-        mReactWidget->layout()->addWidget(reaction); // takes ownership
+        case megachat::MegaChatMessage::STATUS_SERVER_RECEIVED:
+        case megachat::MegaChatMessage::STATUS_DELIVERED:
+        case megachat::MegaChatMessage::STATUS_SEEN:
+        case megachat::MegaChatMessage::STATUS_NOT_SEEN:
+        {
+            mega::unique_ptr<::mega::MegaStringList> reactions(mChatWindow->mMegaChatApi->getMessageReactions(mChatId, mMessage->getMsgId()));
+            for (int i = 0; i < reactions->size(); i++)
+            {
+                int count = megaChatApi->getMessageReactionCount(mChatId, mMessage->getMsgId(), reactions->get(i));
+                Reaction *reaction = new Reaction(this, reactions->get(i), count);
+                mReactWidget->layout()->addWidget(reaction); // takes ownership
+            }
+        }
     }
 
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
