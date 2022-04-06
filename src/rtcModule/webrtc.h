@@ -210,7 +210,6 @@ class RtcModule
 {
 public:
     virtual ~RtcModule(){};
-    virtual void init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings *rRtcCryptoMeetings) = 0;
     virtual ICall* findCall(karere::Id callid) = 0;
     virtual ICall* findCallByChatid(const karere::Id &chatid) = 0;
     virtual bool isCallStartInProgress(const karere::Id &chatid) const = 0;
@@ -242,7 +241,9 @@ void globalCleanup();
 static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
 
-RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScache &dnsCache);
+RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScache &dnsCache,
+                           WebsocketsIO& websocketIO, void *appCtx,
+                           rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
 enum RtcConstant {
    kMaxCallReceivers = 20,
    kMaxCallAudioSenders = 20,

@@ -740,7 +740,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 void Call::joinSfu()
 {
     initStatsValues();
-    mRtcConn = artc::MyPeerConnection<Call>(*this);
+    mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
     size_t hiresTrackIndex = 0;
     createTransceivers(hiresTrackIndex);
     mSpeakerState = SpeakerState::kPending;
@@ -1492,11 +1492,13 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
         std::string value = mid.value();
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
         {
-            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver);
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver,
+                                                                                                               mRtc.getAppCtx());
         }
         else
         {
-            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver);
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver,
+                                                                                                               mRtc.getAppCtx());
         }
     }
 }
@@ -1902,7 +1904,7 @@ void Call::enableStats()
         collectNonRTCStats();
 
         // Keep mStats ownership
-        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId));
+        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId, mRtc.getAppCtx()));
         assert(mRtcConn);
         mRtcConn->GetStats(mStatConnCallback.get());
 
@@ -2079,14 +2081,13 @@ void Call::updateAudioTracks()
     }
 }
 
-RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache)
-    : mCallHandler(callhandler)
+RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
+                           WebsocketsIO& websocketIO, void *appCtx,
+                           rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
+    : VideoSink(appCtx)
+    , mCallHandler(callhandler)
     , mMegaApi(megaApi)
     , mDnsCache(dnsCache)
-{
-}
-
-void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
 {
     mAppCtx = appCtx;
 
@@ -2490,9 +2491,12 @@ std::string RtcModuleSfu::getDeviceInfo() const
     return deviceType + ":" + version;
 }
 
-RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler, DNScache &dnsCache)
+RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler,
+                           DNScache &dnsCache, WebsocketsIO& websocketIO, void *appCtx,
+                           rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
 {
-    return new RtcModuleSfu(megaApi, callHandler, dnsCache);
+    return new RtcModuleSfu(megaApi, callHandler, dnsCache, websocketIO, appCtx,
+                            rRtcCryptoMeetings);
 }
 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -2574,8 +2578,8 @@ void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
                                                                       mIv, getTransceiverMid()));
 }
 
-RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : Slot(call, transceiver)
+RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx)
+    : Slot(call, transceiver), mAppCtx(appCtx)
 {
 }
 
@@ -2609,9 +2613,9 @@ void LocalSlot::generateRandomIv()
     randombytes_buf(&mIv, sizeof(mIv));
 }
 
-RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : RemoteSlot(call, transceiver)
-    , VideoSink()
+RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx)
+    : RemoteSlot(call, transceiver, appCtx)
+    , VideoSink(appCtx)
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
@@ -2625,7 +2629,7 @@ RemoteVideoSlot::~RemoteVideoSlot()
 {
 }
 
-VideoSink::VideoSink()
+VideoSink::VideoSink(void* appCtx) :mAppCtx(appCtx)
 {
 
 }
@@ -2669,7 +2673,7 @@ void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
                                (uint8_t*)frameBuf, width * 4, width, height);
             mRenderer->frameComplete(userData);
         }
-    }, artc::gAppCtx);
+    }, mAppCtx);
 }
 
 void RemoteVideoSlot::assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution)
@@ -2710,8 +2714,8 @@ void RemoteVideoSlot::enableTrack()
     videoTrack->set_enabled(true);
 }
 
-RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : RemoteSlot(call, transceiver)
+RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx)
+    : RemoteSlot(call, transceiver, appCtx)
 {
 }
 
@@ -2741,7 +2745,7 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
 void RemoteAudioSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
 {
     RemoteSlot::createDecryptor(cid, iv);
-    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, static_cast<int32_t>(mCid)));
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mAppCtx, static_cast<int32_t>(mCid)));
 }
 
 void RemoteAudioSlot::release()
@@ -2957,8 +2961,8 @@ bool Session::hasRequestSpeak() const
     return mHasRequestSpeak;
 }
 
-AudioLevelMonitor::AudioLevelMonitor(Call &call, int32_t cid)
-    : mCall(call), mCid(cid)
+AudioLevelMonitor::AudioLevelMonitor(Call &call, void* appCtx, int32_t cid)
+    : mCall(call), mCid(cid), mAppCtx(appCtx)
 {
 }
 
@@ -3011,7 +3015,7 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
                 onAudioDetected(mAudioDetected);
             }
 
-        }, artc::gAppCtx);
+        }, mAppCtx);
     }
 }
 

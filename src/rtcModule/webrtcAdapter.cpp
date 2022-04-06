@@ -32,8 +32,6 @@ std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
 rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing = nullptr;
 std::string gFieldTrialStr;
 
-void *gAppCtx = nullptr;
-
 static bool gIsInitialized = false;
 
 bool isInitialized() { return gIsInitialized; }
@@ -41,8 +39,6 @@ bool init(void *appCtx)
 {
     if (gIsInitialized)
         return false;
-
-    gAppCtx = appCtx;
 
     if (gWebrtcContext == nullptr)
     {
