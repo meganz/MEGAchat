@@ -994,8 +994,19 @@ void Call::sendStats(const TermCode& termCode)
     mStats.clear();
 }
 
-void Call::disconnect(TermCode termCode, const std::string &msg)
+void Call::disconnect(TermCode termCode, const std::string &msg, bool removeParticipants)
 {
+    if (!mIsConnectedToChatd && removeParticipants)
+    {
+        // if we don't participate in a meeting, and we are disconnected from chatd, we need to clear participants
+        // in case of SDP error and normal hangup
+        for (auto &it : mParticipants)
+        {
+            mCallHandler.onRemovePeer(*this, it);
+        }
+        mParticipants.clear();
+    }
+
     RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
     if (getLocalAvFlags().videoCam())
     {
@@ -1493,7 +1504,9 @@ bool Call::error(unsigned int code, const std::string &errMsg)
 
         // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
         TermCode connectionTermCode = static_cast<TermCode>(code);
-        disconnect(connectionTermCode, errMsg);
+
+        // don't clear participants at disconnect, as some temporal errors received from SFU don't require to remove call
+        disconnect(connectionTermCode, errMsg, false);
         if (mParticipants.empty())
         {
             mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
@@ -2345,7 +2358,8 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
             call->disconnect(connectionTermCode,
-                             std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason));
+                             std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason),
+                             false); // no need to clear participants as call dtor will do it
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
