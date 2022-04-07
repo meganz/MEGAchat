@@ -130,7 +130,7 @@ CallState Call::getState() const
 
 void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
 {
-    if (usersJoined.find(mMyPeer->getPeerid()) != mParticipants.end())
+    if (usersJoined.find(mMyPeer->getPeerid()) != usersJoined.end())
     {
         setRinging(false);
     }
