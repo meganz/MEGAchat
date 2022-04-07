@@ -1436,7 +1436,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
     generateAndSendNewkey();
 
-    if (!mIsConnectedToChatd)
+    if (!mIsConnectedToChatd && mParticipants.find(peer.getPeerid()) == mParticipants.end())
     {
         // if we are disconnected from chatd, but still connected to SFU and participating in a call
         // we need to update participants list with SFU information
@@ -1463,7 +1463,7 @@ bool Call::handlePeerLeft(Cid_t cid)
         return false;
     }
 
-    if (!mIsConnectedToChatd)
+    if (!mIsConnectedToChatd && mParticipants.find(it->second->getPeerid()) != mParticipants.end())
     {
         // if we are disconnected from chatd but still connected to SFU, and participating in a call
         // we need to update participants list with SFU information
