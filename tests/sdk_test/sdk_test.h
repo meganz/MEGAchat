@@ -221,7 +221,7 @@ public:
     void logout(unsigned int accountIndex, bool closeSession = false);
     void logoutAccounts(bool closeSession = false);
 
-    static const char* printChatRoomInfo(const megachat::MegaChatRoom *);
+    static const char* printChatRoomInfo(megachat::MegaChatApi*, const megachat::MegaChatRoom *);
     static const char* printMessageInfo(const megachat::MegaChatMessage *);
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
     void postLog(const std::string &msg);

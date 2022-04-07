@@ -1859,10 +1859,12 @@ void printChatInfo(const c::MegaChatRoom *room)
         conlock(cout) << "\t" << room->getPeerCount() << " participants in chat:" << endl;
         for (unsigned i = 0; i < room->getPeerCount(); i++)
         {
-            conlock(cout) << "\t\t" << ch_s(room->getPeerHandle(i)) << "\t" << room->getPeerFullname(i);
-            if (room->getPeerEmail(i))
+            c::MegaChatHandle uh = room->getPeerHandle(i);
+            conlock(cout) << "\t\t" << ch_s(uh) << "\t"
+                          << g_chatApi->getUserFullnameFromCache(uh);
+            if (g_chatApi->getUserEmailFromCache(uh))
             {
-                conlock(cout) << " (" << room->getPeerEmail(i) << ")";
+                conlock(cout) << " (" << g_chatApi->getUserEmailFromCache(uh) << ")";
             }
             conlock(cout) << "\tPriv: " << c::MegaChatRoom::privToString(room->getPeerPrivilege(i)) << endl;
         }

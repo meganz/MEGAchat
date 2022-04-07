@@ -385,15 +385,16 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
     std::unique_ptr<megachat::MegaChatRoom> chatRoom(mMegaChatApi.getChatRoom(mChatid));
     for (size_t i = 0; i < chatRoom->getPeerCount(); i++)
     {
-        if (chatRoom->getPeerHandle(static_cast<unsigned int>(i)) == session.getPeerid())
+        megachat::MegaChatHandle userHandle = chatRoom->getPeerHandle(static_cast<unsigned int>(i));
+        if (userHandle == session.getPeerid())
         {
-            const char *firstName = chatRoom->getPeerFirstname(static_cast<unsigned int>(i));
+            const char *firstName = mMegaChatApi.getUserFirstnameFromCache(userHandle);
             if (firstName)
             {
                 returnedString.append(firstName);
             }
 
-            const char *email = chatRoom->getPeerEmail(static_cast<unsigned int>(i));
+            const char *email = mMegaChatApi.getUserEmailFromCache(userHandle);
             if (email)
             {
                 returnedString.append(" (");

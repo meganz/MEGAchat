@@ -491,7 +491,7 @@ void MegaChatApiTest::logoutAccounts(bool closeSession)
     }
 }
 
-const char* MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
+const char* MegaChatApiTest::printChatRoomInfo(MegaChatApi* pMegaChatApi, const MegaChatRoom *chat)
 {
     if (!chat)
     {
@@ -546,15 +546,15 @@ const char* MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
         buffer << "\t\t(userhandle)\t(privilege)\t(firstname)\t(lastname)\t(fullname)" << endl;
         for (unsigned i = 0; i < chat->getPeerCount(); i++)
         {
-            const char *fullName = chat->getPeerFullname(i);
             MegaChatHandle uh = chat->getPeerHandle(i);
             hstr = MegaApi::userHandleToBase64(uh);
+            const char *fullName = pMegaChatApi->getUserFullnameFromCache(uh);
             buffer << "\t\t\t" << hstr;
             delete [] hstr;
             hstr = NULL;
             buffer << "\t" << MegaChatRoom::privToString(chat->getPeerPrivilege(i));
-            buffer << "\t\t" << chat->getPeerFirstname(i);
-            buffer << "\t" << chat->getPeerLastname(i);
+            buffer << "\t\t" << pMegaChatApi->getUserFirstnameFromCache(uh);
+            buffer << "\t" << pMegaChatApi->getUserLastnameFromCache(uh);
             buffer << "\t" << fullName << endl;
             delete [] fullName;
         }
@@ -980,7 +980,7 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
         ASSERT_CHAT_TEST(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(accountIndex+1));
 
         // Print chatroom information and peers' names
-        const char *info = MegaChatApiTest::printChatRoomInfo(chatroom);
+        const char *info = MegaChatApiTest::printChatRoomInfo(megaChatApi[accountIndex], chatroom);
         postLog(info);
         delete [] info; info = NULL;
         if (chatroom->getPeerCount())
@@ -1915,7 +1915,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int a1, unsigned int a2)
     delete peers;
     peers = NULL;
 
-    const char *info = MegaChatApiTest::printChatRoomInfo(chatRoom);
+    const char *info = MegaChatApiTest::printChatRoomInfo(megaChatApi[a1], chatRoom);
     postLog(info);
     delete [] info; info = NULL;
     delete chatRoom;
@@ -4697,7 +4697,7 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
 
     std::stringstream buffer;
     buffer << "[api: " << apiIndex << "] Chat updated - ";
-    const char *info = MegaChatApiTest::printChatRoomInfo(chat);
+    const char *info = MegaChatApiTest::printChatRoomInfo(megaChatApi[apiIndex], chat);
     buffer << info;
     t->postLog(buffer.str());
     delete [] info; info = NULL;

@@ -1363,26 +1363,6 @@ int MegaChatRoom::getPeerPrivilegeByHandle(MegaChatHandle /*userhandle*/) const
     return PRIV_UNKNOWN;
 }
 
-const char *MegaChatRoom::getPeerFirstnameByHandle(MegaChatHandle /*userhandle*/) const
-{
-    return NULL;
-}
-
-const char *MegaChatRoom::getPeerLastnameByHandle(MegaChatHandle /*userhandle*/) const
-{
-    return NULL;
-}
-
-const char *MegaChatRoom::getPeerFullnameByHandle(MegaChatHandle /*userhandle*/) const
-{
-    return NULL;
-}
-
-const char *MegaChatRoom::getPeerEmailByHandle(MegaChatHandle /*userhandle*/) const
-{
-    return NULL;
-}
-
 unsigned int MegaChatRoom::getPeerCount() const
 {
     return 0;
@@ -1396,26 +1376,6 @@ MegaChatHandle MegaChatRoom::getPeerHandle(unsigned int /*i*/) const
 int MegaChatRoom::getPeerPrivilege(unsigned int /*i*/) const
 {
     return PRIV_UNKNOWN;
-}
-
-const char *MegaChatRoom::getPeerFirstname(unsigned int /*i*/) const
-{
-    return NULL;
-}
-
-const char *MegaChatRoom::getPeerLastname(unsigned int /*i*/) const
-{
-    return NULL;
-}
-
-const char *MegaChatRoom::getPeerFullname(unsigned int /*i*/) const
-{
-    return NULL;
-}
-
-const char *MegaChatRoom::getPeerEmail(unsigned int /*i*/) const
-{
-    return NULL;
 }
 
 bool MegaChatRoom::isGroup() const

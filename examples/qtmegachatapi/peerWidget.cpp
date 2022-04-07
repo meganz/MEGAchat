@@ -216,7 +216,7 @@ void PeerWidget::drawPeerAvatar(QImage &image)
         if (chatroom->getPeerHandle(i) != mMegaChatApi.getMyUserHandle())
         {
             peerHandle = chatroom->getPeerHandle(i);
-            title = chatroom->getPeerFullname(i);
+            title = mMegaChatApi.getUserFullnameFromCache(peerHandle);
             break;
         }
     }
