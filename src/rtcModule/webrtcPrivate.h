@@ -338,7 +338,7 @@ public:
 
 
     Session* getSession(Cid_t cid);
-
+    std::set<Cid_t> getSessionsCidsByUserHandle(const karere::Id& id);
     void setState(CallState newState);
     static const char *stateToStr(CallState state);
 

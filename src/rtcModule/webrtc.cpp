@@ -737,6 +737,19 @@ Session* Call::getSession(Cid_t cid)
         : nullptr;
 }
 
+std::set<Cid_t> Call::getSessionsCidsByUserHandle(const karere::Id& id)
+{
+    std::set<Cid_t> peers;
+    for (const auto& session : mSessions)
+    {
+        if (session.second->getPeerid() == id)
+        {
+            peers.insert(session.first);
+        }
+    }
+    return peers;
+}
+
 bool Call::connectSfu(const std::string& sfuUrlStr)
 {
     if (sfuUrlStr.empty()) // if URL by param is empty, we must ensure that we already have a valid URL
@@ -1463,8 +1476,11 @@ bool Call::handlePeerLeft(Cid_t cid)
         return false;
     }
 
-    if (!mIsConnectedToChatd && mParticipants.find(it->second->getPeerid()) != mParticipants.end())
+    if (!mIsConnectedToChatd && mParticipants.find(it->second->getPeerid()) != mParticipants.end()
+            && getSessionsCidsByUserHandle(it->second->getPeerid()).size() == 1)
     {
+        // Check that received peer left is not participating in meeting with more than one client
+
         // if we are disconnected from chatd but still connected to SFU, and participating in a call
         // we need to update participants list with SFU information
         mParticipants.erase(it->second->getPeerid());
