@@ -408,8 +408,9 @@ protected:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
-    // this flag indicates if we are connected to chatd or not, in order to update mParticipants from chatd or SFU (in case we lost chatd connectivity)
-    bool mIsConnectedToChatd = false;
+
+    // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
+    bool mIsReconnectingToChatd = false;
 
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;

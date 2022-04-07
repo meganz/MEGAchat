@@ -135,7 +135,7 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
         setRinging(false);
     }
 
-    if (mIsConnectedToChatd)
+    if (!mIsReconnectingToChatd)
     {
         for (const karere::Id &peer : usersJoined)
         {
@@ -166,7 +166,7 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
             }
         }
 
-        mIsConnectedToChatd = true; // we can assume that we are connected to chatd, and our participants list is up to date
+        mIsReconnectingToChatd = false; // we can assume that we are connected to chatd, and our participants list is up to date
     }
 }
 
@@ -182,7 +182,7 @@ void Call::onDisconnectFromChatd()
         mParticipants.clear();
     }
 
-    mIsConnectedToChatd = false;
+    mIsReconnectingToChatd = true;
 }
 
 void Call::reconnectToSfu()
@@ -237,7 +237,7 @@ promise::Promise<void> Call::hangup()
     }
     else
     {
-        disconnect(TermCode::kUserHangup, "normal user hangup", !mIsConnectedToChatd);
+        disconnect(TermCode::kUserHangup, "normal user hangup", mIsReconnectingToChatd);
         return promise::_Void();
     }
 }
@@ -823,7 +823,7 @@ void Call::joinSfu()
         std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
         if (!sdpInterface)
         {
-            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description, !mIsConnectedToChatd);
+            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description, mIsReconnectingToChatd);
         }
 
         // update mSdpStr with modified SDP
@@ -854,7 +854,7 @@ void Call::joinSfu()
     {
         if (wptr.deleted())
             return;
-        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg(), !mIsConnectedToChatd);
+        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg(), mIsReconnectingToChatd);
     });
 }
 
@@ -1117,7 +1117,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
     if (!sdpInterface)
     {
-        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description, !mIsConnectedToChatd);
+        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description, mIsReconnectingToChatd);
         return false;
     }
 
@@ -1164,7 +1164,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             return;
 
         std::string msg = "Error setting SDP answer: " + err.msg();
-        disconnect(TermCode::kErrSdp, msg, !mIsConnectedToChatd);
+        disconnect(TermCode::kErrSdp, msg, mIsReconnectingToChatd);
     });
 
     return true;
@@ -1449,7 +1449,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
     generateAndSendNewkey();
 
-    if (!mIsConnectedToChatd && mParticipants.find(peer.getPeerid()) == mParticipants.end())
+    if (mIsReconnectingToChatd && mParticipants.find(peer.getPeerid()) == mParticipants.end())
     {
         // if we are disconnected from chatd, but still connected to SFU and participating in a call
         // we need to update participants list with SFU information
@@ -1476,7 +1476,7 @@ bool Call::handlePeerLeft(Cid_t cid)
         return false;
     }
 
-    if (!mIsConnectedToChatd && mParticipants.find(it->second->getPeerid()) != mParticipants.end()
+    if (mIsReconnectingToChatd && mParticipants.find(it->second->getPeerid()) != mParticipants.end()
             && getSessionsCidsByUserHandle(it->second->getPeerid()).size() == 1)
     {
         // Check that received peer left is not participating in meeting with more than one client
