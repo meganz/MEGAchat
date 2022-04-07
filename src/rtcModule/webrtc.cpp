@@ -237,7 +237,7 @@ promise::Promise<void> Call::hangup()
     }
     else
     {
-        disconnect(TermCode::kUserHangup, "normal user hangup");
+        disconnect(TermCode::kUserHangup, "normal user hangup", !mIsConnectedToChatd);
         return promise::_Void();
     }
 }
@@ -810,7 +810,7 @@ void Call::joinSfu()
         std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
         if (!sdpInterface)
         {
-            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
+            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description, !mIsConnectedToChatd);
         }
 
         // update mSdpStr with modified SDP
@@ -841,7 +841,7 @@ void Call::joinSfu()
     {
         if (wptr.deleted())
             return;
-        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
+        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg(), !mIsConnectedToChatd);
     });
 }
 
@@ -996,7 +996,7 @@ void Call::sendStats(const TermCode& termCode)
 
 void Call::disconnect(TermCode termCode, const std::string &msg, bool removeParticipants)
 {
-    if (!mIsConnectedToChatd && removeParticipants)
+    if (removeParticipants)
     {
         // if we don't participate in a meeting, and we are disconnected from chatd, we need to clear participants
         // in case of SDP error and normal hangup
@@ -1104,7 +1104,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
     if (!sdpInterface)
     {
-        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
+        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description, !mIsConnectedToChatd);
         return false;
     }
 
@@ -1151,7 +1151,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             return;
 
         std::string msg = "Error setting SDP answer: " + err.msg();
-        disconnect(TermCode::kErrSdp, msg);
+        disconnect(TermCode::kErrSdp, msg, !mIsConnectedToChatd);
     });
 
     return true;

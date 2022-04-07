@@ -348,7 +348,7 @@ public:
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
-    void disconnect(TermCode termCode, const std::string& msg = "", bool removeParticipants = true);
+    void disconnect(TermCode termCode, const std::string& msg, bool removeParticipants);
     void handleCallDisconnect(const TermCode &termCode);
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
