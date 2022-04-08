@@ -3412,13 +3412,13 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
     int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
-    SendingItem* item = postMsgToSending(static_cast<uint8_t>(opcode), msg, recipients);
+    SendingItem *item = postMsgToSending(static_cast<uint8_t>(opcode), msg, recipients);
 
     // If item wasn't removed from mSending and we still have ownership of the message
     if (item && item->msg)
     {
         // last text msg stuff
-        if(msg->isValidLastMessage())
+        if (msg->isValidLastMessage())
         {
             onLastTextMsgUpdated(*msg);
         }
