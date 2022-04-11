@@ -2450,12 +2450,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(callid, 8);
                 READ_8(userListCount, 16);
                 const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
-                std::vector<karere::Id> users;
+                std::set<karere::Id> users;
                 std::string userListStr;
                 for (unsigned int i = 0; i < userListCount; i++)
                 {
                     READ_ID(user, 17 + i * 8);
-                    users.push_back(user);
+                    users.insert(user);
                     userListStr.append(ID_CSTR(user)).append(", ");
                 }
                 userListStr.erase(userListStr.size() - 2);

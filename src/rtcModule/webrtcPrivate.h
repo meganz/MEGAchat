@@ -268,7 +268,7 @@ public:
     uint8_t getEndCallReason() const override;
 
     // called upon reception of OP_JOINEDCALL from chatd
-    void addParticipant(karere::Id peer) override;
+    void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) override;
     // called upon reception of OP_LEFTCALL from chatd
     void removeParticipant(karere::Id peer) override;
     // check if our peer is participating in the call (called from chatd)
@@ -322,7 +322,7 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
-    std::vector<karere::Id> getParticipants() const override;
+    std::set<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
 
@@ -341,7 +341,7 @@ public:
 
 
     Session* getSession(Cid_t cid);
-
+    std::set<Cid_t> getSessionsCidsByUserHandle(const karere::Id& id);
     void setState(CallState newState);
     static const char *stateToStr(CallState state);
 
@@ -351,7 +351,7 @@ public:
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
-    void disconnect(TermCode termCode, const std::string& msg = "");
+    void disconnect(TermCode termCode, const std::string& msg, bool removeParticipants);
     void handleCallDisconnect(const TermCode &termCode);
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
@@ -401,13 +401,19 @@ public:
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
 
 protected:
-    std::vector<karere::Id> mParticipants; // managed exclusively by meetings related chatd commands
+    /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands
+     * if we are disconnected from chatd (chatd connectivity lost), but still participating in a call, peerleft and peerjoin SFU commands
+     * could also add/remove participants to this list, in order to keep participants up to date */
+    std::set<karere::Id> mParticipants;
     karere::Id mCallid;
     karere::Id mChatid;
     karere::Id mCallerId;
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
+
+    // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
+    bool mIsReconnectingToChatd = false;
 
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
@@ -501,8 +507,8 @@ public:
 
     void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
 
-    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
-    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
+    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
+    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;
     void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
