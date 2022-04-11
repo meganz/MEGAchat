@@ -3493,7 +3493,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         };
 
     // A starts a groupal meeting without audio, nor video
-    std::cerr << "Start Call" << std::endl;
+    LOG_debug << "Start Call";
     megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false);
     ASSERT_CHAT_TEST(waitForResponse(flagRequestStartChatCallA),
                      "Timeout after start chat call " + std::to_string(maxTimeout)
@@ -3504,7 +3504,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
                      "Timeout expired for the groupal call to be in progress");
 
     // B picks up the call
-    std::cerr << "B picking up the call" << std::endl;
+    LOG_debug << "B picking up the call";
     unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     if (auxCall)
     {
@@ -3520,28 +3520,28 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
                      , "A and B are in different call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] != MEGACHAT_INVALID_HANDLE,
                      "Invalid Chatid for B from A (call emisor)");
-    std::cerr << "B received the call" << std::endl;
+    LOG_debug << "B received the call";
     megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false);
     waitForChatCallReadyA();
     waitForChatCallReadyB();
 
 
     // B puts the call on hold
-    std::cerr << "B setting the call on hold" << std::endl;
+    LOG_debug << "B setting the call on hold";
     megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ true);
     // A receives that B is on hold
     ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldA), "Timeout expired for A receiving on hold");
 
 
     // A puts the call on hold
-    std::cerr << "A setting the call on hold" << std::endl;
+    LOG_debug << "A setting the call on hold";
     megaChatApi[a1]->setCallOnHold(chatid, true);
     // B checks that A is on hold
     ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldB), "Timeout expired for B receiving on hold");
 
 
     // A releases on hold
-    std::cerr << "A resuming the call from hold" << std::endl;
+    LOG_debug << "A resuming the call from hold";
     megaChatApi[a1]->setCallOnHold(chatid, false);
     // B checks that A is no longer on hold
     ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldResumedB),
@@ -3549,7 +3549,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
 
     // B releases on hold
-    std::cerr << "B resuming the call from hold" << std::endl;
+    LOG_debug << "B resuming the call from hold";
     megaChatApi[a2]->setCallOnHold(chatid, false);
     // A checks that B is no longer on hold
     ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldResumedA),
@@ -3557,7 +3557,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
 
     // B enables audio monitor
-    std::cerr << "B enabling audio in the call" << std::endl;
+    LOG_debug << "B enabling audio in the call";
     megaChatApi[a2]->enableAudio(chatid);
     // A receives B enabled audio
     ASSERT_CHAT_TEST(waitForResponse(chatCallAudioEnabledA),
@@ -3565,7 +3565,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
 
     // B disables audio monitor
-    std::cerr << "B disabling audio in the call" << std::endl;
+    LOG_debug << "B disabling audio in the call";
     megaChatApi[a2]->disableAudio(chatid);
     // A receives B disabled audio
     ASSERT_CHAT_TEST(waitForResponse(chatCallAudioDisabledA),
@@ -3573,7 +3573,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
 
     // A forces reconnect
-    std::cerr << "A forcing a reconnect" << std::endl;
+    LOG_debug << "A forcing a reconnect";
     // reset flags of connection signals
     *chatCallSessionStatusInProgressA = false; *chatCallSilenceReqA = false;
     *chatCallSessionStatusInProgressB = false; *chatCallSilenceReqB = false;
@@ -3587,31 +3587,31 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     waitForChatCallReadyA();
 
     // B hangs up
-    std::cerr << "B hangs up the call" << std::endl;
+    LOG_debug << "B hangs up the call";
     megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]);
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallB), "Timout after hang up chat call "
                      + std::to_string(maxTimeout) + " seconds.");
     ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: "
                      + std::to_string(lastErrorChat[a2]));
-    std::cerr << "Call finished for B" << std::endl;
+    LOG_debug << "Call finished for B";
 
     // A hangs up
-    std::cerr << "A hangs up the call" << std::endl;
+    LOG_debug << "A hangs up the call";
     megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]);
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallA), "Timout after A's hang up chat call "
                      + std::to_string(maxTimeout) + " seconds.");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: "
                      + std::to_string(lastErrorChat[a1]));
-    std::cerr << "Call finished for A" << std::endl;
+    LOG_debug << "Call finished for A";
 
     // Check the call was destroyed at both ends
-    std::cerr << "Now that A and B hung up, we can check if the call is destroyed" << std::endl;
+    LOG_debug << "Now that A and B hung up, we can check if the call is destroyed";
     ASSERT_CHAT_TEST(waitForResponse(callDestroyedA),
                      "The call for A should be already finished and it is not");
-    std::cerr << "Destroyed for A is OK, checking for B" << std::endl;
+    LOG_debug << "Destroyed for A is OK, checking for B";
     ASSERT_CHAT_TEST(waitForResponse(callDestroyedB),
                      "The call for B should be already finished and it is not");
-    std::cerr << "Destroyed for B is OK." << std::endl;
+    LOG_debug << "Destroyed for B is OK.";
 
 
     // close & cleanup
