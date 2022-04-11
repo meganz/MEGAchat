@@ -3587,27 +3587,22 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     waitForChatCallReadyA();
 
     // B hangs up
-    std::cerr << "B hangs up the call mCallIdRingIn[a2]|" << mCallIdRingIn[a2] << "| "
-              << std::endl;
+    std::cerr << "B hangs up the call" << std::endl;
     megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]);
-    std::cerr << "Call finished for B" << std::endl;
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallB), "Timout after hang up chat call "
                      + std::to_string(maxTimeout) + " seconds.");
-    std::cerr << "Call finished for B - waitForResponse completed" << std::endl;
     ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: "
                      + std::to_string(lastErrorChat[a2]));
-
+    std::cerr << "Call finished for B" << std::endl;
 
     // A hangs up
-    std::cerr << "A hangs up the call mCallIdJoining[a1]|" << mCallIdJoining[a1]
-              << "| mChatIdInProgressCall[a1]|" << mChatIdInProgressCall[a1] << "|"
-              << std::endl;
+    std::cerr << "A hangs up the call" << std::endl;
     megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]);
-    std::cerr << "Call finished for A" << std::endl;
     ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallA), "Timout after A's hang up chat call "
                      + std::to_string(maxTimeout) + " seconds.");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: "
                      + std::to_string(lastErrorChat[a1]));
+    std::cerr << "Call finished for A" << std::endl;
 
     // Check the call was destroyed at both ends
     std::cerr << "Now that A and B hung up, we can check if the call is destroyed" << std::endl;
