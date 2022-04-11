@@ -2450,12 +2450,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(callid, 8);
                 READ_8(userListCount, 16);
                 const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
-                std::vector<karere::Id> users;
+                std::set<karere::Id> users;
                 std::string userListStr;
                 for (unsigned int i = 0; i < userListCount; i++)
                 {
                     READ_ID(user, 17 + i * 8);
-                    users.push_back(user);
+                    users.insert(user);
                     userListStr.append(ID_CSTR(user)).append(", ");
                 }
                 userListStr.erase(userListStr.size() - 2);
@@ -3405,18 +3405,23 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     }, mChatdClient.mKarereClient->appCtx);
     return message;
 }
+
 void Chat::msgSubmit(Message* msg, SetOfIds recipients)
 {
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
     int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
-    postMsgToSending(static_cast<uint8_t>(opcode), msg, recipients);
+    SendingItem *item = postMsgToSending(static_cast<uint8_t>(opcode), msg, recipients);
 
-    // last text msg stuff
-    if (msg->isValidLastMessage())
+    // If item wasn't removed from mSending and we still have ownership of the message
+    if (item && item->msg)
     {
-        onLastTextMsgUpdated(*msg);
+        // last text msg stuff
+        if (msg->isValidLastMessage())
+        {
+            onLastTextMsgUpdated(*msg);
+        }
     }
 }
 
@@ -3536,7 +3541,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds
         mNextUnsent--;
     }
     flushOutputQueue();
-    return &mSending.back();
+    return mSending.empty() ? nullptr : &mSending.back(); // calling .back() on an empty container causes undefined behaviour
 }
 
 bool Chat::sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd)
@@ -3631,6 +3636,9 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     {
         CHATID_LOG_ERROR("ICrypto::encrypt error encrypting message %s: %s", ID_CSTR(msg->id()), err.what());
         delete msgCmd;
+        mEncryptionHalted = false;
+        msgRemoveFromSending(msg->id(), 0);
+        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99015, "Failed to encrypt message");
         return err;
     });
 
@@ -5729,7 +5737,6 @@ void Chat::onPreviewersUpdate(uint32_t numPrev)
 
 void Chat::onJoinComplete()
 {
-    mEncryptionHalted = false;
     setOnlineState(kChatStateOnline);
     flushOutputQueue(true); //flush encrypted messages
 

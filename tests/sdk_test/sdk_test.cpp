@@ -673,7 +673,7 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
  * - Disconnect from chat server and reconnect
  *
  */
-bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
+void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
 {
     // ___ Create a new session ___
     char *session = login(accountIndex);

@@ -228,7 +228,7 @@ public:
 
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
-    bool TEST_ResumeSession(unsigned int accountIndex);
+    void TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);

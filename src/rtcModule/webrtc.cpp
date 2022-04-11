@@ -128,32 +128,61 @@ CallState Call::getState() const
     return mState;
 }
 
-void Call::addParticipant(karere::Id peer)
+void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
 {
-    if (peer == mMyPeer->getPeerid())
+    if (usersJoined.find(mMyPeer->getPeerid()) != usersJoined.end())
     {
         setRinging(false);
     }
 
-    mParticipants.push_back(peer);
-    mCallHandler.onAddPeer(*this, peer);
-}
+    if (!mIsReconnectingToChatd)
+    {
+        for (const karere::Id &peer : usersJoined)
+        {
+            // if we haven't experimented a chatd connection lost (mIsConnectedToChatd == true) just add received peers
+            mParticipants.insert(peer);
+            mCallHandler.onAddPeer(*this, peer);
+        }
+    }
+    else
+    {
+        for (const karere::Id &recvPeer : usersJoined)
+        {
+            if (mParticipants.find(recvPeer) == mParticipants.end())
+            {
+                // add new participant received at OP_JOINEDCALL
+                mParticipants.insert(recvPeer);
+                mCallHandler.onAddPeer(*this, recvPeer);
+            }
+        }
 
+        for (const karere::Id &peer : mParticipants)
+        {
+            if (usersJoined.find(peer) == usersJoined.end())
+            {
+                // remove participant from mParticipants, not present at list received at OP_JOINEDCALL
+                mParticipants.erase(peer);
+                mCallHandler.onRemovePeer(*this, peer);
+            }
+        }
+
+        mIsReconnectingToChatd = false; // we can assume that we are connected to chatd, and our participants list is up to date
+    }
+}
 
 void Call::onDisconnectFromChatd()
 {
-    if (participate())
+    if (!participate())
     {
-        handleCallDisconnect(TermCode::kChatDisconn);
-        setState(CallState::kStateConnecting);
-        mSfuConnection->disconnect(true);
+        // if we don't participate in a meeting, and we are disconnected from chatd, we need to clear participants
+        for (auto &it : mParticipants)
+        {
+            mCallHandler.onRemovePeer(*this, it);
+        }
+        mParticipants.clear();
     }
 
-    for (auto &it : mParticipants)
-    {
-        mCallHandler.onRemovePeer(*this, it);
-    }
-    mParticipants.clear();
+    mIsReconnectingToChatd = true;
 }
 
 void Call::reconnectToSfu()
@@ -208,7 +237,7 @@ promise::Promise<void> Call::hangup()
     }
     else
     {
-        disconnect(TermCode::kUserHangup, "normal user hangup");
+        disconnect(TermCode::kUserHangup, "normal user hangup", mIsReconnectingToChatd);
         return promise::_Void();
     }
 }
@@ -675,7 +704,7 @@ void Call::updateSvcQuality(int8_t delta)
     mSfuConnection->sendLayer(rxSpt, rxTmp, rxStmp);
 }
 
-std::vector<karere::Id> Call::getParticipants() const
+std::set<karere::Id> Call::getParticipants() const
 {
     return mParticipants;
 }
@@ -706,6 +735,19 @@ Session* Call::getSession(Cid_t cid)
     return (it != mSessions.end())
         ? it->second.get()
         : nullptr;
+}
+
+std::set<Cid_t> Call::getSessionsCidsByUserHandle(const karere::Id& id)
+{
+    std::set<Cid_t> peers;
+    for (const auto& session : mSessions)
+    {
+        if (session.second->getPeerid() == id)
+        {
+            peers.insert(session.first);
+        }
+    }
+    return peers;
 }
 
 bool Call::connectSfu(const std::string& sfuUrlStr)
@@ -740,7 +782,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 void Call::joinSfu()
 {
     initStatsValues();
-    mRtcConn = artc::MyPeerConnection<Call>(*this);
+    mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
     size_t hiresTrackIndex = 0;
     createTransceivers(hiresTrackIndex);
     mSpeakerState = SpeakerState::kPending;
@@ -781,7 +823,7 @@ void Call::joinSfu()
         std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
         if (!sdpInterface)
         {
-            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
+            disconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description, mIsReconnectingToChatd);
         }
 
         // update mSdpStr with modified SDP
@@ -812,7 +854,7 @@ void Call::joinSfu()
     {
         if (wptr.deleted())
             return;
-        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
+        disconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg(), mIsReconnectingToChatd);
     });
 }
 
@@ -965,8 +1007,19 @@ void Call::sendStats(const TermCode& termCode)
     mStats.clear();
 }
 
-void Call::disconnect(TermCode termCode, const std::string &msg)
+void Call::disconnect(TermCode termCode, const std::string &msg, bool removeParticipants)
 {
+    if (removeParticipants)
+    {
+        // if we don't participate in a meeting, and we are disconnected from chatd, we need to clear participants
+        // in case of SDP error and normal hangup
+        for (auto &it : mParticipants)
+        {
+            mCallHandler.onRemovePeer(*this, it);
+        }
+        mParticipants.clear();
+    }
+
     RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
     if (getLocalAvFlags().videoCam())
     {
@@ -1064,7 +1117,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
     if (!sdpInterface)
     {
-        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
+        disconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description, mIsReconnectingToChatd);
         return false;
     }
 
@@ -1111,7 +1164,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             return;
 
         std::string msg = "Error setting SDP answer: " + err.msg();
-        disconnect(TermCode::kErrSdp, msg);
+        disconnect(TermCode::kErrSdp, msg, mIsReconnectingToChatd);
     });
 
     return true;
@@ -1395,6 +1448,15 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     // update max peers seen in call
     mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
     generateAndSendNewkey();
+
+    if (mIsReconnectingToChatd && mParticipants.find(peer.getPeerid()) == mParticipants.end())
+    {
+        // if we are disconnected from chatd, but still connected to SFU and participating in a call
+        // we need to update participants list with SFU information
+        mParticipants.insert(peer.getPeerid());
+        mCallHandler.onAddPeer(*this, peer.getPeerid());
+    }
+
     return true;
 }
 
@@ -1412,6 +1474,17 @@ bool Call::handlePeerLeft(Cid_t cid)
     {
         RTCM_LOG_ERROR("handlePeerLeft: unknown cid");
         return false;
+    }
+
+    if (mIsReconnectingToChatd && mParticipants.find(it->second->getPeerid()) != mParticipants.end()
+            && getSessionsCidsByUserHandle(it->second->getPeerid()).size() == 1)
+    {
+        // Check that received peer left is not participating in meeting with more than one client
+
+        // if we are disconnected from chatd but still connected to SFU, and participating in a call
+        // we need to update participants list with SFU information
+        mParticipants.erase(it->second->getPeerid());
+        mCallHandler.onRemovePeer(*this, it->second->getPeerid());
     }
 
     it->second->disableAudioSlot();
@@ -1447,7 +1520,9 @@ bool Call::error(unsigned int code, const std::string &errMsg)
 
         // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
         TermCode connectionTermCode = static_cast<TermCode>(code);
-        disconnect(connectionTermCode, errMsg);
+
+        // don't clear participants at disconnect, as some temporal errors received from SFU don't require to remove call
+        disconnect(connectionTermCode, errMsg, false);
         if (mParticipants.empty())
         {
             mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
@@ -1492,11 +1567,13 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
         std::string value = mid.value();
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
         {
-            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver);
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver,
+                                                                                                               mRtc.getAppCtx());
         }
         else
         {
-            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver);
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver,
+                                                                                                               mRtc.getAppCtx());
         }
     }
 }
@@ -1902,7 +1979,7 @@ void Call::enableStats()
         collectNonRTCStats();
 
         // Keep mStats ownership
-        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId));
+        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId, mRtc.getAppCtx()));
         assert(mRtcConn);
         mRtcConn->GetStats(mStatConnCallback.get());
 
@@ -2079,14 +2156,13 @@ void Call::updateAudioTracks()
     }
 }
 
-RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache)
-    : mCallHandler(callhandler)
+RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
+                           WebsocketsIO& websocketIO, void *appCtx,
+                           rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
+    : VideoSink(appCtx)
+    , mCallHandler(callhandler)
     , mMegaApi(megaApi)
     , mDnsCache(dnsCache)
-{
-}
-
-void RtcModuleSfu::init(WebsocketsIO& websocketIO, void *appCtx, rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
 {
     mAppCtx = appCtx;
 
@@ -2299,7 +2375,8 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
             call->disconnect(connectionTermCode,
-                             std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason));
+                             std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason),
+                             false); // no need to clear participants as call dtor will do it
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
@@ -2309,15 +2386,12 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
     }
 }
 
-void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::vector<karere::Id> &usersJoined)
+void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersJoined)
 {
-    for (const karere::Id &peer : usersJoined)
-    {
-        mCalls[callid]->addParticipant(peer);
-    }
+    mCalls[callid]->joinedCallUpdateParticipants(usersJoined);
 }
 
-void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, const std::vector<karere::Id> &usersLeft)
+void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersLeft)
 {
     for (const karere::Id &peer : usersLeft)
     {
@@ -2490,9 +2564,12 @@ std::string RtcModuleSfu::getDeviceInfo() const
     return deviceType + ":" + version;
 }
 
-RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler, DNScache &dnsCache)
+RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler,
+                           DNScache &dnsCache, WebsocketsIO& websocketIO, void *appCtx,
+                           rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
 {
-    return new RtcModuleSfu(megaApi, callHandler, dnsCache);
+    return new RtcModuleSfu(megaApi, callHandler, dnsCache, websocketIO, appCtx,
+                            rRtcCryptoMeetings);
 }
 
 Slot::Slot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
@@ -2574,8 +2651,8 @@ void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
                                                                       mIv, getTransceiverMid()));
 }
 
-RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : Slot(call, transceiver)
+RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx)
+    : Slot(call, transceiver), mAppCtx(appCtx)
 {
 }
 
@@ -2609,9 +2686,9 @@ void LocalSlot::generateRandomIv()
     randombytes_buf(&mIv, sizeof(mIv));
 }
 
-RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : RemoteSlot(call, transceiver)
-    , VideoSink()
+RemoteVideoSlot::RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx)
+    : RemoteSlot(call, transceiver, appCtx)
+    , VideoSink(appCtx)
 {
     webrtc::VideoTrackInterface* videoTrack =
             static_cast<webrtc::VideoTrackInterface*>(mTransceiver->receiver()->track().get());
@@ -2625,7 +2702,7 @@ RemoteVideoSlot::~RemoteVideoSlot()
 {
 }
 
-VideoSink::VideoSink()
+VideoSink::VideoSink(void* appCtx) :mAppCtx(appCtx)
 {
 
 }
@@ -2669,7 +2746,7 @@ void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
                                (uint8_t*)frameBuf, width * 4, width, height);
             mRenderer->frameComplete(userData);
         }
-    }, artc::gAppCtx);
+    }, mAppCtx);
 }
 
 void RemoteVideoSlot::assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution)
@@ -2710,8 +2787,8 @@ void RemoteVideoSlot::enableTrack()
     videoTrack->set_enabled(true);
 }
 
-RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
-    : RemoteSlot(call, transceiver)
+RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx)
+    : RemoteSlot(call, transceiver, appCtx)
 {
 }
 
@@ -2741,7 +2818,7 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
 void RemoteAudioSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
 {
     RemoteSlot::createDecryptor(cid, iv);
-    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, static_cast<int32_t>(mCid)));
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(mCall, mAppCtx, static_cast<int32_t>(mCid)));
 }
 
 void RemoteAudioSlot::release()
@@ -2957,8 +3034,8 @@ bool Session::hasRequestSpeak() const
     return mHasRequestSpeak;
 }
 
-AudioLevelMonitor::AudioLevelMonitor(Call &call, int32_t cid)
-    : mCall(call), mCid(cid)
+AudioLevelMonitor::AudioLevelMonitor(Call &call, void* appCtx, int32_t cid)
+    : mCall(call), mCid(cid), mAppCtx(appCtx)
 {
 }
 
@@ -3011,7 +3088,7 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
                 onAudioDetected(mAudioDetected);
             }
 
-        }, artc::gAppCtx);
+        }, mAppCtx);
     }
 }
 
