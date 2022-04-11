@@ -309,6 +309,8 @@ enum Opcode
       * If there are less than two parties pinging INCALL in a 1:1 chat with CALLDATA having its connected flag set,
       * the call is considered terminated, and an `ENDCALL` is broadcast.
       * @note that chatd does not parse CALLDATA yet, so the above is not enforced (yet).
+      *
+      * @deprecated
       */
     OP_INCALL = 28,
 
@@ -317,6 +319,8 @@ enum Opcode
       *
       * C->S: device has left call
       * S->C: notify all clients of someone having left the call
+      *
+      * @deprecated
       */
     OP_ENDCALL = 29,
 
@@ -335,6 +339,7 @@ enum Opcode
       * S->C: notify call data changes (sent immediately after a chatd connection is established
       *     and additionally after JOIN, for those unknown chatrooms at the moment the chatd connection is established
       *
+      * @deprecated
       */
     OP_CALLDATA = 31,
 
@@ -396,6 +401,8 @@ enum Opcode
       *
       * S->C: inform about call duration in seconds for a call that exists before we get online.
       * It is sent before any INCALL or CALLDATA.
+      *
+      * @deprecated
       */
     OP_CALLTIME = 42,
 

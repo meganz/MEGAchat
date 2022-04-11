@@ -1117,21 +1117,7 @@ SfuConnection::SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, vo
     , mMainThreadId(std::this_thread::get_id())
     , mDnsCache(dnsCache)
 {
-    mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), mCall);
-    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), mCall);
-    mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), mCall);
-    mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), mCall);
-    mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), mCall);
-    mCommands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), mCall);
-    mCommands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), mCall);
-    mCommands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), mCall);
-    mCommands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), mCall);
-    mCommands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), mCall);
-    mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), mCall);
-    mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), mCall);
-    mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), mCall);
-    mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), mCall);
-    mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), mCall);
+    setCallbackToCommands(mCall, mCommands);
 }
 
 SfuConnection::~SfuConnection()
@@ -1172,11 +1158,9 @@ void SfuConnection::disconnect(bool withoutReconnection)
     setConnState(kDisconnected);
     if (withoutReconnection)
     {
-        if (mConnectTimer)
-        {
-            karere::cancelTimeout(mConnectTimer, mAppCtx);
-            mConnectTimer = 0;
-        }
+        // It isn't required check mConnectTimer because it's set at setConnState(kDisconnected);
+        karere::cancelTimeout(mConnectTimer, mAppCtx);
+        mConnectTimer = 0;
         abortRetryController();
     }
 }
@@ -1343,7 +1327,7 @@ void SfuConnection::processNextCommand(bool resetSending)
 void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
-    SFU_LOG_ERROR("SfuConnection: clearing commands queue");
+    SFU_LOG_WARNING("SfuConnection: clearing commands queue");
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
@@ -1362,16 +1346,34 @@ const karere::Url& SfuConnection::getSfuUrl()
     return mSfuUrl;
 }
 
-bool SfuConnection::handleIncomingData(const char* data, size_t len)
+void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
+{
+    commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
+    commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
+    commands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
+    commands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), call);
+    commands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
+    commands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
+    commands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
+    commands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
+    commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
+    commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
+    commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
+}
+
+bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
 {
     SFU_LOG_DEBUG("Data received: %s", data);
     rapidjson::StringStream stringStream(data);
-    rapidjson::Document document;
     document.ParseStream(stringStream);
 
     if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
     {
-        SFU_LOG_ERROR("Failure at: Parser json error");
+        errMsg = "Failure at: Parser json error";
         return false;
     }
 
@@ -1379,24 +1381,48 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
     rapidjson::Value::ConstMemberIterator jsonErrIterator = document.FindMember(Command::ERROR_IDENTIFIER.c_str());
     if ((jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString()) && (jsonErrIterator == document.MemberEnd()))
     {
-        SFU_LOG_ERROR("Received data doesn't have 'a' field");
+        errMsg = "Received data doesn't have 'a' field";
         return false;
     }
 
     if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
     {
-        std::string error = "Unknown reason";
+        errMsg = "Unknown reason";
         rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = document.FindMember(Command::ERROR_MESSAGE.c_str());
         if (jsonErrMsgIterator != document.MemberEnd() && jsonErrMsgIterator->value.IsString())
         {
-            error = jsonErrMsgIterator->value.GetString();
+            errMsg = jsonErrMsgIterator->value.GetString();
         }
-
-        mCall.error(jsonErrIterator->value.GetInt(), error);
+        errCode = jsonErrIterator->value.GetInt();
         return true;
     }
 
-    std::string command = jsonIterator->value.GetString();
+    command = jsonIterator->value.GetString();
+    return true;
+}
+
+bool SfuConnection::handleIncomingData(const char *data, size_t len)
+{
+    // init errCode to invalid value, to check if a valid errCode has been returned by SFU
+    int32_t errCode = INT32_MIN;
+    std::string command;
+    std::string errMsg;
+    rapidjson::Document document;
+
+    if (!parseSfuData(data, document, command, errMsg, errCode))
+    {
+        // error parsing incoming data from SFU
+        SFU_LOG_ERROR("%s", errMsg.c_str());
+        return false;
+    }
+
+    if (errCode != INT32_MIN)
+    {
+        // process errCode returned by SFU
+        mCall.error(static_cast<unsigned int>(errCode), errMsg);
+        return true;
+    }
+
     auto commandIterator = mCommands.find(command);
     if (commandIterator == mCommands.end())
     {
@@ -1791,12 +1817,6 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
             wsDisconnect(true);
         }
 
-        if (!mAppCtx)
-        {
-            // don't set timer if there isn't a valid ctx (currently only possible in SfuConnection unitary test)
-            return;
-        }
-
         // if connect-timer is running, it must be reset (kResolving --> kDisconnected)
         if (mConnectTimer)
         {
@@ -1995,17 +2015,24 @@ promise::Promise<void> SfuConnection::reconnect()
                     if (isOnline() && cachedIpsByHost)
                     {
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
-                        SFU_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        SFU_LOG_ERROR_NO_STATS("DNS error, but connection is established. Relaying on cached IPs...");
                         return;
                     }
 
                     if (statusDNS < 0)
                     {
-                        SFU_LOG_ERROR("Async DNS error in sfu. Error code: %d", statusDNS);
+                        /* don't send log error to SFU stats server, if DNS error is:
+                         *  - UV__EAI_AGAIN  (-3001)
+                         *  - UV__EAI_NODATA (-3007)
+                         *  - UV__EAI_NONAME (-3008)
+                         */
+                        (statusDNS == 3001 || statusDNS == 3007 || statusDNS == 3008)
+                            ? SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Error code: %d", statusDNS)
+                            : SFU_LOG_ERROR("Async DNS error in sfu. Error code: %d", statusDNS);
                     }
                     else
                     {
-                        SFU_LOG_ERROR("Async DNS error in sfu. Empty set of IPs");
+                        SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Empty set of IPs");
                     }
 
                     assert(!isOnline());
@@ -2064,7 +2091,7 @@ promise::Promise<void> SfuConnection::reconnect()
             if (statusDNS < 0)
             {
                 std::string errStr = "Immediate DNS error in sfu. Error code: " + std::to_string(statusDNS);
-                SFU_LOG_ERROR("%s", errStr.c_str());
+                SFU_LOG_ERROR_NO_STATS("%s", errStr.c_str());
 
                 assert(mConnState == kResolving);
                 assert(!mConnectPromise.done());

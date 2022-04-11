@@ -207,12 +207,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 assert(itemController->getMeetingView());
                 itemController->getMeetingView()->setNotParticipating();
-                return;
-            }
-            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
-            {
-                assert(itemController->getMeetingView());
-                itemController->destroyMeetingView();
+                // termcode is only valid at state CALL_STATUS_TERMINATING_USER_PARTICIPATION
                 int termCode = call->getTermCode();
                 if (termCode != megachat::MegaChatCall::TERM_CODE_HANGUP)
                 {
@@ -220,7 +215,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                     message.append(std::to_string(termCode));
                     QMessageBox::information(this, "User terminate participation", message.c_str());
                 }
-
+                return;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
+            {
+                assert(itemController->getMeetingView());
+                itemController->destroyMeetingView();
                 return;
             }
             default:
@@ -352,6 +352,12 @@ std::string MainWindow::callStateToString(const MegaChatCall &call)
 }
 
 #endif
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    delete this;
+    event->accept();
+}
 
 MegaChatApplication* MainWindow::getApp() const
 {
@@ -1250,6 +1256,33 @@ void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle us
     msgBox->setModal(false);
     msgBox->show();
     delete [] firstname;
+}
+
+void MainWindow::onDbError(MegaChatApi */*api*/, int error, const char *msg)
+{
+    std::string text(msg);
+    mLogger->postLog(text.c_str());
+
+    if (!mCriticalMsgBox)
+    {
+        text.append("\n\nApplication will be closed when you accept this dialog");
+        mCriticalMsgBox.reset(new QMessageBox(this));
+        mCriticalMsgBox->setIcon( QMessageBox::Critical );
+        mCriticalMsgBox->setAttribute(Qt::WA_DeleteOnClose);
+        mCriticalMsgBox->setStandardButtons(QMessageBox::Ok);
+        mCriticalMsgBox->setWindowTitle( tr("Karere DB error"));
+        mCriticalMsgBox->setText(text.c_str());
+        mCriticalMsgBox->setModal(true);
+        switch (mCriticalMsgBox->exec())
+        {
+            case QMessageBox::Ok:
+            default:
+            {
+                mCriticalMsgBox->deleteLater();
+                mApp->closeAllWindows();
+            }
+        }
+    }
 }
 
 void MainWindow::setNContacts(int nContacts)

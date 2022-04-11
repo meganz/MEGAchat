@@ -3085,6 +3085,14 @@ void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int
     }
 }
 
+void MegaChatApiImpl::fireOnDbError(int error, const char *msg)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onDbError(mChatApi, error, msg);
+    }
+}
+
 void MegaChatApiImpl::fireOnChatNotification(MegaChatHandle chatid, MegaChatMessage *msg)
 {
     for(set<MegaChatNotificationListener *>::iterator it = notificationListeners.begin(); it != notificationListeners.end() ; it++)
@@ -5544,6 +5552,12 @@ void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, 
      }
 }
 
+void MegaChatApiImpl::onDbError(int error, const string &msg)
+{
+    // any caller to this method, is responsible to provide a valid and expected error code by apps
+    fireOnDbError(MegaChatApiImpl::convertDbError(error), msg.c_str());
+}
+
 int MegaChatApiImpl::convertInitState(int state)
 {
     switch (state)
@@ -5576,6 +5590,20 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrSidInvalid:
     default:
         return state;
+    }
+}
+
+int MegaChatApiImpl::convertDbError(int errCode)
+{
+    switch (errCode)
+    {
+        case SQLITE_IOERR:  return MegaChatApi::DB_ERROR_IO;
+        case SQLITE_FULL:   return MegaChatApi::DB_ERROR_FULL;
+        default:
+        {
+            assert (false);
+            return MegaChatApi::DB_ERROR_UNEXPECTED;
+        }
     }
 }
 
@@ -6592,6 +6620,9 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
 
         case rtcModule::TermCode::kUserHangup:
             return TERM_CODE_HANGUP;
+
+        case rtcModule::TermCode::kLeavingRoom:
+            return TERM_CODE_NO_PARTICIPATE;
 
        case rtcModule::TermCode::kTooManyParticipants:
             return TERM_CODE_TOO_MANY_PARTICIPANTS;

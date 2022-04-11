@@ -1584,6 +1584,11 @@ void MegaChatListener::onChatPresenceLastGreen(MegaChatApi * /*api*/, MegaChatHa
 
 }
 
+void MegaChatListener::onDbError(MegaChatApi * /*api*/, int /*error*/, const char* /*msg*/)
+{
+
+}
+
 MegaChatListItem *MegaChatListItem::copy() const
 {
     return NULL;

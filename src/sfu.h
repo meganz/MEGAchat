@@ -12,6 +12,7 @@
 #define SFU_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
+#define SFU_LOG_ERROR_NO_STATS(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__); \
     char logLine[300]; \
     snprintf(logLine, 300, fmtString, ##__VA_ARGS__); \
@@ -397,7 +398,9 @@ public:
     void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
     bool sendCommand(const std::string& command);
-    bool handleIncomingData(const char* data, size_t len);
+    static bool parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode);
+    static void setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands);
+    bool handleIncomingData(const char *data, size_t len);
     void addNewCommand(const std::string &command);
     void processNextCommand(bool resetSending = false);
     void clearCommandsQueue();
