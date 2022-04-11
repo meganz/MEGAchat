@@ -41,10 +41,18 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     layout()->addWidget(mStatusLabel.get());
 
     // title lbl
-    std::string title = mMeetingView->sessionToString(session);
-    mTitleLabel.reset(new QLabel(title.c_str()));
-    layout()->addWidget(mTitleLabel.get());
-    setToolTip(title.c_str());
+    std::function<void()> setTitle;
+    auto sPeerId = session.getPeerid();
+    auto sClientId = session.getClientid();
+    setTitle = std::function<void()>(
+        [this, sPeerId, sClientId, setTitle]()
+        {
+            std::string title = mMeetingView->sessionToString(sPeerId, sClientId, setTitle);
+            mTitleLabel.reset(new QLabel(title.c_str()));
+            layout()->addWidget(mTitleLabel.get());
+            setToolTip(title.c_str());
+        });
+    setTitle();
 
     // audio lbl
     mAudio = session.hasAudio();

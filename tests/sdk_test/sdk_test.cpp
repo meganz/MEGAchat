@@ -548,15 +548,19 @@ const char* MegaChatApiTest::printChatRoomInfo(MegaChatApi* pMegaChatApi, const 
         {
             MegaChatHandle uh = chat->getPeerHandle(i);
             hstr = MegaApi::userHandleToBase64(uh);
-            const char *fullName = pMegaChatApi->getUserFullnameFromCache(uh);
             buffer << "\t\t\t" << hstr;
             delete [] hstr;
             hstr = NULL;
+            auto userFirstNameFromCache =
+                std::unique_ptr<const char[]>(pMegaChatApi->getUserFirstnameFromCache(uh));
+            auto userLastNameFromCache =
+                std::unique_ptr<const char[]>(pMegaChatApi->getUserLastnameFromCache(uh));
+            auto userFullNameFromCache =
+                std::unique_ptr<const char[]>(pMegaChatApi->getUserFullnameFromCache(uh));
             buffer << "\t" << MegaChatRoom::privToString(chat->getPeerPrivilege(i));
-            buffer << "\t\t" << pMegaChatApi->getUserFirstnameFromCache(uh);
-            buffer << "\t" << pMegaChatApi->getUserLastnameFromCache(uh);
-            buffer << "\t" << fullName << endl;
-            delete [] fullName;
+            buffer << "\t\t" << (userFirstNameFromCache ? userFirstNameFromCache.get() : "");
+            buffer << "\t" << (userLastNameFromCache ? userLastNameFromCache.get() : "");
+            buffer << "\t" << (userFullNameFromCache ? userFullNameFromCache.get() : "") << endl;
         }
     }
     else
