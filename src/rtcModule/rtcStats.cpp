@@ -227,10 +227,11 @@ void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &
     }
 }
 
-ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lowResId)
+ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lowResId, void* appCtx)
     : mStats(stats)
     , mHiResId(hiResId)
     , mLowResId(lowResId)
+    , mAppCtx(appCtx)
 {
     AddRef();
 }
@@ -358,7 +359,7 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 }
             }
         }
-    }, artc::gAppCtx);
+    }, mAppCtx);
 
     Release();
 }

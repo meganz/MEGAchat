@@ -20,7 +20,7 @@ LibuvWaiter::~LibuvWaiter()
 {
     uv_close((uv_handle_t*)asynchandle, [](uv_handle_t* handle)
     {
-        delete handle;
+        delete reinterpret_cast<uv_async_s*>(handle);
     });
     uv_run(eventloop, UV_RUN_DEFAULT);
     uv_loop_close(eventloop);
