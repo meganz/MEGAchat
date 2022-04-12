@@ -64,8 +64,16 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mRtc(rtc)
 {
     std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
-    karere::Id myUserHandle(userHandle.get());
-    mMyPeer.reset(new sfu::Peer(myUserHandle, avflags.value()));
+    if (!userHandle)
+    {
+        mMegaApi.sdk.sendEvent(99016, "Call ctor: invalid own user handle");
+        assert(false);
+    }
+    mMyPeer.reset(new sfu::Peer(userHandle
+                                    ? karere::Id(userHandle.get())
+                                    : karere::Id::inval()
+                                , avflags.value()));
+
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
