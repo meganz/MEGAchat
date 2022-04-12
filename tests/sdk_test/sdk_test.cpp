@@ -3451,30 +3451,6 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     TestChatVideoListener localVideoListenerB;
     megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
 
-    bool* chatCallSessionStatusInProgressA = &mChatCallSessionStatusInProgress[a1];
-    *chatCallSessionStatusInProgressA = false;
-    bool* chatCallSilenceReqA = &mChatCallSilenceReq[a1]; *chatCallSilenceReqA = false;
-    std::function<void()> waitForChatCallReadyA =
-        [this, &chatCallSessionStatusInProgressA, &chatCallSilenceReqA]()
-        {
-            ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressA),
-                             "Timeout expired for A receiving chat call in progress");
-            ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqA),
-                             "Timeout expired for A receiving speak request to false");
-        };
-
-    bool* chatCallSessionStatusInProgressB = &mChatCallSessionStatusInProgress[a2];
-    *chatCallSessionStatusInProgressB = false;
-    bool* chatCallSilenceReqB = &mChatCallSilenceReq[a2]; *chatCallSilenceReqB = false;
-    std::function<void()> waitForChatCallReadyB =
-        [this, &chatCallSessionStatusInProgressB, &chatCallSilenceReqB] ()
-        {
-            ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressB),
-                             "Timeout expired for B receiving chat call in progress");
-            ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqB),
-                             "Timeout expired for B receiving speak request to false");
-        };
-
     // A starts a groupal meeting without audio, nor video
     LOG_debug << "Start Call";
     bool* flagRequestStartChatCallA = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL];
@@ -3513,9 +3489,31 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] != MEGACHAT_INVALID_HANDLE,
                      "Invalid Chatid for B from A (call emisor)");
     LOG_debug << "B received the call";
+    bool* chatCallSessionStatusInProgressA = &mChatCallSessionStatusInProgress[a1];
+    *chatCallSessionStatusInProgressA = false;
+    bool* chatCallSilenceReqA = &mChatCallSilenceReq[a1]; *chatCallSilenceReqA = false;
+    bool* chatCallSessionStatusInProgressB = &mChatCallSessionStatusInProgress[a2];
+    *chatCallSessionStatusInProgressB = false;
+    bool* chatCallSilenceReqB = &mChatCallSilenceReq[a2]; *chatCallSilenceReqB = false;
 
     megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false);
+    std::function<void()> waitForChatCallReadyA =
+        [this, &chatCallSessionStatusInProgressA, &chatCallSilenceReqA]()
+        {
+            ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressA),
+                             "Timeout expired for A receiving chat call in progress");
+            ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqA),
+                             "Timeout expired for A receiving speak request to false");
+        };
     waitForChatCallReadyA();
+    std::function<void()> waitForChatCallReadyB =
+        [this, &chatCallSessionStatusInProgressB, &chatCallSilenceReqB] ()
+        {
+            ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressB),
+                             "Timeout expired for B receiving chat call in progress");
+            ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqB),
+                             "Timeout expired for B receiving speak request to false");
+        };
     waitForChatCallReadyB();
 
 
