@@ -370,6 +370,7 @@ private:
     bool mChatCallAudioEnabled[NUM_ACCOUNTS];
     bool mChatCallAudioDisabled[NUM_ACCOUNTS];
     bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
+    bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
     bool mChatCallReconnection[NUM_ACCOUNTS];
 #endif

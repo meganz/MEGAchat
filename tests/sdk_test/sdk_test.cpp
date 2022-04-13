@@ -3578,11 +3578,28 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     // A forces reconnect
     LOG_debug << "A forcing a reconnect";
     bool* chatCallReconnectA = &mChatCallReconnection[a1]; *chatCallReconnectA = false;
+    bool* sessionWasDestroyedA = &mChatSessionWasDestroyed[a1]; *sessionWasDestroyedA = false;
+    bool* sessionWasDestroyedB = &mChatSessionWasDestroyed[a2]; *sessionWasDestroyedB = false;
     // reset flags of connection signals
     *chatCallSessionStatusInProgressA = false; *chatCallSilenceReqA = false;
     *chatCallSessionStatusInProgressB = false; *chatCallSilenceReqB = false;
 
     megaChatApi[a1]->retryPendingConnections(true);
+    // wait for session destruction checks
+    std::function<void()> waitForChatCallSessionDestroyedB =
+        [this, &sessionWasDestroyedB]()
+        {
+            ASSERT_CHAT_TEST(waitForResponse(sessionWasDestroyedB)
+                             ,"Timeout expired for B receiving session destroyed notification");
+        };
+    waitForChatCallSessionDestroyedB();
+    std::function<void()> waitForChatCallSessionDestroyedA =
+        [this, &sessionWasDestroyedA]()
+        {
+            ASSERT_CHAT_TEST(waitForResponse(sessionWasDestroyedA)
+                             ,"Timeout expired for A receiving session destroyed notification");
+        };
+    waitForChatCallSessionDestroyedA();
     // Wait for request finish (i.e. disconnection confirmation)
     ASSERT_CHAT_TEST(waitForResponse(chatCallReconnectA),
                      "Timeout expired for A to received request completion for reconnection");
@@ -3591,14 +3608,20 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     // A confirms new mega chat session is ready
     waitForChatCallReadyA();
 
+
     // B hangs up
     LOG_debug << "B hangs up the call";
     bool* flagHangUpCallB = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL];
     *flagHangUpCallB = false;
     bool* callDestroyedB = &mCallDestroyed[a2]; *callDestroyedB = false;
+    // reset flags of session destruction
+    *sessionWasDestroyedB = false; *sessionWasDestroyedA = false;
 
     megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]);
-    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallB), "Timout after hang up chat call "
+    // wait for session destruction checks
+    waitForChatCallSessionDestroyedB();
+    waitForChatCallSessionDestroyedA();
+    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallB), "Timeout after hang up chat call "
                      + std::to_string(maxTimeout) + " seconds.");
     ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: "
                      + std::to_string(lastErrorChat[a2]));
@@ -3611,7 +3634,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     bool* callDestroyedA = &mCallDestroyed[a1]; *callDestroyedA = false;
 
     megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]);
-    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallA), "Timout after A's hang up chat call "
+    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallA), "Timeout after A's hang up chat call "
                      + std::to_string(maxTimeout) + " seconds.");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: "
                      + std::to_string(lastErrorChat[a1]));
@@ -4842,6 +4865,8 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle chati
         case MegaChatSession::CHANGE_TYPE_STATUS:
             mChatCallSessionStatusInProgress[apiIndex] =
                 session->getStatus() == MegaChatSession::SESSION_STATUS_IN_PROGRESS;
+            mChatSessionWasDestroyed[apiIndex] = mChatSessionWasDestroyed[apiIndex]
+                || !mChatCallSessionStatusInProgress[apiIndex];
             break;
         case MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED:
             mChatCallSilenceReq[apiIndex] = !session->hasRequestSpeak();
