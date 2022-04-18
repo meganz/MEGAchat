@@ -1911,7 +1911,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST((megaChatApi[a2]->getChatConnectionState(chatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
                              "Not connected to chatd for account " + std::to_string(a2+1) + ": " + mAccounts[a2].getEmail());
 
-    MegaChatRoom *chatRoom = megaChatApi[a1]->getChatRoom(chatid);    
+    MegaChatRoom *chatRoom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_CHAT_TEST(chatRoom && (chatid != MEGACHAT_INVALID_HANDLE), "Can't get a chatroom");
     delete peers;
     peers = NULL;
@@ -3760,45 +3760,130 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     loadHistory(a1, chatid, chatroomListener);
     loadHistory(a2, chatid, chatroomListener);
 
-    // Send message with url
-    std::string messageToSend = "http://mega.nz";
-    bool *msgEdited1 = &chatroomListener->msgEdited[a1]; *msgEdited1 = false;
-    bool *msgEdited2 = &chatroomListener->msgEdited[a2]; *msgEdited1 = false;
-    MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
+    // Define lambda for future messages check
+    auto checkMessages = [&](MegaChatMessage* msgSent, const std::string& msgToSend, bool isRichLink, bool senderOnly = false)
+    {
 
-    // Wait for update
-    ASSERT_CHAT_TEST(waitForResponse(msgEdited1), "Message hasn't been updated with a richLink account" + std::to_string(a1+1) + " after timeout: " +  std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(waitForResponse(msgEdited2), "Message hasn't been updated with a richLink account" + std::to_string(a2+1) + " after timeout: " +  std::to_string(maxTimeout) + " seconds");
+        std::array<const unsigned int, 2> an = { a1, a2 };
+        // Wait for update (richLink needs a "double" edition)
+        if (!chatroomListener->msgEdited[a1])
+        {
+            for (auto& ai : an)
+            {
+                ASSERT_CHAT_TEST(waitForResponse(&chatroomListener->msgEdited[ai]), "Message HAS NOT been fully updated after richlink edition, account" + std::to_string(ai+1) + ", after timeout: " +  std::to_string(maxTimeout) + " seconds");
+            }
+        }
+        // Check if messages have been updated correctly
+        for (auto& ai : an)
+        {
+            MegaChatMessage* msgUpdated = senderOnly ? msgSent : megaChatApi[ai]->getMessage(chatid, msgSent->getMsgId());
+            if (!senderOnly)
+            {
+                unsigned int tWaited = 0;
+                while (((isRichLink && msgUpdated->getType() != MegaChatMessage::TYPE_CONTAINS_META) ||
+                            (!isRichLink && msgUpdated->getType() == MegaChatMessage::TYPE_CONTAINS_META)) &&
+                        (tWaited < maxTimeout))
+                {
+                    usleep(pollingT);
+                    tWaited += pollingT;
+                    MegaChatMessage* newMsgUpdated = megaChatApi[ai]->getMessage(chatid, msgSent->getMsgId());
+                    if (msgUpdated != newMsgUpdated)
+                    {
+                        delete msgUpdated;
+                        msgUpdated = newMsgUpdated;
+                    }
+                }
+            }
+            ASSERT_CHAT_TEST((isRichLink && msgUpdated->getType() == MegaChatMessage::TYPE_CONTAINS_META) ||
+                            (!isRichLink && msgUpdated->getType() != MegaChatMessage::TYPE_CONTAINS_META), "Invalid Message Type: " + std::to_string(msgUpdated->getType()) + ", it should " + std::string((isRichLink ? "" : "NOT ")) + "be " + std::to_string(MegaChatMessage::TYPE_CONTAINS_META) + " (account " + std::to_string(ai+1)+ ")");
+            ASSERT_CHAT_TEST((isRichLink && msgUpdated->getContainsMeta() &&
+                                            msgUpdated->getContainsMeta()->getRichPreview()) ||
+                            (!isRichLink && !msgUpdated->getContainsMeta()), "Rich link information HAS" + std::string(isRichLink ? " NOT" : "") + " been established (account " + std::to_string(ai+1)+ ")");
+            ASSERT_CHAT_TEST(!isRichLink || msgUpdated->getContainsMeta()->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW, "Invalid ContainsMeta Type: " + (isRichLink ? std::to_string(msgUpdated->getContainsMeta()->getType()) : "NONE") + ", due to containsPreview = " + (isRichLink ? "true" : "false") + ", it should " + std::string((isRichLink ? "" : "NOT ")) + "be " + std::to_string(MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW) + " (account " + std::to_string(ai+1)+ ")");
 
-    // Check if message has been updated correctly
-    MegaChatMessage *msgUpdated = megaChatApi[a1]->getMessage(chatid, msgSent->getMsgId());
-    ASSERT_CHAT_TEST(msgUpdated->getType() == MegaChatMessage::TYPE_CONTAINS_META, "Invalid Message Type: " + std::to_string(msgUpdated->getType()) + "(account " + std::to_string(a1+1)+ ")");
-    ASSERT_CHAT_TEST(msgUpdated->getContainsMeta() && msgUpdated->getContainsMeta()->getRichPreview(), "Rich link information has not been established (account " + std::to_string(a1+1)+ ")");
-    const char *richLink = msgUpdated->getContainsMeta()->getRichPreview()->getText();
-    ASSERT_CHAT_TEST(richLink == messageToSend , "Two strings have to have the same value (account " + std::to_string(a1+1)+ "): RichLink -> " + richLink + " Message sent: " + messageToSend);
-    delete msgUpdated;
-    msgUpdated = NULL;
+            const char* updatedText = isRichLink ? msgUpdated->getContainsMeta()->getRichPreview()->getText() :
+                                                   msgUpdated->getContent();
+            ASSERT_CHAT_TEST(updatedText == msgToSend , "Two strings have to have the same value (account " + std::to_string(ai+1)+ "): UpdatedText -> " + updatedText + " Message sent: " + msgToSend);
 
-    msgUpdated = megaChatApi[a2]->getMessage(chatid, msgSent->getMsgId());
-    ASSERT_CHAT_TEST(msgUpdated->getType() == MegaChatMessage::TYPE_CONTAINS_META, "Invalid Message Type: " + std::to_string(msgUpdated->getType()) + "(account " + std::to_string(a2+1)+ ")");
-    ASSERT_CHAT_TEST(msgUpdated->getContainsMeta() && msgUpdated->getContainsMeta()->getRichPreview(), "Rich link information has not been established (account " + std::to_string(a2+1)+ ")");
-    richLink = msgUpdated->getContainsMeta()->getRichPreview()->getText();
-    ASSERT_CHAT_TEST(richLink == messageToSend , "Two strings have to have the same value (account " + std::to_string(a2+1)+ "): RichLink -> " + richLink + " Message sent: " + messageToSend);
-    delete msgUpdated;
-    msgUpdated = NULL;
+            if (senderOnly)
+            {
+                return;
+            }
 
+            delete msgUpdated;
+        }
+    };
+
+    //=================================//
+    // TEST 1. Send rich link message
+    //=================================//
+
+    std::string messageToSend = "Hello friend, http://mega.nz";
+    // Need to do this for the first message as it's send and edited
+    chatroomListener->msgEdited[a1] = false;
+    chatroomListener->msgEdited[a2] = false;
+    MegaChatMessage* msgSent = sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
+    checkMessages(msgSent, messageToSend, true);
+
+    //===============================================================================================//
+    // TEST 2. Remove richlink (used to remove preview) from previous message with removeRichLink()
+    //===============================================================================================//
+
+    // No call to sendTextMessageOrUpdate, so we must manually waitForUpdate for msgEdited to be set to 'true'
+    chatroomListener->msgEdited[a1] = false;
+    chatroomListener->msgEdited[a2] = false;
+    MegaChatMessage* msgUpdated1 = megaChatApi[a1]->removeRichLink(chatid, msgSent->getMsgId());
+    checkMessages(msgUpdated1, messageToSend, false, true);
+
+    //===================================================================//
+    // TEST 3. Edit previous non-richlinked message by removing the URL.
+    //===================================================================//
+
+    std::string messageToUpdate2 = "Hello friend";
+    MegaChatMessage* msgUpdated2 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate2, chatroomListener, msgUpdated1->getMsgId());
+    checkMessages(msgUpdated2, messageToUpdate2, false);
+
+
+    //======================================================//
+    // TEST 4. Edit previous message by adding a new URL.
+    //======================================================//
+
+    std::string messageToUpdate3 = "Hello friend, sorry, the URL is https://mega.nz";
+    MegaChatMessage* msgUpdated3 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate3, chatroomListener, msgUpdated2->getMsgId());
+    checkMessages(msgUpdated3, messageToUpdate3, true);
+
+    //===============================================================//
+    // TEST 5. Edit previous message by modifying the previous URL.
+    //===============================================================//
+
+    std::string messageToUpdate4 = "Argghhh!!! Sorry again!! I meant https://mega.io that's the good one!!!";
+    MegaChatMessage* msgUpdated4 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate4, chatroomListener, msgUpdated3->getMsgId());
+    checkMessages(msgUpdated4, messageToUpdate4, true);
+
+    //===============================================================//
+    // TEST 6. Edit previous richlinked message by deleting the URL.
+    //===============================================================//
+
+    std::string messageToUpdate5 = "No more richlinks please!!!!";
+    MegaChatMessage* msgUpdated5 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate5, chatroomListener, msgUpdated4->getMsgId());
+    checkMessages(msgUpdated5, messageToUpdate5, false);
+
+
+    // Close chat rooms and free up memory
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
     delete msgSent;
-    msgSent = NULL;
+    delete msgUpdated1;
+    delete msgUpdated2;
+    delete msgUpdated3;
+    delete msgUpdated4;
+    delete msgUpdated5;
 
     delete chatroomListener;
 
     delete [] primarySession;
-    primarySession = NULL;
     delete [] secondarySession;
-    secondarySession = NULL;
 }
 
 /**
