@@ -63,9 +63,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mIsJoining(false)
     , mRtc(rtc)
 {
-    std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
-    karere::Id myUserHandle(userHandle.get());
-    mMyPeer.reset(new sfu::Peer(myUserHandle, avflags.value()));
+    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), avflags.value()));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
