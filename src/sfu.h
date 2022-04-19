@@ -387,6 +387,13 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
+    typedef enum DisconnectType
+    {
+        kNoDisconnect           = 0,    // no disconnect in progress
+        kSignalingDisconnect    = 1,    // disconnect from signaling connection
+        kSfuDisconnect          = 2,    // full disconnect from signaling connection and SFU
+    } disconnectType_t;
+
     static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
 
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
@@ -465,11 +472,11 @@ protected:
     promise::Promise<void> reconnect();
     void abortRetryController();
 
-    // this flag is set true when BYE command is sent to SFU
+    // This flag is set true when BYE command is sent to SFU
     bool mIsSendingBye = false;
 
-    // this flag differenciates between a definitive call disconnect from non-definitive
-    bool mIsDefinitiveDisconnect = false;
+    // This variable indicates the type of disconnect. For more information refer to disconnectType_t
+    uint8_t mDisconnectType = kNoDisconnect;
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;
     CommandsQueue mCommandsQueue;
