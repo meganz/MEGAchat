@@ -350,7 +350,7 @@ public:
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
-    void onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool removeParticipants, bool avoidByeCommand = false);
+    void onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool removeParticipants, bool sendByeCommand);
 
     void callDisconnect(const TermCode &termCode);
     void signalingDisconnectAndClear(const TermCode &termCode);

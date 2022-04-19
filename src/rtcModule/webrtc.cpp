@@ -241,7 +241,7 @@ promise::Promise<void> Call::hangup()
                          "normal user hangup",
                          true,                   /*disconnectFromSfu*/
                          mIsReconnectingToChatd, /*removeParticipants*/
-                         false);                 /*avoidByeCommand*/
+                         true);                  /*sendByeCommand*/
 
         return promise::_Void();
     }
@@ -832,7 +832,7 @@ void Call::joinSfu()
                              "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description,
                              true,                   /*disconnectFromSfu*/
                              mIsReconnectingToChatd, /*removeParticipants*/
-                             false);                 /*avoidByeCommand*/
+                             true);                  /*sendByeCommand*/
         }
 
         // update mSdpStr with modified SDP
@@ -868,7 +868,7 @@ void Call::joinSfu()
                          std::string("Error creating SDP offer: ") + err.msg(),
                          true,                   /*disconnectFromSfu*/
                          mIsReconnectingToChatd, /*removeParticipants*/
-                         false);                 /*avoidByeCommand*/
+                         true);                  /*sendByeCommand*/
     });
 }
 
@@ -923,7 +923,7 @@ void Call::getLocalStreams()
     }
 }
 
-void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool removeParticipants, bool avoidByeCommand)
+void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool removeParticipants, bool sendByeCommand)
 {
     RTCM_LOG_DEBUG("onCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
     if (disconnectFromSfu && removeParticipants)
@@ -940,7 +940,7 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disc
     if (termCode != kSigDisconn
             && mSfuConnection
             && mSfuConnection->isOnline()
-            && !avoidByeCommand)
+            && sendByeCommand)
     {
         if (mSfuConnection->isSendingByeCommand())
         {
@@ -1147,7 +1147,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
                          "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description,
                          true,                   /*disconnectFromSfu*/
                          mIsReconnectingToChatd, /*removeParticipants*/
-                         false);                 /*avoidByeCommand*/
+                         true);                  /*sendByeCommand*/
 
         return false;
     }
@@ -1199,7 +1199,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
                          msg,
                          true,                   /*disconnectFromSfu*/
                          mIsReconnectingToChatd, /*removeParticipants*/
-                         false);                 /*avoidByeCommand*/
+                         true);                  /*sendByeCommand*/
     });
 
     return true;
@@ -1540,7 +1540,7 @@ void Call::onSfuDisconnected()
                      "SFU connection onSocketClose",
                      false,                   /*disconnectFromSfu*/
                      mIsReconnectingToChatd,  /*removeParticipants*/
-                     true);                   /*avoidByeCommand*/
+                     false);                  /*sendByeCommand*/
 }
 
 void Call::callDisconnect(const TermCode& termCode)
@@ -1632,7 +1632,7 @@ bool Call::error(unsigned int code, const std::string &errMsg)
                          errMsg,
                          true,                                      /*disconnectFromSfu*/
                          !isTermCodeRetriable(connectionTermCode),  /*removeParticipants*/
-                         true);                                     /*avoid bye command*/
+                         false);                                    /*sendByeCommand/
 
         if (mParticipants.empty())
         {
@@ -1720,7 +1720,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
                                  "onConnectionChange received with PeerConnectionState::kDisconnected",
                                  false,                  /*disconnectFromSfu*/
                                  mIsReconnectingToChatd, /*removeParticipants*/
-                                 false);                 /*avoidByeCommand*/
+                                 true);                  /*sendByeCommand*/
             }
 
             setState(CallState::kStateConnecting);
@@ -2493,7 +2493,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
                                    std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason),
                                    true,    /*disconnectFromSfu*/
                                    false,   /*removeParticipants*/
-                                   true);   /*avoid bye command*/
+                                   false);  /*sendByeCommand*/
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
