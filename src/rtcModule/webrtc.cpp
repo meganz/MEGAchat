@@ -910,11 +910,10 @@ void Call::getLocalStreams()
     }
 }
 
-
-void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool isDefinitive, bool removeParticipants, bool avoidByeCommand)
+void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool removeParticipants, bool avoidByeCommand)
 {
     RTCM_LOG_DEBUG("onCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
-    if (isDefinitive && removeParticipants)
+    if (disconnectFromSfu && removeParticipants)
     {
         // if we don't participate in a meeting, and we are disconnected from chatd, we need to clear participants
         // in case of SDP error and normal hangup
@@ -940,14 +939,14 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool isDe
         mTempTermCode = termCode;
 
         // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
-        mSfuConnection->sendBye(termCode, isDefinitive
+        mSfuConnection->sendBye(termCode, disconnectFromSfu
                                     ? ::sfu::SfuConnection::kSfuDisconnect
                                     : ::sfu::SfuConnection::kSignalingDisconnect);
     }
     else
     {
-        assert(termCode == kSigDisconn ? !isDefinitive : true);
-        if (!isDefinitive)
+        assert(termCode == kSigDisconn ? !disconnectFromSfu : true);
+        if (!disconnectFromSfu)
         {
             signalingDisconnectAndClear(termCode);
             if (mSfuConnection && !mSfuConnection->isOnline())
