@@ -1128,14 +1128,30 @@ SfuConnection::~SfuConnection()
     }
 }
 
-bool SfuConnection::isDefinitiveDisconnect() const
+void SfuConnection::resetDisconnectAttempt()
 {
-    return mIsDefinitiveDisconnect;
+    mIsSendingBye = false;
+    mDisconnectType = kNoDisconnect;
+}
+
+bool SfuConnection::isValidDisconnectType(uint8_t disconnectType)
+{
+   return disconnectType == kSignalingDisconnect || disconnectType == kSfuDisconnect;
+}
+
+uint8_t SfuConnection::getDisconnectType() const
+{
+    return mDisconnectType;
 }
 
 bool SfuConnection::isJoined() const
 {
     return (mConnState == kJoined);
+}
+
+bool SfuConnection::isSendingByeCommand() const
+{
+    return mIsSendingBye;
 }
 
 bool SfuConnection::isOnline() const

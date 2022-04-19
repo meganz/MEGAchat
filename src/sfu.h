@@ -398,7 +398,10 @@ public:
 
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
-    bool isDefinitiveDisconnect() const;
+    void resetDisconnectAttempt();
+    static bool isValidDisconnectType(uint8_t disconnectType);
+    uint8_t getDisconnectType() const;
+    bool isSendingByeCommand() const;
     bool isOnline() const;
     bool isJoined() const;
     bool isDisconnected() const;
