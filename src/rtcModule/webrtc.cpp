@@ -922,7 +922,10 @@ void Call::getLocalStreams()
 void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool removeParticipants, bool sendByeCommand)
 {
     RTCM_LOG_DEBUG("onCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
-    sendStats(termCode);
+    if (mSfuConnection && mSfuConnection->isOnline())
+    {
+        sendStats(termCode);
+    }
 
     if (removeParticipants)
     {
