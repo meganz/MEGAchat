@@ -53,7 +53,7 @@ enum TermCode: uint8_t
 enum CallState: uint8_t
 {
     kStateInitial = 0,                  // < Call object was initialised
-    kStateClientNoParticipating,        // < User is not particpating in the call
+    kStateClientNoParticipating,        // < User is not partipating in the call
     kStateConnecting,                   // < Connecting to SFU
     kStateJoining,                      // < Joining a call
     kStateInProgress,                   // < Call is joined (upon ANSWER)
