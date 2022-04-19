@@ -1507,7 +1507,7 @@ void Call::onSfuConnected()
 
 void Call::onSfuDisconnected()
 {
-    onCallDisconnect(kSigDisconn, "SFU connection onSocketClose", false, false);
+    onCallDisconnect(kRtcDisconn, "SFU connection onSocketClose", false, mIsReconnectingToChatd);
 }
 
 void Call::callDisconnect(const TermCode& termCode)
