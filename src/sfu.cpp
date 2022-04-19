@@ -1811,9 +1811,10 @@ bool SfuConnection::sendSpeakDel(Cid_t cid)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendBye(int termCode, bool isDefinitive)
+bool SfuConnection::sendBye(int termCode, uint8_t disconnectType)
 {
-    mIsDefinitiveDisconnect = isDefinitive;
+    assert(isValidDisconnectType(disconnectType));
+    mDisconnectType = disconnectType;
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_BYE.c_str(), json.GetAllocator());

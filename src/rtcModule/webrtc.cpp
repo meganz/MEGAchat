@@ -927,17 +927,34 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool isDe
     sendStats(termCode);
     if (termCode != kSigDisconn && mSfuConnection && mSfuConnection->isOnline())
     {
+        if (mSfuConnection->isSendingByeCommand())
+        {
+            RTCM_LOG_DEBUG("onCallDisconnect, already sending BYE command");
+            return;
+        }
+
         // we need to store termcode temporarily until confirm BYE command has been sent
         mTempTermCode = termCode;
 
         // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
-        mSfuConnection->sendBye(termCode, isDefinitive);
+        mSfuConnection->sendBye(termCode, isDefinitive
+                                    ? ::sfu::SfuConnection::kSfuDisconnect
+                                    : ::sfu::SfuConnection::kSignalingDisconnect);
     }
     else
     {
-        isDefinitive
-                ? callDisconnect(termCode)
-                : signalingDisconnectAndClear(termCode);
+        if (!isDefinitive)
+        {
+            signalingDisconnectAndClear(termCode);
+            if (mSfuConnection && !mSfuConnection->isOnline())
+            {
+                mSfuConnection->resetDisconnectAttempt();
+            }
+        }
+        else
+        {
+            callDisconnect(termCode);  // mSfuConnection will be destroyed
+        }
     }
     return;
 }

@@ -431,7 +431,7 @@ public:
     bool sendSpeakReq(Cid_t cid = 0);
     bool sendSpeakReqDel(Cid_t cid = 0);
     bool sendSpeakDel(Cid_t cid = 0);
-    bool sendBye(int termCode, bool isDefinitive);
+    bool sendBye(int termCode, uint8_t disconnectType);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
