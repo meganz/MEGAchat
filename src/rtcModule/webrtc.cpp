@@ -924,7 +924,7 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disc
     RTCM_LOG_DEBUG("onCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
     sendStats(termCode);
 
-    if (disconnectFromSfu && removeParticipants)
+    if (removeParticipants)
     {
         clearParticipants();
     }
@@ -1719,7 +1719,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
             {
                 onCallDisconnect(TermCode::kRtcDisconn,
                                  "onConnectionChange received with PeerConnectionState::kDisconnected",
-                                 false,                  /*disconnectFromSfu*/
+                                 true,                   /*disconnectFromSfu*/
                                  mIsReconnectingToChatd, /*removeParticipants*/
                                  true);                  /*sendByeCommand*/
             }
