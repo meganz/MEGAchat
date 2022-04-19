@@ -235,9 +235,10 @@ promise::Promise<void> Call::hangup()
     {
         onCallDisconnect(TermCode::kUserHangup,
                          "normal user hangup",
-                         true,                   /*disconnectFromSfu*/
-                         mIsReconnectingToChatd, /*removeParticipants*/
-                         true);                  /*sendByeCommand*/
+                         true,                    /*disconnectFromSfu*/
+                         true,                    /*sendByeCommand*/
+                         mIsReconnectingToChatd); /*removeParticipants*/
+
 
         return promise::_Void();
     }
@@ -826,9 +827,10 @@ void Call::joinSfu()
         {
             onCallDisconnect(TermCode::kErrSdp,
                              "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description,
-                             true,                   /*disconnectFromSfu*/
-                             mIsReconnectingToChatd, /*removeParticipants*/
-                             true);                  /*sendByeCommand*/
+                             true,                    /*disconnectFromSfu*/
+                             true,                    /*sendByeCommand*/
+                             mIsReconnectingToChatd); /*removeParticipants*/
+
         }
 
         // update mSdpStr with modified SDP
@@ -862,9 +864,9 @@ void Call::joinSfu()
 
         onCallDisconnect(TermCode::kErrSdp,
                          std::string("Error creating SDP offer: ") + err.msg(),
-                         true,                   /*disconnectFromSfu*/
-                         mIsReconnectingToChatd, /*removeParticipants*/
-                         true);                  /*sendByeCommand*/
+                         true,                    /*disconnectFromSfu*/
+                         true,                    /*sendByeCommand*/
+                         mIsReconnectingToChatd); /*removeParticipants*/
     });
 }
 
@@ -919,7 +921,7 @@ void Call::getLocalStreams()
     }
 }
 
-void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool removeParticipants, bool sendByeCommand)
+void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool sendByeCommand, bool removeParticipants)
 {
     RTCM_LOG_DEBUG("onCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
     if (mSfuConnection && mSfuConnection->isOnline())
@@ -937,6 +939,7 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disc
             && mSfuConnection->isOnline()
             && sendByeCommand)
     {
+        // send BYE command as part of the protocol to inform SFU about the disconnection reason
         if (mSfuConnection->isSendingByeCommand())
         {
             RTCM_LOG_DEBUG("onCallDisconnect, already sending BYE command");
@@ -951,7 +954,7 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disc
                                     ? ::sfu::SfuConnection::kSfuDisconnect
                                     : ::sfu::SfuConnection::kSignalingDisconnect);
     }
-    else
+    else // if we don't need to send BYE command just perform disconnection
     {
         assert(termCode == kSigDisconn ? !disconnectFromSfu : true);
         if (!disconnectFromSfu)
@@ -959,8 +962,7 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disc
             signalingDisconnectAndClear(termCode);
             if (mSfuConnection && !mSfuConnection->isOnline())
             {
-                // just reset disconnect attempt vars if not connected to sfu, to not interfere
-                // with a previous disconnect attempt that also sent a BYE command
+                // reset disconnect attempt vars if not connected to sfu
                 mSfuConnection->resetDisconnectAttempt();
             }
         }
@@ -1149,9 +1151,9 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     {
         onCallDisconnect(TermCode::kErrSdp,
                          "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description,
-                         true,                   /*disconnectFromSfu*/
-                         mIsReconnectingToChatd, /*removeParticipants*/
-                         true);                  /*sendByeCommand*/
+                         true,                    /*disconnectFromSfu*/
+                         true,                    /*sendByeCommand*/
+                         mIsReconnectingToChatd); /*removeParticipants*/
 
         return false;
     }
@@ -1201,9 +1203,9 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
         std::string msg = "Error setting SDP answer: " + err.msg();
         onCallDisconnect(TermCode::kErrSdp,
                          msg,
-                         true,                   /*disconnectFromSfu*/
-                         mIsReconnectingToChatd, /*removeParticipants*/
-                         true);                  /*sendByeCommand*/
+                         true,                    /*disconnectFromSfu*/
+                         true,                    /*sendByeCommand*/
+                         mIsReconnectingToChatd); /*removeParticipants*/
     });
 
     return true;
@@ -1543,8 +1545,8 @@ void Call::onSfuDisconnected()
     onCallDisconnect(kRtcDisconn,
                      "SFU connection onSocketClose",
                      false,                   /*disconnectFromSfu*/
-                     mIsReconnectingToChatd,  /*removeParticipants*/
-                     false);                  /*sendByeCommand*/
+                     false,                   /*sendByeCommand*/
+                     mIsReconnectingToChatd); /*removeParticipants*/
 }
 
 void Call::callDisconnect(const TermCode& termCode)
@@ -1635,8 +1637,8 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         onCallDisconnect(connectionTermCode,
                          errMsg,
                          true,                                      /*disconnectFromSfu*/
-                         !isTermCodeRetriable(connectionTermCode),  /*removeParticipants*/
-                         false);                                    /*sendByeCommand/
+                         false,                                     /*sendByeCommand*/
+                         !isTermCodeRetriable(connectionTermCode)); /*removeParticipants*/
 
         if (mParticipants.empty())
         {
@@ -1722,9 +1724,9 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
             {
                 onCallDisconnect(TermCode::kRtcDisconn,
                                  "onConnectionChange received with PeerConnectionState::kDisconnected",
-                                 true,                   /*disconnectFromSfu*/
-                                 mIsReconnectingToChatd, /*removeParticipants*/
-                                 true);                  /*sendByeCommand*/
+                                 true,                    /*disconnectFromSfu*/
+                                 true,                    /*sendByeCommand*/
+                                 mIsReconnectingToChatd); /*removeParticipants*/
             }
 
             setState(CallState::kStateConnecting);
@@ -2496,8 +2498,9 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
             call->onCallDisconnect(connectionTermCode,
                                    std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason),
                                    true,    /*disconnectFromSfu*/
-                                   false,   /*removeParticipants*/
-                                   false);  /*sendByeCommand*/
+                                   false,   /*sendByeCommand*/
+                                   false);  /*removeParticipants*/
+
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
