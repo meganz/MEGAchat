@@ -1547,11 +1547,28 @@ void Call::onSendByeCommand()
             return;
         }
 
-        assert (mTempTermCode != kInvalidTermCode);
-        (!mSfuConnection->isDefinitiveDisconnect())
-                ? signalingDisconnectAndClear(mTempTermCode)
-                : callDisconnect(mTempTermCode);
+        if (!mSfuConnection)
+        {
+            RTCM_LOG_DEBUG("onSendByeCommand: SFU connection doesn't exists anymore");
+            return;
+        }
 
+        assert (mTempTermCode != kInvalidTermCode);
+        switch (mSfuConnection->getDisconnectType())
+        {
+            case ::sfu::SfuConnection::kSignalingDisconnect:
+                {
+                signalingDisconnectAndClear(mTempTermCode);
+                mSfuConnection->resetDisconnectAttempt();
+                }
+                break;
+            case ::sfu::SfuConnection::kSfuDisconnect:
+                callDisconnect(mTempTermCode); // mSfuConnection will be destroyed
+                break;
+            default:
+                assert(!sfu::SfuConnection::isValidDisconnectType(mSfuConnection->getDisconnectType()));
+                break;
+        }
         mTempTermCode = kInvalidTermCode;
     }, mRtc.getAppCtx());
 }
