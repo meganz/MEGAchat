@@ -239,7 +239,6 @@ promise::Promise<void> Call::hangup()
                          true,                    /*sendByeCommand*/
                          mIsReconnectingToChatd); /*removeParticipants*/
 
-
         return promise::_Void();
     }
 }
@@ -830,7 +829,6 @@ void Call::joinSfu()
                              true,                    /*disconnectFromSfu*/
                              true,                    /*sendByeCommand*/
                              mIsReconnectingToChatd); /*removeParticipants*/
-
         }
 
         // update mSdpStr with modified SDP
@@ -962,7 +960,7 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disc
             signalingDisconnectAndClear(termCode);
             if (mSfuConnection && !mSfuConnection->isOnline())
             {
-                // reset disconnect attempt vars if not connected to sfu
+                // reset disconnect attempt vars just if not connected to sfu, to not interfere with a previous disconnect attempt inflight
                 mSfuConnection->resetDisconnectAttempt();
             }
         }
@@ -1584,6 +1582,7 @@ void Call::onSendByeCommand()
     auto wptr = weakHandle();
     karere::marshallCall([wptr, this]()
     {
+        // need to marshall this, otherwise there could be memory issues when we remove Sfuconnection
         if (wptr.deleted())
         {
             return;
@@ -1595,21 +1594,27 @@ void Call::onSendByeCommand()
             return;
         }
 
+        // once we have confirmed that BYE command has been sent, we can proceed with disconnect
         assert (mTempTermCode != kInvalidTermCode);
         switch (mSfuConnection->getDisconnectType())
         {
             case ::sfu::SfuConnection::kSignalingDisconnect:
-                {
+            {
                 signalingDisconnectAndClear(mTempTermCode);
                 mSfuConnection->resetDisconnectAttempt();
-                }
                 break;
+            }
             case ::sfu::SfuConnection::kSfuDisconnect:
+            {
                 callDisconnect(mTempTermCode); // full disconnect (sfu & signaling), mSfuConnection will be destroyed
                 break;
+            }
             default:
+            {
                 assert(!sfu::SfuConnection::isValidDisconnectType(mSfuConnection->getDisconnectType()));
-                break;
+                RTCM_LOG_WARNING("onSendByeCommand: invalid disconnect type");
+                return;
+            }
         }
         mTempTermCode = kInvalidTermCode;
     }, mRtc.getAppCtx());
@@ -2500,7 +2505,6 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
                                    true,    /*disconnectFromSfu*/
                                    false,   /*sendByeCommand*/
                                    false);  /*removeParticipants*/
-
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
