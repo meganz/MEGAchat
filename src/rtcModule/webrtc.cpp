@@ -943,6 +943,7 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool isDe
     }
     else
     {
+        assert(termCode == kSigDisconn ? !isDefinitive : true);
         if (!isDefinitive)
         {
             signalingDisconnectAndClear(termCode);
