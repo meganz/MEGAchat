@@ -911,7 +911,7 @@ void Call::getLocalStreams()
 }
 
 
-void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool isDefinitive, bool removeParticipants)
+void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool isDefinitive, bool removeParticipants, bool avoidByeCommand)
 {
     RTCM_LOG_DEBUG("onCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
     if (isDefinitive && removeParticipants)
@@ -925,7 +925,10 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool isDe
         mParticipants.clear();
     }
     sendStats(termCode);
-    if (termCode != kSigDisconn && mSfuConnection && mSfuConnection->isOnline())
+    if (termCode != kSigDisconn
+            && mSfuConnection
+            && mSfuConnection->isOnline()
+            && !avoidByeCommand)
     {
         if (mSfuConnection->isSendingByeCommand())
         {
@@ -1512,7 +1515,7 @@ void Call::onSfuConnected()
 
 void Call::onSfuDisconnected()
 {
-    onCallDisconnect(kRtcDisconn, "SFU connection onSocketClose", false, mIsReconnectingToChatd);
+    onCallDisconnect(kRtcDisconn, "SFU connection onSocketClose", false, mIsReconnectingToChatd, true /*avoid bye command*/);
 }
 
 void Call::callDisconnect(const TermCode& termCode)
@@ -1595,11 +1598,12 @@ bool Call::error(unsigned int code, const std::string &errMsg)
             return;
         }
 
-        // TermCode is set at disconnect call, removeCall will set EndCall reason to kFailed
+        // For SFU errors no need to send BYE command, the SFU will close the connection immediately after sending the error
+        // TermCode is set at callDisconnect, removeCall will set EndCall reason to kFailed
         TermCode connectionTermCode = static_cast<TermCode>(code);
 
-        // don't clear participants at disconnect, as some temporal errors received from SFU don't require to remove call
-        onCallDisconnect(connectionTermCode, errMsg, true, false);
+        // don't clear participants at disconnect if recoverable error, as some temporal errors received from SFU don't require to remove call
+        onCallDisconnect(connectionTermCode, errMsg, true, !isTermCodeRetriable(connectionTermCode), true /*avoid bye command*/);
         if (mParticipants.empty())
         {
             mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
