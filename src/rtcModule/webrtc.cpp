@@ -237,7 +237,12 @@ promise::Promise<void> Call::hangup()
     }
     else
     {
-        onCallDisconnect(TermCode::kUserHangup, "normal user hangup", true, mIsReconnectingToChatd);
+        onCallDisconnect(TermCode::kUserHangup,
+                         "normal user hangup",
+                         true,                   /*disconnectFromSfu*/
+                         mIsReconnectingToChatd, /*removeParticipants*/
+                         false);                 /*avoidByeCommand*/
+
         return promise::_Void();
     }
 }
@@ -823,7 +828,11 @@ void Call::joinSfu()
         std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
         if (!sdpInterface)
         {
-            onCallDisconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description, true, mIsReconnectingToChatd);
+            onCallDisconnect(TermCode::kErrSdp,
+                             "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description,
+                             true,                   /*disconnectFromSfu*/
+                             mIsReconnectingToChatd, /*removeParticipants*/
+                             false);                 /*avoidByeCommand*/
         }
 
         // update mSdpStr with modified SDP
@@ -855,7 +864,11 @@ void Call::joinSfu()
         if (wptr.deleted())
             return;
 
-        onCallDisconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg(), true, mIsReconnectingToChatd);
+        onCallDisconnect(TermCode::kErrSdp,
+                         std::string("Error creating SDP offer: ") + err.msg(),
+                         true,                   /*disconnectFromSfu*/
+                         mIsReconnectingToChatd, /*removeParticipants*/
+                         false);                 /*avoidByeCommand*/
     });
 }
 
@@ -1130,7 +1143,12 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
     if (!sdpInterface)
     {
-        onCallDisconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description, true, mIsReconnectingToChatd);
+        onCallDisconnect(TermCode::kErrSdp,
+                         "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description,
+                         true,                   /*disconnectFromSfu*/
+                         mIsReconnectingToChatd, /*removeParticipants*/
+                         false);                 /*avoidByeCommand*/
+
         return false;
     }
 
@@ -1177,7 +1195,11 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             return;
 
         std::string msg = "Error setting SDP answer: " + err.msg();
-        onCallDisconnect(TermCode::kErrSdp, msg, true, mIsReconnectingToChatd);
+        onCallDisconnect(TermCode::kErrSdp,
+                         msg,
+                         true,                   /*disconnectFromSfu*/
+                         mIsReconnectingToChatd, /*removeParticipants*/
+                         false);                 /*avoidByeCommand*/
     });
 
     return true;
@@ -1514,7 +1536,11 @@ void Call::onSfuConnected()
 
 void Call::onSfuDisconnected()
 {
-    onCallDisconnect(kRtcDisconn, "SFU connection onSocketClose", false, mIsReconnectingToChatd, true /*avoid bye command*/);
+    onCallDisconnect(kRtcDisconn,
+                     "SFU connection onSocketClose",
+                     false,                   /*disconnectFromSfu*/
+                     mIsReconnectingToChatd,  /*removeParticipants*/
+                     true);                   /*avoidByeCommand*/
 }
 
 void Call::callDisconnect(const TermCode& termCode)
@@ -1602,7 +1628,12 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         TermCode connectionTermCode = static_cast<TermCode>(code);
 
         // don't clear participants at disconnect if recoverable error, as some temporal errors received from SFU don't require to remove call
-        onCallDisconnect(connectionTermCode, errMsg, true, !isTermCodeRetriable(connectionTermCode), true /*avoid bye command*/);
+        onCallDisconnect(connectionTermCode,
+                         errMsg,
+                         true,                                      /*disconnectFromSfu*/
+                         !isTermCodeRetriable(connectionTermCode),  /*removeParticipants*/
+                         true);                                     /*avoid bye command*/
+
         if (mParticipants.empty())
         {
             mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
@@ -1685,7 +1716,11 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
         {
             if (mState == CallState::kStateInProgress)
             {
-                onCallDisconnect(TermCode::kRtcDisconn, "onConnectionChange received with PeerConnectionState::kDisconnected", false, mIsReconnectingToChatd);
+                onCallDisconnect(TermCode::kRtcDisconn,
+                                 "onConnectionChange received with PeerConnectionState::kDisconnected",
+                                 false,                  /*disconnectFromSfu*/
+                                 mIsReconnectingToChatd, /*removeParticipants*/
+                                 false);                 /*avoidByeCommand*/
             }
 
             setState(CallState::kStateConnecting);
@@ -2455,9 +2490,10 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
             call->onCallDisconnect(connectionTermCode,
-                             std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason),
-                                   true,
-                                   false); // no need to clear participants as call dtor will do it
+                                   std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason),
+                                   true,    /*disconnectFromSfu*/
+                                   false,   /*removeParticipants*/
+                                   true);   /*avoid bye command*/
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
