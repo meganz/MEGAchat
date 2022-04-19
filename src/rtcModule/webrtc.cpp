@@ -1677,7 +1677,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
         {
             if (mState == CallState::kStateInProgress)
             {
-                onCallDisconnect(TermCode::kRtcDisconn, "onConnectionChange received with PeerConnectionState::kDisconnected", false, false);
+                onCallDisconnect(TermCode::kRtcDisconn, "onConnectionChange received with PeerConnectionState::kDisconnected", false, mIsReconnectingToChatd);
             }
 
             setState(CallState::kStateConnecting);
