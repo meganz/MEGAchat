@@ -948,12 +948,14 @@ void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool isDe
             signalingDisconnectAndClear(termCode);
             if (mSfuConnection && !mSfuConnection->isOnline())
             {
+                // just reset disconnect attempt vars if not connected to sfu, to not interfere
+                // with a previous disconnect attempt that also sent a BYE command
                 mSfuConnection->resetDisconnectAttempt();
             }
         }
         else
         {
-            callDisconnect(termCode);  // mSfuConnection will be destroyed
+            callDisconnect(termCode);  // full disconnect (sfu & signaling), mSfuConnection will be destroyed
         }
     }
     return;
@@ -1563,7 +1565,7 @@ void Call::onSendByeCommand()
                 }
                 break;
             case ::sfu::SfuConnection::kSfuDisconnect:
-                callDisconnect(mTempTermCode); // mSfuConnection will be destroyed
+                callDisconnect(mTempTermCode); // full disconnect (sfu & signaling), mSfuConnection will be destroyed
                 break;
             default:
                 assert(!sfu::SfuConnection::isValidDisconnectType(mSfuConnection->getDisconnectType()));
