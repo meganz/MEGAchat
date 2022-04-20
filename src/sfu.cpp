@@ -1362,6 +1362,7 @@ void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
     SFU_LOG_WARNING("SfuConnection: clearing commands queue");
+    resetDisconnectAttempt();
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
