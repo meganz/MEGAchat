@@ -2,6 +2,7 @@
 	#define LOGGER_SPRINTF_BUF_SIZE 10240
 #endif
 
+#include <functional>
 #include <iostream>
 #include <stdarg.h>
 #include <string.h>
@@ -149,11 +150,21 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
     va_copy(vaList, aVaList);
     int sprintfSpace = static_cast<int>(LOGGER_SPRINTF_BUF_SIZE-2-bytesLogged);
     int sprintfRv = vsnprintf(buf+bytesLogged, static_cast<size_t>(sprintfSpace), fmtString, vaList); //maybe check return value
-    if (sprintfRv < 0) //nothing logged if zero, or error if negative, silently ignore the error and return
+    std::function<bool()> isErrorVsnprintf =
+        [this, &vaList, &sprintfRv] ()
+        {
+            if (sprintfRv < 0)
+            { //nothing logged if zero, or error if negative, silently ignore the error and return
+                va_end(vaList);
+                return true;
+            }
+            return false;
+        };
+    if (isErrorVsnprintf())
     {
-        va_end(vaList);
         return;
     }
+
     size_t auxSprintfRv = static_cast<size_t>(sprintfRv);
     if (auxSprintfRv >= sprintfSpace)
     {
@@ -170,14 +181,11 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
         }
         memcpy(buf, statBuf, bytesLogged);
         sprintfRv = vsnprintf(buf+bytesLogged, static_cast<size_t>(sprintfSpace), fmtString, vaList); //maybe check return value
-        /* Bug? Why don't we check the value like in the out of the if-statement, i.e.:
-        if (sprintfRv < 0) //nothing logged if zero, or error if negative, silently ignore the error and return
+        if (isErrorVsnprintf())
         {
-            va_end(vaList);
             return;
         }
-        */
-        // Bug? if previous vsnprintf returns negative value, what does it imply for the following comparison?
+
         if (sprintfRv >= sprintfSpace)
         {
             perror("Error: vsnprintf wants to write more data than the size of buffer it requested");
