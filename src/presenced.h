@@ -263,7 +263,7 @@ public:
     enum { kLastGreenVisibleMask = 0x8000 }; // mask for bit 15 in prefs
 
     Config(){}
-    explicit Config(karere::Presence::Code code) { fromCode(code); }
+    explicit Config(uint16_t code) { fromCode(code); }
 
     karere::Presence presence() const { return mPresence; }
     bool persist() const { return mPersist; }

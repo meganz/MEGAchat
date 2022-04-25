@@ -1012,7 +1012,7 @@ void Command::toString(char* buf, size_t bufsize) const
         }
         case OP_PREFS:
         {
-            Config config(read<Presence::Code>(1));
+            Config config(read<uint16_t>(1));
             snprintf(buf, bufsize, "PREFS - %s", config.toString().c_str());
             break;
         }
@@ -1274,7 +1274,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                 }
                 else
                 {
-                    mConfig.fromCode(static_cast<Presence::Code>(prefs));
+                    mConfig.fromCode(prefs);
                     if (mPrefsAckWait)
                     {
                         PRESENCED_LOG_DEBUG("recv other PREFS while waiting for our PREFS ack, cancelling our send.\nPrefs: %s",

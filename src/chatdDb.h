@@ -232,7 +232,7 @@ public:
                 chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, keyid);
                 Buffer buf;
                 stmt.blobCol(11, buf);
-                msgCmd->setMsg(buf.buf(), static_cast<uint32_t>(buf.dataSize()));
+                msgCmd->setMsg(buf.buf(), static_cast<size_t>(buf.dataSize()));
 
                 queue.back().msgCmd = msgCmd;
             }

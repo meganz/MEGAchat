@@ -192,7 +192,7 @@ public:
 
     promise::Promise<void> getAttributes(uint64_t user, uint64_t ph = Id::inval());
 
-    const Buffer *getDataFromCache(uint64_t user, uint8_t attrType);
+    const Buffer *getDataFromCache(uint64_t user, unsigned attrType);
 };
 
 }

@@ -359,7 +359,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
                  return;
             }
 
-            uint8_t av = static_cast<uint8_t>(avIterator->value.GetUint());
+            unsigned av = avIterator->value.GetUint();
             peers.push_back(Peer(userId, av, cid));
         }
         else

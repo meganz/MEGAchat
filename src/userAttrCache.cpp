@@ -373,7 +373,7 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
     return ::promise::when(promises);
 }
 
-const Buffer *UserAttrCache::getDataFromCache(uint64_t user, uint8_t attrType)
+const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
 {
     UserAttrPair key(user, static_cast<uint8_t>(attrType));
     auto it = find(key);
