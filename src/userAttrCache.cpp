@@ -385,7 +385,7 @@ const Buffer *UserAttrCache::getDataFromCache(uint64_t user, unsigned attrType)
     return it->second->data.get();
 }
 
-UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, uint8_t type,
+UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
             void* userp, UserAttrReqCbFunc cb, bool oneShot, bool fetch, uint64_t ph)
 {
     UserAttrPair key(userHandle, static_cast<uint8_t>(type), ph);
@@ -599,7 +599,7 @@ void UserAttrCache::onLogOut()
 }
 
 promise::Promise<Buffer*>
-UserAttrCache::getAttr(uint64_t user, uint8_t attrType, uint64_t ph)
+UserAttrCache::getAttr(uint64_t user, unsigned attrType, uint64_t ph)
 {
     auto pms = new Promise<Buffer*>;
     auto ret = *pms;
