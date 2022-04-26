@@ -2203,7 +2203,7 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
     }
 
     ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
-    int termcode = cidIterator->value.GetInt();
+    unsigned termcode = reasonIterator->value.GetUint();
     return mComplete(static_cast<Cid_t>(cid), termcode);
 }
 

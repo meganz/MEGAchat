@@ -1403,7 +1403,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     return true;
 }
 
-bool Call::handlePeerLeft(Cid_t cid, int termcode)
+bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
