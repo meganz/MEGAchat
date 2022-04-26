@@ -1419,9 +1419,6 @@ bool Call::handlePeerLeft(Cid_t cid, int termcode)
         return false;
     }
 
-    it->second->disableAudioSlot();
-    it->second->disableVideoSlot(kHiRes);
-    it->second->disableVideoSlot(kLowRes);
     mSessions.erase(cid);
     return true;
 }
