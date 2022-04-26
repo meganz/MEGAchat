@@ -471,6 +471,7 @@ protected:
     void updateSvcQuality(int8_t delta);
     void resetLocalAvFlags();
     bool isDisconnectionTermcode(const TermCode& termCode) const;
+    bool isTermCodeRetriable(const TermCode& termCode) const;
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink

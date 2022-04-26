@@ -942,6 +942,11 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
     }
 }
 
+bool Call::isTermCodeRetriable(const TermCode& termCode) const
+{
+    return termCode == kRtcDisconn || termCode == kSigDisconn;
+}
+
 bool Call::isDisconnectionTermcode(const TermCode& termCode) const
 {
     return termCode & kFlagDisconn;
