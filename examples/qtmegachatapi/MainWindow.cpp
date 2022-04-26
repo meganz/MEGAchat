@@ -310,11 +310,18 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         {
             meetingView->addSession(*session);
         }
-        else
+        else // SESSION_STATUS_DESTROYED
         {
             meetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
             meetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
             meetingView->removeSession(*session);
+
+            if ((!itemController->getItem()->isGroup() && session->getTermCode() == MegaChatSession::SESS_TERM_CODE_RECOVERABLE)
+                    || (itemController->getItem()->isGroup() && !meetingView->getNumSessions()))
+            {
+                // if peer left a 1on1 call with a recoverable termcode, or last peer left a group call
+                meetingView->manageAllPeersLeft(callid, itemController->getItem()->isGroup());
+            }
         }
     }
 }
