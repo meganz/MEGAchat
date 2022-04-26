@@ -1419,8 +1419,12 @@ bool Call::handlePeerLeft(Cid_t cid, int termcode)
         return false;
     }
 
-    mSessions.erase(cid);
+    // set session termcode before destroying it (in order to app can be notified through OnChatSessionUpdate)
     TermCode peerLeftTermCode = static_cast<TermCode>(termcode);
+    assert(isValidConnectionTermcode(peerLeftTermCode));
+    it->second->setTermcode(peerLeftTermCode);
+    mSessions.erase(cid);
+
     if (!mIsGroup && !isTermCodeRetriable(static_cast<TermCode>(peerLeftTermCode)))
     {
         RTCM_LOG_DEBUG("handlePeerLeft. Hangup 1on1 call, upon reception of PEERLEFT with non recoverable termcode: %s", connectionTermCodeToString(peerLeftTermCode).c_str());
@@ -2783,6 +2787,16 @@ Session::~Session()
     disableVideoSlot(kLowRes);
     mState = kSessStateDestroyed;
     mSessionHandler->onDestroySession(*this);
+}
+
+TermCode Session::getTermcode() const
+{
+    return mTermCode;
+}
+
+void Session::setTermcode(TermCode termcode)
+{
+    mTermCode = termcode;
 }
 
 void Session::setSessionHandler(SessionHandler* sessionHandler)

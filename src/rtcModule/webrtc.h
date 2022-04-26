@@ -122,6 +122,8 @@ public:
     virtual SessionState getState() const = 0;
     virtual bool isAudioDetected() const = 0;
     virtual bool hasRequestSpeak() const = 0;
+    virtual TermCode getTermcode() const = 0;
+    virtual void setTermcode(TermCode termcode) = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;

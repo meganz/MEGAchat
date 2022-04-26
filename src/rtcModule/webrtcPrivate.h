@@ -174,6 +174,8 @@ public:
     karere::AvFlags getAvFlags() const override;
     bool isAudioDetected() const override;
     bool hasRequestSpeak() const override;
+    TermCode getTermcode() const override;
+    void setTermcode(TermCode termcode) override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRenderer) override;
     void setVideoRendererHiRes(IVideoRenderer *videoRenderer) override;
@@ -199,6 +201,7 @@ private:
 
     // Session starts directly in progress: the SFU sends the tracks immediately from new peer
     SessionState mState = kSessStateInProgress;
+    TermCode mTermCode = kInvalidTermCode;
 };
 
 /**

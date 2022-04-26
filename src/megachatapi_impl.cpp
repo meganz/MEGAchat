@@ -6154,6 +6154,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , mPeerId(session.getPeerid())
     , mClientId(session.getClientid())
     , mAvFlags(session.getAvFlags())
+    , mTermCode(convertTermCode(session.getTermcode()))
     , mChanged(CHANGE_TYPE_NO_CHANGES)
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mAudioDetected(session.isAudioDetected())
@@ -6167,6 +6168,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , mPeerId(session.getPeerid())
     , mClientId(static_cast<Cid_t>(session.getClientid()))
     , mAvFlags(session.getAvFlags())
+    , mTermCode(session.getTermCode())
     , mChanged(session.getChanges())
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mAudioDetected(session.isAudioDetected())
@@ -6229,6 +6231,11 @@ int MegaChatSessionPrivate::getChanges() const
     return mChanged;
 }
 
+int MegaChatSessionPrivate::getTermCode() const
+{
+    return mTermCode;
+}
+
 bool MegaChatSessionPrivate::hasChanged(int changeType) const
 {
     return (mChanged & changeType);
@@ -6285,6 +6292,36 @@ void MegaChatSessionPrivate::setChange(int change)
 void MegaChatSessionPrivate::removeChanges()
 {
     mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
+}
+
+int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
+{
+    switch (termCode)
+    {
+        case rtcModule::TermCode::kRtcDisconn:
+        case rtcModule::TermCode::kSigDisconn:
+            return SESS_TERM_CODE_RECOVERABLE;
+
+        case rtcModule::TermCode::kApiEndCall:
+        case rtcModule::TermCode::kSfuShuttingDown:
+        case rtcModule::TermCode::kChatDisconn:
+        case rtcModule::TermCode::kErrSignaling:
+        case rtcModule::TermCode::kErrNoCall:
+        case rtcModule::TermCode::kErrAuth:
+        case rtcModule::TermCode::kErrApiTimeout:
+        case rtcModule::TermCode::kErrSdp:
+        case rtcModule::TermCode::kErrGeneral:
+        case rtcModule::TermCode::kUnKnownTermCode:
+        case rtcModule::TermCode::kUserHangup:
+        case rtcModule::TermCode::kLeavingRoom:
+        case rtcModule::TermCode::kTooManyParticipants: // should not be here??
+            return SESS_TERM_CODE_NON_RECOVERABLE;
+
+        case rtcModule::TermCode::kInvalidTermCode:
+            return SESS_TERM_CODE_INVALID;
+    }
+
+    return SESS_TERM_CODE_INVALID;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
