@@ -10,8 +10,9 @@ namespace rtcModule
 {
 SvcDriver::SvcDriver ()
     : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
-      mPacketLostLower(0.01),
-      mPacketLostUpper(1),
+      mPacketLostLower(14),
+      mPacketLostUpper(20),
+      mPacketLostCapping(10),
       mLowestRttSeen(10000),
       mRttLower(0),
       mRttUpper(0),
@@ -2062,7 +2063,13 @@ void Call::adjustSvcByStats()
     {
         // get last lost packets
         int lastpl =  mStats.mSamples.mPacketLost.back();
+        // use mPacketLostCapping to limit the influence of a large momentary peak on the moving average.
+        lastpl = lastpl < mSvcDriver.mPacketLostCapping ? lastpl : static_cast<int>(mSvcDriver.mPacketLostCapping);
+
+        // get (pre) last lost packets
         int prelastpl= mStats.mSamples.mPacketLost.at(mStats.mSamples.mPacketLost.size()-2);
+        // use mPacketLostCapping to limit the influence of a large momentary peak on the moving average.
+        prelastpl = prelastpl < mSvcDriver.mPacketLostCapping ? prelastpl : static_cast<int>(mSvcDriver.mPacketLostCapping);
 
         // get periods
         int lastT = mStats.mSamples.mT.back();

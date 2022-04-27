@@ -226,6 +226,7 @@ public:
 
     double mPacketLostLower;
     double mPacketLostUpper;
+    double mPacketLostCapping;
     double mLowestRttSeen;
     double mRttLower;
     double mRttUpper;
