@@ -16,10 +16,17 @@
 package nz.mega.sdk;
 
 public interface MegaChatListenerInterface {
-    public void onChatListItemUpdate(MegaChatApiJava api, MegaChatListItem item);
-    public void onChatInitStateUpdate(MegaChatApiJava api, int newState);
-    public void onChatOnlineStatusUpdate(MegaChatApiJava api, long userhandle, int status, boolean inProgress);
-    public void onChatPresenceConfigUpdate(MegaChatApiJava api, MegaChatPresenceConfig config);
-    public void onChatConnectionStateUpdate(MegaChatApiJava api, long chatid, int newState);
-    public void onChatPresenceLastGreen(MegaChatApiJava api, long userhandle, int lastGreen);
+    void onChatListItemUpdate(MegaChatApiJava api, MegaChatListItem item);
+
+    void onChatInitStateUpdate(MegaChatApiJava api, int newState);
+
+    void onChatOnlineStatusUpdate(MegaChatApiJava api, long userhandle, int status, boolean inProgress);
+
+    void onChatPresenceConfigUpdate(MegaChatApiJava api, MegaChatPresenceConfig config);
+
+    void onChatConnectionStateUpdate(MegaChatApiJava api, long chatid, int newState);
+
+    void onChatPresenceLastGreen(MegaChatApiJava api, long userhandle, int lastGreen);
+
+    void onDbError(MegaChatApiJava api, int error, String msg);
 }

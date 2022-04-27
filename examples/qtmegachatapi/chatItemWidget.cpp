@@ -257,7 +257,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     }
 
     QDateTime t;
-    t.setTime_t(item->getLastTimestamp());
+    t.setTime_t(static_cast<unsigned int>(item->getLastTimestamp()));
     QString lastTs = t.toString("hh:mm:ss - dd.MM.yy");
 
     if(!item->isGroup())

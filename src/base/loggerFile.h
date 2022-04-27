@@ -105,8 +105,8 @@ void rotateLog()
     FILE* writeFile = fopen(mFileName.c_str(), "wb");
     if (!writeFile)
         throw std::runtime_error("FileLogger::rotate: Cannot open log file for rewriting");
-    int writeLen = mLogSize-slicePos;
-    int ret = fwrite(buf->data+slicePos, 1, writeLen, writeFile);
+    int writeLen = static_cast<int>(mLogSize-slicePos);
+    int ret = static_cast<int>(fwrite(buf->data+slicePos, 1, static_cast<size_t>(writeLen), writeFile));
     if (ret != writeLen)
     {
         if (ret < 0)

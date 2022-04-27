@@ -20,7 +20,7 @@ class Session;
 class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface, public karere::DeleteTrackable
 {
     public:
-    AudioLevelMonitor(Call &call, int32_t cid = -1);
+    AudioLevelMonitor(Call &call, void* appCtx, int32_t cid = -1);
     void OnData(const void *audio_data,
                         int bits_per_sample,
                         int sample_rate,
@@ -33,7 +33,10 @@ private:
     time_t mPreviousTime = 0;
     Call &mCall;
     bool mAudioDetected = false;
+
+    // Note that currently max CID allowed by this class is 65535
     int32_t mCid;
+    void* mAppCtx;
 };
 
 /**
@@ -67,23 +70,6 @@ public:
 };
 
 /**
- * This class represent a webrtc transceiver for local high resolution video
- */
-class LocalHighResolutionSlot : public LocalSlot
-{
-public:
-     LocalHighResolutionSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
-     void updateSentLayers(int8_t sentLayers);
-     void setTsStart(::mega::m_time_t t);
-     ::mega::m_time_t getTsStart();
-     int8_t getSentLayers();
-
-private:
-    ::mega::m_time_t mTsStart;
-    int8_t mSentLayers;
-};
-
-/**
  * This class represent a generic instance to manage remote webrtc Transceiver
  */
 class RemoteSlot : public Slot
@@ -96,7 +82,8 @@ public:
 
 protected:
     Cid_t mCid = 0;
-    RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    void* mAppCtx;
+    RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assign(Cid_t cid, IvStatic_t iv);
 
 private:
@@ -106,12 +93,13 @@ private:
 class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
 {
 public:
-    VideoSink();
+    VideoSink(void* appCtx);
     virtual ~VideoSink();
     void setVideoRender(IVideoRenderer* videoRenderer);
     virtual void OnFrame(const webrtc::VideoFrame& frame) override;
 private:
     std::unique_ptr<IVideoRenderer> mRenderer;
+    void* mAppCtx;
 };
 
 /**
@@ -120,7 +108,7 @@ private:
 class RemoteVideoSlot : public RemoteSlot, public VideoSink
 {
 public:
-    RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    RemoteVideoSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     ~RemoteVideoSlot();
     void enableTrack();
     void assignVideoSlot(Cid_t cid, IvStatic_t iv, VideoResolution videoResolution);
@@ -138,7 +126,7 @@ private:
 class RemoteAudioSlot : public RemoteSlot
 {
 public:
-    RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+    RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assignAudioSlot(Cid_t cid, IvStatic_t iv);
     void enableAudioMonitor(bool enable);
     void createDecryptor(Cid_t cid, IvStatic_t iv) override;
@@ -280,7 +268,7 @@ public:
     uint8_t getEndCallReason() const override;
 
     // called upon reception of OP_JOINEDCALL from chatd
-    void addParticipant(karere::Id peer) override;
+    void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) override;
     // called upon reception of OP_LEFTCALL from chatd
     void removeParticipant(karere::Id peer) override;
     // check if our peer is participating in the call (called from chatd)
@@ -334,7 +322,7 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
-    std::vector<karere::Id> getParticipants() const override;
+    std::set<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
 
@@ -353,7 +341,7 @@ public:
 
 
     Session* getSession(Cid_t cid);
-
+    std::set<Cid_t> getSessionsCidsByUserHandle(const karere::Id& id);
     void setState(CallState newState);
     static const char *stateToStr(CallState state);
 
@@ -363,7 +351,7 @@ public:
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
 
-    void disconnect(TermCode termCode, const std::string& msg = "");
+    void disconnect(TermCode termCode, const std::string& msg, bool removeParticipants);
     void handleCallDisconnect(const TermCode &termCode);
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
@@ -413,13 +401,19 @@ public:
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
 
 protected:
-    std::vector<karere::Id> mParticipants; // managed exclusively by meetings related chatd commands
+    /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands
+     * if we are disconnected from chatd (chatd connectivity lost), but still participating in a call, peerleft and peerjoin SFU commands
+     * could also add/remove participants to this list, in order to keep participants up to date */
+    std::set<karere::Id> mParticipants;
     karere::Id mCallid;
     karere::Id mChatid;
     karere::Id mCallerId;
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
+
+    // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
+    bool mIsReconnectingToChatd = false;
 
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
@@ -447,7 +441,7 @@ protected:
     std::unique_ptr<LocalSlot> mAudio;
     std::unique_ptr<LocalSlot> mVThumb;
     bool mVThumbActive = false;  // true when sending low res video
-    std::unique_ptr<LocalHighResolutionSlot> mHiRes;
+    std::unique_ptr<LocalSlot> mHiRes;
     bool mHiResActive = false;  // true when sending high res video
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
@@ -484,7 +478,6 @@ protected:
     void collectNonRTCStats();
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
     void updateSvcQuality(int8_t delta);
-    void updateTransmittedSvcQuality(int8_t txSpt);
     void resetLocalAvFlags();
     bool isDisconnectionTermcode(const TermCode& termCode) const;
 };
@@ -492,8 +485,9 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
-    RtcModuleSfu(MyMegaApi& megaApi, CallHandler& callhandler, DNScache &dnsCache);
-    void init(WebsocketsIO& websocketIO, void *appCtx, RtcCryptoMeetings *rRtcCryptoMeetings) override;
+    RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
+                 WebsocketsIO& websocketIO, void *appCtx,
+                 rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
     ICall* findCall(karere::Id callid) override;
     ICall* findCallByChatid(const karere::Id &chatid) override;
     bool isCallStartInProgress(const karere::Id &chatid) const override;
@@ -513,8 +507,8 @@ public:
 
     void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
 
-    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
-    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
+    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
+    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;
     void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;

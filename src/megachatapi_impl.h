@@ -65,7 +65,7 @@ namespace megachat
 {
 
 typedef std::set<MegaChatVideoListener *> MegaChatVideoListener_set;
-typedef std::map<uint32_t, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
+typedef std::map<Cid_t, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -199,7 +199,7 @@ public:
 private:
     uint8_t mState = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id mPeerId;
-    uint32_t mClientId;
+    Cid_t mClientId;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     bool mHasRequestSpeak = false;
@@ -957,6 +957,7 @@ private:
     void cleanChatHandlers();
 
     static int convertInitState(int state);
+    static int convertDbError(int errCode);
 
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);
@@ -1042,6 +1043,7 @@ public:
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
     void fireOnChatPresenceLastGreenUpdated(MegaChatHandle userhandle, int lastGreen);
     void fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState);
+    void fireOnDbError(int error, const char* msg);
 
     // MegaChatNotificationListener callbacks
     void fireOnChatNotification(MegaChatHandle chatid, MegaChatMessage *msg);
@@ -1211,6 +1213,7 @@ public:
     virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
     virtual void onInitStateChange(int newState);
     virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
+    void onDbError(int error, const std::string &msg) override;
 
     // rtcModule::IChatListHandler implementation
     virtual IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &chat);

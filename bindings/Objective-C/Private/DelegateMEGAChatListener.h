@@ -15,6 +15,7 @@ public:
     void onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config);
     void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatId, int newState);
     void onChatPresenceLastGreen(megachat::MegaChatApi* api, megachat::MegaChatHandle userHandle, int lastGreen);
+    void onDbError(megachat::MegaChatApi* api, int error, const char* message);
     
 private:
     __weak MEGAChatSdk *megaChatSDK;

@@ -78,7 +78,7 @@ std::string CommandsQueue::pop()
 
 
 Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid)
-    : mCid(cid), mPeerid(peerid), mAvFlags(avFlags)
+    : mCid(cid), mPeerid(peerid), mAvFlags(static_cast<uint8_t>(avFlags))
 {
 }
 
@@ -191,13 +191,15 @@ bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::
 uint64_t Command::hexToBinary(const std::string &hex)
 {
     uint64_t value = 0;
-    unsigned int bufferSize = hex.length() >> 1;
+    unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
     assert(bufferSize <= 8);
     std::unique_ptr<uint8_t []> buffer = std::unique_ptr<uint8_t []>(new uint8_t[bufferSize]);
     unsigned int binPos = 0;
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
-        buffer[binPos] = (hexDigitVal(hex[i++])) << 4 | hexDigitVal(hex[i++]);
+        // compiler doesn't guarantees the order "++" operation performed in relation to the second access of variable i (better to split in two operations)
+        buffer[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
+        buffer[binPos] |= static_cast<uint8_t>(hexDigitVal(hex[i++]));
     }
 
     memcpy(&value, buffer.get(), bufferSize);
@@ -209,15 +211,15 @@ uint8_t Command::hexDigitVal(char value)
 {
     if (value <= 57)
     { // ascii code if '9'
-        return value - 48; // ascii code of '0'
+        return static_cast<uint8_t>(value - 48); // ascii code of '0'
     }
     else if (value >= 97)
     { // 'a'
-        return 10 + value - 97;
+        return static_cast<uint8_t>(10 + value - 97);
     }
     else
     {
-        return 10 + value - 65; // 'A'
+        return static_cast<uint8_t>(10 + value - 65); // 'A'
     }
 }
 
@@ -940,7 +942,7 @@ unsigned int Sdp::addTrack(const std::vector<std::string>& lines, unsigned int p
         else if (name == "msid")
         {
             std::string subLine = line.substr(7);
-            unsigned int pos = subLine.find(" ");
+            unsigned int pos = static_cast<unsigned int>(subLine.find(" "));
             track.mSid = subLine.substr(0, pos);
             track.mId = subLine.substr(pos + 1, subLine.length());
         }
@@ -1115,21 +1117,7 @@ SfuConnection::SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, vo
     , mMainThreadId(std::this_thread::get_id())
     , mDnsCache(dnsCache)
 {
-    mCommands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), mCall);
-    mCommands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), mCall);
-    mCommands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), mCall);
-    mCommands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), mCall);
-    mCommands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), mCall);
-    mCommands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), mCall);
-    mCommands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), mCall);
-    mCommands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), mCall);
-    mCommands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), mCall);
-    mCommands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), mCall);
-    mCommands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), mCall);
-    mCommands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), mCall);
-    mCommands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), mCall);
-    mCommands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), mCall);
-    mCommands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), mCall);
+    setCallbackToCommands(mCall, mCommands);
 }
 
 SfuConnection::~SfuConnection()
@@ -1170,6 +1158,9 @@ void SfuConnection::disconnect(bool withoutReconnection)
     setConnState(kDisconnected);
     if (withoutReconnection)
     {
+        // It isn't required check mConnectTimer because it's set at setConnState(kDisconnected);
+        karere::cancelTimeout(mConnectTimer, mAppCtx);
+        mConnectTimer = 0;
         abortRetryController();
     }
 }
@@ -1312,6 +1303,10 @@ void SfuConnection::processNextCommand(bool resetSending)
 
     if (mCommandsQueue.empty() || mCommandsQueue.sending())
     {
+        std::string msg = "processNextCommand: skip processing next command";
+        if (mCommandsQueue.empty())     { msg.append(", mCommandsQueue is empty"); }
+        if (mCommandsQueue.sending())   { msg.append(", sending is true"); }
+        SFU_LOG_DEBUG("%s", msg.c_str());
         return;
     }
 
@@ -1332,7 +1327,7 @@ void SfuConnection::processNextCommand(bool resetSending)
 void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
-
+    SFU_LOG_WARNING("SfuConnection: clearing commands queue");
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
@@ -1351,16 +1346,34 @@ const karere::Url& SfuConnection::getSfuUrl()
     return mSfuUrl;
 }
 
-bool SfuConnection::handleIncomingData(const char* data, size_t len)
+void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
+{
+    commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
+    commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
+    commands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
+    commands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), call);
+    commands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
+    commands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
+    commands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
+    commands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
+    commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
+    commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
+    commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
+}
+
+bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
 {
     SFU_LOG_DEBUG("Data received: %s", data);
     rapidjson::StringStream stringStream(data);
-    rapidjson::Document document;
     document.ParseStream(stringStream);
 
     if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
     {
-        SFU_LOG_ERROR("Failure at: Parser json error");
+        errMsg = "Failure at: Parser json error";
         return false;
     }
 
@@ -1368,24 +1381,48 @@ bool SfuConnection::handleIncomingData(const char* data, size_t len)
     rapidjson::Value::ConstMemberIterator jsonErrIterator = document.FindMember(Command::ERROR_IDENTIFIER.c_str());
     if ((jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString()) && (jsonErrIterator == document.MemberEnd()))
     {
-        SFU_LOG_ERROR("Received data doesn't have 'a' field");
+        errMsg = "Received data doesn't have 'a' field";
         return false;
     }
 
     if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
     {
-        std::string error = "Unknown reason";
+        errMsg = "Unknown reason";
         rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = document.FindMember(Command::ERROR_MESSAGE.c_str());
         if (jsonErrMsgIterator != document.MemberEnd() && jsonErrMsgIterator->value.IsString())
         {
-            error = jsonErrMsgIterator->value.GetString();
+            errMsg = jsonErrMsgIterator->value.GetString();
         }
-
-        mCall.error(jsonErrIterator->value.GetInt(), error);
+        errCode = jsonErrIterator->value.GetInt();
         return true;
     }
 
-    std::string command = jsonIterator->value.GetString();
+    command = jsonIterator->value.GetString();
+    return true;
+}
+
+bool SfuConnection::handleIncomingData(const char *data, size_t len)
+{
+    // init errCode to invalid value, to check if a valid errCode has been returned by SFU
+    int32_t errCode = INT32_MIN;
+    std::string command;
+    std::string errMsg;
+    rapidjson::Document document;
+
+    if (!parseSfuData(data, document, command, errMsg, errCode))
+    {
+        // error parsing incoming data from SFU
+        SFU_LOG_ERROR("%s", errMsg.c_str());
+        return false;
+    }
+
+    if (errCode != INT32_MIN)
+    {
+        // process errCode returned by SFU
+        mCall.error(static_cast<unsigned int>(errCode), errMsg);
+        return true;
+    }
+
     auto commandIterator = mCommands.find(command);
     if (commandIterator == mCommands.end())
     {
@@ -1409,15 +1446,15 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_JOIN.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value sdpValue(rapidjson::kObjectType);
     auto data = sdp.data();
     for (const auto& data : data)
     {
         rapidjson::Value dataValue(rapidjson::kStringType);
-        dataValue.SetString(data.second.c_str(), data.second.length());
-        sdpValue.AddMember(rapidjson::Value(data.first.c_str(), data.first.length()), dataValue, json.GetAllocator());
+        dataValue.SetString(data.second.c_str(),  static_cast<rapidjson::SizeType>(data.second.length()));
+        sdpValue.AddMember(rapidjson::Value(data.first.c_str(), static_cast<rapidjson::SizeType>(data.first.length())), dataValue, json.GetAllocator());
     }
 
     rapidjson::Value tracksValue(rapidjson::kArrayType);
@@ -1431,17 +1468,17 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
         }
 
         rapidjson::Value dataValue(rapidjson::kObjectType);
-        dataValue.AddMember("t", rapidjson::Value(track.mType.c_str(), track.mType.length()), json.GetAllocator());
+        dataValue.AddMember("t", rapidjson::Value(track.mType.c_str(), static_cast<rapidjson::SizeType>(track.mType.length())), json.GetAllocator());
         dataValue.AddMember("mid", rapidjson::Value(track.mMid), json.GetAllocator());
-        dataValue.AddMember("dir", rapidjson::Value(track.mDir.c_str(), track.mDir.length()), json.GetAllocator());
+        dataValue.AddMember("dir", rapidjson::Value(track.mDir.c_str(), static_cast<rapidjson::SizeType>(track.mDir.length())), json.GetAllocator());
         if (track.mSid.length())
         {
-            dataValue.AddMember("sid", rapidjson::Value(track.mSid.c_str(), track.mSid.length()), json.GetAllocator());
+            dataValue.AddMember("sid", rapidjson::Value(track.mSid.c_str(), static_cast<rapidjson::SizeType>(track.mSid.length())), json.GetAllocator());
         }
 
         if (track.mId.length())
         {
-            dataValue.AddMember("id", rapidjson::Value(track.mId.c_str(), track.mId.length()), json.GetAllocator());
+            dataValue.AddMember("id", rapidjson::Value(track.mId.c_str(), static_cast<rapidjson::SizeType>(track.mId.length())), json.GetAllocator());
         }
 
         if (track.mSsrcg.size())
@@ -1449,7 +1486,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
             rapidjson::Value ssrcgValue(rapidjson::kArrayType);
             for (const auto& element : track.mSsrcg)
             {
-                ssrcgValue.PushBack(rapidjson::Value(element.c_str(), element.length()), json.GetAllocator());
+                ssrcgValue.PushBack(rapidjson::Value(element.c_str(), static_cast<rapidjson::SizeType>(element.length())), json.GetAllocator());
             }
 
             dataValue.AddMember("ssrcg", ssrcgValue, json.GetAllocator());
@@ -1462,7 +1499,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
             {
                 rapidjson::Value elementValue(rapidjson::kObjectType);
                 elementValue.AddMember("id", rapidjson::Value(element.first), json.GetAllocator());
-                elementValue.AddMember("cname", rapidjson::Value(element.second.c_str(), element.second.size()), json.GetAllocator());
+                elementValue.AddMember("cname", rapidjson::Value(element.second.c_str(), static_cast<rapidjson::SizeType>(element.second.size())), json.GetAllocator());
 
                 ssrcsValue.PushBack(elementValue, json.GetAllocator());
             }
@@ -1480,7 +1517,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
     rapidjson::Value ivsValue(rapidjson::kObjectType);
     for (const auto& iv : ivs)
     {
-        ivsValue.AddMember(rapidjson::Value(iv.first.c_str(), iv.first.size()), rapidjson::Value(iv.second.c_str(), iv.second.size()), json.GetAllocator());
+        ivsValue.AddMember(rapidjson::Value(iv.first.c_str(), static_cast<rapidjson::SizeType>(iv.first.size())), rapidjson::Value(iv.second.c_str(), static_cast<rapidjson::SizeType>(iv.second.size())), json.GetAllocator());
     }
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
@@ -1520,7 +1557,7 @@ bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SENDKEY.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value idValue(rapidjson::kNumberType);
     idValue.SetUint(id);
@@ -1531,7 +1568,7 @@ bool SfuConnection::sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys
     {
         rapidjson::Value keyValue(rapidjson::kArrayType);
         keyValue.PushBack(rapidjson::Value(key.first), json.GetAllocator());
-        keyValue.PushBack(rapidjson::Value(key.second.c_str(), key.second.length()), json.GetAllocator());
+        keyValue.PushBack(rapidjson::Value(key.second.c_str(), static_cast<rapidjson::SizeType>(key.second.length())), json.GetAllocator());
 
         dataValue.PushBack(keyValue, json.GetAllocator());
     }
@@ -1550,7 +1587,7 @@ bool SfuConnection::sendAv(unsigned av)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_AV.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value avValue(rapidjson::kNumberType);
     avValue.SetUint(av);
@@ -1568,7 +1605,7 @@ bool SfuConnection::sendGetVtumbs(const std::vector<Cid_t> &cids)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_GET_VTHUMBS.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
     for(Cid_t cid : cids)
@@ -1590,7 +1627,7 @@ bool SfuConnection::sendDelVthumbs(const std::vector<Cid_t> &cids)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_DEL_VTHUMBS.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
     for(Cid_t cid : cids)
@@ -1612,7 +1649,7 @@ bool SfuConnection::sendGetHiRes(Cid_t cid, int r, int lo)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_GET_HIRES.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
     if (r)
@@ -1634,7 +1671,7 @@ bool SfuConnection::sendDelHiRes(const std::vector<Cid_t> &cids)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_DEL_HIRES.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     rapidjson::Value cidsValue(rapidjson::kArrayType);
     for(Cid_t cid : cids)
@@ -1655,7 +1692,7 @@ bool SfuConnection::sendHiResSetLo(Cid_t cid, int lo)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_HIRES_SET_LO.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
     json.AddMember("lo", rapidjson::Value(lo), json.GetAllocator());
@@ -1672,7 +1709,7 @@ bool SfuConnection::sendLayer(int spt, int tmp, int stmp)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_LAYER.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
     json.AddMember("spt", rapidjson::Value(spt), json.GetAllocator());
     json.AddMember("tmp", rapidjson::Value(tmp), json.GetAllocator());
     json.AddMember("stmp", rapidjson::Value(stmp), json.GetAllocator());
@@ -1688,7 +1725,7 @@ bool SfuConnection::sendSpeakReq(Cid_t cid)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SPEAK_RQ.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     if (cid)
     {
@@ -1707,7 +1744,7 @@ bool SfuConnection::sendSpeakReqDel(Cid_t cid)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SPEAK_RQ_DEL.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     if (cid)
     {
@@ -1726,7 +1763,7 @@ bool SfuConnection::sendSpeakDel(Cid_t cid)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SPEAK_DEL.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     if (cid)
     {
@@ -1745,7 +1782,7 @@ bool SfuConnection::sendBye(int termCode)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_BYE.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), Command::COMMAND_IDENTIFIER.length()), cmdValue, json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
     json.AddMember("rsn", rapidjson::Value(termCode), json.GetAllocator());
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -1761,6 +1798,11 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         SFU_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(newState));
         return;
     }
+    else if(newState == SfuConnection::ConnState::kConnected && mConnState > newState)
+    {
+        SFU_LOG_DEBUG("Tried to change connection state to kConnected but current state is: %s", connStateToStr(mConnState));
+        return;
+    }
     else
     {
         SFU_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mConnState), connStateToStr(newState));
@@ -1774,6 +1816,25 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         {
             wsDisconnect(true);
         }
+
+        // if connect-timer is running, it must be reset (kResolving --> kDisconnected)
+        if (mConnectTimer)
+        {
+            karere::cancelTimeout(mConnectTimer, mAppCtx);
+            mConnectTimer = 0;
+        }
+
+        // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
+        auto wptr = weakHandle();
+        mConnectTimer = karere::setTimeout([this, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+            mConnectTimer = 0;
+            retryPendingConnection(true);
+        }, kConnectTimeout * 1000, mAppCtx);
     }
     else if (mConnState == kConnected)
     {
@@ -1783,6 +1844,12 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
+
+        if (mConnectTimer)
+        {
+            karere::cancelTimeout(mConnectTimer, mAppCtx);
+            mConnectTimer = 0;
+        }
     }
 }
 
@@ -1818,14 +1885,27 @@ void SfuConnection::wsProcessNextMsgCb()
     processNextCommand(true);
 }
 
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 bool SfuConnection::wsSSLsessionUpdateCb(const CachedSession &sess)
 {
     // update the session's data in the DNS cache
     return mDnsCache.updateTlsSession(sess);
 }
+#endif
 
 void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &reason)
 {
+    if (mConnState == kDisconnected)
+    {
+        SFU_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
+        if (!mRetryCtrl)
+        {
+            SFU_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            reconnect(); // start retry controller
+        }
+        return;
+    }
+
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mCall.onSfuDisconnected();
     auto oldState = mConnState;
@@ -1935,17 +2015,24 @@ promise::Promise<void> SfuConnection::reconnect()
                     if (isOnline() && cachedIpsByHost)
                     {
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
-                        SFU_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        SFU_LOG_ERROR_NO_STATS("DNS error, but connection is established. Relaying on cached IPs...");
                         return;
                     }
 
                     if (statusDNS < 0)
                     {
-                        SFU_LOG_ERROR("Async DNS error in sfu. Error code: %d", statusDNS);
+                        /* don't send log error to SFU stats server, if DNS error is:
+                         *  - UV__EAI_AGAIN  (-3001)
+                         *  - UV__EAI_NODATA (-3007)
+                         *  - UV__EAI_NONAME (-3008)
+                         */
+                        (statusDNS == 3001 || statusDNS == 3007 || statusDNS == 3008)
+                            ? SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Error code: %d", statusDNS)
+                            : SFU_LOG_ERROR("Async DNS error in sfu. Error code: %d", statusDNS);
                     }
                     else
                     {
-                        SFU_LOG_ERROR("Async DNS error in sfu. Empty set of IPs");
+                        SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Empty set of IPs");
                     }
 
                     assert(!isOnline());
@@ -2004,7 +2091,7 @@ promise::Promise<void> SfuConnection::reconnect()
             if (statusDNS < 0)
             {
                 std::string errStr = "Immediate DNS error in sfu. Error code: " + std::to_string(statusDNS);
-                SFU_LOG_ERROR("%s", errStr.c_str());
+                SFU_LOG_ERROR_NO_STATS("%s", errStr.c_str());
 
                 assert(mConnState == kResolving);
                 assert(!mConnectPromise.done());
@@ -2109,7 +2196,7 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
     }
 
     ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
-    return mComplete(cid);
+    return mComplete(static_cast<Cid_t>(cid));
 }
 
 }
