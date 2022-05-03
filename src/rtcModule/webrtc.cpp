@@ -1425,7 +1425,7 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
     it->second->setTermcode(peerLeftTermCode);
     mSessions.erase(cid);
 
-    if (!mIsGroup && !isTermCodeRetriable(static_cast<TermCode>(peerLeftTermCode)))
+    if (!mIsGroup && !isTermCodeRetriable(peerLeftTermCode))
     {
         RTCM_LOG_DEBUG("handlePeerLeft. Hangup 1on1 call, upon reception of PEERLEFT with non recoverable termcode: %s", connectionTermCodeToString(peerLeftTermCode).c_str());
         disconnect(TermCode::kUserHangup, "normal user hangup");
