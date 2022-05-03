@@ -143,6 +143,7 @@ public:
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
+    virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
 };
 
 class ICall
@@ -237,8 +238,13 @@ public:
 
 void globalCleanup();
 
+typedef enum
+{
+    kNetworkQualityNoDetected   = -1,   // No network quality detected
+    kNetworkQualityLow          = 0,    // Bad network quality detected
+    kNetworkQualityHigh         = 1,    // Good network quality detected
+} netWorkQuality;
 
-static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
 
 RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScache &dnsCache,

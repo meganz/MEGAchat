@@ -2049,6 +2049,12 @@ void Call::updateVideoTracks()
     }
 }
 
+void Call::setNetworkQuality(int networkQuality)
+{
+    mNetworkQuality = networkQuality;
+    mCallHandler.onNetworkQualityChanged(*this);
+}
+
 void Call::adjustSvcByStats()
 {
     if (mStats.mSamples.mRoundTripTime.empty())

@@ -337,6 +337,13 @@ public:
         CALL_QUALITY_HIGH_LOW = 2,
     };
 
+    enum
+    {
+        NETWORK_QUALITY_NO_DETECTED = -1,   // No network quality detected
+        NETWORK_QUALITY_LOW = 0,            // Bad network quality detected
+        NETWORK_QUALITY_HIGH= 1,            // Good network quality detected
+    };
+
     enum {
         AUDIO = 0,
         VIDEO = 1,
@@ -711,11 +718,17 @@ public:
     /**
      * @brief Returns network quality
      *
-     * The valid network quality values are between 0 and 5
-     * 0 -> the worst quality
-     * 5 -> the best quality
+     * The valid network quality values are:
+     *  - MegaChatCall::NETWORK_QUALITY_NO_DETECTED  = -1,   // No network quality detected
+     *  - MegaChatCall::NETWORK_QUALITY_LOW          = 0,    // Bad network quality detected
+     *  - MegaChatCall::NETWORK_QUALITY_HIGH         = 1,    // Good network quality detected
      *
-     * @note The app may want to show a "slow network" warning when the quality is <= 1.
+     * The value returned by this method, only can be considered as valid, when is notified by MegaChatCallListener::onChatCallUpdate
+     * and MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY) is true.
+     *
+     * @note Value MegaChatCall::NETWORK_QUALITY_NO_DETECTED must be ignored by apps.
+     * The app may want to show a "slow network" warning when the quality is MegaChatCall::NETWORK_QUALITY_LOW, and remove it
+     * when the quality is MegaChatCall::NETWORK_QUALITY_HIGH.
      *
      * @return network quality
      */

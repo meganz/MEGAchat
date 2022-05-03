@@ -372,6 +372,7 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
+    void setNetworkQuality(int networkQuality);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
@@ -427,7 +428,7 @@ protected:
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
 
-    int mNetworkQuality = kNetworkQualityDefault;
+    int mNetworkQuality = rtcModule::kNetworkQualityNoDetected;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
     uint8_t mEndCallReason = kInvalidReason;
