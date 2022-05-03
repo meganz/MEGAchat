@@ -47,7 +47,6 @@ extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext
 extern std::unique_ptr<rtc::Thread> gWorkerThread;
 extern std::unique_ptr<rtc::Thread> gSignalingThread;
 extern rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing;
-extern void* gAppCtx;
 extern std::string gFieldTrialStr;
 
 /** Globally initializes the library */
@@ -90,7 +89,7 @@ const static uint8_t MAX_MEDIA_TYPES = 3;
         if (wptr.deleted())   \
             return; \
         code;                                    \
-    }, gAppCtx)
+    }, this->mAppCtx)
 #else
 #define RTCM_DO_CALLBACK(code,...)                              \
     assert(rtc::Thread::Current() == gAsyncWaiter->guiThread()); \
@@ -103,8 +102,9 @@ public:
   // The implementation of the CreateSessionDescriptionObserver takes
   // the ownership of the |desc|.
     typedef promise::Promise<webrtc::SessionDescriptionInterface*> PromiseType;
-    SdpCreateCallbacks(const PromiseType& promise)
-        :mPromise(promise){}
+    void* mAppCtx;
+    SdpCreateCallbacks(const PromiseType& promise, void* appCtx)
+        :mAppCtx(appCtx), mPromise(promise) {}
     void OnSuccess(webrtc::SessionDescriptionInterface* desc) override
     {
         RTCM_DO_CALLBACK(mPromise.resolve(desc); Release(), this, desc);
@@ -152,7 +152,8 @@ class SdpSetRemoteCallbacks : public webrtc::SetRemoteDescriptionObserverInterfa
 {
 public:
     typedef promise::Promise<void> PromiseType;
-    SdpSetRemoteCallbacks(const PromiseType& promise) :mPromise(promise){}
+    void* mAppCtx;
+    SdpSetRemoteCallbacks(const PromiseType& promise, void* appCtx) :mAppCtx(appCtx), mPromise(promise){}
     virtual void OnSetRemoteDescriptionComplete(webrtc::RTCError error)
     {
         if (error.ok())
@@ -173,7 +174,8 @@ class SdpSetLocalCallbacks : public webrtc::SetLocalDescriptionObserverInterface
 {
 public:
     typedef promise::Promise<void> PromiseType;
-    SdpSetLocalCallbacks(const PromiseType& promise) :mPromise(promise)     {}
+    void* mAppCtx;
+    SdpSetLocalCallbacks(const PromiseType& promise, void* appCtx) :mAppCtx(appCtx), mPromise(promise)     {}
     virtual void OnSetLocalDescriptionComplete(webrtc::RTCError error)
     {
         if (error.ok())
@@ -197,7 +199,7 @@ protected:
     struct Observer: public webrtc::PeerConnectionObserver,
                      public karere::DeleteTrackable    // required to use weakHandle() at RTCM_DO_CALLBACK()
     {
-        Observer(C& handler):mHandler(handler){}
+        Observer(C& handler, void* appCtx):mHandler(handler), mAppCtx(appCtx){}
         void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream) override
         {
             tspMediaStream spStream(stream);
@@ -226,6 +228,8 @@ protected:
         void OnDataChannel(scoped_refptr<webrtc::DataChannelInterface> /*data_channel*/) override {}
         void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState /*new_state*/) override {}
 
+        void* mAppCtx;
+
     protected:
         /** own callback interface, always called by the GUI thread */
         C& mHandler;
@@ -235,8 +239,8 @@ protected:
 
 public:
     MyPeerConnection():Base(){}
-    MyPeerConnection(C& handler)
-        :mObserver(new Observer(handler))
+    MyPeerConnection(C& handler, void* appCtx)
+        :mObserver(new Observer(handler, appCtx))
     {
         webrtc::PeerConnectionInterface::RTCConfiguration config;
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
@@ -252,7 +256,7 @@ public:
   SdpCreateCallbacks::PromiseType createOffer(const webrtc::PeerConnectionInterface::RTCOfferAnswerOptions &options)
   {
       SdpCreateCallbacks::PromiseType promise;
-      auto observer = new rtc::RefCountedObject<SdpCreateCallbacks>(promise);
+      auto observer = new rtc::RefCountedObject<SdpCreateCallbacks>(promise, mObserver->mAppCtx);
       observer->AddRef();
       get()->CreateOffer(observer, options);
       return promise;
@@ -260,7 +264,7 @@ public:
   SdpCreateCallbacks::PromiseType createAnswer(const webrtc::PeerConnectionInterface::RTCOfferAnswerOptions &options)
   {
       SdpCreateCallbacks::PromiseType promise;
-      auto observer = new rtc::RefCountedObject<SdpCreateCallbacks>(promise);
+      auto observer = new rtc::RefCountedObject<SdpCreateCallbacks>(promise, mObserver->mAppCtx);
       observer->AddRef();
       get()->CreateAnswer(observer, options);
       return promise;
@@ -269,7 +273,7 @@ public:
   SdpSetLocalCallbacks::PromiseType setLocalDescription(std::unique_ptr<webrtc::SessionDescriptionInterface> desc)
   {
       SdpSetLocalCallbacks::PromiseType promise;
-      auto observer = new rtc::RefCountedObject<SdpSetLocalCallbacks>(promise);
+      auto observer = new rtc::RefCountedObject<SdpSetLocalCallbacks>(promise, mObserver->mAppCtx);
       observer->AddRef();
       get()->SetLocalDescription(move(desc), observer);
       return promise;
@@ -279,7 +283,7 @@ public:
   SdpSetRemoteCallbacks::PromiseType setRemoteDescription(std::unique_ptr<webrtc::SessionDescriptionInterface> desc)
   {
       SdpSetRemoteCallbacks::PromiseType promise;
-      auto observer = new rtc::RefCountedObject<SdpSetRemoteCallbacks>(promise);
+      auto observer = new rtc::RefCountedObject<SdpSetRemoteCallbacks>(promise, mObserver->mAppCtx);
       observer->AddRef();
       get()->SetRemoteDescription(move(desc), observer);
       return promise;

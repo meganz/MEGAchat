@@ -228,7 +228,7 @@ public:
 
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
-    bool TEST_ResumeSession(unsigned int accountIndex);
+    void TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
@@ -248,6 +248,7 @@ public:
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
     void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
+    void TEST_EstablishedCalls(unsigned int a1, unsigned int a2);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
@@ -364,6 +365,14 @@ private:
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+    bool mChatCallOnHold[NUM_ACCOUNTS];
+    bool mChatCallOnHoldResumed[NUM_ACCOUNTS];
+    bool mChatCallAudioEnabled[NUM_ACCOUNTS];
+    bool mChatCallAudioDisabled[NUM_ACCOUNTS];
+    bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
+    bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
+    bool mChatCallSilenceReq[NUM_ACCOUNTS];
+    bool mChatCallReconnection[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -409,6 +418,9 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
+    virtual void onChatSessionUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid,
+                                     megachat::MegaChatHandle callid,
+                                     megachat::MegaChatSession *session);
 #endif
 };
 
