@@ -183,6 +183,7 @@ public:
     virtual bool isLowResVideo() const override;
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
+    virtual int getTermCode() const override;
     virtual bool hasChanged(int changeType) const override;
     virtual bool isAudioDetected() const override;
     virtual bool hasRequestSpeak() const override;
@@ -195,12 +196,14 @@ public:
     void setOnHold(bool onHold);
     void setChange(int change);
     void removeChanges();
+    int convertTermCode(rtcModule::TermCode termCode);
 
 private:
     uint8_t mState = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id mPeerId;
     Cid_t mClientId;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
+    int mTermCode = MegaChatSession::SESS_TERM_CODE_INVALID;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     bool mHasRequestSpeak = false;
     bool mAudioDetected = false;

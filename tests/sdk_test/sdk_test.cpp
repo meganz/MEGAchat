@@ -5425,7 +5425,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"]     = false;
     checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"]                            = false;
     checkCommands["{\"a\":\"HIRES_STOP\"}"]                                                     = true;
-    checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2}"]                                             = true;
+    checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2,\"rsn\":65}"]                                  = true;
     checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"]         = true;
     checkCommands["{\"a\":\"HIRES_START\"}"]                                                    = true;
     checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"]                             = false;
@@ -5675,7 +5675,7 @@ bool MockupCall::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     return true;
 }
 
-bool MockupCall::handlePeerLeft(Cid_t cid)
+bool MockupCall::handlePeerLeft(Cid_t cid, unsigned termcode)
 {
     return true;
 }

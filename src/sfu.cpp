@@ -1362,7 +1362,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
+    commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
 }
 
 bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
@@ -2195,8 +2195,16 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("rsn");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'rsn' field");
+        return false;
+    }
+
     ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
-    return mComplete(static_cast<Cid_t>(cid));
+    unsigned termcode = reasonIterator->value.GetUint();
+    return mComplete(static_cast<Cid_t>(cid), termcode);
 }
 
 }

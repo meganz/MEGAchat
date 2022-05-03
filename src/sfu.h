@@ -157,7 +157,7 @@ public:
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
-    virtual bool handlePeerLeft(Cid_t cid) = 0;
+    virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
     virtual void onSfuDisconnected() = 0;
 
@@ -330,7 +330,7 @@ public:
     PeerJoinCommandFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid)> PeerLeftCommandFunction;
+typedef std::function<bool(Cid_t cid, unsigned termcode)> PeerLeftCommandFunction;
 class PeerLeftCommand : public Command
 {
 public:
