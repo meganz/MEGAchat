@@ -763,7 +763,6 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
         return false;
     }
 
-    setState(CallState::kStateConnecting);
     if (!mRtc.getDnsCache().getRecordByHost(sfuUrl.host) && !mRtc.getDnsCache().addSfuRecord(sfuUrl.host))
     {
         RTCM_LOG_ERROR("connectSfu: can't retrieve nor add SFU record");
@@ -771,6 +770,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
         return false;
     }
 
+    setState(CallState::kStateConnecting);
     mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
     return true;
 }
@@ -908,6 +908,7 @@ void Call::getLocalStreams()
 
 void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
 {
+    // When the client initiates a disconnect we need to send BYE command to inform SFU about the reason
     RTCM_LOG_DEBUG("orderedCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
     if (mSfuConnection && mSfuConnection->isOnline())
     {
@@ -2459,6 +2460,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
+            // between kStateClientNoParticipating and kStateInProgress (last included) mSfuConnection must exists
             call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str());
         }
 
