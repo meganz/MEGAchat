@@ -920,11 +920,11 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
         clearParticipants();
     }
 
-    if (isTermCodeRetriable(termCode)
-            || !mSfuConnection
-            || !mSfuConnection->isOnline())
+    if (!mSfuConnection || !mSfuConnection->isOnline()
+            || termCode == kSigDisconn)  // kSigDisconn is mutually exclusive with the BYE command
     {
         // we don't need to send BYE command, just perform disconnection
+        assert(termCode != kRtcDisconn); // if SFU connection failed we shouldn't be connected to SFU at this moment
         immediateCallDisconnect(termCode);
         return;
     }
