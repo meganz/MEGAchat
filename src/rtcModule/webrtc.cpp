@@ -1593,21 +1593,23 @@ bool Call::error(unsigned int code, const std::string &errMsg)
             return;
         }
 
-        // For SFU errors no need to send BYE command, the SFU will close the connection immediately after sending the error
-        // TermCode is set at callDisconnect, removeCall will set EndCall reason to kFailed
         TermCode connectionTermCode = static_cast<TermCode>(code);
 
-        // don't need to call orderedCallDisconnect as we don't need to send BYE command, because we are already receiving an error from SFU
+        // send call stats
         if (mSfuConnection && mSfuConnection->isOnline())
         {
             sendStats(connectionTermCode);
         }
 
+        // For SFU errors no need to send BYE command, the SFU will close the connection immediately after sending the error
+        // TermCode is set at immediateCallDisconnect, removeCall will set EndCall reason to kFailed
         immediateCallDisconnect(connectionTermCode);
 
+        // remove call just if there are no participants or termcode is not recoverable
         if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
         {
-            // remove call just if there are no participants or termcode is not recoverable
+            // orderedCallDisconnect won't be called inside removeCall, as call state is set to kStateClientNoParticipating
+            // by the end of immediateCallDisconnect
             mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
