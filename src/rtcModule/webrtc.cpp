@@ -911,7 +911,7 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
     RTCM_LOG_DEBUG("orderedCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
     if (mSfuConnection && mSfuConnection->isOnline())
     {
-        sendStats(termCode);
+        sendStats(termCode); // send stats if we are connected to SFU regardless termcode
     }
 
     if (mIsReconnectingToChatd)
@@ -1043,6 +1043,12 @@ bool Call::isValidConnectionTermcode(TermCode termCode) const
 
 void Call::sendStats(const TermCode& termCode)
 {
+    if (mStats.isEmptyStats())
+    {
+        // avoid sending stats more than once upon disconnect
+        RTCM_LOG_DEBUG("sendStats: stats are empty");
+    }
+
     assert(isValidConnectionTermcode(termCode));
     mStats.mDuration = mInitialTs
             ? static_cast<uint64_t>((time(nullptr) - mInitialTs) * 1000)  // ms
