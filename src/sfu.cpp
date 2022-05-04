@@ -1128,20 +1128,9 @@ SfuConnection::~SfuConnection()
     }
 }
 
-void SfuConnection::resetDisconnectAttempt()
+void SfuConnection::setIsSendingBye(bool sending)
 {
-    mIsSendingBye = false;
-    mDisconnectType = kNoDisconnect;
-}
-
-bool SfuConnection::isValidDisconnectType(uint8_t disconnectType)
-{
-   return disconnectType == kSignalingDisconnect || disconnectType == kSfuDisconnect;
-}
-
-uint8_t SfuConnection::getDisconnectType() const
-{
-    return mDisconnectType;
+    mIsSendingBye = sending;
 }
 
 bool SfuConnection::isJoined() const
@@ -1362,7 +1351,7 @@ void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
     SFU_LOG_WARNING("SfuConnection: clearing commands queue");
-    resetDisconnectAttempt();
+    setIsSendingBye(false);
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
@@ -1812,10 +1801,8 @@ bool SfuConnection::sendSpeakDel(Cid_t cid)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendBye(int termCode, uint8_t disconnectType)
+bool SfuConnection::sendBye(int termCode)
 {
-    assert(isValidDisconnectType(disconnectType));
-    mDisconnectType = disconnectType;
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_BYE.c_str(), json.GetAllocator());

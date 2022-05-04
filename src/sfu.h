@@ -387,20 +387,11 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
-    typedef enum DisconnectType
-    {
-        kNoDisconnect           = 0,    // no disconnect in progress
-        kSignalingDisconnect    = 1,    // disconnect from signaling connection
-        kSfuDisconnect          = 2,    // full disconnect from signaling connection and SFU
-    } disconnectType_t;
-
     static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
 
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
-    void resetDisconnectAttempt();
-    static bool isValidDisconnectType(uint8_t disconnectType);
-    uint8_t getDisconnectType() const;
+    void setIsSendingBye(bool sending);
     bool isSendingByeCommand() const;
     bool isOnline() const;
     bool isJoined() const;
@@ -431,7 +422,7 @@ public:
     bool sendSpeakReq(Cid_t cid = 0);
     bool sendSpeakReqDel(Cid_t cid = 0);
     bool sendSpeakDel(Cid_t cid = 0);
-    bool sendBye(int termCode, uint8_t disconnectType);
+    bool sendBye(int termCode);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
@@ -478,8 +469,6 @@ protected:
     // This flag is set true when BYE command is sent to SFU
     bool mIsSendingBye = false;
 
-    // This variable indicates the type of disconnect. For more information refer to disconnectType_t
-    uint8_t mDisconnectType = kNoDisconnect;
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;
     CommandsQueue mCommandsQueue;

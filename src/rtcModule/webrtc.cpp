@@ -233,12 +233,7 @@ promise::Promise<void> Call::hangup()
     }
     else
     {
-        onCallDisconnect(TermCode::kUserHangup,
-                         "normal user hangup",
-                         true,                    /*disconnectFromSfu*/
-                         true,                    /*sendByeCommand*/
-                         mIsReconnectingToChatd); /*removeParticipants*/
-
+        orderedCallDisconnect(TermCode::kUserHangup, "normal user hangup");
         return promise::_Void();
     }
 }
@@ -824,11 +819,7 @@ void Call::joinSfu()
         std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription(sdp->GetType(), sdpUncompress, &error));
         if (!sdpInterface)
         {
-            onCallDisconnect(TermCode::kErrSdp,
-                             "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description,
-                             true,                    /*disconnectFromSfu*/
-                             true,                    /*sendByeCommand*/
-                             mIsReconnectingToChatd); /*removeParticipants*/
+            orderedCallDisconnect(TermCode::kErrSdp, "Error parsing SDP offer: line= " + error.line +"  \nError: " + error.description);
         }
 
         // update mSdpStr with modified SDP
@@ -860,11 +851,7 @@ void Call::joinSfu()
         if (wptr.deleted())
             return;
 
-        onCallDisconnect(TermCode::kErrSdp,
-                         std::string("Error creating SDP offer: ") + err.msg(),
-                         true,                    /*disconnectFromSfu*/
-                         true,                    /*sendByeCommand*/
-                         mIsReconnectingToChatd); /*removeParticipants*/
+        orderedCallDisconnect(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
     });
 }
 
@@ -919,68 +906,45 @@ void Call::getLocalStreams()
     }
 }
 
-void Call::onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool sendByeCommand, bool removeParticipants)
+void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
 {
-    RTCM_LOG_DEBUG("onCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
+    RTCM_LOG_DEBUG("orderedCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
     if (mSfuConnection && mSfuConnection->isOnline())
     {
         sendStats(termCode);
     }
 
-    if (removeParticipants)
+    if (mIsReconnectingToChatd)
     {
         clearParticipants();
     }
 
-    if (termCode != kSigDisconn
-            && mSfuConnection
-            && mSfuConnection->isOnline()
-            && sendByeCommand)
+    if (isTermCodeRetriable(termCode)
+            || !mSfuConnection
+            || !mSfuConnection->isOnline())
     {
-        // send BYE command as part of the protocol to inform SFU about the disconnection reason
-        if (mSfuConnection->isSendingByeCommand())
-        {
-            RTCM_LOG_DEBUG("onCallDisconnect, already sending BYE command");
-            return;
-        }
-
-        // we need to store termcode temporarily until confirm BYE command has been sent
-        mTempTermCode = termCode;
-
-        // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
-        mSfuConnection->sendBye(termCode, disconnectFromSfu
-                                    ? ::sfu::SfuConnection::kSfuDisconnect
-                                    : ::sfu::SfuConnection::kSignalingDisconnect);
+        // we don't need to send BYE command, just perform disconnection
+        immediateCallDisconnect(termCode);
+        return;
     }
-    else // if we don't need to send BYE command just perform disconnection
+
+    // send BYE command as part of the protocol to inform SFU about the disconnection reason
+    if (mSfuConnection->isSendingByeCommand())
     {
-        assert(termCode == kSigDisconn ? !disconnectFromSfu : true);
-        if (!disconnectFromSfu)
-        {
-            signalingDisconnectAndClear(termCode);
-            if (mSfuConnection && !mSfuConnection->isOnline())
-            {
-                // reset disconnect attempt vars just if not connected to sfu, to not interfere with a previous disconnect attempt inflight
-                mSfuConnection->resetDisconnectAttempt();
-            }
-        }
-        else
-        {
-            callDisconnect(termCode);  // full disconnect (sfu & signaling), mSfuConnection will be destroyed
-        }
+        RTCM_LOG_DEBUG("orderedCallDisconnect, already sending BYE command");
+        return;
     }
-    return;
+
+    // we need to store termcode temporarily until confirm BYE command has been sent
+    mTempTermCode = termCode;
+
+    // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
+    mSfuConnection->sendBye(termCode);
 }
 
-void Call::signalingDisconnectAndClear(const TermCode& termCode)
+void Call::clearResources(const TermCode& termCode)
 {
-    RTCM_LOG_DEBUG("signalingDisconnectAndClear, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
-    if (mRtcConn)
-    {
-        mRtcConn->Close();
-        mRtcConn = nullptr;
-    }
-
+    RTCM_LOG_DEBUG("clearResources, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
@@ -991,6 +955,28 @@ void Call::signalingDisconnectAndClear(const TermCode& termCode)
     if (!isDisconnectionTermcode(termCode))
     {
         resetLocalAvFlags();        // reset local AvFlags: Audio | Video | OnHold => disabled
+    }
+}
+
+void Call::mediaChannelDisconnect(bool releaseDevices)
+{
+    if (releaseDevices)
+    {
+        if (getLocalAvFlags().videoCam())
+        {
+            releaseVideoDevice();
+        }
+
+        for (const auto& session : mSessions)
+        {
+            session.second->disableAudioSlot();
+        }
+    }
+
+    if (mRtcConn)
+    {
+        mRtcConn->Close();
+        mRtcConn = nullptr;
     }
 }
 
@@ -1147,12 +1133,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
     if (!sdpInterface)
     {
-        onCallDisconnect(TermCode::kErrSdp,
-                         "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description,
-                         true,                    /*disconnectFromSfu*/
-                         true,                    /*sendByeCommand*/
-                         mIsReconnectingToChatd); /*removeParticipants*/
-
+        orderedCallDisconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
         return false;
     }
 
@@ -1199,11 +1180,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             return;
 
         std::string msg = "Error setting SDP answer: " + err.msg();
-        onCallDisconnect(TermCode::kErrSdp,
-                         msg,
-                         true,                    /*disconnectFromSfu*/
-                         true,                    /*sendByeCommand*/
-                         mIsReconnectingToChatd); /*removeParticipants*/
+        orderedCallDisconnect(TermCode::kErrSdp, msg);
     });
 
     return true;
@@ -1540,31 +1517,24 @@ void Call::onSfuConnected()
 
 void Call::onSfuDisconnected()
 {
-    onCallDisconnect(kRtcDisconn,
-                     "SFU connection onSocketClose",
-                     false,                   /*disconnectFromSfu*/
-                     false,                   /*sendByeCommand*/
-                     mIsReconnectingToChatd); /*removeParticipants*/
+    // Not necessary to call to orderedCallDisconnect, as we are not connected to SFU
+    // disconnect from media channel and clear resources
+    mediaChannelDisconnect();
+    clearResources(kRtcDisconn);
+    mSfuConnection->setIsSendingBye(false);
 }
 
-void Call::callDisconnect(const TermCode& termCode)
+void Call::immediateCallDisconnect(const TermCode& termCode)
+{
+    mediaChannelDisconnect(true /*releaseDevices*/);
+    clearResources(termCode);
+    sfuDisconnect(termCode);
+}
+
+void Call::sfuDisconnect(const TermCode& termCode)
 {
     RTCM_LOG_DEBUG("callDisconnect, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
-    if (getLocalAvFlags().videoCam())
-    {
-        releaseVideoDevice();
-    }
-
-    for (const auto& session : mSessions)
-    {
-        session.second->disableAudioSlot();
-    }
-
-    // close signaling connection and clear some call stuff
-    signalingDisconnectAndClear(termCode);
-
-    // termcode is only valid at state kStateTerminatingUserParticipation
-    mTermCode = termCode;
+    mTermCode = termCode; // termcode is only valid at state kStateTerminatingUserParticipation
     setState(CallState::kStateTerminatingUserParticipation);
     if (mSfuConnection)
     {
@@ -1596,26 +1566,9 @@ void Call::onSendByeCommand()
 
         // once we have confirmed that BYE command has been sent, we can proceed with disconnect
         assert (mTempTermCode != kInvalidTermCode);
-        switch (mSfuConnection->getDisconnectType())
-        {
-            case ::sfu::SfuConnection::kSignalingDisconnect:
-            {
-                signalingDisconnectAndClear(mTempTermCode);
-                mSfuConnection->resetDisconnectAttempt();
-                break;
-            }
-            case ::sfu::SfuConnection::kSfuDisconnect:
-            {
-                callDisconnect(mTempTermCode); // full disconnect (sfu & signaling), mSfuConnection will be destroyed
-                break;
-            }
-            default:
-            {
-                assert(!sfu::SfuConnection::isValidDisconnectType(mSfuConnection->getDisconnectType()));
-                RTCM_LOG_WARNING("onSendByeCommand: invalid disconnect type");
-                return;
-            }
-        }
+
+        // close sfu and media channel connection and clear some call stuff
+        immediateCallDisconnect(mTempTermCode);
         mTempTermCode = kInvalidTermCode;
     }, mRtc.getAppCtx());
 }
@@ -1638,15 +1591,17 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         // TermCode is set at callDisconnect, removeCall will set EndCall reason to kFailed
         TermCode connectionTermCode = static_cast<TermCode>(code);
 
-        // don't clear participants at disconnect if recoverable error, as some temporal errors received from SFU don't require to remove call
-        onCallDisconnect(connectionTermCode,
-                         errMsg,
-                         true,                                      /*disconnectFromSfu*/
-                         false,                                     /*sendByeCommand*/
-                         !isTermCodeRetriable(connectionTermCode)); /*removeParticipants*/
-
-        if (mParticipants.empty())
+        // don't need to call orderedCallDisconnect as we don't need to send BYE command, because we are already receiving an error from SFU
+        if (mSfuConnection && mSfuConnection->isOnline())
         {
+            sendStats(connectionTermCode);
+        }
+
+        immediateCallDisconnect(connectionTermCode);
+
+        if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
+        {
+            // remove call just if there are no participants or termcode is not recoverable
             mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
@@ -1727,11 +1682,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
         {
             if (mState == CallState::kStateInProgress)
             {
-                onCallDisconnect(TermCode::kRtcDisconn,
-                                 "onConnectionChange received with PeerConnectionState::kDisconnected",
-                                 true,                    /*disconnectFromSfu*/
-                                 true,                    /*sendByeCommand*/
-                                 mIsReconnectingToChatd); /*removeParticipants*/
+                orderedCallDisconnect(TermCode::kRtcDisconn, "onConnectionChange received with PeerConnectionState::kDisconnected");
             }
 
             setState(CallState::kStateConnecting);
@@ -2500,11 +2451,7 @@ void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode 
     {
         if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
         {
-            call->onCallDisconnect(connectionTermCode,
-                                   std::string("disconnect done from removeCall, reason: ") + call->endCallReasonToString(reason),
-                                   true,    /*disconnectFromSfu*/
-                                   false,   /*sendByeCommand*/
-                                   false);  /*removeParticipants*/
+            call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str());
         }
 
         // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange

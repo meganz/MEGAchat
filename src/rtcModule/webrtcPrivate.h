@@ -350,10 +350,19 @@ public:
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
-    void onCallDisconnect(TermCode termCode, const std::string &msg, bool disconnectFromSfu, bool sendByeCommand, bool removeParticipants);
+    void sfuDisconnect(const TermCode &termCode);
 
-    void callDisconnect(const TermCode &termCode);
-    void signalingDisconnectAndClear(const TermCode &termCode);
+    // ordered call disconnect by sending BYE command before performing SFU and media channel disconnect
+    void orderedCallDisconnect(TermCode termCode, const std::string &msg);
+
+    // immediate disconnect (without sending BYE command) from SFU and media channel, and also clear call resources
+    void immediateCallDisconnect(const TermCode& termCode);
+
+    // clear call resources
+    void clearResources(const TermCode& termCode);
+
+    // disconnect from media channel (MyPeerConnection)
+    void mediaChannelDisconnect(bool releaseDevices = false);
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
     std::string connectionTermCodeToString(const TermCode &termcode) const;
@@ -440,6 +449,7 @@ protected:
     sfu::SfuClient& mSfuClient;
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
 
+    // represents the Media channel connection (via WebRTC) between the local device and SFU.
     artc::MyPeerConnection<Call> mRtcConn;
     std::string mSdpStr;   // session description provided by WebRTC::createOffer()
     std::unique_ptr<LocalSlot> mAudio;
