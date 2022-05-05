@@ -18,6 +18,8 @@ public:
     std::vector<int32_t> mBytesReceived;
     std::vector<int32_t> mBytesSend;
     std::vector<int32_t> mAudioJitter;
+    std::vector<uint32_t> mPacketSent;
+    std::vector<double> mTotalPacketSendDelay;
     // Scalable video coding index
     std::vector<int32_t> mQ;
     // Audio video flags
