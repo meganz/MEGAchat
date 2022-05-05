@@ -135,7 +135,21 @@ void MeetingView::updateLabel(unsigned participants, const std::string &state)
     txt.append(std::to_string(participants));
     txt.append("  State: ");
     txt.append(state);
+    if (mNetworkQuality == ::megachat::MegaChatCall::NETWORK_QUALITY_BAD)
+    {
+        txt.append("<br /><span style='color:#FF0000'>SLOW NETWORK</span>");
+    }
     mLabel->setText(txt.c_str());
+}
+
+void MeetingView::updateNetworkQuality(int netWorkQuality)
+{
+    if (mNetworkQuality == netWorkQuality)
+    {
+        return;
+    }
+
+    mNetworkQuality = netWorkQuality;
 }
 
 void MeetingView::setNotParticipating()

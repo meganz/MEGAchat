@@ -33,6 +33,7 @@ public:
     std::string sessionToString(const megachat::MegaChatSession& session);
     void updateAudioMonitor(bool enabled);
     void updateLabel(unsigned participants, const std::string &state);
+    void updateNetworkQuality(int netWorkQuality);
     void setNotParticipating();
     void setConnecting();
 
@@ -48,6 +49,7 @@ public:
 protected:
     megachat::MegaChatApi &mMegaChatApi;
     mega::MegaHandle mChatid;
+    int mNetworkQuality = ::megachat::MegaChatCall::NETWORK_QUALITY_GOOD;
 
     QGridLayout* mGridLayout;
     QHBoxLayout* mThumbLayout;
