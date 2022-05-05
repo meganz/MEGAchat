@@ -18,6 +18,7 @@ SvcDriver::SvcDriver ()
       mRttUpper(0),
       mMovingAverageRtt(0),
       mMovingAveragePlost(0),
+      mMovingAverageVideoTxHeight(INT_MIN),
       mTsLastSwitch(0)
 {
 
@@ -2135,6 +2136,33 @@ void Call::adjustSvcByStats()
         // faithfully improvement in network quality, we take mRttLower and mPacketLostLower as references
         updateSvcQuality(+1);
     }
+
+    if (mStats.mSamples.mVtxHiResh.size() < 2
+            || mStats.mSamples.mPacketSent.size() < 2
+            || mStats.mSamples.mTotalPacketSendDelay.size() < 2
+            || mStats.mSamples.mVtxHiResh.back() == 0
+            || mStats.mSamples.mVtxHiResh.at(mStats.mSamples.mVtxHiResh.size() -2) == 0)
+    {
+        // notify about a change in network quality if received quality is very low
+        mSvcDriver.mCurrentSvcLayerIndex < 1
+                ? updateNetworkQuality(kNetworkQualityBad)
+                : updateNetworkQuality(kNetworkQualityGood);
+        return;
+    }
+
+    mSvcDriver.mMovingAverageVideoTxHeight = mSvcDriver.mMovingAverageVideoTxHeight != INT_MIN
+            ? ((mSvcDriver.mMovingAverageVideoTxHeight * 3) + static_cast<double>(mStats.mSamples.mVtxHiResh.back())) / 4
+            : mStats.mSamples.mVtxHiResh.back();
+
+    bool txBad = mSvcDriver.mMovingAverageVideoTxHeight < 360;
+    uint32_t pktSent =  mStats.mSamples.mPacketSent.back() - mStats.mSamples.mPacketSent.at(mStats.mSamples.mPacketSent.size() - 2);
+    double totalPacketSendDelay = mStats.mSamples.mTotalPacketSendDelay.back() - mStats.mSamples.mTotalPacketSendDelay.at(mStats.mSamples.mTotalPacketSendDelay.size() - 2);
+    double vtxDelay = pktSent ? round(totalPacketSendDelay * 1000 / pktSent) : -1;
+
+    // notify about a change in network quality if necessary
+    (txBad || mSvcDriver.mCurrentSvcLayerIndex < 1 || roundTripTime > mSvcDriver.mRttUpper || vtxDelay > 1500)
+            ? updateNetworkQuality(kNetworkQualityBad)
+            : updateNetworkQuality(kNetworkQualityGood);
 }
 
 const std::string& Call::getCallKey() const

@@ -232,6 +232,8 @@ public:
     double mRttUpper;
     double mMovingAverageRtt;
     double mMovingAveragePlost;
+    double mVtxDelay;
+    double mMovingAverageVideoTxHeight;
     time_t mTsLastSwitch;
 };
 
