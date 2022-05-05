@@ -267,7 +267,6 @@ int MegaChatCall::getNetworkQuality() const
     return 0;
 }
 
-
 bool MegaChatCall::hasRequestSpeak() const
 {
     return false;

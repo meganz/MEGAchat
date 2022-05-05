@@ -240,9 +240,8 @@ void globalCleanup();
 
 typedef enum
 {
-    kNetworkQualityNoDetected   = -1,   // No network quality detected
-    kNetworkQualityLow          = 0,    // Bad network quality detected
-    kNetworkQualityHigh         = 1,    // Good network quality detected
+    kNetworkQualityBad          = 0,    // Bad network quality detected
+    kNetworkQualityGood         = 1,    // Good network quality detected
 } netWorkQuality;
 
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking

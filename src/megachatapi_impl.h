@@ -289,7 +289,7 @@ protected:
     bool mIsCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
-    int mNetworkQuality = rtcModule::kNetworkQualityNoDetected;
+    int mNetworkQuality = rtcModule::kNetworkQualityGood;
 };
 
 class MegaChatVideoFrame
