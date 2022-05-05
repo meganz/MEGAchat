@@ -2049,8 +2049,14 @@ void Call::updateVideoTracks()
     }
 }
 
-void Call::setNetworkQuality(int networkQuality)
+void Call::updateNetworkQuality(int networkQuality)
 {
+    if (networkQuality == mNetworkQuality)
+    {
+        return;
+    }
+
+    RTCM_LOG_WARNING("updateNetworkQuality: %s network quality detected", networkQuality == kNetworkQualityBad  ? "Bad" : "Good");
     mNetworkQuality = networkQuality;
     mCallHandler.onNetworkQualityChanged(*this);
 }
