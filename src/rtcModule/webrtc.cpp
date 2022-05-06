@@ -977,6 +977,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kErrSdp:                   return "error generating or setting SDP description";
         case kErrGeneral:               return "general error";
         case kChatDisconn:              return "chatd connection is broken";
+        case kNoMediaPath:              return "webRTC connection failed, no UDP connectivity";
         case kApiEndCall:               return "API/chatd ended call";
         case kUnKnownTermCode:          return "unknown error";
         default:                        return "invalid connection termcode";
@@ -1614,6 +1615,16 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 
         if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateConnecting isn't included to avoid interrupting a reconnection in progress
         {
+            if (mStats.mInitialTs
+                    && mStats.mSamples.mT.empty()
+                    && (time(nullptr) - (mInitialTs - mOffset) > sfu::SfuConnection::kNoMediaPathTimeout))
+            {
+                // detect lack of UDP connectity, disconnect call and don't try to reconnect
+                RTCM_LOG_DEBUG("WebRTC connection failed, there's no UDP connectivity");
+                handleCallDisconnect(TermCode::kNoMediaPath);
+                return;
+            }
+
             if (mState == CallState::kStateInProgress)
             {
                 handleCallDisconnect(TermCode::kRtcDisconn);

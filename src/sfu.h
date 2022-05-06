@@ -387,7 +387,7 @@ public:
     };
 
     static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
-
+    static constexpr uint8_t kNoMediaPathTimeout = 6;        // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     bool isOnline() const;
