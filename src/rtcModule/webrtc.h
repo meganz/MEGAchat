@@ -145,6 +145,7 @@ public:
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
+    virtual void onStopOutgoingRinging(const ICall& call) = 0;
 };
 
 class ICall
@@ -155,6 +156,7 @@ public:
     virtual karere::Id getCallerid() const = 0;
     virtual bool isAudioDetected() const = 0;
     virtual CallState getState() const = 0;
+    virtual bool isOwnClientCaller() const = 0;
 
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
@@ -172,6 +174,7 @@ public:
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
+    virtual void stopOutgoingRinging() = 0;
     virtual void setOnHold() = 0;
     virtual void releaseOnHold() = 0;
     virtual bool isRinging() const = 0;

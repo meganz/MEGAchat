@@ -599,6 +599,7 @@ public:
     void onOnHold(const rtcModule::ICall& call) override;
     void onAddPeer(const rtcModule::ICall &call, karere::Id peer) override;
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
+    void onStopOutgoingRinging(const rtcModule::ICall& call) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;

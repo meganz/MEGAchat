@@ -2582,6 +2582,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                     {
                         call->setCallerId(userid);
                         call->setRinging(call->isOtherClientParticipating() ? false : ringing);
+
+                        if (!ringing && call->isOwnClientCaller())
+                        {
+                            // notify that call has stopped ringing, in order stop outgoing ringing sound if we started the call
+                            call->stopOutgoingRinging();
+                        }
                     }
                 }
 #endif
