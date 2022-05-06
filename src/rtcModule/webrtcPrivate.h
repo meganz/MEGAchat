@@ -417,7 +417,7 @@ protected:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
-    bool mIsCaller = false; // flag to indicate if our client is the caller
+    bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
 
     // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
     bool mIsReconnectingToChatd = false;

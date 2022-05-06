@@ -247,6 +247,7 @@ public:
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
+    virtual bool isOwnClientCaller() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
     bool isSpeakAllow() const override;
@@ -290,6 +291,7 @@ protected:
     bool mAudioDetected = false;
     bool mRinging = false;
     bool mIsCaller = false;
+    bool mIsOwnClientCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
     int mNetworkQuality = rtcModule::kNetworkQualityDefault;

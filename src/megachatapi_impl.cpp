@@ -6331,6 +6331,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mStatus = call.getState();
     mCallerId = call.getCallerid();
     mIsCaller = call.isOutgoing();
+    mIsOwnClientCaller = call.isOwnClientCaller();
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
@@ -6363,6 +6364,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mChatid = call.getChatid();
     mCallId = call.getCallId();
     mIsCaller = call.isOutgoing();
+    mIsOwnClientCaller = call.isOwnClientCaller();
     mLocalAVFlags = call.mLocalAVFlags;
     mChanged = call.mChanged;
     mInitialTs = call.mInitialTs;
@@ -6544,6 +6546,11 @@ bool MegaChatCallPrivate::isIncoming() const
 bool MegaChatCallPrivate::isOutgoing() const
 {
     return mIsCaller;
+}
+
+bool MegaChatCallPrivate::isOwnClientCaller() const
+{
+    return mIsOwnClientCaller;
 }
 
 MegaChatHandle MegaChatCallPrivate::getCaller() const

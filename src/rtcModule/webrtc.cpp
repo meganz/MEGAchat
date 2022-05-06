@@ -56,7 +56,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mChatid(chatid)
     , mCallerId(callerid)
     , mIsRinging(isRinging)
-    , mIsCaller(caller)
+    , mIsOwnClientCaller(caller)
     , mIsGroup(isGroup)
     , mCallHandler(callHandler) // CallHandler to receive notifications about the call
     , mMegaApi(megaApi)
@@ -130,7 +130,7 @@ CallState Call::getState() const
 
 bool Call::isOwnClientCaller() const
 {
-    return mIsCaller;
+    return mIsOwnClientCaller;
 }
 
 void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)

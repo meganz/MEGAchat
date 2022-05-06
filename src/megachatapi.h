@@ -713,6 +713,18 @@ public:
     virtual bool isOutgoing() const;
 
     /**
+     * @brief Returns true if our client started the call
+     *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will return false but MegaChatCall::isOutgoing will return true.
+     *
+     * In this case call is considerated as outgoing call, but our client wouldn't have started it.
+     *
+     * @return True if our client started the call
+     */
+    virtual bool isOwnClientCaller() const;
+
+    /**
      * @brief Returns the handle from user that has started the call
      *
      * This function only returns a valid value when call is or has gone through CALL_STATUS_RING_IN state.
