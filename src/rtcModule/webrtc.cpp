@@ -10,8 +10,9 @@ namespace rtcModule
 {
 SvcDriver::SvcDriver ()
     : mCurrentSvcLayerIndex(kMaxQualityIndex), // by default max quality
-      mPacketLostLower(0.01),
-      mPacketLostUpper(1),
+      mPacketLostLower(14),
+      mPacketLostUpper(20),
+      mPacketLostCapping(10),
       mLowestRttSeen(10000),
       mRttLower(0),
       mRttUpper(0),
@@ -968,7 +969,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kLeavingRoom:              return "user has been removed from chatroom";
         case kRtcDisconn:               return "SFU connection failed";
         case kSigDisconn:               return "socket error on the signalling connection";
-        case kSvrShuttingDown:          return "SFU server is shutting down";
+        case kSfuShuttingDown:          return "SFU server is shutting down";
         case kErrSignaling:             return "signalling error";
         case kErrNoCall:                return "attempted to join non-existing call";
         case kErrAuth:                  return "authentication error";
@@ -980,6 +981,11 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kUnKnownTermCode:          return "unknown error";
         default:                        return "invalid connection termcode";
     }
+}
+
+bool Call::isTermCodeRetriable(const TermCode& termCode) const
+{
+    return termCode == kRtcDisconn || termCode == kSigDisconn;
 }
 
 bool Call::isDisconnectionTermcode(const TermCode& termCode) const
@@ -1458,7 +1464,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     return true;
 }
 
-bool Call::handlePeerLeft(Cid_t cid)
+bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
@@ -1475,7 +1481,7 @@ bool Call::handlePeerLeft(Cid_t cid)
     }
 
     if (mIsReconnectingToChatd && mParticipants.find(it->second->getPeerid()) != mParticipants.end()
-            && getSessionsCidsByUserHandle(it->second->getPeerid()).size() == 1)
+                && getSessionsCidsByUserHandle(it->second->getPeerid()).size() == 1)
     {
         // Check that received peer left is not participating in meeting with more than one client
 
@@ -1485,10 +1491,17 @@ bool Call::handlePeerLeft(Cid_t cid)
         mCallHandler.onRemovePeer(*this, it->second->getPeerid());
     }
 
-    it->second->disableAudioSlot();
-    it->second->disableVideoSlot(kHiRes);
-    it->second->disableVideoSlot(kLowRes);
+    // set session termcode before destroying it (in order to app can be notified through OnChatSessionUpdate)
+    TermCode peerLeftTermCode = static_cast<TermCode>(termcode);
+    assert(isValidConnectionTermcode(peerLeftTermCode));
+    it->second->setTermcode(peerLeftTermCode);
     mSessions.erase(cid);
+
+    if (!mIsGroup && !isTermCodeRetriable(peerLeftTermCode))
+    {
+        RTCM_LOG_DEBUG("handlePeerLeft. Hangup 1on1 call, upon reception of PEERLEFT with non recoverable termcode: %s", connectionTermCodeToString(peerLeftTermCode).c_str());
+        hangup();
+    }
     return true;
 }
 
@@ -2062,7 +2075,13 @@ void Call::adjustSvcByStats()
     {
         // get last lost packets
         int lastpl =  mStats.mSamples.mPacketLost.back();
+        // use mPacketLostCapping to limit the influence of a large momentary peak on the moving average.
+        lastpl = lastpl < mSvcDriver.mPacketLostCapping ? lastpl : static_cast<int>(mSvcDriver.mPacketLostCapping);
+
+        // get (pre) last lost packets
         int prelastpl= mStats.mSamples.mPacketLost.at(mStats.mSamples.mPacketLost.size()-2);
+        // use mPacketLostCapping to limit the influence of a large momentary peak on the moving average.
+        prelastpl = prelastpl < mSvcDriver.mPacketLostCapping ? prelastpl : static_cast<int>(mSvcDriver.mPacketLostCapping);
 
         // get periods
         int lastT = mStats.mSamples.mT.back();
@@ -2850,6 +2869,16 @@ Session::~Session()
     disableVideoSlot(kLowRes);
     mState = kSessStateDestroyed;
     mSessionHandler->onDestroySession(*this);
+}
+
+TermCode Session::getTermcode() const
+{
+    return mTermCode;
+}
+
+void Session::setTermcode(TermCode termcode)
+{
+    mTermCode = termcode;
 }
 
 void Session::setSessionHandler(SessionHandler* sessionHandler)

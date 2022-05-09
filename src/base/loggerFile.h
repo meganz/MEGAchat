@@ -10,14 +10,14 @@ class FileLogger
 {
 protected:
     FILE* mFile;
-    long mRotateSize;
+    size_t mRotateSize;
     std::string mFileName;
     volatile unsigned& mFlags;
-    long mLogSize;
+    size_t mLogSize;
 public:
     void setRotateSize(unsigned rotateSize) { mRotateSize = rotateSize; }
 
-FileLogger(volatile unsigned& flags, const char* logFile, int rotateSize)
+FileLogger(volatile unsigned& flags, const char* logFile, size_t rotateSize)
  :mFile(NULL), mRotateSize(rotateSize), mFlags(flags), mLogSize(0)
 {
     assert(rotateSize > 0);
@@ -83,7 +83,7 @@ std::shared_ptr<Logger::LogBuffer> loadLog() //Logger must be locked!!!
 void rotateLog()
 {
     auto buf = loadLog();
-    long slicePos = mLogSize - (mRotateSize / 2);
+    long slicePos = static_cast<long>(mLogSize - (mRotateSize / 2));
     if (slicePos <= 1)
         throw std::runtime_error("FileLogger::rotate: The slice offset is less than 1");
     if (slicePos >= mLogSize - 1)
@@ -113,7 +113,7 @@ void rotateLog()
             perror("ERROR: FileLogger::rotate: Error writing file:");
         else
             fprintf(stderr, "ERROR: FileLogger::rotate: Not all data could be written to file: requested %d, written: %d\n",
-                writeLen, ret);
+                    writeLen, ret);
     }
     fclose(writeFile);
     openLogFile();
