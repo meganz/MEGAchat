@@ -18,7 +18,7 @@ SvcDriver::SvcDriver ()
       mRttUpper(0),
       mMovingAverageRtt(0),
       mMovingAveragePlost(0),
-      mMovingAverageVideoTxHeight(INT_MIN),
+      mMovingAverageVideoTxHeight(-1),
       mTsLastSwitch(0)
 {
 
@@ -2150,7 +2150,7 @@ void Call::adjustSvcByStats()
         return;
     }
 
-    mSvcDriver.mMovingAverageVideoTxHeight = mSvcDriver.mMovingAverageVideoTxHeight != INT_MIN
+    mSvcDriver.mMovingAverageVideoTxHeight = mSvcDriver.mMovingAverageVideoTxHeight < 0
             ? ((mSvcDriver.mMovingAverageVideoTxHeight * 3) + static_cast<double>(mStats.mSamples.mVtxHiResh.back())) / 4
             : mStats.mSamples.mVtxHiResh.back();
 
