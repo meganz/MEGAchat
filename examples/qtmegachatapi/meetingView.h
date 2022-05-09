@@ -32,10 +32,10 @@ public:
     void setOnHold(bool mIsOnHold, megachat::MegaChatHandle cid);
     std::string sessionToString(const megachat::MegaChatSession& session);
     void updateAudioMonitor(bool enabled);
-    void updateLabel(unsigned participants, const std::string &state);
-    void updateNetworkQuality(int netWorkQuality);
+    void updateLabel(megachat::MegaChatCall *call);
     void setNotParticipating();
     void setConnecting();
+    static std::string callStateToString(const megachat::MegaChatCall& call);
 
     // methods to add/remove video widgets
     void addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid);

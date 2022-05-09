@@ -129,27 +129,24 @@ void MeetingView::updateAudioMonitor(bool enabled)
     mAudioMonitor->setText(audioMonTex.toStdString().c_str());
 }
 
-void MeetingView::updateLabel(unsigned participants, const std::string &state)
+void MeetingView::updateLabel(megachat::MegaChatCall *call)
 {
     std::string txt = "Participants: ";
-    txt.append(std::to_string(participants));
-    txt.append("  State: ");
-    txt.append(state);
+    txt.append(std::to_string(call->getNumParticipants()))
+        .append("  State: ")
+        .append(callStateToString(*call));
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
+    {
+        // just update mNetworkQuality if CHANGE_TYPE_NETWORK_QUALITY changed
+        mNetworkQuality = call->getNetworkQuality();
+    }
+
     if (mNetworkQuality == ::megachat::MegaChatCall::NETWORK_QUALITY_BAD)
     {
         txt.append("<br /><span style='color:#FF0000'>SLOW NETWORK</span>");
     }
     mLabel->setText(txt.c_str());
-}
-
-void MeetingView::updateNetworkQuality(int netWorkQuality)
-{
-    if (mNetworkQuality == netWorkQuality)
-    {
-        return;
-    }
-
-    mNetworkQuality = netWorkQuality;
 }
 
 void MeetingView::setNotParticipating()
@@ -182,6 +179,38 @@ void MeetingView::setConnecting()
     mSetOnHold->setVisible(false);
     mJoinCallWithVideo->setVisible(false);
     mJoinCallWithoutVideo->setVisible(false);
+}
+
+std::string MeetingView::callStateToString(const ::megachat::MegaChatCall &call)
+{
+    switch (call.getStatus())
+    {
+        case ::megachat::MegaChatCall::CALL_STATUS_INITIAL:
+            return "Initial";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
+            return "No Present";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_CONNECTING:
+            return "Connecting";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_JOINING:
+            return "Joining";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
+            return "In-Progress";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
+            return "Terminating";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_DESTROYED:
+            return "Destroyed";
+        break;
+        default:
+            assert(false);
+            return "Unknown";
+            break;
+    }
 }
 
 void MeetingView::addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid)
