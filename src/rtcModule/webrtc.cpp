@@ -1584,12 +1584,20 @@ void Call::onSendByeCommand()
             return;
         }
 
-        // once we have confirmed that BYE command has been sent, we can proceed with disconnect
-        assert (mTempTermCode != kInvalidTermCode);
+        if (isDestroying())
+        {
+            // if we send BYE command by calling orderedCallDisconnect from orderedRemoveCall, now we need to destroy the call
+            mRtc.removeCall(mChatid, EndCallReason::kFailed, mTempTermCode);
+        }
+        else
+        {
+            // once we have confirmed that BYE command has been sent, we can proceed with disconnect
+            assert (mTempTermCode != kInvalidTermCode);
 
-        // close sfu and media channel connection and clear some call stuff
-        immediateCallDisconnect(mTempTermCode);
-        mTempTermCode = kInvalidTermCode;
+            // close sfu and media channel connection and clear some call stuff
+            immediateCallDisconnect(mTempTermCode);
+            mTempTermCode = kInvalidTermCode;
+        }
     }, mRtc.getAppCtx());
 }
 
@@ -1615,15 +1623,10 @@ bool Call::error(unsigned int code, const std::string &errMsg)
             sendStats(connectionTermCode);
         }
 
-        // For SFU errors no need to send BYE command, the SFU will close the connection immediately after sending the error
-        // TermCode is set at immediateCallDisconnect, removeCall will set EndCall reason to kFailed
-        immediateCallDisconnect(connectionTermCode);
-
-        // remove call just if there are no participants or termcode is not recoverable
+        // remove call just if there are no participants or termcode is not recoverable (we don't need to send BYE command upon SFU error reception)
         if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
         {
-            // orderedCallDisconnect won't be called inside removeCall, as call state is set to kStateClientNoParticipating
-            // by the end of immediateCallDisconnect
+            //immediateCallDisconnect will be called inside removeCall
             mRtc.removeCall(mChatid, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
@@ -2103,6 +2106,16 @@ void Call::disableStats()
     }
 }
 
+void Call::setDestroying(bool isDestroying)
+{
+    mIsDestroying = isDestroying;
+}
+
+bool Call::isDestroying()
+{
+    return mIsDestroying;
+}
+
 void Call::updateVideoTracks()
 {
     bool isOnHold = getLocalAvFlags().isOnHold();
@@ -2472,22 +2485,49 @@ DNScache& RtcModuleSfu::getDnsCache()
     return mDnsCache;
 }
 
+
+void RtcModuleSfu::orderedRemoveCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode)
+{
+    Call *call = static_cast<Call*>(findCallByChatid(chatid));
+    if (!call)
+    {
+        RTCM_LOG_WARNING("orderedRemoveCall: call doesn't exists anymore");
+        return;
+    }
+
+    if (call->isDestroying())
+    {
+        RTCM_LOG_WARNING("orderedRemoveCall: call is already being destroyed");
+        return;
+    }
+
+    RTCM_LOG_DEBUG("Ordered removing call with callid: %s", call->getCallid().toString().c_str());
+    call->setDestroying(true);
+    (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
+            ? call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str())
+            : removeCall(chatid, reason, connectionTermCode);
+}
+
+
 void RtcModuleSfu::removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode)
 {
     Call *call = static_cast<Call*>(findCallByChatid(chatid));
-    if (call)
+    if (!call)
     {
-        if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
-        {
-            // between kStateClientNoParticipating and kStateInProgress (last included) mSfuConnection must exists
-            call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str());
-        }
-
-        // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
-        RTCM_LOG_WARNING("Removing call with callid: %s", call->getCallid().toString().c_str());
-        call->setEndCallReason(reason);
-        mCalls.erase(call->getCallid());
+        RTCM_LOG_WARNING("removeCall: call doesn't exists anymore");
+        return;
     }
+
+    RTCM_LOG_DEBUG("Removing call with callid: %s", call->getCallid().toString().c_str());
+    if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
+    {
+        call->immediateCallDisconnect(connectionTermCode);
+    }
+
+    // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
+    call->setEndCallReason(reason);
+    mCalls.erase(call->getCallid());
+
 }
 
 void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersJoined)
