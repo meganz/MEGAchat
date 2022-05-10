@@ -1547,6 +1547,12 @@ void Call::immediateCallDisconnect(const TermCode& termCode)
 
 void Call::sfuDisconnect(const TermCode& termCode)
 {
+    if (mState > CallState::kStateInProgress)
+    {
+        RTCM_LOG_DEBUG("sfuDisconnect, current call state is %s", mState == CallState::kStateDestroyed ? "kStateDestroyed": "kStateTerminatingUserParticipation");
+        return;
+    }
+
     RTCM_LOG_DEBUG("callDisconnect, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     mTermCode = termCode; // termcode is only valid at state kStateTerminatingUserParticipation
     setState(CallState::kStateTerminatingUserParticipation);
