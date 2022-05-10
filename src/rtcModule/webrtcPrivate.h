@@ -499,7 +499,6 @@ protected:
     void resetLocalAvFlags();
     bool isTermCodeRetriable(const TermCode& termCode) const;
     bool isDisconnectionTermcode(const TermCode& termCode) const;
-    bool isTermCodeRetriable(const TermCode& termCode) const;
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
