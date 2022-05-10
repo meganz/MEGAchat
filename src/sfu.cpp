@@ -1932,6 +1932,7 @@ void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &r
 
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mCall.onSfuDisconnected();
+    setIsSendingBye(false); // reset mIsSendingBye as we are already disconnected from SFU
     auto oldState = mConnState;
     setConnState(kDisconnected);
 

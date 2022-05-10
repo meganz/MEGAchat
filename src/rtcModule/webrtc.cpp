@@ -1535,7 +1535,6 @@ void Call::onSfuDisconnected()
     // disconnect from media channel and clear resources
     mediaChannelDisconnect();
     clearResources(kRtcDisconn);
-    mSfuConnection->setIsSendingBye(false);
 }
 
 void Call::immediateCallDisconnect(const TermCode& termCode)
