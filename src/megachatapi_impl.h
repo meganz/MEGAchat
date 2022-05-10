@@ -181,6 +181,13 @@ public:
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;
     virtual bool isLowResVideo() const override;
+    virtual bool hasScreenShare() const override;
+    virtual bool isHiResScreenShare() const override;
+    virtual bool isLowResScreenShare() const override;
+    virtual bool hasCamera() const override;
+    virtual bool isLowResCamera() const override;
+    virtual bool isHiResCamera() const override;
+    virtual bool isCameraAndScreenShare() const override;
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
     virtual int getTermCode() const override;
@@ -189,6 +196,7 @@ public:
     virtual bool hasRequestSpeak() const override;
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
+    virtual bool canRecvCameraAndScreenShare() const override;
 
     karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);

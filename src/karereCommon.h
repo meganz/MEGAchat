@@ -118,8 +118,8 @@ public:
 
                     // Video (screen share | camera) flags
                     kLowResVideo    = kCameraLowRes | kScreenLowRes,
-                    kHiResVideo     = kCameraHiRes | kScreenHiRes,
-                    kVideo          = kLowResVideo | kHiResVideo,
+                    kHiResVideo     = kCameraHiRes  | kScreenHiRes,
+                    kVideo          = kLowResVideo  | kHiResVideo,
 
                     // on hold flags
                     kOnHold         = 0x80,
@@ -151,7 +151,7 @@ public:
     bool screenShareLowRes() const          { return mFlags & kScreenLowRes; }
     bool screenShare() const                { return mFlags & kScreen; }
 
-    // video (screen share | camera) flags getters
+    // video (screen share AND/OR camera) flags getters
     bool video() const                      { return mFlags & kVideo; }
     bool videoHiRes() const                 { return mFlags & kHiResVideo; }
     bool videoLowRes() const                { return mFlags & kLowResVideo; }

@@ -6221,6 +6221,41 @@ bool MegaChatSessionPrivate::isLowResVideo() const
     return mAvFlags.videoLowRes();
 }
 
+bool MegaChatSessionPrivate::hasScreenShare() const
+{
+    return mAvFlags.screenShare();
+}
+
+bool MegaChatSessionPrivate::isHiResScreenShare() const
+{
+    return mAvFlags.screenShareHiRes();
+}
+
+bool MegaChatSessionPrivate::isLowResScreenShare() const
+{
+    return mAvFlags.screenShareLowRes();
+}
+
+bool MegaChatSessionPrivate::hasCamera() const
+{
+    return mAvFlags.camera();
+}
+
+bool MegaChatSessionPrivate::isLowResCamera() const
+{
+    return mAvFlags.cameraLowRes();
+}
+
+bool MegaChatSessionPrivate::isHiResCamera() const
+{
+    return mAvFlags.cameraHiRes();
+}
+
+bool MegaChatSessionPrivate::isCameraAndScreenShare() const
+{
+    return mAvFlags.screenShareHiRes() && mAvFlags.cameraLowRes();
+}
+
 bool MegaChatSessionPrivate::isOnHold() const
 {
     return mAvFlags.isOnHold();
@@ -6264,6 +6299,13 @@ bool MegaChatSessionPrivate::canRecvVideoHiRes() const
 bool MegaChatSessionPrivate::canRecvVideoLowRes() const
 {
     return mHasLowResTrack;
+}
+
+bool MegaChatSessionPrivate::canRecvCameraAndScreenShare() const
+{
+    // in case any peer is sending camera and screen share simultaneously, we will receive camera on low resolution track,
+    // and screen share in high resolution track
+    return mHasHiResTrack && mHasLowResTrack;
 }
 
 void MegaChatSessionPrivate::setState(uint8_t state)

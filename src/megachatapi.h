@@ -173,6 +173,13 @@ public:
      * @return true if video quality is low resolution, otherwise returns false
      */
     virtual bool isLowResVideo() const;
+    virtual bool hasCamera() const;
+    virtual bool isLowResCamera() const;
+    virtual bool isHiResCamera() const;
+    virtual bool hasScreenShare() const;
+    virtual bool isHiResScreenShare() const;
+    virtual bool isLowResScreenShare() const;
+    virtual bool isCameraAndScreenShare() const;
 
     /**
      * @brief Returns if session is on hold
@@ -309,6 +316,7 @@ public:
      * @return true if we are ready to receive video in low resolution
      */
     virtual bool canRecvVideoLowRes() const;
+    virtual bool canRecvCameraAndScreenShare() const;
 };
 
 /**
