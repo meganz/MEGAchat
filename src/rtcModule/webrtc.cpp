@@ -1047,6 +1047,7 @@ void Call::sendStats(const TermCode& termCode)
     {
         // avoid sending stats more than once upon disconnect
         RTCM_LOG_DEBUG("sendStats: stats are empty");
+        return;
     }
 
     assert(isValidConnectionTermcode(termCode));
