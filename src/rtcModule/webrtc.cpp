@@ -902,7 +902,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
 void Call::getLocalStreams()
 {
     updateAudioTracks();
-    if (getLocalAvFlags().videoCam())
+    if (getLocalAvFlags().camera())
     {
         updateVideoTracks();
     }
@@ -1025,7 +1025,7 @@ void Call::disconnect(TermCode termCode, const std::string &msg, bool removePart
     }
 
     RTCM_LOG_DEBUG("Call disconnect: %s", msg.c_str());
-    if (getLocalAvFlags().videoCam())
+    if (getLocalAvFlags().camera())
     {
         releaseVideoDevice();
     }
@@ -2018,7 +2018,7 @@ void Call::disableStats()
 void Call::updateVideoTracks()
 {
     bool isOnHold = getLocalAvFlags().isOnHold();
-    if (getLocalAvFlags().videoCam() && !isOnHold)
+    if (getLocalAvFlags().camera() && !isOnHold)
     {
         takeVideoDevice();
 
@@ -2435,7 +2435,7 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
         for (auto& render : mRenderers)
         {
             ICall* call = findCallByChatid(render.first);
-            if ((call && call->getLocalAvFlags().videoCam() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+            if ((call && call->getLocalAvFlags().camera() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
             {
                 assert(render.second != nullptr);
                 void* userData = NULL;

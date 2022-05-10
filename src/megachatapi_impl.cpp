@@ -6419,7 +6419,7 @@ bool MegaChatCallPrivate::hasLocalAudio() const
 
 bool MegaChatCallPrivate::hasLocalVideo() const
 {
-    return mLocalAVFlags.videoCam();
+    return mLocalAVFlags.camera();
 }
 
 int MegaChatCallPrivate::getChanges() const

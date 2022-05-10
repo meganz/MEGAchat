@@ -102,20 +102,26 @@ protected:
     uint8_t mFlags = 0;
 public:
     enum: uint8_t { kEmpty          = 0x00,
+
+                    // audio flags
                     kAudio          = 0x01,
 
+                    // camera flags
                     kCameraLowRes   = 0x02,
                     kCameraHiRes    = 0x04,
                     kCamera         = kCameraLowRes | kCameraHiRes,
 
+                    // screen share flags
                     kScreenLowRes   = 0x08,
                     kScreenHiRes    = 0x10,
                     kScreen         = kScreenLowRes | kScreenHiRes,
 
+                    // Video (screen share | camera) flags
                     kLowResVideo    = kCameraLowRes | kScreenLowRes,
                     kHiResVideo     = kCameraHiRes | kScreenHiRes,
-
                     kVideo          = kLowResVideo | kHiResVideo,
+
+                    // on hold flags
                     kOnHold         = 0x80,
                   };
 
@@ -130,13 +136,28 @@ public:
     void setOnHold(bool enable) { enable ? add(kOnHold) : remove(kOnHold); }
 
     // getters
-    uint8_t value() const       { return mFlags; }
-    bool audio() const          { return mFlags & kAudio; }
-    bool video() const          { return mFlags & kVideo; }
-    bool videoHiRes() const     { return mFlags & kHiResVideo; }  //  kCameraHiRes  | kScreenHiRes
-    bool videoLowRes() const    { return mFlags & kLowResVideo; } //  kCameraLowRes | kScreenLowRes
-    bool videoCam() const       { return mFlags & kCamera; }
-    bool isOnHold() const       { return mFlags & kOnHold; }
+    uint8_t value() const                   { return mFlags; }
+
+    // audio flags getters
+    bool audio() const                      { return mFlags & kAudio; }
+
+    // camera flags getters
+    bool cameraHiRes() const                { return mFlags & kCameraHiRes; }
+    bool cameraLowRes() const               { return mFlags & kCameraLowRes; }
+    bool camera() const                     { return mFlags & kCamera; }
+
+    // screen share flags getters
+    bool screenShareHiRes() const           { return mFlags & kScreenHiRes; }
+    bool screenShareLowRes() const          { return mFlags & kScreenLowRes; }
+    bool screenShare() const                { return mFlags & kScreen; }
+
+    // video (screen share | camera) flags getters
+    bool video() const                      { return mFlags & kVideo; }
+    bool videoHiRes() const                 { return mFlags & kHiResVideo; }
+    bool videoLowRes() const                { return mFlags & kLowResVideo; }
+
+    // on hold flags getters
+    bool isOnHold() const                   { return mFlags & kOnHold; }
 
     // check methods
     operator bool() const           { return mFlags != 0; }
