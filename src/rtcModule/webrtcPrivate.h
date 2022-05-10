@@ -177,6 +177,8 @@ public:
     karere::AvFlags getAvFlags() const override;
     bool isAudioDetected() const override;
     bool hasRequestSpeak() const override;
+    TermCode getTermcode() const override;
+    void setTermcode(TermCode termcode) override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRenderer) override;
     void setVideoRendererHiRes(IVideoRenderer *videoRenderer) override;
@@ -202,6 +204,7 @@ private:
 
     // Session starts directly in progress: the SFU sends the tracks immediately from new peer
     SessionState mState = kSessStateInProgress;
+    TermCode mTermCode = kInvalidTermCode;
 };
 
 /**
@@ -226,6 +229,7 @@ public:
 
     double mPacketLostLower;
     double mPacketLostUpper;
+    double mPacketLostCapping;
     double mLowestRttSeen;
     double mRttLower;
     double mRttUpper;
@@ -398,7 +402,7 @@ public:
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
-    bool handlePeerLeft(Cid_t cid) override;
+    bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     void onSfuConnected() override;
     void onSfuDisconnected() override;
     void onSendByeCommand() override;
@@ -495,6 +499,7 @@ protected:
     void resetLocalAvFlags();
     bool isTermCodeRetriable(const TermCode& termCode) const;
     bool isDisconnectionTermcode(const TermCode& termCode) const;
+    bool isTermCodeRetriable(const TermCode& termCode) const;
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink

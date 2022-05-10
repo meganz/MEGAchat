@@ -36,7 +36,7 @@ enum TermCode: uint8_t
 
     kRtcDisconn                 = kFlagDisconn | 0,     // 64 < SFU connection failed
     kSigDisconn                 = kFlagDisconn | 1,     // 65 < socket error on the signalling connection
-    kSvrShuttingDown            = kFlagDisconn | 2,     // 66 < SFU server is shutting down
+    kSfuShuttingDown            = kFlagDisconn | 2,     // 66 < SFU server is shutting down
     kChatDisconn                = kFlagDisconn | 3,     // 67 < chatd connection is broken
     //==============================================================================================
 
@@ -122,6 +122,8 @@ public:
     virtual SessionState getState() const = 0;
     virtual bool isAudioDetected() const = 0;
     virtual bool hasRequestSpeak() const = 0;
+    virtual TermCode getTermcode() const = 0;
+    virtual void setTermcode(TermCode termcode) = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
     virtual void setVideoRendererVthumb(IVideoRenderer *videoRederer) = 0;
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;

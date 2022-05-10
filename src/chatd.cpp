@@ -2007,7 +2007,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
     // more unseen messages
     if ((messages.size() < count) && mHasMoreHistoryInDb)
         throw std::runtime_error(mChatId.toString()+": Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of "+std::to_string((int64_t)mOldestKnownMsgId.val));
-    return (Idx)messages.size();
+    return static_cast<Idx>(messages.size());
 }
 
 #define READ_ID(varname, offset)\
@@ -3736,9 +3736,10 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         // recipients must not change
         recipients = SetOfIds(item->recipients);
     }
-    else if (age == 0)  // in the very unlikely case the msg is already confirmed, but edit is done in the same second
+    else if (age <= msg.updated)
     {
-        age++;
+        // in the very unlikely case the msg is already confirmed, but edit is done in the same second (or a n-edit over an already n-times edited message)
+        age = msg.updated + 1;
     }
 
     auto upd = new Message(msg.id(), msg.userid, msg.ts, static_cast<uint16_t>(age), newdata, newlen,

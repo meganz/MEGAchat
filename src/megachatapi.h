@@ -95,6 +95,11 @@ public:
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
     };
 
+    enum {
+        SESS_TERM_CODE_INVALID          = -1,   // Session has been finished by an invalid reason
+        SESS_TERM_CODE_RECOVERABLE      = 0,    // Session has been finished by a recoverable reason
+        SESS_TERM_CODE_NON_RECOVERABLE  = 1,    // Session has been finished by a non recoverable reason
+    };
 
     virtual ~MegaChatSession();
 
@@ -209,6 +214,25 @@ public:
      *
      */
     virtual int getChanges() const;
+
+    /**
+     * @brief Returns session termCode
+     *
+     * The value returned by this method will be only valid when MegaChatSession::hasChanged(MegaChatSession::CHANGE_TYPE_STATUS)
+     * is true, and MegaChatSession::getStatus is MegaChatSession::SESSION_STATUS_DESTROYED.
+     *
+     * Posible returned values by this method:
+     *  - MegaChatSession::SESS_TERM_CODE_INVALID           = -1
+     *  - MegaChatSession::SESS_TERM_CODE_RECOVERABLE       = 0
+     *  - MegaChatSession::SESS_TERM_CODE_NON_RECOVERABLE   = 1
+     *
+     * If returned value is SESS_TERM_CODE_RECOVERABLE it means that session ended by a recoverable reason, and the peer
+     * represented by that session is probably trying to reconnect to the Meeting. In case that value is
+     * SESS_TERM_CODE_NON_RECOVERABLE, we can asume that session has ended, and peer won't try to reconnect automatically.
+     *
+     * @return session termCode
+     */
+    virtual int getTermCode() const;
 
     /**
      * @brief Returns true if this session has an specific change
