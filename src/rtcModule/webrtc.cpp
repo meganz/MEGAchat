@@ -1549,6 +1549,7 @@ void Call::sfuDisconnect(const TermCode& termCode)
     if (mState > CallState::kStateInProgress)
     {
         RTCM_LOG_DEBUG("sfuDisconnect, current call state is %s", mState == CallState::kStateDestroyed ? "kStateDestroyed": "kStateTerminatingUserParticipation");
+        assert(!mSfuConnection);
         return;
     }
 
