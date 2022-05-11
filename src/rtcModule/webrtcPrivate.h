@@ -527,7 +527,7 @@ public:
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
-    void orderedRemoveCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
+    void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
     void immediateRemoveCall(Call* call, EndCallReason reason, TermCode connectionTermCode) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;

@@ -2529,7 +2529,7 @@ DNScache& RtcModuleSfu::getDnsCache()
 }
 
 
-void RtcModuleSfu::orderedRemoveCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode)
+void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode)
 {
     Call *call = static_cast<Call*>(iCall);
     if (!call)
