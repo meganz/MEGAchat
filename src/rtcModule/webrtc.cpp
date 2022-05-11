@@ -1531,6 +1531,31 @@ void Call::onSfuConnected()
 
 void Call::onSfuDisconnected()
 {
+    if (isDestroying())
+    {
+        if (!mSfuConnection->isSendingByeCommand())
+        {
+            // if we called orderedRemoveCall (call state not between kStateConnecting and kStateInProgress) removeCall would have been called, and call wouldn't exists at this point
+            RTCM_LOG_ERROR("onSfuDisconnected: call is being destroyed but we are not sending BYE command, current call shouldn't exist at this point");
+            assert(mSfuConnection->isSendingByeCommand()); // in prod fallback to mediaChannelDisconnect and clearResources
+        }
+        else
+        {
+            auto wptr = weakHandle();
+            karere::marshallCall([wptr, this]()
+            {
+                if (wptr.deleted())
+                {
+                    return;
+                }
+                /* if we called orderedRemoveCall (call state between kStateConnecting and kStateInProgress),
+                 * but socket has been closed before BYE command is delivered, we need to remove call */
+                mRtc.removeCall(mChatid, rtcModule::EndCallReason::kFailed, kSigDisconn);
+            }, mRtc.getAppCtx());
+            return;
+        }
+    }
+
     // Not necessary to call to orderedCallDisconnect, as we are not connected to SFU
     // disconnect from media channel and clear resources
     mediaChannelDisconnect();
