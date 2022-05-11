@@ -1550,7 +1550,7 @@ void Call::onSfuDisconnected()
                 }
                 /* if we called orderedRemoveCall (call state between kStateConnecting and kStateInProgress),
                  * but socket has been closed before BYE command is delivered, we need to remove call */
-                mRtc.immediateRemoveCall(mChatid, rtcModule::EndCallReason::kFailed, kSigDisconn);
+                mRtc.immediateRemoveCall(this, rtcModule::EndCallReason::kFailed, kSigDisconn);
             }, mRtc.getAppCtx());
             return;
         }
@@ -1611,7 +1611,7 @@ void Call::onSendByeCommand()
 
         if (isDestroying()) // we want to destroy call, but first we have sent BYE command to SFU
         {
-            mRtc.immediateRemoveCall(mChatid, EndCallReason::kFailed, mTempTermCode);
+            mRtc.immediateRemoveCall(this, EndCallReason::kFailed, mTempTermCode);
         }
         else
         {
@@ -1651,7 +1651,7 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
         {
             //immediateCallDisconnect will be called inside immediateRemoveCall
-            mRtc.immediateRemoveCall(mChatid, EndCallReason::kFailed, connectionTermCode);
+            mRtc.immediateRemoveCall(this, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
 
@@ -1736,7 +1736,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
                     /* if we called orderedRemoveCall (call state between kStateConnecting and kStateInProgress),
                      * and before BYE command is delivered, we receive onConnectionChange with PeerConnectionState = (kDisconnected | kFailed | kClosed)
                      * we need to remove call */
-                    mRtc.immediateRemoveCall(mChatid, rtcModule::EndCallReason::kFailed, kSigDisconn);
+                    mRtc.immediateRemoveCall(this, rtcModule::EndCallReason::kFailed, kSigDisconn);
                 }, mRtc.getAppCtx());
                 return;
             }
@@ -2529,9 +2529,9 @@ DNScache& RtcModuleSfu::getDnsCache()
 }
 
 
-void RtcModuleSfu::orderedRemoveCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode)
+void RtcModuleSfu::orderedRemoveCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode)
 {
-    Call *call = static_cast<Call*>(findCallByChatid(chatid));
+    Call *call = static_cast<Call*>(iCall);
     if (!call)
     {
         RTCM_LOG_WARNING("orderedRemoveCall: call doesn't exists anymore");
@@ -2548,13 +2548,12 @@ void RtcModuleSfu::orderedRemoveCall(karere::Id chatid, EndCallReason reason, Te
     call->setDestroying(true);
     (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
             ? call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str())
-            : immediateRemoveCall(chatid, reason, connectionTermCode);
+            : immediateRemoveCall(call, reason, connectionTermCode);
 }
 
 
-void RtcModuleSfu::immediateRemoveCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode)
+void RtcModuleSfu::immediateRemoveCall(Call* call, EndCallReason reason, TermCode connectionTermCode)
 {
-    Call *call = static_cast<Call*>(findCallByChatid(chatid));
     if (!call)
     {
         RTCM_LOG_WARNING("removeCall: call doesn't exists anymore");
@@ -2570,7 +2569,6 @@ void RtcModuleSfu::immediateRemoveCall(karere::Id chatid, EndCallReason reason, 
     // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
     call->setEndCallReason(reason);
     mCalls.erase(call->getCallid());
-
 }
 
 void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersJoined)

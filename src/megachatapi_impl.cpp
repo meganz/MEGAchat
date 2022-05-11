@@ -5471,7 +5471,11 @@ void MegaChatApiImpl::cleanCalls()
         std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
         for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            mClient->rtc->orderedRemoveCall(chatids[i], rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kUserHangup);
+            rtcModule::ICall* call = findCall(chatids[i]);
+            if (call)
+            {
+                mClient->rtc->orderedRemoveCall(call, rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kUserHangup);
+            }
         }
     }
 
