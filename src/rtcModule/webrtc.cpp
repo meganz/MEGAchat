@@ -1531,7 +1531,7 @@ void Call::onSfuConnected()
 
 void Call::onSfuDisconnected()
 {
-    if (isDestroying())
+    if (isDestroying()) // we want to destroy call, but first we have sent BYE command to SFU
     {
         if (!mSfuConnection->isSendingByeCommand())
         {
@@ -1609,9 +1609,8 @@ void Call::onSendByeCommand()
             return;
         }
 
-        if (isDestroying())
+        if (isDestroying()) // we want to destroy call, but first we have sent BYE command to SFU
         {
-            // if we send BYE command by calling orderedCallDisconnect from orderedRemoveCall, now we need to destroy the call
             mRtc.removeCall(mChatid, EndCallReason::kFailed, mTempTermCode);
         }
         else
@@ -1721,10 +1720,29 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 
     if (newState >= webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
     {
-        // if mState is kDisconnected | kFailed | kClosed we need to clear commands queue and set sending as false
-        // otherwise nextcommand could get stucked
         if (mSfuConnection)
         {
+            if (isDestroying()) // we want to destroy call, but first we have sent BYE command to SFU
+            {
+                assert(mSfuConnection->isSendingByeCommand());
+                auto wptr = weakHandle();
+                karere::marshallCall([wptr, this]()
+                {
+                    if (wptr.deleted())
+                    {
+                        return;
+                    }
+
+                    /* if we called orderedRemoveCall (call state between kStateConnecting and kStateInProgress),
+                     * and before BYE command is delivered, we receive onConnectionChange with PeerConnectionState = (kDisconnected | kFailed | kClosed)
+                     * we need to remove call */
+                    mRtc.removeCall(mChatid, rtcModule::EndCallReason::kFailed, kSigDisconn);
+                }, mRtc.getAppCtx());
+                return;
+            }
+
+            // if newState is kDisconnected | kFailed | kClosed we need to clear commands queue and set sending as false
+            // otherwise nextcommand could get stucked
             mSfuConnection->clearCommandsQueue();
         }
 
