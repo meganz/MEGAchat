@@ -528,7 +528,7 @@ public:
     DNScache& getDnsCache() override;
 
     void orderedRemoveCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode);
-    void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
+    void immediateRemoveCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;

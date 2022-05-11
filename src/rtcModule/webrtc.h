@@ -230,7 +230,7 @@ public:
     virtual DNScache& getDnsCache() = 0;
 
     virtual void orderedRemoveCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) = 0;
-    virtual void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) = 0;
+    virtual void immediateRemoveCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) = 0;
