@@ -1662,6 +1662,7 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         }
 
         // remove call just if there are no participants or termcode is not recoverable (we don't need to send BYE command upon SFU error reception)
+        assert(!isTermCodeRetriable(connectionTermCode));
         if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
         {
             //immediateCallDisconnect will be called inside immediateRemoveCall
