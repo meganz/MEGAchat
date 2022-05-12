@@ -1615,6 +1615,14 @@ void Call::onSendByeCommand()
             return;
         }
 
+        if (mState == CallState::kStateConnecting)
+        {
+            // we have sent BYE command from onConnectionChange (kDisconnected | kFailed | kFailed)
+            // and now we need to force reconnect to SFU
+            mSfuConnection->retryPendingConnection(true);
+            return;
+        }
+
         if (isDestroying()) // we want to destroy call, but first we have sent BYE command to SFU
         {
             mRtc.immediateRemoveCall(this, EndCallReason::kFailed, mTempTermCode);
@@ -1754,13 +1762,22 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 
         if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateConnecting isn't included to avoid interrupting a reconnection in progress
         {
-            if (mState == CallState::kStateInProgress)
+            if (!mSfuConnection)
             {
-                orderedCallDisconnect(TermCode::kRtcDisconn, "onConnectionChange received with PeerConnectionState::kDisconnected");
+                assert(false);
+                return;
             }
 
             setState(CallState::kStateConnecting);
-            mSfuConnection->retryPendingConnection(true);
+            if (!mSfuConnection->isOnline())
+            {
+                mSfuConnection->retryPendingConnection(true);
+            }
+            else // if we are connected to SFU we need to send BYE command
+            {
+                sendStats(TermCode::kRtcDisconn);               // send stats if we are connected to SFU regardless termcode
+                mSfuConnection->sendBye(TermCode::kRtcDisconn); // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
+            }
         }
     }
     else if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected)
