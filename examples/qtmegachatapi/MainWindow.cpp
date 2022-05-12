@@ -282,6 +282,9 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     assert(meetingView);
     meetingView->updateSession(*session);
 
+    std::unique_ptr<char[]>flags(session->avFlagsToString());
+    fprintf(stderr, "\nonChatSessionUpdate: %s\n", flags.get());
+
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD))
     {
         meetingView->setOnHold(session->isOnHold(), session->getClientid());
@@ -302,6 +305,19 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         session->canRecvVideoLowRes()
             ? meetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
             : meetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
+    }
+
+    if (meetingView && session->isCameraAndScreenShare())
+    {
+        // peer associated to this session is sending video from camera (in low-res) and video from screen share (in hi-res)
+        if (!meetingView->hasHiResByCid(static_cast<uint32_t>(session->getClientid())))
+        {
+            std::unique_ptr<MegaChatCall> call(mMegaChatApi->getChatCallByCallId(callid));
+            if (call && call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+            {
+                mMegaChatApi->requestHiResVideoWithQuality(chatid, session->getClientid(), megachat::MegaChatCall::CALL_QUALITY_HIGH_DEF);
+            }
+        }
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))

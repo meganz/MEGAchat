@@ -38,6 +38,8 @@ public:
     void setConnecting();
 
     // methods to add/remove video widgets
+    bool hasLowResByCid(uint32_t cid);
+    bool hasHiResByCid(uint32_t cid);
     void addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid);
     void addHiResByCid(megachat::MegaChatHandle chatid, uint32_t cid);
     void removeLowResByCid(uint32_t cid);
