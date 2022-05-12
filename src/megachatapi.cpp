@@ -168,6 +168,12 @@ bool MegaChatSession::canRecvCameraAndScreenShare() const
 {
     return false;
 }
+
+char* MegaChatSession::avFlagsToString() const
+{
+    return NULL;
+}
+
 MegaChatCall::~MegaChatCall()
 {
 }

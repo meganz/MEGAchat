@@ -6276,6 +6276,20 @@ bool MegaChatSessionPrivate::hasChanged(int changeType) const
     return (mChanged & changeType);
 }
 
+char* MegaChatSessionPrivate::avFlagsToString() const
+{
+    std::string result;
+    (mAvFlags.audio())              ? result += "Audio = 1 "            : result += "Audio = 0 ";
+    (mAvFlags.cameraLowRes())       ? result += "Camera_Low = 1 "       : result += "Camera_Low = 0 ";
+    (mAvFlags.cameraHiRes())        ? result += "Camera_High = 1 "      : result += "Camera_High = 0 ";
+    (mAvFlags.screenShareLowRes())  ? result += "Screen_Low = 1 "       : result += "Screen_Low = 0 ";
+    (mAvFlags.screenShareHiRes())   ? result += "Screen_High = 1 "      : result += "Screen_High = 0 ";
+    (mAvFlags.isOnHold())           ? result += "Hold = 1 "             : result += "Hold = 0 ";
+    (canRecvVideoLowRes())          ? result += "Can_Recv_LowRes = 1 "  : result += "Can_Recv_LowRes = 0 ";
+    (canRecvVideoHiRes())           ? result += "Can_Recv_HiRes = 1 "   : result += "Can_Recv_HiRes = 0 ";
+    return MegaApi::strdup(result.c_str());
+}
+
 karere::AvFlags MegaChatSessionPrivate::getAvFlags() const
 {
     return mAvFlags;

@@ -422,6 +422,13 @@ public:
      * @return true if we are ready to receive simultaneously screen share in high resolution, and camera in low resolution
      */
     virtual bool canRecvCameraAndScreenShare() const;
+
+    /**
+     * @brief Returns session av flags in a readable format
+     *
+     * @return session av flags in a readable format
+     */
+    virtual char* avFlagsToString() const;
 };
 
 /**

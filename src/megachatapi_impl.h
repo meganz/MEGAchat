@@ -198,6 +198,7 @@ public:
     virtual bool canRecvVideoLowRes() const override;
     virtual bool canRecvCameraAndScreenShare() const override;
 
+    char* avFlagsToString() const override;
     karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
     void setAudioDetected(bool audioDetected);
