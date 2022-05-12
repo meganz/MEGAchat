@@ -1570,6 +1570,13 @@ void Call::immediateCallDisconnect(const TermCode& termCode)
 
 void Call::sfuDisconnect(const TermCode& termCode)
 {
+    if (isTermCodeRetriable(termCode))
+    {
+        // if termcode is retriable, a reconnection attempt should be started automatically, so we can't destroy mSfuConnection
+        RTCM_LOG_DEBUG("sfuDisconnect: can't disconnect from SFU as termcode is retriable %s", connectionTermCodeToString(termCode).c_str());
+        return;
+    }
+
     if (mState > CallState::kStateInProgress)
     {
         RTCM_LOG_DEBUG("sfuDisconnect, current call state is %s", mState == CallState::kStateDestroyed ? "kStateDestroyed": "kStateTerminatingUserParticipation");
