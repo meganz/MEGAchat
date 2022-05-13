@@ -1684,26 +1684,21 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool moderator = chatroom->chat().getOwnprivilege() == PRIV_OPER;
-            bool endCall = request->getFlag();
-            if (endCall && !moderator)
+            if (request->getFlag() /*endCall*/ && (!chatroom->isMeeting() || chatroom->chat().getOwnprivilege() != PRIV_OPER))
             {
                 API_LOG_ERROR("End call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
-            if (endCall)
-            {
-                // TODO remove this block when we add support for endCall, and re-check conditions
-                API_LOG_ERROR("End call not supported yet");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
+            // if meeting or 1on1 calls while ringing and not participate should end the call
+            bool endCall = chatroom->isMeeting()
+                    ? request->getFlag()
+                    : !call->isOtherClientParticipating() && call->isRinging() && call->getState() == rtcModule::CallState::kStateClientNoParticipating;
 
             ::promise::Promise<void> pms = endCall
-                    ? call->endCall()   // end call
-                    : call->hangup();   // hang up
+                    ? call->endCall(chatroom->isGroup() ? chatd::kEndedByModerator : chatd::kRejected)  // end call
+                    : call->hangup();                                                                   // hang up
 
             pms.then([request, this]()
             {
