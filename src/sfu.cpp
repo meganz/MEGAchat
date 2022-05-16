@@ -1343,6 +1343,14 @@ void SfuConnection::processNextCommand(bool resetSending)
     if (!rc)
     {
         mSendPromise.reject("Socket is not ready");
+        if (mIsSendingBye)
+        {
+             // if wsSendMessage failed inmediately trying to send BYE command, call onSendByeCommand in order to
+             // execute the expected action (retry, remove or disconnect call) that triggered the BYE command sent
+             mCommandsQueue.setSending(false);
+             mCall.onSendByeCommand();
+             return;
+        }
         processNextCommand(true);
     }
 }
