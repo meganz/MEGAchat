@@ -19,7 +19,7 @@ namespace rtcModule
 #ifdef KARERE_DISABLE_WEBRTC
 
 #else
-
+class Call; // forward declaration for RtcModuleSfu usage
 enum TermCode: uint8_t
 {
     kFlagDisconn                = 64,
@@ -229,7 +229,8 @@ public:
     virtual sfu::SfuClient& getSfuClient() = 0;
     virtual DNScache& getDnsCache() = 0;
 
-    virtual void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) = 0;
+    virtual void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) = 0;
+    virtual void immediateRemoveCall(Call* call, EndCallReason reason, TermCode connectionTermCode) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) = 0;
