@@ -178,7 +178,7 @@ public:
      *  - MegaChatSession::isLowResScreenShare():
      *          peer associated to this session is sending video from screen share in low resolution
      *
-     *  - MegaChatSession::isRecvLowResCameraAndScreenShare():
+     *  - MegaChatSession::isCameraAndScreenShare():
      *          peer associated to this session is sending simultaneously video from camera in low resolution, and video from screen share in high resolution
      *
      * @return true if video is enable, false if video is disabled
