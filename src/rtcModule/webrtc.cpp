@@ -1530,7 +1530,8 @@ void Call::onSfuConnected()
 
 void Call::onSfuDisconnected()
 {
-    if (isDestroying()) // we want to destroy call, but first we have sent BYE command to SFU
+
+    if (isDestroying()) // we was trying to destroy call but we have received a sfu socket close (before processing BYE command)
     {
         if (!mSfuConnection->isSendingByeCommand())
         {
@@ -1619,11 +1620,12 @@ void Call::onSendByeCommand()
         {
             // we have sent BYE command from onConnectionChange (kDisconnected | kFailed | kFailed)
             // and now we need to force reconnect to SFU
+            mSfuConnection->clearCommandsQueue();
             mSfuConnection->retryPendingConnection(true);
             return;
         }
 
-        if (isDestroying()) // we want to destroy call, but first we have sent BYE command to SFU
+        if (isDestroying()) // we was trying to destroy call, and we have received BYE command delivering notification
         {
             mRtc.immediateRemoveCall(this, EndCallReason::kFailed, mTempTermCode);
         }
@@ -1735,47 +1737,30 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 
     if (newState >= webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
     {
-        if (mSfuConnection)
+
+        if (isDestroying()) // we was trying to destroy call, but we have received onConnectionChange. Don't do anything else (wait for BYE command delivering)
         {
-            if (isDestroying()) // we want to destroy call, but first we have sent BYE command to SFU
-            {
-                assert(mSfuConnection->isSendingByeCommand());
-                auto wptr = weakHandle();
-                karere::marshallCall([wptr, this]()
-                {
-                    if (wptr.deleted())
-                    {
-                        return;
-                    }
-
-                    /* if we called orderedRemoveCall (call state between kStateConnecting and kStateInProgress),
-                     * and before BYE command is delivered, we receive onConnectionChange with PeerConnectionState = (kDisconnected | kFailed | kClosed)
-                     * we need to remove call */
-                    mRtc.immediateRemoveCall(this, rtcModule::EndCallReason::kFailed, kSigDisconn);
-                }, mRtc.getAppCtx());
-                return;
-            }
-
-            // if newState is kDisconnected | kFailed | kClosed we need to clear commands queue and set sending as false
-            // otherwise nextcommand could get stucked
-            mSfuConnection->clearCommandsQueue();
+            return;
         }
 
         if (mState == CallState::kStateJoining ||  mState == CallState::kStateInProgress) //  kStateConnecting isn't included to avoid interrupting a reconnection in progress
         {
             if (!mSfuConnection)
             {
+                RTCM_LOG_ERROR("onConnectionChange: Not valid SfuConnection upon PeerConnectionState kDisconnected received");
                 assert(false);
                 return;
             }
 
-            setState(CallState::kStateConnecting);
             if (!mSfuConnection->isOnline())
             {
+                setState(CallState::kStateConnecting);
+                mSfuConnection->clearCommandsQueue();
                 mSfuConnection->retryPendingConnection(true);
             }
-            else // if we are connected to SFU we need to send BYE command
-            {
+            else if (!mSfuConnection->isSendingByeCommand())    // if we are connected to SFU we need to send BYE command (if we haven't already done)
+            {                                                   // don't clear commands queue here, wait for onSendByeCommand
+                setState(CallState::kStateConnecting);          // just set kStateConnecting if we have not already sent a previous BYE command, or executed action upon onSendByeCommand won't match with expected one
                 sendStats(TermCode::kRtcDisconn);               // send stats if we are connected to SFU regardless termcode
                 mSfuConnection->sendBye(TermCode::kRtcDisconn); // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
             }
