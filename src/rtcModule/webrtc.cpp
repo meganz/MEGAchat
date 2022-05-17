@@ -1026,6 +1026,13 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
     }
 }
 
+bool Call::isUdpDisconnected() const
+{
+    return (mStats.mInitialTs
+            && mStats.mSamples.mT.empty()
+            && (time(nullptr) - (mInitialTs - mOffset) > sfu::SfuConnection::kNoMediaPathTimeout));
+}
+
 bool Call::isTermCodeRetriable(const TermCode& termCode) const
 {
     return termCode == kRtcDisconn || termCode == kSigDisconn;
@@ -1753,15 +1760,12 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
                 return;
             }
 
-//            if (mStats.mInitialTs
-//                    && mStats.mSamples.mT.empty()
-//                    && (time(nullptr) - (mInitialTs - mOffset) > sfu::SfuConnection::kNoMediaPathTimeout))
-//            {
-//                // detect lack of UDP connectity, disconnect call and don't try to reconnect
-//                RTCM_LOG_DEBUG("WebRTC connection failed, there's no UDP connectivity");
-//                handleCallDisconnect(TermCode::kNoMediaPath);
-//                return;
-//            }
+            if (isUdpDisconnected()) // lack of UDP connectity detected, disconnect call and don't try to reconnect
+            {
+                RTCM_LOG_DEBUG("WebRTC connection failed, there's no UDP connectivity");
+                orderedCallDisconnect(TermCode::kNoMediaPath, connectionTermCodeToString(TermCode::kNoMediaPath).c_str());
+                return;
+            }
 
             if (!mSfuConnection->isOnline())
             {
