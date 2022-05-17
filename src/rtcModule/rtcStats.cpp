@@ -141,12 +141,19 @@ void Stats::clear()
     mCallid = karere::Id::inval();
     mTimeOffset = 0;
     mDuration = 0;
+    mMaxPeers = 0;
+    mTermCode = 0;
+    mInitialTs = 0;
+    mIsGroup = false;
+    mDevice.clear();
+    mSfuHost.clear();
     mSamples.mT.clear();
     mSamples.mPacketLost.clear();
     mSamples.mRoundTripTime.clear();
     mSamples.mOutGoingBitrate.clear();
     mSamples.mBytesReceived.clear();
     mSamples.mBytesSend.clear();
+    mSamples.mAudioJitter.clear();
     mSamples.mQ.clear();
     mSamples.mAv.clear();
     mSamples.mNrxh.clear();
@@ -155,10 +162,14 @@ void Stats::clear()
     mSamples.mVtxLowResfps.clear();
     mSamples.mVtxLowResw.clear();
     mSamples.mVtxLowResh.clear();
-    mTermCode = 0;
-    mIsGroup = false;
-    mInitialTs = 0;
-    mDevice.clear();
+    mSamples.mVtxHiResfps.clear();
+    mSamples.mVtxHiResw.clear();
+    mSamples.mVtxHiResh.clear();
+}
+
+bool Stats::isEmptyStats()
+{
+    return mPeerId == karere::Id::inval();
 }
 
 void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &value, rapidjson::Document& json, bool diff, const std::vector<float> *periods)

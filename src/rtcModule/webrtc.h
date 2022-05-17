@@ -19,7 +19,6 @@ namespace rtcModule
 #ifdef KARERE_DISABLE_WEBRTC
 
 #else
-
 enum TermCode: uint8_t
 {
     kFlagDisconn                = 64,
@@ -54,7 +53,7 @@ enum TermCode: uint8_t
 enum CallState: uint8_t
 {
     kStateInitial = 0,                  // < Call object was initialised
-    kStateClientNoParticipating,        // < User is not particpating in the call
+    kStateClientNoParticipating,        // < User is not partipating in the call
     kStateConnecting,                   // < Connecting to SFU
     kStateJoining,                      // < Joining a call
     kStateInProgress,                   // < Call is joined (upon ANSWER)
@@ -230,7 +229,7 @@ public:
     virtual sfu::SfuClient& getSfuClient() = 0;
     virtual DNScache& getDnsCache() = 0;
 
-    virtual void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) = 0;
+    virtual void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) = 0;
