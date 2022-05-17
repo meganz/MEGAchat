@@ -354,15 +354,26 @@ public:
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
+    void sfuDisconnect(const TermCode &termCode);
 
-    void disconnect(TermCode termCode, const std::string& msg, bool removeParticipants);
-    void handleCallDisconnect(const TermCode &termCode);
+    // ordered call disconnect by sending BYE command before performing SFU and media channel disconnect
+    void orderedCallDisconnect(TermCode termCode, const std::string &msg);
+
+    // immediate disconnect (without sending BYE command) from SFU and media channel, and also clear call resources
+    void immediateCallDisconnect(const TermCode& termCode);
+
+    // clear call resources
+    void clearResources(const TermCode& termCode);
+
+    // disconnect from media channel (MyPeerConnection)
+    void mediaChannelDisconnect(bool releaseDevices = false);
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
     std::string connectionTermCodeToString(const TermCode &termcode) const;
     bool isValidConnectionTermcode(TermCode termCode) const;
     void sendStats(const TermCode& termCode);
 
+    void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
     sfu::Peer &getMyPeer();
@@ -375,6 +386,8 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
+    void setDestroying(bool isDestroying);
+    bool isDestroying();
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
@@ -394,6 +407,7 @@ public:
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     void onSfuConnected() override;
     void onSfuDisconnected() override;
+    void onSendByeCommand() override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
@@ -415,6 +429,7 @@ protected:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
+    bool mIsDestroying = false;
 
     // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
     bool mIsReconnectingToChatd = false;
@@ -433,6 +448,7 @@ protected:
     int mNetworkQuality = kNetworkQualityDefault;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
+    TermCode mTempTermCode = kInvalidTermCode;
     uint8_t mEndCallReason = kInvalidReason;
 
     CallHandler& mCallHandler;
@@ -440,6 +456,7 @@ protected:
     sfu::SfuClient& mSfuClient;
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
 
+    // represents the Media channel connection (via WebRTC) between the local device and SFU.
     artc::MyPeerConnection<Call> mRtcConn;
     std::string mSdpStr;   // session description provided by WebRTC::createOffer()
     std::unique_ptr<LocalSlot> mAudio;
@@ -483,8 +500,8 @@ protected:
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
     void updateSvcQuality(int8_t delta);
     void resetLocalAvFlags();
-    bool isDisconnectionTermcode(const TermCode& termCode) const;
     bool isTermCodeRetriable(const TermCode& termCode) const;
+    bool isDisconnectionTermcode(const TermCode& termCode) const;
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
@@ -510,7 +527,8 @@ public:
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
-    void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
+    void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
+    void immediateRemoveCall(Call* call, EndCallReason reason, TermCode connectionTermCode);
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;

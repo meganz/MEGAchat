@@ -167,6 +167,11 @@ void Stats::clear()
     mSamples.mVtxHiResh.clear();
 }
 
+bool Stats::isEmptyStats()
+{
+    return mPeerId == karere::Id::inval();
+}
+
 void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &value, rapidjson::Document& json, bool diff, const std::vector<float> *periods)
 {
     std::vector<int32_t> datas;
