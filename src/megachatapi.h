@@ -352,7 +352,7 @@ public:
         CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
-        CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call outgoing ringing has stopped (only valid if our own client have started the call)
+        CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call outgoing ringing has stopped (only valid if our own client has started the call)
     };
 
     enum
@@ -486,7 +486,7 @@ public:
      * Check MegaChatCall::getNetworkQuality()
      *
      * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
-     * Call outgoing ringing has stopped (only valid if our own client have started the call)
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      */
     virtual int getChanges() const;
 
@@ -527,7 +527,7 @@ public:
      * Check MegaChatCall::getNetworkQuality()
      *
      * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
-     * Call outgoing ringing has stopped (only valid if our own client have started the call)
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      *
      * @return true if this call has an specific change
      */
