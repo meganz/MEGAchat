@@ -27,6 +27,7 @@
 #include "megachatapi.h"
 #include <chatClient.h>
 #include <iostream>
+#include <future>
 #include <fstream>
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -228,7 +229,7 @@ public:
 
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
-    bool TEST_ResumeSession(unsigned int accountIndex);
+    void TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
@@ -248,6 +249,7 @@ public:
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
     void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
+    void TEST_EstablishedCalls(unsigned int a1, unsigned int a2);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
@@ -314,7 +316,6 @@ private:
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
     bool mChatConnectionOnline[NUM_ACCOUNTS];
-    int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
     std::string lastErrorMsgChat[NUM_ACCOUNTS];
     int lastErrorTransfer[NUM_ACCOUNTS];
@@ -364,6 +365,14 @@ private:
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+    bool mChatCallOnHold[NUM_ACCOUNTS];
+    bool mChatCallOnHoldResumed[NUM_ACCOUNTS];
+    bool mChatCallAudioEnabled[NUM_ACCOUNTS];
+    bool mChatCallAudioDisabled[NUM_ACCOUNTS];
+    bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
+    bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
+    bool mChatCallSilenceReq[NUM_ACCOUNTS];
+    bool mChatCallReconnection[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -409,6 +418,9 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
+    virtual void onChatSessionUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid,
+                                     megachat::MegaChatHandle callid,
+                                     megachat::MegaChatSession *session);
 #endif
 };
 
@@ -466,7 +478,7 @@ private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
 
-class MegaChatApiUnitaryTest
+class MegaChatApiUnitaryTest: public karere::IApp
 {
 public:
     bool UNITARYTEST_ParseUrl();
@@ -480,6 +492,89 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     friend sfu::SfuConnection;
 #endif
+
+   // karere::IApp implementation
+   IChatListHandler* chatListHandler() override;
+   void onPresenceConfigChanged(const presenced::Config& config, bool pending) override;
+   void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) override;
+   void onDbError(int error, const std::string &msg) override;
+};
+
+typedef std::function<void(::mega::MegaError& e, ::mega::MegaRequest& request)> OnReqFinish;
+
+struct RequestTracker : public ::mega::MegaRequestListener
+{
+    std::atomic<bool> started = { false };
+    std::atomic<bool> finished = { false };
+    std::atomic<::mega::ErrorCodes> result = { ::mega::ErrorCodes::API_EINTERNAL };
+    std::promise<::mega::ErrorCodes> promiseResult;
+    ::mega::MegaApi *mApi;
+
+    ::mega::unique_ptr<::mega::MegaRequest> request;
+
+    OnReqFinish onFinish;
+
+    RequestTracker(::mega::MegaApi *api, OnReqFinish finish = nullptr)
+        : mApi(api)
+        , onFinish(finish)
+    {
+    }
+
+    RequestTracker(::mega::MegaApi *api, ::mega::MegaRequestListener *listener)
+        : mApi(api)
+        , onFinish([api, listener](::mega::MegaError& e, ::mega::MegaRequest& req)
+                   {listener->onRequestFinish(api, &req, &e);})
+    {
+    }
+
+    void onRequestStart(::mega::MegaApi* api, ::mega::MegaRequest *request) override
+    {
+        started = true;
+    }
+    void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request,
+                         ::mega::MegaError* e) override
+    {
+        if (onFinish) onFinish(*e, *request);
+
+        result = ::mega::ErrorCodes(e->getErrorCode());
+        this->request.reset(request->copy());
+        finished = true;
+        promiseResult.set_value(static_cast<::mega::ErrorCodes>(result));
+    }
+    ::mega::ErrorCodes waitForResult(int seconds = maxTimeout, bool unregisterListenerOnTimeout = true)
+    {
+        auto f = promiseResult.get_future();
+        if (std::future_status::ready != f.wait_for(std::chrono::seconds(seconds)))
+        {
+            assert(mApi);
+            if (unregisterListenerOnTimeout)
+            {
+                mApi->removeRequestListener(this);
+            }
+            return static_cast<::mega::ErrorCodes>(-999); // local timeout
+        }
+        return f.get();
+    }
+
+    ::mega::MegaHandle getNodeHandle()
+    {
+        // if the operation succeeded and supplies a node handle
+        if (request) return request->getNodeHandle();
+        return ::mega::INVALID_HANDLE;
+    }
+
+    std::string getLink()
+    {
+        // if the operation succeeded and supplies a link
+        if (request && request->getLink()) return request->getLink();
+        return "";
+    }
+
+    ::mega::unique_ptr<::mega::MegaNode> getPublicMegaNode()
+    {
+        if (request) return ::mega::unique_ptr<::mega::MegaNode>(request->getPublicMegaNode());
+        return nullptr;
+    }
 };
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -500,8 +595,9 @@ public:
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
-    bool handlePeerLeft(Cid_t cid) override;
+    bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     void onSfuConnected() override;
+    void onSendByeCommand() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
     void logError(const char* error) override;

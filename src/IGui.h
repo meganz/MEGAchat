@@ -250,6 +250,15 @@ public:
 
     virtual void onChatNotification(karere::Id /*chatid*/, const chatd::Message &/*msg*/, chatd::Message::Status /*status*/, chatd::Idx /*idx*/) {}
 
+    /** @brief Called when an error occurred in an operation with karere Db
+     * Possible returned values:
+     *   - SQLITE_IOERR   = 10
+     *   - SQLITE_FULL    = 13
+     *
+     * @param error Numeric error code
+     * @param errStr Error message
+     */
+    virtual void onDbError(int /*error*/, const std::string &/*errStr*/) = 0;
     virtual ~IApp() {}
 };
 }

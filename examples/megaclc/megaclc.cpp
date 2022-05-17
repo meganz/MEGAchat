@@ -4676,6 +4676,9 @@ static void process_line(const char* l)
             conlock(cout) << "Command failed: " << e.what() << endl;
         }
         return;
+    case NOPROMPT:
+        conlock(cout) << "\nprocess_line: unexpected prompt type: NOPROMPT" << endl;
+        return;
     }
 }
 

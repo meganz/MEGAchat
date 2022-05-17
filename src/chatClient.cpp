@@ -32,7 +32,7 @@
     #include <sys/system_properties.h>
 #elif defined(__APPLE__)
     #include <TargetConditionals.h>
-    #ifdef TARGET_OS_IPHONE
+    #if TARGET_OS_IPHONE
         #include <resolv.h>
     #endif
 #endif
@@ -73,6 +73,7 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
       appCtx(ctx),
       api(sdk, ctx),
       app(aApp),
+      db(app),
       mDnsCache(db, chatd::Client::chatdVersion),
 #ifndef KARERE_DISABLE_WEBRTC
       mCallHandler(callHandler),
@@ -83,8 +84,8 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 {
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::createRtcModule(api, mCallHandler, mDnsCache));
-    rtc->init(*websocketIO, appCtx, new rtcModule::RtcCryptoMeetings(*this));
+    rtc.reset(rtcModule::createRtcModule(api, mCallHandler, mDnsCache, *websocketIO, appCtx,
+                                         new rtcModule::RtcCryptoMeetings(*this)));
 #endif
 }
 
@@ -447,7 +448,7 @@ void Client::createDbSchema()
 
 int Client::importMessages(const char *externalDbPath)
 {
-    SqliteDb dbExternal;
+    SqliteDb dbExternal(app);
     if (!dbExternal.open(externalDbPath, false))
     {
         KR_LOG_ERROR("importMessages: failed to open external DB (%s)", externalDbPath);

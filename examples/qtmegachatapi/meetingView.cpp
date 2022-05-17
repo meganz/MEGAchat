@@ -247,6 +247,26 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
     }
 }
 
+void MeetingView::manageAllPeersLeft(megachat::MegaChatHandle callid, bool isGroup)
+{
+    assert(!getNumSessions());
+    QMessageBox msgBox;
+    std::string textMsg = "You are the only one participant in a ";
+    textMsg.append(!isGroup ? "1on1" : "group").append(" call. Do you want to hangup?");
+    msgBox.setText(textMsg.c_str());
+    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Save);
+    int ret = msgBox.exec();
+    if (ret == QMessageBox::Ok)
+    {
+        mMegaChatApi.hangChatCall(callid);
+    }
+    else
+    {
+        // TODO set a timeout
+    }
+}
+
 void MeetingView::destroyRingingWindow()
 {
     if (mRingingWindow)
@@ -292,6 +312,11 @@ void MeetingView::addSession(const megachat::MegaChatSession &session)
     mListWidget->setItemWidget(item, widget);
     assert(mSessionWidgets.find(static_cast<uint32_t>(session.getClientid())) == mSessionWidgets.end());
     mSessionWidgets[static_cast<uint32_t>(session.getClientid())] = widget;
+}
+
+size_t MeetingView::getNumSessions( ) const
+{
+    return mSessionWidgets.size();
 }
 
 void MeetingView::removeSession(const megachat::MegaChatSession& session)

@@ -141,12 +141,19 @@ void Stats::clear()
     mCallid = karere::Id::inval();
     mTimeOffset = 0;
     mDuration = 0;
+    mMaxPeers = 0;
+    mTermCode = 0;
+    mInitialTs = 0;
+    mIsGroup = false;
+    mDevice.clear();
+    mSfuHost.clear();
     mSamples.mT.clear();
     mSamples.mPacketLost.clear();
     mSamples.mRoundTripTime.clear();
     mSamples.mOutGoingBitrate.clear();
     mSamples.mBytesReceived.clear();
     mSamples.mBytesSend.clear();
+    mSamples.mAudioJitter.clear();
     mSamples.mQ.clear();
     mSamples.mAv.clear();
     mSamples.mNrxh.clear();
@@ -155,10 +162,14 @@ void Stats::clear()
     mSamples.mVtxLowResfps.clear();
     mSamples.mVtxLowResw.clear();
     mSamples.mVtxLowResh.clear();
-    mTermCode = 0;
-    mIsGroup = false;
-    mInitialTs = 0;
-    mDevice.clear();
+    mSamples.mVtxHiResfps.clear();
+    mSamples.mVtxHiResw.clear();
+    mSamples.mVtxHiResh.clear();
+}
+
+bool Stats::isEmptyStats()
+{
+    return mPeerId == karere::Id::inval();
 }
 
 void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &value, rapidjson::Document& json, bool diff, const std::vector<float> *periods)
@@ -227,10 +238,11 @@ void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &
     }
 }
 
-ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lowResId)
+ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lowResId, void* appCtx)
     : mStats(stats)
     , mHiResId(hiResId)
     , mLowResId(lowResId)
+    , mAppCtx(appCtx)
 {
     AddRef();
 }
@@ -291,7 +303,7 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
                 ts = it->timestamp_us();
                 std::string kind;
-                int32_t audioJitter;
+                int32_t audioJitter = 0;
                 for (const webrtc::RTCStatsMemberInterface* member : members)
                 {
                     if (strcmp(member->name(), "packetsLost") == 0)
@@ -358,7 +370,7 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 }
             }
         }
-    }, artc::gAppCtx);
+    }, mAppCtx);
 
     Release();
 }

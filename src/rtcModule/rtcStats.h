@@ -47,6 +47,7 @@ class Stats
 public:
     std::string getJson();
     void clear();
+    bool isEmptyStats();
 
     karere::Id mPeerId;
     uint32_t mCid = 0;
@@ -72,7 +73,7 @@ protected:
 class ConnStatsCallBack : public webrtc::RTCStatsCollectorCallback, public karere::DeleteTrackable
 {
 public:
-    ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId);
+    ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId, void* appCtx);
     ~ConnStatsCallBack();
     void removeStats();
 
@@ -85,6 +86,7 @@ protected:
     Stats* mStats = nullptr; // Doesn't take ownership (Belongs to Call)
     uint32_t mHiResId;
     uint32_t mLowResId;
+    void* mAppCtx;
 
 private:
     mutable webrtc::webrtc_impl::RefCounter mRefCount{0};

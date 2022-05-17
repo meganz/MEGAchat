@@ -95,6 +95,11 @@ public:
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
     };
 
+    enum {
+        SESS_TERM_CODE_INVALID          = -1,   // Session has been finished by an invalid reason
+        SESS_TERM_CODE_RECOVERABLE      = 0,    // Session has been finished by a recoverable reason
+        SESS_TERM_CODE_NON_RECOVERABLE  = 1,    // Session has been finished by a non recoverable reason
+    };
 
     virtual ~MegaChatSession();
 
@@ -209,6 +214,25 @@ public:
      *
      */
     virtual int getChanges() const;
+
+    /**
+     * @brief Returns session termCode
+     *
+     * The value returned by this method will be only valid when MegaChatSession::hasChanged(MegaChatSession::CHANGE_TYPE_STATUS)
+     * is true, and MegaChatSession::getStatus is MegaChatSession::SESSION_STATUS_DESTROYED.
+     *
+     * Posible returned values by this method:
+     *  - MegaChatSession::SESS_TERM_CODE_INVALID           = -1
+     *  - MegaChatSession::SESS_TERM_CODE_RECOVERABLE       = 0
+     *  - MegaChatSession::SESS_TERM_CODE_NON_RECOVERABLE   = 1
+     *
+     * If returned value is SESS_TERM_CODE_RECOVERABLE it means that session ended by a recoverable reason, and the peer
+     * represented by that session is probably trying to reconnect to the Meeting. In case that value is
+     * SESS_TERM_CODE_NON_RECOVERABLE, we can asume that session has ended, and peer won't try to reconnect automatically.
+     *
+     * @return session termCode
+     */
+    virtual int getTermCode() const;
 
     /**
      * @brief Returns true if this session has an specific change
@@ -350,11 +374,12 @@ public:
     };
 
     enum {
-        TERM_CODE_INVALID = -1,     // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
-        TERM_CODE_HANGUP = 0,       // Call has been finished by user
-        TERM_CODE_TOO_MANY_PARTICIPANTS = 1, // No possible to join the call, too many participants
-        TERM_CODE_REJECT = 2,       // Caller has hang up the call before no body answer the call
-        TERM_CODE_ERROR = 3,        // Call has been finished by error
+        TERM_CODE_INVALID                   = -1,   // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
+        TERM_CODE_HANGUP                    = 0,    // Call has been finished by user
+        TERM_CODE_TOO_MANY_PARTICIPANTS     = 1,    // No possible to join the call, too many participants
+        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before no body answer the call
+        TERM_CODE_ERROR                     = 3,    // Call has been finished by error
+        TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
     };
 
     enum
@@ -545,6 +570,7 @@ public:
      *  - TERM_CODE_TOO_MANY_PARTICIPANTS
      *  - TERM_CODE_ERROR
      *  - TERM_CODE_REJECT
+     *  - TERM_CODE_NO_PARTICIPATE
      *
      * @return termination code for the call
      */
@@ -2369,6 +2395,12 @@ public:
         CHAT_CONNECTION_ONLINE      = 3     /// Connection with chatd is ready and logged in
     };
 
+    enum
+    {
+        DB_ERROR_UNEXPECTED         = -1,   /// Unexpected database error (not received by apps, just for internal use)
+        DB_ERROR_IO                 = 1,    /// I/O error in Data base    (non recoverable)
+        DB_ERROR_FULL               = 2,    /// Database or disk is full  (non recoverable)
+    };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -6308,6 +6340,16 @@ public:
      * @param lastGreen Time elapsed (minutes) since the last time user was green
      */
     virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
+
+    /** @brief This function is called when an error occurred in an operation with karere Db
+     * Possible returned values:
+     *   - MegaChatApi::DB_ERROR_IO               = 1,    /// I/O error in Data base
+     *   - MegaChatApi::DB_ERROR_FULL             = 2,    /// Database or disk is full
+     *
+     * @param error Numeric error code
+     * @param errStr Error message
+     */
+    virtual void onDbError(MegaChatApi *api, int error, const char* msg);
 };
 
 /**

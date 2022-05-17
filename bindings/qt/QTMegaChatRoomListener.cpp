@@ -75,7 +75,7 @@ void QTMegaChatRoomListener::onHistoryReloaded(MegaChatApi *api, MegaChatRoom *c
 void QTMegaChatRoomListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
-    switch(event->type())
+    switch(static_cast<QTMegaChatEvent::MegaType>(event->type()))
     {
         case QTMegaChatEvent::OnChatRoomUpdate:
             if (listener) listener->onChatRoomUpdate(event->getMegaChatApi(), event->getChatRoom());

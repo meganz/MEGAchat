@@ -946,9 +946,9 @@ public:
     Client& client() const { return mChatdClient; }
     Connection& connection() const { return mConnection; }
     /** @brief The lowest index of a message in the RAM history buffer */
-    Idx lownum() const { return mForwardStart - (Idx)mBackwardList.size(); }
+    Idx lownum() const { return mForwardStart - static_cast<Idx>(mBackwardList.size()); }
     /** @brief The highest index of a message in the RAM history buffer */
-    Idx highnum() const { return mForwardStart + (Idx)mForwardList.size()-1;}
+    Idx highnum() const { return mForwardStart + static_cast<Idx>(mForwardList.size())-1;}
     /** @brief Needed only for debugging purposes */
     Idx forwardStart() const { return mForwardStart; }
     /** The number of messages currently in the history buffer (in RAM).
@@ -1504,7 +1504,7 @@ protected:
     // to track changes in the richPreview's user-attribute
     karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
 
-    int mKeepaliveCount = 0;                    // number of keepalives to be sent (one per connection)
+    size_t mKeepaliveCount = 0;                    // number of keepalives to be sent (one per connection)
     bool mKeepaliveFailed = false;              // true means any pending keepalive failed to send
     promise::Promise<void> mKeepalivePromise;   // resolved when all keepalive have been sent (or failed)
     void onKeepaliveSent();

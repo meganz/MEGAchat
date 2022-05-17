@@ -517,10 +517,10 @@ void Chat::login()
 
 Connection::Connection(Client& chatdClient, int shardNo)
     : mChatdClient(chatdClient),
-      mShardNo(shardNo),
-      mSendPromise(promise::_Void()),
       mDnsCache(chatdClient.mKarereClient->mDnsCache),
-      mTsConnSuceeded(time(nullptr))
+      mShardNo(shardNo),
+      mTsConnSuceeded(time(nullptr)),
+      mSendPromise(promise::_Void())
 {
 }
 
@@ -2007,7 +2007,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
     // more unseen messages
     if ((messages.size() < count) && mHasMoreHistoryInDb)
         throw std::runtime_error(mChatId.toString()+": Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of "+std::to_string((int64_t)mOldestKnownMsgId.val));
-    return (Idx)messages.size();
+    return static_cast<Idx>(messages.size());
 }
 
 #define READ_ID(varname, offset)\
@@ -2450,12 +2450,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(callid, 8);
                 READ_8(userListCount, 16);
                 const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
-                std::vector<karere::Id> users;
+                std::set<karere::Id> users;
                 std::string userListStr;
                 for (unsigned int i = 0; i < userListCount; i++)
                 {
                     READ_ID(user, 17 + i * 8);
-                    users.push_back(user);
+                    users.insert(user);
                     userListStr.append(ID_CSTR(user)).append(", ");
                 }
                 userListStr.erase(userListStr.size() - 2);
@@ -2618,9 +2618,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 rtcModule::EndCallReason endCallReason = static_cast<rtcModule::EndCallReason>
                         (opcode == OP_DELCALLREASON ? recvReason :rtcModule::EndCallReason::kEnded);
 
-                if (mChatdClient.mKarereClient->rtc)
+                rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatid);
+                if (call && mChatdClient.mKarereClient->rtc)
                 {
-                    mChatdClient.mKarereClient->rtc->removeCall(chatid, endCallReason, connectionTermCode);
+                    mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, endCallReason, connectionTermCode);
                 }
 #endif
                 break;
@@ -3405,18 +3406,23 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     }, mChatdClient.mKarereClient->appCtx);
     return message;
 }
+
 void Chat::msgSubmit(Message* msg, SetOfIds recipients)
 {
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
     int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
-    postMsgToSending(static_cast<uint8_t>(opcode), msg, recipients);
+    SendingItem *item = postMsgToSending(static_cast<uint8_t>(opcode), msg, recipients);
 
-    // last text msg stuff
-    if (msg->isValidLastMessage())
+    // If item wasn't removed from mSending and we still have ownership of the message
+    if (item && item->msg)
     {
-        onLastTextMsgUpdated(*msg);
+        // last text msg stuff
+        if (msg->isValidLastMessage())
+        {
+            onLastTextMsgUpdated(*msg);
+        }
     }
 }
 
@@ -3536,7 +3542,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds
         mNextUnsent--;
     }
     flushOutputQueue();
-    return &mSending.back();
+    return mSending.empty() ? nullptr : &mSending.back(); // calling .back() on an empty container causes undefined behaviour
 }
 
 bool Chat::sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd)
@@ -3631,6 +3637,9 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     {
         CHATID_LOG_ERROR("ICrypto::encrypt error encrypting message %s: %s", ID_CSTR(msg->id()), err.what());
         delete msgCmd;
+        mEncryptionHalted = false;
+        msgRemoveFromSending(msg->id(), 0);
+        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99015, "Failed to encrypt message");
         return err;
     });
 
@@ -3728,9 +3737,10 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         // recipients must not change
         recipients = SetOfIds(item->recipients);
     }
-    else if (age == 0)  // in the very unlikely case the msg is already confirmed, but edit is done in the same second
+    else if (age <= msg.updated)
     {
-        age++;
+        // in the very unlikely case the msg is already confirmed, but edit is done in the same second (or a n-edit over an already n-times edited message)
+        age = msg.updated + 1;
     }
 
     auto upd = new Message(msg.id(), msg.userid, msg.ts, static_cast<uint16_t>(age), newdata, newlen,
@@ -3979,7 +3989,8 @@ bool Chat::setMessageSeen(Idx idx)
 
     auto wptr = weakHandle();
     karere::Id id = msg.id();
-    megaHandle seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
+    megaHandle seenTimer = 0;
+    seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
     {
         if (wptr.deleted())
           return;
@@ -5539,10 +5550,11 @@ void Chat::onUserLeave(Id userid)
 
 #ifndef KARERE_DISABLE_WEBRTC
         // remove call associated to chatRoom if our own user is not an active participant
-        if (mChatdClient.mKarereClient->rtc && !previewMode())
+        rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+        if (call && mChatdClient.mKarereClient->rtc && !previewMode())
         {
             CHATID_LOG_DEBUG("remove call associated to chatRoom if our own user is not an active participant");
-            mChatdClient.mKarereClient->rtc->removeCall(mChatId, rtcModule::EndCallReason::kFailed, rtcModule::TermCode::kLeavingRoom);
+            mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kFailed, rtcModule::TermCode::kLeavingRoom);
         }
 #endif
     }
@@ -5728,7 +5740,6 @@ void Chat::onPreviewersUpdate(uint32_t numPrev)
 
 void Chat::onJoinComplete()
 {
-    mEncryptionHalted = false;
     setOnlineState(kChatStateOnline);
     flushOutputQueue(true); //flush encrypted messages
 
@@ -5792,13 +5803,13 @@ void Chat::setOnlineState(ChatState state)
 #ifndef KARERE_DISABLE_WEBRTC
         if (mChatdClient.mKarereClient->rtc)
         {
-            rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+            rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
             if (call)
             {
                 if (call->getParticipants().empty())
                 {
                     CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s with no participants", call->getCallid().toString().c_str());
-                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kErrNoCall);
+                    mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kErrNoCall);
                 }
                 else if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
                 {
