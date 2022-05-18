@@ -262,6 +262,11 @@ bool MegaChatCall::isOnHold() const
     return false;
 }
 
+const char* MegaChatCall::getGenericMessage() const
+{
+    return NULL;
+}
+
 bool MegaChatCall::isSpeakAllow() const
 {
     return false;

@@ -249,6 +249,7 @@ public:
     virtual bool isOutgoing() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
+    const char* getGenericMessage() const override;
     bool isSpeakAllow() const override;
     int getNetworkQuality() const override;
     bool hasRequestSpeak() const override;
@@ -265,6 +266,10 @@ public:
     bool isParticipating(karere::Id userid);
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
+
+    void setEndCallReason(int endCallReason);
+    void setTermCode(int termCode);
+    void setMessage(const std::string &errMsg);
     void setOnHold(bool onHold);
     void setAudioDetected(bool audioDetected);
     static int convertCallState(rtcModule::CallState newState);
@@ -283,6 +288,7 @@ protected:
     MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
     int mCallCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle mCallerId;
+    std::string mMessage;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
@@ -592,6 +598,7 @@ public:
     ~MegaChatCallHandler();
     void onCallStateChange(rtcModule::ICall& call) override;
     void onCallRinging(rtcModule::ICall &call) override;
+    void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) override;
     void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
     void onAudioApproved(const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call) override;

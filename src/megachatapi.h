@@ -352,6 +352,12 @@ public:
         CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
+        CHANGE_TYPE_GENERIC_NOTIFICATION = 0x100,   /// Generic notification
+    };
+
+    enum
+    {
+        NOTIFICATION_TYPE_SFU_ERROR = 0,            /// Error received from SFU
     };
 
     enum
@@ -721,6 +727,18 @@ public:
      * @return true if call is on hold
      */
     virtual bool isOnHold() const;
+
+    /**
+     * @brief getGenericMessage Returns a generic message string or NULL
+     *
+     * This function only returns a valid string (not NULL) in the following scenarios:
+     *      - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION is notified via MegaChatCallListener::onChatCallUpdate
+     *
+     * The MegaChatCall retains the ownership of the returned string
+     *
+     * @return a generic message string or NULL
+     */
+    virtual const char* getGenericMessage() const;
 
     /**
      * @brief Returns if user can speak in a call

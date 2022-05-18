@@ -1663,6 +1663,9 @@ bool Call::error(unsigned int code, const std::string &errMsg)
             sendStats(connectionTermCode);
         }
 
+        // notify SFU error to the apps
+        mCallHandler.onCallError(*this, static_cast<int>(code), errMsg);
+
         // remove call just if there are no participants or termcode is not recoverable (we don't need to send BYE command upon SFU error reception)
         assert(!isTermCodeRetriable(connectionTermCode));
         if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
