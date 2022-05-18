@@ -729,14 +729,14 @@ public:
     virtual bool isOnHold() const;
 
     /**
-     * @brief getGenericMessage Returns a generic message string or NULL
+     * @brief getGenericMessage Returns a generic message string
      *
-     * This function only returns a valid string (not NULL) in the following scenarios:
+     * This function only returns a non empty string in the following scenarios:
      *      - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION is notified via MegaChatCallListener::onChatCallUpdate
      *
      * The MegaChatCall retains the ownership of the returned string
      *
-     * @return a generic message string or NULL
+     * @return a generic message string
      */
     virtual const char* getGenericMessage() const;
 

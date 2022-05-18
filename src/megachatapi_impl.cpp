@@ -6558,7 +6558,7 @@ MegaChatHandle MegaChatCallPrivate::getCaller() const
 
 const char* MegaChatCallPrivate::getGenericMessage() const
 {
-    return !mMessage.empty() ? mMessage.c_str() : nullptr;
+    return mMessage.c_str();
 }
 
 bool MegaChatCallPrivate::isOnHold() const
