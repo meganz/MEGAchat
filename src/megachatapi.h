@@ -4805,6 +4805,13 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns false
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_EXIST   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS    - if invalid callid provided
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
+     * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges,
+     *   or we try to end a 1on1 call, already ringing or participating with another client
+     *
      * @param callid MegaChatHandle that identifies the call
      * @param listener MegaChatRequestListener to track this request
      */
@@ -4822,6 +4829,12 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns true
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_EXIST   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS    - if invalid callid provided
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
+     * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges,
+     *   or we try to end a 1on1 call, already ringing or participating with another client
      *
      * @param callid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
