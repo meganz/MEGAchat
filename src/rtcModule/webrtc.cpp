@@ -1028,7 +1028,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
 
 bool Call::isUdpDisconnected() const
 {
-    return (mStats.mInitialTs
+    return (mInitialTs
             && mStats.mSamples.mT.empty()
             && (time(nullptr) - (mInitialTs - mOffset) > sfu::SfuConnection::kNoMediaPathTimeout));
 }
