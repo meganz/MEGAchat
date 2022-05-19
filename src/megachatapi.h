@@ -709,7 +709,7 @@ public:
      * @brief Returns if call is outgoing
      *
      * @note in case another client logged in with the same account, has started the call,
-     * this method will also returns true.
+     * this method will also return true.
      *
      * @return True if outgoing call, false if incoming
      */
