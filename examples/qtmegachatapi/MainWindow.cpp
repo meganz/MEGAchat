@@ -308,7 +308,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     }
 
     // request automatically hi-res track, in case peer starts sending camera and screenshare simultaneously, and we only was receiving low-res track
-    if (meetingView && session->isCameraAndScreenShare())
+    if (meetingView && session->isLowResCamera() && session->isHiResScreenShare())
     {
         // peer associated to this session is sending video from camera (in low-res) and video from screen share (in hi-res)
         if (!meetingView->hasHiResByCid(static_cast<uint32_t>(session->getClientid())))

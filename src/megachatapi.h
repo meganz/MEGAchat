@@ -178,8 +178,6 @@ public:
      *  - MegaChatSession::isLowResScreenShare():
      *          peer associated to this session is sending video from screen share in low resolution
      *
-     *  - MegaChatSession::isCameraAndScreenShare():
-     *          peer associated to this session is sending simultaneously video from camera in low resolution, and video from screen share in high resolution
      *
      * @return true if video is enable, false if video is disabled
      */
@@ -221,6 +219,9 @@ public:
      * @note Indicate if peer is sending video from camera in low resolution
      * We can configure the session for receive video but peer is not sending yet
      *
+     * @note in case peer associated to this session is sending camera and screen share simultaneously,
+     * we will receive camera on low resolution track, and screen share in high resolution track
+     *
      * @return true if peer associated to this session is sending video from camera in low resolution
      */
     virtual bool isLowResCamera() const;
@@ -251,6 +252,9 @@ public:
      * @note Indicate if peer is sending video from screen share in high resolution
      * We can configure the session for receive video but peer is not sending yet
      *
+     * @note in case peer associated to this session is sending camera and screen share simultaneously,
+     * we will receive camera on low resolution track, and screen share in high resolution track
+     *
      * @return true if peer associated to this session is sending video from screen share in high resolution
      */
     virtual bool isHiResScreenShare() const;
@@ -264,17 +268,6 @@ public:
      * @return true if peer associated to this session is sending video from screen share in low resolution
      */
     virtual bool isLowResScreenShare() const;
-
-    /**
-     * @brief Returns true if peer associated to this session is sending simultaneously video from screen share in high resolution,
-     * and video from camera in low resolution
-     *
-     * @note Indicate if peer is sending simultaneously video from screen share in high resolution, and video from camera in low resolution
-     * We can configure the session for receive video but peer is not sending yet
-     *
-     * @return true if peer is sending simultaneously video from screen share in high resolution, and video from camera in low resolution
-     */
-    virtual bool isCameraAndScreenShare() const;
 
     /**
      * @brief Returns if session is on hold
@@ -411,17 +404,6 @@ public:
      * @return true if we are ready to receive video in low resolution
      */
     virtual bool canRecvVideoLowRes() const;
-
-    /**
-     * @brief Returns if our client is ready to receive simultaneously screen share in high resolution, and camera in low resolution
-     * from the participant of this session.
-     *
-     * @note If this method returns true, doesn't mean that we are receiving screen share and camera, maybe client has 
-     * disabled its video but we are ready to receive it
-     *
-     * @return true if we are ready to receive simultaneously screen share in high resolution, and camera in low resolution
-     */
-    virtual bool canRecvCameraAndScreenShare() const;
 
     /**
      * @brief Returns session av flags in a readable format

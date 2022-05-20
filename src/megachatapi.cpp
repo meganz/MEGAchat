@@ -119,11 +119,6 @@ bool MegaChatSession::isLowResScreenShare() const
     return false;
 }
 
-bool MegaChatSession::isCameraAndScreenShare() const
-{
-    return false;
-}
-
 bool MegaChatSession::isOnHold() const
 {
     return false;
@@ -160,11 +155,6 @@ bool MegaChatSession::canRecvVideoHiRes() const
 }
 
 bool MegaChatSession::canRecvVideoLowRes() const
-{
-    return false;
-}
-
-bool MegaChatSession::canRecvCameraAndScreenShare() const
 {
     return false;
 }
