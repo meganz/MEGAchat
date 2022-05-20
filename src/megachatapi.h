@@ -416,8 +416,8 @@ public:
      * @brief Returns if our client is ready to receive simultaneously screen share in high resolution, and camera in low resolution
      * from the participant of this session.
      *
-     * @note If this method returns true, doesn't mean that we are receiving screen share and camera, maybe client has their video
-     * disabled but we are ready to receive it
+     * @note If this method returns true, doesn't mean that we are receiving screen share and camera, maybe client has 
+     * disabled its video but we are ready to receive it
      *
      * @return true if we are ready to receive simultaneously screen share in high resolution, and camera in low resolution
      */
