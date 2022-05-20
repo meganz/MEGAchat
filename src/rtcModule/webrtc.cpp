@@ -973,7 +973,7 @@ void Call::mediaChannelDisconnect(bool releaseDevices)
 {
     if (releaseDevices)
     {
-        if (getLocalAvFlags().videoCam())
+        if (getLocalAvFlags().camera())
         {
             releaseVideoDevice();
         }
