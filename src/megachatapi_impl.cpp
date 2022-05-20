@@ -6662,6 +6662,7 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kChatDisconn:
+        case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kApiEndCall:
         case rtcModule::TermCode::kUnKnownTermCode:
             return TERM_CODE_ERROR;

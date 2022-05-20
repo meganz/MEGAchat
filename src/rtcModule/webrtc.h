@@ -37,6 +37,7 @@ enum TermCode: uint8_t
     kSigDisconn                 = kFlagDisconn | 1,     // 65 < socket error on the signalling connection
     kSfuShuttingDown            = kFlagDisconn | 2,     // 66 < SFU server is shutting down
     kChatDisconn                = kFlagDisconn | 3,     // 67 < chatd connection is broken
+    kNoMediaPath                = kFlagDisconn | 4,     // 68 < webRTC connection failed, no UDP connectivity
     //==============================================================================================
 
     kErrSignaling               = kFlagError | 0,       // 128 < signalling error
