@@ -283,7 +283,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     meetingView->updateSession(*session);
 
     std::unique_ptr<char[]>flags(session->avFlagsToString());
-    fprintf(stderr, "\nonChatSessionUpdate: %s\n", flags.get());
+    std::cerr << std::endl << "onChatSessionUpdate: " << flags.get() << std::endl;
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD))
     {
