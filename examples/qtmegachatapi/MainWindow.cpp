@@ -268,6 +268,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
     }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP))
+    {
+        assert(call->isOwnClientCaller());
+    }
 }
 
 void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)

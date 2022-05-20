@@ -254,7 +254,7 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
     virtual ~Call();
 
 
@@ -263,6 +263,7 @@ public:
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
     CallState getState() const override;
+    bool isOwnClientCaller() const override;
     // returns true if your user participates of the call
     bool participate() override;
     bool isJoining() const override;
@@ -297,6 +298,7 @@ public:
     bool isIgnored() const override;
 
     void setRinging(bool ringing) override;
+    void stopOutgoingRinging() override;
     bool isRinging() const override;    // (always false for outgoing calls)
 
     void setOnHold() override;
@@ -429,6 +431,7 @@ protected:
     CallState mState = CallState::kStateInitial;
     bool mIsRinging = false;
     bool mIgnored = false;
+    bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
     bool mIsDestroying = false;
 
     // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)

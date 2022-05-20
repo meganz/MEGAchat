@@ -51,11 +51,12 @@ bool SvcDriver::setSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& 
     }
 }
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags)
+Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags, bool caller)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
     , mIsRinging(isRinging)
+    , mIsOwnClientCaller(caller)
     , mIsGroup(isGroup)
     , mCallHandler(callHandler) // CallHandler to receive notifications about the call
     , mMegaApi(megaApi)
@@ -125,6 +126,11 @@ void Call::setState(CallState newState)
 CallState Call::getState() const
 {
     return mState;
+}
+
+bool Call::isOwnClientCaller() const
+{
+    return mIsOwnClientCaller;
 }
 
 void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
@@ -327,6 +333,12 @@ void Call::setRinging(bool ringing)
         mIsRinging = ringing;
         mCallHandler.onCallRinging(*this);
     }
+}
+
+void Call::stopOutgoingRinging()
+{
+    assert(isOwnClientCaller());
+    mCallHandler.onStopOutgoingRinging(*this);
 }
 
 void Call::setOnHold()
@@ -2452,7 +2464,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
         {
             std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
             karere::Id myUserHandle(userHandle.get());
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags);
+            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags, true);
 
             if (!mCalls[callid]->connectSfu(sfuUrlStr))
             {

@@ -352,6 +352,7 @@ public:
         CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
+        CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call outgoing ringing has stopped (only valid if our own client has started the call)
     };
 
     enum
@@ -483,6 +484,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      */
     virtual int getChanges() const;
 
@@ -521,6 +525,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      *
      * @return true if this call has an specific change
      */
@@ -701,9 +708,23 @@ public:
     /**
      * @brief Returns if call is outgoing
      *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will also return true.
+     *
      * @return True if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
+
+    /**
+     * @brief Returns true if our client has started the call
+     *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will return false, but MegaChatCall::isOutgoing will return true. In this
+     * case call is considerated an outgoing call, but our client wouldn't have started it.
+     *
+     * @return True if our client has started the call
+     */
+    virtual bool isOwnClientCaller() const;
 
     /**
      * @brief Returns the handle from user that has started the call
