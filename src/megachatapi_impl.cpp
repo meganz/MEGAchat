@@ -5471,7 +5471,11 @@ void MegaChatApiImpl::cleanCalls()
         std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
         for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            mClient->rtc->removeCall(chatids[i], rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kUserHangup);
+            rtcModule::ICall* call = findCall(chatids[i]);
+            if (call)
+            {
+                mClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kUserHangup);
+            }
         }
     }
 
@@ -6375,6 +6379,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mStatus = call.getState();
     mCallerId = call.getCallerid();
     mIsCaller = call.isOutgoing();
+    mIsOwnClientCaller = call.isOwnClientCaller();
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
@@ -6407,6 +6412,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mChatid = call.getChatid();
     mCallId = call.getCallId();
     mIsCaller = call.isOutgoing();
+    mIsOwnClientCaller = call.isOwnClientCaller();
     mLocalAVFlags = call.mLocalAVFlags;
     mChanged = call.mChanged;
     mInitialTs = call.mInitialTs;
@@ -6590,6 +6596,11 @@ bool MegaChatCallPrivate::isOutgoing() const
     return mIsCaller;
 }
 
+bool MegaChatCallPrivate::isOwnClientCaller() const
+{
+    return mIsOwnClientCaller;
+}
+
 MegaChatHandle MegaChatCallPrivate::getCaller() const
 {
     return mCallerId;
@@ -6695,6 +6706,7 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kChatDisconn:
+        case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kApiEndCall:
         case rtcModule::TermCode::kUnKnownTermCode:
             return TERM_CODE_ERROR;
@@ -9029,6 +9041,13 @@ void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_RINGING_STATUS);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onStopOutgoingRinging(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

@@ -160,6 +160,7 @@ public:
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
     virtual void onSfuDisconnected() = 0;
+    virtual void onSendByeCommand() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
@@ -387,9 +388,11 @@ public:
     };
 
     static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
-
+    static constexpr uint8_t kNoMediaPathTimeout = 6;        // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
+    void setIsSendingBye(bool sending);
+    bool isSendingByeCommand() const;
     bool isOnline() const;
     bool isJoined() const;
     bool isDisconnected() const;
@@ -462,6 +465,9 @@ protected:
     void onSocketClose(int errcode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
     void abortRetryController();
+
+    // This flag is set true when BYE command is sent to SFU
+    bool mIsSendingBye = false;
 
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;
