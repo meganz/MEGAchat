@@ -408,6 +408,8 @@ public:
     /**
      * @brief Returns session av flags in a readable format
      *
+     * You take the ownership of the returned value.
+     *
      * @return session av flags in a readable format
      */
     virtual char* avFlagsToString() const;
