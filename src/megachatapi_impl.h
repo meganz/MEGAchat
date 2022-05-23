@@ -237,6 +237,7 @@ public:
     virtual int64_t getFinalTimeStamp() const override;
     virtual int getTermCode() const override;
     int getEndCallReason() const override;
+    int getNotificationType() const override;
     virtual bool isRinging() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
@@ -268,6 +269,7 @@ public:
     void setCaller(karere::Id caller);
 
     void setEndCallReason(int endCallReason);
+    void setNotificationType(int notificationType);
     void setTermCode(int termCode);
     void setMessage(const std::string &errMsg);
     void setOnHold(bool onHold);
@@ -292,6 +294,7 @@ protected:
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
+    int mNotificationType = MegaChatCall::NOTIFICATION_TYPE_INVALID;
     bool mIgnored = false;
     bool mAudioDetected = false;
     bool mRinging = false;

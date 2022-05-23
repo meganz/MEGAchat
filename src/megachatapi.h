@@ -357,7 +357,8 @@ public:
 
     enum
     {
-        NOTIFICATION_TYPE_SFU_ERROR = 0,            /// Error received from SFU
+        NOTIFICATION_TYPE_INVALID   = 0,            /// Invalid notification type
+        NOTIFICATION_TYPE_SFU_ERROR = 1,            /// Error received from SFU
     };
 
     enum
@@ -605,6 +606,20 @@ public:
      * @return endCall reason for the call
      */
     virtual int getEndCallReason() const;
+
+    /**
+     * @brief Return the notification type, when a call notification is forwarded to the apps
+     *
+     * @note this value only will be valid in the following scenarios:
+     *      - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION is notified via MegaChatCallListener::onChatCallUpdate
+     *
+     * Valid values returned by this method are:
+     *      - MegaChatCall::NOTIFICATION_TYPE_INVALID   = 0
+     *      - MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR = 1
+     *
+     * @return the notification type, when a call notification is forwarded to the apps
+     */
+    virtual int getNotificationType() const;
 
     /**
      * @brief Returns the status of the remote call

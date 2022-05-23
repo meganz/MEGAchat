@@ -216,6 +216,11 @@ int MegaChatCall::getEndCallReason() const
     return 0;
 }
 
+int MegaChatCall::getNotificationType() const
+{
+    return 0;
+}
+
 bool MegaChatCall::isRinging() const
 {
     return false;

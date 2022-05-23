@@ -6372,6 +6372,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mInitialTs = call.mInitialTs;
     mFinalTs = call.mFinalTs;
     mTermCode = call.mTermCode;
+    mNotificationType = call.mNotificationType;
     mMessage = call.getGenericMessage();
     mEndCallReason = call.mEndCallReason;
     mRinging = call.mRinging;
@@ -6479,6 +6480,11 @@ int MegaChatCallPrivate::getTermCode() const
 int MegaChatCallPrivate::getEndCallReason() const
 {
     return mEndCallReason;
+}
+
+int MegaChatCallPrivate::getNotificationType() const
+{
+    return mNotificationType;
 }
 
 bool MegaChatCallPrivate::isRinging() const
@@ -6728,6 +6734,11 @@ void MegaChatCallPrivate::setCaller(Id caller)
 void MegaChatCallPrivate::setEndCallReason(int endCallReason)
 {
     mEndCallReason = endCallReason;
+}
+
+void MegaChatCallPrivate::setNotificationType(int notificationType)
+{
+    mNotificationType = notificationType;
 }
 
 void MegaChatCallPrivate::setTermCode(int termCode)
@@ -9015,13 +9026,13 @@ void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
 
 void MegaChatCallHandler::onCallError(rtcModule::ICall &call, int code, const std::string &errMsg)
 {
-    // set manually EndCallReason TermCode and message, as we are notifying an SFU error, and that information
-    // is temporary and shouldn't be preserved in original Call object
+    // set manually Notification type, TermCode and message, as we are notifying an SFU error, and that information
+    // is temporary, and shouldn't be preserved in original Call object
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION);                                // Change type
-    chatCall->setEndCallReason(MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR);                              // Notification type
+    chatCall->setNotificationType(MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR);                           // Notification type
     chatCall->setTermCode(chatCall->convertTermCode(static_cast<rtcModule::TermCode>(code)));           // SFU error
-    chatCall->setMessage(errMsg);                                                                       // SFU message
+    chatCall->setMessage(errMsg);                                                                       // SFU err message
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
