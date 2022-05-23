@@ -268,6 +268,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
     }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) && call->getEndCallReason() == MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR)
+    {
+        std::cerr << "onChatCallUpdate: " << MegaChatCall::termcodeToString(call->getTermCode()) << ". " << call->getGenericMessage() << std::endl;
+    }
 }
 
 void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)

@@ -137,6 +137,20 @@ MegaChatCall *MegaChatCall::copy()
     return NULL;
 }
 
+const char* MegaChatCall::termcodeToString(int termcode)
+{
+    switch (termcode)
+    {
+        case TERM_CODE_INVALID:                   return "Invalid call termcode";
+        case TERM_CODE_HANGUP:                    return "Call has been finished by user";
+        case TERM_CODE_TOO_MANY_PARTICIPANTS:     return "It's not possible to join the call, there are too many participants";
+        case TERM_CODE_REJECT:                    return "Caller has hang up the call before nobody answered the call";
+        case TERM_CODE_ERROR:                     return "Call error has been received";
+        case TERM_CODE_NO_PARTICIPATE:            return "User has been removed from chatroom";
+    }
+    return "Unknown call termcode";
+}
+
 int MegaChatCall::getStatus() const
 {
     return 0;

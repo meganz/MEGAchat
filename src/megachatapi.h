@@ -383,8 +383,8 @@ public:
         TERM_CODE_INVALID                   = -1,   // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
         TERM_CODE_HANGUP                    = 0,    // Call has been finished by user
         TERM_CODE_TOO_MANY_PARTICIPANTS     = 1,    // No possible to join the call, too many participants
-        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before no body answer the call
-        TERM_CODE_ERROR                     = 3,    // Call has been finished by error
+        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before nobody answered the call
+        TERM_CODE_ERROR                     = 3,    // Call error has been received
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
     };
 
@@ -412,6 +412,13 @@ public:
      * @return Copy of the MegaChatCall object
      */
     virtual MegaChatCall *copy();
+
+    /**
+     * @brief Returns a readable string that represents a termcode
+     *
+     * @return A readable string that represents a termcode
+     */
+    static const char* termcodeToString(int termcode);
 
     /**
      * @brief Returns the status of the call
