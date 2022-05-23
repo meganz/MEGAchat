@@ -32,7 +32,7 @@
     #include <sys/system_properties.h>
 #elif defined(__APPLE__)
     #include <TargetConditionals.h>
-    #ifdef TARGET_OS_IPHONE
+    #if TARGET_OS_IPHONE
         #include <resolv.h>
     #endif
 #endif

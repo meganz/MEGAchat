@@ -2618,9 +2618,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 rtcModule::EndCallReason endCallReason = static_cast<rtcModule::EndCallReason>
                         (opcode == OP_DELCALLREASON ? recvReason :rtcModule::EndCallReason::kEnded);
 
-                if (mChatdClient.mKarereClient->rtc)
+                rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatid);
+                if (call && mChatdClient.mKarereClient->rtc)
                 {
-                    mChatdClient.mKarereClient->rtc->removeCall(chatid, endCallReason, connectionTermCode);
+                    mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, endCallReason, connectionTermCode);
                 }
 #endif
                 break;
@@ -5549,10 +5550,11 @@ void Chat::onUserLeave(Id userid)
 
 #ifndef KARERE_DISABLE_WEBRTC
         // remove call associated to chatRoom if our own user is not an active participant
-        if (mChatdClient.mKarereClient->rtc && !previewMode())
+        rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+        if (call && mChatdClient.mKarereClient->rtc && !previewMode())
         {
             CHATID_LOG_DEBUG("remove call associated to chatRoom if our own user is not an active participant");
-            mChatdClient.mKarereClient->rtc->removeCall(mChatId, rtcModule::EndCallReason::kFailed, rtcModule::TermCode::kLeavingRoom);
+            mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kFailed, rtcModule::TermCode::kLeavingRoom);
         }
 #endif
     }
@@ -5801,13 +5803,13 @@ void Chat::setOnlineState(ChatState state)
 #ifndef KARERE_DISABLE_WEBRTC
         if (mChatdClient.mKarereClient->rtc)
         {
-            rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+            rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
             if (call)
             {
                 if (call->getParticipants().empty())
                 {
                     CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s with no participants", call->getCallid().toString().c_str());
-                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kErrNoCall);
+                    mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kErrNoCall);
                 }
                 else if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
                 {
