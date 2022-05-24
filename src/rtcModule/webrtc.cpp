@@ -161,13 +161,14 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
             }
         }
 
-        for (const karere::Id &peer : mParticipants)
+        for (auto it = mParticipants.begin(); it != mParticipants.end();)
         {
-            if (usersJoined.find(peer) == usersJoined.end())
+            auto auxit = it++;
+            if (usersJoined.find(*auxit) == usersJoined.end())
             {
                 // remove participant from mParticipants, not present at list received at OP_JOINEDCALL
-                mParticipants.erase(peer);
-                mCallHandler.onRemovePeer(*this, peer);
+                mParticipants.erase(*auxit);
+                mCallHandler.onRemovePeer(*this, *auxit);
             }
         }
 
