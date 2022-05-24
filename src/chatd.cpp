@@ -4503,9 +4503,16 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         return;
     }
 
+    auto wptr = weakHandle();
     mCrypto->msgDecrypt(cipherMsg)
-    .fail([this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
+    .fail([wptr, this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("onMsgUpdated: failed to decrypt message, and connection instance has already been deleted");
+            return err;
+        }
+
         assert(cipherMsg->isPendingToDecrypt());
 
         int type = err.type();
@@ -4544,12 +4551,23 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         return cipherMsg;
     })
-    .then([this, updateTs, richLinkRemoved](Message* msg)
+    .then([wptr, this, updateTs, richLinkRemoved](Message* msg)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("onMsgUpdated: message decrypted successfully, but connection instance has already been deleted");
+            return;
+        }
         onMsgUpdatedAfterDecrypt(updateTs, richLinkRemoved, msg);
     })
-    .fail([this, cipherMsg](const ::promise::Error& err)
+    .fail([wptr, this, cipherMsg](const ::promise::Error& err)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("onMsgUpdated: message couldn't be decrypted, and connection instance has already been deleted");
+            return;
+        }
+
         if (err.type() == SVCRYPTO_ENOMSG)
         {
             CHATID_LOG_WARNING("Msg has been deleted during decryption process");
@@ -5455,9 +5473,16 @@ bool Chat::msgNodeHistIncoming(Message *msg)
         }
         else
         {
+            auto wptr = weakHandle();
             mDecryptionAttachmentsHalted = true;
-            pms.then([this](Message* msg)
+            pms.then([wptr, this](Message* msg)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgNodeHistIncoming: message successfully decrypted, but connection instance has already been deleted");
+                    return;
+                }
+
                 if (!mTruncateAttachment)
                 {
                     mAttachmentNodes->addMessage(*msg, false, false);
@@ -5477,8 +5502,14 @@ bool Chat::msgNodeHistIncoming(Message *msg)
                     attachmentHistDone();
                 }
             })
-            .fail([this, msg](const ::promise::Error& /*err*/)
+            .fail([wptr, this, msg](const ::promise::Error& /*err*/)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgNodeHistIncoming: failed to decrypt message, and connection instance has already been deleted");
+                    return;
+                }
+
                 assert(msg->isPendingToDecrypt());
                 delete msg;
                 mTruncateAttachment = false;
