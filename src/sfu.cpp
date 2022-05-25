@@ -1128,9 +1128,19 @@ SfuConnection::~SfuConnection()
     }
 }
 
+void SfuConnection::setIsSendingBye(bool sending)
+{
+    mIsSendingBye = sending;
+}
+
 bool SfuConnection::isJoined() const
 {
     return (mConnState == kJoined);
+}
+
+bool SfuConnection::isSendingByeCommand() const
+{
+    return mIsSendingBye;
 }
 
 bool SfuConnection::isOnline() const
@@ -1299,6 +1309,11 @@ void SfuConnection::processNextCommand(bool resetSending)
     {
         // upon wsSendMsgCb we need to reset isSending flag
         mCommandsQueue.setSending(false);
+        if (mIsSendingBye)
+        {
+            mCall.onSendByeCommand();
+            return; // we have sent BYE command to SFU, following commands will be ignored
+        }
     }
 
     if (mCommandsQueue.empty() || mCommandsQueue.sending())
@@ -1312,6 +1327,14 @@ void SfuConnection::processNextCommand(bool resetSending)
 
     mCommandsQueue.setSending(true);
     std::string command = mCommandsQueue.pop();
+
+    // mCommandsQueue is a sequencial queue, so new commands just can be processed if previous commands have already been sent
+    if (command.find("{\"a\":\"BYE\",\"rsn\":") != std::string::npos)
+    {
+        // set mIsSendingBye flag true, to indicate that we are going to send BYE command
+        mIsSendingBye = true;
+    }
+
     assert(!command.empty());
     SFU_LOG_DEBUG("Send command: %s", command.c_str());
     std::unique_ptr<char[]> buffer(mega::MegaApi::strdup(command.c_str()));
@@ -1320,6 +1343,14 @@ void SfuConnection::processNextCommand(bool resetSending)
     if (!rc)
     {
         mSendPromise.reject("Socket is not ready");
+        if (mIsSendingBye)
+        {
+             // if wsSendMessage failed inmediately trying to send BYE command, call onSendByeCommand in order to
+             // execute the expected action (retry, remove or disconnect call) that triggered the BYE command sent
+             mCommandsQueue.setSending(false);
+             mCall.onSendByeCommand();
+             return;
+        }
         processNextCommand(true);
     }
 }
@@ -1328,6 +1359,7 @@ void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
     SFU_LOG_WARNING("SfuConnection: clearing commands queue");
+    setIsSendingBye(false);
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
@@ -1362,7 +1394,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
+    commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
 }
 
 bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
@@ -1908,6 +1940,7 @@ void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &r
 
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mCall.onSfuDisconnected();
+    setIsSendingBye(false); // reset mIsSendingBye as we are already disconnected from SFU
     auto oldState = mConnState;
     setConnState(kDisconnected);
 
@@ -2195,8 +2228,16 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("rsn");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'rsn' field");
+        return false;
+    }
+
     ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
-    return mComplete(static_cast<Cid_t>(cid));
+    unsigned termcode = reasonIterator->value.GetUint();
+    return mComplete(static_cast<Cid_t>(cid), termcode);
 }
 
 }

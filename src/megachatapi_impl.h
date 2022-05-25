@@ -183,6 +183,7 @@ public:
     virtual bool isLowResVideo() const override;
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
+    virtual int getTermCode() const override;
     virtual bool hasChanged(int changeType) const override;
     virtual bool isAudioDetected() const override;
     virtual bool hasRequestSpeak() const override;
@@ -195,12 +196,14 @@ public:
     void setOnHold(bool onHold);
     void setChange(int change);
     void removeChanges();
+    int convertTermCode(rtcModule::TermCode termCode);
 
 private:
     uint8_t mState = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id mPeerId;
     Cid_t mClientId;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
+    int mTermCode = MegaChatSession::SESS_TERM_CODE_INVALID;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
@@ -244,6 +247,7 @@ public:
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
+    virtual bool isOwnClientCaller() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
     bool isSpeakAllow() const override;
@@ -287,6 +291,7 @@ protected:
     bool mAudioDetected = false;
     bool mRinging = false;
     bool mIsCaller = false;
+    bool mIsOwnClientCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
@@ -597,6 +602,7 @@ public:
     void onAddPeer(const rtcModule::ICall &call, karere::Id peer) override;
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
     void onNetworkQualityChanged(const rtcModule::ICall &call) override;
+    void onStopOutgoingRinging(const rtcModule::ICall& call) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;

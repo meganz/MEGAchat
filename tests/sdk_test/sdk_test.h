@@ -27,6 +27,7 @@
 #include "megachatapi.h"
 #include <chatClient.h>
 #include <iostream>
+#include <future>
 #include <fstream>
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -315,7 +316,6 @@ private:
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
     bool mChatConnectionOnline[NUM_ACCOUNTS];
-    int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
     std::string lastErrorMsgChat[NUM_ACCOUNTS];
     int lastErrorTransfer[NUM_ACCOUNTS];
@@ -500,6 +500,83 @@ public:
    void onDbError(int error, const std::string &msg) override;
 };
 
+typedef std::function<void(::mega::MegaError& e, ::mega::MegaRequest& request)> OnReqFinish;
+
+struct RequestTracker : public ::mega::MegaRequestListener
+{
+    std::atomic<bool> started = { false };
+    std::atomic<bool> finished = { false };
+    std::atomic<::mega::ErrorCodes> result = { ::mega::ErrorCodes::API_EINTERNAL };
+    std::promise<::mega::ErrorCodes> promiseResult;
+    ::mega::MegaApi *mApi;
+
+    ::mega::unique_ptr<::mega::MegaRequest> request;
+
+    OnReqFinish onFinish;
+
+    RequestTracker(::mega::MegaApi *api, OnReqFinish finish = nullptr)
+        : mApi(api)
+        , onFinish(finish)
+    {
+    }
+
+    RequestTracker(::mega::MegaApi *api, ::mega::MegaRequestListener *listener)
+        : mApi(api)
+        , onFinish([api, listener](::mega::MegaError& e, ::mega::MegaRequest& req)
+                   {listener->onRequestFinish(api, &req, &e);})
+    {
+    }
+
+    void onRequestStart(::mega::MegaApi* api, ::mega::MegaRequest *request) override
+    {
+        started = true;
+    }
+    void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request,
+                         ::mega::MegaError* e) override
+    {
+        if (onFinish) onFinish(*e, *request);
+
+        result = ::mega::ErrorCodes(e->getErrorCode());
+        this->request.reset(request->copy());
+        finished = true;
+        promiseResult.set_value(static_cast<::mega::ErrorCodes>(result));
+    }
+    ::mega::ErrorCodes waitForResult(int seconds = maxTimeout, bool unregisterListenerOnTimeout = true)
+    {
+        auto f = promiseResult.get_future();
+        if (std::future_status::ready != f.wait_for(std::chrono::seconds(seconds)))
+        {
+            assert(mApi);
+            if (unregisterListenerOnTimeout)
+            {
+                mApi->removeRequestListener(this);
+            }
+            return static_cast<::mega::ErrorCodes>(-999); // local timeout
+        }
+        return f.get();
+    }
+
+    ::mega::MegaHandle getNodeHandle()
+    {
+        // if the operation succeeded and supplies a node handle
+        if (request) return request->getNodeHandle();
+        return ::mega::INVALID_HANDLE;
+    }
+
+    std::string getLink()
+    {
+        // if the operation succeeded and supplies a link
+        if (request && request->getLink()) return request->getLink();
+        return "";
+    }
+
+    ::mega::unique_ptr<::mega::MegaNode> getPublicMegaNode()
+    {
+        if (request) return ::mega::unique_ptr<::mega::MegaNode>(request->getPublicMegaNode());
+        return nullptr;
+    }
+};
+
 #ifndef KARERE_DISABLE_WEBRTC
 class MockupCall : public sfu::SfuInterface
 {
@@ -518,8 +595,9 @@ public:
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
-    bool handlePeerLeft(Cid_t cid) override;
+    bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     void onSfuConnected() override;
+    void onSendByeCommand() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
     void logError(const char* error) override;

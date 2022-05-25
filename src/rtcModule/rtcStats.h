@@ -49,6 +49,7 @@ class Stats
 public:
     std::string getJson();
     void clear();
+    bool isEmptyStats();
 
     karere::Id mPeerId;
     uint32_t mCid = 0;

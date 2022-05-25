@@ -5471,7 +5471,11 @@ void MegaChatApiImpl::cleanCalls()
         std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
         for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            mClient->rtc->removeCall(chatids[i], rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kUserHangup);
+            rtcModule::ICall* call = findCall(chatids[i]);
+            if (call)
+            {
+                mClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kUserHangup);
+            }
         }
     }
 
@@ -6154,6 +6158,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , mPeerId(session.getPeerid())
     , mClientId(session.getClientid())
     , mAvFlags(session.getAvFlags())
+    , mTermCode(convertTermCode(session.getTermcode()))
     , mChanged(CHANGE_TYPE_NO_CHANGES)
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mAudioDetected(session.isAudioDetected())
@@ -6167,6 +6172,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , mPeerId(session.getPeerid())
     , mClientId(static_cast<Cid_t>(session.getClientid()))
     , mAvFlags(session.getAvFlags())
+    , mTermCode(session.getTermCode())
     , mChanged(session.getChanges())
     , mHasRequestSpeak(session.hasRequestSpeak())
     , mAudioDetected(session.isAudioDetected())
@@ -6229,6 +6235,11 @@ int MegaChatSessionPrivate::getChanges() const
     return mChanged;
 }
 
+int MegaChatSessionPrivate::getTermCode() const
+{
+    return mTermCode;
+}
+
 bool MegaChatSessionPrivate::hasChanged(int changeType) const
 {
     return (mChanged & changeType);
@@ -6287,6 +6298,36 @@ void MegaChatSessionPrivate::removeChanges()
     mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
 }
 
+int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
+{
+    switch (termCode)
+    {
+        case rtcModule::TermCode::kRtcDisconn:
+        case rtcModule::TermCode::kSigDisconn:
+            return SESS_TERM_CODE_RECOVERABLE;
+
+        case rtcModule::TermCode::kApiEndCall:
+        case rtcModule::TermCode::kSfuShuttingDown:
+        case rtcModule::TermCode::kChatDisconn:
+        case rtcModule::TermCode::kErrSignaling:
+        case rtcModule::TermCode::kErrNoCall:
+        case rtcModule::TermCode::kErrAuth:
+        case rtcModule::TermCode::kErrApiTimeout:
+        case rtcModule::TermCode::kErrSdp:
+        case rtcModule::TermCode::kErrGeneral:
+        case rtcModule::TermCode::kUnKnownTermCode:
+        case rtcModule::TermCode::kUserHangup:
+        case rtcModule::TermCode::kLeavingRoom:
+        case rtcModule::TermCode::kTooManyParticipants: // should not be here??
+            return SESS_TERM_CODE_NON_RECOVERABLE;
+
+        case rtcModule::TermCode::kInvalidTermCode:
+            return SESS_TERM_CODE_INVALID;
+    }
+
+    return SESS_TERM_CODE_INVALID;
+}
+
 MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
 {
     mChatid = call.getChatid();
@@ -6294,6 +6335,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mStatus = call.getState();
     mCallerId = call.getCallerid();
     mIsCaller = call.isOutgoing();
+    mIsOwnClientCaller = call.isOwnClientCaller();
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
@@ -6326,6 +6368,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mChatid = call.getChatid();
     mCallId = call.getCallId();
     mIsCaller = call.isOutgoing();
+    mIsOwnClientCaller = call.isOwnClientCaller();
     mLocalAVFlags = call.mLocalAVFlags;
     mChanged = call.mChanged;
     mInitialTs = call.mInitialTs;
@@ -6509,6 +6552,11 @@ bool MegaChatCallPrivate::isOutgoing() const
     return mIsCaller;
 }
 
+bool MegaChatCallPrivate::isOwnClientCaller() const
+{
+    return mIsOwnClientCaller;
+}
+
 MegaChatHandle MegaChatCallPrivate::getCaller() const
 {
     return mCallerId;
@@ -6609,11 +6657,12 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kRtcDisconn:
         case rtcModule::TermCode::kSigDisconn:
         case rtcModule::TermCode::kErrSignaling:
-        case rtcModule::TermCode::kSvrShuttingDown:
+        case rtcModule::TermCode::kSfuShuttingDown:
         case rtcModule::TermCode::kErrAuth:
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kChatDisconn:
+        case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kApiEndCall:
         case rtcModule::TermCode::kUnKnownTermCode:
             return TERM_CODE_ERROR;
@@ -8948,6 +8997,13 @@ void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_RINGING_STATUS);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onStopOutgoingRinging(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

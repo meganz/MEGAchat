@@ -95,6 +95,11 @@ public:
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
     };
 
+    enum {
+        SESS_TERM_CODE_INVALID          = -1,   // Session has been finished by an invalid reason
+        SESS_TERM_CODE_RECOVERABLE      = 0,    // Session has been finished by a recoverable reason
+        SESS_TERM_CODE_NON_RECOVERABLE  = 1,    // Session has been finished by a non recoverable reason
+    };
 
     virtual ~MegaChatSession();
 
@@ -209,6 +214,25 @@ public:
      *
      */
     virtual int getChanges() const;
+
+    /**
+     * @brief Returns session termCode
+     *
+     * The value returned by this method will be only valid when MegaChatSession::hasChanged(MegaChatSession::CHANGE_TYPE_STATUS)
+     * is true, and MegaChatSession::getStatus is MegaChatSession::SESSION_STATUS_DESTROYED.
+     *
+     * Posible returned values by this method:
+     *  - MegaChatSession::SESS_TERM_CODE_INVALID           = -1
+     *  - MegaChatSession::SESS_TERM_CODE_RECOVERABLE       = 0
+     *  - MegaChatSession::SESS_TERM_CODE_NON_RECOVERABLE   = 1
+     *
+     * If returned value is SESS_TERM_CODE_RECOVERABLE it means that session ended by a recoverable reason, and the peer
+     * represented by that session is probably trying to reconnect to the Meeting. In case that value is
+     * SESS_TERM_CODE_NON_RECOVERABLE, we can asume that session has ended, and peer won't try to reconnect automatically.
+     *
+     * @return session termCode
+     */
+    virtual int getTermCode() const;
 
     /**
      * @brief Returns true if this session has an specific change
@@ -328,6 +352,7 @@ public:
         CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
+        CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call outgoing ringing has stopped (only valid if our own client has started the call)
     };
 
     enum
@@ -465,6 +490,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      */
     virtual int getChanges() const;
 
@@ -503,6 +531,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      *
      * @return true if this call has an specific change
      */
@@ -683,9 +714,23 @@ public:
     /**
      * @brief Returns if call is outgoing
      *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will also return true.
+     *
      * @return True if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
+
+    /**
+     * @brief Returns true if our client has started the call
+     *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will return false, but MegaChatCall::isOutgoing will return true. In this
+     * case call is considerated an outgoing call, but our client wouldn't have started it.
+     *
+     * @return True if our client has started the call
+     */
+    virtual bool isOwnClientCaller() const;
 
     /**
      * @brief Returns the handle from user that has started the call

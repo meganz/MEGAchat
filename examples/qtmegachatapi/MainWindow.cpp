@@ -269,10 +269,15 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         itemController->getMeetingView()->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
     }
 
-     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
-     {
-         itemController->getMeetingView()->updateLabel(call);
-     }
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
+    {
+        itemController->getMeetingView()->updateLabel(call);
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP))
+    {
+        assert(call->isOwnClientCaller());
+    }
 }
 
 void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)
@@ -315,11 +320,18 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         {
             meetingView->addSession(*session);
         }
-        else
+        else // SESSION_STATUS_DESTROYED
         {
             meetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
             meetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
             meetingView->removeSession(*session);
+
+            if ((!itemController->getItem()->isGroup() && session->getTermCode() == MegaChatSession::SESS_TERM_CODE_RECOVERABLE)
+                    || (itemController->getItem()->isGroup() && !meetingView->getNumSessions()))
+            {
+                // if peer left a 1on1 call with a recoverable termcode, or last peer left a group call
+                meetingView->manageAllPeersLeft(callid, itemController->getItem()->isGroup());
+            }
         }
     }
 }

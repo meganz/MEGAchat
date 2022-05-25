@@ -26,6 +26,7 @@ public:
     void joinedToCall(const megachat::MegaChatCall& call);
     void addSession(const megachat::MegaChatSession& session);
     void removeSession(const megachat::MegaChatSession& session);
+    size_t getNumSessions( ) const;
     void updateSession(const megachat::MegaChatSession& session);
     void updateAudioButtonText(const megachat::MegaChatCall &call);
     void updateVideoButtonText(const megachat::MegaChatCall &call);
@@ -45,6 +46,7 @@ public:
     void localAudioDetected(bool audio);
     void createRingingWindow(megachat::MegaChatHandle callid);
     void destroyRingingWindow();
+    void manageAllPeersLeft(megachat::MegaChatHandle callid, bool isGroup);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;

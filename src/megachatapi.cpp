@@ -98,6 +98,11 @@ int MegaChatSession::getChanges() const
     return CHANGE_TYPE_NO_CHANGES;
 }
 
+int MegaChatSession::getTermCode() const
+{
+    return SESS_TERM_CODE_INVALID;
+}
+
 bool MegaChatSession::hasChanged(int changeType) const
 {
     return false;
@@ -243,6 +248,11 @@ bool MegaChatCall::isIncoming() const
 }
 
 bool MegaChatCall::isOutgoing() const
+{
+    return false;
+}
+
+bool MegaChatCall::isOwnClientCaller() const
 {
     return false;
 }
