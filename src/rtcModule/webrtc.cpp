@@ -134,7 +134,16 @@ void Call::setState(CallState newState)
             {
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
                 mConnectTimer = 0;
-                orderedCallDisconnect(TermCode::kUserHangup, "Automatically hang up call upon connectTimer expired");
+
+                auto wptr = weakHandle();
+                karere::marshallCall([wptr, this]()
+                {
+                    if (wptr.deleted())
+                    {
+                        return;
+                    }
+                    mRtc.orderedDisconnectAndCallRemove(this, rtcModule::EndCallReason::kFailed, kUserHangup);
+                }, mRtc.getAppCtx());
             }
         }, kConnectingTimeout * 1000, mRtc.getAppCtx());
     }
