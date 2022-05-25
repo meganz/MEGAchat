@@ -114,6 +114,13 @@ void Call::setState(CallState newState)
                  Call::stateToStr(mState),
                  Call::stateToStr(newState));
 
+
+    if (newState == CallState::kStateTerminatingUserParticipation && !mConnectTimer)
+    {
+        karere::cancelTimeout(mConnectTimer, mRtc.getAppCtx());
+        mConnectTimer = 0;
+    }
+
     if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
     {
         auto wptr = weakHandle();
