@@ -1574,7 +1574,7 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
     if (!mIsGroup && !isTermCodeRetriable(peerLeftTermCode))
     {
         RTCM_LOG_DEBUG("handlePeerLeft. Hangup 1on1 call, upon reception of PEERLEFT with non recoverable termcode: %s", connectionTermCodeToString(peerLeftTermCode).c_str());
-        hangup();
+        hangup(); // TermCode::kUserHangup
     }
     return true;
 }
@@ -1591,7 +1591,7 @@ void Call::onSfuDisconnected()
     {
         if (!mSfuConnection->isSendingByeCommand())
         {
-            // if we called orderedRemoveCall (call state not between kStateConnecting and kStateInProgress) immediateRemoveCall would have been called, and call wouldn't exists at this point
+            // if we called orderedDisconnectAndCallRemove (call state not between kStateConnecting and kStateInProgress) immediateRemoveCall would have been called, and call wouldn't exists at this point
             RTCM_LOG_ERROR("onSfuDisconnected: call is being destroyed but we are not sending BYE command, current call shouldn't exist at this point");
             assert(mSfuConnection->isSendingByeCommand()); // in prod fallback to mediaChannelDisconnect and clearResources
         }
@@ -1604,7 +1604,7 @@ void Call::onSfuDisconnected()
                 {
                     return;
                 }
-                /* if we called orderedRemoveCall (call state between kStateConnecting and kStateInProgress),
+                /* if we called orderedDisconnectAndCallRemove (call state between kStateConnecting and kStateInProgress),
                  * but socket has been closed before BYE command is delivered, we need to remove call */
                 mRtc.immediateRemoveCall(this, rtcModule::EndCallReason::kFailed, kSigDisconn);
             }, mRtc.getAppCtx());
@@ -2607,13 +2607,13 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
     Call *call = static_cast<Call*>(iCall);
     if (!call)
     {
-        RTCM_LOG_WARNING("orderedRemoveCall: call doesn't exists anymore");
+        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call doesn't exists anymore");
         return;
     }
 
     if (call->isDestroying())
     {
-        RTCM_LOG_WARNING("orderedRemoveCall: call is already being destroyed");
+        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call is already being destroyed");
         return;
     }
 
