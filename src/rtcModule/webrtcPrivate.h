@@ -430,7 +430,7 @@ protected:
     karere::Id mCallid;
     karere::Id mChatid;
     karere::Id mCallerId;
-    CallState mState = CallState::kStateInitial;
+    CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
     bool mIgnored = false;
     bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
