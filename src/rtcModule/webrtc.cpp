@@ -115,7 +115,7 @@ void Call::setState(CallState newState)
                  Call::stateToStr(newState));
 
 
-    if (newState == CallState::kStateTerminatingUserParticipation && !mConnectTimer)
+    if (newState == CallState::kStateTerminatingUserParticipation && mConnectTimer)
     {
         karere::cancelTimeout(mConnectTimer, mRtc.getAppCtx());
         mConnectTimer = 0;
