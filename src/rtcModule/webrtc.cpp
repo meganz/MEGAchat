@@ -103,6 +103,11 @@ bool Call::isAudioDetected() const
 
 void Call::setState(CallState newState)
 {
+    if (newState == mState)
+    {
+        return;
+    }
+
     RTCM_LOG_DEBUG("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
                  karere::Id(getChatid()).toString().c_str(),
                  karere::Id(getCallid()).toString().c_str(),
