@@ -2638,6 +2638,7 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
 
 void RtcModuleSfu::immediateRemoveCall(Call* call, EndCallReason reason, TermCode connectionTermCode)
 {
+    assert(reason != kInvalidReason);
     if (!call)
     {
         RTCM_LOG_WARNING("removeCall: call doesn't exists anymore");
