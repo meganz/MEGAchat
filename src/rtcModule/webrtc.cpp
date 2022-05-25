@@ -980,7 +980,7 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
             || termCode == kSigDisconn)  // kSigDisconn is mutually exclusive with the BYE command
     {
         isDestroying()
-            ? mRtc.immediateRemoveCall(this, EndCallReason::kFailed, termCode) // destroy call immediately
+            ? mRtc.immediateRemoveCall(this, mTempEndCallReason, termCode) // destroy call immediately
             : immediateCallDisconnect(termCode); // we don't need to send BYE command, just perform disconnection
 
         return;
@@ -1041,6 +1041,11 @@ void Call::mediaChannelDisconnect(bool releaseDevices)
 void Call::resetLocalAvFlags()
 {
     mMyPeer->setAvFlags(karere::AvFlags::kEmpty);
+}
+
+void Call::setTempEndCallReason(uint8_t reason)
+{
+    mTempEndCallReason = reason;
 }
 
 void Call::setEndCallReason(uint8_t reason)
@@ -1617,7 +1622,7 @@ void Call::onSfuDisconnected()
                 }
                 /* if we called orderedDisconnectAndCallRemove (call state between kStateConnecting and kStateInProgress),
                  * but socket has been closed before BYE command is delivered, we need to remove call */
-                mRtc.immediateRemoveCall(this, rtcModule::EndCallReason::kFailed, kSigDisconn);
+                mRtc.immediateRemoveCall(this, mTempEndCallReason, kSigDisconn);
             }, mRtc.getAppCtx());
             return;
         }
@@ -1695,7 +1700,7 @@ void Call::onSendByeCommand()
 
         if (isDestroying()) // we was trying to destroy call, and we have received BYE command delivering notification
         {
-            mRtc.immediateRemoveCall(this, EndCallReason::kFailed, mTempTermCode);
+            mRtc.immediateRemoveCall(this, mTempEndCallReason, mTempTermCode);
         }
         else
         {
@@ -2627,6 +2632,9 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
         RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call is already being destroyed");
         return;
     }
+
+    // set temporary endCall reason in case immediateRemoveCall is not called immediately (i.e if we first need to send BYE command)
+    call->setTempEndCallReason(reason);
 
     RTCM_LOG_DEBUG("Ordered removing call with callid: %s", call->getCallid().toString().c_str());
     call->setDestroying(true);

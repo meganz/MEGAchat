@@ -371,6 +371,11 @@ public:
 
     // disconnect from media channel (MyPeerConnection)
     void mediaChannelDisconnect(bool releaseDevices = false);
+
+    // set temporal endCallReason (when call is not destroyed immediately)
+    void setTempEndCallReason(uint8_t reason);
+
+    // set definitive endCallReason
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
     std::string connectionTermCodeToString(const TermCode &termcode) const;
@@ -455,6 +460,7 @@ protected:
     TermCode mTermCode = kInvalidTermCode;
     TermCode mTempTermCode = kInvalidTermCode;
     uint8_t mEndCallReason = kInvalidReason;
+    uint8_t mTempEndCallReason = kInvalidReason;
 
     CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
