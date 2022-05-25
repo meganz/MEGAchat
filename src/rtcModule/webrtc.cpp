@@ -2636,7 +2636,7 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
 }
 
 
-void RtcModuleSfu::immediateRemoveCall(Call* call, EndCallReason reason, TermCode connectionTermCode)
+void RtcModuleSfu::immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode)
 {
     assert(reason != kInvalidReason);
     if (!call)
