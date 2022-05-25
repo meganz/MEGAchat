@@ -979,8 +979,10 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
     if (!mSfuConnection || !mSfuConnection->isOnline()
             || termCode == kSigDisconn)  // kSigDisconn is mutually exclusive with the BYE command
     {
-        // we don't need to send BYE command, just perform disconnection
-        immediateCallDisconnect(termCode);
+        isDestroying()
+            ? mRtc.immediateRemoveCall(this, EndCallReason::kFailed, termCode) // destroy call immediately
+            : immediateCallDisconnect(termCode); // we don't need to send BYE command, just perform disconnection
+
         return;
     }
 
