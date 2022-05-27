@@ -132,18 +132,9 @@ void Call::setState(CallState newState)
             assert(mState < CallState::kStateInProgress || !mConnectTimer); // if call state >= kStateInProgress mConnectTimer must be 0
             if (mState < CallState::kStateInProgress)
             {
-                SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
                 mConnectTimer = 0;
-
-                auto wptr = weakHandle();
-                karere::marshallCall([wptr, this]()
-                {
-                    if (wptr.deleted())
-                    {
-                        return;
-                    }
-                    mRtc.orderedDisconnectAndCallRemove(this, rtcModule::EndCallReason::kFailed, kUserHangup);
-                }, mRtc.getAppCtx());
+                SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
+                mRtc.orderedDisconnectAndCallRemove(this, rtcModule::EndCallReason::kFailed, kUserHangup); // no need to marshall, as we are executing a lambda in a timer
             }
         }, kConnectingTimeout * 1000, mRtc.getAppCtx());
     }
