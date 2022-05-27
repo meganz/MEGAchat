@@ -129,7 +129,7 @@ void Call::setState(CallState newState)
             if (wptr.deleted())
                 return;
 
-            mConnectTimer = 0;
+            assert(mState < CallState::kStateInProgress || !mConnectTimer); // if call state >= kStateInProgress mConnectTimer must be 0
             if (mState < CallState::kStateInProgress)
             {
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
