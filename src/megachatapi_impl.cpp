@@ -9059,6 +9059,13 @@ void MegaChatCallHandler::onRemovePeer(const rtcModule::ICall &call, Id peer)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
+void MegaChatCallHandler::onNetworkQualityChanged(const rtcModule::ICall &call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {
     mMegaChatApi = megaChatApi;

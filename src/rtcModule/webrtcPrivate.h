@@ -235,6 +235,8 @@ public:
     double mRttUpper;
     double mMovingAverageRtt;
     double mMovingAveragePlost;
+    double mVtxDelay;
+    double mMovingAverageVideoTxHeight;
     time_t mTsLastSwitch;
 };
 
@@ -388,6 +390,7 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
+    void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
 
@@ -448,7 +451,7 @@ protected:
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
 
-    int mNetworkQuality = kNetworkQualityDefault;
+    int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
     TermCode mTempTermCode = kInvalidTermCode;

@@ -232,7 +232,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         MeetingView* meetingView = itemController->getMeetingView();
         if (meetingView) // At destroy state meetingView doesn't exit
         {
-            meetingView->updateLabel(call->getNumParticipants(), callStateToString(*call));
+            meetingView->updateLabel(call);
         }
     }
 
@@ -260,13 +260,18 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION))
     {
         assert(itemController->getMeetingView());
-        itemController->getMeetingView()->updateLabel(call->getNumParticipants(), callStateToString(*call));
+        itemController->getMeetingView()->updateLabel(call);
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
     {
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
+    {
+        itemController->getMeetingView()->updateLabel(call);
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP))
@@ -331,37 +336,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     }
 }
 
-std::string MainWindow::callStateToString(const MegaChatCall &call)
-{
-    switch (call.getStatus())
-    {
-        case MegaChatCall::CALL_STATUS_INITIAL:
-            return "Initial";
-        break;
-        case MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
-            return "No Present";
-        break;
-        case MegaChatCall::CALL_STATUS_CONNECTING:
-            return "Connecting";
-        break;
-        case MegaChatCall::CALL_STATUS_JOINING:
-            return "Joining";
-        break;
-        case MegaChatCall::CALL_STATUS_IN_PROGRESS:
-            return "In-Progress";
-        break;
-        case MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
-            return "Terminating";
-        break;
-        case MegaChatCall::CALL_STATUS_DESTROYED:
-            return "Destroyed";
-        break;
-        default:
-            assert(false);
-            return "Unknown";
-            break;
-    }
-}
+
 
 #endif
 

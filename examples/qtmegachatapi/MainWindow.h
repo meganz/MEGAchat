@@ -201,8 +201,6 @@ class MainWindow :
         ConfirmAccount* mConfirmAccount = nullptr;
         std::unique_ptr<QMessageBox> mCriticalMsgBox;
         bool mIsEphemeraAccount = false;
-
-        std::string callStateToString(const megachat::MegaChatCall& call);
         void closeEvent(QCloseEvent *event);
 
     private slots:

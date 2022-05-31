@@ -153,6 +153,8 @@ void Stats::clear()
     mSamples.mOutGoingBitrate.clear();
     mSamples.mBytesReceived.clear();
     mSamples.mBytesSend.clear();
+    mSamples.mPacketSent.clear();
+    mSamples.mTotalPacketSendDelay.clear();
     mSamples.mAudioJitter.clear();
     mSamples.mQ.clear();
     mSamples.mAv.clear();
@@ -276,6 +278,8 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
         mStats->mSamples.mVtxLowResfps.push_back(0);
         mStats->mSamples.mVtxLowResw.push_back(0);
         mStats->mSamples.mAudioJitter.push_back(0);
+        mStats->mSamples.mPacketSent.push_back(0);
+        mStats->mSamples.mTotalPacketSendDelay.push_back(0);
 
         if (mStats->mInitialTs == 0)
         {
@@ -353,6 +357,16 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                     else if (strcmp(member->name(), "ssrc") == 0)
                     {
                         ssrc = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                    }
+                    else if (strcmp(member->name(), "packetsSent") == 0)
+                    {
+                        uint32_t packetSent = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                        mStats->mSamples.mPacketSent.back() = packetSent;
+                    }
+                    else if (strcmp(member->name(), "totalPacketSendDelay") == 0)
+                    {
+                        double totalPacketSendDelay = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                        mStats->mSamples.mTotalPacketSendDelay.back() = totalPacketSendDelay;
                     }
                 }
 
