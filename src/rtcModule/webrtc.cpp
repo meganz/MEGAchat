@@ -167,7 +167,7 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
             if (usersJoined.find(*auxit) == usersJoined.end())
             {
                 // remove participant from mParticipants, not present at list received at OP_JOINEDCALL
-                mParticipants.erase(*auxit);
+                mParticipants.erase(auxit);
                 mCallHandler.onRemovePeer(*this, *auxit);
             }
         }
