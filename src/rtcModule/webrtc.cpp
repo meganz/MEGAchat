@@ -164,10 +164,10 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
         for (auto it = mParticipants.begin(); it != mParticipants.end();)
         {
             auto auxit = it++;
-            if (usersJoined.find(*auxit) == usersJoined.end())
+            karere::Id peer = *auxit;
+            if (usersJoined.find(peer) == usersJoined.end())
             {
                 // remove participant from mParticipants, not present at list received at OP_JOINEDCALL
-                auto peer = *auxit;
                 mParticipants.erase(auxit);
                 mCallHandler.onRemovePeer(*this, peer);
             }
