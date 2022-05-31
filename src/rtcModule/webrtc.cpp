@@ -134,7 +134,9 @@ void Call::setState(CallState newState)
             {
                 mConnectTimer = 0;
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
-                mRtc.orderedDisconnectAndCallRemove(this, rtcModule::EndCallReason::kFailed, kUserHangup); // no need to marshall, as we are executing a lambda in a timer
+                mIsReconnectingToChatd
+                    ? mRtc.orderedDisconnectAndCallRemove(this, rtcModule::EndCallReason::kFailed, kUserHangup) // no need to marshall, as we are executing a lambda in a timer
+                    : orderedCallDisconnect(kUserHangup, "Reconnection attempt has not succeed"); // TODO add new termcode to notify apps that reconnection attempt failed
             }
         }, kConnectingTimeout * 1000, mRtc.getAppCtx());
     }
