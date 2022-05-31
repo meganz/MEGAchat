@@ -58,7 +58,8 @@ enum CallState: uint8_t
     kStateJoining,                      // < Joining a call
     kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
-    kStateDestroyed                     // < Call object is not valid anymore, the call is removed from the system
+    kStateDestroyed,                    // < Call object is not valid anymore, the call is removed from the system
+    kStateUninitialized,                // < Call object is uninitialized
 };
 
 enum EndCallReason: uint8_t
