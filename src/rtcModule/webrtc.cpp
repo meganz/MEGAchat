@@ -2390,7 +2390,7 @@ void Call::adjustSvcByStats()
         return;
     }
 
-    mSvcDriver.mMovingAverageVideoTxHeight = mSvcDriver.mMovingAverageVideoTxHeight < 0
+    mSvcDriver.mMovingAverageVideoTxHeight = mSvcDriver.mMovingAverageVideoTxHeight > 0
             ? ((mSvcDriver.mMovingAverageVideoTxHeight * 3) + static_cast<double>(mStats.mSamples.mVtxHiResh.back())) / 4
             : mStats.mSamples.mVtxHiResh.back();
 
