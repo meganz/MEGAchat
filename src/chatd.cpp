@@ -4816,7 +4816,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
     CALL_DB(retentionHistoryTruncate, idx);
     cleanPendingReactionsOlderThan(idx); //clean pending reactions, including previous indexes
-    truncateByRetentionTime(idx);
+    deleteMessagesBefore(idx, true);
 
     removePendingRichLinks(idx);
 
@@ -4943,36 +4943,30 @@ Id Chat::makeRandomId()
     return distrib(rd);
 }
 
-void Chat::deleteMessagesBefore(Idx idx)
+void Chat::deleteMessagesBefore(Idx idx, bool removeItself)
 {
-    //delete everything before idx, but not including idx
-    if (idx > mForwardStart)
+    // check if idx is in Forward or Backward list, but taking into account if we want to remove the own idx or not
+    bool isInForwardList = removeItself
+            ? idx >= mForwardStart
+            : idx > mForwardStart;
+
+    if (removeItself)
+    {
+        isInForwardList ? idx-- : idx++;    // recalculate index to remove itself
+    }
+
+    if (isInForwardList)
     {
         mBackwardList.clear();
-        auto delCount = idx-mForwardStart;
-        mForwardList.erase(mForwardList.begin(), mForwardList.begin()+delCount);
+        auto delCount = idx - mForwardStart;
+        assert(static_cast<size_t>(delCount) <= mForwardList.size());
+        mForwardList.erase(mForwardList.begin(), mForwardList.begin() + delCount);
         mForwardStart += delCount;
     }
     else
     {
-        mBackwardList.erase(mBackwardList.begin()+mForwardStart-idx, mBackwardList.end());
-    }
-}
-
-void Chat::truncateByRetentionTime(Idx idx)
-{
-    if (idx >= mForwardStart)
-    {
-        mBackwardList.clear();
-        assert(static_cast<size_t>(idx - mForwardStart + 1) <= mForwardList.size());
-        auto delCount = idx - mForwardStart;
-        auto end = mForwardList.begin() + delCount;
-        mForwardList.erase(mForwardList.begin(), end + 1);
-        mForwardStart += delCount + 1;
-    }
-    else
-    {
-        mBackwardList.erase(mBackwardList.begin() + mForwardStart - idx - 1, mBackwardList.end());
+        assert(static_cast<size_t>(std::abs(mForwardStart - idx)) <= mBackwardList.size());
+        mBackwardList.erase(mBackwardList.begin() + mForwardStart - idx, mBackwardList.end());
     }
 }
 
