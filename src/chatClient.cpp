@@ -494,6 +494,7 @@ int Client::importMessages(const char *externalDbPath)
         karere::ChatRoom *chatroom = it.second;
         chatd::Chat &chat = chatroom->chat();
         karere::Id chatid = chatroom->chatid();
+        uint32_t retentionTime = chat.getRetentionTime();
 
         // get id of last message seen from external db
         Id lastSeenId;
@@ -501,8 +502,24 @@ int Client::importMessages(const char *externalDbPath)
         stmtLastSeen << chatid;
         if (stmtLastSeen.step())
         {
+            time_t lastSeenTs = 0;
+            time_t expireRetentionTs = 0;
             lastSeenId = stmtLastSeen.uint64Col(0);
-            chat.seenImport(lastSeenId);
+            if (retentionTime)
+            {
+                // check last seen message ts
+                SqliteStmt stmtLastSeenTs(dbExternal, "select ts from history where chatid=? and msgid=?");
+                stmtLastSeenTs << chatid;
+                stmtLastSeenTs << lastSeenId;
+                stmtLastSeenTs.stepMustHaveData(); // msg must exists on history table
+                lastSeenTs = static_cast<time_t> (stmtLastSeen.uint64Col(0));
+                expireRetentionTs = time(nullptr) - retentionTime;
+            }
+
+            if (!retentionTime || lastSeenTs > expireRetentionTs)
+            {
+                chat.seenImport(lastSeenId);  // call seen import if no retention time is set or it hasn't expired
+            }
         }
         else    // no SEEN pointer for this chat on external cache (or chat not found)
         {
