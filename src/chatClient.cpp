@@ -651,6 +651,12 @@ int Client::importMessages(const char *externalDbPath)
                 chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
             }
 
+            if (retentionTime && ts <= time(nullptr) - retentionTime)
+            {
+                KR_LOG_DEBUG("importMessages: skipping msg with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                continue;
+            }
+
             chat.msgImport(move(msg), isUpdate);
             (isUpdate) ? countUpdated++ : countAdded++;
 
@@ -700,6 +706,11 @@ int Client::importMessages(const char *externalDbPath)
                 msg->backRefId = stmtMsgUpdated.uint64Col(7);
                 msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
 
+                if (retentionTime && ts <= time(nullptr) - retentionTime)
+                {
+                    KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                    continue;
+                }
                 chat.msgImport(move(msg), true);
                 countUpdated++;
 
