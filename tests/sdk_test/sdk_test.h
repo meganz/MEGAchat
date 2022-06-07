@@ -597,6 +597,7 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     void onSfuConnected() override;
+    void onSendByeCommand() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
     void logError(const char* error) override;

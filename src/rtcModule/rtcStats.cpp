@@ -141,12 +141,21 @@ void Stats::clear()
     mCallid = karere::Id::inval();
     mTimeOffset = 0;
     mDuration = 0;
+    mMaxPeers = 0;
+    mTermCode = 0;
+    mInitialTs = 0;
+    mIsGroup = false;
+    mDevice.clear();
+    mSfuHost.clear();
     mSamples.mT.clear();
     mSamples.mPacketLost.clear();
     mSamples.mRoundTripTime.clear();
     mSamples.mOutGoingBitrate.clear();
     mSamples.mBytesReceived.clear();
     mSamples.mBytesSend.clear();
+    mSamples.mPacketSent.clear();
+    mSamples.mTotalPacketSendDelay.clear();
+    mSamples.mAudioJitter.clear();
     mSamples.mQ.clear();
     mSamples.mAv.clear();
     mSamples.mNrxh.clear();
@@ -155,10 +164,14 @@ void Stats::clear()
     mSamples.mVtxLowResfps.clear();
     mSamples.mVtxLowResw.clear();
     mSamples.mVtxLowResh.clear();
-    mTermCode = 0;
-    mIsGroup = false;
-    mInitialTs = 0;
-    mDevice.clear();
+    mSamples.mVtxHiResfps.clear();
+    mSamples.mVtxHiResw.clear();
+    mSamples.mVtxHiResh.clear();
+}
+
+bool Stats::isEmptyStats()
+{
+    return mPeerId == karere::Id::inval();
 }
 
 void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &value, rapidjson::Document& json, bool diff, const std::vector<float> *periods)
@@ -265,6 +278,8 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
         mStats->mSamples.mVtxLowResfps.push_back(0);
         mStats->mSamples.mVtxLowResw.push_back(0);
         mStats->mSamples.mAudioJitter.push_back(0);
+        mStats->mSamples.mPacketSent.push_back(0);
+        mStats->mSamples.mTotalPacketSendDelay.push_back(0);
 
         if (mStats->mInitialTs == 0)
         {
@@ -342,6 +357,16 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                     else if (strcmp(member->name(), "ssrc") == 0)
                     {
                         ssrc = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                    }
+                    else if (strcmp(member->name(), "packetsSent") == 0)
+                    {
+                        uint32_t packetSent = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                        mStats->mSamples.mPacketSent.back() = packetSent;
+                    }
+                    else if (strcmp(member->name(), "totalPacketSendDelay") == 0)
+                    {
+                        double totalPacketSendDelay = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                        mStats->mSamples.mTotalPacketSendDelay.back() = totalPacketSendDelay;
                     }
                 }
 

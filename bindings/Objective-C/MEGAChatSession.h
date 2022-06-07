@@ -18,9 +18,16 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionChange) {
     MEGAChatSessionChangeAudioLevel = 0x40,
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatSessionTermCode) {
+    MEGAChatSessionTermCodeInvalid = -1,
+    MEGAChatSessionTermCodeRecoverable = 0,
+    MEGAChatSessionTermCodeNonRecoverable = 1
+};
+
 @interface MEGAChatSession : NSObject
 
 @property (nonatomic, readonly) MEGAChatSessionStatus status;
+@property (nonatomic, readonly) MEGAChatSessionTermCode termCode;
 
 @property (nonatomic, readonly, getter=hasAudio) BOOL audio;
 @property (nonatomic, readonly, getter=hasVideo) BOOL video;

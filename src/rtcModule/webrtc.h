@@ -19,7 +19,6 @@ namespace rtcModule
 #ifdef KARERE_DISABLE_WEBRTC
 
 #else
-
 enum TermCode: uint8_t
 {
     kFlagDisconn                = 64,
@@ -38,6 +37,7 @@ enum TermCode: uint8_t
     kSigDisconn                 = kFlagDisconn | 1,     // 65 < socket error on the signalling connection
     kSfuShuttingDown            = kFlagDisconn | 2,     // 66 < SFU server is shutting down
     kChatDisconn                = kFlagDisconn | 3,     // 67 < chatd connection is broken
+    kNoMediaPath                = kFlagDisconn | 4,     // 68 < webRTC connection failed, no UDP connectivity
     //==============================================================================================
 
     kErrSignaling               = kFlagError | 0,       // 128 < signalling error
@@ -53,12 +53,13 @@ enum TermCode: uint8_t
 enum CallState: uint8_t
 {
     kStateInitial = 0,                  // < Call object was initialised
-    kStateClientNoParticipating,        // < User is not particpating in the call
+    kStateClientNoParticipating,        // < User is not partipating in the call
     kStateConnecting,                   // < Connecting to SFU
     kStateJoining,                      // < Joining a call
     kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
-    kStateDestroyed                     // < Call object is not valid anymore, the call is removed from the system
+    kStateDestroyed,                    // < Call object is not valid anymore, the call is removed from the system
+    kStateUninitialized,                // < Call object is uninitialized
 };
 
 enum EndCallReason: uint8_t
@@ -145,6 +146,8 @@ public:
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
+    virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
+    virtual void onStopOutgoingRinging(const ICall& call) = 0;
 };
 
 class ICall
@@ -155,6 +158,7 @@ public:
     virtual karere::Id getCallerid() const = 0;
     virtual bool isAudioDetected() const = 0;
     virtual CallState getState() const = 0;
+    virtual bool isOwnClientCaller() const = 0;
 
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
@@ -172,6 +176,7 @@ public:
     virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
+    virtual void stopOutgoingRinging() = 0;
     virtual void setOnHold() = 0;
     virtual void releaseOnHold() = 0;
     virtual bool isRinging() const = 0;
@@ -229,7 +234,7 @@ public:
     virtual sfu::SfuClient& getSfuClient() = 0;
     virtual DNScache& getDnsCache() = 0;
 
-    virtual void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) = 0;
+    virtual void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) = 0;
 
     virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) = 0;
@@ -239,8 +244,12 @@ public:
 
 void globalCleanup();
 
+typedef enum
+{
+    kNetworkQualityBad          = 0,    // Bad network quality detected
+    kNetworkQualityGood         = 1,    // Good network quality detected
+} netWorkQuality;
 
-static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
 
 RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScache &dnsCache,
