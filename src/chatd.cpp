@@ -4986,7 +4986,8 @@ void Chat::deleteMessagesBefore(Idx idx, bool removeItself)
 
     if (idxStart == CHATD_IDX_INVALID || idxEnd == CHATD_IDX_INVALID)
     {
-        throw std::runtime_error("deleteMessagesBefore: wrong range of idx to be removed from mIdToIndexMap");
+        assert(false);
+        CHATID_LOG_ERROR("deleteMessagesBefore: wrong range of idx to be removed from mIdToIndexMap");
     }
 
     // we need to switch values if idxStart > idxEnd in order to remove records just between in [minIdx, maxIdx]
