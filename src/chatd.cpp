@@ -5068,6 +5068,8 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
 
         push_forward(message);
         idx = highnum();
+        mIdToIndexMap[msgid] = idx;
+
         if (!mOldestKnownMsgId)
             mOldestKnownMsgId = msgid;
 
@@ -5088,6 +5090,8 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
             if (mHasMoreHistoryInDb)
             { //we have db history that is not loaded, so we determine the index
               //by the db, and don't add the message to RAM
+                mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99016, "msgIncoming: incoming message is older than the oldest we have");
+                assert(false);
                 idx = mDbInterface->getOldestIdx()-1;
             }
             else
@@ -5095,6 +5099,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
                 //all history is in RAM, determine the index from RAM
                 push_back(message);
                 idx = lownum();
+                mIdToIndexMap[msgid] = idx;
             }
             //shouldn't we update this only after we save the msg to db?
             mOldestKnownMsgId = msgid;
@@ -5103,12 +5108,12 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
         {
             push_back(message);
             idx = lownum();
+            mIdToIndexMap[msgid] = idx;
             if (msgid == mOldestKnownMsgId)
             //we have just processed the oldest message from the db
                 mHasMoreHistoryInDb = false;
         }
     }
-    mIdToIndexMap[msgid] = idx;
     handleLastReceivedSeen(msgid);
     msgIncomingAfterAdd(isNew, isLocal, *message, idx);
     return idx;
