@@ -262,9 +262,13 @@ bool Call::isOtherClientParticipating()
 }
 
 // for the moment just chatd::kRejected is a valid reason (only for rejecting 1on1 call while ringing)
-promise::Promise<void> Call::endCall(int reason)
+promise::Promise<void> Call::endCall()
 {
-    return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, reason)
+    int endCallReason = mIsGroup
+            ? chatd::kEndedByModerator            // reject 1on1 call ringing (not answered yet)
+            : chatd::kRejected;                   // end group/meeting call by moderator
+
+    return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, endCallReason)
     .then([](ReqResult /*result*/)
     {
     });
@@ -275,7 +279,7 @@ promise::Promise<void> Call::hangup()
     if (!isOtherClientParticipating() && mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
         // in 1on1 calls, the hangup (reject) by the user while ringing should end the call
-        return endCall(chatd::kRejected); // reject 1on1 call while ringing
+        return endCall(); // reject 1on1 call while ringing
     }
     else
     {

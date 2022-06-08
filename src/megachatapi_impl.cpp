@@ -1704,7 +1704,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     : chatd::kEndedByModerator;     // end group/meeting call by moderator
 
             ::promise::Promise<void> pms = endCall
-                    ? call->endCall(endCallReason)  // end call
+                    ? call->endCall()  // end call
                     : call->hangup();               // hang up
 
             pms.then([request, this]()
