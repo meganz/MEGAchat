@@ -1654,7 +1654,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!mClient->rtc)
             {
                 API_LOG_ERROR("Hang up call - WebRTC is not initialized");
-                errorCode = MegaChatError::ERROR_EXIST;
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 

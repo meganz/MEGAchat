@@ -4837,7 +4837,7 @@ public:
      * - MegaChatRequest::getFlag - Returns false
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_EXIST   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
      * - MegaChatError::ERROR_ARGS    - if invalid callid provided
      * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
      * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges,
@@ -4861,7 +4861,7 @@ public:
      * - MegaChatRequest::getFlag - Returns true
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_EXIST   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
      * - MegaChatError::ERROR_ARGS    - if invalid callid provided
      * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
      * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges,
