@@ -4993,6 +4993,11 @@ void Chat::deleteOlderMessagesIncluding(Idx idx)
         itStart = mForwardList.begin();
         itEnd = mForwardList.begin() + endOffset;
 
+        if (itStart == mForwardList.end())  // ensure that first element iterator is valid
+        {
+            return;
+        }
+
         // calculate min and max indexes to remove deleted idx from mIdToIndexMap
         idxMin = msgIndexFromId(itStart->get()->id());
         idxMax = msgIndexFromId((itEnd - 1)->get()->id());  // decrement 1 as itEnd points to one past the last erased element
@@ -5006,6 +5011,13 @@ void Chat::deleteOlderMessagesIncluding(Idx idx)
         long startOffset = mForwardStart - idx - 1; // decrement 1 to include own idx
         itStart = mBackwardList.begin() + startOffset;
         itEnd = (mBackwardList.end());
+
+        if (itStart == mBackwardList.end()) // ensure that first element iterator is valid
+        {
+            // in case there's only 1 message in mBackwardList and we are truncating history
+            // we want to preserve truncate message, and remove next one, but there are no more messages
+            return;
+        }
 
         // calculate min and max indexes to remove deleted idx from mIdToIndexMap
         idxMin = msgIndexFromId(itStart->get()->id());
