@@ -1685,23 +1685,12 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             bool endCall = request->getFlag();
-            if (endCall && chatroom->chat().getOwnprivilege() != PRIV_OPER)
+            if (endCall && chatroom->isGroup() && chatroom->chat().getOwnprivilege() != PRIV_OPER)
             {
                 API_LOG_ERROR("End call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
-
-            if (!chatroom->isGroup() && (call->isOtherClientParticipating() || !call->isRinging() || call->getState() != rtcModule::CallState::kStateClientNoParticipating))
-            {
-                API_LOG_ERROR("End 1on1 call not allowed");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
-            int endCallReason = !chatroom->isGroup()
-                    ? chatd::kRejected              // reject 1on1 call ringing (not answered yet)
-                    : chatd::kEndedByModerator;     // end group/meeting call by moderator
 
             ::promise::Promise<void> pms = endCall
                     ? call->endCall()  // end call

@@ -4840,8 +4840,6 @@ public:
      * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
      * - MegaChatError::ERROR_ARGS    - if invalid callid provided
      * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
-     * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges,
-     *   or we try to end a 1on1 call, already ringing or participating with another client
      *
      * @param callid MegaChatHandle that identifies the call
      * @param listener MegaChatRequestListener to track this request
@@ -4851,9 +4849,8 @@ public:
     /**
      * @brief End a call in a chat room (user must be moderator)
      *
-     * There are two valid scenarios, where a moderator can end a call
-     *  - 1on1 call that is already ringing, but not answered yet (by own or other client with the same account)
-     *  - user wants intentionally to end a groupchat or meeting call for all participants
+     * The scenario where this method is used, it's when moderator wants intentionally
+     * to end a groupchat or meeting call for all participants
      *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -4864,8 +4861,7 @@ public:
      * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
      * - MegaChatError::ERROR_ARGS    - if invalid callid provided
      * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
-     * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges,
-     *   or we try to end a 1on1 call, already ringing or participating with another client
+     * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges
      *
      * @param callid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
