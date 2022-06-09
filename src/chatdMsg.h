@@ -25,12 +25,13 @@ inline bool isValidKeyxId(KeyId keyxid)
 
 enum CallDataReason
 {
-    kDefault      = 0x00, /// default reason
-    kEnded        = 0x01, /// normal hangup of on-going call
-    kRejected     = 0x02, /// incoming call was rejected by callee
-    kNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
-    kFailed       = 0x04, /// on-going call failed
-    kCancelled    = 0x05, /// outgoing call was cancelled by caller before receiving any answer from the callee
+    kDefault            = 0x00, /// default reason
+    kEnded              = 0x01, /// normal hangup of on-going call
+    kRejected           = 0x02, /// incoming call was rejected by callee
+    kNoAnswer           = 0x03, /// outgoing call didn't receive any answer from the callee
+    kFailed             = 0x04, /// on-going call failed
+    kCancelled          = 0x05, /// outgoing call was cancelled by caller before receiving any answer from the callee
+    kEndedByModerator   = 0x06, /// call was cancelled by moderator
 };
 
 enum

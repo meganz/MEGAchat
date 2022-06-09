@@ -62,6 +62,7 @@ protected:
     QVBoxLayout* mButtonsLayout;
 
     QPushButton* mHangup;
+    QPushButton* mEndCall;
     QPushButton* mRequestSpeaker;
     QPushButton* mRequestSpeakerCancel;
     QPushButton* mEnableAudio;
@@ -86,6 +87,7 @@ protected:
 
 public slots:
     void onHangUp();
+    void onEndCall();
     void onOnHold();
     void onSessionContextMenu(const QPoint &);
     void onRequestSpeak(bool request);
