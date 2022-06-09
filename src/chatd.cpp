@@ -2582,6 +2582,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                     {
                         call->setCallerId(userid);
                         call->setRinging(call->isOtherClientParticipating() ? false : ringing);
+
+                        if (!ringing && call->isOwnClientCaller())
+                        {
+                            // notify that call has stopped ringing, in order stop outgoing ringing sound if we started the call
+                            call->stopOutgoingRinging();
+                        }
                     }
                 }
 #endif
@@ -4497,9 +4503,16 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         return;
     }
 
+    auto wptr = weakHandle();
     mCrypto->msgDecrypt(cipherMsg)
-    .fail([this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
+    .fail([wptr, this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("onMsgUpdated: failed to decrypt message, and connection instance has already been deleted");
+            return err;
+        }
+
         assert(cipherMsg->isPendingToDecrypt());
 
         int type = err.type();
@@ -4538,12 +4551,23 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         return cipherMsg;
     })
-    .then([this, updateTs, richLinkRemoved](Message* msg)
+    .then([wptr, this, updateTs, richLinkRemoved](Message* msg)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("onMsgUpdated: message decrypted successfully, but connection instance has already been deleted");
+            return;
+        }
         onMsgUpdatedAfterDecrypt(updateTs, richLinkRemoved, msg);
     })
-    .fail([this, cipherMsg](const ::promise::Error& err)
+    .fail([wptr, this, cipherMsg](const ::promise::Error& err)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("onMsgUpdated: message couldn't be decrypted, and connection instance has already been deleted");
+            return;
+        }
+
         if (err.type() == SVCRYPTO_ENOMSG)
         {
             CHATID_LOG_WARNING("Msg has been deleted during decryption process");
@@ -5059,6 +5083,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
 
 bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 {
+    auto wptr = weakHandle();
     if (isLocal)
     {
         if (msg.isEncrypted() != Message::kEncryptedNoType)
@@ -5069,8 +5094,14 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         {
             Message *message = &msg;
             mCrypto->msgDecrypt(message)
-            .fail([this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
+            .fail([wptr, this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgIncomingAfterAdd: failed to decrypt local unknown management msg type, and connection instance has already been deleted");
+                    return err;
+                }
+
                 assert(message->isEncrypted() == Message::kEncryptedNoType);
                 int type = err.type();
                 switch (type)
@@ -5089,16 +5120,29 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 }
                 return message;
             })
-            .then([this, isNew, idx](Message* message)
+            .then([wptr, this, isNew, idx](Message* message)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgIncomingAfterAdd: local unknown management message decrypted successfully (msgDecrypt) but connection instance has already been deleted");
+                    return;
+                }
+
                 if (message->isEncrypted() != Message::kEncryptedNoType)
                 {
                     CALL_DB(updateMsgInHistory, message->id(), *message);   // update 'data' & 'is_encrypted'
                 }
                 msgIncomingAfterDecrypt(isNew, true, *message, idx);
             })
-            .fail([this, message](const ::promise::Error& err)
+            .fail([wptr, this, message](const ::promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgIncomingAfterAdd: Retry to decrypt unknown type of management message failed. (msgid: %s, failure type %s (%d))",
+                                       ID_CSTR(message->id()), err.what(), err.type());
+                    return;
+                }
+
                 CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed. (msgid: %s, failure type %s (%d))",
                                    ID_CSTR(message->id()), err.what(), err.type());
             });
@@ -5155,8 +5199,14 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         mDecryptOldHaltedAt = idx;
 
     auto message = &msg;
-    pms.fail([this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
+    pms.fail([wptr, this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("msgIncomingAfterAdd: failed to decrypt message and connection instance has already been deleted");
+            return err;
+        }
+
         assert(message->isPendingToDecrypt());
 
         int type = err.type();
@@ -5195,8 +5245,14 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 
         return message;
     })
-    .then([this, isNew, isLocal, idx](Message* message)
+    .then([wptr, this, isNew, isLocal, idx](Message* message)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("msgIncomingAfterAdd: message has been succeesfully decrypted, but connection instance has already been deleted");
+            return;
+        }
+
 #ifndef NDEBUG
         if (isNew)
             assert(mDecryptNewHaltedAt == idx);
@@ -5253,8 +5309,15 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             }
         }
     })
-    .fail([this, message](const ::promise::Error& err)
+    .fail([wptr, this, message](const ::promise::Error& err)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("msgIncomingAfterAdd: Message %s can't be decrypted: Failure type %s (%d)",
+                               ID_CSTR(message->id()), err.what(), err.type());
+            return;
+        }
+
         if (err.type() == SVCRYPTO_ENOMSG)
         {
             CHATID_LOG_WARNING("Msg has been deleted during decryption process");
@@ -5410,9 +5473,16 @@ bool Chat::msgNodeHistIncoming(Message *msg)
         }
         else
         {
+            auto wptr = weakHandle();
             mDecryptionAttachmentsHalted = true;
-            pms.then([this](Message* msg)
+            pms.then([wptr, this](Message* msg)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgNodeHistIncoming: message successfully decrypted, but connection instance has already been deleted");
+                    return;
+                }
+
                 if (!mTruncateAttachment)
                 {
                     mAttachmentNodes->addMessage(*msg, false, false);
@@ -5432,8 +5502,14 @@ bool Chat::msgNodeHistIncoming(Message *msg)
                     attachmentHistDone();
                 }
             })
-            .fail([this, msg](const ::promise::Error& /*err*/)
+            .fail([wptr, this, msg](const ::promise::Error& /*err*/)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgNodeHistIncoming: failed to decrypt message, and connection instance has already been deleted");
+                    return;
+                }
+
                 assert(msg->isPendingToDecrypt());
                 delete msg;
                 mTruncateAttachment = false;

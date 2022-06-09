@@ -352,6 +352,7 @@ public:
         CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
+        CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call outgoing ringing has stopped (only valid if our own client has started the call)
     };
 
     enum
@@ -359,6 +360,12 @@ public:
         CALL_QUALITY_HIGH_DEF = 0,
         CALL_QUALITY_HIGH_MEDIUM = 1,
         CALL_QUALITY_HIGH_LOW = 2,
+    };
+
+    enum
+    {
+        NETWORK_QUALITY_BAD  = 0,            // Bad network quality detected
+        NETWORK_QUALITY_GOOD = 1,            // Good network quality detected
     };
 
     enum {
@@ -483,6 +490,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      */
     virtual int getChanges() const;
 
@@ -521,6 +531,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      *
      * @return true if this call has an specific change
      */
@@ -701,9 +714,23 @@ public:
     /**
      * @brief Returns if call is outgoing
      *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will also return true.
+     *
      * @return True if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
+
+    /**
+     * @brief Returns true if our client has started the call
+     *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will return false, but MegaChatCall::isOutgoing will return true. In this
+     * case call is considerated an outgoing call, but our client wouldn't have started it.
+     *
+     * @return True if our client has started the call
+     */
+    virtual bool isOwnClientCaller() const;
 
     /**
      * @brief Returns the handle from user that has started the call
@@ -735,11 +762,15 @@ public:
     /**
      * @brief Returns network quality
      *
-     * The valid network quality values are between 0 and 5
-     * 0 -> the worst quality
-     * 5 -> the best quality
+     * The valid network quality values are:
+     *  - MegaChatCall::NETWORK_QUALITY_BAD          = 0,    // Bad network quality detected
+     *  - MegaChatCall::NETWORK_QUALITY_GOOD         = 1,    // Good network quality detected
      *
-     * @note The app may want to show a "slow network" warning when the quality is <= 1.
+     * The value returned by this method, only can be considered as valid, when is notified by MegaChatCallListener::onChatCallUpdate
+     * and MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY) is true.
+     *
+     * @note The app may want to show a "slow network" warning when the quality is MegaChatCall::NETWORK_QUALITY_BAD, and remove it
+     * when the quality is MegaChatCall::NETWORK_QUALITY_GOOD.
      *
      * @return network quality
      */

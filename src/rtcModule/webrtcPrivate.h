@@ -235,6 +235,8 @@ public:
     double mRttUpper;
     double mMovingAverageRtt;
     double mMovingAveragePlost;
+    double mVtxDelay;
+    double mMovingAverageVideoTxHeight;
     time_t mTsLastSwitch;
 };
 
@@ -254,7 +256,9 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
+    static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
+
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
     virtual ~Call();
 
 
@@ -263,6 +267,7 @@ public:
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
     CallState getState() const override;
+    bool isOwnClientCaller() const override;
     // returns true if your user participates of the call
     bool participate() override;
     bool isJoining() const override;
@@ -297,6 +302,7 @@ public:
     bool isIgnored() const override;
 
     void setRinging(bool ringing) override;
+    void stopOutgoingRinging() override;
     bool isRinging() const override;    // (always false for outgoing calls)
 
     void setOnHold() override;
@@ -367,6 +373,11 @@ public:
 
     // disconnect from media channel (MyPeerConnection)
     void mediaChannelDisconnect(bool releaseDevices = false);
+
+    // set temporal endCallReason (when call is not destroyed immediately)
+    void setTempEndCallReason(uint8_t reason);
+
+    // set definitive endCallReason
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
     std::string connectionTermCodeToString(const TermCode &termcode) const;
@@ -386,6 +397,7 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
+    void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
 
@@ -426,9 +438,10 @@ protected:
     karere::Id mCallid;
     karere::Id mChatid;
     karere::Id mCallerId;
-    CallState mState = CallState::kStateInitial;
+    CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
     bool mIgnored = false;
+    bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
     bool mIsDestroying = false;
 
     // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
@@ -445,11 +458,12 @@ protected:
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
 
-    int mNetworkQuality = kNetworkQualityDefault;
+    int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
     TermCode mTempTermCode = kInvalidTermCode;
     uint8_t mEndCallReason = kInvalidReason;
+    uint8_t mTempEndCallReason = kInvalidReason;
 
     CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
@@ -477,6 +491,7 @@ protected:
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
 
+    megaHandle mConnectTimer = 0;    // Handler of the timeout for call re/connecting
     megaHandle mStatsTimer = 0;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
@@ -500,6 +515,7 @@ protected:
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
     void updateSvcQuality(int8_t delta);
     void resetLocalAvFlags();
+    bool isUdpDisconnected() const;
     bool isTermCodeRetriable(const TermCode& termCode) const;
     bool isDisconnectionTermcode(const TermCode& termCode) const;
 };
@@ -528,7 +544,7 @@ public:
     DNScache& getDnsCache() override;
 
     void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
-    void immediateRemoveCall(Call* call, EndCallReason reason, TermCode connectionTermCode);
+    void immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode);
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;

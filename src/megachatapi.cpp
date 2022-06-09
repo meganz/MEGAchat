@@ -252,6 +252,11 @@ bool MegaChatCall::isOutgoing() const
     return false;
 }
 
+bool MegaChatCall::isOwnClientCaller() const
+{
+    return false;
+}
+
 MegaChatHandle MegaChatCall::getCaller() const
 {
     return MEGACHAT_INVALID_HANDLE;
@@ -271,7 +276,6 @@ int MegaChatCall::getNetworkQuality() const
 {
     return 0;
 }
-
 
 bool MegaChatCall::hasRequestSpeak() const
 {
