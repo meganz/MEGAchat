@@ -719,6 +719,14 @@ void Connection::setState(State state)
 
     if (mState == kStateDisconnected)
     {
+        // reset retention period for every chat in this shard, and cancel next check for expired messages
+        mChatdClient.cancelRetentionTimer();
+        for (auto& chatid: mChatIds)
+        {
+            auto& chat = mChatdClient.chats(chatid);
+            chat.onRetentionTimeUpdated(0);
+        }
+
         mHeartbeatEnabled = false;
 
         // if a socket is opened, close it immediately
