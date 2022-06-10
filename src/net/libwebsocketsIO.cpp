@@ -278,22 +278,6 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
         return;
     }
 
-#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
-    if (mTlsSession.dropFromStorage())
-    {
-        wsSSLsessionUpdateCb(mTlsSession);
-        mTlsSession.dropFromStorage(false); // done, don't do it again later
-    }
-
-    else if (mTlsSession.saveToStorage() &&
-             LwsCache::dump(lws_get_vhost(wsi), &mTlsSession))
-    {
-        wsSSLsessionUpdateCb(mTlsSession);
-        mTlsSession.blob = nullptr;
-        mTlsSession.saveToStorage(false); // done, don't do it again later
-    }
-#endif
-
     if (immediate)
     {
         struct lws *dwsi = wsi;
@@ -347,7 +331,7 @@ void LibwebsocketsClient::resetOutputBuffer()
     sendbuffer.clear();
 }
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined (LIBRESSL_VERSION_NUMBER) || defined (OPENSSL_IS_BORINGSSL)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined (LIBRESSL_VERSION_NUMBER)
 #define X509_STORE_CTX_get0_cert(ctx) (ctx->cert)
 #define X509_STORE_CTX_get0_untrusted(ctx) (ctx->untrusted)
 #define EVP_PKEY_get0_DSA(_pkey_) ((_pkey_)->pkey.dsa)
@@ -451,64 +435,42 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             //
             // deal with the TLS session
 
-            CachedSession *s = &client->mTlsSession;
+            const CachedSession& s = client->mTlsSession;
 
-            // Explicitly request to "ignore" this session info until we're sure it's valid.
-            s->saveToStorage(false);
-
-            if (s->hostname.empty()) // filter non-SSL connections, if any
+            if (s.hostname.empty()) // filter non-SSL connections, if any
+            {
                 break;
+            }
 
             if (lws_tls_session_is_reused(wsi))
             {
                 WEBSOCKETS_LOG_DEBUG("TLS session reused for %s:%d",
-                                     s->hostname.c_str(), s->port);
+                                     s.hostname.c_str(), s.port);
                 break;
             }
 
-            // LWS cache might be updated later, asynchronously. Trying to get the session
-            // from there now, would either not find it, or get old data. So instead, let's
-            // get the session ourselves
-            SSL *nativeSSL = lws_get_ssl(wsi);
-            SSL_SESSION *sslSess = SSL_get_session(nativeSSL);
-            if (!sslSess) // should never happen in this cb
-            {
-                WEBSOCKETS_LOG_ERROR("TLS session was NULL for %s:%d", s->hostname.c_str(), s->port);
-                break;
-            }
-            if (!SSL_SESSION_is_resumable(sslSess)) // invalid session, not worth storing
-            {
-                // This never happened so far, but the possibility exists, so for this case, a later dump
-                // from LWS cache could be a solution. Unfortunately "later" cannot be defined.
-                WEBSOCKETS_LOG_WARNING("TLS session was invalid (not resumable); not stored for %s:%d",
-                                       s->hostname.c_str(), s->port);
-                break;
-            }
-
-            // serialize session data
-            auto bloblen = i2d_SSL_SESSION(sslSess, nullptr);
-            s->blob = make_shared<Buffer>(bloblen);
-            uint8_t *pp = s->blob->typedBuf<uint8_t>();
-            i2d_SSL_SESSION(sslSess, &pp);
-            s->blob->setDataSize(bloblen);
-
-            // Looks like session info is valid. Mark it to be saved persistently.
-            s->saveToStorage(true);
-
-            if (client->wsSSLsessionUpdateCb(*s))
-            {
-                s->saveToStorage(false); // no need to do it again later
-            }
-            else
-            {
-                WEBSOCKETS_LOG_ERROR("TLS session save to persistent storage failed for %s:%d",
-                                     s->hostname.c_str(), s->port);
-            }
-            s->blob = nullptr; // stored or not, don't keep it in memory
+            // Session info was new (not reused). Store it persistently even if it may not be reusable,
+            // as the only way to know that (SSL_SESSION_is_resumable) was unreliable.
+            client->saveTlsSessionToPersistentStorage();
 #endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
             break;
         }
+
+        case LWS_CALLBACK_TIMER:
+        {
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
+            LibwebsocketsClient* client = (LibwebsocketsClient*)user;
+            if (client && client->mTlsSession.saveToStorage())
+            {
+                WEBSOCKETS_LOG_DEBUG("TLS session retrying to save to persistent storage for %s:%d",
+                                     client->mTlsSession.hostname.c_str(), client->mTlsSession.port);
+                client->saveTlsSessionToPersistentStorage();
+            }
+#endif
+            break;
+        }
+
         case LWS_CALLBACK_CLIENT_CLOSED:
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         {
@@ -613,6 +575,62 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
 
 
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
+void LibwebsocketsClient::saveTlsSessionToPersistentStorage()
+{
+    if (!wsIsConnected())
+    {
+        return;
+    }
+
+    // Allow later retry should it fail now
+    mTlsSession.saveToStorage(true);
+    // Schedule a retry now, just in case this will return early
+    lws_set_timer_usecs(wsi, 5 * LWS_USEC_PER_SEC); // 5 seconds
+
+    // Attempt to get it from LWS cache first
+    bool fromLWS = false;
+    if (LwsCache::dump(lws_get_vhost(wsi), &mTlsSession))
+    {
+        fromLWS = true;
+        WEBSOCKETS_LOG_DEBUG("TLS session info taken from LWS cache for %s:%d",
+                             mTlsSession.hostname.c_str(), mTlsSession.port);
+    }
+    else
+    {
+        // Get it from raw OpenSSL/BoringSSL when it hasn't reached LWS. It may contain
+        // invalid data in this case, so it will also retry later.
+        SSL *nativeSSL = lws_get_ssl(wsi);
+        SSL_SESSION *sslSess = SSL_get_session(nativeSSL);
+        if (!sslSess) // should never happen
+        {
+            WEBSOCKETS_LOG_ERROR("TLS session was NULL for %s:%d; try again later to store it",
+                                 mTlsSession.hostname.c_str(), mTlsSession.port);
+            return;
+        }
+        // SSL_SESSION_is_resumable() returned 0 for all sessions, resumable or not.
+        // It cannot be trusted, so don't use it to filter sessions.
+
+        // Serialize session data
+        auto bloblen = i2d_SSL_SESSION(sslSess, nullptr);
+        mTlsSession.blob = make_shared<Buffer>(bloblen);
+        uint8_t *pp = mTlsSession.blob->typedBuf<uint8_t>();
+        i2d_SSL_SESSION(sslSess, &pp);
+        mTlsSession.blob->setDataSize(bloblen);
+        WEBSOCKETS_LOG_DEBUG("TLS session info taken from raw BoringSSL, will try again later"
+                             " from LWS cache for %s:%d", mTlsSession.hostname.c_str(), mTlsSession.port);
+    }
+
+    // Store session info. Consider it valid when taken from LWS, so don't retry later.
+    if (wsSSLsessionUpdateCb(mTlsSession) && fromLWS)
+    {
+        mTlsSession.saveToStorage(false);
+        lws_set_timer_usecs(wsi, LWS_SET_TIMER_USEC_CANCEL); // cancel scheduled retry
+    }
+
+    mTlsSession.blob = nullptr; // stored or not, don't keep it in memory
+}
+
+
 bool LwsCache::dump(lws_vhost *vh, CachedSession *s)
 {
     return vh && s &&

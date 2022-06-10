@@ -207,12 +207,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 assert(itemController->getMeetingView());
                 itemController->getMeetingView()->setNotParticipating();
-                return;
-            }
-            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
-            {
-                assert(itemController->getMeetingView());
-                itemController->destroyMeetingView();
+                // termcode is only valid at state CALL_STATUS_TERMINATING_USER_PARTICIPATION
                 int termCode = call->getTermCode();
                 if (termCode != megachat::MegaChatCall::TERM_CODE_HANGUP)
                 {
@@ -220,7 +215,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                     message.append(std::to_string(termCode));
                     QMessageBox::information(this, "User terminate participation", message.c_str());
                 }
-
+                return;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
+            {
+                assert(itemController->getMeetingView());
+                itemController->destroyMeetingView();
                 return;
             }
             default:
@@ -232,7 +232,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         MeetingView* meetingView = itemController->getMeetingView();
         if (meetingView) // At destroy state meetingView doesn't exit
         {
-            meetingView->updateLabel(call->getNumParticipants(), callStateToString(*call));
+            meetingView->updateLabel(call);
         }
     }
 
@@ -260,13 +260,23 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION))
     {
         assert(itemController->getMeetingView());
-        itemController->getMeetingView()->updateLabel(call->getNumParticipants(), callStateToString(*call));
+        itemController->getMeetingView()->updateLabel(call);
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
     {
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
+    {
+        itemController->getMeetingView()->updateLabel(call);
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP))
+    {
+        assert(call->isOwnClientCaller());
     }
 }
 
@@ -310,48 +320,31 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         {
             meetingView->addSession(*session);
         }
-        else
+        else // SESSION_STATUS_DESTROYED
         {
-            meetingView->removeLowResByCid(session->getClientid());
-            meetingView->removeHiResByCid(session->getClientid());
+            meetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
+            meetingView->removeHiResByCid(static_cast<uint32_t>(session->getClientid()));
             meetingView->removeSession(*session);
+
+            if ((!itemController->getItem()->isGroup() && session->getTermCode() == MegaChatSession::SESS_TERM_CODE_RECOVERABLE)
+                    || (itemController->getItem()->isGroup() && !meetingView->getNumSessions()))
+            {
+                // if peer left a 1on1 call with a recoverable termcode, or last peer left a group call
+                meetingView->manageAllPeersLeft(callid, itemController->getItem()->isGroup());
+            }
         }
     }
 }
 
-std::string MainWindow::callStateToString(const MegaChatCall &call)
-{
-    switch (call.getStatus())
-    {
-        case MegaChatCall::CALL_STATUS_INITIAL:
-            return "Initial";
-        break;
-        case MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
-            return "No Present";
-        break;
-        case MegaChatCall::CALL_STATUS_CONNECTING:
-            return "Connecting";
-        break;
-        case MegaChatCall::CALL_STATUS_JOINING:
-            return "Joining";
-        break;
-        case MegaChatCall::CALL_STATUS_IN_PROGRESS:
-            return "In-Progress";
-        break;
-        case MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
-            return "Terminating";
-        break;
-        case MegaChatCall::CALL_STATUS_DESTROYED:
-            return "Destroyed";
-        break;
-        default:
-            assert(false);
-            return "Unknown";
-            break;
-    }
-}
+
 
 #endif
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    delete this;
+    event->accept();
+}
 
 MegaChatApplication* MainWindow::getApp() const
 {
@@ -507,7 +500,7 @@ void MainWindow::reorderAppChatList()
 void MainWindow::addQtContactWidgets()
 {
     ui->mContacsSeparator->setText(" Loading contacts");
-    setNContacts(mContactControllers.size());
+    setNContacts(static_cast<int>(mContactControllers.size()));
 
     std::map<megachat::MegaChatHandle, ContactListItemController *>::iterator it;
     for (it = mContactControllers.begin(); it != mContactControllers.end(); it++)
@@ -1250,6 +1243,33 @@ void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle us
     msgBox->setModal(false);
     msgBox->show();
     delete [] firstname;
+}
+
+void MainWindow::onDbError(MegaChatApi */*api*/, int error, const char *msg)
+{
+    std::string text(msg);
+    mLogger->postLog(text.c_str());
+
+    if (!mCriticalMsgBox)
+    {
+        text.append("\n\nApplication will be closed when you accept this dialog");
+        mCriticalMsgBox.reset(new QMessageBox(this));
+        mCriticalMsgBox->setIcon( QMessageBox::Critical );
+        mCriticalMsgBox->setAttribute(Qt::WA_DeleteOnClose);
+        mCriticalMsgBox->setStandardButtons(QMessageBox::Ok);
+        mCriticalMsgBox->setWindowTitle( tr("Karere DB error"));
+        mCriticalMsgBox->setText(text.c_str());
+        mCriticalMsgBox->setModal(true);
+        switch (mCriticalMsgBox->exec())
+        {
+            case QMessageBox::Ok:
+            default:
+            {
+                mCriticalMsgBox->deleteLater();
+                mApp->closeAllWindows();
+            }
+        }
+    }
 }
 
 void MainWindow::setNContacts(int nContacts)

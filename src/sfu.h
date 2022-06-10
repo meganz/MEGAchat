@@ -7,10 +7,12 @@
 #include <karereId.h>
 #include <rapidjson/document.h>
 #include "rtcCrypto.h"
+#include <base/timers.hpp>
 
 #define SFU_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
+#define SFU_LOG_ERROR_NO_STATS(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__)
 #define SFU_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_sfu, fmtString, ##__VA_ARGS__); \
     char logLine[300]; \
     snprintf(logLine, 300, fmtString, ##__VA_ARGS__); \
@@ -155,9 +157,10 @@ public:
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
-    virtual bool handlePeerLeft(Cid_t cid) = 0;
+    virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
     virtual void onSfuDisconnected() = 0;
+    virtual void onSendByeCommand() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
@@ -328,7 +331,7 @@ public:
     PeerJoinCommandFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid)> PeerLeftCommandFunction;
+typedef std::function<bool(Cid_t cid, unsigned termcode)> PeerLeftCommandFunction;
 class PeerLeftCommand : public Command
 {
 public:
@@ -384,8 +387,12 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
+    static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
+    static constexpr uint8_t kNoMediaPathTimeout = 6;        // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
+    void setIsSendingBye(bool sending);
+    bool isSendingByeCommand() const;
     bool isOnline() const;
     bool isJoined() const;
     bool isDisconnected() const;
@@ -394,7 +401,9 @@ public:
     void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
     bool sendCommand(const std::string& command);
-    bool handleIncomingData(const char* data, size_t len);
+    static bool parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode);
+    static void setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands);
+    bool handleIncomingData(const char *data, size_t len);
     void addNewCommand(const std::string &command);
     void processNextCommand(bool resetSending = false);
     void clearCommandsQueue();
@@ -434,6 +443,9 @@ protected:
     /** RetryController that manages the reconnection's attempts */
     std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
 
+    /** Handler of the timeout for the connection establishment */
+    megaHandle mConnectTimer = 0;
+
     /** Input promise for the RetryController
      *  - If it fails: a new attempt is schedulled
      *  - If it success: the reconnection is taken as done */
@@ -445,12 +457,17 @@ protected:
     void wsHandleMsgCb(char *data, size_t len) override;
     void wsSendMsgCb(const char *, size_t) override;
     void wsProcessNextMsgCb() override;
+#if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     bool wsSSLsessionUpdateCb(const CachedSession &sess) override;
+#endif
     promise::Promise<void> mSendPromise;
 
     void onSocketClose(int errcode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
     void abortRetryController();
+
+    // This flag is set true when BYE command is sent to SFU
+    bool mIsSendingBye = false;
 
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;

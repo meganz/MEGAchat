@@ -109,7 +109,7 @@ protected:
     size_t mMaxAttemptCount;
     unsigned mAttemptTimeout = 0;
     unsigned mMaxAttemptTimeout = 0;
-    unsigned mMaxSingleWaitTime;
+    size_t mMaxSingleWaitTime;
     unsigned short mDelayRandPct = 20;
     promise::Promise<RetType> mPromise;
     unsigned long mTimer = 0;
@@ -144,7 +144,7 @@ public:
                     , unsigned maxAttemptTimeout
                     , DeleteTrackable::Handle wptr
                     , void *ctx
-                    , unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime
+                    , size_t maxSingleWaitTime=kDefaultMaxSingleWaitTime
                     , size_t maxAttemptCount = kDefaultMaxAttemptCount
                     , unsigned short backoffStart=1000)
         :IRetryController(aName)
@@ -299,11 +299,11 @@ protected:
     {
         if (!mTimer)
             return;
-        cancelTimeout(mTimer, appCtx);
+        cancelTimeout(static_cast<megaHandle>(mTimer), appCtx);
         mTimer = 0;
     }
 
-    void attachThenHandler(promise::Promise<void>& promise, unsigned attempt)
+    void attachThenHandler(promise::Promise<void>& promise, size_t attempt)
     {
         auto track = getDelTracker();
         promise.then([track, this, attempt]()
@@ -362,7 +362,7 @@ protected:
 
         RETRY_LOG("Starting attempt %zu...", mCurrentAttemptNo);
         auto pms = mFunc(mCurrentAttemptNo, wptr);
-        attachThenHandler(pms, attempt);
+        attachThenHandler(pms, static_cast<unsigned int>(attempt));
         pms.fail([this, attempt](const ::promise::Error& err)
         {
             if (attempt != mCurrentAttemptId)//we are already in another attempt and this callback is from the old attempt, ignore it
@@ -420,7 +420,7 @@ protected:
                 return;
             mTimer = 0;
             nextTry();
-        }, waitTime, appCtx);
+        }, static_cast<unsigned int>(waitTime), appCtx);
         return true;
     }
 };
@@ -484,7 +484,7 @@ static inline rh::RetryController<Func, CancelFunc>* createRetryController(
                 , maxAttemptTimeout
                 , wptr
                 , ctx
-                , maxSingleWaitTime
+                , static_cast<unsigned int>(maxSingleWaitTime)
                 , maxRetries
                 , backoffStart);
 

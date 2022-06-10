@@ -25,12 +25,13 @@ inline bool isValidKeyxId(KeyId keyxid)
 
 enum CallDataReason
 {
-    kDefault      = 0x00, /// default reason
-    kEnded        = 0x01, /// normal hangup of on-going call
-    kRejected     = 0x02, /// incoming call was rejected by callee
-    kNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
-    kFailed       = 0x04, /// on-going call failed
-    kCancelled    = 0x05, /// outgoing call was cancelled by caller before receiving any answer from the callee
+    kDefault            = 0x00, /// default reason
+    kEnded              = 0x01, /// normal hangup of on-going call
+    kRejected           = 0x02, /// incoming call was rejected by callee
+    kNoAnswer           = 0x03, /// outgoing call didn't receive any answer from the callee
+    kFailed             = 0x04, /// on-going call failed
+    kCancelled          = 0x05, /// outgoing call was cancelled by caller before receiving any answer from the callee
+    kEndedByModerator   = 0x06, /// call was cancelled by moderator
 };
 
 enum
@@ -309,6 +310,8 @@ enum Opcode
       * If there are less than two parties pinging INCALL in a 1:1 chat with CALLDATA having its connected flag set,
       * the call is considered terminated, and an `ENDCALL` is broadcast.
       * @note that chatd does not parse CALLDATA yet, so the above is not enforced (yet).
+      *
+      * @deprecated
       */
     OP_INCALL = 28,
 
@@ -317,6 +320,8 @@ enum Opcode
       *
       * C->S: device has left call
       * S->C: notify all clients of someone having left the call
+      *
+      * @deprecated
       */
     OP_ENDCALL = 29,
 
@@ -335,6 +340,7 @@ enum Opcode
       * S->C: notify call data changes (sent immediately after a chatd connection is established
       *     and additionally after JOIN, for those unknown chatrooms at the moment the chatd connection is established
       *
+      * @deprecated
       */
     OP_CALLDATA = 31,
 
@@ -396,6 +402,8 @@ enum Opcode
       *
       * S->C: inform about call duration in seconds for a call that exists before we get online.
       * It is sent before any INCALL or CALLDATA.
+      *
+      * @deprecated
       */
     OP_CALLTIME = 42,
 
@@ -756,7 +764,7 @@ public:
             KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr,
             BackRefId aBackRefId = 0, std::vector<BackRefId> aBackRefs = std::vector<BackRefId>())
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
-            updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp), backRefId(aBackRefId), backRefs(aBackRefs){}
+            updated(aUpdated), keyid(aKeyid), type(aType), backRefId(aBackRefId), backRefs(aBackRefs), userp(aUserp){}
 
     Message(const Message& msg)
         : Buffer(msg.buf(), msg.dataSize()), mId(msg.id()), mIdIsXid(msg.mIdIsXid), mIsEncrypted(msg.mIsEncrypted),
@@ -1103,7 +1111,7 @@ public:
     }
     Command&& operator+(const Buffer& msg)
     {
-        append<uint32_t>(msg.dataSize());
+        append<uint32_t>(static_cast<uint32_t>(msg.dataSize()));
         append(msg.buf(), msg.dataSize());
         return std::move(*this);
     }
@@ -1198,7 +1206,7 @@ public:
         auto len = keybloblen();
         return StaticBuffer(readPtr(17, len), len);
     }
-    void setKeyBlobs(const char* keyblob, uint32_t len)
+    void setKeyBlobs(const char* keyblob, size_t len)
     {
         write(13, len);
         memcpy(writePtr(17, len), keyblob, len);
@@ -1242,14 +1250,14 @@ public:
             memset(buf()+39, 0, msglen()); //clear old message memory
         write(35, (uint32_t)0);
     }
-    void setMsg(const char* msg, uint32_t msglen)
+    void setMsg(const char* msg, size_t msglen)
     {
         write(35, msglen);
         memcpy(writePtr(39, msglen), msg, msglen);
     }
     void updateMsgSize()
     {
-        write<uint32_t>(35, dataSize()-39);
+        write<uint32_t>(35, static_cast<uint32_t>(dataSize()-39));
     }
 };
 

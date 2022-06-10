@@ -2,6 +2,7 @@
 	#define LOGGER_SPRINTF_BUF_SIZE 10240
 #endif
 
+#include <functional>
 #include <iostream>
 #include <stdarg.h>
 #include <string.h>
@@ -83,14 +84,14 @@ void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
         return;
     }
     //re-configure
-    mFileLogger.reset(new FileLogger(mFlags, fileName, rotateSizeKb*1024));
+    mFileLogger.reset(new FileLogger(mFlags, fileName, static_cast<int>(rotateSizeKb*1024)));
 }
 
 void Logger::setAutoFlush(bool enable)
 {
     LockGuard lock(mMutex);
     if (enable)
-        mFlags &= ~krLogNoAutoFlush;
+        mFlags &= static_cast<unsigned>(~krLogNoAutoFlush);
     else
         mFlags |= krLogNoAutoFlush;
 }
@@ -147,18 +148,29 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
 
     va_list vaList;
     va_copy(vaList, aVaList);
-    int sprintfSpace = LOGGER_SPRINTF_BUF_SIZE-2-bytesLogged;
-    int sprintfRv = vsnprintf(buf+bytesLogged, sprintfSpace, fmtString, vaList); //maybe check return value
-    if (sprintfRv < 0) //nothing logged if zero, or error if negative, silently ignore the error and return
+    int sprintfSpace = static_cast<int>(LOGGER_SPRINTF_BUF_SIZE-2-bytesLogged);
+    int sprintfRv = vsnprintf(buf+bytesLogged, static_cast<size_t>(sprintfSpace), fmtString, vaList); //maybe check return value
+    std::function<bool()> isErrorVsnprintf =
+        [this, &vaList, &sprintfRv] ()
+        {
+            if (sprintfRv < 0)
+            { //nothing logged if zero, or error if negative, silently ignore the error and return
+                va_end(vaList);
+                return true;
+            }
+            return false;
+        };
+    if (isErrorVsnprintf())
     {
-        va_end(vaList);
         return;
     }
-    if (sprintfRv >= sprintfSpace)
+
+    size_t auxSprintfRv = static_cast<size_t>(sprintfRv);
+    if (auxSprintfRv >= sprintfSpace)
     {
         //static buffer was not enough for the message! Message was truncated
         va_copy(vaList, aVaList); //reuse the arg list. GCC printf invalidaes the arg_list after its used
-        size_t bufSize = sprintfRv+bytesLogged+2;
+        size_t bufSize = static_cast<size_t>(sprintfRv)+bytesLogged+2;
         sprintfSpace = sprintfRv+1;
         buf = new char[bufSize];
         if (!buf)
@@ -168,15 +180,20 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
             return;
         }
         memcpy(buf, statBuf, bytesLogged);
-        sprintfRv = vsnprintf(buf+bytesLogged, sprintfSpace, fmtString, vaList); //maybe check return value
+        sprintfRv = vsnprintf(buf+bytesLogged, static_cast<size_t>(sprintfSpace), fmtString, vaList); //maybe check return value
+        if (isErrorVsnprintf())
+        {
+            return;
+        }
+
         if (sprintfRv >= sprintfSpace)
         {
             perror("Error: vsnprintf wants to write more data than the size of buffer it requested");
-            sprintfRv = sprintfSpace-1;
+            auxSprintfRv = sprintfSpace-1;
         }
     }
     va_end(vaList);
-    bytesLogged+=sprintfRv;
+    bytesLogged+=static_cast<size_t>(sprintfRv);
     buf[bytesLogged] = 0;
     logString(level, buf, flags, bytesLogged);
     if (buf != statBuf)
@@ -277,7 +294,7 @@ void Logger::setupFromEnvVar()
         return;
     struct ParamVal: public std::string
     {
-        unsigned numVal;
+        krLogLevel numVal;
         ParamVal(std::string&& str): std::string(std::forward<std::string>(str)){};
     };
 
@@ -288,7 +305,7 @@ void Logger::setupFromEnvVar()
         //verify log level names
         for (auto& param: config)
         {
-            unsigned level = krLogLevelStrToNum(param.second.c_str());
+            auto level = krLogLevelStrToNum(param.second.c_str());
             if (level == (krLogLevel)-1)
                 throw std::runtime_error("can't recognize log level name '"+param.second+"'");
             param.second.numVal = level;
@@ -306,7 +323,7 @@ void Logger::setupFromEnvVar()
     krLogLevel allLevels;
     auto it = config.find("all");
     if(it != config.end()) {
-        allLevels = it->second.numVal;
+        allLevels = static_cast<krLogLevel>(it->second.numVal);
         config.erase(it);
         if ((mFlags & krLogDontShowEnvConfig) == 0)
             log("LOGGER", 0, 0, "All channels, except below -> '%s'\n", krLogLevelNames[allLevels][1]);
@@ -314,7 +331,7 @@ void Logger::setupFromEnvVar()
     }
     else
     {
-        allLevels = -1;
+        allLevels = static_cast<krLogLevel>(-1);
     }
     std::map<std::string, KarereLogChannel*> chans;
     for (size_t n = 0; n < krLogChannelLast; n++)
@@ -332,7 +349,7 @@ void Logger::setupFromEnvVar()
             log("LOGGER", krLogLevelError, 0, "Unknown channel in KRLOG env variable: %s. Ignoring\n", item.first.c_str());
             continue;
         }
-        chan->second->logLevel = item.second.numVal;
+        chan->second->logLevel = static_cast<krLogLevel>(item.second.numVal);
         if ((mFlags & krLogDontShowEnvConfig) == 0)
             log("LOGGER", 0, 0, "Channel '%s' -> %s\n", item.first.c_str(), krLogLevelNames[chan->second->logLevel][1]);
     }

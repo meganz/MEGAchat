@@ -124,8 +124,8 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->isOnHold() : NO;
 }
 
-- (NSInteger)networkQuality {
-    return self.megaChatCall ? self.megaChatCall->getNetworkQuality() : 0;
+- (MEGAChatCallNetworkQuality)networkQuality {
+    return (MEGAChatCallNetworkQuality) (self.megaChatCall ? self.megaChatCall->getNetworkQuality() : 0);
 }
 
 - (NSUUID *)uuid {
@@ -139,7 +139,7 @@ using namespace megachat;
     return uuid;
 }
 
-- (MEGAChatSession *)sessionForClientId:(uint64_t)clientId {
+- (nullable MEGAChatSession *)sessionForClientId:(uint64_t)clientId {
     return self.megaChatCall ? [[MEGAChatSession alloc] initWithMegaChatSession:self.megaChatCall->getMegaChatSession(clientId) cMemoryOwn:NO] : nil;
 }
 
@@ -191,6 +191,9 @@ using namespace megachat;
             break;
         case MEGAChatCallTermCodeError:
             result = @"Error";
+            break;
+        case MEGAChatCallTermCodeNoParticipate:
+            result = @"Removed from chatroom";
             break;
     }
     return result;

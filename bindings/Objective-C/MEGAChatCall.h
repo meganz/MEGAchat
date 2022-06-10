@@ -3,6 +3,8 @@
 #import "MEGAHandleList.h"
 #import "MEGAChatSession.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef NS_ENUM (NSInteger, MEGAChatCallStatus) {
     MEGAChatCallStatusUndefined = -1,
     MEGAChatCallStatusInitial = 0,
@@ -27,6 +29,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
     MEGAChatCallTermCodeTooManyParticipants = 1,
     MEGAChatCallTermCodeCallReject = 2,
     MEGAChatCallTermCodeError = 3,
+    MEGAChatCallTermCodeNoParticipate = 4,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
@@ -39,6 +42,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeCallSpeak = 0x20,
     MEGAChatCallChangeTypeAudioLevel = 0x40,
     MEGAChatCallChangeTypeNetworkQuality = 0x80,
+    MEGAChatCallChangeTypeOutgoingRingingStop = 0x100,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
@@ -51,6 +55,11 @@ typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
     MEGAChatCallCompositionChangePeerRemoved = -1,
     MEGAChatCallCompositionChangeNoChange = 0,
     MEGAChatCallCompositionChangePeerAdded = 1,
+};
+
+typedef NS_ENUM (NSInteger, MEGAChatCallNetworkQuality) {
+    MEGAChatCallNetworkQualityBad = 0,
+    MEGAChatCallNetworkQualityGood = 1,
 };
 
 @interface MEGAChatCall : NSObject
@@ -71,7 +80,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
 
 @property (nonatomic, readonly) NSInteger numParticipants;
 @property (nonatomic, readonly, getter=isOnHold) BOOL onHold;
-@property (nonatomic, readonly) NSInteger networkQuality;
+@property (nonatomic, readonly) MEGAChatCallNetworkQuality networkQuality;
 @property (nonatomic, readonly) MEGAHandleList *sessionsClientId;
 
 @property (nonatomic, readonly) MEGAHandleList *participants;
@@ -80,10 +89,12 @@ typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
 
-- (MEGAChatSession *)sessionForClientId:(uint64_t)clientId;
+- (nullable MEGAChatSession *)sessionForClientId:(uint64_t)clientId;
 
 - (instancetype)clone;
 
 + (NSString *)stringForTermCode:(MEGAChatCallTermCode)termCode;
 
 @end
+
+NS_ASSUME_NONNULL_END

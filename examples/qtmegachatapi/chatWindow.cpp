@@ -980,7 +980,7 @@ void ChatWindow::onMemberAdd()
        return;
 
     QVariant uHandle = action->property("userHandle");
-    megachat::MegaChatHandle userhandle = uHandle.toLongLong();
+    MegaChatHandle userhandle = static_cast<MegaChatHandle>(uHandle.toLongLong());
     mMegaChatApi->inviteToChat(mChatRoom->getChatId(), userhandle, megachat::MegaChatPeerList::PRIV_STANDARD);
 }
 
@@ -991,7 +991,7 @@ void ChatWindow::onMemberRemove()
        return;
 
     QVariant uHandle = action->property("userHandle");
-    megachat::MegaChatHandle userhandle = uHandle.toLongLong();
+    MegaChatHandle userhandle = static_cast<MegaChatHandle>(uHandle.toLongLong());
     std::unique_ptr<char []> userHandleString(mMegaApi->getMyUserHandle());
     if (uHandle.toString() == userHandleString.get())
     {
@@ -1020,8 +1020,8 @@ void ChatWindow::onMemberSetPriv()
             privilege = megachat::MegaChatPeerList::PRIV_STANDARD;
 
       QVariant uHandle = action->property("userHandle");
-      megachat::MegaChatHandle userhandle = uHandle.toLongLong();
-      megachat::MegaChatHandle chatId = mChatRoom->getChatId();
+      MegaChatHandle userhandle = static_cast<MegaChatHandle>(uHandle.toLongLong());
+      MegaChatHandle chatId = mChatRoom->getChatId();
       mMegaChatApi->updateChatPermissions(chatId, userhandle, privilege);}
 
 void ChatWindow::onMsgListRequestHistory()
@@ -1099,7 +1099,7 @@ void ChatWindow::createAttachMenu(QMenu& menu)
 
 void ChatWindow::onAttachLocation()
 {
-    mMegaChatApi->sendGeolocation(mChatRoom->getChatId(), -122.3316393, 47.5951518, NULL);
+    mMegaChatApi->sendGeolocation(mChatRoom->getChatId(), -122.3316393f, 47.5951518f, NULL);
 }
 
 void ChatWindow::onAttachGiphy()

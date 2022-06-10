@@ -22,6 +22,7 @@ const int chatArchivedStatus = 1;
 class MegaChatApplication;
 class ContactListItemController;
 class ChatListItemController;
+class QMessageBox;
 
 struct Chat
 {
@@ -161,6 +162,7 @@ class MainWindow :
         void onChatOnlineStatusUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config);
         void onChatPresenceLastGreen(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int lastGreen);
+        void onDbError(megachat::MegaChatApi */*api*/, int error, const char *msg);
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
@@ -197,10 +199,9 @@ class MainWindow :
 
         SettingWindow *mSettings = NULL;
         ConfirmAccount* mConfirmAccount = nullptr;
-
+        std::unique_ptr<QMessageBox> mCriticalMsgBox;
         bool mIsEphemeraAccount = false;
-
-        std::string callStateToString(const megachat::MegaChatCall& call);
+        void closeEvent(QCloseEvent *event);
 
     private slots:
         void on_bSettings_clicked();

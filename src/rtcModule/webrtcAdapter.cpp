@@ -32,8 +32,6 @@ std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
 rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing = nullptr;
 std::string gFieldTrialStr;
 
-void *gAppCtx = nullptr;
-
 static bool gIsInitialized = false;
 
 bool isInitialized() { return gIsInitialized; }
@@ -41,8 +39,6 @@ bool init(void *appCtx)
 {
     if (gIsInitialized)
         return false;
-
-    gAppCtx = appCtx;
 
     if (gWebrtcContext == nullptr)
     {
@@ -369,6 +365,7 @@ void MegaEncryptor::generateHeader(uint8_t *header)
     uint8_t offset = FRAME_KEYID_LENGTH;
     memcpy(header + offset, &cid, FRAME_CID_LENGTH);
 
+    // note: upon update to GCC > 9 this warning should disappear
     offset += FRAME_CID_LENGTH;
     memcpy(header + offset, &mCtr, FRAME_CTR_LENGTH);
 }
@@ -480,6 +477,7 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
     Cid_t peerCid = 0;
     memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
 
+    // note: upon update to GCC > 9 this warning should disappear
     // extract packet ctr from header, and update mCtr (ctr will be used to generate an IV to decrypt the frame)
     offset += FRAME_CID_LENGTH;
     memcpy(&mCtr, headerData + offset, FRAME_CTR_LENGTH);
@@ -550,7 +548,7 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
     std::unique_ptr<byte []> iv = generateFrameIV();
 
     // decrypt frame and store it in frame
-    if (!mSymCipher.gcm_decrypt_aad(data.data(), data.size(),
+    if (!mSymCipher.gcm_decrypt_aad(data.data(), static_cast<unsigned int>(data.size()),
                                      header.data(), FRAME_HEADER_LENGTH,
                                      gcmTag.data(), FRAME_GCM_TAG_LENGTH,
                                      iv.get(), FRAME_IV_LENGTH,

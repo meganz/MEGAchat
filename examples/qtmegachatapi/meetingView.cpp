@@ -26,6 +26,9 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mHangup = new QPushButton("Hang up", this);
     connect(mHangup, SIGNAL(released()), this, SLOT(onHangUp()));
     mHangup->setVisible(false);
+    mEndCall = new QPushButton("End call", this);
+    connect(mEndCall, SIGNAL(released()), this, SLOT(onEndCall()));
+    mEndCall->setVisible(false);
     mRequestSpeaker = new QPushButton("ReqSpeaker", this);
     connect(mRequestSpeaker, &QAbstractButton::clicked, this, [=](){onRequestSpeak(true);});
     mRequestSpeaker->setVisible(false);
@@ -91,6 +94,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mGridLayout->addWidget(mHiResView, 1, 1, 1, 1);
 
     mButtonsLayout->addWidget(mHangup);
+    mButtonsLayout->addWidget(mEndCall);
     mButtonsLayout->addWidget(mRequestSpeaker);
     mButtonsLayout->addWidget(mRequestSpeakerCancel);
     mButtonsLayout->addWidget(mRemOwnSpeaker);
@@ -129,12 +133,23 @@ void MeetingView::updateAudioMonitor(bool enabled)
     mAudioMonitor->setText(audioMonTex.toStdString().c_str());
 }
 
-void MeetingView::updateLabel(unsigned participants, const std::string &state)
+void MeetingView::updateLabel(megachat::MegaChatCall *call)
 {
     std::string txt = "Participants: ";
-    txt.append(std::to_string(participants));
-    txt.append("  State: ");
-    txt.append(state);
+    txt.append(std::to_string(call->getNumParticipants()))
+        .append("  State: ")
+        .append(callStateToString(*call));
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
+    {
+        // just update mNetworkQuality if CHANGE_TYPE_NETWORK_QUALITY changed
+        mNetworkQuality = call->getNetworkQuality();
+    }
+
+    if (mNetworkQuality == ::megachat::MegaChatCall::NETWORK_QUALITY_BAD)
+    {
+        txt.append("<br /><span style='color:#FF0000'>SLOW NETWORK</span>");
+    }
     mLabel->setText(txt.c_str());
 }
 
@@ -142,6 +157,7 @@ void MeetingView::setNotParticipating()
 {
     mLocalWidget->setVisible(false);
     mHangup->setVisible(false);
+    mEndCall->setVisible(false);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
@@ -159,6 +175,7 @@ void MeetingView::setConnecting()
 {
     mLocalWidget->setVisible(false);
     mHangup->setVisible(true);
+    mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
@@ -168,6 +185,38 @@ void MeetingView::setConnecting()
     mSetOnHold->setVisible(false);
     mJoinCallWithVideo->setVisible(false);
     mJoinCallWithoutVideo->setVisible(false);
+}
+
+std::string MeetingView::callStateToString(const ::megachat::MegaChatCall &call)
+{
+    switch (call.getStatus())
+    {
+        case ::megachat::MegaChatCall::CALL_STATUS_INITIAL:
+            return "Initial";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
+            return "No Present";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_CONNECTING:
+            return "Connecting";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_JOINING:
+            return "Joining";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
+            return "In-Progress";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
+            return "Terminating";
+        break;
+        case ::megachat::MegaChatCall::CALL_STATUS_DESTROYED:
+            return "Destroyed";
+        break;
+        default:
+            assert(false);
+            return "Unknown";
+            break;
+    }
 }
 
 void MeetingView::addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid)
@@ -247,6 +296,26 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
     }
 }
 
+void MeetingView::manageAllPeersLeft(megachat::MegaChatHandle callid, bool isGroup)
+{
+    assert(!getNumSessions());
+    QMessageBox msgBox;
+    std::string textMsg = "You are the only one participant in a ";
+    textMsg.append(!isGroup ? "1on1" : "group").append(" call. Do you want to hangup?");
+    msgBox.setText(textMsg.c_str());
+    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Save);
+    int ret = msgBox.exec();
+    if (ret == QMessageBox::Ok)
+    {
+        mMegaChatApi.hangChatCall(callid);
+    }
+    else
+    {
+        // TODO set a timeout
+    }
+}
+
 void MeetingView::destroyRingingWindow()
 {
     if (mRingingWindow)
@@ -270,6 +339,7 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
     updateVideoButtonText(call);
     mLocalWidget->setVisible(true);
     mHangup->setVisible(true);
+    mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(true);
     mRequestSpeakerCancel->setVisible(true);
     mEnableAudio->setVisible(true);
@@ -288,15 +358,20 @@ void MeetingView::addSession(const megachat::MegaChatSession &session)
     item->setData(Qt::UserRole, data);
     item->setSizeHint(QSize(item->sizeHint().height(), 35));
     widget->setWidgetItem(item);
-    mListWidget->insertItem(mSessionWidgets.size(), item);
+    mListWidget->insertItem(static_cast<int>(mSessionWidgets.size()), item);
     mListWidget->setItemWidget(item, widget);
-    assert(mSessionWidgets.find(session.getClientid()) == mSessionWidgets.end());
-    mSessionWidgets[session.getClientid()] = widget;
+    assert(mSessionWidgets.find(static_cast<uint32_t>(session.getClientid())) == mSessionWidgets.end());
+    mSessionWidgets[static_cast<uint32_t>(session.getClientid())] = widget;
+}
+
+size_t MeetingView::getNumSessions( ) const
+{
+    return mSessionWidgets.size();
 }
 
 void MeetingView::removeSession(const megachat::MegaChatSession& session)
 {
-    auto it = mSessionWidgets.find(session.getClientid());
+    auto it = mSessionWidgets.find(static_cast<uint32_t>(session.getClientid()));
     if (it != mSessionWidgets.end())
     {
         MeetingSession *meetingSession = it->second;
@@ -310,7 +385,7 @@ void MeetingView::removeSession(const megachat::MegaChatSession& session)
 
 void MeetingView::updateSession(const megachat::MegaChatSession &session)
 {
-    auto it = mSessionWidgets.find(session.getClientid());
+    auto it = mSessionWidgets.find(static_cast<uint32_t>(session.getClientid()));
     if (it != mSessionWidgets.end())
     {
         it->second->updateWidget(session);
@@ -357,21 +432,21 @@ void MeetingView::setOnHold(bool isOnHold, megachat::MegaChatHandle cid)
     else
     {
         // update session item
-        auto sessIt = mSessionWidgets.find(cid);
+        auto sessIt = mSessionWidgets.find(static_cast<uint32_t>(cid));
         if (sessIt != mSessionWidgets.end())
         {
             sessIt->second->setOnHold(isOnHold);
         }
 
         // set low-res widget onHold
-        auto it = mThumbsWidget.find(cid);
+        auto it = mThumbsWidget.find(static_cast<uint32_t>(cid));
         if (it != mThumbsWidget.end())
         {
             it->second->setOnHold(isOnHold);
         }
 
         // set hi-res widget onHold
-        auto auxit = mHiResWidget.find(cid);
+        auto auxit = mHiResWidget.find(static_cast<uint32_t>(cid));
         if (auxit != mHiResWidget.end())
         {
             auxit->second->setOnHold(isOnHold);
@@ -385,15 +460,15 @@ std::string MeetingView::sessionToString(const megachat::MegaChatSession &sessio
     std::unique_ptr<megachat::MegaChatRoom> chatRoom(mMegaChatApi.getChatRoom(mChatid));
     for (size_t i = 0; i < chatRoom->getPeerCount(); i++)
     {
-        if (chatRoom->getPeerHandle(i) == session.getPeerid())
+        if (chatRoom->getPeerHandle(static_cast<unsigned int>(i)) == session.getPeerid())
         {
-            const char *firstName = chatRoom->getPeerFirstname(i);
+            const char *firstName = chatRoom->getPeerFirstname(static_cast<unsigned int>(i));
             if (firstName)
             {
                 returnedString.append(firstName);
             }
 
-            const char *email = chatRoom->getPeerEmail(i);
+            const char *email = chatRoom->getPeerEmail(static_cast<unsigned int>(i));
             if (email)
             {
                 returnedString.append(" (");
@@ -414,6 +489,15 @@ void MeetingView::onHangUp()
     if (call)
     {
         mMegaChatApi.hangChatCall(call->getCallId());
+    }
+}
+
+void MeetingView::onEndCall()
+{
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (call)
+    {
+        mMegaChatApi.endChatCall(call->getCallId());
     }
 }
 

@@ -95,6 +95,11 @@ public:
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
     };
 
+    enum {
+        SESS_TERM_CODE_INVALID          = -1,   // Session has been finished by an invalid reason
+        SESS_TERM_CODE_RECOVERABLE      = 0,    // Session has been finished by a recoverable reason
+        SESS_TERM_CODE_NON_RECOVERABLE  = 1,    // Session has been finished by a non recoverable reason
+    };
 
     virtual ~MegaChatSession();
 
@@ -209,6 +214,25 @@ public:
      *
      */
     virtual int getChanges() const;
+
+    /**
+     * @brief Returns session termCode
+     *
+     * The value returned by this method will be only valid when MegaChatSession::hasChanged(MegaChatSession::CHANGE_TYPE_STATUS)
+     * is true, and MegaChatSession::getStatus is MegaChatSession::SESSION_STATUS_DESTROYED.
+     *
+     * Posible returned values by this method:
+     *  - MegaChatSession::SESS_TERM_CODE_INVALID           = -1
+     *  - MegaChatSession::SESS_TERM_CODE_RECOVERABLE       = 0
+     *  - MegaChatSession::SESS_TERM_CODE_NON_RECOVERABLE   = 1
+     *
+     * If returned value is SESS_TERM_CODE_RECOVERABLE it means that session ended by a recoverable reason, and the peer
+     * represented by that session is probably trying to reconnect to the Meeting. In case that value is
+     * SESS_TERM_CODE_NON_RECOVERABLE, we can asume that session has ended, and peer won't try to reconnect automatically.
+     *
+     * @return session termCode
+     */
+    virtual int getTermCode() const;
 
     /**
      * @brief Returns true if this session has an specific change
@@ -328,6 +352,7 @@ public:
         CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
+        CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call outgoing ringing has stopped (only valid if our own client has started the call)
     };
 
     enum
@@ -335,6 +360,12 @@ public:
         CALL_QUALITY_HIGH_DEF = 0,
         CALL_QUALITY_HIGH_MEDIUM = 1,
         CALL_QUALITY_HIGH_LOW = 2,
+    };
+
+    enum
+    {
+        NETWORK_QUALITY_BAD  = 0,            // Bad network quality detected
+        NETWORK_QUALITY_GOOD = 1,            // Good network quality detected
     };
 
     enum {
@@ -350,11 +381,12 @@ public:
     };
 
     enum {
-        TERM_CODE_INVALID = -1,     // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
-        TERM_CODE_HANGUP = 0,       // Call has been finished by user
-        TERM_CODE_TOO_MANY_PARTICIPANTS = 1, // No possible to join the call, too many participants
-        TERM_CODE_REJECT = 2,       // Caller has hang up the call before no body answer the call
-        TERM_CODE_ERROR = 3,        // Call has been finished by error
+        TERM_CODE_INVALID                   = -1,   // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
+        TERM_CODE_HANGUP                    = 0,    // Call has been finished by user
+        TERM_CODE_TOO_MANY_PARTICIPANTS     = 1,    // No possible to join the call, too many participants
+        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before no body answer the call
+        TERM_CODE_ERROR                     = 3,    // Call has been finished by error
+        TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
     };
 
     enum
@@ -458,6 +490,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      */
     virtual int getChanges() const;
 
@@ -496,6 +531,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      *
      * @return true if this call has an specific change
      */
@@ -545,6 +583,7 @@ public:
      *  - TERM_CODE_TOO_MANY_PARTICIPANTS
      *  - TERM_CODE_ERROR
      *  - TERM_CODE_REJECT
+     *  - TERM_CODE_NO_PARTICIPATE
      *
      * @return termination code for the call
      */
@@ -675,9 +714,23 @@ public:
     /**
      * @brief Returns if call is outgoing
      *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will also return true.
+     *
      * @return True if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
+
+    /**
+     * @brief Returns true if our client has started the call
+     *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will return false, but MegaChatCall::isOutgoing will return true. In this
+     * case call is considerated an outgoing call, but our client wouldn't have started it.
+     *
+     * @return True if our client has started the call
+     */
+    virtual bool isOwnClientCaller() const;
 
     /**
      * @brief Returns the handle from user that has started the call
@@ -709,11 +762,15 @@ public:
     /**
      * @brief Returns network quality
      *
-     * The valid network quality values are between 0 and 5
-     * 0 -> the worst quality
-     * 5 -> the best quality
+     * The valid network quality values are:
+     *  - MegaChatCall::NETWORK_QUALITY_BAD          = 0,    // Bad network quality detected
+     *  - MegaChatCall::NETWORK_QUALITY_GOOD         = 1,    // Good network quality detected
      *
-     * @note The app may want to show a "slow network" warning when the quality is <= 1.
+     * The value returned by this method, only can be considered as valid, when is notified by MegaChatCallListener::onChatCallUpdate
+     * and MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY) is true.
+     *
+     * @note The app may want to show a "slow network" warning when the quality is MegaChatCall::NETWORK_QUALITY_BAD, and remove it
+     * when the quality is MegaChatCall::NETWORK_QUALITY_GOOD.
      *
      * @return network quality
      */
@@ -2369,6 +2426,12 @@ public:
         CHAT_CONNECTION_ONLINE      = 3     /// Connection with chatd is ready and logged in
     };
 
+    enum
+    {
+        DB_ERROR_UNEXPECTED         = -1,   /// Unexpected database error (not received by apps, just for internal use)
+        DB_ERROR_IO                 = 1,    /// I/O error in Data base    (non recoverable)
+        DB_ERROR_FULL               = 2,    /// Database or disk is full  (non recoverable)
+    };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -4773,6 +4836,11 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns false
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS    - if invalid callid provided
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
+     *
      * @param callid MegaChatHandle that identifies the call
      * @param listener MegaChatRequestListener to track this request
      */
@@ -4781,12 +4849,19 @@ public:
     /**
      * @brief End a call in a chat room (user must be moderator)
      *
+     * The scenario where this method is used, it's when moderator wants intentionally
+     * to end a groupchat or meeting call for all participants
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns true
      *
-     * @note This method shouldn't be used in this first meeting phase
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS    - if invalid callid provided
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
+     * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges
      *
      * @param callid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -6308,6 +6383,16 @@ public:
      * @param lastGreen Time elapsed (minutes) since the last time user was green
      */
     virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
+
+    /** @brief This function is called when an error occurred in an operation with karere Db
+     * Possible returned values:
+     *   - MegaChatApi::DB_ERROR_IO               = 1,    /// I/O error in Data base
+     *   - MegaChatApi::DB_ERROR_FULL             = 2,    /// Database or disk is full
+     *
+     * @param error Numeric error code
+     * @param errStr Error message
+     */
+    virtual void onDbError(MegaChatApi *api, int error, const char* msg);
 };
 
 /**

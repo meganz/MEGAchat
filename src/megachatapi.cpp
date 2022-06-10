@@ -98,6 +98,11 @@ int MegaChatSession::getChanges() const
     return CHANGE_TYPE_NO_CHANGES;
 }
 
+int MegaChatSession::getTermCode() const
+{
+    return SESS_TERM_CODE_INVALID;
+}
+
 bool MegaChatSession::hasChanged(int changeType) const
 {
     return false;
@@ -247,6 +252,11 @@ bool MegaChatCall::isOutgoing() const
     return false;
 }
 
+bool MegaChatCall::isOwnClientCaller() const
+{
+    return false;
+}
+
 MegaChatHandle MegaChatCall::getCaller() const
 {
     return MEGACHAT_INVALID_HANDLE;
@@ -266,7 +276,6 @@ int MegaChatCall::getNetworkQuality() const
 {
     return 0;
 }
-
 
 bool MegaChatCall::hasRequestSpeak() const
 {
@@ -898,8 +907,6 @@ void MegaChatApi::hangChatCall(MegaChatHandle callid, MegaChatRequestListener *l
 
 void MegaChatApi::endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)
 {
-    // This method shouldn't be used in this first meeting phase
-    assert(false);
     pImpl->endChatCall(callid, listener);
 }
 
@@ -1580,6 +1587,11 @@ void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi * /*api*/, MegaCh
 }
 
 void MegaChatListener::onChatPresenceLastGreen(MegaChatApi * /*api*/, MegaChatHandle /*userhandle*/, int /*lastGreen*/)
+{
+
+}
+
+void MegaChatListener::onDbError(MegaChatApi * /*api*/, int /*error*/, const char* /*msg*/)
 {
 
 }

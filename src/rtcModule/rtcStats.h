@@ -18,6 +18,8 @@ public:
     std::vector<int32_t> mBytesReceived;
     std::vector<int32_t> mBytesSend;
     std::vector<int32_t> mAudioJitter;
+    std::vector<uint32_t> mPacketSent;
+    std::vector<double> mTotalPacketSendDelay;
     // Scalable video coding index
     std::vector<int32_t> mQ;
     // Audio video flags
@@ -47,6 +49,7 @@ class Stats
 public:
     std::string getJson();
     void clear();
+    bool isEmptyStats();
 
     karere::Id mPeerId;
     uint32_t mCid = 0;
@@ -72,7 +75,7 @@ protected:
 class ConnStatsCallBack : public webrtc::RTCStatsCollectorCallback, public karere::DeleteTrackable
 {
 public:
-    ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId);
+    ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId, void* appCtx);
     ~ConnStatsCallBack();
     void removeStats();
 
@@ -85,6 +88,7 @@ protected:
     Stats* mStats = nullptr; // Doesn't take ownership (Belongs to Call)
     uint32_t mHiResId;
     uint32_t mLowResId;
+    void* mAppCtx;
 
 private:
     mutable webrtc::webrtc_impl::RefCounter mRefCount{0};

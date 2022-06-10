@@ -237,7 +237,7 @@ promise::Promise<void> Client::sendKeepalive()
     auto wptr = weakHandle();
     if (mConnections.size())
     {
-        mKeepaliveCount += mConnections.size();
+        mKeepaliveCount += static_cast<int>(mConnections.size());
         for (auto& conn: mConnections)
         {
             conn.second->sendKeepalive()
@@ -426,7 +426,7 @@ void Client::setRetentionTimer()
             }
         }
         updateRetentionCheckTs(minTs, true);
-    }, retentionPeriod * 1000 , mKarereClient->appCtx);
+    }, static_cast<unsigned int> (retentionPeriod * 1000) , mKarereClient->appCtx);
 }
 
 uint8_t Client::richLinkState() const
@@ -517,10 +517,10 @@ void Chat::login()
 
 Connection::Connection(Client& chatdClient, int shardNo)
     : mChatdClient(chatdClient),
-      mShardNo(shardNo),
-      mSendPromise(promise::_Void()),
       mDnsCache(chatdClient.mKarereClient->mDnsCache),
-      mTsConnSuceeded(time(nullptr))
+      mShardNo(shardNo),
+      mTsConnSuceeded(time(nullptr)),
+      mSendPromise(promise::_Void())
 {
 }
 
@@ -593,6 +593,18 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     if (mChatdClient.mKarereClient->isTerminated())
     {
         CHATDS_LOG_WARNING("Socket close but karere client was terminated.");
+        return;
+    }
+
+    if (mState == kStateDisconnected)
+    {
+        CHATDS_LOG_DEBUG("onSocketClose: we are already in kStateDisconnected state");
+        if (!mRetryCtrl)
+        {
+            CHATDS_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            reconnect(); // start retry controller
+        }
         return;
     }
 
@@ -703,7 +715,7 @@ void Connection::setState(State state)
         mState = state;
     }
 
-    mChatdClient.mKarereClient->initStats().handleShardStats(oldState, state, shardNo());
+    mChatdClient.mKarereClient->initStats().handleShardStats(oldState, state, static_cast<uint8_t>(shardNo()));
 
     if (mState == kStateDisconnected)
     {
@@ -852,7 +864,7 @@ Promise<void> Connection::reconnect()
             }
 
             //GET start ts for QueryDns
-            mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns, shardNo());
+            mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, host.c_str(),
@@ -914,7 +926,7 @@ Promise<void> Connection::reconnect()
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
                     }
 
-                    mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
+                    mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
                     assert(!isOnline());
 
                     if (statusDNS == wsGetNoNameErrorCode(mChatdClient.mKarereClient->websocketIO))
@@ -933,7 +945,7 @@ Promise<void> Connection::reconnect()
                     CHATDS_LOG_DEBUG("Hostname resolved by first time. Connecting...");
 
                     //GET end ts for QueryDns
-                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
+                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
                     mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
                     doConnect();
                     return;
@@ -946,7 +958,7 @@ Promise<void> Connection::reconnect()
                 else
                 {
                     //GET end ts for QueryDns
-                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
+                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
                     // update DNS cache
                     mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
@@ -961,7 +973,7 @@ Promise<void> Connection::reconnect()
                 string errStr = "Inmediate DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS);
                 CHATDS_LOG_ERROR("%s", errStr.c_str());
 
-                mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
+                mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
                 assert(!mConnectPromise.done());
                 mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
@@ -1995,7 +2007,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
     // more unseen messages
     if ((messages.size() < count) && mHasMoreHistoryInDb)
         throw std::runtime_error(mChatId.toString()+": Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of "+std::to_string((int64_t)mOldestKnownMsgId.val));
-    return (Idx)messages.size();
+    return static_cast<Idx>(messages.size());
 }
 
 #define READ_ID(varname, offset)\
@@ -2438,12 +2450,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(callid, 8);
                 READ_8(userListCount, 16);
                 const char *tmpStr = (opcode == OP_JOINEDCALL) ? "JOINEDCALL" : "LEFTCALL";
-                std::vector<karere::Id> users;
+                std::set<karere::Id> users;
                 std::string userListStr;
                 for (unsigned int i = 0; i < userListCount; i++)
                 {
                     READ_ID(user, 17 + i * 8);
-                    users.push_back(user);
+                    users.insert(user);
                     userListStr.append(ID_CSTR(user)).append(", ");
                 }
                 userListStr.erase(userListStr.size() - 2);
@@ -2570,6 +2582,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                     {
                         call->setCallerId(userid);
                         call->setRinging(call->isOtherClientParticipating() ? false : ringing);
+
+                        if (!ringing && call->isOwnClientCaller())
+                        {
+                            // notify that call has stopped ringing, in order stop outgoing ringing sound if we started the call
+                            call->stopOutgoingRinging();
+                        }
                     }
                 }
 #endif
@@ -2606,9 +2624,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 rtcModule::EndCallReason endCallReason = static_cast<rtcModule::EndCallReason>
                         (opcode == OP_DELCALLREASON ? recvReason :rtcModule::EndCallReason::kEnded);
 
-                if (mChatdClient.mKarereClient->rtc)
+                rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatid);
+                if (call && mChatdClient.mKarereClient->rtc)
                 {
-                    mChatdClient.mKarereClient->rtc->removeCall(chatid, endCallReason, connectionTermCode);
+                    mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, endCallReason, connectionTermCode);
                 }
 #endif
                 break;
@@ -3378,7 +3397,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     }
 
     // write the new message to the message buffer and mark as in sending state
-    auto message = new Message(makeRandomId(), client().myHandle(), time(NULL),
+    auto message = new Message(makeRandomId(), client().myHandle(), static_cast<uint32_t>(time(NULL)),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp, generateRefId(mCrypto));
 
     auto wptr = weakHandle();
@@ -3393,18 +3412,23 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     }, mChatdClient.mKarereClient->appCtx);
     return message;
 }
+
 void Chat::msgSubmit(Message* msg, SetOfIds recipients)
 {
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
     int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
-    postMsgToSending(opcode, msg, recipients);
+    SendingItem *item = postMsgToSending(static_cast<uint8_t>(opcode), msg, recipients);
 
-    // last text msg stuff
-    if (msg->isValidLastMessage())
+    // If item wasn't removed from mSending and we still have ownership of the message
+    if (item && item->msg)
     {
-        onLastTextMsgUpdated(*msg);
+        // last text msg stuff
+        if (msg->isValidLastMessage())
+        {
+            onLastTextMsgUpdated(*msg);
+        }
     }
 }
 
@@ -3430,7 +3454,7 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
         sendingIdx.push_back(&(*it));
     }
 
-    Idx maxEnd = size() - sendingIdx.size();
+    Idx maxEnd = size() - static_cast<Idx>(sendingIdx.size());
     if (maxEnd <= 0)
     {
         return;
@@ -3479,8 +3503,8 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
 
             backrefs.insert(idx);
             Message &msg = (idx < (Idx)sendingIdx.size())
-                    ? *(sendingIdx[sendingIdx.size()-1-idx]->msg)   // msg is from sending queue
-                    : at(highnum()-(idx-sendingIdx.size()));        // msg is from history buffer
+                    ? *(sendingIdx[sendingIdx.size()-1-static_cast<size_t>(idx)]->msg)   // msg is from sending queue
+                    : at(highnum()-(idx - static_cast<Idx>(sendingIdx.size())));        // msg is from history buffer
 
             if (!msg.isManagementMessage()) // management-msgs don't have a valid backrefid
             {
@@ -3524,7 +3548,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds
         mNextUnsent--;
     }
     flushOutputQueue();
-    return &mSending.back();
+    return mSending.empty() ? nullptr : &mSending.back(); // calling .back() on an empty container causes undefined behaviour
 }
 
 bool Chat::sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd)
@@ -3619,6 +3643,9 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     {
         CHATID_LOG_ERROR("ICrypto::encrypt error encrypting message %s: %s", ID_CSTR(msg->id()), err.what());
         delete msgCmd;
+        mEncryptionHalted = false;
+        msgRemoveFromSending(msg->id(), 0);
+        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99015, "Failed to encrypt message");
         return err;
     });
 
@@ -3631,7 +3658,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 // Can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
 Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype)
 {
-    uint32_t now = time(NULL);
+    uint32_t now = static_cast<uint32_t>(time(NULL));
     uint32_t age = now - msg.ts;
     if (!msg.isSending() && age > CHATD_MAX_EDIT_AGE)
     {
@@ -3692,7 +3719,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         }
 
         // update original content+delta of the message being edited...
-        msg.updated = age;
+        msg.updated = static_cast<uint16_t>(age);
         msg.assign((void*)newdata, newlen);
         // ...and also for all messages with same msgid in the sending queue , trying to avoid sending the original content
         int count = 0;
@@ -3716,12 +3743,13 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         // recipients must not change
         recipients = SetOfIds(item->recipients);
     }
-    else if (age == 0)  // in the very unlikely case the msg is already confirmed, but edit is done in the same second
+    else if (age <= msg.updated)
     {
-        age++;
+        // in the very unlikely case the msg is already confirmed, but edit is done in the same second (or a n-edit over an already n-times edited message)
+        age = msg.updated + 1;
     }
 
-    auto upd = new Message(msg.id(), msg.userid, msg.ts, age, newdata, newlen,
+    auto upd = new Message(msg.id(), msg.userid, msg.ts, static_cast<uint16_t>(age), newdata, newlen,
         msg.isSending(), msg.keyid, newtype, userp, msg.backRefId, msg.backRefs);
 
     auto wptr = weakHandle();
@@ -3967,7 +3995,8 @@ bool Chat::setMessageSeen(Idx idx)
 
     auto wptr = weakHandle();
     karere::Id id = msg.id();
-    megaHandle seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
+    megaHandle seenTimer = 0;
+    seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
     {
         if (wptr.deleted())
           return;
@@ -4474,9 +4503,16 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         return;
     }
 
+    auto wptr = weakHandle();
     mCrypto->msgDecrypt(cipherMsg)
-    .fail([this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
+    .fail([wptr, this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("onMsgUpdated: failed to decrypt message, and connection instance has already been deleted");
+            return err;
+        }
+
         assert(cipherMsg->isPendingToDecrypt());
 
         int type = err.type();
@@ -4515,12 +4551,23 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         return cipherMsg;
     })
-    .then([this, updateTs, richLinkRemoved](Message* msg)
+    .then([wptr, this, updateTs, richLinkRemoved](Message* msg)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("onMsgUpdated: message decrypted successfully, but connection instance has already been deleted");
+            return;
+        }
         onMsgUpdatedAfterDecrypt(updateTs, richLinkRemoved, msg);
     })
-    .fail([this, cipherMsg](const ::promise::Error& err)
+    .fail([wptr, this, cipherMsg](const ::promise::Error& err)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("onMsgUpdated: message couldn't be decrypted, and connection instance has already been deleted");
+            return;
+        }
+
         if (err.type() == SVCRYPTO_ENOMSG)
         {
             CHATID_LOG_WARNING("Msg has been deleted during decryption process");
@@ -4546,7 +4593,7 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
         if (msg->dataSize() < 2)
             CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
         else
-            msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
+            msg->type = static_cast<unsigned char>(msg->buf()[1] + Message::Type::kMsgOffset);
     }
 
     //update in memory, if loaded
@@ -5036,6 +5083,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
 
 bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 {
+    auto wptr = weakHandle();
     if (isLocal)
     {
         if (msg.isEncrypted() != Message::kEncryptedNoType)
@@ -5046,8 +5094,14 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         {
             Message *message = &msg;
             mCrypto->msgDecrypt(message)
-            .fail([this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
+            .fail([wptr, this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgIncomingAfterAdd: failed to decrypt local unknown management msg type, and connection instance has already been deleted");
+                    return err;
+                }
+
                 assert(message->isEncrypted() == Message::kEncryptedNoType);
                 int type = err.type();
                 switch (type)
@@ -5066,16 +5120,29 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 }
                 return message;
             })
-            .then([this, isNew, idx](Message* message)
+            .then([wptr, this, isNew, idx](Message* message)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgIncomingAfterAdd: local unknown management message decrypted successfully (msgDecrypt) but connection instance has already been deleted");
+                    return;
+                }
+
                 if (message->isEncrypted() != Message::kEncryptedNoType)
                 {
                     CALL_DB(updateMsgInHistory, message->id(), *message);   // update 'data' & 'is_encrypted'
                 }
                 msgIncomingAfterDecrypt(isNew, true, *message, idx);
             })
-            .fail([this, message](const ::promise::Error& err)
+            .fail([wptr, this, message](const ::promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgIncomingAfterAdd: Retry to decrypt unknown type of management message failed. (msgid: %s, failure type %s (%d))",
+                                       ID_CSTR(message->id()), err.what(), err.type());
+                    return;
+                }
+
                 CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed. (msgid: %s, failure type %s (%d))",
                                    ID_CSTR(message->id()), err.what(), err.type());
             });
@@ -5132,8 +5199,14 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         mDecryptOldHaltedAt = idx;
 
     auto message = &msg;
-    pms.fail([this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
+    pms.fail([wptr, this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("msgIncomingAfterAdd: failed to decrypt message and connection instance has already been deleted");
+            return err;
+        }
+
         assert(message->isPendingToDecrypt());
 
         int type = err.type();
@@ -5172,8 +5245,14 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 
         return message;
     })
-    .then([this, isNew, isLocal, idx](Message* message)
+    .then([wptr, this, isNew, isLocal, idx](Message* message)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("msgIncomingAfterAdd: message has been succeesfully decrypted, but connection instance has already been deleted");
+            return;
+        }
+
 #ifndef NDEBUG
         if (isNew)
             assert(mDecryptNewHaltedAt == idx);
@@ -5230,8 +5309,15 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             }
         }
     })
-    .fail([this, message](const ::promise::Error& err)
+    .fail([wptr, this, message](const ::promise::Error& err)
     {
+        if (wptr.deleted())
+        {
+            CHATID_LOG_WARNING("msgIncomingAfterAdd: Message %s can't be decrypted: Failure type %s (%d)",
+                               ID_CSTR(message->id()), err.what(), err.type());
+            return;
+        }
+
         if (err.type() == SVCRYPTO_ENOMSG)
         {
             CHATID_LOG_WARNING("Msg has been deleted during decryption process");
@@ -5275,14 +5361,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             if (msg.dataSize() < 2)
                 CHATID_LOG_ERROR("Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
-                msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
+                msg.type = static_cast<unsigned char>(msg.buf()[1] + Message::Type::kMsgOffset);
         }
 
         verifyMsgOrder(msg, idx);
-        if (msg.type == Message::Type::kMsgAttachment)
-        {
-            mAttachmentNodes->addMessage(msg, isNew, false);
-        }
         CALL_DB(addMsgToHistory, msg, idx);
         if (checkRetentionHist)
         {
@@ -5301,6 +5383,15 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             sendCommand(Command(OP_RECEIVED) + mChatId + msgid);
         }
     }
+
+    // Add attachment messages into FilterHistory when receiving from chatd,
+    // but also when we load history from DB
+    if (msg.type == Message::Type::kMsgAttachment)
+    {
+        // if it's local (from DB), addMessage takes the ownership of message
+        mAttachmentNodes->addMessage(!isNew && isLocal ? *(new Message(msg)): msg, isNew, isLocal);
+    }
+
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
     {
         CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
@@ -5382,9 +5473,16 @@ bool Chat::msgNodeHistIncoming(Message *msg)
         }
         else
         {
+            auto wptr = weakHandle();
             mDecryptionAttachmentsHalted = true;
-            pms.then([this](Message* msg)
+            pms.then([wptr, this](Message* msg)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgNodeHistIncoming: message successfully decrypted, but connection instance has already been deleted");
+                    return;
+                }
+
                 if (!mTruncateAttachment)
                 {
                     mAttachmentNodes->addMessage(*msg, false, false);
@@ -5404,8 +5502,14 @@ bool Chat::msgNodeHistIncoming(Message *msg)
                     attachmentHistDone();
                 }
             })
-            .fail([this, msg](const ::promise::Error& /*err*/)
+            .fail([wptr, this, msg](const ::promise::Error& /*err*/)
             {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("msgNodeHistIncoming: failed to decrypt message, and connection instance has already been deleted");
+                    return;
+                }
+
                 assert(msg->isPendingToDecrypt());
                 delete msg;
                 mTruncateAttachment = false;
@@ -5522,10 +5626,11 @@ void Chat::onUserLeave(Id userid)
 
 #ifndef KARERE_DISABLE_WEBRTC
         // remove call associated to chatRoom if our own user is not an active participant
-        if (mChatdClient.mKarereClient->rtc && !previewMode())
+        rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+        if (call && mChatdClient.mKarereClient->rtc && !previewMode())
         {
             CHATID_LOG_DEBUG("remove call associated to chatRoom if our own user is not an active participant");
-            mChatdClient.mKarereClient->rtc->removeCall(mChatId, rtcModule::EndCallReason::kFailed, rtcModule::TermCode::kLeavingRoom);
+            mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kFailed, rtcModule::TermCode::kLeavingRoom);
         }
 #endif
     }
@@ -5711,7 +5816,6 @@ void Chat::onPreviewersUpdate(uint32_t numPrev)
 
 void Chat::onJoinComplete()
 {
-    mEncryptionHalted = false;
     setOnlineState(kChatStateOnline);
     flushOutputQueue(true); //flush encrypted messages
 
@@ -5751,7 +5855,7 @@ void Chat::setOnlineState(ChatState state)
     {
         if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
-            mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsLoginChatd, connection().shardNo());
+            mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsLoginChatd, static_cast<uint8_t>(connection().shardNo()));
         }
 
         if (mChatdClient.areAllChatsLoggedIn())
@@ -5775,13 +5879,13 @@ void Chat::setOnlineState(ChatState state)
 #ifndef KARERE_DISABLE_WEBRTC
         if (mChatdClient.mKarereClient->rtc)
         {
-            rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
+            rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
             if (call)
             {
                 if (call->getParticipants().empty())
                 {
                     CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s with no participants", call->getCallid().toString().c_str());
-                    mChatdClient.mKarereClient->rtc->removeCall(call->getChatid(), rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kErrNoCall);
+                    mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kErrNoCall);
                 }
                 else if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
                 {
@@ -6236,7 +6340,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
 {
     if (msg.size()) // protect against deleted node-attachment messages
     {
-        msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
+        msg.type = static_cast<unsigned char>(msg.buf()[1] + Message::Type::kMsgOffset);
         assert(msg.type == Message::Type::kMsgAttachment);
     }
 
@@ -6249,7 +6353,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewestIdx);
         CALL_LISTENER_FH(onReceived, mBuffer.front().get(), mNewestIdx);
     }
-    else    // from DB or from NODEHIST/HIST
+    else    // from DB (from history or node_history) or from NODEHIST/HIST
     {
         if (mIdToMsgMap.find(msgid) == mIdToMsgMap.end())  // if it doesn't exist
         {
@@ -6345,7 +6449,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
         auto it = mNextMsgToNotify;
         while ((it != mBuffer.end()) && (msgsLoadedFromRam < count))
         {
-            Idx index = mNewestIdx - std::distance(mBuffer.begin(), it);
+            Idx index = static_cast<Idx>(mNewestIdx - std::distance(mBuffer.begin(), it));
             CALL_LISTENER_FH(onLoaded,  it->get(), index);
             msgsLoadedFromRam++;
 
