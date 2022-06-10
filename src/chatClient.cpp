@@ -516,7 +516,7 @@ int Client::importMessages(const char *externalDbPath)
                 expireRetentionTs = time(nullptr) - retentionTime;
             }
 
-            if (!retentionTime || lastSeenTs < expireRetentionTs)
+            if (!retentionTime || lastSeenTs > expireRetentionTs)
             {
                 chat.seenImport(lastSeenId);  // call seen import if no retention time is set or it hasn't expired
             }
@@ -651,7 +651,7 @@ int Client::importMessages(const char *externalDbPath)
                 chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
             }
 
-            if (retentionTime && ts >= time(nullptr) - retentionTime)
+            if (retentionTime && ts <= time(nullptr) - retentionTime)
             {
                 KR_LOG_DEBUG("importMessages: skipping msg with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
                 continue;
@@ -706,7 +706,7 @@ int Client::importMessages(const char *externalDbPath)
                 msg->backRefId = stmtMsgUpdated.uint64Col(7);
                 msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
 
-                if (retentionTime && ts >= time(nullptr) - retentionTime)
+                if (retentionTime && ts <= time(nullptr) - retentionTime)
                 {
                     KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
                     continue;
