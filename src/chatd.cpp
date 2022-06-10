@@ -4977,7 +4977,7 @@ void Chat::deleteOlderMessagesIncluding(Idx idx)
     {
         long startOffset = mForwardStart - idx - 1; // decrement 1 to include own idx
         auto itStart = mBackwardList.begin() + startOffset;
-        auto itEnd = (mBackwardList.end());
+        auto itEnd = mBackwardList.end();
 
         if (itStart == mBackwardList.end()) // ensure that first element iterator is valid
         {
