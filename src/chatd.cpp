@@ -4954,61 +4954,21 @@ Id Chat::makeRandomId()
     return distrib(rd);
 }
 
-void Chat::removeRangeFromIdToIndexMap(Idx idxMin, Idx idxMax)
-{
-    if (idxMin == CHATD_IDX_INVALID || idxMax == CHATD_IDX_INVALID)
-    {
-        assert(false);
-        CHATID_LOG_ERROR("deleteMessagesSince: wrong range of idx to be removed from mIdToIndexMap");
-        return;
-    }
-
-    // we need to switch values if idxMin > idxMax in order to remove records just between in [minIdx, maxIdx]
-    if (idxMin > idxMax)
-    {
-        auto aux = idxMin;
-        idxMin = idxMax;
-        idxMax = aux;
-    }
-
-    // remove entries from mIdToIndexMap for all messages removed from mForwardList and mBackwardList
-    for (auto it = mIdToIndexMap.begin(); it != mIdToIndexMap.end();)
-    {
-        auto auxit = it++;
-        if (auxit->second >= idxMin && auxit->second <= idxMax)
-        {
-            mIdToIndexMap.erase(auxit);
-        }
-    }
-}
-
 void Chat::deleteOlderMessagesIncluding(Idx idx)
 {
-    Idx idxMin = CHATD_IDX_INVALID;
-    Idx idxMax = CHATD_IDX_INVALID;
-    std::vector<std::unique_ptr<Message>>::iterator itStart;
-    std::vector<std::unique_ptr<Message>>::iterator itEnd;
     if (idx >= mForwardStart)
     {
-        // clear backward list, and remove deleted idx from mIdToIndexMap
-        for (size_t i = 0; i < mBackwardList.size(); i++)
-        {
-            mIdToIndexMap.erase(mBackwardList.at(i).get()->id());
-        }
+        // clear backward list
         mBackwardList.clear();
 
         auto endOffset = idx - mForwardStart + 1; // increment 1 to include own idx
-        itStart = mForwardList.begin();
-        itEnd = mForwardList.begin() + endOffset;
+        auto itStart = mForwardList.begin();
+        auto itEnd = mForwardList.begin() + endOffset;
 
         if (itStart == mForwardList.end())  // ensure that first element iterator is valid
         {
             return;
         }
-
-        // calculate min and max indexes to remove deleted idx from mIdToIndexMap
-        idxMin = msgIndexFromId(itStart->get()->id());
-        idxMax = msgIndexFromId((itEnd - 1)->get()->id());  // decrement 1 as itEnd points to one past the last erased element
 
         // remove messages from mForwardList
         mForwardList.erase(itStart, itEnd);
@@ -5017,8 +4977,8 @@ void Chat::deleteOlderMessagesIncluding(Idx idx)
     else
     {
         long startOffset = mForwardStart - idx - 1; // decrement 1 to include own idx
-        itStart = mBackwardList.begin() + startOffset;
-        itEnd = (mBackwardList.end());
+        auto itStart = mBackwardList.begin() + startOffset;
+        auto itEnd = (mBackwardList.end());
 
         if (itStart == mBackwardList.end()) // ensure that first element iterator is valid
         {
@@ -5027,16 +4987,19 @@ void Chat::deleteOlderMessagesIncluding(Idx idx)
             return;
         }
 
-        // calculate min and max indexes to remove deleted idx from mIdToIndexMap
-        idxMin = msgIndexFromId(itStart->get()->id());
-        idxMax = msgIndexFromId((itEnd - 1)->get()->id());  // decrement 1 as itEnd points to one past the last erased element
-
         // remove messages from mBackwardList
         mBackwardList.erase(itStart, itEnd);
     }
 
-    // remove the range of idx, corresponding to removed messages above (from mIdToIndexMap)
-    removeRangeFromIdToIndexMap(idxMin, idxMax);
+    // remove all entries whose idx is <= than idx provided as param
+    for (auto it = mIdToIndexMap.begin(); it != mIdToIndexMap.end();)
+    {
+        auto auxit = it++;
+        if (auxit->second <= idx)
+        {
+            mIdToIndexMap.erase(auxit);
+        }
+    }
 }
 
 Message::Status Chat::getMsgStatus(const Message& msg, Idx idx) const
