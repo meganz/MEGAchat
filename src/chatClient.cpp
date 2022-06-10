@@ -654,7 +654,6 @@ int Client::importMessages(const char *externalDbPath)
             if (retentionTime && ts >= time(nullptr) - retentionTime)
             {
                 KR_LOG_DEBUG("importMessages: skipping msg with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
-                dbExternal.query("delete from history where chatid = ? and msgid = ?", chatid, msgid);
                 continue;
             }
 
@@ -710,7 +709,6 @@ int Client::importMessages(const char *externalDbPath)
                 if (retentionTime && ts >= time(nullptr) - retentionTime)
                 {
                     KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
-                    dbExternal.query("delete from history where chatid = ? and msgid = ?", chatid, msgid);
                     continue;
                 }
                 chat.msgImport(move(msg), true);
