@@ -2587,12 +2587,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                     }
                     else
                     {
+                        bool wasRinging = call->isRinging();
                         call->setCallerId(userid);
                         call->setRinging(call->isOtherClientParticipating() ? false : ringing);
 
-                        if (!ringing && call->isOwnClientCaller())
+                        if (!chat.isGroup() && wasRinging && !ringing && call->isOwnClientCaller())
                         {
-                            // notify that call has stopped ringing, in order stop outgoing ringing sound if we started the call
+                            // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
                             call->stopOutgoingRinging();
                         }
                     }
