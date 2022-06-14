@@ -281,7 +281,7 @@ public:
     // called upon reception of OP_LEFTCALL from chatd
     void removeParticipant(karere::Id peer) override;
     // check if our peer is participating in the call (called from chatd)
-    bool isOtherClientParticipating() override;
+    bool imParticipating() override;
 
     // called from chatd::onDisconnect() to remove peers from the call when disconnected from chatd
     void onDisconnectFromChatd() override;

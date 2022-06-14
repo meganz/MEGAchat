@@ -248,7 +248,7 @@ void Call::removeParticipant(karere::Id peer)
     return;
 }
 
-bool Call::isOtherClientParticipating()
+bool Call::imParticipating()
 {
     for (auto& peerid : mParticipants)
     {
@@ -276,7 +276,7 @@ promise::Promise<void> Call::endCall()
 
 promise::Promise<void> Call::hangup()
 {
-    if (!isOtherClientParticipating() && mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
+    if (!imParticipating() && mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
         // in 1on1 calls, the hangup (reject) by the user while ringing should end the call
         return endCall(); // reject 1on1 call while ringing

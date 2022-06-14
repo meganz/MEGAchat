@@ -2577,7 +2577,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                                 bool wasRinging = call->isRinging();
                                 call->setCallerId(userid);
-                                call->setRinging(call->isOtherClientParticipating() ? false : ringing);
+                                call->setRinging(call->imParticipating() ? false : ringing);
 
                                 if (!chat.isGroup() && wasRinging && !ringing && call->isOwnClientCaller())
                                 {
@@ -2596,7 +2596,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     {
                         bool wasRinging = call->isRinging();
                         call->setCallerId(userid);
-                        call->setRinging(call->isOtherClientParticipating() ? false : ringing);
+                        call->setRinging(call->imParticipating() ? false : ringing);
 
                         if (!chat.isGroup() && wasRinging && !ringing && call->isOwnClientCaller())
                         {
