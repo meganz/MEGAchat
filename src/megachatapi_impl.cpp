@@ -6216,6 +6216,36 @@ bool MegaChatSessionPrivate::isLowResVideo() const
     return mAvFlags.videoLowRes();
 }
 
+bool MegaChatSessionPrivate::hasScreenShare() const
+{
+    return mAvFlags.screenShare();
+}
+
+bool MegaChatSessionPrivate::isHiResScreenShare() const
+{
+    return mAvFlags.screenShareHiRes();
+}
+
+bool MegaChatSessionPrivate::isLowResScreenShare() const
+{
+    return mAvFlags.screenShareLowRes();
+}
+
+bool MegaChatSessionPrivate::hasCamera() const
+{
+    return mAvFlags.camera();
+}
+
+bool MegaChatSessionPrivate::isLowResCamera() const
+{
+    return mAvFlags.cameraLowRes();
+}
+
+bool MegaChatSessionPrivate::isHiResCamera() const
+{
+    return mAvFlags.cameraHiRes();
+}
+
 bool MegaChatSessionPrivate::isOnHold() const
 {
     return mAvFlags.isOnHold();
@@ -6234,6 +6264,20 @@ int MegaChatSessionPrivate::getTermCode() const
 bool MegaChatSessionPrivate::hasChanged(int changeType) const
 {
     return (mChanged & changeType);
+}
+
+char* MegaChatSessionPrivate::avFlagsToString() const
+{
+    std::string result;
+    (mAvFlags.audio())              ? result += "Audio = 1 "            : result += "Audio = 0 ";
+    (mAvFlags.cameraLowRes())       ? result += "Camera_Low = 1 "       : result += "Camera_Low = 0 ";
+    (mAvFlags.cameraHiRes())        ? result += "Camera_High = 1 "      : result += "Camera_High = 0 ";
+    (mAvFlags.screenShareLowRes())  ? result += "Screen_Low = 1 "       : result += "Screen_Low = 0 ";
+    (mAvFlags.screenShareHiRes())   ? result += "Screen_High = 1 "      : result += "Screen_High = 0 ";
+    (mAvFlags.isOnHold())           ? result += "Hold = 1 "             : result += "Hold = 0 ";
+    (canRecvVideoLowRes())          ? result += "Can_Recv_LowRes = 1 "  : result += "Can_Recv_LowRes = 0 ";
+    (canRecvVideoHiRes())           ? result += "Can_Recv_HiRes = 1 "   : result += "Can_Recv_HiRes = 0 ";
+    return MegaApi::strdup(result.c_str());
 }
 
 karere::AvFlags MegaChatSessionPrivate::getAvFlags() const
@@ -6416,7 +6460,7 @@ bool MegaChatCallPrivate::hasLocalAudio() const
 
 bool MegaChatCallPrivate::hasLocalVideo() const
 {
-    return mLocalAVFlags.videoCam();
+    return mLocalAVFlags.camera();
 }
 
 int MegaChatCallPrivate::getChanges() const

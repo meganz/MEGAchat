@@ -88,6 +88,37 @@ bool MegaChatSession::isLowResVideo() const
     return false;
 }
 
+bool MegaChatSession::hasCamera() const
+{
+    return false;
+}
+
+bool MegaChatSession::isLowResCamera() const
+{
+    return false;
+}
+
+bool MegaChatSession::isHiResCamera() const
+{
+    return false;
+}
+
+
+bool MegaChatSession::hasScreenShare() const
+{
+    return false;
+}
+
+bool MegaChatSession::isHiResScreenShare() const
+{
+    return false;
+}
+
+bool MegaChatSession::isLowResScreenShare() const
+{
+    return false;
+}
+
 bool MegaChatSession::isOnHold() const
 {
     return false;
@@ -126,6 +157,11 @@ bool MegaChatSession::canRecvVideoHiRes() const
 bool MegaChatSession::canRecvVideoLowRes() const
 {
     return false;
+}
+
+char* MegaChatSession::avFlagsToString() const
+{
+    return NULL;
 }
 
 MegaChatCall::~MegaChatCall()

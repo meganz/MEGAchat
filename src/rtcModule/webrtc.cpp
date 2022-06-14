@@ -956,7 +956,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
 void Call::getLocalStreams()
 {
     updateAudioTracks();
-    if (getLocalAvFlags().videoCam())
+    if (getLocalAvFlags().camera())
     {
         updateVideoTracks();
     }
@@ -1020,7 +1020,7 @@ void Call::mediaChannelDisconnect(bool releaseDevices)
 {
     if (releaseDevices)
     {
-        if (getLocalAvFlags().videoCam())
+        if (getLocalAvFlags().camera())
         {
             releaseVideoDevice();
         }
@@ -2251,7 +2251,7 @@ bool Call::isDestroying()
 void Call::updateVideoTracks()
 {
     bool isOnHold = getLocalAvFlags().isOnHold();
-    if (getLocalAvFlags().videoCam() && !isOnHold)
+    if (getLocalAvFlags().camera() && !isOnHold)
     {
         takeVideoDevice();
 
@@ -2735,7 +2735,7 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
         for (auto& render : mRenderers)
         {
             ICall* call = findCallByChatid(render.first);
-            if ((call && call->getLocalAvFlags().videoCam() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+            if ((call && call->getLocalAvFlags().camera() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
             {
                 assert(render.second != nullptr);
                 void* userData = NULL;

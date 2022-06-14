@@ -187,6 +187,16 @@ void MeetingView::setConnecting()
     mJoinCallWithoutVideo->setVisible(false);
 }
 
+bool MeetingView::hasLowResByCid(uint32_t cid)
+{
+    return mThumbsWidget.find(cid) != mThumbsWidget.end();
+}
+
+bool MeetingView::hasHiResByCid(uint32_t cid)
+{
+    return mHiResWidget.find(cid) != mHiResWidget.end();
+}
+
 std::string MeetingView::callStateToString(const ::megachat::MegaChatCall &call)
 {
     switch (call.getStatus())

@@ -150,29 +150,124 @@ public:
     /**
      * @brief Returns video state for the session
      *
-     * @return true if video is enable, false if video is disable
+     * This method returns if peer associated to this session is sending video (it doesn't means that we have requested)
+     * This method doesn't provide information about video quality (high resolution or low resolution) nor video source (camera or screen share).
+     *
+     * The following methods returns more specific information about video state for this session
+     *  - MegaChatSession::isHiResVideo:
+     *          peer associated to this session is sending hi-res video (camera or screen share)
+     *
+     *  - MegaChatSession::isLowResVideo:
+     *          peer associated to this session is sending low-res video (camera or screen share)
+     *
+     *  - MegaChatSession::hasCamera():
+     *          peer associated to this session is sending video from camera (low resolution or high resolution)
+     *
+     *  - MegaChatSession::isLowResCamera():
+     *          peer associated to this session is sending video from camera in low resolution
+     *
+     *  - MegaChatSession::isHiResCamera():
+     *          peer associated to this session is sending video from camera in high resolution
+     *
+     *  - MegaChatSession::hasScreenShare():
+     *          peer associated to this session is sending video from screen share (low resolution or high resolution)
+     *
+     *  - MegaChatSession::isHiResScreenShare():
+     *          peer associated to this session is sending video from screen share in high resolution
+     *
+     *  - MegaChatSession::isLowResScreenShare():
+     *          peer associated to this session is sending video from screen share in low resolution
+     *
+     *
+     * @return true if video is enable, false if video is disabled
      */
     virtual bool hasVideo() const;
 
     /**
-     * @brief Returns true if video quality is high resolution for the session
+     * @brief Returns true if peer associated to this session is sending video (camera or screen share) in high resolution
      *
-     * @note Indicate if client is sending high resolution video at this moment.
+     * @note Indicate if peer is sending high resolution video (camera or screen share) at this moment.
      * We can configure the session for receive video but peer is not sending yet
      *
-     * @return true if video quality is high resolution, otherwise returns false
+     * @return true if peer associated to this session is sending video (camera or screen share) in high resolution
      */
     virtual bool isHiResVideo() const;
 
     /**
-     * @brief Returns true if video quality is low resolution for the session
+     * @brief Returns true if peer associated to this session is sending video (camera or screen share) in low resolution
      *
-     * @note Indicate if client is sending low resolution video at this moment.
+     * @note Indicate if peer is sending low resolution video (camera or screen share) at this moment.
      * We can configure the session for receive video but peer is not sending yet
      *
-     * @return true if video quality is low resolution, otherwise returns false
+     * @return true if peer associated to this session is sending video (camera or screen share) in low resolution
      */
     virtual bool isLowResVideo() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from camera (low or high resolution)
+     *
+     * @note Indicate if peer is sending video from camera (low or high resolution)
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @return true if peer associated to this session is sending video from camera (low or high resolution)
+     */
+    virtual bool hasCamera() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from camera in low resolution
+     *
+     * @note Indicate if peer is sending video from camera in low resolution
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @note in case peer associated to this session is sending camera and screen share simultaneously,
+     * we will receive camera on low resolution track, and screen share in high resolution track
+     *
+     * @return true if peer associated to this session is sending video from camera in low resolution
+     */
+    virtual bool isLowResCamera() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from camera in high resolution
+     *
+     * @note Indicate if peer is sending video from camera in high resolution
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @return true if peer associated to this session is sending video from camera in high resolution
+     */
+    virtual bool isHiResCamera() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from screen share (low or high resolution)
+     *
+     * @note Indicate if peer is sending video from screen share (low or high resolution)
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @return true if peer associated to this session is sending video from screen share (low or high resolution)
+     */
+    virtual bool hasScreenShare() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from screen share in high resolution
+     *
+     * @note Indicate if peer is sending video from screen share in high resolution
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @note in case peer associated to this session is sending camera and screen share simultaneously,
+     * we will receive camera on low resolution track, and screen share in high resolution track
+     *
+     * @return true if peer associated to this session is sending video from screen share in high resolution
+     */
+    virtual bool isHiResScreenShare() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from screen share in low resolution
+     *
+     * @note Indicate if peer is sending video from screen share in low resolution
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @return true if peer associated to this session is sending video from screen share in low resolution
+     */
+    virtual bool isLowResScreenShare() const;
 
     /**
      * @brief Returns if session is on hold
@@ -309,6 +404,15 @@ public:
      * @return true if we are ready to receive video in low resolution
      */
     virtual bool canRecvVideoLowRes() const;
+
+    /**
+     * @brief Returns session av flags in a readable format
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return session av flags in a readable format
+     */
+    virtual char* avFlagsToString() const;
 };
 
 /**
