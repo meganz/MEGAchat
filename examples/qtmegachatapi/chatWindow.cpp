@@ -1133,7 +1133,7 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
 
     if (isVoiceClip)
     {
-        mMegaApi->startUpload(node.toStdString().c_str(), parent, 0, "vm", nullptr, false, false, nullptr);
+        mMegaApi->startUpload(node.toStdString().c_str(), parent, nullptr, 0, "vm", false, false, nullptr);
     }
     else
     {
