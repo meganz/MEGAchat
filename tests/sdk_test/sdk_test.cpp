@@ -4521,7 +4521,15 @@ MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileN
     addTransfer(accountIndex);
     std::string filePath = sourcePath + "/" + fileName;
     mNodeUploadHandle[accountIndex] = INVALID_HANDLE;
-    megaApi[accountIndex]->startUpload(filePath.c_str(), megaApi[accountIndex]->getNodeByPath(targetPath.c_str()), this);
+    megaApi[accountIndex]->startUpload(filePath.c_str()
+                                       , megaApi[accountIndex]->getNodeByPath(targetPath.c_str())
+                                       , nullptr    /*fileName*/
+                                       , 0          /*mtime*/
+                                       , nullptr    /*appdata*/
+                                       , false      /*isSourceTemporary*/
+                                       , false      /*startFirst*/
+                                       , nullptr    /*cancelToken*/
+                                       , this);     /*listener*/
     ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning(accountIndex)), "Expired timeout for upload file");
     ASSERT_CHAT_TEST(!lastErrorTransfer[accountIndex],
                      "Error upload file. Error: " + std::to_string(lastErrorTransfer[accountIndex]) + ". Source: " + filePath + "  target: " + targetPath);
@@ -4553,7 +4561,13 @@ bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
     }
 
     addTransfer(accountIndex);
-    megaApi[accountIndex]->startDownload(nodeToDownload, DOWNLOAD_PATH.c_str(), this);
+    megaApi[accountIndex]->startDownload(nodeToDownload,
+                                         DOWNLOAD_PATH.c_str(),
+                                         nullptr,   /*customName*/
+                                         nullptr,   /*appData*/
+                                         false,     /*startFirst*/
+                                         nullptr,   /*cancelToken*/
+                                         this);
     ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning(accountIndex)), "Expired timeout for download file");
     return lastErrorTransfer[accountIndex] == API_OK;
 }
