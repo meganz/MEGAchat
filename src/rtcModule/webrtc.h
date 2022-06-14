@@ -160,6 +160,7 @@ public:
     virtual CallState getState() const = 0;
     virtual bool isOwnClientCaller() const = 0;
 
+    virtual void addParticipant(const karere::Id &peer) = 0;
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
 

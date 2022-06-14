@@ -173,6 +173,20 @@ bool Call::isOwnClientCaller() const
     return mIsOwnClientCaller;
 }
 
+void Call::addParticipant(const karere::Id &peer)
+{
+    mParticipants.insert(peer);
+    mCallHandler.onAddPeer(*this, peer);
+    if (peer != mMyPeer->getPeerid()    // check that added peer is not own peerid
+            && !mIsGroup
+            && mIsOwnClientCaller
+            && mIsOutgoingRinging)
+    {
+        // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound, if we started the call and a peer have joined
+        stopOutgoingRinging();
+    }
+}
+
 void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
 {
     if (usersJoined.find(mMyPeer->getPeerid()) != usersJoined.end())
@@ -185,8 +199,7 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
         for (const karere::Id &peer : usersJoined)
         {
             // if we haven't experimented a chatd connection lost (mIsConnectedToChatd == true) just add received peers
-            mParticipants.insert(peer);
-            mCallHandler.onAddPeer(*this, peer);
+            addParticipant(peer);
         }
     }
     else
@@ -196,8 +209,7 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
             if (mParticipants.find(recvPeer) == mParticipants.end())
             {
                 // add new participant received at OP_JOINEDCALL
-                mParticipants.insert(recvPeer);
-                mCallHandler.onAddPeer(*this, recvPeer);
+                addParticipant(recvPeer);
             }
         }
 
@@ -383,6 +395,7 @@ void Call::setRinging(bool ringing)
 
 void Call::stopOutgoingRinging()
 {
+    // this event must notified just once per call (only for 1on1 calls)
     assert(isOwnClientCaller());
     mIsOutgoingRinging = false;
     mCallHandler.onStopOutgoingRinging(*this);
@@ -1554,8 +1567,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     {
         // if we are disconnected from chatd, but still connected to SFU and participating in a call
         // we need to update participants list with SFU information
-        mParticipants.insert(peer.getPeerid());
-        mCallHandler.onAddPeer(*this, peer.getPeerid());
+        addParticipant(peer.getPeerid());
     }
 
     return true;

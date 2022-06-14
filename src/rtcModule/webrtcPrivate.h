@@ -278,6 +278,10 @@ public:
 
     // called upon reception of OP_JOINEDCALL from chatd
     void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) override;
+
+    // add new participant to mParticipants map, and notify stopOutgoingRinging for 1on1 calls if it's required
+    void addParticipant(const karere::Id &peer) override;
+
     // called upon reception of OP_LEFTCALL from chatd
     void removeParticipant(karere::Id peer) override;
     // check if our peer is participating in the call (called from chatd)
@@ -441,6 +445,9 @@ protected:
     karere::Id mCallerId;
     CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
+
+    // (just for 1on1 calls) flag to indicate that outgoing ringing sound is reproducing
+    // no need to reset this flag as 1on1 calls, are destroyed when any of the participants hangs up
     bool mIsOutgoingRinging = false;
     bool mIgnored = false;
     bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
