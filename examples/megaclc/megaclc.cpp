@@ -3422,7 +3422,7 @@ void exec_startupload(ac::ACState& s)
     {
         if (!set_filename)
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), 0, nullptr, nullptr, false, false, nullptr,
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), nullptr, 0, nullptr, false, false, nullptr,
                     new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
@@ -3430,7 +3430,7 @@ void exec_startupload(ac::ACState& s)
         }
         else
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), 0, newfilename.c_str(), nullptr, false, false, nullptr,
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), newfilename.c_str(), 0, nullptr, false, false, nullptr,
                     new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
@@ -3466,7 +3466,7 @@ void exec_exportNode(ac::ACState& s)
         {
             if (specifyExpire)
             {
-                g_megaApi->exportNode(node.get(), expireTime, writableFlag, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                g_megaApi->exportNode(node.get(), expireTime, writableFlag, false, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                     {
                         if (check_err("exportnode", e, ReportFailure))
                         {
@@ -3477,7 +3477,7 @@ void exec_exportNode(ac::ACState& s)
             }
             else
             {
-                g_megaApi->exportNode(node.get(), writableFlag, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                g_megaApi->exportNode(node.get(), writableFlag, false, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                     {
                         if (check_err("exportnode", e, ReportFailure))
                         {
