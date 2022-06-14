@@ -2577,10 +2577,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 call->setCallerId(userid);
                                 call->setRinging(call->imParticipating() ? false : ringing);
 
-                                if (!chat.isGroup()
+                                if (!ringing
+                                        && !chat.isGroup()
                                         && call->isOwnClientCaller()
-                                        && call->isOutgoingRinging()
-                                        && !ringing)
+                                        && call->isOutgoingRinging())
                                 {
                                     // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
                                     call->stopOutgoingRinging();
@@ -2598,10 +2598,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                         call->setCallerId(userid);
                         call->setRinging(call->imParticipating() ? false : ringing);
 
-                        if (!chat.isGroup()
+                        if (!ringing
+                                && !chat.isGroup()
                                 && call->isOwnClientCaller()
-                                && call->isOutgoingRinging()
-                                && !ringing)
+                                && call->isOutgoingRinging())
                         {
                             // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
                             call->stopOutgoingRinging();
