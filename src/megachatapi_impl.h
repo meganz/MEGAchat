@@ -301,7 +301,7 @@ protected:
     bool mIsOwnClientCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
-    int mNetworkQuality = rtcModule::kNetworkQualityDefault;
+    int mNetworkQuality = rtcModule::kNetworkQualityGood;
 };
 
 class MegaChatVideoFrame
@@ -608,6 +608,7 @@ public:
     void onOnHold(const rtcModule::ICall& call) override;
     void onAddPeer(const rtcModule::ICall &call, karere::Id peer) override;
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
+    void onNetworkQualityChanged(const rtcModule::ICall &call) override;
     void onStopOutgoingRinging(const rtcModule::ICall& call) override;
 
 private:

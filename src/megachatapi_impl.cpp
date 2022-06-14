@@ -1684,26 +1684,17 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool moderator = chatroom->chat().getOwnprivilege() == PRIV_OPER;
             bool endCall = request->getFlag();
-            if (endCall && !moderator)
+            if (endCall && chatroom->isGroup() && chatroom->chat().getOwnprivilege() != PRIV_OPER)
             {
                 API_LOG_ERROR("End call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
-            if (endCall)
-            {
-                // TODO remove this block when we add support for endCall, and re-check conditions
-                API_LOG_ERROR("End call not supported yet");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
-
             ::promise::Promise<void> pms = endCall
-                    ? call->endCall()   // end call
-                    : call->hangup();   // hang up
+                    ? call->endCall()  // end call
+                    : call->hangup();               // hang up
 
             pms.then([request, this]()
             {
@@ -9100,6 +9091,13 @@ void MegaChatCallHandler::onRemovePeer(const rtcModule::ICall &call, Id peer)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setPeerid(peer, false);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onNetworkQualityChanged(const rtcModule::ICall &call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

@@ -33,9 +33,10 @@ public:
     void setOnHold(bool mIsOnHold, megachat::MegaChatHandle cid);
     std::string sessionToString(const megachat::MegaChatSession& session);
     void updateAudioMonitor(bool enabled);
-    void updateLabel(unsigned participants, const std::string &state);
+    void updateLabel(megachat::MegaChatCall *call);
     void setNotParticipating();
     void setConnecting();
+    static std::string callStateToString(const megachat::MegaChatCall& call);
 
     // methods to add/remove video widgets
     bool hasLowResByCid(uint32_t cid);
@@ -52,6 +53,7 @@ public:
 protected:
     megachat::MegaChatApi &mMegaChatApi;
     mega::MegaHandle mChatid;
+    int mNetworkQuality = ::megachat::MegaChatCall::NETWORK_QUALITY_GOOD;
 
     QGridLayout* mGridLayout;
     QHBoxLayout* mThumbLayout;
@@ -62,6 +64,7 @@ protected:
     QVBoxLayout* mButtonsLayout;
 
     QPushButton* mHangup;
+    QPushButton* mEndCall;
     QPushButton* mRequestSpeaker;
     QPushButton* mRequestSpeakerCancel;
     QPushButton* mEnableAudio;
@@ -86,6 +89,7 @@ protected:
 
 public slots:
     void onHangUp();
+    void onEndCall();
     void onOnHold();
     void onSessionContextMenu(const QPoint &);
     void onRequestSpeak(bool request);

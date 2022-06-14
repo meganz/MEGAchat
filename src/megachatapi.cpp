@@ -313,7 +313,6 @@ int MegaChatCall::getNetworkQuality() const
     return 0;
 }
 
-
 bool MegaChatCall::hasRequestSpeak() const
 {
     return false;
@@ -944,8 +943,6 @@ void MegaChatApi::hangChatCall(MegaChatHandle callid, MegaChatRequestListener *l
 
 void MegaChatApi::endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)
 {
-    // This method shouldn't be used in this first meeting phase
-    assert(false);
     pImpl->endChatCall(callid, listener);
 }
 

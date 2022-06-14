@@ -235,6 +235,8 @@ public:
     double mRttUpper;
     double mMovingAverageRtt;
     double mMovingAveragePlost;
+    double mVtxDelay;
+    double mMovingAverageVideoTxHeight;
     time_t mTsLastSwitch;
 };
 
@@ -253,6 +255,8 @@ public:
         kPending = 1,
         kActive = 2,
     };
+
+    static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
 
     Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
     virtual ~Call();
@@ -285,7 +289,7 @@ public:
     void reconnectToSfu() override;
 
     promise::Promise<void> hangup() override;
-    promise::Promise<void> endCall(int reason = chatd::kDefault) override;  // only used on 1on1 when incoming call is rejected
+    promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants
     promise::Promise<void> join(karere::AvFlags avFlags) override;
 
     // (for your own audio level)
@@ -369,6 +373,11 @@ public:
 
     // disconnect from media channel (MyPeerConnection)
     void mediaChannelDisconnect(bool releaseDevices = false);
+
+    // set temporal endCallReason (when call is not destroyed immediately)
+    void setTempEndCallReason(uint8_t reason);
+
+    // set definitive endCallReason
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
     std::string connectionTermCodeToString(const TermCode &termcode) const;
@@ -388,6 +397,7 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
+    void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
 
@@ -428,7 +438,7 @@ protected:
     karere::Id mCallid;
     karere::Id mChatid;
     karere::Id mCallerId;
-    CallState mState = CallState::kStateInitial;
+    CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
     bool mIgnored = false;
     bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
@@ -448,11 +458,12 @@ protected:
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
 
-    int mNetworkQuality = kNetworkQualityDefault;
+    int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
     TermCode mTempTermCode = kInvalidTermCode;
     uint8_t mEndCallReason = kInvalidReason;
+    uint8_t mTempEndCallReason = kInvalidReason;
 
     CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
@@ -480,6 +491,7 @@ protected:
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
 
+    megaHandle mConnectTimer = 0;    // Handler of the timeout for call re/connecting
     megaHandle mStatsTimer = 0;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
@@ -532,7 +544,7 @@ public:
     DNScache& getDnsCache() override;
 
     void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
-    void immediateRemoveCall(Call* call, EndCallReason reason, TermCode connectionTermCode);
+    void immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode);
 
     void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
     void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;

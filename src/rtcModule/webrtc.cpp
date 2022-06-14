@@ -18,6 +18,7 @@ SvcDriver::SvcDriver ()
       mRttUpper(0),
       mMovingAverageRtt(0),
       mMovingAveragePlost(0),
+      mMovingAverageVideoTxHeight(-1),
       mTsLastSwitch(0)
 {
 
@@ -103,14 +104,52 @@ bool Call::isAudioDetected() const
 
 void Call::setState(CallState newState)
 {
+    if (newState == mState)
+    {
+        return;
+    }
+
     RTCM_LOG_DEBUG("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
                  karere::Id(getChatid()).toString().c_str(),
                  karere::Id(getCallid()).toString().c_str(),
                  Call::stateToStr(mState),
                  Call::stateToStr(newState));
 
+
+    if (newState >= CallState::kStateTerminatingUserParticipation && mConnectTimer)
+    {
+        karere::cancelTimeout(mConnectTimer, mRtc.getAppCtx());
+        mConnectTimer = 0;
+    }
+
+    if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
+    {
+        auto wptr = weakHandle();
+        mConnectTimer = karere::setTimeout([this, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            assert(mState < CallState::kStateInProgress || !mConnectTimer); // if call state >= kStateInProgress mConnectTimer must be 0
+            if (mState < CallState::kStateInProgress)
+            {
+                mConnectTimer = 0;
+                SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
+                mIsReconnectingToChatd
+                    ? mRtc.orderedDisconnectAndCallRemove(this, rtcModule::EndCallReason::kFailed, kUserHangup) // no need to marshall, as we are executing a lambda in a timer
+                    : orderedCallDisconnect(kUserHangup, "Reconnection attempt has not succeed"); // TODO add new termcode to notify apps that reconnection attempt failed
+            }
+        }, kConnectingTimeout * 1000, mRtc.getAppCtx());
+    }
+
     if (newState == CallState::kStateInProgress)
     {
+        if (mConnectTimer) // cancel timer, as we have joined call before mConnectTimer expired
+        {
+            karere::cancelTimeout(mConnectTimer, mRtc.getAppCtx());
+            mConnectTimer = 0;
+        }
+
         // initial ts is set when user has joined to the call
         mInitialTs = time(nullptr);
     }
@@ -161,12 +200,14 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
             }
         }
 
-        for (const karere::Id &peer : mParticipants)
+        for (auto it = mParticipants.begin(); it != mParticipants.end();)
         {
+            auto auxit = it++;
+            karere::Id peer = *auxit;
             if (usersJoined.find(peer) == usersJoined.end())
             {
                 // remove participant from mParticipants, not present at list received at OP_JOINEDCALL
-                mParticipants.erase(peer);
+                mParticipants.erase(auxit);
                 mCallHandler.onRemovePeer(*this, peer);
             }
         }
@@ -221,9 +262,13 @@ bool Call::isOtherClientParticipating()
 }
 
 // for the moment just chatd::kRejected is a valid reason (only for rejecting 1on1 call while ringing)
-promise::Promise<void> Call::endCall(int reason)
+promise::Promise<void> Call::endCall()
 {
-    return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, reason)
+    int endCallReason = mIsGroup
+            ? chatd::kEndedByModerator            // reject 1on1 call ringing (not answered yet)
+            : chatd::kRejected;                   // end group/meeting call by moderator
+
+    return mMegaApi.call(&::mega::MegaApi::endChatCall, mChatid, mCallid, endCallReason)
     .then([](ReqResult /*result*/)
     {
     });
@@ -234,7 +279,7 @@ promise::Promise<void> Call::hangup()
     if (!isOtherClientParticipating() && mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
         // in 1on1 calls, the hangup (reject) by the user while ringing should end the call
-        return endCall(chatd::kRejected); // reject 1on1 call while ringing
+        return endCall(); // reject 1on1 call while ringing
     }
     else
     {
@@ -855,7 +900,7 @@ void Call::joinSfu()
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
         ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-        mSfuConnection->joinSfu(sdp, ivs, getLocalAvFlags().value(), mSpeakerState, kInitialvthumbCount);
+        mSfuConnection->joinSfu(sdp, ivs, getLocalAvFlags().value(), mMyPeer->getCid(), mSpeakerState, kInitialvthumbCount);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -934,8 +979,10 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
     if (!mSfuConnection || !mSfuConnection->isOnline()
             || termCode == kSigDisconn)  // kSigDisconn is mutually exclusive with the BYE command
     {
-        // we don't need to send BYE command, just perform disconnection
-        immediateCallDisconnect(termCode);
+        isDestroying()
+            ? mRtc.immediateRemoveCall(this, mTempEndCallReason, termCode) // destroy call immediately
+            : immediateCallDisconnect(termCode); // we don't need to send BYE command, just perform disconnection
+
         return;
     }
 
@@ -994,6 +1041,11 @@ void Call::mediaChannelDisconnect(bool releaseDevices)
 void Call::resetLocalAvFlags()
 {
     mMyPeer->setAvFlags(karere::AvFlags::kEmpty);
+}
+
+void Call::setTempEndCallReason(uint8_t reason)
+{
+    mTempEndCallReason = reason;
 }
 
 void Call::setEndCallReason(uint8_t reason)
@@ -1538,7 +1590,7 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
     if (!mIsGroup && !isTermCodeRetriable(peerLeftTermCode))
     {
         RTCM_LOG_DEBUG("handlePeerLeft. Hangup 1on1 call, upon reception of PEERLEFT with non recoverable termcode: %s", connectionTermCodeToString(peerLeftTermCode).c_str());
-        hangup();
+        hangup(); // TermCode::kUserHangup
     }
     return true;
 }
@@ -1555,7 +1607,7 @@ void Call::onSfuDisconnected()
     {
         if (!mSfuConnection->isSendingByeCommand())
         {
-            // if we called orderedRemoveCall (call state not between kStateConnecting and kStateInProgress) immediateRemoveCall would have been called, and call wouldn't exists at this point
+            // if we called orderedDisconnectAndCallRemove (call state not between kStateConnecting and kStateInProgress) immediateRemoveCall would have been called, and call wouldn't exists at this point
             RTCM_LOG_ERROR("onSfuDisconnected: call is being destroyed but we are not sending BYE command, current call shouldn't exist at this point");
             assert(mSfuConnection->isSendingByeCommand()); // in prod fallback to mediaChannelDisconnect and clearResources
         }
@@ -1568,9 +1620,9 @@ void Call::onSfuDisconnected()
                 {
                     return;
                 }
-                /* if we called orderedRemoveCall (call state between kStateConnecting and kStateInProgress),
+                /* if we called orderedDisconnectAndCallRemove (call state between kStateConnecting and kStateInProgress),
                  * but socket has been closed before BYE command is delivered, we need to remove call */
-                mRtc.immediateRemoveCall(this, rtcModule::EndCallReason::kFailed, kSigDisconn);
+                mRtc.immediateRemoveCall(this, mTempEndCallReason, kSigDisconn);
             }, mRtc.getAppCtx());
             return;
         }
@@ -1580,6 +1632,7 @@ void Call::onSfuDisconnected()
     // disconnect from media channel and clear resources
     mediaChannelDisconnect();
     clearResources(kRtcDisconn);
+    setState(CallState::kStateConnecting);
 }
 
 void Call::immediateCallDisconnect(const TermCode& termCode)
@@ -1647,7 +1700,7 @@ void Call::onSendByeCommand()
 
         if (isDestroying()) // we was trying to destroy call, and we have received BYE command delivering notification
         {
-            mRtc.immediateRemoveCall(this, EndCallReason::kFailed, mTempTermCode);
+            mRtc.immediateRemoveCall(this, mTempEndCallReason, mTempTermCode);
         }
         else
         {
@@ -2241,6 +2294,18 @@ void Call::updateVideoTracks()
     }
 }
 
+void Call::updateNetworkQuality(int networkQuality)
+{
+    if (networkQuality == mNetworkQuality)
+    {
+        return;
+    }
+
+    RTCM_LOG_WARNING("updateNetworkQuality: %s network quality detected", networkQuality == kNetworkQualityBad  ? "Bad" : "Good");
+    mNetworkQuality = networkQuality;
+    mCallHandler.onNetworkQualityChanged(*this);
+}
+
 void Call::adjustSvcByStats()
 {
     if (mStats.mSamples.mRoundTripTime.empty())
@@ -2315,6 +2380,33 @@ void Call::adjustSvcByStats()
         // faithfully improvement in network quality, we take mRttLower and mPacketLostLower as references
         updateSvcQuality(+1);
     }
+
+    if (mStats.mSamples.mVtxHiResh.size() < 2
+            || mStats.mSamples.mPacketSent.size() < 2
+            || mStats.mSamples.mTotalPacketSendDelay.size() < 2
+            || mStats.mSamples.mVtxHiResh.back() == 0
+            || mStats.mSamples.mVtxHiResh.at(mStats.mSamples.mVtxHiResh.size() -2) == 0)
+    {
+        // notify about a change in network quality if received quality is very low
+        mSvcDriver.mCurrentSvcLayerIndex < 1
+                ? updateNetworkQuality(kNetworkQualityBad)
+                : updateNetworkQuality(kNetworkQualityGood);
+        return;
+    }
+
+    mSvcDriver.mMovingAverageVideoTxHeight = mSvcDriver.mMovingAverageVideoTxHeight > 0
+            ? ((mSvcDriver.mMovingAverageVideoTxHeight * 3) + static_cast<double>(mStats.mSamples.mVtxHiResh.back())) / 4
+            : mStats.mSamples.mVtxHiResh.back();
+
+    bool txBad = mSvcDriver.mMovingAverageVideoTxHeight < 360;
+    uint32_t pktSent =  mStats.mSamples.mPacketSent.back() - mStats.mSamples.mPacketSent.at(mStats.mSamples.mPacketSent.size() - 2);
+    double totalPacketSendDelay = mStats.mSamples.mTotalPacketSendDelay.back() - mStats.mSamples.mTotalPacketSendDelay.at(mStats.mSamples.mTotalPacketSendDelay.size() - 2);
+    double vtxDelay = pktSent ? round(totalPacketSendDelay * 1000 / pktSent) : -1;
+
+    // notify about a change in network quality if necessary
+    (txBad || mSvcDriver.mCurrentSvcLayerIndex < 1 || roundTripTime > mSvcDriver.mRttUpper || vtxDelay > 1500)
+            ? updateNetworkQuality(kNetworkQualityBad)
+            : updateNetworkQuality(kNetworkQualityGood);
 }
 
 const std::string& Call::getCallKey() const
@@ -2570,15 +2662,18 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
     Call *call = static_cast<Call*>(iCall);
     if (!call)
     {
-        RTCM_LOG_WARNING("orderedRemoveCall: call doesn't exists anymore");
+        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call doesn't exists anymore");
         return;
     }
 
     if (call->isDestroying())
     {
-        RTCM_LOG_WARNING("orderedRemoveCall: call is already being destroyed");
+        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call is already being destroyed");
         return;
     }
+
+    // set temporary endCall reason in case immediateRemoveCall is not called immediately (i.e if we first need to send BYE command)
+    call->setTempEndCallReason(reason);
 
     RTCM_LOG_DEBUG("Ordered removing call with callid: %s", call->getCallid().toString().c_str());
     call->setDestroying(true);
@@ -2588,8 +2683,9 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
 }
 
 
-void RtcModuleSfu::immediateRemoveCall(Call* call, EndCallReason reason, TermCode connectionTermCode)
+void RtcModuleSfu::immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode)
 {
+    assert(reason != kInvalidReason);
     if (!call)
     {
         RTCM_LOG_WARNING("removeCall: call doesn't exists anymore");
