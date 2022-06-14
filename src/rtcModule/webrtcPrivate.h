@@ -304,6 +304,7 @@ public:
     void setRinging(bool ringing) override;
     void stopOutgoingRinging() override;
     bool isRinging() const override;    // (always false for outgoing calls)
+    bool isOutgoingRinging() const override; // (always false for incomming calls or groupal calls)
 
     void setOnHold() override;
     void releaseOnHold() override;
@@ -440,6 +441,7 @@ protected:
     karere::Id mCallerId;
     CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
+    bool mIsOutgoingRinging = false;
     bool mIgnored = false;
     bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
     bool mIsDestroying = false;

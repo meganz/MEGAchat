@@ -57,6 +57,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mChatid(chatid)
     , mCallerId(callerid)
     , mIsRinging(isRinging)
+    , mIsOutgoingRinging (caller && !isGroup) // If I have started a 1on1 call outgoing ringing is true
     , mIsOwnClientCaller(caller)
     , mIsGroup(isGroup)
     , mCallHandler(callHandler) // CallHandler to receive notifications about the call
@@ -383,6 +384,7 @@ void Call::setRinging(bool ringing)
 void Call::stopOutgoingRinging()
 {
     assert(isOwnClientCaller());
+    mIsOutgoingRinging = false;
     mCallHandler.onStopOutgoingRinging(*this);
 }
 
@@ -470,6 +472,11 @@ void Call::setCallerId(karere::Id callerid)
 bool Call::isRinging() const
 {
     return mIsRinging;
+}
+
+bool Call::isOutgoingRinging() const
+{
+    return mIsOutgoingRinging;
 }
 
 bool Call::isOutgoing() const

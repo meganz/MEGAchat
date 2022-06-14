@@ -2574,12 +2574,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                             {
                                 // if OP_JOINEDCALL was received first and needed to wait for the unified key,
                                 // it may have created the call object already
-
-                                bool wasRinging = call->isRinging();
                                 call->setCallerId(userid);
                                 call->setRinging(call->imParticipating() ? false : ringing);
 
-                                if (!chat.isGroup() && wasRinging && !ringing && call->isOwnClientCaller())
+                                if (!chat.isGroup()
+                                        && call->isOwnClientCaller()
+                                        && call->isOutgoingRinging()
+                                        && !ringing)
                                 {
                                     // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
                                     call->stopOutgoingRinging();
@@ -2594,11 +2595,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                     }
                     else
                     {
-                        bool wasRinging = call->isRinging();
                         call->setCallerId(userid);
                         call->setRinging(call->imParticipating() ? false : ringing);
 
-                        if (!chat.isGroup() && wasRinging && !ringing && call->isOwnClientCaller())
+                        if (!chat.isGroup()
+                                && call->isOwnClientCaller()
+                                && call->isOutgoingRinging()
+                                && !ringing)
                         {
                             // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
                             call->stopOutgoingRinging();
