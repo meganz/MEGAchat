@@ -1684,26 +1684,17 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool moderator = chatroom->chat().getOwnprivilege() == PRIV_OPER;
             bool endCall = request->getFlag();
-            if (endCall && !moderator)
+            if (endCall && chatroom->isGroup() && chatroom->chat().getOwnprivilege() != PRIV_OPER)
             {
                 API_LOG_ERROR("End call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
-            if (endCall)
-            {
-                // TODO remove this block when we add support for endCall, and re-check conditions
-                API_LOG_ERROR("End call not supported yet");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
-
             ::promise::Promise<void> pms = endCall
-                    ? call->endCall()   // end call
-                    : call->hangup();   // hang up
+                    ? call->endCall()  // end call
+                    : call->hangup();               // hang up
 
             pms.then([request, this]()
             {
@@ -6225,6 +6216,36 @@ bool MegaChatSessionPrivate::isLowResVideo() const
     return mAvFlags.videoLowRes();
 }
 
+bool MegaChatSessionPrivate::hasScreenShare() const
+{
+    return mAvFlags.screenShare();
+}
+
+bool MegaChatSessionPrivate::isHiResScreenShare() const
+{
+    return mAvFlags.screenShareHiRes();
+}
+
+bool MegaChatSessionPrivate::isLowResScreenShare() const
+{
+    return mAvFlags.screenShareLowRes();
+}
+
+bool MegaChatSessionPrivate::hasCamera() const
+{
+    return mAvFlags.camera();
+}
+
+bool MegaChatSessionPrivate::isLowResCamera() const
+{
+    return mAvFlags.cameraLowRes();
+}
+
+bool MegaChatSessionPrivate::isHiResCamera() const
+{
+    return mAvFlags.cameraHiRes();
+}
+
 bool MegaChatSessionPrivate::isOnHold() const
 {
     return mAvFlags.isOnHold();
@@ -6243,6 +6264,20 @@ int MegaChatSessionPrivate::getTermCode() const
 bool MegaChatSessionPrivate::hasChanged(int changeType) const
 {
     return (mChanged & changeType);
+}
+
+char* MegaChatSessionPrivate::avFlagsToString() const
+{
+    std::string result;
+    (mAvFlags.audio())              ? result += "Audio = 1 "            : result += "Audio = 0 ";
+    (mAvFlags.cameraLowRes())       ? result += "Camera_Low = 1 "       : result += "Camera_Low = 0 ";
+    (mAvFlags.cameraHiRes())        ? result += "Camera_High = 1 "      : result += "Camera_High = 0 ";
+    (mAvFlags.screenShareLowRes())  ? result += "Screen_Low = 1 "       : result += "Screen_Low = 0 ";
+    (mAvFlags.screenShareHiRes())   ? result += "Screen_High = 1 "      : result += "Screen_High = 0 ";
+    (mAvFlags.isOnHold())           ? result += "Hold = 1 "             : result += "Hold = 0 ";
+    (canRecvVideoLowRes())          ? result += "Can_Recv_LowRes = 1 "  : result += "Can_Recv_LowRes = 0 ";
+    (canRecvVideoHiRes())           ? result += "Can_Recv_HiRes = 1 "   : result += "Can_Recv_HiRes = 0 ";
+    return MegaApi::strdup(result.c_str());
 }
 
 karere::AvFlags MegaChatSessionPrivate::getAvFlags() const
@@ -6335,6 +6370,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mStatus = call.getState();
     mCallerId = call.getCallerid();
     mIsCaller = call.isOutgoing();
+    mIsOwnClientCaller = call.isOwnClientCaller();
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
@@ -6367,6 +6403,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mChatid = call.getChatid();
     mCallId = call.getCallId();
     mIsCaller = call.isOutgoing();
+    mIsOwnClientCaller = call.isOwnClientCaller();
     mLocalAVFlags = call.mLocalAVFlags;
     mChanged = call.mChanged;
     mInitialTs = call.mInitialTs;
@@ -6423,7 +6460,7 @@ bool MegaChatCallPrivate::hasLocalAudio() const
 
 bool MegaChatCallPrivate::hasLocalVideo() const
 {
-    return mLocalAVFlags.videoCam();
+    return mLocalAVFlags.camera();
 }
 
 int MegaChatCallPrivate::getChanges() const
@@ -6550,6 +6587,11 @@ bool MegaChatCallPrivate::isOutgoing() const
     return mIsCaller;
 }
 
+bool MegaChatCallPrivate::isOwnClientCaller() const
+{
+    return mIsOwnClientCaller;
+}
+
 MegaChatHandle MegaChatCallPrivate::getCaller() const
 {
     return mCallerId;
@@ -6655,6 +6697,7 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kChatDisconn:
+        case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kApiEndCall:
         case rtcModule::TermCode::kUnKnownTermCode:
             return TERM_CODE_ERROR;
@@ -8992,6 +9035,13 @@ void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
+void MegaChatCallHandler::onStopOutgoingRinging(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
 void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModule::ICall &call)
 {
     MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);
@@ -9041,6 +9091,13 @@ void MegaChatCallHandler::onRemovePeer(const rtcModule::ICall &call, Id peer)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setPeerid(peer, false);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onNetworkQualityChanged(const rtcModule::ICall &call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

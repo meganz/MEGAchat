@@ -181,6 +181,12 @@ public:
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;
     virtual bool isLowResVideo() const override;
+    virtual bool hasScreenShare() const override;
+    virtual bool isHiResScreenShare() const override;
+    virtual bool isLowResScreenShare() const override;
+    virtual bool hasCamera() const override;
+    virtual bool isLowResCamera() const override;
+    virtual bool isHiResCamera() const override;
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
     virtual int getTermCode() const override;
@@ -190,6 +196,7 @@ public:
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
 
+    char* avFlagsToString() const override;
     karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
     void setAudioDetected(bool audioDetected);
@@ -247,6 +254,7 @@ public:
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
+    virtual bool isOwnClientCaller() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
     bool isSpeakAllow() const override;
@@ -290,9 +298,10 @@ protected:
     bool mAudioDetected = false;
     bool mRinging = false;
     bool mIsCaller = false;
+    bool mIsOwnClientCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
-    int mNetworkQuality = rtcModule::kNetworkQualityDefault;
+    int mNetworkQuality = rtcModule::kNetworkQualityGood;
 };
 
 class MegaChatVideoFrame
@@ -599,6 +608,8 @@ public:
     void onOnHold(const rtcModule::ICall& call) override;
     void onAddPeer(const rtcModule::ICall &call, karere::Id peer) override;
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
+    void onNetworkQualityChanged(const rtcModule::ICall &call) override;
+    void onStopOutgoingRinging(const rtcModule::ICall& call) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;

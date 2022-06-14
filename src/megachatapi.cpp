@@ -88,6 +88,37 @@ bool MegaChatSession::isLowResVideo() const
     return false;
 }
 
+bool MegaChatSession::hasCamera() const
+{
+    return false;
+}
+
+bool MegaChatSession::isLowResCamera() const
+{
+    return false;
+}
+
+bool MegaChatSession::isHiResCamera() const
+{
+    return false;
+}
+
+
+bool MegaChatSession::hasScreenShare() const
+{
+    return false;
+}
+
+bool MegaChatSession::isHiResScreenShare() const
+{
+    return false;
+}
+
+bool MegaChatSession::isLowResScreenShare() const
+{
+    return false;
+}
+
 bool MegaChatSession::isOnHold() const
 {
     return false;
@@ -126,6 +157,11 @@ bool MegaChatSession::canRecvVideoHiRes() const
 bool MegaChatSession::canRecvVideoLowRes() const
 {
     return false;
+}
+
+char* MegaChatSession::avFlagsToString() const
+{
+    return NULL;
 }
 
 MegaChatCall::~MegaChatCall()
@@ -252,6 +288,11 @@ bool MegaChatCall::isOutgoing() const
     return false;
 }
 
+bool MegaChatCall::isOwnClientCaller() const
+{
+    return false;
+}
+
 MegaChatHandle MegaChatCall::getCaller() const
 {
     return MEGACHAT_INVALID_HANDLE;
@@ -271,7 +312,6 @@ int MegaChatCall::getNetworkQuality() const
 {
     return 0;
 }
-
 
 bool MegaChatCall::hasRequestSpeak() const
 {
@@ -903,8 +943,6 @@ void MegaChatApi::hangChatCall(MegaChatHandle callid, MegaChatRequestListener *l
 
 void MegaChatApi::endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)
 {
-    // This method shouldn't be used in this first meeting phase
-    assert(false);
     pImpl->endChatCall(callid, listener);
 }
 

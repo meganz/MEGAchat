@@ -232,7 +232,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         MeetingView* meetingView = itemController->getMeetingView();
         if (meetingView) // At destroy state meetingView doesn't exit
         {
-            meetingView->updateLabel(call->getNumParticipants(), callStateToString(*call));
+            meetingView->updateLabel(call);
         }
     }
 
@@ -260,13 +260,23 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION))
     {
         assert(itemController->getMeetingView());
-        itemController->getMeetingView()->updateLabel(call->getNumParticipants(), callStateToString(*call));
+        itemController->getMeetingView()->updateLabel(call);
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
     {
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->setOnHold(call->isOnHold(), MEGACHAT_INVALID_HANDLE);
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
+    {
+        itemController->getMeetingView()->updateLabel(call);
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP))
+    {
+        assert(call->isOwnClientCaller());
     }
 }
 
@@ -281,6 +291,9 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     MeetingView* meetingView = itemController->getMeetingView();
     assert(meetingView);
     meetingView->updateSession(*session);
+
+    std::unique_ptr<char[]>flags(session->avFlagsToString());
+    std::cerr << std::endl << "onChatSessionUpdate: " << flags.get() << std::endl;
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD))
     {
@@ -302,6 +315,20 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         session->canRecvVideoLowRes()
             ? meetingView->addLowResByCid(chatid, static_cast<uint32_t>(session->getClientid()))
             : meetingView->removeLowResByCid(static_cast<uint32_t>(session->getClientid()));
+    }
+
+    // request automatically hi-res track, in case peer starts sending camera and screenshare simultaneously, and we only was receiving low-res track
+    if (meetingView && session->isLowResCamera() && session->isHiResScreenShare())
+    {
+        // peer associated to this session is sending video from camera (in low-res) and video from screen share (in hi-res)
+        if (!meetingView->hasHiResByCid(static_cast<uint32_t>(session->getClientid())))
+        {
+            std::unique_ptr<MegaChatCall> call(mMegaChatApi->getChatCallByCallId(callid));
+            if (call && call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+            {
+                mMegaChatApi->requestHiResVideoWithQuality(chatid, session->getClientid(), megachat::MegaChatCall::CALL_QUALITY_HIGH_DEF);
+            }
+        }
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
@@ -326,37 +353,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     }
 }
 
-std::string MainWindow::callStateToString(const MegaChatCall &call)
-{
-    switch (call.getStatus())
-    {
-        case MegaChatCall::CALL_STATUS_INITIAL:
-            return "Initial";
-        break;
-        case MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
-            return "No Present";
-        break;
-        case MegaChatCall::CALL_STATUS_CONNECTING:
-            return "Connecting";
-        break;
-        case MegaChatCall::CALL_STATUS_JOINING:
-            return "Joining";
-        break;
-        case MegaChatCall::CALL_STATUS_IN_PROGRESS:
-            return "In-Progress";
-        break;
-        case MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
-            return "Terminating";
-        break;
-        case MegaChatCall::CALL_STATUS_DESTROYED:
-            return "Destroyed";
-        break;
-        default:
-            assert(false);
-            return "Unknown";
-            break;
-    }
-}
+
 
 #endif
 

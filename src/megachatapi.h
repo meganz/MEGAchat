@@ -150,29 +150,124 @@ public:
     /**
      * @brief Returns video state for the session
      *
-     * @return true if video is enable, false if video is disable
+     * This method returns if peer associated to this session is sending video (it doesn't means that we have requested)
+     * This method doesn't provide information about video quality (high resolution or low resolution) nor video source (camera or screen share).
+     *
+     * The following methods returns more specific information about video state for this session
+     *  - MegaChatSession::isHiResVideo:
+     *          peer associated to this session is sending hi-res video (camera or screen share)
+     *
+     *  - MegaChatSession::isLowResVideo:
+     *          peer associated to this session is sending low-res video (camera or screen share)
+     *
+     *  - MegaChatSession::hasCamera():
+     *          peer associated to this session is sending video from camera (low resolution or high resolution)
+     *
+     *  - MegaChatSession::isLowResCamera():
+     *          peer associated to this session is sending video from camera in low resolution
+     *
+     *  - MegaChatSession::isHiResCamera():
+     *          peer associated to this session is sending video from camera in high resolution
+     *
+     *  - MegaChatSession::hasScreenShare():
+     *          peer associated to this session is sending video from screen share (low resolution or high resolution)
+     *
+     *  - MegaChatSession::isHiResScreenShare():
+     *          peer associated to this session is sending video from screen share in high resolution
+     *
+     *  - MegaChatSession::isLowResScreenShare():
+     *          peer associated to this session is sending video from screen share in low resolution
+     *
+     *
+     * @return true if video is enable, false if video is disabled
      */
     virtual bool hasVideo() const;
 
     /**
-     * @brief Returns true if video quality is high resolution for the session
+     * @brief Returns true if peer associated to this session is sending video (camera or screen share) in high resolution
      *
-     * @note Indicate if client is sending high resolution video at this moment.
+     * @note Indicate if peer is sending high resolution video (camera or screen share) at this moment.
      * We can configure the session for receive video but peer is not sending yet
      *
-     * @return true if video quality is high resolution, otherwise returns false
+     * @return true if peer associated to this session is sending video (camera or screen share) in high resolution
      */
     virtual bool isHiResVideo() const;
 
     /**
-     * @brief Returns true if video quality is low resolution for the session
+     * @brief Returns true if peer associated to this session is sending video (camera or screen share) in low resolution
      *
-     * @note Indicate if client is sending low resolution video at this moment.
+     * @note Indicate if peer is sending low resolution video (camera or screen share) at this moment.
      * We can configure the session for receive video but peer is not sending yet
      *
-     * @return true if video quality is low resolution, otherwise returns false
+     * @return true if peer associated to this session is sending video (camera or screen share) in low resolution
      */
     virtual bool isLowResVideo() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from camera (low or high resolution)
+     *
+     * @note Indicate if peer is sending video from camera (low or high resolution)
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @return true if peer associated to this session is sending video from camera (low or high resolution)
+     */
+    virtual bool hasCamera() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from camera in low resolution
+     *
+     * @note Indicate if peer is sending video from camera in low resolution
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @note in case peer associated to this session is sending camera and screen share simultaneously,
+     * we will receive camera on low resolution track, and screen share in high resolution track
+     *
+     * @return true if peer associated to this session is sending video from camera in low resolution
+     */
+    virtual bool isLowResCamera() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from camera in high resolution
+     *
+     * @note Indicate if peer is sending video from camera in high resolution
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @return true if peer associated to this session is sending video from camera in high resolution
+     */
+    virtual bool isHiResCamera() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from screen share (low or high resolution)
+     *
+     * @note Indicate if peer is sending video from screen share (low or high resolution)
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @return true if peer associated to this session is sending video from screen share (low or high resolution)
+     */
+    virtual bool hasScreenShare() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from screen share in high resolution
+     *
+     * @note Indicate if peer is sending video from screen share in high resolution
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @note in case peer associated to this session is sending camera and screen share simultaneously,
+     * we will receive camera on low resolution track, and screen share in high resolution track
+     *
+     * @return true if peer associated to this session is sending video from screen share in high resolution
+     */
+    virtual bool isHiResScreenShare() const;
+
+    /**
+     * @brief Returns true if peer associated to this session is sending video from screen share in low resolution
+     *
+     * @note Indicate if peer is sending video from screen share in low resolution
+     * We can configure the session for receive video but peer is not sending yet
+     *
+     * @return true if peer associated to this session is sending video from screen share in low resolution
+     */
+    virtual bool isLowResScreenShare() const;
 
     /**
      * @brief Returns if session is on hold
@@ -309,6 +404,15 @@ public:
      * @return true if we are ready to receive video in low resolution
      */
     virtual bool canRecvVideoLowRes() const;
+
+    /**
+     * @brief Returns session av flags in a readable format
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return session av flags in a readable format
+     */
+    virtual char* avFlagsToString() const;
 };
 
 /**
@@ -352,6 +456,7 @@ public:
         CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
+        CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call outgoing ringing has stopped (only valid if our own client has started the call)
     };
 
     enum
@@ -359,6 +464,12 @@ public:
         CALL_QUALITY_HIGH_DEF = 0,
         CALL_QUALITY_HIGH_MEDIUM = 1,
         CALL_QUALITY_HIGH_LOW = 2,
+    };
+
+    enum
+    {
+        NETWORK_QUALITY_BAD  = 0,            // Bad network quality detected
+        NETWORK_QUALITY_GOOD = 1,            // Good network quality detected
     };
 
     enum {
@@ -483,6 +594,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      */
     virtual int getChanges() const;
 
@@ -521,6 +635,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
+     *
+     * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
+     * Call outgoing ringing has stopped (only valid if our own client has started the call)
      *
      * @return true if this call has an specific change
      */
@@ -701,9 +818,23 @@ public:
     /**
      * @brief Returns if call is outgoing
      *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will also return true.
+     *
      * @return True if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
+
+    /**
+     * @brief Returns true if our client has started the call
+     *
+     * @note in case another client logged in with the same account, has started the call,
+     * this method will return false, but MegaChatCall::isOutgoing will return true. In this
+     * case call is considerated an outgoing call, but our client wouldn't have started it.
+     *
+     * @return True if our client has started the call
+     */
+    virtual bool isOwnClientCaller() const;
 
     /**
      * @brief Returns the handle from user that has started the call
@@ -735,11 +866,15 @@ public:
     /**
      * @brief Returns network quality
      *
-     * The valid network quality values are between 0 and 5
-     * 0 -> the worst quality
-     * 5 -> the best quality
+     * The valid network quality values are:
+     *  - MegaChatCall::NETWORK_QUALITY_BAD          = 0,    // Bad network quality detected
+     *  - MegaChatCall::NETWORK_QUALITY_GOOD         = 1,    // Good network quality detected
      *
-     * @note The app may want to show a "slow network" warning when the quality is <= 1.
+     * The value returned by this method, only can be considered as valid, when is notified by MegaChatCallListener::onChatCallUpdate
+     * and MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY) is true.
+     *
+     * @note The app may want to show a "slow network" warning when the quality is MegaChatCall::NETWORK_QUALITY_BAD, and remove it
+     * when the quality is MegaChatCall::NETWORK_QUALITY_GOOD.
      *
      * @return network quality
      */
@@ -4805,6 +4940,11 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns false
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS    - if invalid callid provided
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
+     *
      * @param callid MegaChatHandle that identifies the call
      * @param listener MegaChatRequestListener to track this request
      */
@@ -4813,12 +4953,19 @@ public:
     /**
      * @brief End a call in a chat room (user must be moderator)
      *
+     * The scenario where this method is used, it's when moderator wants intentionally
+     * to end a groupchat or meeting call for all participants
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns true
      *
-     * @note This method shouldn't be used in this first meeting phase
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS    - if invalid callid provided
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
+     * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges
      *
      * @param callid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
