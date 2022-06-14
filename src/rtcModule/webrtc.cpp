@@ -396,7 +396,7 @@ void Call::setRinging(bool ringing)
 void Call::stopOutgoingRinging()
 {
     // this event must notified just once per call (only for 1on1 calls)
-    assert(isOwnClientCaller());
+    assert(mIsOwnClientCaller && !mIsGroup);
     mIsOutgoingRinging = false;
     mCallHandler.onStopOutgoingRinging(*this);
 }
