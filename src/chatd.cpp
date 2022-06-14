@@ -719,6 +719,13 @@ void Connection::setState(State state)
 
     if (mState == kStateDisconnected)
     {
+        // reset retention period for every chat in this shard
+        for (auto& chatid: mChatIds)
+        {
+            auto& chat = mChatdClient.chats(chatid);
+            chat.onRetentionTimeUpdated(0);
+        }
+
         mHeartbeatEnabled = false;
 
         // if a socket is opened, close it immediately
@@ -4743,7 +4750,10 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
         // Reactions must be cleared before call deleteMessagesBefore
         removeMessageReactions(idx, true);
-        deleteMessagesBefore(idx);
+
+        // we need to provide next older message to idx, to avoid removing truncation message
+        // as deleteOlderMessagesIncluding removes all mesagges prior to idx (including own idx)
+        deleteOlderMessagesIncluding(idx - 1);
         removePendingRichLinks(idx);
 
         // update last-seen pointer
@@ -4816,7 +4826,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
     CALL_DB(retentionHistoryTruncate, idx);
     cleanPendingReactionsOlderThan(idx); //clean pending reactions, including previous indexes
-    truncateByRetentionTime(idx);
+    deleteOlderMessagesIncluding(idx);
 
     removePendingRichLinks(idx);
 
@@ -4943,36 +4953,51 @@ Id Chat::makeRandomId()
     return distrib(rd);
 }
 
-void Chat::deleteMessagesBefore(Idx idx)
-{
-    //delete everything before idx, but not including idx
-    if (idx > mForwardStart)
-    {
-        mBackwardList.clear();
-        auto delCount = idx-mForwardStart;
-        mForwardList.erase(mForwardList.begin(), mForwardList.begin()+delCount);
-        mForwardStart += delCount;
-    }
-    else
-    {
-        mBackwardList.erase(mBackwardList.begin()+mForwardStart-idx, mBackwardList.end());
-    }
-}
-
-void Chat::truncateByRetentionTime(Idx idx)
+void Chat::deleteOlderMessagesIncluding(Idx idx)
 {
     if (idx >= mForwardStart)
     {
+        // clear backward list
         mBackwardList.clear();
-        assert(static_cast<size_t>(idx - mForwardStart + 1) <= mForwardList.size());
-        auto delCount = idx - mForwardStart;
-        auto end = mForwardList.begin() + delCount;
-        mForwardList.erase(mForwardList.begin(), end + 1);
-        mForwardStart += delCount + 1;
+
+        auto endOffset = idx - mForwardStart + 1; // increment 1 to include own idx
+        auto itStart = mForwardList.begin();
+        auto itEnd = mForwardList.begin() + endOffset;
+
+        if (itStart == mForwardList.end())  // ensure that first element iterator is valid
+        {
+            return;
+        }
+
+        // remove messages from mForwardList
+        mForwardList.erase(itStart, itEnd);
+        mForwardStart += endOffset;
     }
     else
     {
-        mBackwardList.erase(mBackwardList.begin() + mForwardStart - idx - 1, mBackwardList.end());
+        long startOffset = mForwardStart - idx - 1; // decrement 1 to include own idx
+        auto itStart = mBackwardList.begin() + startOffset;
+        auto itEnd = mBackwardList.end();
+
+        if (itStart == mBackwardList.end()) // ensure that first element iterator is valid
+        {
+            // in case there's only 1 message in mBackwardList and we are truncating history
+            // we want to preserve truncate message, and remove next one, but there are no more messages
+            return;
+        }
+
+        // remove messages from mBackwardList
+        mBackwardList.erase(itStart, itEnd);
+    }
+
+    // remove all entries whose idx is <= than idx provided as param
+    for (auto it = mIdToIndexMap.begin(); it != mIdToIndexMap.end();)
+    {
+        auto auxit = it++;
+        if (auxit->second <= idx)
+        {
+            mIdToIndexMap.erase(auxit);
+        }
     }
 }
 
@@ -5035,6 +5060,8 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
 
         push_forward(message);
         idx = highnum();
+        mIdToIndexMap[msgid] = idx;
+
         if (!mOldestKnownMsgId)
             mOldestKnownMsgId = msgid;
 
@@ -5055,6 +5082,8 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
             if (mHasMoreHistoryInDb)
             { //we have db history that is not loaded, so we determine the index
               //by the db, and don't add the message to RAM
+                mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99016, "msgIncoming: incoming message is older than the oldest we have");
+                assert(false);
                 idx = mDbInterface->getOldestIdx()-1;
             }
             else
@@ -5062,6 +5091,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
                 //all history is in RAM, determine the index from RAM
                 push_back(message);
                 idx = lownum();
+                mIdToIndexMap[msgid] = idx;
             }
             //shouldn't we update this only after we save the msg to db?
             mOldestKnownMsgId = msgid;
@@ -5070,12 +5100,12 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
         {
             push_back(message);
             idx = lownum();
+            mIdToIndexMap[msgid] = idx;
             if (msgid == mOldestKnownMsgId)
             //we have just processed the oldest message from the db
                 mHasMoreHistoryInDb = false;
         }
     }
-    mIdToIndexMap[msgid] = idx;
     handleLastReceivedSeen(msgid);
     msgIncomingAfterAdd(isNew, isLocal, *message, idx);
     return idx;
