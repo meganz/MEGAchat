@@ -5869,7 +5869,7 @@ public:
      *          + END_CALL_REASON_FAILED
      *          + END_CALL_REASON_CANCELLED
      *          + END_CALL_REASON_BY_MODERATOR
-     *      If termCode is END_CALL_REASON_REJECTED, END_CALL_REASON_NO_ANSWER, END_CALL_REASON_CANCELLED
+     *      If termCode is END_CALL_REASON_REJECTED, END_CALL_REASON_NO_ANSWER, END_CALL_REASON_CANCELLED or END_CALL_REASON_BY_MODERATOR
      *      any participant won't be added
      *
      * The SDK retains the ownership of the returned value. It will be valid until
