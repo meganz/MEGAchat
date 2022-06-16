@@ -2537,6 +2537,16 @@ public:
         DB_ERROR_FULL               = 2,    /// Database or disk is full  (non recoverable)
     };
 
+    enum
+    {
+        CHAT_TYPE_ALL             = 0,  /// All chats types
+        CHAT_TYPE_INDIVIDUAL      = 1,  /// 1on1 chats
+        CHAT_TYPE_GROUP           = 2,  /// Group chats, public and private ones (non meeting rooms)
+        CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
+        CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
+        CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+    };
+
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
      * @brief Creates an instance of MegaChatApi to access to the chat-engine.
@@ -3360,6 +3370,30 @@ public:
      * @return List of MegaChatRoom objects with all chatrooms of this account.
      */
     MegaChatRoomList *getChatRooms();
+
+    /**
+     * @brief Returns a list of chatrooms of this MEGA account filtered by type
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * @param type Type of the chatrooms returned by this method.
+     * Valid values for param type are:
+     * - MegaChatApi::CHAT_TYPE_ALL             = 0,  /// All chats types
+     * - MegaChatApi::CHAT_TYPE_INDIVIDUAL      = 1,  /// 1on1 chats
+     * - MegaChatApi::CHAT_TYPE_GROUP           = 2,  /// Group chats, public and private ones (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+     *
+     * In case you provide an invalid value for type param, this method will returns an empty list
+     *
+     * You take the ownership of the returned value
+     *
+     * @return List of MegaChatRoom objects filtered by type of this account.
+     */
+    MegaChatRoomList* getChatRoomsByType(int type = CHAT_TYPE_ALL);
 
     /**
      * @brief Get the MegaChatRoom that has a specific handle
