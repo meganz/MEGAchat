@@ -2575,7 +2575,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 // if OP_JOINEDCALL was received first and needed to wait for the unified key,
                                 // it may have created the call object already
                                 call->setCallerId(userid);
-                                call->setRinging(call->imParticipating() ? false : ringing);
+                                call->setRinging(call->alreadyParticipating() ? false : ringing);
 
                                 if (!ringing
                                         && !chat.isGroup()
@@ -2596,7 +2596,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     else
                     {
                         call->setCallerId(userid);
-                        call->setRinging(call->imParticipating() ? false : ringing);
+                        call->setRinging(call->alreadyParticipating() ? false : ringing);
 
                         if (!ringing
                                 && !chat.isGroup()

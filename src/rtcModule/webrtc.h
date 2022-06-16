@@ -191,7 +191,7 @@ public:
     virtual uint8_t getEndCallReason() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
-    virtual bool imParticipating() = 0;
+    virtual bool alreadyParticipating() = 0;
     virtual void requestSpeaker(bool add = true) = 0;
     virtual bool isSpeakAllow() const = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
