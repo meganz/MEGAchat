@@ -495,12 +495,13 @@ public:
 
     enum
     {
-        END_CALL_REASON_INVALID     = -1,    /// Invalid endcall reason (it can be ignored)
-        END_CALL_REASON_ENDED       = 1,     /// Call finished normally
-        END_CALL_REASON_REJECTED    = 2,     /// Call was rejected by callee
-        END_CALL_REASON_NO_ANSWER   = 3,     /// Call wasn't answered
-        END_CALL_REASON_FAILED      = 4,     /// Call finished by an error
-        END_CALL_REASON_CANCELLED   = 5      /// Call was canceled by caller.
+        END_CALL_REASON_INVALID         = -1,    /// Invalid endcall reason (it can be ignored)
+        END_CALL_REASON_ENDED           = 1,     /// Call finished normally
+        END_CALL_REASON_REJECTED        = 2,     /// Call was rejected by callee
+        END_CALL_REASON_NO_ANSWER       = 3,     /// Call wasn't answered
+        END_CALL_REASON_FAILED          = 4,     /// Call finished by an error
+        END_CALL_REASON_CANCELLED       = 5,     /// Call was canceled by caller.
+        END_CALL_REASON_BY_MODERATOR    = 6      /// group or meeting call has been ended by moderator
     };
 
     virtual ~MegaChatCall();
@@ -699,12 +700,13 @@ public:
      * @note this value only will be valid in state CALL_STATUS_DESTROYED
      *
      * Valid values are:
-     *  - END_CALL_REASON_INVALID     = -1,  (Invalid endcall reason, it can be ignored)
-     *  - END_CALL_REASON_ENDED       = 1,   (Call finished normally)
-     *  - END_CALL_REASON_REJECTED    = 2,   (Call was rejected by callee)
-     *  - END_CALL_REASON_NO_ANSWER   = 3,   (Call wasn't answered)
-     *  - END_CALL_REASON_FAILED      = 4,   (Call finished by an error)
-     *  - END_CALL_REASON_CANCELLED   = 5    (Call was canceled by caller)
+     *  - END_CALL_REASON_INVALID       = -1,  (Invalid endcall reason, it can be ignored)
+     *  - END_CALL_REASON_ENDED         = 1,   (Call finished normally)
+     *  - END_CALL_REASON_REJECTED      = 2,   (Call was rejected by callee)
+     *  - END_CALL_REASON_NO_ANSWER     = 3,   (Call wasn't answered)
+     *  - END_CALL_REASON_FAILED        = 4,   (Call finished by an error)
+     *  - END_CALL_REASON_CANCELLED     = 5    (Call was canceled by caller)
+     *  - END_CALL_REASON_BY_MODERATOR  = 6    (Call was ended by moderator)
      *
      * @return endCall reason for the call
      */
@@ -1498,11 +1500,12 @@ public:
 
     enum
     {
-        END_CALL_REASON_ENDED       = 1,    /// Call finished normally
-        END_CALL_REASON_REJECTED    = 2,    /// Call was rejected by callee
-        END_CALL_REASON_NO_ANSWER   = 3,    /// Call wasn't answered
-        END_CALL_REASON_FAILED      = 4,    /// Call finished by an error
-        END_CALL_REASON_CANCELLED   = 5     /// Call was canceled by caller.
+        END_CALL_REASON_ENDED           = 1,    /// Call finished normally
+        END_CALL_REASON_REJECTED        = 2,    /// Call was rejected by callee
+        END_CALL_REASON_NO_ANSWER       = 3,    /// Call wasn't answered
+        END_CALL_REASON_FAILED          = 4,    /// Call finished by an error
+        END_CALL_REASON_CANCELLED       = 5,    /// Call was canceled by caller.
+        END_CALL_REASON_BY_MODERATOR    = 6     /// group or meeting call has been ended by moderator
     };
 
     enum
@@ -1822,11 +1825,12 @@ public:
      *  - MegaChatMessage::TYPE_CALL_ENDED
      *
      * The possible values for termination codes are the following:
-     *  - END_CALL_REASON_ENDED       = 1
-     *  - END_CALL_REASON_REJECTED    = 2
-     *  - END_CALL_REASON_NO_ANSWER   = 3
-     *  - END_CALL_REASON_FAILED      = 4
-     *  - END_CALL_REASON_CANCELLED   = 5
+     *  - END_CALL_REASON_ENDED         = 1
+     *  - END_CALL_REASON_REJECTED      = 2
+     *  - END_CALL_REASON_NO_ANSWER     = 3
+     *  - END_CALL_REASON_FAILED        = 4
+     *  - END_CALL_REASON_CANCELLED     = 5
+     *  - END_CALL_REASON_BY_MODERATOR  = 6
      *
      * @return Call termination code
      */
@@ -5864,6 +5868,7 @@ public:
      *          + END_CALL_REASON_NO_ANSWER
      *          + END_CALL_REASON_FAILED
      *          + END_CALL_REASON_CANCELLED
+     *          + END_CALL_REASON_BY_MODERATOR
      *      If termCode is END_CALL_REASON_REJECTED, END_CALL_REASON_NO_ANSWER, END_CALL_REASON_CANCELLED
      *      any participant won't be added
      *
