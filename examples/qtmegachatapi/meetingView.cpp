@@ -150,6 +150,12 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
     {
         txt.append("<br /><span style='color:#FF0000'>SLOW NETWORK</span>");
     }
+
+    if (!getNumSessions() && call->getStatus() == ::megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+    {
+        txt.append("<br /><span style='color:#FFA500'>NO PARTICIPANTS</span>");
+    }
+
     mLabel->setText(txt.c_str());
 }
 
@@ -303,26 +309,6 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
         {
             mMegaChatApi.setIgnoredCall(mChatid);
         }
-    }
-}
-
-void MeetingView::manageAllPeersLeft(megachat::MegaChatHandle callid, bool isGroup)
-{
-    assert(!getNumSessions());
-    QMessageBox msgBox;
-    std::string textMsg = "You are the only one participant in a ";
-    textMsg.append(!isGroup ? "1on1" : "group").append(" call. Do you want to hangup?");
-    msgBox.setText(textMsg.c_str());
-    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-    msgBox.setDefaultButton(QMessageBox::Save);
-    int ret = msgBox.exec();
-    if (ret == QMessageBox::Ok)
-    {
-        mMegaChatApi.hangChatCall(callid);
-    }
-    else
-    {
-        // TODO set a timeout
     }
 }
 
