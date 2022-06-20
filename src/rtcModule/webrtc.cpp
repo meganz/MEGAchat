@@ -57,6 +57,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mChatid(chatid)
     , mCallerId(callerid)
     , mIsRinging(isRinging)
+    , mIsOutgoingRinging (caller && !isGroup) // If I have started a 1on1 call outgoing ringing is true
     , mIsOwnClientCaller(caller)
     , mIsGroup(isGroup)
     , mCallHandler(callHandler) // CallHandler to receive notifications about the call
@@ -172,6 +173,20 @@ bool Call::isOwnClientCaller() const
     return mIsOwnClientCaller;
 }
 
+void Call::addParticipant(const karere::Id &peer)
+{
+    mParticipants.insert(peer);
+    mCallHandler.onAddPeer(*this, peer);
+    if (peer != mMyPeer->getPeerid()    // check that added peer is not own peerid
+            && !mIsGroup
+            && mIsOwnClientCaller
+            && mIsOutgoingRinging)
+    {
+        // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound, if we started the call and a peer have joined
+        stopOutgoingRinging();
+    }
+}
+
 void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
 {
     if (usersJoined.find(mMyPeer->getPeerid()) != usersJoined.end())
@@ -184,8 +199,7 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
         for (const karere::Id &peer : usersJoined)
         {
             // if we haven't experimented a chatd connection lost (mIsConnectedToChatd == true) just add received peers
-            mParticipants.insert(peer);
-            mCallHandler.onAddPeer(*this, peer);
+            addParticipant(peer);
         }
     }
     else
@@ -195,8 +209,7 @@ void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
             if (mParticipants.find(recvPeer) == mParticipants.end())
             {
                 // add new participant received at OP_JOINEDCALL
-                mParticipants.insert(recvPeer);
-                mCallHandler.onAddPeer(*this, recvPeer);
+                addParticipant(recvPeer);
             }
         }
 
@@ -248,7 +261,7 @@ void Call::removeParticipant(karere::Id peer)
     return;
 }
 
-bool Call::isOtherClientParticipating()
+bool Call::alreadyParticipating()
 {
     for (auto& peerid : mParticipants)
     {
@@ -276,7 +289,7 @@ promise::Promise<void> Call::endCall()
 
 promise::Promise<void> Call::hangup()
 {
-    if (!isOtherClientParticipating() && mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
+    if (!alreadyParticipating() && mState == kStateClientNoParticipating && mIsRinging && !mIsGroup)
     {
         // in 1on1 calls, the hangup (reject) by the user while ringing should end the call
         return endCall(); // reject 1on1 call while ringing
@@ -382,7 +395,19 @@ void Call::setRinging(bool ringing)
 
 void Call::stopOutgoingRinging()
 {
-    assert(isOwnClientCaller());
+    if (!mIsOutgoingRinging)
+    {
+        return;
+    }
+
+    if (!mIsOwnClientCaller || mIsGroup)
+    {
+        assert(false);
+        return;
+    }
+
+    // this event must notified just once per call (only for 1on1 calls)
+    mIsOutgoingRinging = false;
     mCallHandler.onStopOutgoingRinging(*this);
 }
 
@@ -470,6 +495,11 @@ void Call::setCallerId(karere::Id callerid)
 bool Call::isRinging() const
 {
     return mIsRinging;
+}
+
+bool Call::isOutgoingRinging() const
+{
+    return mIsOutgoingRinging;
 }
 
 bool Call::isOutgoing() const
@@ -1547,8 +1577,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
     {
         // if we are disconnected from chatd, but still connected to SFU and participating in a call
         // we need to update participants list with SFU information
-        mParticipants.insert(peer.getPeerid());
-        mCallHandler.onAddPeer(*this, peer.getPeerid());
+        addParticipant(peer.getPeerid());
     }
 
     return true;

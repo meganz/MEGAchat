@@ -2574,9 +2574,17 @@ void Connection::execCommand(const StaticBuffer& buf)
                             {
                                 // if OP_JOINEDCALL was received first and needed to wait for the unified key,
                                 // it may have created the call object already
-
                                 call->setCallerId(userid);
-                                call->setRinging(call->isOtherClientParticipating() ? false : ringing);
+                                call->setRinging(call->alreadyParticipating() ? false : ringing);
+
+                                if (!ringing
+                                        && !chat.isGroup()
+                                        && call->isOwnClientCaller()
+                                        && call->isOutgoingRinging())
+                                {
+                                    // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
+                                    call->stopOutgoingRinging();
+                                }
                             }
 
                         })
@@ -2588,11 +2596,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                     else
                     {
                         call->setCallerId(userid);
-                        call->setRinging(call->isOtherClientParticipating() ? false : ringing);
+                        call->setRinging(call->alreadyParticipating() ? false : ringing);
 
-                        if (!ringing && call->isOwnClientCaller())
+                        if (!ringing
+                                && !chat.isGroup()
+                                && call->isOwnClientCaller()
+                                && call->isOutgoingRinging())
                         {
-                            // notify that call has stopped ringing, in order stop outgoing ringing sound if we started the call
+                            // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
                             call->stopOutgoingRinging();
                         }
                     }
