@@ -1472,7 +1472,7 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
     return processCommandResult;
 }
 
-bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker, int vthumbs)
+bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, int avFlags, Cid_t prevCid, int speaker, int vthumbs)
 {
     rapidjson::Document json(rapidjson::kObjectType);
 
@@ -1554,6 +1554,11 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
+    if (prevCid) // cid 0 is invalid
+    {
+        // when reconnecting, send the SFU the CID of the previous connection, so it can kill it instantly
+        json.AddMember("cid", prevCid, json.GetAllocator());
+    }
 
     if (speaker)
     {

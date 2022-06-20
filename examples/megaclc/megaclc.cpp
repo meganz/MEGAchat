@@ -3406,14 +3406,16 @@ void exec_startupload(ac::ACState& s)
     {
         if (!set_filename)
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), nullptr, 0, nullptr, false, false, nullptr,
+                    new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
                 }));
         }
         else
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), newfilename.c_str(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), newfilename.c_str(), 0, nullptr, false, false, nullptr,
+                    new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
                 }));
@@ -3425,7 +3427,8 @@ void exec_startdownload(ac::ACState& s)
 {
     if (auto node = GetNodeByPath(s.words[1].s))
     {
-        g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+        g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), nullptr, nullptr, false, nullptr,
+                new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
             {
                 check_err("startDownload", e, ReportResult);
             }));
@@ -3447,7 +3450,7 @@ void exec_exportNode(ac::ACState& s)
         {
             if (specifyExpire)
             {
-                g_megaApi->exportNode(node.get(), expireTime, writableFlag, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                g_megaApi->exportNode(node.get(), expireTime, writableFlag, false, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                     {
                         if (check_err("exportnode", e, ReportFailure))
                         {
@@ -3458,7 +3461,7 @@ void exec_exportNode(ac::ACState& s)
             }
             else
             {
-                g_megaApi->exportNode(node.get(), writableFlag, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                g_megaApi->exportNode(node.get(), writableFlag, false, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                     {
                         if (check_err("exportnode", e, ReportFailure))
                         {

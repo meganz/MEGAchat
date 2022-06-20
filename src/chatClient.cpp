@@ -494,6 +494,7 @@ int Client::importMessages(const char *externalDbPath)
         karere::ChatRoom *chatroom = it.second;
         chatd::Chat &chat = chatroom->chat();
         karere::Id chatid = chatroom->chatid();
+        uint32_t retentionTime = chat.getRetentionTime();
 
         // get id of last message seen from external db
         Id lastSeenId;
@@ -501,8 +502,24 @@ int Client::importMessages(const char *externalDbPath)
         stmtLastSeen << chatid;
         if (stmtLastSeen.step())
         {
+            time_t lastSeenTs = 0;
+            time_t expireRetentionTs = 0;
             lastSeenId = stmtLastSeen.uint64Col(0);
-            chat.seenImport(lastSeenId);
+            if (retentionTime)
+            {
+                // check last seen message ts
+                SqliteStmt stmtLastSeenTs(dbExternal, "select ts from history where chatid=? and msgid=?");
+                stmtLastSeenTs << chatid;
+                stmtLastSeenTs << lastSeenId;
+                stmtLastSeenTs.stepMustHaveData(); // msg must exists on history table
+                lastSeenTs = static_cast<time_t> (stmtLastSeen.uint64Col(0));
+                expireRetentionTs = time(nullptr) - retentionTime;
+            }
+
+            if (!retentionTime || lastSeenTs > expireRetentionTs)
+            {
+                chat.seenImport(lastSeenId);  // call seen import if no retention time is set or it hasn't expired
+            }
         }
         else    // no SEEN pointer for this chat on external cache (or chat not found)
         {
@@ -634,6 +651,12 @@ int Client::importMessages(const char *externalDbPath)
                 chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
             }
 
+            if (retentionTime && ts <= time(nullptr) - retentionTime)
+            {
+                KR_LOG_DEBUG("importMessages: skipping msg with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                continue;
+            }
+
             chat.msgImport(move(msg), isUpdate);
             (isUpdate) ? countUpdated++ : countAdded++;
 
@@ -683,6 +706,11 @@ int Client::importMessages(const char *externalDbPath)
                 msg->backRefId = stmtMsgUpdated.uint64Col(7);
                 msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
 
+                if (retentionTime && ts <= time(nullptr) - retentionTime)
+                {
+                    KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                    continue;
+                }
                 chat.msgImport(move(msg), true);
                 countUpdated++;
 
@@ -3977,11 +4005,16 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 
 void GroupChatRoom::setChatPrivateMode()
 {
+    if (mMeeting)
+    {
+        mMeeting = false; // in case public chat was a meeting room set mMeeting to false
+    }
+
     //Update strongvelope
     chat().crypto()->setPrivateChatMode();
 
-    //Update cache
-    parent.mKarereClient.db.query("update chats set mode = '0' where chatid = ?", mChatid);
+    //Update cache updating mode and ensure that meeting field is disabled (0)
+    parent.mKarereClient.db.query("update chats set mode = '0', meeting = '0' where chatid = ?", mChatid);
 
     notifyChatModeChanged();
 
