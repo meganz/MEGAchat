@@ -9149,6 +9149,7 @@ void MegaChatCallHandler::onCallError(rtcModule::ICall &call, int code, const st
     chatCall->setNotificationType(MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR);                           // Notification type
     chatCall->setTermCode(chatCall->convertTermCode(static_cast<rtcModule::TermCode>(code)));           // SFU error
     chatCall->setMessage(errMsg);                                                                       // SFU err message
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onStopOutgoingRinging(const rtcModule::ICall& call)
