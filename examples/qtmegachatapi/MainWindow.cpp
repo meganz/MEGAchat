@@ -347,7 +347,11 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
                     || (itemController->getItem()->isGroup() && !meetingView->getNumSessions()))
             {
                 // if peer left a 1on1 call with a recoverable termcode, or last peer left a group call
-                meetingView->manageAllPeersLeft(callid, itemController->getItem()->isGroup());
+                std::unique_ptr<MegaChatCall> call(mMegaChatApi->getChatCallByCallId(callid));
+                if (call)
+                {
+                    meetingView->updateLabel(call.get());
+                }
             }
         }
     }

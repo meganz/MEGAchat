@@ -48,7 +48,6 @@ public:
     void localAudioDetected(bool audio);
     void createRingingWindow(megachat::MegaChatHandle callid);
     void destroyRingingWindow();
-    void manageAllPeersLeft(megachat::MegaChatHandle callid, bool isGroup);
 
 protected:
     megachat::MegaChatApi &mMegaChatApi;
