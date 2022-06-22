@@ -638,7 +638,8 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         assert(!mRetryCtrl);
         reconnect(); //start retry controller
     }
-    else // (mState < kStateConnected) --> tell retry controller that the connect attempt failed
+    else // oldState is kStateResolving or kStateConnecting
+         // -> tell retry controller that the connect attempt failed
     {
         CHATDS_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
 
@@ -896,7 +897,6 @@ Promise<void> Connection::reconnect()
 
                 if (!mRetryCtrl)
                 {
-
                     if (isOnline())
                     {
                         CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
@@ -945,10 +945,11 @@ Promise<void> Connection::reconnect()
                     {
                          retryPendingConnection(true, true);
                     }
-                    else
+                    else if (mState == kStateResolving)
                     {
                         onSocketClose(0, 0, "Async DNS error (chatd)");
                     }
+                    // else in case kStateConnecting let the connection attempt progress
                     return;
                 }
 
@@ -975,7 +976,7 @@ Promise<void> Connection::reconnect()
                     // update DNS cache
                     mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
                     CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
-                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
+                    retryPendingConnection(true);
                 }
             });
 
@@ -1159,7 +1160,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
     }
     else
     {
-        CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
+        CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently joining/joined, no forced disconnect was requested)");
     }
 }
 
