@@ -526,6 +526,11 @@ Connection::Connection(Client& chatdClient, int shardNo)
 
 void Connection::wsConnectCb()
 {
+    if (mState != kStateConnecting)
+    {
+        return;
+    }
+
     time_t now = time(nullptr);
     if (now - mTsConnSuceeded > kMaxConnSucceededTimeframe)
     {
