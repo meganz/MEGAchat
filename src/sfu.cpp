@@ -1892,6 +1892,11 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
 
 void SfuConnection::wsConnectCb()
 {
+    if (mConnState != kConnecting)
+    {
+        return;
+    }
+
     setConnState(kConnected);
 }
 

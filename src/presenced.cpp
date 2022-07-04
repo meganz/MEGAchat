@@ -117,6 +117,11 @@ void Client::pushPeers()
 
 void Client::wsConnectCb()
 {
+    if (mConnState != kConnecting)
+    {
+        return;
+    }
+
     time_t now = time(nullptr);
     if (now - mTsConnSuceeded > kMaxConnSucceededTimeframe)
     {
