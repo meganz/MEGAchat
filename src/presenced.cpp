@@ -229,7 +229,8 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         assert(!mRetryCtrl);
         reconnect(); //start retry controller
     }
-    else // (mConState < kConnected) --> tell retry controller that the connect attempt failed
+    else // oldState is kResolving or kConnecting
+         // -> tell retry controller that the connect attempt failed
     {
         PRESENCED_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
 
@@ -554,10 +555,11 @@ Client::reconnect()
                     {
                         retryPendingConnection(true, true);
                     }
-                    else
+                    else if (mConnState == kResolving)
                     {
                         onSocketClose(0, 0, "Async DNS error (presenced)");
                     }
+                    // else in case kConnecting let the connection attempt progress
                     return;
                 }
 
@@ -577,7 +579,7 @@ Client::reconnect()
                 {
                     PRESENCED_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
                     mDnsCache.setIp(kPresencedShard, ipsv4, ipsv6);
-                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (presenced)");
+                    retryPendingConnection(true);
                 }
             });
 
@@ -961,7 +963,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
     }
     else
     {
-        PRESENCED_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
+        PRESENCED_LOG_WARNING("retryPendingConnection: ignored (currently joining/joined, no forced disconnect was requested)");
     }
 }
 

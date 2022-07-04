@@ -1266,7 +1266,7 @@ void SfuConnection::retryPendingConnection(bool disconnect)
     }
     else
     {
-        SFU_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
+        SFU_LOG_WARNING("retryPendingConnection: ignored (currently joining/joined, no forced disconnect was requested)");
     }
 }
 
@@ -1966,7 +1966,8 @@ void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &r
         assert(!mRetryCtrl);
         reconnect(); //start retry controller
     }
-    else // (mConState < kConnected) --> tell retry controller that the connect attempt failed
+    else // oldState is kResolving or kConnecting
+         // -> tell retry controller that the connect attempt failed
     {
         SFU_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
 
@@ -2083,10 +2084,11 @@ promise::Promise<void> SfuConnection::reconnect()
                     {
                         retryPendingConnection(true);
                     }
-                    else
+                    else if (mConnState == kResolving)
                     {
                         onSocketClose(0, 0, "Async DNS error (sfu connection)");
                     }
+                    // else in case kConnecting let the connection attempt progress
                     return;
                 }
 
@@ -2126,7 +2128,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     // update DNS cache
                     mDnsCache.setSfuIp(mSfuUrl.host, ipsv4, ipsv6);
                     SFU_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
-                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (sfu)");
+                    retryPendingConnection(true);
                 }
             });
 
