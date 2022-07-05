@@ -2574,9 +2574,17 @@ void Connection::execCommand(const StaticBuffer& buf)
                             {
                                 // if OP_JOINEDCALL was received first and needed to wait for the unified key,
                                 // it may have created the call object already
-
                                 call->setCallerId(userid);
-                                call->setRinging(call->isOtherClientParticipating() ? false : ringing);
+                                call->setRinging(call->alreadyParticipating() ? false : ringing);
+
+                                if (!ringing
+                                        && !chat.isGroup()
+                                        && call->isOwnClientCaller()
+                                        && call->isOutgoingRinging())
+                                {
+                                    // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
+                                    call->stopOutgoingRinging();
+                                }
                             }
 
                         })
@@ -2588,11 +2596,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                     else
                     {
                         call->setCallerId(userid);
-                        call->setRinging(call->isOtherClientParticipating() ? false : ringing);
+                        call->setRinging(call->alreadyParticipating() ? false : ringing);
 
-                        if (!ringing && call->isOwnClientCaller())
+                        if (!ringing
+                                && !chat.isGroup()
+                                && call->isOwnClientCaller()
+                                && call->isOutgoingRinging())
                         {
-                            // notify that call has stopped ringing, in order stop outgoing ringing sound if we started the call
+                            // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
                             call->stopOutgoingRinging();
                         }
                     }
@@ -2608,6 +2619,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(callid, 8);
                 uint8_t recvReason = 0;
 
+#ifndef KARERE_DISABLE_WEBRTC
                 rtcModule::TermCode connectionTermCode = rtcModule::TermCode::kUnKnownTermCode;
                 if (opcode == OP_DELCALLREASON)
                 {
@@ -2624,6 +2636,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                             ? rtcModule::TermCode::kApiEndCall
                             : rtcModule::TermCode::kUserHangup;
                 }
+#endif
 
                 CHATDS_LOG_DEBUG("recv %s chatid: %s, callid %s - reason %d", opcode == OP_CALLEND ? "CALLEND" : "DELCALLREASON",
                                  ID_CSTR(chatid), ID_CSTR(callid), opcode == OP_CALLEND ? -1 : recvReason);

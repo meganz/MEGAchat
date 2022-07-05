@@ -583,6 +583,11 @@ MegaChatRoomList *MegaChatApi::getChatRooms()
     return pImpl->getChatRooms();
 }
 
+MegaChatRoomList* MegaChatApi::getChatRoomsByType(int type)
+{
+    return pImpl->getChatRoomsByType(type);
+}
+
 MegaChatRoom *MegaChatApi::getChatRoom(MegaChatHandle chatid)
 {
     return pImpl->getChatRoom(chatid);

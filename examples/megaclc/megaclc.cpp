@@ -102,6 +102,48 @@ class ReviewPublicChat_GetUserEmail_Listener;
 
 static const int MAX_NUMBER_MESSAGES = 300;
 
+struct ConsoleLock
+{
+    static std::recursive_mutex outputlock;
+    std::ostream& os;
+    bool locking = false;
+    inline ConsoleLock(std::ostream& o)
+        : os(o), locking(true)
+    {
+        outputlock.lock();
+    }
+    ConsoleLock(ConsoleLock&& o)
+        : os(o.os), locking(o.locking)
+    {
+        o.locking = false;
+    }
+    ~ConsoleLock()
+    {
+        if (locking)
+        {
+            outputlock.unlock();
+        }
+    }
+
+    template<class T>
+    ostream& operator<<(T&& arg)
+    {
+        return os << std::forward<T>(arg);
+    }
+};
+std::recursive_mutex ConsoleLock::outputlock;
+
+ConsoleLock conlock(std::ostream& o)
+{
+    // Returns a temporary object that has locked a mutex.  The temporary's destructor will unlock the object.
+    // So you can get multithreaded non-interleaved console output with just conlock(cout) << "some " << "strings " << endl;
+    // (as the temporary's destructor will run at the end of the outermost enclosing expression).
+    // Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output over several statements).
+    // Be careful not to have cout locked across a g_megaApi member function call, as any callbacks that also log could then deadlock.
+    return ConsoleLock(o);
+}
+
+
 #ifdef __APPLE__
 // No std::fileystem before OSX10.15
 string getExeDirectory()
@@ -217,8 +259,22 @@ public:
     void onTransferFinish(m::MegaApi* api, m::MegaTransfer *request, m::MegaError* e) override
     {
         if (onTransferFinishFunc) onTransferFinishFunc(api, request, e);
-        //delete this;  // one-shot is done so auto-delete
+        delete this;  // one-shot is done so auto-delete
     }
+
+    bool loggedStart = false;
+    void onTransferStart(m::MegaApi* api, m::MegaTransfer *request) override
+    {
+        if (!loggedStart)
+        {
+            loggedStart = true;
+            string path;
+            if (request->getPath()) path = request->getPath();
+            if (request->getParentPath()) path = request->getParentPath();
+            conlock(cout) << "transfer starts, tag: " << request->getTag() << ": " << path << endl;
+        }
+    }
+
 };
 
 class OneShotChatRequestListener : public c::MegaChatRequestListener
@@ -255,48 +311,6 @@ public:
         if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
     }
 };
-
-struct ConsoleLock
-{
-    static std::recursive_mutex outputlock;
-    std::ostream& os;
-    bool locking = false;
-    inline ConsoleLock(std::ostream& o)
-        : os(o), locking(true)
-    {
-        outputlock.lock();
-    }
-    ConsoleLock(ConsoleLock&& o)
-        : os(o.os), locking(o.locking)
-    {
-        o.locking = false;
-    }
-    ~ConsoleLock()
-    {
-        if (locking)
-        {
-            outputlock.unlock();
-        }
-    }
-
-    template<class T>
-    ostream& operator<<(T&& arg)
-    {
-        return os << std::forward<T>(arg);
-    }
-};
-
-std::recursive_mutex ConsoleLock::outputlock;
-
-ConsoleLock conlock(std::ostream& o)
-{
-    // Returns a temporary object that has locked a mutex.  The temporary's destructor will unlock the object.
-    // So you can get multithreaded non-interleaved console output with just conlock(cout) << "some " << "strings " << endl;
-    // (as the temporary's destructor will run at the end of the outermost enclosing expression).
-    // Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output over several statements).
-    // Be careful not to have cout locked across a g_megaApi member function call, as any callbacks that also log could then deadlock.
-    return ConsoleLock(o);
-}
 
 std::string timeToLocalTimeString(const int64_t time)
 {
@@ -1058,6 +1072,7 @@ std::string callTermCodeToString(const int termCode)
         case c::MegaChatMessage::END_CALL_REASON_NO_ANSWER: return "END_CALL_REASON_NO_ANSWER";
         case c::MegaChatMessage::END_CALL_REASON_FAILED: return "END_CALL_REASON_FAILED";
         case c::MegaChatMessage::END_CALL_REASON_CANCELLED: return "END_CALL_REASON_CANCELLED";
+        case c::MegaChatMessage::END_CALL_REASON_BY_MODERATOR: return "END_CALL_REASON_BY_MODERATOR";
         default: assert(false); return "Invalid Call Term Code (" + std::to_string(termCode) + ")";
     }
 #ifndef WIN32
@@ -3413,6 +3428,17 @@ void exec_createfolder(ac::ACState& s)
     }
 }
 
+void exec_remove(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->remove(node.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
+            {
+                check_err("remove", e, ReportResult);
+            }));
+    }
+}
+
 void exec_startupload(ac::ACState& s)
 {
     string newfilename;
@@ -3444,11 +3470,49 @@ void exec_startdownload(ac::ACState& s)
     if (auto node = GetNodeByPath(s.words[1].s))
     {
         g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), nullptr, nullptr, false, nullptr,
-                new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
-            {
-                check_err("startDownload", e, ReportResult);
-            }));
+            new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+                {
+                    check_err("startDownload", e, ReportResult);
+                }));
     }
+}
+
+void exec_canceltransfers(ac::ACState& s)
+{
+    auto direction = atoi(s.words[1].s.c_str());
+
+    g_megaApi->cancelTransfers(direction,
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            {
+                check_err("cancelTransfers", e, ReportResult);
+            }));
+}
+
+void exec_canceltransferbytag(ac::ACState& s)
+{
+    int tag = atoi(s.words[1].s.c_str());
+
+    g_megaApi->cancelTransferByTag(tag,
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            {
+                check_err("cancelTransferByTag", e, ReportResult);
+            }));
+}
+
+void exec_gettransfers(ac::ACState& s)
+{
+    int type = atoi(s.words[1].s.c_str());
+
+    unique_ptr<m::MegaTransferList> ts(g_megaApi->getTransfers(type));
+
+    auto cl = conlock(cout);
+
+    for (int i = 0; i < ts->size(); ++i)
+    {
+        m::MegaTransfer* t = ts->get(i);
+        cout << t->getTag() << " : " << t->getPath() << endl;
+    }
+    cout << "(" << ts->size() << " transfers listed by tag, type " << type << ")" << endl;
 }
 
 void exec_exportNode(ac::ACState& s)
@@ -3471,7 +3535,6 @@ void exec_exportNode(ac::ACState& s)
                         if (check_err("exportnode", e, ReportFailure))
                         {
                             conlock(cout) << "Exported link: " << r->getLink() << " and auth: " << r->getPrivateKey() << endl;
-
                         }
                     }));
             }
@@ -4550,9 +4613,13 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
     p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-order"), param("order")), sequence(flag("-refilter"), param("regex")))), param("path")));
     p->Add(exec_createfolder, sequence(text("createfolder"), param("name"), param("remotepath")));
+    p->Add(exec_remove, sequence(text("remove"), param("remotepath")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
     p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath"), opt(sequence(flag("-filename"), param("newname")))));
     p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath()));
+    p->Add(exec_canceltransfers, sequence(text("canceltransfers"), param("direction")));
+    p->Add(exec_canceltransferbytag, sequence(text("canceltransferbytag"), param("tag")));
+    p->Add(exec_gettransfers, sequence(text("gettransfers"), param("type")));
 
     p->Add(exec_exportNode, sequence(text("exportnode"), opt(sequence(flag("-writable"), either(text("true"), text("false")))), opt(sequence(flag("-expiry"), param("time_t"))), param("remotepath")));
 

@@ -1109,6 +1109,7 @@ public:
     char *getMyFullname();
     char *getMyEmail();
     MegaChatRoomList* getChatRooms();
+    MegaChatRoomList* getChatRoomsByType(int type);
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
     MegaChatListItemList *getChatListItems();

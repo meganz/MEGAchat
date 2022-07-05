@@ -69,6 +69,7 @@ enum EndCallReason: uint8_t
     kNoAnswer       = 3,   /// outgoing call didn't receive any answer from the callee
     kFailed         = 4,   /// on-going call failed
     kCancelled      = 5,   /// outgoing call was cancelled by caller before receiving any answer from the callee
+    kEndedByMod     = 6,   /// group or meeting call has been ended by moderator
     kInvalidReason  = 255, /// invalid endcall reason
 };
 
@@ -160,6 +161,7 @@ public:
     virtual CallState getState() const = 0;
     virtual bool isOwnClientCaller() const = 0;
 
+    virtual void addParticipant(const karere::Id &peer) = 0;
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
     virtual void removeParticipant(karere::Id peer) = 0;
 
@@ -180,6 +182,7 @@ public:
     virtual void setOnHold() = 0;
     virtual void releaseOnHold() = 0;
     virtual bool isRinging() const = 0;
+    virtual bool isOutgoingRinging() const = 0;
     virtual bool isIgnored() const = 0;
     virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
@@ -189,7 +192,7 @@ public:
     virtual uint8_t getEndCallReason() const = 0;
 
     virtual void setCallerId(karere::Id callerid) = 0;
-    virtual bool isOtherClientParticipating() = 0;
+    virtual bool alreadyParticipating() = 0;
     virtual void requestSpeaker(bool add = true) = 0;
     virtual bool isSpeakAllow() const = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
