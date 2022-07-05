@@ -3456,6 +3456,38 @@ public:
     MegaChatListItemList *getChatListItems();
 
     /**
+     * @brief Get all chatrooms (1on1 and groupal) with limited information filtered by type
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * This function filters out archived chatrooms. You can retrieve them by using
+     * the function \c getArchivedChatListItems.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param type Type of the chatListItems returned by this method.
+     * Valid values for param type are:
+     * - MegaChatApi::CHAT_TYPE_ALL             = 0,  /// All chats types
+     * - MegaChatApi::CHAT_TYPE_INDIVIDUAL      = 1,  /// 1on1 chats
+     * - MegaChatApi::CHAT_TYPE_GROUP           = 2,  /// Group chats, public and private ones (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+     * - MegaChatApi::CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
+     *
+     * In case you provide an invalid value for type param, this method will returns an empty list
+     *
+     * @return List of MegaChatListItemList objects with all chatrooms of this account filtered by type.
+     */
+    MegaChatListItemList* getChatListItemsByType(int type = CHAT_TYPE_ALL);
+
+    /**
      * @brief Get all chatrooms (1on1 and groupal) that contains a certain set of participants
      *
      * It is needed to have successfully called \c MegaChatApi::init (the initialization
