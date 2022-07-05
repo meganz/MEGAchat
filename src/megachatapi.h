@@ -2549,6 +2549,7 @@ public:
         CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
         CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
         CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+        CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
     };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
@@ -3390,6 +3391,7 @@ public:
      * - MegaChatApi::CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
      * - MegaChatApi::CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
      * - MegaChatApi::CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+     * - MegaChatApi::CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
      *
      * In case you provide an invalid value for type param, this method will returns an empty list
      *

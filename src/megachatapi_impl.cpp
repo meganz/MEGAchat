@@ -3561,7 +3561,7 @@ MegaChatRoomList* MegaChatApiImpl::getChatRoomsByType(int type)
 {
     MegaChatRoomListPrivate* chats = new MegaChatRoomListPrivate();
     SdkMutexGuard g(sdkMutex);
-    if (type < MegaChatApi::CHAT_TYPE_ALL || type > MegaChatApi::CHAT_TYPE_MEETING_ROOM)
+    if (type < MegaChatApi::CHAT_TYPE_ALL || type > MegaChatApi::CHAT_TYPE_NON_MEETING)
     {
         return chats;
     }
@@ -3614,6 +3614,14 @@ MegaChatRoomList* MegaChatApiImpl::getChatRoomsByType(int type)
                 case MegaChatApi::CHAT_TYPE_MEETING_ROOM:
                 {
                     if (it->second->isMeeting())
+                    {
+                        addChat = true;
+                    }
+                    break;
+                }
+                case MegaChatApi::CHAT_TYPE_NON_MEETING:
+                {
+                    if (!it->second->isMeeting())
                     {
                         addChat = true;
                     }
