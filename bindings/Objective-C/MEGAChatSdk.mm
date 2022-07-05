@@ -556,6 +556,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return [[MEGAChatRoomList alloc] initWithMegaChatRoomList:self.megaChatApi->getChatRooms() cMemoryOwn:YES];
 }
 
+- (MEGAChatRoomList *)chatRoomsByType:(MEGAChatType)type {
+    if (self.megaChatApi == nil) return nil;
+    return [[MEGAChatRoomList alloc] initWithMegaChatRoomList:self.megaChatApi->getChatRoomsByType(type) cMemoryOwn:YES];
+}
+
 - (MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId {
     if (self.megaChatApi == nil) return nil;
     MegaChatRoom *chatRoom = self.megaChatApi->getChatRoom(chatId);
@@ -566,6 +571,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     if (self.megaChatApi == nil) return nil;
     MegaChatRoom *chatRoom = self.megaChatApi->getChatRoomByUser(userHandle);
     return chatRoom ? [[MEGAChatRoom alloc] initWithMegaChatRoom:chatRoom cMemoryOwn:YES] : nil;
+}
+
+- (MEGAChatListItemList *)chatListItemsByType:(MEGAChatType)type {
+    if (self.megaChatApi == nil) return nil;
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItemsByType(type) cMemoryOwn:YES];
 }
 
 - (MEGAChatListItemList *)chatListItems {

@@ -53,6 +53,16 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
     MEGAChatConnectionOnline     = 3
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatType) {
+    MEGAChatTypeAll             = 0,
+    MEGAChatTypeIndividual      = 1,
+    MEGAChatTypeGroup           = 2,
+    MEGAChatTypeGroupPrivate    = 3,
+    MEGAChatTypeGroupPublic     = 4,
+    MEGAChatTypeMeeting         = 5,
+    MEGAChatTypeNonMeeting      = 6,
+};
+
 NS_ASSUME_NONNULL_BEGIN
 
 @interface MEGAChatSdk : NSObject
@@ -149,6 +159,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (nullable MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId;
 - (nullable MEGAChatRoom *)chatRoomByUser:(uint64_t)userHandle;
+- (nullable MEGAChatRoomList *)chatRoomsByType:(MEGAChatType)type;
+- (nullable MEGAChatListItemList *)chatListItemsByType:(MEGAChatType)type;
 
 - (nullable MEGAChatListItem *)chatListItemForChatId:(uint64_t)chatId;
 
