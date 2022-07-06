@@ -119,6 +119,8 @@ void Client::wsConnectCb()
 {
     if (mConnState != kConnecting)
     {
+        PRESENCED_LOG_WARNING("Connection to Presenced has been established, but current connection state is %s, instead of connecting (as we expected)"
+                           , connStateToStr(mConnState));
         return;
     }
 

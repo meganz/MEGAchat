@@ -1894,6 +1894,8 @@ void SfuConnection::wsConnectCb()
 {
     if (mConnState != kConnecting)
     {
+        SFU_LOG_WARNING("Connection to SFU has been established, but current connection state is %s, instead of connecting (as we expected)"
+                           , connStateToStr(mConnState));
         return;
     }
 

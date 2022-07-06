@@ -528,6 +528,8 @@ void Connection::wsConnectCb()
 {
     if (mState != kStateConnecting)
     {
+        CHATDS_LOG_WARNING("Connection to Shard %d has been established, but current connection state is %s, instead of connecting (as we expected)"
+                           , mShardNo, connStateToStr(mState));
         return;
     }
 
