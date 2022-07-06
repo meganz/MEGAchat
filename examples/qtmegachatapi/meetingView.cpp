@@ -26,6 +26,9 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mHangup = new QPushButton("Hang up", this);
     connect(mHangup, SIGNAL(released()), this, SLOT(onHangUp()));
     mHangup->setVisible(false);
+    mEndCall = new QPushButton("End call", this);
+    connect(mEndCall, SIGNAL(released()), this, SLOT(onEndCall()));
+    mEndCall->setVisible(false);
     mRequestSpeaker = new QPushButton("ReqSpeaker", this);
     connect(mRequestSpeaker, &QAbstractButton::clicked, this, [=](){onRequestSpeak(true);});
     mRequestSpeaker->setVisible(false);
@@ -91,6 +94,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mGridLayout->addWidget(mHiResView, 1, 1, 1, 1);
 
     mButtonsLayout->addWidget(mHangup);
+    mButtonsLayout->addWidget(mEndCall);
     mButtonsLayout->addWidget(mRequestSpeaker);
     mButtonsLayout->addWidget(mRequestSpeakerCancel);
     mButtonsLayout->addWidget(mRemOwnSpeaker);
@@ -153,6 +157,7 @@ void MeetingView::setNotParticipating()
 {
     mLocalWidget->setVisible(false);
     mHangup->setVisible(false);
+    mEndCall->setVisible(false);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
@@ -170,6 +175,7 @@ void MeetingView::setConnecting()
 {
     mLocalWidget->setVisible(false);
     mHangup->setVisible(true);
+    mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
@@ -333,6 +339,7 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
     updateVideoButtonText(call);
     mLocalWidget->setVisible(true);
     mHangup->setVisible(true);
+    mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(true);
     mRequestSpeakerCancel->setVisible(true);
     mEnableAudio->setVisible(true);
@@ -482,6 +489,15 @@ void MeetingView::onHangUp()
     if (call)
     {
         mMegaChatApi.hangChatCall(call->getCallId());
+    }
+}
+
+void MeetingView::onEndCall()
+{
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (call)
+    {
+        mMegaChatApi.endChatCall(call->getCallId());
     }
 }
 

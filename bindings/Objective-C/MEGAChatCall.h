@@ -42,6 +42,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeCallSpeak = 0x20,
     MEGAChatCallChangeTypeAudioLevel = 0x40,
     MEGAChatCallChangeTypeNetworkQuality = 0x80,
+    MEGAChatCallChangeTypeOutgoingRingingStop = 0x100,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {

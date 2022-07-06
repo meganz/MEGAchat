@@ -4836,6 +4836,11 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns false
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS    - if invalid callid provided
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
+     *
      * @param callid MegaChatHandle that identifies the call
      * @param listener MegaChatRequestListener to track this request
      */
@@ -4844,12 +4849,19 @@ public:
     /**
      * @brief End a call in a chat room (user must be moderator)
      *
+     * The scenario where this method is used, it's when moderator wants intentionally
+     * to end a groupchat or meeting call for all participants
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the call identifier
      * - MegaChatRequest::getFlag - Returns true
      *
-     * @note This method shouldn't be used in this first meeting phase
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS   - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS    - if invalid callid provided
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with that callid or chatroom has not been found
+     * - MegaChatError::ERROR_ACCESS  - if we try to end a call withouth enough privileges
      *
      * @param callid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request

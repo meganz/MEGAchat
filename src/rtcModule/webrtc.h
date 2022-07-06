@@ -168,7 +168,7 @@ public:
     virtual void reconnectToSfu() = 0;
 
     virtual promise::Promise<void> hangup() = 0;
-    virtual promise::Promise<void> endCall(int reason = chatd::kDefault) = 0;  // only used on 1on1 when incoming call is rejected
+    virtual promise::Promise<void> endCall() = 0;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants
     virtual promise::Promise<void> join(karere::AvFlags avFlags) = 0;
 
     virtual bool participate() = 0;
