@@ -1112,6 +1112,7 @@ public:
     MegaChatRoomList* getChatRoomsByType(int type);
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
+    bool isChatroomFromType(const karere::ChatRoom& chat, int type);
     MegaChatListItemList *getChatListItems();
     MegaChatListItemList* getChatListItemsByType(int type);
     MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);

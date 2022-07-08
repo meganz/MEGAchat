@@ -3571,64 +3571,7 @@ MegaChatRoomList* MegaChatApiImpl::getChatRoomsByType(int type)
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            bool addChat = false;
-            switch (type)
-            {
-                case MegaChatApi::CHAT_TYPE_ALL:
-                {
-                    addChat = true;
-                    break;
-                }
-                case MegaChatApi::CHAT_TYPE_INDIVIDUAL:
-                {
-                    if (!it->second->isGroup())
-                    {
-                        addChat = true;
-                    }
-                    break;
-                }
-                case MegaChatApi::CHAT_TYPE_GROUP:
-                {
-                    if (it->second->isGroup() && !it->second->isMeeting())
-                    {
-                        addChat = true;
-                    }
-                    break;
-                }
-                case MegaChatApi::CHAT_TYPE_GROUP_PRIVATE:
-                {
-                    if (it->second->isGroup() && !it->second->publicChat()) // private groupchats can't be meeting rooms
-                    {
-                        addChat = true;
-                    }
-                    break;
-                }
-                case MegaChatApi::CHAT_TYPE_GROUP_PUBLIC:
-                {
-                    if (it->second->isGroup() && it->second->publicChat() && !it->second->isMeeting())
-                    {
-                        addChat = true;
-                    }
-                    break;
-                }
-                case MegaChatApi::CHAT_TYPE_MEETING_ROOM:
-                {
-                    if (it->second->isMeeting())
-                    {
-                        addChat = true;
-                    }
-                    break;
-                }
-                case MegaChatApi::CHAT_TYPE_NON_MEETING:
-                {
-                    if (!it->second->isMeeting())
-                    {
-                        addChat = true;
-                    }
-                    break;
-                }
-            }
-            if (addChat)
+            if (isChatroomFromType(*it->second, type))
             {
                 chats->addChatRoom(new MegaChatRoomPrivate(*it->second));
             }
@@ -3672,6 +3615,66 @@ MegaChatRoom *MegaChatApiImpl::getChatRoomByUser(MegaChatHandle userhandle)
     return chat;
 }
 
+bool MegaChatApiImpl::isChatroomFromType(const ChatRoom& chat, int type)
+{
+    switch (type)
+    {
+        case MegaChatApi::CHAT_TYPE_ALL:
+        {
+            return true;
+        }
+        case MegaChatApi::CHAT_TYPE_INDIVIDUAL:
+        {
+            if (!chat.isGroup())
+            {
+                return true;
+            }
+            break;
+        }
+        case MegaChatApi::CHAT_TYPE_GROUP:
+        {
+            if (chat.isGroup() && !chat.isMeeting())
+            {
+                return true;
+            }
+            break;
+        }
+        case MegaChatApi::CHAT_TYPE_GROUP_PRIVATE:
+        {
+            if (chat.isGroup() && !chat.publicChat()) // private groupchats can't be meeting rooms
+            {
+                return true;
+            }
+            break;
+        }
+        case MegaChatApi::CHAT_TYPE_GROUP_PUBLIC:
+        {
+            if (chat.isGroup() && chat.publicChat() && !chat.isMeeting())
+            {
+                return true;
+            }
+            break;
+        }
+        case MegaChatApi::CHAT_TYPE_MEETING_ROOM:
+        {
+            if (chat.isMeeting())
+            {
+                return true;
+            }
+            break;
+        }
+        case MegaChatApi::CHAT_TYPE_NON_MEETING:
+        {
+            if (!chat.isMeeting())
+            {
+                return true;
+            }
+            break;
+        }
+    }
+    return false;
+}
+
 MegaChatListItemList *MegaChatApiImpl::getChatListItems()
 {
     MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
@@ -3709,69 +3712,9 @@ MegaChatListItemList* MegaChatApiImpl::getChatListItemsByType(int type)
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            if (!it->second->isArchived())
+            if (!it->second->isArchived() && isChatroomFromType(*it->second, type))
             {
-                bool addChat = false;
-                switch (type)
-                {
-                    case MegaChatApi::CHAT_TYPE_ALL:
-                    {
-                        addChat = true;
-                        break;
-                    }
-                    case MegaChatApi::CHAT_TYPE_INDIVIDUAL:
-                    {
-                        if (!it->second->isGroup())
-                        {
-                            addChat = true;
-                        }
-                        break;
-                    }
-                    case MegaChatApi::CHAT_TYPE_GROUP:
-                    {
-                        if (it->second->isGroup() && !it->second->isMeeting())
-                        {
-                            addChat = true;
-                        }
-                        break;
-                    }
-                    case MegaChatApi::CHAT_TYPE_GROUP_PRIVATE:
-                    {
-                        if (it->second->isGroup() && !it->second->publicChat()) // private groupchats can't be meeting rooms
-                        {
-                            addChat = true;
-                        }
-                        break;
-                    }
-                    case MegaChatApi::CHAT_TYPE_GROUP_PUBLIC:
-                    {
-                        if (it->second->isGroup() && it->second->publicChat() && !it->second->isMeeting())
-                        {
-                            addChat = true;
-                        }
-                        break;
-                    }
-                    case MegaChatApi::CHAT_TYPE_MEETING_ROOM:
-                    {
-                        if (it->second->isMeeting())
-                        {
-                            addChat = true;
-                        }
-                        break;
-                    }
-                    case MegaChatApi::CHAT_TYPE_NON_MEETING:
-                    {
-                        if (!it->second->isMeeting())
-                        {
-                            addChat = true;
-                        }
-                        break;
-                    }
-                }
-                if (addChat)
-                {
-                    items->addChatListItem(new MegaChatListItemPrivate(*it->second));
-                }
+                items->addChatListItem(new MegaChatListItemPrivate(*it->second));
             }
         }
     }
