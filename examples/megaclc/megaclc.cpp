@@ -1058,6 +1058,7 @@ std::string callTermCodeToString(const int termCode)
         case c::MegaChatMessage::END_CALL_REASON_NO_ANSWER: return "END_CALL_REASON_NO_ANSWER";
         case c::MegaChatMessage::END_CALL_REASON_FAILED: return "END_CALL_REASON_FAILED";
         case c::MegaChatMessage::END_CALL_REASON_CANCELLED: return "END_CALL_REASON_CANCELLED";
+        case c::MegaChatMessage::END_CALL_REASON_BY_MODERATOR: return "END_CALL_REASON_BY_MODERATOR";
         default: assert(false); return "Invalid Call Term Code (" + std::to_string(termCode) + ")";
     }
 #ifndef WIN32

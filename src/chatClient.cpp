@@ -4005,11 +4005,16 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 
 void GroupChatRoom::setChatPrivateMode()
 {
+    if (mMeeting)
+    {
+        mMeeting = false; // in case public chat was a meeting room set mMeeting to false
+    }
+
     //Update strongvelope
     chat().crypto()->setPrivateChatMode();
 
-    //Update cache
-    parent.mKarereClient.db.query("update chats set mode = '0' where chatid = ?", mChatid);
+    //Update cache updating mode and ensure that meeting field is disabled (0)
+    parent.mKarereClient.db.query("update chats set mode = '0', meeting = '0' where chatid = ?", mChatid);
 
     notifyChatModeChanged();
 
