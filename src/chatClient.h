@@ -17,6 +17,7 @@
 #include "rtcModule/webrtc.h"
 #endif
 #include "stringUtils.h"
+#include <mega/types.h>
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -347,6 +348,7 @@ protected:
     promise::Promise<void> mMemberNamesResolved;
     bool mAutoJoining = false;
     bool mMeeting = false;
+    ::mega::ChatOptions mChatOptions; // by default chat options are empty
 
     void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
@@ -378,7 +380,7 @@ protected:
     //Resume from cache
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
-                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting);
+                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting, mega::ChatOptions_t options);
 
     //Load chatLink
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
