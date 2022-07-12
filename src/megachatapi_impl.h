@@ -730,6 +730,9 @@ public:
     bool isActive() const override;
     bool isArchived() const override;
     bool isMeeting() const override;
+    bool isWaitingRoom() const override;
+    bool isOpenInvite() const override;
+    bool isSpeakRequest() const override;
     int64_t getCreationTs() const override;
 
     int getChanges() const override;
@@ -770,6 +773,9 @@ private:
     bool mHasCustomTitle;
     int64_t mCreationTs;
     bool mMeeting = false;
+    bool mWaitingRoom = false;
+    bool mOpenInvite = false;
+    bool mSpeakRequest = false;
 
     std::string mTitle;
     int unreadCount;

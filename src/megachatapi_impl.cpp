@@ -7615,6 +7615,13 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     mRetentionTime = chat->getRetentionTime();
     mCreationTs = chat->getCreationTs();
     mMeeting = chat->isMeeting();
+
+    if (mMeeting) // these flags are only valid for Meeting rooms
+    {
+        mOpenInvite = chat->isOpenInvite();
+        mSpeakRequest = chat->isSpeakRequest();
+        mWaitingRoom = chat->isWaitingRoom();
+    }
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -7636,6 +7643,13 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     mRetentionTime = chat.getRetentionTime();
     mCreationTs = chat.getCreationTs();
     mMeeting = chat.isMeeting();
+
+    if (mMeeting) // these flags are only valid for Meeting rooms
+    {
+        mOpenInvite = chat.isOpenInvite();
+        mSpeakRequest = chat.isSpeakRequest();
+        mWaitingRoom = chat.isWaitingRoom();
+    }
 
     if (group)
     {
@@ -7913,6 +7927,21 @@ int64_t MegaChatRoomPrivate::getCreationTs() const
 bool MegaChatRoomPrivate::isMeeting() const
 {
     return mMeeting;
+}
+
+bool MegaChatRoomPrivate::isWaitingRoom() const
+{
+    return mWaitingRoom;
+}
+
+bool MegaChatRoomPrivate::isOpenInvite() const
+{
+    return mOpenInvite;
+}
+
+bool MegaChatRoomPrivate::isSpeakRequest() const
+{
+    return mSpeakRequest;
 }
 
 int MegaChatRoomPrivate::getChanges() const

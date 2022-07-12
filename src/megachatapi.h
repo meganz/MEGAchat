@@ -6409,6 +6409,26 @@ public:
      */
     virtual bool isMeeting() const;
 
+    /**
+     * @brief Returns if waiting room is enabled for a chat (just for Meeting rooms)
+     * During calls, non moderator members will be placed into a waiting room.
+     * A moderator user must grant each user access to the call.
+     * @return True if waiting room is enabled
+     */
+    virtual bool isWaitingRoom() const;
+
+    /**
+     * @brief Returns if users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat (just for Meeting rooms)
+     * @return True if users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+     */
+    virtual bool isOpenInvite() const;
+
+    /**
+     * @brief Returns if during calls, non moderator users, must request permission to speak (just for Meeting rooms)
+     * @return True if during calls, non moderator users, must request permission to speak.
+     */
+    virtual bool isSpeakRequest() const;
+
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 };

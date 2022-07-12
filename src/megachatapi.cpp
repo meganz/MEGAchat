@@ -1546,6 +1546,21 @@ bool MegaChatRoom::isMeeting() const
     return false;
 }
 
+bool MegaChatRoom::isWaitingRoom() const
+{
+    return false;
+}
+
+bool MegaChatRoom::isOpenInvite() const
+{
+    return false;
+}
+
+bool MegaChatRoom::isSpeakRequest() const
+{
+    return false;
+}
+
 MegaChatPeerList * MegaChatPeerList::createInstance()
 {
     return new MegaChatPeerListPrivate();
