@@ -421,6 +421,15 @@ bool Client::openDb(const std::string& sid)
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
                 }
             }
+            else if (cachedVersionSuffix == "13" && (strcmp(gDbSchemaVersionSuffix, "14") == 0))
+            {
+                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                 db.query("ALTER TABLE `chats` ADD chat_options tinyint default 0");
+                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                 db.commit();
+                 ok = true;
+                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
