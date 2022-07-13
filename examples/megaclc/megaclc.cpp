@@ -251,8 +251,10 @@ class OneShotTransferListener : public m::MegaTransferListener
 public:
     std::function<void(m::MegaApi* api, m::MegaTransfer *request, m::MegaError* e)> onTransferFinishFunc;
 
-    explicit OneShotTransferListener(std::function<void(m::MegaApi* api, m::MegaTransfer* transfer, m::MegaError* e)> f = {})
-        :onTransferFinishFunc(f)
+    unsigned lastKnownStage = unsigned(-1);
+    bool mLogStage = false;
+    explicit OneShotTransferListener(std::function<void(m::MegaApi* api, m::MegaTransfer* transfer, m::MegaError* e)> f = {}, bool ls = false)
+        :onTransferFinishFunc(f), mLogStage(ls)
     {
     }
 
@@ -272,6 +274,19 @@ public:
             if (request->getPath()) path = request->getPath();
             if (request->getParentPath()) path = request->getParentPath();
             conlock(cout) << "transfer starts, tag: " << request->getTag() << ": " << path << endl;
+        }
+    }
+
+    void onTransferUpdate(m::MegaApi *, m::MegaTransfer *t) override
+    {
+        if (mLogStage && lastKnownStage != t->getStage())
+        {
+            lastKnownStage = t->getStage();
+            if (lastKnownStage >= m::MegaTransfer::STAGE_SCAN &&
+                lastKnownStage <= m::MegaTransfer::STAGE_TRANSFERRING_FILES)
+            {
+                conlock(cout) << "Transfer stage: " << t->stageToString(t->getStage()) << endl;
+            }
         }
     }
 
@@ -3475,6 +3490,8 @@ void exec_startupload(ac::ACState& s)
     bool useCancelToken = s.extractflag("-withcanceltoken");
     m::MegaCancelToken* ct = useCancelToken ? makeNewGlobalCancelToken() : nullptr;
 
+    bool logstage = s.extractflag("-logstage");
+
     if (auto node = GetNodeByPath(s.words[2].s))
     {
         if (!set_filename)
@@ -3483,7 +3500,7 @@ void exec_startupload(ac::ACState& s)
                     new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
-                }));
+                }, logstage));
         }
         else
         {
@@ -3491,7 +3508,7 @@ void exec_startupload(ac::ACState& s)
                     new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
-                }));
+                }, logstage));
         }
     }
 }
@@ -3502,13 +3519,15 @@ void exec_startdownload(ac::ACState& s)
     bool useCancelToken = s.extractflag("-withcanceltoken");
     m::MegaCancelToken* ct = useCancelToken ? makeNewGlobalCancelToken() : nullptr;
 
+    bool logstage = s.extractflag("-logstage");
+
     if (auto node = GetNodeByPath(s.words[1].s))
     {
         g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), nullptr, nullptr, false, ct,
             new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startDownload", e, ReportResult);
-                }));
+                }, logstage));
     }
 }
 
@@ -4650,8 +4669,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_createfolder, sequence(text("createfolder"), param("name"), param("remotepath")));
     p->Add(exec_remove, sequence(text("remove"), param("remotepath")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
-    p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath"), opt(flag("-withcanceltoken")), opt(sequence(flag("-filename"), param("newname")))));
-    p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath(), opt(flag("-withcanceltoken"))));
+    p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath"), opt(flag("-withcanceltoken")), opt(flag("-logstage")), opt(sequence(flag("-filename"), param("newname")))));
+    p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath(), opt(flag("-withcanceltoken")), (flag("-logstage"))));
     p->Add(exec_canceltransfers, sequence(text("canceltransfers"), param("direction")));
     p->Add(exec_canceltransferbytag, sequence(text("canceltransferbytag"), param("tag")));
     p->Add(exec_gettransfers, sequence(text("gettransfers"), param("type")));
