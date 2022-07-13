@@ -251,7 +251,7 @@ class OneShotTransferListener : public m::MegaTransferListener
 public:
     std::function<void(m::MegaApi* api, m::MegaTransfer *request, m::MegaError* e)> onTransferFinishFunc;
 
-    unsigned int lastKnownStage = unsigned int(-1);
+    unsigned lastKnownStage = unsigned(-1);
     bool mLogStage = false;
     explicit OneShotTransferListener(std::function<void(m::MegaApi* api, m::MegaTransfer* transfer, m::MegaError* e)> f = {}, bool ls = false)
         :onTransferFinishFunc(f), mLogStage(ls)
@@ -281,8 +281,12 @@ public:
     {
         if (mLogStage && lastKnownStage != t->getStage())
         {
-            conlock(cout) << "Transfer stage: " << t->stageToString(t->getStage()) << endl;
             lastKnownStage = t->getStage();
+            if (lastKnownStage >= m::MegaTransfer::STAGE_SCAN &&
+                lastKnownStage <= m::MegaTransfer::STAGE_TRANSFERRING_FILES)
+            {
+                conlock(cout) << "Transfer stage: " << t->stageToString(t->getStage()) << endl;
+            }
         }
     }
 
