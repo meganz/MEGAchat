@@ -643,6 +643,21 @@ MegaChatHandle MegaChatApi::getChatHandleByUser(MegaChatHandle userhandle)
     return pImpl->getChatHandleByUser(userhandle);
 }
 
+void MegaChatApi::setOpenInvite(MegaChatHandle chatid, bool enabled, MegaChatRequestListener* listener)
+{
+   pImpl->setChatOption(chatid, CHAT_OPTION_OPEN_INVITE, enabled, listener);
+}
+
+void MegaChatApi::setSpeakRequest(MegaChatHandle chatid, bool enabled, MegaChatRequestListener *listener)
+{
+   pImpl->setChatOption(chatid, CHAT_OPTION_SPEAK_REQUEST, enabled, listener);
+}
+
+void MegaChatApi::setWaitingRoom(MegaChatHandle chatid, bool enabled, MegaChatRequestListener *listener)
+{
+   pImpl->setChatOption(chatid, CHAT_OPTION_WAITING_ROOM, enabled, listener);
+}
+
 void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener)
 {
     pImpl->createChat(group, peers, listener);

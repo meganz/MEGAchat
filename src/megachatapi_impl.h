@@ -526,6 +526,7 @@ public:
     void onLastMessageTsUpdated(uint32_t ts) override;
     void onHistoryReloaded() override;
     void onChatModeChanged(bool mode) override;
+    void onChatOptionsChanged(int option) override;
     void onReactionUpdate(karere::Id msgid, const char *reaction, int count) override;
     void onHistoryTruncatedByRetentionTime(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
 
@@ -751,6 +752,7 @@ public:
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void changeUnreadCount();
+    void changeChatRoomOption(int option);
     void setNumPreviewers(unsigned int numPrev);
     void setMembersUpdated(MegaChatHandle uh);
     void setUserTyping(MegaChatHandle uh);
@@ -1132,6 +1134,8 @@ public:
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
+    void setChatOption(MegaChatHandle chatid, int option, bool enabled, MegaChatRequestListener* listener = NULL);
+    void setChatOptions(MegaChatHandle chatid, ::mega::MegaStringMap* options, MegaChatRequestListener* listener);
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
     void createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener = NULL);
     void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, bool speakRequest = false, bool waitingRoom = false, bool openInvite = false,  MegaChatRequestListener *listener = NULL);

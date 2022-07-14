@@ -2799,6 +2799,21 @@ bool GroupChatRoom::removeMember(uint64_t userid)
 
     return true;
 }
+promise::Promise<void> GroupChatRoom::setChatRoomOptions(::mega::MegaStringMap* map)
+{
+    auto wptr = getDelTracker();
+    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatOptions, chatid(), map)
+    .then([wptr]()
+    {
+        wptr.throwIfDeleted();
+    })
+    .fail([wptr, this](const ::promise::Error& err)
+    {
+        wptr.throwIfDeleted();
+        KR_LOG_ERROR("Error setting chatroom options for chat %s: %s", ID_CSTR(chatid()), err.what());
+        return err;
+    });
+}
 
 promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
 {
@@ -3630,6 +3645,21 @@ bool GroupChatRoom::isMeeting() const
     return mMeeting;
 }
 
+bool GroupChatRoom::isOpenInvite() const
+{
+    return mChatOptions.openInvite();
+}
+
+bool GroupChatRoom::isSpeakRequest() const
+{
+    return mChatOptions.speakRequest();
+}
+
+bool GroupChatRoom::isWaitingRoom() const
+{
+    return mChatOptions.waitingRoom();
+}
+
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
     chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
@@ -3714,6 +3744,18 @@ void ChatRoom::notifyChatModeChanged()
 
         if (mAppChatHandler)
             mAppChatHandler->onChatModeChanged(this->publicChat());
+    }, parent.mKarereClient.appCtx);
+}
+
+void ChatRoom::notifyChatOptionsChanged(int option)
+{
+    callAfterInit(this, [this, option]
+    {
+        // currently not needed to notify apps via onChatListItemUpdate
+        if (mAppChatHandler)
+        {
+            mAppChatHandler->onChatOptionsChanged(option);
+        }
     }, parent.mKarereClient.appCtx);
 }
 
@@ -3927,6 +3969,12 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         // in case of previewMode, it's also updated in cache
     }
 
+    if (!mChatOptions.areEqual(chat.getChatOptions()))
+    {
+        KR_LOG_DEBUG("Chatroom[%s]: API event: chat options have changed", ID_CSTR(mChatid));
+        updateChatOptions(chat.getChatOptions());
+    }
+
     // Own privilege changed
     auto oldPriv = mOwnPriv;
     bool ownPrivChanged = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
@@ -4036,6 +4084,21 @@ void GroupChatRoom::setChatPrivateMode()
         chat().requestUserAttributes(member.first);
         chat().crypto()->fetchUserKeys(member.first);
     }
+}
+
+void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
+{
+    mega::ChatOptions newOptions(opt);
+    mega::ChatOptions oldOptions(mChatOptions);
+
+    // update chat options in ram and db
+    parent.mKarereClient.db.query("update chats set chat_options = ? where chatid = ?", mChatOptions.value(), mChatid);
+    mChatOptions.set(opt); // replace old options set by new one
+
+    // compare old and new options set to notify apps those ones that have changed
+    if (oldOptions.speakRequest() != newOptions.speakRequest()) { notifyChatOptionsChanged(mega::ChatOptions::chat_option_speak_request); }
+    if (oldOptions.waitingRoom() != newOptions.waitingRoom())   { notifyChatOptionsChanged(mega::ChatOptions::chat_option_waiting_room); }
+    if (oldOptions.openInvite() != newOptions.openInvite())     { notifyChatOptionsChanged(mega::ChatOptions::chat_option_open_invite); }
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)

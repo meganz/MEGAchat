@@ -491,6 +491,54 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             break;
         }
+        case MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS:
+        {
+            handle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            ChatRoom* chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            if (!chatroom->isMeeting())
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            if (!request->getStringMap())
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ((GroupChatRoom *)chatroom)->setChatRoomOptions(request->getStringMap())
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const ::promise::Error& err)
+            {
+                API_LOG_ERROR("Error setting chatroom : %s", err.what());
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
         case MegaChatRequest::TYPE_INVITE_TO_CHATROOM:
         {
             handle chatid = request->getChatHandle();
@@ -3903,6 +3951,22 @@ MegaChatHandle MegaChatApiImpl::getChatHandleByUser(MegaChatHandle userhandle)
     return chatid;
 }
 
+void MegaChatApiImpl::setChatOption(MegaChatHandle chatid, int option, bool enabled, MegaChatRequestListener* listener)
+{
+    std::unique_ptr<MegaStringMap> map(MegaStringMap::createInstance());
+    map->set(std::to_string(option).c_str(), enabled ? "1" : "0");
+    setChatOptions(chatid, map.get(), listener);
+}
+
+void MegaChatApiImpl::setChatOptions(MegaChatHandle chatid, MegaStringMap* options, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS, listener);
+    request->setChatHandle(chatid);
+    request->setStringMap(options);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
@@ -6021,6 +6085,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_REQUEST_HIRES_QUALITY: return "REQUEST_HIRES_QUALITY";
         case TYPE_DEL_SPEAKER: return "DEL_SPEAKER";
         case TYPE_REQUEST_SVC_LAYERS: return "SVC_LAYERS";
+        case TYPE_SET_CHATROOM_OPTIONS: return "TYPE_SET_CHATROOM_OPTIONS";
     }
     return "UNKNOWN";
 }
@@ -7184,6 +7249,14 @@ void MegaChatRoomHandler::onChatModeChanged(bool mode)
     fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onChatOptionsChanged(int option)
+{
+     MegaChatRoomPrivate* chat = (MegaChatRoomPrivate *) mChatApiImpl->getChatRoom(mChatid);
+     chat->changeChatRoomOption(option);
+
+     fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onUnreadCountChanged()
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) mChatApiImpl->getChatRoom(mChatid);
@@ -8017,6 +8090,22 @@ void MegaChatRoomPrivate::setTitle(const string& title)
 void MegaChatRoomPrivate::changeUnreadCount()
 {
     mChanged |= MegaChatRoom::CHANGE_TYPE_UNREAD_COUNT;
+}
+
+void MegaChatRoomPrivate::changeChatRoomOption(int option)
+{
+    switch (option)
+    {
+         case MegaChatApi::CHAT_OPTION_SPEAK_REQUEST:
+             mChanged |= MegaChatRoom::CHANGE_TYPE_SPEAK_REQUEST;
+             break;
+         case MegaChatApi::CHAT_OPTION_OPEN_INVITE:
+             mChanged |= MegaChatRoom::CHANGE_TYPE_OPEN_INVITE;
+             break;
+         case MegaChatApi::CHAT_OPTION_WAITING_ROOM:
+             mChanged |= MegaChatRoom::CHANGE_TYPE_WAITING_ROOM;
+             break;
+     }
 }
 
 void MegaChatRoomPrivate::setNumPreviewers(unsigned int numPrev)

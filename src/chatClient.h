@@ -90,6 +90,7 @@ protected:
     bool mHasTitle;             // only true if chat has custom topic (`ct`)
     void notifyTitleChanged();
     void notifyChatModeChanged();
+    void notifyChatOptionsChanged(int option);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic = false,
             std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
@@ -111,6 +112,9 @@ public:
     virtual IApp::IChatListItem* roomGui() = 0;
     virtual bool isMember(karere::Id peerid) const = 0;
     virtual bool isMeeting() const { return false; }
+    virtual bool isWaitingRoom() const { return false; }
+    virtual bool isSpeakRequest() const { return false; }
+    virtual bool isOpenInvite() const { return false; }
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
@@ -351,6 +355,7 @@ protected:
     ::mega::ChatOptions mChatOptions; // by default chat options are empty
 
     void setChatPrivateMode();
+    void updateChatOptions(mega::ChatOptions_t opt);
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
@@ -438,6 +443,13 @@ public:
      */
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 
+    /**
+     * @brief Allow to enable/disable a set of chatroom options
+     * @param map MegaStringMap that contains the chatroom options with the format: [<key><value>]
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> setChatRoomOptions(::mega::MegaStringMap* map);
+
     /** TODO
      *
      */
@@ -460,6 +472,9 @@ public:
     unsigned long numMembers() const override;
 
     bool isMeeting() const override;
+    bool isWaitingRoom() const override;
+    bool isSpeakRequest() const override;
+    bool isOpenInvite() const override;
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
