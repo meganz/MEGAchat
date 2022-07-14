@@ -427,7 +427,15 @@ void MegaChatApiImpl::sendPendingRequests()
                     title = request->getText();
                 }
 
-                mClient->createGroupChat(peers, publicChat, isMeeting, title)
+                MegaStringMap* map = request->getStringMap();
+                if (!isMeeting && map)
+                {
+                    // chat options are only valid for Meeting rooms
+                    errorCode = MegaChatError::ERROR_ARGS;
+                    break;
+                }
+
+                mClient->createGroupChat(peers, publicChat, isMeeting, map, title)
                 .then([request, this](Id chatid)
                 {
                     request->setChatHandle(chatid);
@@ -3916,7 +3924,7 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, const c
     waiter->notify();
 }
 
-void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title, MegaChatRequestListener *listener)
+void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
     request->setFlag(true);
@@ -3924,6 +3932,13 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
     request->setMegaChatPeerList(peerList);
     request->setText(title);
     request->setNumber(meeting);
+
+    std::unique_ptr<MegaStringMap> map(::mega::MegaStringMap::createInstance());
+    if (speakRequest)   { map->set(std::to_string(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST).c_str(), "1"); }
+    if (waitingRoom)    { map->set(std::to_string(MegaChatApi::CHAT_OPTION_WAITING_ROOM).c_str(), "1"); }
+    if (openInvite)     { map->set(std::to_string(MegaChatApi::CHAT_OPTION_OPEN_INVITE).c_str(), "1"); }
+
+    request->setStringMap(map.get());
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5888,6 +5903,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     mMessage = NULL;
     mMegaNodeList = NULL;
     mMegaHandleList = NULL;
+    mStringMap = NULL;
     mParamType = 0;
 }
 
@@ -5899,7 +5915,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     mMegaNodeList = NULL;
     mMegaHandleList = NULL;
     mLink = NULL;
-
+    mStringMap = NULL;
     mType = request.getType();
     mListener = request.getListener();
     setTag(request.getTag());
@@ -5925,6 +5941,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     }
 
     setParamType(request.getParamType());
+    setStringMap(request.getStringMap());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -5935,6 +5952,7 @@ MegaChatRequestPrivate::~MegaChatRequestPrivate()
     delete mMessage;
     delete mMegaNodeList;
     delete mMegaHandleList;
+    delete mStringMap;
     for (map<MegaChatHandle, MegaHandleList*>::iterator it = mMegaHandleListMap.begin(); it != mMegaHandleListMap.end(); it++)
     {
         delete it->second;
@@ -6200,6 +6218,11 @@ int MegaChatRequestPrivate::getParamType()
     return mParamType;
 }
 
+MegaStringMap* MegaChatRequestPrivate::getStringMap()
+{
+    return mStringMap;
+}
+
 void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 {
     if (mMegaNodeList != NULL)
@@ -6213,6 +6236,16 @@ void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 void MegaChatRequestPrivate::setParamType(int paramType)
 {
     mParamType = paramType;
+}
+
+void MegaChatRequestPrivate::setStringMap(MegaStringMap* m)
+{
+    if (mStringMap)
+    {
+        delete mStringMap;
+    }
+
+    mStringMap = m ? m->copy() : nullptr;
 }
 
 #ifndef KARERE_DISABLE_WEBRTC

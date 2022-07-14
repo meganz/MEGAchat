@@ -1103,7 +1103,7 @@ public:
      * the participants.
      */
     promise::Promise<karere::Id>
-    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, const char *title = NULL);
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, mega::MegaStringMap* map = 0, const char* title = NULL);
     void setCommitMode(bool commitEach);
     bool commitEach();
     void saveDb();  // forces a commit

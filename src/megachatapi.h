@@ -2162,6 +2162,16 @@ public:
      * @return Type of parameter related to the request
      */
     virtual int getParamType();
+
+    /**
+     * @brief Returns the string map
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return String map including the key-value pairs of the attribute
+     */
+    virtual mega::MegaStringMap* getStringMap();
 };
 
 /**
@@ -2549,6 +2559,13 @@ public:
         CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
         CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
         CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+    };
+
+    enum
+    {
+        CHAT_OPTION_OPEN_INVITE      = 0,   /// Open invite
+        CHAT_OPTION_SPEAK_REQUEST    = 1,   /// Speak request
+        CHAT_OPTION_WAITING_ROOM     = 2,   /// Waiting room
     };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
@@ -3712,6 +3729,52 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void createMeeting(const char *title = NULL, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Creates a meeting
+     *
+     * This function allows to create public chats, where the moderator can create chat links to share
+     * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+     * moderator can create/get a public handle for the chatroom and generate a URL by using
+     * \c MegaChatApi::createChatLink. The chat-link can be deleted at any time by any moderator
+     * by using \c MegaChatApi::removeChatLink.
+     *
+     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::setPublicChatToPrivate.
+     *
+     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatPreview.
+     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::autojoinPublicChat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns always true, since the new chat is a groupchat
+     * - MegaChatRequest::getPrivilege - Returns one (public mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     * - MegaChatRequest::getNumber - Returns always 1, since the chatroom is a meeting
+     * - MegaChatRequest::getMegaStringMap - Returns the value of speakRequest, waitingRoom and openInvite params with the format: [<key><value>]
+     *      + To check if speakRequest param was set true, the map must contain the key MegaChatApi::CHAT_OPTION_SPEAK_REQUEST
+     *      + To check if waitingRoom param was set true, the map must contain the key MegaChatApi::CHAT_OPTION_WAITING_ROOM
+     *      + To check if openInvite param was set true, the map must contain the key MegaChatApi::CHAT_OPTION_OPEN_INVITE
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - If no peer list is provided or non groupal and public is set.
+     * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
+     * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
+     * - MegaChatError::ERROR_ACCESS - If no peers are provided for a 1on1 chatroom.
+     *
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+     * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+     * A moderator user must grant each user access to the call.
+     * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createMeeting(const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Check if there is an existing chat-link for an public chat

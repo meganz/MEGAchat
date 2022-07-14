@@ -656,12 +656,18 @@ void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, const char *ti
 void MegaChatApi::createMeeting(const char *title, MegaChatRequestListener *listener)
 {
     std::unique_ptr<MegaChatPeerList> peers = std::unique_ptr<MegaChatPeerList>(MegaChatPeerList::createInstance());
-    pImpl->createPublicChat(peers.get(), true, title, listener);
+    pImpl->createPublicChat(peers.get(), true, title, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/, listener);
+}
+
+void MegaChatApi::createMeeting(const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener)
+{
+    std::unique_ptr<MegaChatPeerList> peers = std::unique_ptr<MegaChatPeerList>(MegaChatPeerList::createInstance());
+    pImpl->createPublicChat(peers.get(), true, title, speakRequest, waitingRoom, openInvite, listener);
 }
 
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
-    pImpl->createPublicChat(peers, false, title, listener);
+    pImpl->createPublicChat(peers, false, title, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/, listener);
 }
 
 void MegaChatApi::queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
@@ -1332,6 +1338,11 @@ MegaHandleList *MegaChatRequest::getMegaHandleListByChat(MegaChatHandle)
 int MegaChatRequest::getParamType()
 {
     return -1;
+}
+
+MegaStringMap* MegaChatRequest::getStringMap()
+{
+    return NULL;
 }
 
 MegaChatRoomList *MegaChatRoomList::copy() const

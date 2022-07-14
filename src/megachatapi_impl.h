@@ -99,6 +99,7 @@ public:
     virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
     virtual mega::MegaHandleList *getMegaHandleList();
     virtual int getParamType();
+    virtual mega::MegaStringMap* getStringMap() override;
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -116,6 +117,7 @@ public:
     void setMegaHandleList(mega::MegaHandleList *handlelist);
     void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
+    void setStringMap(mega::MegaStringMap* m);
 
 protected:
     int mType;
@@ -136,6 +138,7 @@ protected:
     mega::MegaHandleList *mMegaHandleList;
     std::map<MegaChatHandle, mega::MegaHandleList*> mMegaHandleListMap;
     int mParamType;
+    mega::MegaStringMap* mStringMap;
 };
 
 class MegaChatPresenceConfigPrivate : public MegaChatPresenceConfig
@@ -1131,7 +1134,7 @@ public:
     // Chatrooms management
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
     void createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener = NULL);
-    void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, MegaChatRequestListener *listener = NULL);
+    void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, bool speakRequest = false, bool waitingRoom = false, bool openInvite = false,  MegaChatRequestListener *listener = NULL);
     void chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener = NULL);
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
     void autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
