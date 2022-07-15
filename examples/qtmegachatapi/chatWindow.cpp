@@ -112,6 +112,19 @@ void ChatWindow::setChatTittle(const char *title)
     .append(mChatRoom->privToString(mChatRoom->getOwnPrivilege()))
     .append("]");
 
+    if (mChatRoom->isMeeting())
+    {
+        QString speakRequest = QString::fromUtf8("\xE2\x98\x9D");
+        QString waitingRoom = QString::fromUtf8("\xE2\x8F\xB2");
+        QString openInvite = QString::fromUtf8("\xF0\x9F\x94\x93");
+
+        chatTitle.append("[");
+        if (mChatRoom->isSpeakRequest())    { chatTitle.append(" ").append(speakRequest); }
+        if (mChatRoom->isWaitingRoom())     { chatTitle.append(" ").append(waitingRoom); }
+        if (mChatRoom->isOpenInvite())      { chatTitle.append(" ").append(openInvite); }
+        chatTitle.append(" ]");
+    }
+
     if(mChatRoom->isPreview())
     {
         chatTitle.append("        <PREVIEW>");
@@ -215,6 +228,13 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS))
     {
        updatePreviewers(chat->getNumPreviewers());
+    }
+
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_WAITING_ROOM)
+            ||chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_SPEAK_REQUEST)
+            || chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_OPEN_INVITE))
+    {
+        setChatTittle(nullptr);
     }
 
 //    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_RETENTION_TIME))
