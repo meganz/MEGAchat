@@ -2173,6 +2173,16 @@ public:
      * @return String map including the key-value pairs of the attribute
      */
     virtual mega::MegaStringMap* getStringMap();
+
+    /**
+     * @brief Returns a string list
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return String list
+     */
+    virtual mega::MegaStringList* getStringList() const;
 };
 
 /**

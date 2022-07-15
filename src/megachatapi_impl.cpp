@@ -427,15 +427,15 @@ void MegaChatApiImpl::sendPendingRequests()
                     title = request->getText();
                 }
 
-                MegaStringMap* map = request->getStringMap();
-                if (!isMeeting && map)
+                MegaStringList* list = request->getStringList();
+                if (!isMeeting && list)
                 {
                     // chat options are only valid for Meeting rooms
                     errorCode = MegaChatError::ERROR_ARGS;
                     break;
                 }
 
-                mClient->createGroupChat(peers, publicChat, isMeeting, map, title)
+                mClient->createGroupChat(peers, publicChat, isMeeting, list, title)
                 .then([request, this](Id chatid)
                 {
                     request->setChatHandle(chatid);
@@ -3997,12 +3997,12 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
     request->setText(title);
     request->setNumber(meeting);
 
-    std::unique_ptr<MegaStringMap> map(::mega::MegaStringMap::createInstance());
-    if (speakRequest)   { map->set(std::to_string(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST).c_str(), "1"); }
-    if (waitingRoom)    { map->set(std::to_string(MegaChatApi::CHAT_OPTION_WAITING_ROOM).c_str(), "1"); }
-    if (openInvite)     { map->set(std::to_string(MegaChatApi::CHAT_OPTION_OPEN_INVITE).c_str(), "1"); }
+    std::unique_ptr<MegaStringList> list(::mega::MegaStringList::createInstance());
+    if (speakRequest)   { list->add(std::to_string(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST).c_str()); }
+    if (waitingRoom)    { list->add(std::to_string(MegaChatApi::CHAT_OPTION_WAITING_ROOM).c_str()); }
+    if (openInvite)     { list->add(std::to_string(MegaChatApi::CHAT_OPTION_OPEN_INVITE).c_str()); }
 
-    request->setStringMap(map.get());
+    request->setStringList(list.get());
     requestQueue.push(request);
     waiter->notify();
 }
@@ -6006,6 +6006,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
 
     setParamType(request.getParamType());
     setStringMap(request.getStringMap());
+    setStringList(request.getStringList());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -6158,6 +6159,21 @@ MegaChatMessage *MegaChatRequestPrivate::getMegaChatMessage()
 int MegaChatRequestPrivate::getTag() const
 {
     return mTag;
+}
+
+::mega::MegaStringList* MegaChatRequestPrivate::getStringList() const
+{
+    return mStringList.get();
+}
+
+void MegaChatRequestPrivate::setStringList(MegaStringList* stringList)
+{
+    mStringList.reset();
+
+    if (stringList)
+    {
+       mStringList = unique_ptr<MegaStringList>(stringList->copy());
+    }
 }
 
 void MegaChatRequestPrivate::setListener(MegaChatRequestListener *listener)
