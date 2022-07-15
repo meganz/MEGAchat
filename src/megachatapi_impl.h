@@ -119,7 +119,7 @@ public:
     void setMegaHandleList(mega::MegaHandleList *handlelist);
     void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
-    void setStringMap(mega::MegaStringMap* m);
+    void setStringMap(mega::MegaStringMap* stringMap);
 
 protected:
     int mType;
@@ -140,7 +140,8 @@ protected:
     mega::MegaHandleList *mMegaHandleList;
     std::map<MegaChatHandle, mega::MegaHandleList*> mMegaHandleListMap;
     int mParamType;
-    mega::MegaStringMap* mStringMap;
+
+    std::unique_ptr<mega::MegaStringMap> mStringMap;
     std::unique_ptr<mega::MegaStringList> mStringList;
 };
 

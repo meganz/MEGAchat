@@ -5967,7 +5967,6 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     mMessage = NULL;
     mMegaNodeList = NULL;
     mMegaHandleList = NULL;
-    mStringMap = NULL;
     mParamType = 0;
 }
 
@@ -5979,7 +5978,6 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     mMegaNodeList = NULL;
     mMegaHandleList = NULL;
     mLink = NULL;
-    mStringMap = NULL;
     mType = request.getType();
     mListener = request.getListener();
     setTag(request.getTag());
@@ -6017,7 +6015,6 @@ MegaChatRequestPrivate::~MegaChatRequestPrivate()
     delete mMessage;
     delete mMegaNodeList;
     delete mMegaHandleList;
-    delete mStringMap;
     for (map<MegaChatHandle, MegaHandleList*>::iterator it = mMegaHandleListMap.begin(); it != mMegaHandleListMap.end(); it++)
     {
         delete it->second;
@@ -6301,7 +6298,7 @@ int MegaChatRequestPrivate::getParamType()
 
 MegaStringMap* MegaChatRequestPrivate::getStringMap()
 {
-    return mStringMap;
+    return mStringMap.get();;
 }
 
 void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
@@ -6319,14 +6316,14 @@ void MegaChatRequestPrivate::setParamType(int paramType)
     mParamType = paramType;
 }
 
-void MegaChatRequestPrivate::setStringMap(MegaStringMap* m)
+void MegaChatRequestPrivate::setStringMap(MegaStringMap* stringMap)
 {
-    if (mStringMap)
-    {
-        delete mStringMap;
-    }
+    mStringMap.reset();
 
-    mStringMap = m ? m->copy() : nullptr;
+    if (stringMap)
+    {
+        mStringMap = unique_ptr<MegaStringMap>(stringMap->copy());
+    }
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
