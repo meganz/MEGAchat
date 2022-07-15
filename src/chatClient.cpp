@@ -4092,7 +4092,7 @@ void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
     mega::ChatOptions oldOptions(mChatOptions);
 
     // update chat options in ram and db
-    parent.mKarereClient.db.query("update chats set chat_options = ? where chatid = ?", mChatOptions.value(), mChatid);
+    parent.mKarereClient.db.query("update chats set chat_options = ? where chatid = ?", opt, mChatid);
     mChatOptions.set(opt); // replace old options set by new one
 
     // compare old and new options set to notify apps those ones that have changed
