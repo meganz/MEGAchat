@@ -2368,6 +2368,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
   mRoomGui(nullptr), mMeeting(aChat.isMeeting()), mChatOptions(aChat.getChatOptions())
 {
+    assert(mChatOptions.isValid());
     bool isPublicChat = aChat.isPublicChat();
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
@@ -2441,6 +2442,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived)
     , mRoomGui(nullptr), mMeeting(meeting), mChatOptions(options)
 {
+    assert(mChatOptions.isValid());
     // Initialize list of peers
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
@@ -4090,6 +4092,13 @@ void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
 {
     mega::ChatOptions newOptions(opt);
     mega::ChatOptions oldOptions(mChatOptions);
+
+    if (newOptions.isValid())
+    {
+        KR_LOG_WARNING("addOrUpdateChatOptions: options value (%d) is out of range", newOptions.value());
+        assert(false);
+        return;
+    }
 
     // update chat options in ram and db
     parent.mKarereClient.db.query("update chats set chat_options = ? where chatid = ?", opt, mChatid);
