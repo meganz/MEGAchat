@@ -906,6 +906,32 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto actSetRetentionTimeSec = roomMenu->addAction(tr("Set retention time (in seconds)"));
     connect(actSetRetentionTimeSec, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetRetentionTime();});
 
+    // chat options
+    //---------------------------------------------------------------------------------------------------------------
+    auto actgetChatOptions = roomMenu->addAction(tr("Get chat Options"));
+    connect(actgetChatOptions, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onGetChatOptions();});
+
+    QMenu *chatOptionsMenu= roomMenu->addMenu("Set chat options");
+
+    auto actEnableOpenInvite = chatOptionsMenu->addAction(tr("[+] Enable Open invite"));
+    connect(actEnableOpenInvite, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetOpenInvite(true);});
+
+    auto actDisableOpenInvite = chatOptionsMenu->addAction(tr("[-] Disable Open invite"));
+    connect(actDisableOpenInvite, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetOpenInvite(false);});
+
+    auto actEnableSpeakRequest = chatOptionsMenu->addAction(tr("[+] Enable Speak request"));
+    connect(actEnableSpeakRequest, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetSpeakRequest(true);});
+
+    auto actDisableSpeakRequest = chatOptionsMenu->addAction(tr("[-] Disable Speak request"));
+    connect(actDisableSpeakRequest, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetSpeakRequest(false);});
+
+    auto actEnableWaitingRoom = chatOptionsMenu->addAction(tr("[+] Enable Waiting room"));
+    connect(actEnableWaitingRoom, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetWaitingRoom(true);});
+
+    auto actDisableWaitingRoom = chatOptionsMenu->addAction(tr("[-] Disable Waiting room"));
+    connect(actDisableWaitingRoom, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetWaitingRoom(false);});
+    //---------------------------------------------------------------------------------------------------------------
+
     //Set topic
     auto title = roomMenu->addAction("Set title");
     connect(title, SIGNAL(triggered()), getChatItemController(), SLOT(setTitle()));
