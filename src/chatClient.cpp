@@ -4093,7 +4093,7 @@ void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
     mega::ChatOptions newOptions(opt);
     mega::ChatOptions oldOptions(mChatOptions);
 
-    if (newOptions.isValid())
+    if (!newOptions.isValid())
     {
         KR_LOG_WARNING("addOrUpdateChatOptions: options value (%d) is out of range", newOptions.value());
         assert(false);
