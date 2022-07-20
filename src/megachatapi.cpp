@@ -598,6 +598,11 @@ MegaChatRoom *MegaChatApi::getChatRoomByUser(MegaChatHandle userhandle)
     return pImpl->getChatRoomByUser(userhandle);
 }
 
+MegaChatListItemList* MegaChatApi::getChatListItemsByType(int type)
+{
+    return pImpl->getChatListItemsByType(type);
+}
+
 MegaChatListItemList *MegaChatApi::getChatListItems()
 {
     return pImpl->getChatListItems();
