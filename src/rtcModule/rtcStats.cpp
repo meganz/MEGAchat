@@ -400,7 +400,7 @@ void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator
         }
         else if (strcmp(member->name(), "availableOutgoingBitrate") == 0)
         {
-            txBwe = round(static_cast<double>(*member->cast_to<const webrtc::RTCStatsMember<double>>()) / 128.0);
+            txBwe = round(static_cast<double>(*member->cast_to<const webrtc::RTCStatsMember<double>>()) / 1024.0);
         }
         else if (strcmp(member->name(), "bytesReceived") == 0)
         {
