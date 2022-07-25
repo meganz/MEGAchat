@@ -54,7 +54,7 @@ std::string Stats::getJson()
         std::vector<float> periods;
         for (unsigned int i = 1; i < mSamples.mT.size(); i++)
         {
-            periods.push_back(static_cast<float>(mSamples.mT[i] - mSamples.mT[i - 1]/1000.0));
+            periods.push_back(static_cast<float>((mSamples.mT[i] - mSamples.mT[i - 1])/1000.0));
         }
 
         rapidjson::Value t(rapidjson::kArrayType);
