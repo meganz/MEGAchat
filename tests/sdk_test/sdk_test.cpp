@@ -3141,12 +3141,25 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
         mCallIdExpectedReceived[a2] = auxCall->getCallId();
     }
 
-    char *secondarySession2 = login(a2, secondarySession);
+    char* secondarySession2 = login(a2, secondarySession);
+    waitForResponse(callReceived);
+    if (!callReceived)
+    {
+        std::unique_ptr<MegaChatListItem> itemSecondary(megaChatApi[a1]->getChatListItem(chatid));
+        ASSERT_CHAT_TEST(itemSecondary, "Can't retrieve chat list item");
 
-    /* we could receive onChatCallUpdate for multiple calls, so we need to know which one we are
-     * expecting(mCallIdExpectedReceived).
-     */
-    ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
+        if (itemSecondary->getLastMessageType() != MegaChatMessage::TYPE_CALL_ENDED)
+        {
+            // if we haven't received the call for secondary account but neither a call ended management message, the test must fail
+
+            /* we could receive onChatCallUpdate for multiple calls, so we need to know which one we are
+             * expecting(mCallIdExpectedReceived).
+             */
+            ASSERT_CHAT_TEST(callReceived, "Timeout expired for receiving a call");
+        }
+        // else => login process for secondary account has taken too much time, so Call has been destroyed with reason kNoAnswer
+    }
+
     auxCall.reset(megaChatApi[a2]->getChatCall(auxCall->getChatid()));
     ASSERT_CHAT_TEST(auxCall, "Can't retrieve call by callid");
 
