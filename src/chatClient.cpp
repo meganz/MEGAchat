@@ -511,7 +511,7 @@ int Client::importMessages(const char *externalDbPath)
                 SqliteStmt stmtLastSeenTs(dbExternal, "select ts from history where chatid=? and msgid=?");
                 stmtLastSeenTs << chatid;
                 stmtLastSeenTs << lastSeenId;
-                stmtLastSeenTs.stepMustHaveData(); // msg must exists on history table
+                stmtLastSeenTs.step();
                 lastSeenTs = static_cast<time_t> (stmtLastSeen.uint64Col(0));
                 expireRetentionTs = time(nullptr) - retentionTime;
             }
