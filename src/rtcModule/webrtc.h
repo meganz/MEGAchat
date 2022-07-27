@@ -30,7 +30,12 @@ enum TermCode: uint8_t
     kUserHangup                 = 0,                    // < normal user hangup
     kTooManyParticipants        = 1,                    // < there are too many participants
     kLeavingRoom                = 2,                    // < user has been removed from chatroom
-    kApiEndCall                 = 3,                    // < API/chatd ended call
+    kCallEndedByModerator       = 3,                    // < group or meeting call has been ended by moderator
+    kApiEndCall                 = 4,                    // < API/chatd ended call
+    kPeerJoinTimeout            = 5,                    // < Nobody joined call
+    kPushedToWaitingRoom        = 6,                    // < Our client has been removed from the call and pushed back into the waiting room
+    kKickedFromWaitingRoom      = 7,                    // < Revokes the join permission for our user that is into the waiting room
+
     //==============================================================================================
 
     kRtcDisconn                 = kFlagDisconn | 0,     // 64 < SFU connection failed
@@ -45,7 +50,8 @@ enum TermCode: uint8_t
     kErrAuth                    = kFlagError | 2,       // 130 < authentication error
     kErrApiTimeout              = kFlagError | 3,       // 131 < ping timeout between SFU and API
     kErrSdp                     = kFlagError | 4,       // 132 < error generating or setting SDP description
-    kErrGeneral                 = kFlagError | 63,      // 191 < general error
+    kErrClientGeneral           = kFlagError | 62,      // 190 < Client general error
+    kErrGeneral                 = kFlagError | 63,      // 191 < SFU general error
     kUnKnownTermCode            = kFlagError | 126,     // 254 < unknown error
     kInvalidTermCode            = kFlagError | 127,     // 255 < invalid connection termcode
 };
