@@ -268,6 +268,7 @@ public:
     karere::Id getCallerid() const override;
     CallState getState() const override;
     bool isOwnClientCaller() const override;
+    bool isOnline()  const override;
     // returns true if your user participates of the call
     bool participate() override;
     bool isJoining() const override;
