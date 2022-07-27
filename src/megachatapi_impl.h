@@ -276,7 +276,6 @@ public:
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
 
-    void setEndCallReason(int endCallReason);
     void setNotificationType(int notificationType);
     void setTermCode(int termCode);
     void setMessage(const std::string &errMsg);

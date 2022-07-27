@@ -6882,11 +6882,6 @@ void MegaChatCallPrivate::setCaller(Id caller)
     mCallerId = caller;
 }
 
-void MegaChatCallPrivate::setEndCallReason(int endCallReason)
-{
-    mEndCallReason = endCallReason;
-}
-
 void MegaChatCallPrivate::setNotificationType(int notificationType)
 {
     mNotificationType = notificationType;
