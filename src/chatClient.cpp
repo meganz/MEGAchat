@@ -511,9 +511,11 @@ int Client::importMessages(const char *externalDbPath)
                 SqliteStmt stmtLastSeenTs(dbExternal, "select ts from history where chatid=? and msgid=?");
                 stmtLastSeenTs << chatid;
                 stmtLastSeenTs << lastSeenId;
-                stmtLastSeenTs.stepMustHaveData(); // msg must exists on history table
-                lastSeenTs = static_cast<time_t> (stmtLastSeen.uint64Col(0));
-                expireRetentionTs = time(nullptr) - retentionTime;
+                if (stmtLastSeenTs.step())
+                {
+                    lastSeenTs = static_cast<time_t> (stmtLastSeen.uint64Col(0));
+                    expireRetentionTs = time(nullptr) - retentionTime;
+                }
             }
 
             if (!retentionTime || lastSeenTs > expireRetentionTs)
@@ -523,7 +525,7 @@ int Client::importMessages(const char *externalDbPath)
         }
         else    // no SEEN pointer for this chat on external cache (or chat not found)
         {
-            KR_LOG_WARNING("importMessages: SEEN not imported becaus chatid not found in external db (chatid: %s)",
+            KR_LOG_WARNING("importMessages: SEEN not imported because chatid not found in external db (chatid: %s)",
                          chatid.toString().c_str());
         }
 
@@ -1310,7 +1312,11 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 
         // connect() should be done in main thread, not app's thread, since LWS is single threaded
         // and the `wsi` context must be created by the main thread, where it runs the event's loop
-        marshallCall([this]() { connect(); }, appCtx);
+        marshallCall([this]()
+        {
+            notifyUserStatus(true);
+            connect();
+        }, appCtx);
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);

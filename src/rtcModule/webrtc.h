@@ -69,6 +69,7 @@ enum EndCallReason: uint8_t
     kNoAnswer       = 3,   /// outgoing call didn't receive any answer from the callee
     kFailed         = 4,   /// on-going call failed
     kCancelled      = 5,   /// outgoing call was cancelled by caller before receiving any answer from the callee
+    kEndedByMod     = 6,   /// group or meeting call has been ended by moderator
     kInvalidReason  = 255, /// invalid endcall reason
 };
 

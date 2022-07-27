@@ -982,6 +982,7 @@ private:
 
     static int convertInitState(int state);
     static int convertDbError(int errCode);
+    bool isChatroomFromType(const karere::ChatRoom& chat, int type);
 
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);
@@ -1123,6 +1124,7 @@ public:
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
     MegaChatListItemList *getChatListItems();
+    MegaChatListItemList* getChatListItemsByType(int type);
     MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
     int getUnreadChats();

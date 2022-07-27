@@ -1092,8 +1092,10 @@ std::string Call::endCallReasonToString(const EndCallReason &reason) const
         case kNoAnswer:         return "outgoing call didn't receive any answer from the callee";
         case kFailed:           return "on-going call failed";
         case kCancelled:        return "outgoing call was cancelled by caller before receiving any answer from the callee";
+        case kEndedByMod:       return "ended by moderator";
         case kInvalidReason:    return "invalid endcall reason";
     }
+    return "invalid endcall reason";
 }
 
 std::string Call::connectionTermCodeToString(const TermCode &termcode) const

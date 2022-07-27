@@ -3875,7 +3875,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 1. Send rich link message
     //=================================//
 
-    std::string messageToSend = "Hello friend, http://mega.nz";
+    std::string messageToSend = "Hello friend, https://mega.nz";
     // Need to do this for the first message as it's send and edited
     chatroomListener->msgEdited[a1] = false;
     chatroomListener->msgEdited[a2] = false;

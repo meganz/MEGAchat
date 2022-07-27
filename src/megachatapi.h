@@ -502,12 +502,13 @@ public:
 
     enum
     {
-        END_CALL_REASON_INVALID     = -1,    /// Invalid endcall reason (it can be ignored)
-        END_CALL_REASON_ENDED       = 1,     /// Call finished normally
-        END_CALL_REASON_REJECTED    = 2,     /// Call was rejected by callee
-        END_CALL_REASON_NO_ANSWER   = 3,     /// Call wasn't answered
-        END_CALL_REASON_FAILED      = 4,     /// Call finished by an error
-        END_CALL_REASON_CANCELLED   = 5      /// Call was canceled by caller.
+        END_CALL_REASON_INVALID         = -1,    /// Invalid endcall reason (it can be ignored)
+        END_CALL_REASON_ENDED           = 1,     /// Call finished normally
+        END_CALL_REASON_REJECTED        = 2,     /// Call was rejected by callee
+        END_CALL_REASON_NO_ANSWER       = 3,     /// Call wasn't answered
+        END_CALL_REASON_FAILED          = 4,     /// Call finished by an error
+        END_CALL_REASON_CANCELLED       = 5,     /// Call was canceled by caller.
+        END_CALL_REASON_BY_MODERATOR    = 6      /// group or meeting call has been ended by moderator
     };
 
     virtual ~MegaChatCall();
@@ -713,12 +714,13 @@ public:
      * @note this value only will be valid in state CALL_STATUS_DESTROYED
      *
      * Valid values are:
-     *  - END_CALL_REASON_INVALID     = -1,  (Invalid endcall reason, it can be ignored)
-     *  - END_CALL_REASON_ENDED       = 1,   (Call finished normally)
-     *  - END_CALL_REASON_REJECTED    = 2,   (Call was rejected by callee)
-     *  - END_CALL_REASON_NO_ANSWER   = 3,   (Call wasn't answered)
-     *  - END_CALL_REASON_FAILED      = 4,   (Call finished by an error)
-     *  - END_CALL_REASON_CANCELLED   = 5    (Call was canceled by caller)
+     *  - END_CALL_REASON_INVALID       = -1,  (Invalid endcall reason, it can be ignored)
+     *  - END_CALL_REASON_ENDED         = 1,   (Call finished normally)
+     *  - END_CALL_REASON_REJECTED      = 2,   (Call was rejected by callee)
+     *  - END_CALL_REASON_NO_ANSWER     = 3,   (Call wasn't answered)
+     *  - END_CALL_REASON_FAILED        = 4,   (Call finished by an error)
+     *  - END_CALL_REASON_CANCELLED     = 5    (Call was canceled by caller)
+     *  - END_CALL_REASON_BY_MODERATOR  = 6    (Call was ended by moderator)
      *
      * @return endCall reason for the call
      */
@@ -1538,11 +1540,12 @@ public:
 
     enum
     {
-        END_CALL_REASON_ENDED       = 1,    /// Call finished normally
-        END_CALL_REASON_REJECTED    = 2,    /// Call was rejected by callee
-        END_CALL_REASON_NO_ANSWER   = 3,    /// Call wasn't answered
-        END_CALL_REASON_FAILED      = 4,    /// Call finished by an error
-        END_CALL_REASON_CANCELLED   = 5     /// Call was canceled by caller.
+        END_CALL_REASON_ENDED           = 1,    /// Call finished normally
+        END_CALL_REASON_REJECTED        = 2,    /// Call was rejected by callee
+        END_CALL_REASON_NO_ANSWER       = 3,    /// Call wasn't answered
+        END_CALL_REASON_FAILED          = 4,    /// Call finished by an error
+        END_CALL_REASON_CANCELLED       = 5,    /// Call was canceled by caller.
+        END_CALL_REASON_BY_MODERATOR    = 6     /// group or meeting call has been ended by moderator
     };
 
     enum
@@ -1862,11 +1865,12 @@ public:
      *  - MegaChatMessage::TYPE_CALL_ENDED
      *
      * The possible values for termination codes are the following:
-     *  - END_CALL_REASON_ENDED       = 1
-     *  - END_CALL_REASON_REJECTED    = 2
-     *  - END_CALL_REASON_NO_ANSWER   = 3
-     *  - END_CALL_REASON_FAILED      = 4
-     *  - END_CALL_REASON_CANCELLED   = 5
+     *  - END_CALL_REASON_ENDED         = 1
+     *  - END_CALL_REASON_REJECTED      = 2
+     *  - END_CALL_REASON_NO_ANSWER     = 3
+     *  - END_CALL_REASON_FAILED        = 4
+     *  - END_CALL_REASON_CANCELLED     = 5
+     *  - END_CALL_REASON_BY_MODERATOR  = 6
      *
      * @return Call termination code
      */
@@ -2585,6 +2589,7 @@ public:
         CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
         CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
         CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+        CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
     };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
@@ -3426,6 +3431,7 @@ public:
      * - MegaChatApi::CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
      * - MegaChatApi::CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
      * - MegaChatApi::CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+     * - MegaChatApi::CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
      *
      * In case you provide an invalid value for type param, this method will returns an empty list
      *
@@ -3488,6 +3494,38 @@ public:
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
      */
     MegaChatListItemList *getChatListItems();
+
+    /**
+     * @brief Get all chatrooms (1on1 and groupal) with limited information filtered by type
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * This function filters out archived chatrooms. You can retrieve them by using
+     * the function \c getArchivedChatListItems.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param type Type of the chatListItems returned by this method.
+     * Valid values for param type are:
+     * - MegaChatApi::CHAT_TYPE_ALL             = 0,  /// All chats types
+     * - MegaChatApi::CHAT_TYPE_INDIVIDUAL      = 1,  /// 1on1 chats
+     * - MegaChatApi::CHAT_TYPE_GROUP           = 2,  /// Group chats, public and private ones (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+     * - MegaChatApi::CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
+     *
+     * In case you provide an invalid value for type param, this method will returns an empty list
+     *
+     * @return List of MegaChatListItemList objects with all chatrooms of this account filtered by type.
+     */
+    MegaChatListItemList* getChatListItemsByType(int type = CHAT_TYPE_ALL);
 
     /**
      * @brief Get all chatrooms (1on1 and groupal) that contains a certain set of participants
@@ -5938,6 +5976,7 @@ public:
      *          + END_CALL_REASON_NO_ANSWER
      *          + END_CALL_REASON_FAILED
      *          + END_CALL_REASON_CANCELLED
+     *          + END_CALL_REASON_BY_MODERATOR
      *      If termCode is END_CALL_REASON_REJECTED, END_CALL_REASON_NO_ANSWER, END_CALL_REASON_CANCELLED
      *      any participant won't be added
      *
