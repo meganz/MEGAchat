@@ -423,6 +423,7 @@ public:
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
+    bool handleBye(unsigned termcode) override;
     void onSfuConnected() override;
     void onSfuDisconnected() override;
     void onSendByeCommand() override;

@@ -1648,6 +1648,32 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
     return true;
 }
 
+bool Call::handleBye(unsigned termcode)
+{
+    TermCode auxTermCode = static_cast<TermCode> (termcode);
+    if (!isValidConnectionTermcode(auxTermCode))
+    {
+        RTCM_LOG_ERROR("Invalid termCode [%d] received at BYE command", termcode);
+        return false;
+    }
+
+    EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
+    if (reason == kInvalidReason)
+    {
+        RTCM_LOG_ERROR("Invalid end call reason for termcode [%d]", termcode);
+        assert(false); // we don't need to fail, just log a msg and assert => check getEndCallReasonFromTermcode
+    }
+
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, auxTermCode, reason, this]()
+    {
+        RTCM_LOG_DEBUG("Immediate removing call due to BYE [%d] command received from SFU", auxTermCode);
+        mRtc.immediateRemoveCall(this, reason, auxTermCode);
+    }, mRtc.getAppCtx());
+
+    return true;
+}
+
 void Call::onSfuConnected()
 {
     joinSfu();
