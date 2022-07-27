@@ -388,6 +388,7 @@ public:
     std::string connectionTermCodeToString(const TermCode &termcode) const;
     bool isValidConnectionTermcode(TermCode termCode) const;
     void sendStats(const TermCode& termCode);
+    static EndCallReason getEndCallReasonFromTermcode(const TermCode& termCode);
 
     void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);

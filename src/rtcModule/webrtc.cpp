@@ -1164,6 +1164,23 @@ void Call::sendStats(const TermCode& termCode)
     mStats.clear();
 }
 
+EndCallReason Call::getEndCallReasonFromTermcode(const TermCode& termCode)
+{
+    if (kUserHangup)                    { return kEnded; }
+    if (kTooManyParticipants)           { return kFailed; }
+    if (kLeavingRoom)                   { return kEnded; }
+    if (kCallEndedByModerator)          { return kEndedByMod; }
+    if (kApiEndCall)                    { return kFailed; }
+    if (kPeerJoinTimeout)               { return kFailed; }
+    if (kPushedToWaitingRoom)           { return kFailed; }
+    if (kKickedFromWaitingRoom)         { return kFailed; }
+    if (termCode & kFlagDisconn)        { return kFailed; }
+    if (termCode & kFlagError)          { return kFailed; }
+
+    // TODO review returned value (in case we need a new one) for kPushedToWaitingRoom and kKickedFromWaitingRoom, when we add support for them
+    return kInvalidReason;
+}
+
 void Call::clearParticipants()
 {
     for (auto &it : mParticipants)
