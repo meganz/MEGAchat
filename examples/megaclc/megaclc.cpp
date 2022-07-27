@@ -3466,7 +3466,15 @@ m::MegaCancelToken* makeNewGlobalCancelToken()
 
 void exec_cancelbytoken(ac::ACState& s)
 {
-    int id = atoi(s.words[1].s.c_str());
+    int id = 0;
+    if (s.words.size() > 1)
+    {
+        id = atoi(s.words[1].s.c_str());
+    }
+    else
+    {
+        id = int(globalCancelTokens.size()) - 1;
+    }
     if (id < 0 || id >= globalCancelTokens.size())
     {
         conlock(cout) << "failed: cancel token id is out of range: " << id << endl;
@@ -3480,6 +3488,18 @@ void exec_cancelbytoken(ac::ACState& s)
         globalCancelTokens[id]->cancel();
         conlock(cout) << "cancel triggered for token id: " << id << endl;
     }
+}
+
+void exec_setmaxuploadspeed(ac::ACState& s)
+{
+    int bps = atoi(s.words[1].s.c_str());
+    g_megaApi->setMaxUploadSpeed(bps);
+}
+
+void exec_setmaxdownloadspeed(ac::ACState& s)
+{
+    int bps = atoi(s.words[1].s.c_str());
+    g_megaApi->setMaxDownloadSpeed(bps);
 }
 
 void exec_startupload(ac::ACState& s)
@@ -3529,6 +3549,42 @@ void exec_startdownload(ac::ACState& s)
                     check_err("startDownload", e, ReportResult);
                 }, logstage));
     }
+}
+
+void exec_pausetransfers(ac::ACState& s)
+{
+    int paused = atoi(s.words[1].s.c_str());
+
+    if (s.words.size() > 2)
+    {
+        int direction = atoi(s.words[2].s.c_str());
+
+        g_megaApi->pauseTransfers(paused, direction,
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                {
+                    check_err("pauseTransfers", e, ReportResult);
+                }));
+    }
+    else
+    {
+        g_megaApi->pauseTransfers(paused,
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                {
+                    check_err("pauseTransfers", e, ReportResult);
+                }));
+    }
+}
+
+void exec_pausetransferbytag(ac::ACState& s)
+{
+    int tag = atoi(s.words[1].s.c_str());
+    int pause = atoi(s.words[2].s.c_str());
+
+    g_megaApi->pauseTransferByTag(tag, pause,
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            {
+                check_err("cancelTransferByTag", e, ReportResult);
+            }));
 }
 
 void exec_canceltransfers(ac::ACState& s)
@@ -4669,13 +4725,17 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_createfolder, sequence(text("createfolder"), param("name"), param("remotepath")));
     p->Add(exec_remove, sequence(text("remove"), param("remotepath")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
+    p->Add(exec_setmaxuploadspeed, sequence(text("setmaxuploadspeed"), param("bps")));
+    p->Add(exec_setmaxdownloadspeed, sequence(text("setmaxdownloadspeed"), param("bps")));
     p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath"), opt(flag("-withcanceltoken")), opt(flag("-logstage")), opt(sequence(flag("-filename"), param("newname")))));
     p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath(), opt(flag("-withcanceltoken")), (flag("-logstage"))));
+    p->Add(exec_pausetransfers, sequence(text("pausetransfers"), param("pause"), opt(param("direction"))));
+    p->Add(exec_pausetransferbytag, sequence(text("exec_pausetransferbytag"), param("tag"), param("pause")));
     p->Add(exec_canceltransfers, sequence(text("canceltransfers"), param("direction")));
     p->Add(exec_canceltransferbytag, sequence(text("canceltransferbytag"), param("tag")));
     p->Add(exec_gettransfers, sequence(text("gettransfers"), param("type")));
 
-    p->Add(exec_cancelbytoken, sequence(text("cancelbytoken"), param("token-id")));
+    p->Add(exec_cancelbytoken, sequence(text("cancelbytoken"), opt(param("token-id"))));
 
     p->Add(exec_exportNode, sequence(text("exportnode"), opt(sequence(flag("-writable"), either(text("true"), text("false")))), opt(sequence(flag("-expiry"), param("time_t"))), param("remotepath")));
 
