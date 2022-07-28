@@ -427,13 +427,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     title = request->getText();
                 }
 
-                MegaStringList* list = request->getStringList();
-                if (!isMeeting && list)
-                {
-                    // chat options are only valid for Meeting rooms
-                    errorCode = MegaChatError::ERROR_ARGS;
-                    break;
-                }
+                MegaStringList* list = request->getStringList(); // chat options
 
                 mClient->createGroupChat(peers, publicChat, isMeeting, list, title)
                 .then([request, this](Id chatid)
@@ -507,7 +501,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!chatroom->isMeeting())
+            if (!chatroom->isGroup())
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -7735,7 +7729,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     mCreationTs = chat->getCreationTs();
     mMeeting = chat->isMeeting();
 
-    if (mMeeting) // these flags are only valid for Meeting rooms
+    if (group) // these flags are not available for 1on1 chats
     {
         mOpenInvite = chat->isOpenInvite();
         mSpeakRequest = chat->isSpeakRequest();
@@ -7763,13 +7757,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     mCreationTs = chat.getCreationTs();
     mMeeting = chat.isMeeting();
 
-    if (mMeeting) // these flags are only valid for Meeting rooms
-    {
-        mOpenInvite = chat.isOpenInvite();
-        mSpeakRequest = chat.isSpeakRequest();
-        mWaitingRoom = chat.isWaitingRoom();
-    }
-
     if (group)
     {
         GroupChatRoom &groupchat = (GroupChatRoom&) chat;
@@ -7793,6 +7780,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
                 peerEmails.push_back(it->second->email());
             }
         }
+
+        // these flags are not available for 1on1 chats
+        mOpenInvite = chat.isOpenInvite();
+        mSpeakRequest = chat.isSpeakRequest();
+        mWaitingRoom = chat.isWaitingRoom();
     }
     else
     {
