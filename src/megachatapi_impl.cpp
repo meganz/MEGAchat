@@ -3971,13 +3971,20 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaCha
     waiter->notify();
 }
 
-void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener)
+void MegaChatApiImpl::createChat(bool group, MegaChatPeerList* peerList, const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
     request->setFlag(group);
     request->setPrivilege(0);
     request->setMegaChatPeerList(peerList);
     request->setText(title);
+
+    std::unique_ptr<MegaStringList> list(::mega::MegaStringList::createInstance());
+    if (speakRequest)   { list->add(std::to_string(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST).c_str()); }
+    if (waitingRoom)    { list->add(std::to_string(MegaChatApi::CHAT_OPTION_WAITING_ROOM).c_str()); }
+    if (openInvite)     { list->add(std::to_string(MegaChatApi::CHAT_OPTION_OPEN_INVITE).c_str()); }
+    request->setStringList(list.get());
+
     requestQueue.push(request);
     waiter->notify();
 }

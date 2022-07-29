@@ -665,7 +665,12 @@ void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatReques
 
 void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
-    pImpl->createChat(group, peers, title, listener);
+    pImpl->createChat(group, peers, title, false, false, false, listener);
+}
+
+void MegaChatApi::createGroupChat(MegaChatPeerList* peers, const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener)
+{
+    pImpl->createChat(true, peers, title, speakRequest, waitingRoom, openInvite, listener);
 }
 
 void MegaChatApi::createMeeting(const char *title, MegaChatRequestListener *listener)
@@ -683,6 +688,11 @@ void MegaChatApi::createMeeting(const char* title, bool speakRequest, bool waiti
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
     pImpl->createPublicChat(peers, false, title, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/, listener);
+}
+
+void MegaChatApi::createPublicChat(MegaChatPeerList* peers, const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener)
+{
+    pImpl->createPublicChat(peers, false, title, speakRequest, waitingRoom, openInvite, listener);
 }
 
 void MegaChatApi::queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
