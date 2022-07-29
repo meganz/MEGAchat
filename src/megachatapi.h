@@ -3770,7 +3770,7 @@ public:
      * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      * @param listener MegaChatRequestListener to track this request
      */
-    void createGroupChat(MegaChatPeerList* peers, const char* title,  bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener);
+    void createGroupChat(MegaChatPeerList* peers, const char* title,  bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Creates an public chatroom for multiple participants (groupchat)
