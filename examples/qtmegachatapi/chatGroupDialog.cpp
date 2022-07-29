@@ -11,7 +11,7 @@ ChatGroupDialog::ChatGroupDialog(QWidget *parent, bool isGroup, bool isPublic, b
     mIsGroup(isGroup),
     mIsPublic(isPublic),
     mIsMeeting(isMeeting),
-    mOptionsAdded(false)
+    mOptionsAdded(!isGroup)
 {
     ui->setupUi(this);
 }
@@ -150,20 +150,20 @@ void ChatGroupDialog::on_buttonBox_accepted()
 
         if (mIsMeeting)
         {
-            mMegaChatApi->createMeeting(title, speakRequest, waitingRoom, openInvite);
+            mMegaChatApi->createMeeting(title, speakRequest, waitingRoom, openInvite);                      // meeting room
         }
         else if (mIsPublic)
         {
-            this->mMegaChatApi->createPublicChat(peerList.get(), title);
+            mMegaChatApi->createPublicChat(peerList.get(), title, speakRequest, waitingRoom, openInvite);   // public chat
         }
         else
         {
-            mMegaChatApi->createChat(true, peerList.get(), title);
+            mMegaChatApi->createGroupChat(peerList.get(), title, speakRequest, waitingRoom, openInvite);    // private group chat
         }
     }
     else
     {
-        mMegaChatApi->createChat(false, peerList.get());
+        mMegaChatApi->createChat(false, peerList.get());                                                    // 1on1 chat
     }
 
     delete [] title;

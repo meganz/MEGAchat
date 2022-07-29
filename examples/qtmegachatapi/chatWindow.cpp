@@ -112,7 +112,7 @@ void ChatWindow::setChatTittle(const char *title)
     .append(mChatRoom->privToString(mChatRoom->getOwnPrivilege()))
     .append("]");
 
-    if (mChatRoom->isMeeting())
+    if (mChatRoom->isGroup())
     {
         QString speakRequest = QString::fromUtf8("\xE2\x98\x9D");
         QString waitingRoom = QString::fromUtf8("\xE2\x8F\xB2");
