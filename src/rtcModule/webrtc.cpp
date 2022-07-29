@@ -173,9 +173,9 @@ bool Call::isOwnClientCaller() const
     return mIsOwnClientCaller;
 }
 
-bool Call::isOnline() const
+bool Call::isJoined() const
 {
-    return mSfuConnection && mSfuConnection->isOnline();
+    return mSfuConnection && mSfuConnection->isJoined();
 }
 
 void Call::addParticipant(const karere::Id &peer)
