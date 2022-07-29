@@ -3587,7 +3587,7 @@ public:
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     /**
-     * @brief Allows to enable/disable the open invite option for a chat room (just available for Meeting rooms)
+     * @brief Allows to enable/disable the open invite option for a chat room
      * The open invite option allows users with MegaChatRoom::PRIV_STANDARD privilege, to invite other users into the chat
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
@@ -3598,7 +3598,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
-     * - MegaChatError::ERROR_ARGS - If the chatroom is not a Meeting room
+     * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -3608,7 +3608,7 @@ public:
     void setOpenInvite(MegaChatHandle chatid, bool enabled, MegaChatRequestListener* listener = NULL);
 
     /**
-     * @brief Allows to enable/disable the speak request option for a chat room (just available for Meeting rooms)
+     * @brief Allows to enable/disable the speak request option for a chat room
      * If speak request option is enabled, during calls non moderator users, must request permission to speak
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
@@ -3619,7 +3619,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
-     * - MegaChatError::ERROR_ARGS - If the chatroom is not a Meeting room
+     * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -3629,7 +3629,7 @@ public:
     void setSpeakRequest(MegaChatHandle chatid, bool enabled, MegaChatRequestListener* listener = NULL);
 
     /**
-     * @brief Allows to enable/disable the waiting room option for a chat room (just available for Meeting rooms)
+     * @brief Allows to enable/disable the waiting room option for a chat room
      * If waiting room option is enabled, during calls non moderator members, will be placed into a waiting room.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
@@ -3640,7 +3640,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
-     * - MegaChatError::ERROR_ARGS - If the chatroom is not a Meeting room
+     * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -6550,7 +6550,7 @@ public:
     virtual bool isMeeting() const;
 
     /**
-     * @brief Returns if waiting room is enabled for a chat (just for Meeting rooms)
+     * @brief Returns if waiting room is enabled for a chat
      * During calls, non moderator members will be placed into a waiting room.
      * A moderator user must grant each user access to the call.
      * @return True if waiting room is enabled
@@ -6558,13 +6558,13 @@ public:
     virtual bool isWaitingRoom() const;
 
     /**
-     * @brief Returns if users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat (just for Meeting rooms)
+     * @brief Returns if users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      * @return True if users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      */
     virtual bool isOpenInvite() const;
 
     /**
-     * @brief Returns if during calls, non moderator users, must request permission to speak (just for Meeting rooms)
+     * @brief Returns if during calls, non moderator users, must request permission to speak
      * @return True if during calls, non moderator users, must request permission to speak.
      */
     virtual bool isSpeakRequest() const;
