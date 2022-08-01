@@ -1662,6 +1662,12 @@ bool Call::handleBye(unsigned termcode)
         return false;
     }
 
+    if (auxTermCode == kPushedToWaitingRoom || auxTermCode == kKickedFromWaitingRoom)
+    {
+        RTCM_LOG_DEBUG("We don't currently support waiting rooms");
+        return false;
+    }
+
     EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
     if (reason == kInvalidReason)
     {
