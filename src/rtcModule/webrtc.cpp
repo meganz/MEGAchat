@@ -173,6 +173,11 @@ bool Call::isOwnClientCaller() const
     return mIsOwnClientCaller;
 }
 
+bool Call::isJoined() const
+{
+    return mSfuConnection && mSfuConnection->isJoined();
+}
+
 void Call::addParticipant(const karere::Id &peer)
 {
     mParticipants.insert(peer);
@@ -1105,18 +1110,23 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kUserHangup:               return "normal user hangup";
         case kTooManyParticipants:      return "there are too many participants";
         case kLeavingRoom:              return "user has been removed from chatroom";
+        case kCallEndedByModerator:     return "group or meeting call has been ended by moderator";
+        case kApiEndCall:               return "API/chatd ended call";
+        case kPeerJoinTimeout:          return "Nobody joined call";
+        case kPushedToWaitingRoom:      return "Our client has been removed from the call and pushed back into the waiting room";
+        case kKickedFromWaitingRoom:    return "Revokes the join permission for our user that is into the waiting room";
         case kRtcDisconn:               return "SFU connection failed";
         case kSigDisconn:               return "socket error on the signalling connection";
         case kSfuShuttingDown:          return "SFU server is shutting down";
+        case kChatDisconn:              return "chatd connection is broken";
+        case kNoMediaPath:              return "webRTC connection failed, no UDP connectivity";
         case kErrSignaling:             return "signalling error";
         case kErrNoCall:                return "attempted to join non-existing call";
         case kErrAuth:                  return "authentication error";
         case kErrApiTimeout:            return "ping timeout between SFU and API";
         case kErrSdp:                   return "error generating or setting SDP description";
-        case kErrGeneral:               return "general error";
-        case kChatDisconn:              return "chatd connection is broken";
-        case kNoMediaPath:              return "webRTC connection failed, no UDP connectivity";
-        case kApiEndCall:               return "API/chatd ended call";
+        case kErrClientGeneral:         return "Client general error";
+        case kErrGeneral:               return "SFU general error";
         case kUnKnownTermCode:          return "unknown error";
         default:                        return "invalid connection termcode";
     }
@@ -1162,6 +1172,23 @@ void Call::sendStats(const TermCode& termCode)
     mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
     RTCM_LOG_DEBUG("Clear local SFU stats");
     mStats.clear();
+}
+
+EndCallReason Call::getEndCallReasonFromTermcode(const TermCode& termCode)
+{
+    if (kUserHangup)                    { return kEnded; }
+    if (kTooManyParticipants)           { return kFailed; }
+    if (kLeavingRoom)                   { return kEnded; }
+    if (kCallEndedByModerator)          { return kEndedByMod; }
+    if (kApiEndCall)                    { return kFailed; }
+    if (kPeerJoinTimeout)               { return kFailed; }
+    if (kPushedToWaitingRoom)           { return kFailed; }
+    if (kKickedFromWaitingRoom)         { return kFailed; }
+    if (termCode & kFlagDisconn)        { return kFailed; }
+    if (termCode & kFlagError)          { return kFailed; }
+
+    // TODO review returned value (in case we need a new one) for kPushedToWaitingRoom and kKickedFromWaitingRoom, when we add support for them
+    return kInvalidReason;
 }
 
 void Call::clearParticipants()
@@ -1623,6 +1650,38 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
         RTCM_LOG_DEBUG("handlePeerLeft. Hangup 1on1 call, upon reception of PEERLEFT with non recoverable termcode: %s", connectionTermCodeToString(peerLeftTermCode).c_str());
         hangup(); // TermCode::kUserHangup
     }
+    return true;
+}
+
+bool Call::handleBye(unsigned termcode)
+{
+    TermCode auxTermCode = static_cast<TermCode> (termcode);
+    if (!isValidConnectionTermcode(auxTermCode))
+    {
+        RTCM_LOG_ERROR("Invalid termCode [%d] received at BYE command", termcode);
+        return false;
+    }
+
+    if (auxTermCode == kPushedToWaitingRoom || auxTermCode == kKickedFromWaitingRoom)
+    {
+        RTCM_LOG_DEBUG("We don't currently support waiting rooms");
+        return false;
+    }
+
+    EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
+    if (reason == kInvalidReason)
+    {
+        RTCM_LOG_ERROR("Invalid end call reason for termcode [%d]", termcode);
+        assert(false); // we don't need to fail, just log a msg and assert => check getEndCallReasonFromTermcode
+    }
+
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, auxTermCode, reason, this]()
+    {
+        RTCM_LOG_DEBUG("Immediate removing call due to BYE [%d] command received from SFU", auxTermCode);
+        mRtc.immediateRemoveCall(this, reason, auxTermCode);
+    }, mRtc.getAppCtx());
+
     return true;
 }
 

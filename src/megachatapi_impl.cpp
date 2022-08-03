@@ -6445,27 +6445,35 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
 {
     switch (termCode)
     {
-        case rtcModule::TermCode::kRtcDisconn:
-        case rtcModule::TermCode::kSigDisconn:
-            return SESS_TERM_CODE_RECOVERABLE;
-
+        case rtcModule::TermCode::kUserHangup:
+        case rtcModule::TermCode::kTooManyParticipants:
+        case rtcModule::TermCode::kLeavingRoom:
+        case rtcModule::TermCode::kCallEndedByModerator:
         case rtcModule::TermCode::kApiEndCall:
+        case rtcModule::TermCode::kPeerJoinTimeout:
+        case rtcModule::TermCode::kPushedToWaitingRoom:
+        case rtcModule::TermCode::kKickedFromWaitingRoom:
         case rtcModule::TermCode::kSfuShuttingDown:
         case rtcModule::TermCode::kChatDisconn:
+        case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kErrSignaling:
         case rtcModule::TermCode::kErrNoCall:
         case rtcModule::TermCode::kErrAuth:
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrSdp:
+        case rtcModule::TermCode::kErrClientGeneral:
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kUnKnownTermCode:
-        case rtcModule::TermCode::kUserHangup:
-        case rtcModule::TermCode::kLeavingRoom:
-        case rtcModule::TermCode::kTooManyParticipants: // should not be here??
             return SESS_TERM_CODE_NON_RECOVERABLE;
+
+        case rtcModule::TermCode::kRtcDisconn:
+        case rtcModule::TermCode::kSigDisconn:
+            return SESS_TERM_CODE_RECOVERABLE;
 
         case rtcModule::TermCode::kInvalidTermCode:
             return SESS_TERM_CODE_INVALID;
+
+        // TODO: Check kPushedToWaitingRoom and kKickedFromWaitingRoom when we add support for these termcodes
     }
 
     return SESS_TERM_CODE_INVALID;
@@ -6804,9 +6812,14 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrAuth:
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrGeneral:
+        case rtcModule::TermCode::kErrClientGeneral:
+        case rtcModule::TermCode::kPeerJoinTimeout:
+        case rtcModule::TermCode::kPushedToWaitingRoom:
+        case rtcModule::TermCode::kKickedFromWaitingRoom:
         case rtcModule::TermCode::kChatDisconn:
         case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kApiEndCall:
+        case rtcModule::TermCode::kCallEndedByModerator:
         case rtcModule::TermCode::kUnKnownTermCode:
             return TERM_CODE_ERROR;
 
@@ -6821,6 +6834,8 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
 
        case rtcModule::TermCode::kInvalidTermCode:
             return TERM_CODE_INVALID;
+
+       // TODO: Check kPushedToWaitingRoom and kKickedFromWaitingRoom when we add support for these termcodes
     }
 
     return TERM_CODE_INVALID;

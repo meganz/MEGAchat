@@ -268,6 +268,7 @@ public:
     karere::Id getCallerid() const override;
     CallState getState() const override;
     bool isOwnClientCaller() const override;
+    bool isJoined()  const override;
     // returns true if your user participates of the call
     bool participate() override;
     bool isJoining() const override;
@@ -388,6 +389,7 @@ public:
     std::string connectionTermCodeToString(const TermCode &termcode) const;
     bool isValidConnectionTermcode(TermCode termCode) const;
     void sendStats(const TermCode& termCode);
+    static EndCallReason getEndCallReasonFromTermcode(const TermCode& termCode);
 
     void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
@@ -422,6 +424,7 @@ public:
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
+    bool handleBye(unsigned termcode) override;
     void onSfuConnected() override;
     void onSfuDisconnected() override;
     void onSendByeCommand() override;
