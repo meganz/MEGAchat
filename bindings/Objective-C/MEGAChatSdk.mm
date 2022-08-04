@@ -276,7 +276,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)addChatRoomDelegate:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
     if (self.megaChatApi) {
-        self.megaChatApi->addChatRoomListener(chatId, [self createDelegateMEGAChatRoomListener:delegate singleListener:NO]);
+        self.megaChatApi->addChatRoomListener(chatId, [self createDelegateMEGAChatRoomListener:delegate singleListener:NO queueType:ListenerQueueTypeCurrent]);
     }
 }
 
@@ -991,7 +991,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
     if (self.megaChatApi == nil) return NO;
-    return self.megaChatApi->openChatRoom(chatId, [self createDelegateMEGAChatRoomListener:delegate singleListener:YES]);
+    return self.megaChatApi->openChatRoom(chatId, [self createDelegateMEGAChatRoomListener:delegate singleListener:YES queueType:ListenerQueueTypeMain]);
 }
 
 - (void)closeChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
@@ -1538,10 +1538,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 
-- (MegaChatRoomListener *)createDelegateMEGAChatRoomListener:(id<MEGAChatRoomDelegate>)delegate singleListener:(BOOL)singleListener {
+- (MegaChatRoomListener *)createDelegateMEGAChatRoomListener:(id<MEGAChatRoomDelegate>)delegate singleListener:(BOOL)singleListener queueType:(ListenerQueueType)queueType {
     if (delegate == nil) return nil;
     
-    DelegateMEGAChatRoomListener *delegateListener = new DelegateMEGAChatRoomListener(self, delegate, singleListener);
+    DelegateMEGAChatRoomListener *delegateListener = new DelegateMEGAChatRoomListener(self, delegate, singleListener, queueType);
     pthread_mutex_lock(&listenerMutex);
     _activeChatRoomListeners.insert(delegateListener);
     pthread_mutex_unlock(&listenerMutex);
