@@ -1365,16 +1365,6 @@ int MegaChatRequest::getParamType()
     return -1;
 }
 
-MegaStringMap* MegaChatRequest::getStringMap()
-{
-    return NULL;
-}
-
-MegaStringList* MegaChatRequest::getStringList() const
-{
-    return NULL;
-}
-
 MegaChatRoomList *MegaChatRoomList::copy() const
 {
     return NULL;

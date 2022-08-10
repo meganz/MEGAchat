@@ -2163,26 +2163,6 @@ public:
      * @return Type of parameter related to the request
      */
     virtual int getParamType();
-
-    /**
-     * @brief Returns the string map
-     *
-     * The SDK retains the ownership of the returned value. It will be valid until
-     * the MegaChatRequest object is deleted.
-     *
-     * @return String map including the key-value pairs of the attribute
-     */
-    virtual mega::MegaStringMap* getStringMap();
-
-    /**
-     * @brief Returns a string list
-     *
-     * The SDK retains the ownership of the returned value. It will be valid until
-     * the MegaChatRequest object is deleted.
-     *
-     * @return String list
-     */
-    virtual mega::MegaStringList* getStringList() const;
 };
 
 /**
@@ -3743,10 +3723,6 @@ public:
      * - MegaChatRequest::getPrivilege - Returns zero (private mode)
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      * - MegaChatRequest::getText - Returns the title of the chat.
-     * - MegaChatRequest::getStringList - Returns the value of speakRequest, waitingRoom and openInvite in a MegaStringList
-     *      + To check if speakRequest param was set true, the list must contain an item equal to MegaChatApi::CHAT_OPTION_SPEAK_REQUEST
-     *      + To check if waitingRoom param was set true, the list must contain an item equal to MegaChatApi::CHAT_OPTION_WAITING_ROOM
-     *      + To check if openInvite param was set true, the list must contain an item equal to MegaChatApi::CHAT_OPTION_OPEN_INVITE
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -3831,10 +3807,6 @@ public:
      * - MegaChatRequest::getPrivilege - Returns one (public mode)
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      * - MegaChatRequest::getText - Returns the title of the chat.
-     * - MegaChatRequest::getStringList - Returns the value of speakRequest, waitingRoom and openInvite in a MegaStringList
-     *      + To check if speakRequest param was set true, the list must contain an item equal to MegaChatApi::CHAT_OPTION_SPEAK_REQUEST
-     *      + To check if waitingRoom param was set true, the list must contain an item equal to MegaChatApi::CHAT_OPTION_WAITING_ROOM
-     *      + To check if openInvite param was set true, the list must contain an item equal to MegaChatApi::CHAT_OPTION_OPEN_INVITE
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -3912,10 +3884,6 @@ public:
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      * - MegaChatRequest::getText - Returns the title of the chat.
      * - MegaChatRequest::getNumber - Returns always 1, since the chatroom is a meeting
-     * - MegaChatRequest::getStringList - Returns the value of speakRequest, waitingRoom and openInvite in a MegaStringList
-     *      + To check if speakRequest param was set true, the list must contain an item equal to MegaChatApi::CHAT_OPTION_SPEAK_REQUEST
-     *      + To check if waitingRoom param was set true, the list must contain an item equal to MegaChatApi::CHAT_OPTION_WAITING_ROOM
-     *      + To check if openInvite param was set true, the list must contain an item equal to MegaChatApi::CHAT_OPTION_OPEN_INVITE
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:

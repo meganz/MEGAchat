@@ -427,7 +427,6 @@ void MegaChatApiImpl::sendPendingRequests()
                     title = request->getText();
                 }
 
-                MegaStringList* list = request->getStringList(); // chat options
 
                 mClient->createGroupChat(peers, publicChat, isMeeting, list, title)
                 .then([request, this](Id chatid)
@@ -3993,12 +3992,6 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList* peerList, const c
     request->setMegaChatPeerList(peerList);
     request->setText(title);
 
-    std::unique_ptr<MegaStringList> list(::mega::MegaStringList::createInstance());
-    if (speakRequest)   { list->add(std::to_string(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST).c_str()); }
-    if (waitingRoom)    { list->add(std::to_string(MegaChatApi::CHAT_OPTION_WAITING_ROOM).c_str()); }
-    if (openInvite)     { list->add(std::to_string(MegaChatApi::CHAT_OPTION_OPEN_INVITE).c_str()); }
-    request->setStringList(list.get());
-
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4012,12 +4005,6 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
     request->setText(title);
     request->setNumber(meeting);
 
-    std::unique_ptr<MegaStringList> list(::mega::MegaStringList::createInstance());
-    if (speakRequest)   { list->add(std::to_string(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST).c_str()); }
-    if (waitingRoom)    { list->add(std::to_string(MegaChatApi::CHAT_OPTION_WAITING_ROOM).c_str()); }
-    if (openInvite)     { list->add(std::to_string(MegaChatApi::CHAT_OPTION_OPEN_INVITE).c_str()); }
-
-    request->setStringList(list.get());
     requestQueue.push(request);
     waiter->notify();
 }
@@ -6018,8 +6005,6 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     }
 
     setParamType(request.getParamType());
-    setStringMap(request.getStringMap());
-    setStringList(request.getStringList());
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -6173,21 +6158,6 @@ int MegaChatRequestPrivate::getTag() const
     return mTag;
 }
 
-::mega::MegaStringList* MegaChatRequestPrivate::getStringList() const
-{
-    return mStringList.get();
-}
-
-void MegaChatRequestPrivate::setStringList(MegaStringList* stringList)
-{
-    mStringList.reset();
-
-    if (stringList)
-    {
-       mStringList = unique_ptr<MegaStringList>(stringList->copy());
-    }
-}
-
 void MegaChatRequestPrivate::setListener(MegaChatRequestListener *listener)
 {
     mListener = listener;
@@ -6311,11 +6281,6 @@ int MegaChatRequestPrivate::getParamType()
     return mParamType;
 }
 
-MegaStringMap* MegaChatRequestPrivate::getStringMap()
-{
-    return mStringMap.get();;
-}
-
 void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 {
     if (mMegaNodeList != NULL)
@@ -6329,16 +6294,6 @@ void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 void MegaChatRequestPrivate::setParamType(int paramType)
 {
     mParamType = paramType;
-}
-
-void MegaChatRequestPrivate::setStringMap(MegaStringMap* stringMap)
-{
-    mStringMap.reset();
-
-    if (stringMap)
-    {
-        mStringMap = unique_ptr<MegaStringMap>(stringMap->copy());
-    }
 }
 
 #ifndef KARERE_DISABLE_WEBRTC

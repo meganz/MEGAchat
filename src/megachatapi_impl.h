@@ -99,8 +99,6 @@ public:
     virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
     virtual mega::MegaHandleList *getMegaHandleList();
     virtual int getParamType();
-    virtual mega::MegaStringMap* getStringMap() override;
-    virtual mega::MegaStringList* getStringList() const override;
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -140,9 +138,6 @@ protected:
     mega::MegaHandleList *mMegaHandleList;
     std::map<MegaChatHandle, mega::MegaHandleList*> mMegaHandleListMap;
     int mParamType;
-
-    std::unique_ptr<mega::MegaStringMap> mStringMap;
-    std::unique_ptr<mega::MegaStringList> mStringList;
 };
 
 class MegaChatPresenceConfigPrivate : public MegaChatPresenceConfig
