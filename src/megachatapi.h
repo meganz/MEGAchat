@@ -3593,13 +3593,14 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
-     * - MegaChatRequest::getMegaStringMap - Returns a MegaStringMap with the format: [<key><value>]
-     *      + The value of enabled param, will be contained in the map whose key is MegaChatApi::CHAT_OPTION_OPEN_INVITE (both in string format)
+     * - MegaChatRequest::getPrivilege - Returns MegaChatApi::CHAT_OPTION_OPEN_INVITE
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
      * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_EXIST - If the value of enabled is the same as open invite option
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enabled True if we want to enable open invite option, otherwise false.
@@ -3614,13 +3615,14 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
-     * - MegaChatRequest::getMegaStringMap - Returns a MegaStringMap with the format: [<key><value>]
-     *      + The value of enabled param, will be contained in the map whose key is MegaChatApi::CHAT_OPTION_SPEAK_REQUEST (both in string format)
+     * - MegaChatRequest::getPrivilege - Returns MegaChatApi::CHAT_OPTION_SPEAK_REQUEST
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
      * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_EXIST - If the value of enabled is the same as speak request option
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enabled True if we want to enable speak request option, otherwise false.
@@ -3635,13 +3637,14 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
-     * - MegaChatRequest::getMegaStringMap - Returns a MegaStringMap with the format: [<key><value>]
-     *      + The value of enabled param, will be contained in the map whose key is MegaChatApi::CHAT_OPTION_WAITING_ROOM (both in string format)
+     * - MegaChatRequest::getPrivilege - Returns MegaChatApi:::CHAT_OPTION_WAITING_ROOM
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
      * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
      * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_EXIST - If the value of enabled is the same as waiting room option
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enabled True if we want to enable waiting room, otherwise false.

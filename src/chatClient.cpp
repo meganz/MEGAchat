@@ -2801,10 +2801,10 @@ bool GroupChatRoom::removeMember(uint64_t userid)
 
     return true;
 }
-promise::Promise<void> GroupChatRoom::setChatRoomOptions(::mega::MegaStringMap* map)
+promise::Promise<void> GroupChatRoom::setChatRoomOption(int option, bool enabled)
 {
     auto wptr = getDelTracker();
-    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatOptions, chatid(), map)
+    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatOption, chatid(), option, enabled)
     .then([wptr]()
     {
         wptr.throwIfDeleted();
@@ -2812,7 +2812,7 @@ promise::Promise<void> GroupChatRoom::setChatRoomOptions(::mega::MegaStringMap* 
     .fail([wptr, this](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
-        KR_LOG_ERROR("Error setting chatroom options for chat %s: %s", ID_CSTR(chatid()), err.what());
+        KR_LOG_ERROR("Error setting chatroom option for chat %s: %s", ID_CSTR(chatid()), err.what());
         return err;
     });
 }

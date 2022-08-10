@@ -444,11 +444,10 @@ public:
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 
     /**
-     * @brief Allow to enable/disable a set of chatroom options
-     * @param map MegaStringMap that contains the chatroom options with the format: [<key><value>]
+     * @brief Allow to enable/disable one of the following chatroom options: (openInvite, speakRequest, waitingRoom)
      * @returns A void promise, which will fail if the MegaApi request fails.
      */
-    promise::Promise<void> setChatRoomOptions(::mega::MegaStringMap* map);
+    promise::Promise<void> setChatRoomOption(int option, bool enabled);
 
     /** TODO
      *

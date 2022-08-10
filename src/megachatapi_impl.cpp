@@ -513,13 +513,33 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!request->getStringMap())
+            bool changed = false;
+            int option = request->getPrivilege();
+            bool enabled = request->getFlag();
+
+            switch (option)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                case MegaChatApi::CHAT_OPTION_OPEN_INVITE:
+                    changed = enabled != chatroom->isOpenInvite();
+                    break;
+                case MegaChatApi::CHAT_OPTION_SPEAK_REQUEST:
+                    changed = enabled != chatroom->isSpeakRequest();
+                    break;
+                case MegaChatApi::CHAT_OPTION_WAITING_ROOM:
+                    changed = enabled != chatroom->isWaitingRoom();
+                    break;
+                default:
+                    errorCode = MegaChatError::ERROR_ARGS; // unknown chat option
+                    break;
+            }
+
+            if (!changed) // chat option already is (enabled/disabled)
+            {
+                errorCode = MegaChatError::ERROR_EXIST;
                 break;
             }
 
-            ((GroupChatRoom *)chatroom)->setChatRoomOptions(request->getStringMap())
+            ((GroupChatRoom *)chatroom)->setChatRoomOption(option, enabled)
             .then([request, this]()
             {
                 MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -527,7 +547,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const ::promise::Error& err)
             {
-                API_LOG_ERROR("Error setting chatroom : %s", err.what());
+                API_LOG_ERROR("Error setting chatroom option : %s", err.what());
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
@@ -3947,16 +3967,10 @@ MegaChatHandle MegaChatApiImpl::getChatHandleByUser(MegaChatHandle userhandle)
 
 void MegaChatApiImpl::setChatOption(MegaChatHandle chatid, int option, bool enabled, MegaChatRequestListener* listener)
 {
-    std::unique_ptr<MegaStringMap> map(MegaStringMap::createInstance());
-    map->set(std::to_string(option).c_str(), enabled ? "1" : "0");
-    setChatOptions(chatid, map.get(), listener);
-}
-
-void MegaChatApiImpl::setChatOptions(MegaChatHandle chatid, MegaStringMap* options, MegaChatRequestListener* listener)
-{
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS, listener);
     request->setChatHandle(chatid);
-    request->setStringMap(options);
+    request->setPrivilege(option);
+    request->setFlag(enabled);
     requestQueue.push(request);
     waiter->notify();
 }
