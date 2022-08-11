@@ -2051,7 +2051,7 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
 }
 
 promise::Promise<karere::Id>
-Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, ::mega::MegaStringList* list, const char* title)
+Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options, const char* title)
 {
     // prepare set of participants
     std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
@@ -2097,7 +2097,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
     auto wptr = getDelTracker();
-    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat, meeting, list](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
+    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat, meeting, options](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
     {
         if (wptr.deleted())
         {
@@ -2115,7 +2115,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         if (publicchat)
         {
             createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
-            .then([wptr, this, crypto, sdkPeers, enctitleB64, meeting, list](chatd::KeyCommand *keyCmd) -> ApiPromise
+            .then([wptr, this, crypto, sdkPeers, enctitleB64, meeting, options](chatd::KeyCommand *keyCmd) -> ApiPromise
             {
                 mega::MegaStringMap *userKeyMap;
                 userKeyMap = mega::MegaStringMap::createInstance();
@@ -2154,13 +2154,13 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 //Add entry to map
                 userKeyMap->set(mMyHandle.toString().c_str(), oKeyB64.c_str());
                 return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap,
-                                !enctitleB64.empty() ? enctitleB64.c_str() : nullptr, meeting, list);
+                                !enctitleB64.empty() ? enctitleB64.c_str() : nullptr, meeting, options);
             });
         }
         else
         {
             createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(),
-                                         !enctitleB64.empty() ? enctitleB64.c_str() : nullptr, list);
+                                         !enctitleB64.empty() ? enctitleB64.c_str() : nullptr, options);
         }
 
         return createChatPromise
@@ -4105,9 +4105,9 @@ void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
     mChatOptions.set(opt); // replace old options set by new one
 
     // compare old and new options set to notify apps those ones that have changed
-    if (oldOptions.speakRequest() != newOptions.speakRequest()) { notifyChatOptionsChanged(mega::ChatOptions::chat_option_speak_request); }
-    if (oldOptions.waitingRoom() != newOptions.waitingRoom())   { notifyChatOptionsChanged(mega::ChatOptions::chat_option_waiting_room); }
-    if (oldOptions.openInvite() != newOptions.openInvite())     { notifyChatOptionsChanged(mega::ChatOptions::chat_option_open_invite); }
+    if (oldOptions.speakRequest() != newOptions.speakRequest()) { notifyChatOptionsChanged(mega::ChatOptions::kSpeakRequest); }
+    if (oldOptions.waitingRoom() != newOptions.waitingRoom())   { notifyChatOptionsChanged(mega::ChatOptions::kWaitingRoom); }
+    if (oldOptions.openInvite() != newOptions.openInvite())     { notifyChatOptionsChanged(mega::ChatOptions::kOpenInvite); }
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
