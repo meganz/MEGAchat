@@ -412,6 +412,13 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (group)
             {
+                int chatOptionsBitMask = request->getPrivilege();
+                if (!isValidChatOptionsBitMask (chatOptionsBitMask)) // empty bitmask is considered as a valid value
+                {
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
+
                 const char *title = request->getText();
                 vector<std::pair<handle, Priv>> peers;
                 for (unsigned int i = 0; i < userpriv->size(); i++)
@@ -427,8 +434,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     title = request->getText();
                 }
 
-
-                mClient->createGroupChat(peers, publicChat, isMeeting, list, title)
+                mClient->createGroupChat(peers, publicChat, isMeeting, chatOptionsBitMask, title)
                 .then([request, this](Id chatid)
                 {
                     request->setChatHandle(chatid);
@@ -3991,7 +3997,7 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList* peerList, const c
     request->setPrivilege(0);
     request->setMegaChatPeerList(peerList);
     request->setText(title);
-
+    request->setPrivilege(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4004,7 +4010,7 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
     request->setMegaChatPeerList(peerList);
     request->setText(title);
     request->setNumber(meeting);
-
+    request->setPrivilege(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4744,6 +4750,22 @@ void MegaChatApiImpl::pushReceived(bool beep, MegaChatHandle chatid, int type, M
     request->setParamType(type);
     requestQueue.push(request);
     waiter->notify();
+}
+
+int MegaChatApiImpl::createChatOptionsBitMask(bool speakRequest, bool waitingRoom, bool openInvite)
+{
+   int chatOptionsBitMask = MegaChatApi::CHAT_OPTION_EMPTY;
+   chatOptionsBitMask = (speakRequest ? MegaChatApi::CHAT_OPTION_SPEAK_REQUEST : 0)
+                        | (waitingRoom ? MegaChatApi::CHAT_OPTION_WAITING_ROOM : 0)
+                        | (openInvite ? MegaChatApi::CHAT_OPTION_OPEN_INVITE : 0);
+
+   return chatOptionsBitMask;
+}
+
+bool MegaChatApiImpl::isValidChatOptionsBitMask(int chatOptionsBitMask)
+{
+    int maxValidValue = MegaChatApi::CHAT_OPTION_SPEAK_REQUEST | MegaChatApi::CHAT_OPTION_WAITING_ROOM | MegaChatApi::CHAT_OPTION_OPEN_INVITE;
+    return chatOptionsBitMask >= MegaChatApi::CHAT_OPTION_EMPTY && chatOptionsBitMask <= maxValidValue;
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
