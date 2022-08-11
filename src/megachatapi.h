@@ -2554,9 +2554,10 @@ public:
 
     enum
     {
-        CHAT_OPTION_OPEN_INVITE      = 0,   /// Open invite
-        CHAT_OPTION_SPEAK_REQUEST    = 1,   /// Speak request
-        CHAT_OPTION_WAITING_ROOM     = 2,   /// Waiting room
+        CHAT_OPTION_EMPTY            = 0x00,   /// Empty chat options
+        CHAT_OPTION_SPEAK_REQUEST    = 0x01,   /// Speak request
+        CHAT_OPTION_WAITING_ROOM     = 0x02,   /// Waiting room
+        CHAT_OPTION_OPEN_INVITE      = 0x04,   /// Open invite
     };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
