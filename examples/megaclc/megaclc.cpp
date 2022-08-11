@@ -3135,6 +3135,79 @@ void exec_createpreview(ac::ACState& s)
     conlock(cout) << (done ? "succeeded" : "failed") << endl;
 }
 
+
+void exec_getthumbnail(ac::ACState& s)
+{
+    string nodepath1 = s.words[1].s;
+    string localpath2 = s.words[2].s;
+
+    if (auto n = GetNodeByPath(nodepath1))
+    {
+        g_megaApi->getThumbnail(n.get(), localpath2.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("getThumbnail", e, ReportResult);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "node not found" << endl;
+    }
+}
+
+void exec_cancelgetthumbnail(ac::ACState& s)
+{
+    string nodepath1 = s.words[1].s;
+
+    if (auto n = GetNodeByPath(nodepath1))
+    {
+        g_megaApi->cancelGetThumbnail(n.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("cancelGetThumbnail", e, ReportResult);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "node not found" << endl;
+    }
+}
+
+
+void exec_getpreview(ac::ACState& s)
+{
+    string nodepath1 = s.words[1].s;
+    string localpath2 = s.words[2].s;
+
+    if (auto n = GetNodeByPath(nodepath1))
+    {
+        g_megaApi->getPreview(n.get(), localpath2.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("getPreview", e, ReportResult);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "node not found" << endl;
+    }
+}
+
+void exec_cancelgetpreview(ac::ACState& s)
+{
+    string nodepath1 = s.words[1].s;
+
+    if (auto n = GetNodeByPath(nodepath1))
+    {
+        g_megaApi->cancelGetPreview(n.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("cancelGetPreview", e, ReportResult);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "node not found" << endl;
+    }
+}
+
+
 void exec_testAllocation(ac::ACState& s)
 {
     bool success = g_megaApi->testAllocation(unsigned(atoi(s.words[1].s.c_str())), size_t(atoll(s.words[2].s.c_str())));
@@ -4719,6 +4792,10 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_setunshareablenodecoordinates, sequence(text("setunshareablenodecoordinates"), param("remotepath"), param("latitude"), param("longitude")));
     p->Add(exec_createthumbnail, sequence(text("createthumbnail"), opt(flag("-tempmegaapi")), opt(sequence(flag("-parallel"), param("count"))), localFSFile(), localFSFile()));
     p->Add(exec_createpreview, sequence(text("createpreview"), localFSFile(), localFSFile()));
+    p->Add(exec_getthumbnail, sequence(text("getthumbnail"), param("node"), localFSFile()));
+    p->Add(exec_cancelgetthumbnail, sequence(text("cancelgetthumbnail"), param("node")));
+    p->Add(exec_getpreview, sequence(text("getpreview"), param("node"), localFSFile()));
+    p->Add(exec_cancelgetpreview, sequence(text("cancelgetpreview"), param("node")));
     p->Add(exec_testAllocation, sequence(text("testAllocation"), param("count"), param("size")));
     p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
     p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-order"), param("order")), sequence(flag("-refilter"), param("regex")))), param("path")));
