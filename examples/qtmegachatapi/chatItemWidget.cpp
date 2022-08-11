@@ -63,7 +63,13 @@ ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatL
     {
         if(item->isPublic())
         {
-            if (!item->isPreview())
+            std::unique_ptr<megachat::MegaChatRoom> chatRoom = std::unique_ptr<megachat::MegaChatRoom>(mMegaChatApi->getChatRoom(mChatId));
+            if (chatRoom && chatRoom->isMeeting())
+            {
+                ui->mAvatar->setText("M");
+                ui->mAvatar->setStyleSheet("color: #F28230");
+            }
+            else if (!item->isPreview())
             {
                 ui->mAvatar->setText("P");
                 ui->mAvatar->setStyleSheet("color: #43B63D");
