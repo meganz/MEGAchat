@@ -3724,7 +3724,7 @@ public:
      * - MegaChatRequest::getPrivilege - Returns zero (private mode)
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      * - MegaChatRequest::getText - Returns the title of the chat.
-     * - MegaChatRequest::getPrivilege - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+     * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
      *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
      *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
      *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
@@ -3812,7 +3812,7 @@ public:
      * - MegaChatRequest::getPrivilege - Returns one (public mode)
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      * - MegaChatRequest::getText - Returns the title of the chat.
-     * - MegaChatRequest::getPrivilege - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+     * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
      *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
      *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
      *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
@@ -3893,7 +3893,7 @@ public:
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      * - MegaChatRequest::getText - Returns the title of the chat.
      * - MegaChatRequest::getNumber - Returns always 1, since the chatroom is a meeting
-     * - MegaChatRequest::getPrivilege - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+     * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
      *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
      *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
      *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)

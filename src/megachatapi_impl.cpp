@@ -412,7 +412,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (group)
             {
-                int chatOptionsBitMask = request->getPrivilege();
+                int chatOptionsBitMask = request->getParamType();
                 if (!isValidChatOptionsBitMask (chatOptionsBitMask)) // empty bitmask is considered as a valid value
                 {
                     errorCode = MegaChatError::ERROR_ACCESS;
@@ -3997,7 +3997,7 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList* peerList, const c
     request->setPrivilege(0);
     request->setMegaChatPeerList(peerList);
     request->setText(title);
-    request->setPrivilege(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
+    request->setParamType(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4010,7 +4010,7 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
     request->setMegaChatPeerList(peerList);
     request->setText(title);
     request->setNumber(meeting);
-    request->setPrivilege(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
+    request->setParamType(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
     requestQueue.push(request);
     waiter->notify();
 }
