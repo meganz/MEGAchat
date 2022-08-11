@@ -1186,6 +1186,7 @@ public:
     void pushReceived(bool beep, MegaChatHandle chatid, int type, MegaChatRequestListener *listener = NULL);
     int createChatOptionsBitMask(bool speakRequest, bool waitingRoom, bool openInvite);
     bool isValidChatOptionsBitMask(int chatOptionsBitMask);
+    static bool hasChatOptionEnabled(int option, int chatOptionsBitMask);
 
 #ifndef KARERE_DISABLE_WEBRTC
 

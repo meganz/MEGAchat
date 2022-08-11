@@ -5895,6 +5895,20 @@ public:
     static bool hasUrl(const char* text);
 
     /**
+     * @brief Checks if a chat option is enabled in a bitmask
+     *
+     * Valid values for option are:
+     * - MegaChatApi::CHAT_OPTION_SPEAK_REQUEST
+     * - MegaChatApi::CHAT_OPTION_WAITING_ROOM
+     * - MegaChatApi::CHAT_OPTION_OPEN_INVITE
+     *
+     * @param option Option to check if it's enabled in a bitmask
+     * @param chatOptionsBitMask Bitmask that represents a set of chat options
+     * @return True if specified option is enabled in the bitmask
+     */
+    static bool hasChatOptionEnabled(int option, int chatOptionsBitMask);
+
+    /**
      * @brief This method should be called when a node history is opened
      *
      * One node history only can be opened once before it will be closed

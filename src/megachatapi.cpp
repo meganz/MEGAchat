@@ -1169,6 +1169,11 @@ bool MegaChatApi::hasUrl(const char *text)
     return MegaChatApiImpl::hasUrl(text);
 }
 
+bool MegaChatApi::hasChatOptionEnabled(int option, int chatOptionsBitMask)
+{
+    return MegaChatApiImpl::hasChatOptionEnabled(option, chatOptionsBitMask);
+}
+
 bool MegaChatApi::openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
 {
     return pImpl->openNodeHistory(chatid, listener);

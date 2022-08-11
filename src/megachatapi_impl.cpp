@@ -4768,6 +4768,11 @@ bool MegaChatApiImpl::isValidChatOptionsBitMask(int chatOptionsBitMask)
     return chatOptionsBitMask >= MegaChatApi::CHAT_OPTION_EMPTY && chatOptionsBitMask <= maxValidValue;
 }
 
+bool MegaChatApiImpl::hasChatOptionEnabled(int option, int chatOptionsBitMask)
+{
+    return chatOptionsBitMask & option;
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
