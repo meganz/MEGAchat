@@ -580,8 +580,11 @@ void MegaChatApiImpl::sendPendingRequests()
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
-            if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
+
+            if (chatroom->ownPriv() < (Priv) MegaChatPeerList::PRIV_STANDARD
+                || (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR && !chatroom->isOpenInvite()))
             {
+                // only allowed moderators or participants with standard permissions just if openInvite is enabled
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
