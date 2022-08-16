@@ -3569,6 +3569,7 @@ public:
 
     /**
      * @brief Allows to enable/disable the open invite option for a chat room
+     * 
      * The open invite option allows users with MegaChatRoom::PRIV_STANDARD privilege, to invite other users into the chat
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
@@ -3591,6 +3592,7 @@ public:
 
     /**
      * @brief Allows to enable/disable the speak request option for a chat room
+     * 
      * If speak request option is enabled, during calls non moderator users, must request permission to speak
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
@@ -3613,6 +3615,7 @@ public:
 
     /**
      * @brief Allows to enable/disable the waiting room option for a chat room
+     * 
      * If waiting room option is enabled, during calls non moderator members, will be placed into a waiting room.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
