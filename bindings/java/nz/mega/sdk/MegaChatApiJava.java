@@ -1514,9 +1514,45 @@ public class MegaChatApiJava {
         return megaChatApi.getMyEmail();
     }
 
-    public ArrayList<MegaChatRoom> getChatRooms()
-    {
+    /**
+     * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
+     *
+     * It is needed to have successfully called MegaChatApi::init (the initialization
+     * state should be MegaChatApi::INIT_OFFLINE_SESSION or MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * You take the ownership of the returned value
+     *
+     * @return List of MegaChatRoom objects with all chatrooms of this account.
+     */
+    public ArrayList<MegaChatRoom> getChatRooms() {
         return chatRoomListToArray(megaChatApi.getChatRooms());
+    }
+
+    /**
+     * @brief Returns a list of chatrooms of this MEGA account filtered by type
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * @param type Type of the chatrooms returned by this method.
+     * Valid values for param type are:
+     * - MegaChatApi::CHAT_TYPE_ALL             = 0,  /// All chats types
+     * - MegaChatApi::CHAT_TYPE_INDIVIDUAL      = 1,  /// 1on1 chats
+     * - MegaChatApi::CHAT_TYPE_GROUP           = 2,  /// Group chats, public and private ones (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+     *
+     * In case you provide an invalid value for type param, this method will returns an empty list
+     *
+     * You take the ownership of the returned value
+     *
+     * @return List of MegaChatRoom objects filtered by type of this account.
+     */
+    public ArrayList<MegaChatRoom> getChatRoomsByType(int type) {
+        return chatRoomListToArray(megaChatApi.getChatRoomsByType(type));
     }
 
     /**
@@ -1580,6 +1616,40 @@ public class MegaChatApiJava {
      */
     public ArrayList<MegaChatListItem> getChatListItemsByPeers(MegaChatPeerList peers){
         return chatRoomListItemToArray(megaChatApi.getChatListItemsByPeers(peers));
+    }
+
+    /**
+     * @brief Get all chatrooms (1on1 and groupal) with limited information filtered by type
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * This function filters out archived chatrooms. You can retrieve them by using
+     * the function \c getArchivedChatListItems.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param type Type of the chatListItems returned by this method.
+     * Valid values for param type are:
+     * - MegaChatApi::CHAT_TYPE_ALL             = 0,  /// All chats types
+     * - MegaChatApi::CHAT_TYPE_INDIVIDUAL      = 1,  /// 1on1 chats
+     * - MegaChatApi::CHAT_TYPE_GROUP           = 2,  /// Group chats, public and private ones (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PRIVATE   = 3,  /// Private group chats (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
+     * - MegaChatApi::CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
+     * - MegaChatApi::CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
+     *
+     * In case you provide an invalid value for type param, this method will returns an empty list
+     *
+     * @return List of MegaChatListItemList objects with all chatrooms of this account filtered by type.
+     */
+    public ArrayList<MegaChatListItem> getChatListItemsByType(int type){
+        return chatRoomListItemToArray(megaChatApi.getChatListItemsByType(type));
     }
 
     /**

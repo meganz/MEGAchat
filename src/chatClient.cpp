@@ -1310,7 +1310,11 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 
         // connect() should be done in main thread, not app's thread, since LWS is single threaded
         // and the `wsi` context must be created by the main thread, where it runs the event's loop
-        marshallCall([this]() { connect(); }, appCtx);
+        marshallCall([this]()
+        {
+            notifyUserStatus(true);
+            connect();
+        }, appCtx);
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);

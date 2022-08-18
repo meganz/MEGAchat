@@ -3439,16 +3439,47 @@ void exec_remove(ac::ACState& s)
     }
 }
 
+// only add, never remove.  To invalidate one, set it null.
+vector<std::unique_ptr<m::MegaCancelToken>> globalCancelTokens;
+
+m::MegaCancelToken* makeNewGlobalCancelToken()
+{
+    globalCancelTokens.emplace_back(m::MegaCancelToken::createInstance());
+    conlock(cout) << "cancel token: " << globalCancelTokens.size()-1 << endl;
+    return globalCancelTokens.back().get();
+}
+
+void exec_cancelbytoken(ac::ACState& s)
+{
+    int id = atoi(s.words[1].s.c_str());
+    if (id < 0 || id >= globalCancelTokens.size())
+    {
+        conlock(cout) << "failed: cancel token id is out of range: " << id << endl;
+    }
+    else if (globalCancelTokens[id].get() == nullptr)
+    {
+        conlock(cout) << "failed: cancel token no longer exists for id: " << id << endl;
+    }
+    else
+    {
+        globalCancelTokens[id]->cancel();
+        conlock(cout) << "cancel triggered for token id: " << id << endl;
+    }
+}
+
 void exec_startupload(ac::ACState& s)
 {
     string newfilename;
     bool set_filename = s.extractflagparam("-filename", newfilename);
 
+    bool useCancelToken = s.extractflag("-withcanceltoken");
+    m::MegaCancelToken* ct = useCancelToken ? makeNewGlobalCancelToken() : nullptr;
+
     if (auto node = GetNodeByPath(s.words[2].s))
     {
         if (!set_filename)
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), nullptr, 0, nullptr, false, false, nullptr,
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), nullptr, 0, nullptr, false, false, ct,
                     new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
@@ -3456,7 +3487,7 @@ void exec_startupload(ac::ACState& s)
         }
         else
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), newfilename.c_str(), 0, nullptr, false, false, nullptr,
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), newfilename.c_str(), 0, nullptr, false, false, ct,
                     new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
@@ -3467,9 +3498,13 @@ void exec_startupload(ac::ACState& s)
 
 void exec_startdownload(ac::ACState& s)
 {
+
+    bool useCancelToken = s.extractflag("-withcanceltoken");
+    m::MegaCancelToken* ct = useCancelToken ? makeNewGlobalCancelToken() : nullptr;
+
     if (auto node = GetNodeByPath(s.words[1].s))
     {
-        g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), nullptr, nullptr, false, nullptr,
+        g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), nullptr, nullptr, false, ct,
             new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startDownload", e, ReportResult);
@@ -4615,11 +4650,13 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_createfolder, sequence(text("createfolder"), param("name"), param("remotepath")));
     p->Add(exec_remove, sequence(text("remove"), param("remotepath")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
-    p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath"), opt(sequence(flag("-filename"), param("newname")))));
-    p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath()));
+    p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath"), opt(flag("-withcanceltoken")), opt(sequence(flag("-filename"), param("newname")))));
+    p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath(), opt(flag("-withcanceltoken"))));
     p->Add(exec_canceltransfers, sequence(text("canceltransfers"), param("direction")));
     p->Add(exec_canceltransferbytag, sequence(text("canceltransferbytag"), param("tag")));
     p->Add(exec_gettransfers, sequence(text("gettransfers"), param("type")));
+
+    p->Add(exec_cancelbytoken, sequence(text("cancelbytoken"), param("token-id")));
 
     p->Add(exec_exportNode, sequence(text("exportnode"), opt(sequence(flag("-writable"), either(text("true"), text("false")))), opt(sequence(flag("-expiry"), param("time_t"))), param("remotepath")));
 
