@@ -158,6 +158,7 @@ public:
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
+    virtual bool handleBye(unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
     virtual void onSfuDisconnected() = 0;
     virtual void onSendByeCommand() = 0;
@@ -341,6 +342,15 @@ public:
     PeerLeftCommandFunction mComplete;
 };
 
+typedef std::function<bool(unsigned termCode)> ByeCommandFunction;
+class ByeCommand : public Command
+{
+public:
+    ByeCommand(const ByeCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    ByeCommandFunction mComplete;
+};
 
 /**
  * @brief This class allows to handle a connection to the SFU

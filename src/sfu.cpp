@@ -30,6 +30,7 @@ const std::string SpeakOnCommand::COMMAND_NAME        = "SPEAK_ON";
 const std::string SpeakOffCommand::COMMAND_NAME       = "SPEAK_OFF";
 const std::string PeerJoinCommand::COMMAND_NAME       = "PEERJOIN";
 const std::string PeerLeftCommand::COMMAND_NAME       = "PEERLEFT";
+const std::string ByeCommand::COMMAND_NAME            = "BYE";
 
 const std::string Sdp::endl = "\r\n";
 
@@ -1395,6 +1396,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1), call);
 }
 
 bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
@@ -2252,6 +2254,24 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
     ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
     unsigned termcode = reasonIterator->value.GetUint();
     return mComplete(static_cast<Cid_t>(cid), termcode);
+}
+
+ByeCommand::ByeCommand(const ByeCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool ByeCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("trsn");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'trsn' field");
+        return false;
+    }
+
+    return mComplete(reasonIterator->value.GetUint() /*termcode */);
 }
 
 }
