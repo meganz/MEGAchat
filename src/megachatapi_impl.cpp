@@ -7631,6 +7631,84 @@ void MegaChatRoomListPrivate::addChatRoom(MegaChatRoom *chat)
     mList.push_back(chat);
 }
 
+/* Class MegaChatScheduledRulesPrivate */
+MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(int freq,
+                              int interval,
+                              const char* until,
+                              const ::mega::MegaIntegerList* byWeekDay,
+                              const ::mega::MegaIntegerList* byMonthDay,
+                              const ::mega::MegaIntegerMap* byMonthWeekDay):
+    mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
+    mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
+    mUntil(until ? until : std::string()),
+    mByWeekDay(byWeekDay ? byWeekDay->copy() : nullptr),
+    mByMonthDay (byMonthDay ? byMonthDay->copy() : nullptr),
+    mByMonthWeekDay(byMonthWeekDay ? byMonthWeekDay->copy() : nullptr)
+{
+}
+
+MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(MegaChatScheduledRulesPrivate* rules) :
+        mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
+        mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
+        mUntil(rules->until()),
+        mByWeekDay(rules->byWeekDay() ? rules->byWeekDay()->copy() : nullptr),
+        mByMonthDay (rules->byMonthDay() ? rules->byMonthDay()->copy() : nullptr),
+        mByMonthWeekDay(rules->byMonthWeekDay() ? rules->byMonthWeekDay()->copy() : nullptr)
+{
+}
+
+MegaChatScheduledRulesPrivate::~MegaChatScheduledRulesPrivate()
+{
+}
+
+MegaChatScheduledRulesPrivate* MegaChatScheduledRulesPrivate::copy()
+{
+    return new MegaChatScheduledRulesPrivate(this);
+}
+
+void MegaChatScheduledRulesPrivate::setByWeekDay(const ::mega::MegaIntegerList* byWeekDay)
+{
+    mByWeekDay.reset();
+    if (byWeekDay) { mByWeekDay.reset(byWeekDay->copy()); }
+}
+
+void MegaChatScheduledRulesPrivate::setByMonthDay(const ::mega::MegaIntegerList* byMonthDay)
+{
+    mByMonthDay.reset();
+    if (byMonthDay) { mByMonthDay.reset(byMonthDay->copy()); }
+}
+
+void MegaChatScheduledRulesPrivate::setByMonthWeekDay(const ::mega::MegaIntegerMap* byMonthWeekDay)
+{
+    mByMonthWeekDay.reset();
+    if (byMonthWeekDay) { mByMonthWeekDay.reset(byMonthWeekDay->copy()); }
+}
+
+void MegaChatScheduledRulesPrivate::setFreq(int newFreq)
+{
+    mFreq = isValidFreq(newFreq)
+            ? newFreq
+            : FREQ_INVALID;
+}
+
+void MegaChatScheduledRulesPrivate::setInterval(int interval)
+{
+    mInterval = isValidInterval(interval)
+            ? interval
+            : INTERVAL_INVALID;
+}
+
+void MegaChatScheduledRulesPrivate::setUntil(const char* until)
+{
+    mUntil.assign(until ? until : std::string());
+}
+
+int MegaChatScheduledRulesPrivate::freq() const                                     { return mFreq; }
+int MegaChatScheduledRulesPrivate::interval() const                                 { return mInterval; }
+const char* MegaChatScheduledRulesPrivate::until() const                            { return mUntil.c_str(); }
+const ::mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byWeekDay()           { return mByWeekDay.get(); }
+const ::mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byMonthDay()          { return mByMonthDay.get(); }
+const ::mega::MegaIntegerMap* MegaChatScheduledRulesPrivate::byMonthWeekDay()       { return mByMonthWeekDay.get(); }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 {

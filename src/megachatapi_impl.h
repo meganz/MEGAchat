@@ -802,6 +802,56 @@ private:
     std::vector<MegaChatRoom*> mList;
 };
 
+
+class MegaChatScheduledRulesPrivate : public MegaChatScheduledRules
+{
+public:
+    MegaChatScheduledRulesPrivate(int freq,
+                                  int interval = INTERVAL_INVALID,
+                                  const char* until = nullptr,
+                                  const mega::MegaIntegerList* byWeekDay = nullptr,
+                                  const mega::MegaIntegerList* byMonthDay = nullptr,
+                                  const mega::MegaIntegerMap* byMonthWeekDay = nullptr);
+
+    MegaChatScheduledRulesPrivate(MegaChatScheduledRulesPrivate* rules);
+    virtual ~MegaChatScheduledRulesPrivate();
+
+    void setFreq(int newFreq);
+    void setInterval(int interval);
+    void setUntil(const char* until);
+    void setByWeekDay(const mega::MegaIntegerList* byWeekDay);
+    void setByMonthDay(const mega::MegaIntegerList* byMonthDay);
+    void setByMonthWeekDay(const mega::MegaIntegerMap* byMonthWeekDay);
+
+    MegaChatScheduledRulesPrivate* copy() override;
+    int freq() const override;
+    int interval() const override;
+    const char* until() const override;
+    const mega::MegaIntegerList* byWeekDay() override;
+    const mega::MegaIntegerList* byMonthDay() override;
+    const mega::MegaIntegerMap* byMonthWeekDay() override;
+    static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
+    static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
+
+private:
+    // [required]: scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
+    int mFreq = FREQ_INVALID;
+
+    // [optional]: repetition interval in relation to the frequency
+    int mInterval = INTERVAL_INVALID;
+
+    // [optional]: specifies when the repetitions should end
+    std::string mUntil;
+
+    // [optional]: allows us to specify that an event will only occur on given week day/s
+    std::unique_ptr<mega::MegaIntegerList> mByWeekDay;
+
+    // [optional]: allows us to specify that an event will only occur on a given day/s of the month
+    std::unique_ptr<mega::MegaIntegerList> mByMonthDay;
+
+    // [optional]: allows us to specify that an event will only occurs on a specific weekday offset of the month. For example, every 2nd Sunday of each month
+    std::unique_ptr<mega::MegaIntegerMap> mByMonthWeekDay;
+};
 class MegaChatAttachedUser;
 class MegaChatRichPreviewPrivate;
 class MegaChatContainsMetaPrivate;

@@ -2163,3 +2163,25 @@ void MegaChatNodeHistoryListener::onAttachmentDeleted(MegaChatApi */*api*/, Mega
 void MegaChatNodeHistoryListener::onTruncate(MegaChatApi */*api*/, MegaChatHandle /*msgid*/)
 {
 }
+
+/* Class MegaChatScheduledRules */
+MegaChatScheduledRules* MegaChatScheduledRules::createInstance(int freq,
+                               int interval,
+                               const char* until,
+                               const ::mega::MegaIntegerList* byWeekDay,
+                               const ::mega::MegaIntegerList* byMonthDay,
+                               const ::mega::MegaIntegerMap* byMonthWeekDay)
+{
+    return new MegaChatScheduledRulesPrivate(freq, interval, until, byWeekDay, byMonthDay, byMonthWeekDay);
+}
+
+MegaChatScheduledRules::~MegaChatScheduledRules()                               {}
+MegaChatScheduledRules* MegaChatScheduledRules::copy()                          { return NULL; }
+int MegaChatScheduledRules::freq() const                                        { return 0; }
+int MegaChatScheduledRules::interval() const                                    { return 0; }
+const char* MegaChatScheduledRules::until() const                               { return nullptr; }
+const mega::MegaIntegerList* MegaChatScheduledRules::byWeekDay()                { return nullptr; }
+const mega::MegaIntegerList* MegaChatScheduledRules::byMonthDay()               { return nullptr; }
+const mega::MegaIntegerMap* MegaChatScheduledRules::byMonthWeekDay()            { return nullptr; }
+bool MegaChatScheduledRules::isValidFreq(int freq)                              { return MegaChatScheduledRulesPrivate::isValidFreq(freq);}
+bool MegaChatScheduledRules::isValidInterval(int interval)                      { return MegaChatScheduledRulesPrivate::isValidInterval(interval);}
