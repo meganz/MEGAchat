@@ -2164,6 +2164,26 @@ void MegaChatNodeHistoryListener::onTruncate(MegaChatApi */*api*/, MegaChatHandl
 {
 }
 
+/* class MegaChatScheduledFlags */
+MegaChatScheduledFlags* MegaChatScheduledFlags::createInstance()
+{
+    return new MegaChatScheduledFlagsPrivate();
+}
+
+MegaChatScheduledFlags* MegaChatScheduledFlags::copy()
+{
+    return NULL;
+}
+
+MegaChatScheduledFlags::~MegaChatScheduledFlags()
+{
+}
+
+void MegaChatScheduledFlags::reset()                                {}
+void MegaChatScheduledFlags::setEmailsDisabled(bool /*enabled*/)    {}
+bool MegaChatScheduledFlags::EmailsDisabled() const                 { return false; }
+bool MegaChatScheduledFlags::isEmpty() const                        { return false; }
+
 /* Class MegaChatScheduledRules */
 MegaChatScheduledRules* MegaChatScheduledRules::createInstance(int freq,
                                int interval,

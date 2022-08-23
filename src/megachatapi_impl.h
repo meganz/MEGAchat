@@ -45,6 +45,7 @@
 #include <stdint.h>
 #include "net/libwebsocketsIO.h"
 #include "waiter/libuvWaiter.h"
+#include <bitset>
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -791,7 +792,6 @@ public:
     MegaChatRoomListPrivate();
     virtual ~MegaChatRoomListPrivate() {}
     virtual MegaChatRoomList *copy() const;
-
     virtual const MegaChatRoom *get(unsigned int i) const;
     virtual unsigned int size() const;
 
@@ -802,6 +802,27 @@ private:
     std::vector<MegaChatRoom*> mList;
 };
 
+class MegaChatScheduledFlagsPrivate: public MegaChatScheduledFlags
+{
+public:
+    MegaChatScheduledFlagsPrivate();
+    MegaChatScheduledFlagsPrivate (unsigned long numericValue);
+    MegaChatScheduledFlagsPrivate (MegaChatScheduledFlagsPrivate* flags);
+    virtual ~MegaChatScheduledFlagsPrivate();
+    MegaChatScheduledFlagsPrivate* copy() override;
+
+    // setters
+    void reset() override;
+    void setEmailsDisabled(bool enabled) override;
+
+    // getters
+    unsigned long getNumericValue();
+    bool EmailsDisabled() const override;
+    bool isEmpty() const override;
+
+private:
+    std::bitset<FLAGS_SIZE> mFlags = 0;
+};
 
 class MegaChatScheduledRulesPrivate : public MegaChatScheduledRules
 {

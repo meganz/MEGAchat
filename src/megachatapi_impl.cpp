@@ -7631,6 +7631,46 @@ void MegaChatRoomListPrivate::addChatRoom(MegaChatRoom *chat)
     mList.push_back(chat);
 }
 
+/* Class MegaChatScheduledFlagsPrivate */
+MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate()
+    : mFlags(0)
+{
+}
+
+MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate (unsigned long numericValue)
+    : mFlags(numericValue)
+{
+}
+
+MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate (MegaChatScheduledFlagsPrivate* flags)
+    : mFlags(flags ? flags->getNumericValue() : 0)
+{
+}
+
+MegaChatScheduledFlagsPrivate::~MegaChatScheduledFlagsPrivate()
+{
+
+}
+
+MegaChatScheduledFlagsPrivate* MegaChatScheduledFlagsPrivate::copy()
+{
+    return new MegaChatScheduledFlagsPrivate(this);
+}
+
+void MegaChatScheduledFlagsPrivate::reset()
+{
+    mFlags.reset();
+}
+
+void MegaChatScheduledFlagsPrivate::setEmailsDisabled(bool enabled)
+{
+    mFlags[FLAGS_DONT_SEND_EMAILS] = enabled;
+}
+
+unsigned long MegaChatScheduledFlagsPrivate::getNumericValue()             { return mFlags.to_ulong();}
+bool MegaChatScheduledFlagsPrivate::EmailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
+bool MegaChatScheduledFlagsPrivate::isEmpty() const                        { return mFlags.none(); }
+
 /* Class MegaChatScheduledRulesPrivate */
 MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(int freq,
                               int interval,
