@@ -7750,6 +7750,91 @@ const ::mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byWeekDay()       
 const ::mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byMonthDay()          { return mByMonthDay.get(); }
 const ::mega::MegaIntegerMap* MegaChatScheduledRulesPrivate::byMonthWeekDay()       { return mByMonthWeekDay.get(); }
 
+/* Class MegaChatScheduledMeetingPrivate */
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatHandle chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
+                                                                  const char* title, const char* description, MegaChatHandle callid, MegaChatHandle parentCallid,
+                                                                  int cancelled, const char* attributes, const char* overrides,
+                                                                  MegaChatScheduledFlags* flags, MegaChatScheduledRules* rules)
+    : mChatid(chatid),
+      mCallid(callid),
+      mParentCallid(parentCallid),
+      mTimezone(timezone ? timezone : std::string()),
+      mStartDateTime(startDateTime ? startDateTime : std::string()),
+      mEndDateTime(endDateTime ? endDateTime : std::string()),
+      mTitle(title ? title : std::string()),
+      mDescription(description ? description : std::string()),
+      mAttributes(attributes ? attributes : std::string()),
+      mOverrides(overrides ? overrides : std::string()),
+      mCancelled(cancelled),
+      mFlags(flags->copy()),
+      mRules(rules->copy())
+{
+}
+
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting)
+    : mChatid(scheduledMeeting->chatid()),
+      mCallid(scheduledMeeting->callid()),
+      mParentCallid(scheduledMeeting->parentCallid()),
+      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
+      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
+      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
+      mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
+      mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
+      mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
+      mOverrides(scheduledMeeting->overrides() ? scheduledMeeting->overrides() : std::string()),
+      mCancelled(scheduledMeeting->cancelled()),
+      mFlags(scheduledMeeting->flags()->copy()),
+      mRules(scheduledMeeting->rules()->copy())
+{
+}
+
+MegaChatScheduledMeetingPrivate::~MegaChatScheduledMeetingPrivate()
+{
+}
+
+MegaChatScheduledMeetingPrivate* MegaChatScheduledMeetingPrivate::copy()
+{
+   return new MegaChatScheduledMeetingPrivate(this);
+}
+
+void MegaChatScheduledMeetingPrivate::setRules(MegaChatScheduledRules* rules)
+{
+    mRules.reset();
+    if (rules) { mRules.reset(rules->copy()); }
+}
+
+void MegaChatScheduledMeetingPrivate::setFlags(MegaChatScheduledFlags* flags)
+{
+    mFlags.reset();
+    if (flags) { mFlags.reset(flags->copy()); }
+}
+
+void MegaChatScheduledMeetingPrivate::setChatid(MegaChatHandle chatid)              { mChatid = chatid;}
+void MegaChatScheduledMeetingPrivate::setCallid(MegaChatHandle callid)              { mCallid = callid;}
+void MegaChatScheduledMeetingPrivate::setParentCallid(MegaChatHandle parentCallid)  { mParentCallid = parentCallid;}
+void MegaChatScheduledMeetingPrivate::setTimezone(const char* timezone)             { mTimezone.append(timezone ? timezone : std::string());}
+void MegaChatScheduledMeetingPrivate::setStartDateTime(const char* startDateTime)   { mStartDateTime.append(startDateTime ? startDateTime : std::string());}
+void MegaChatScheduledMeetingPrivate::setEndDateTime(const char* endDateTime)       { mEndDateTime.append(endDateTime ? endDateTime : std::string());}
+void MegaChatScheduledMeetingPrivate::setTitle(const char* title)                   { mTitle.append(title ? title : std::string());}
+void MegaChatScheduledMeetingPrivate::setDescription(const char* description)       { mDescription.append(description ? description : std::string());}
+void MegaChatScheduledMeetingPrivate::setAttributes(const char* attributes)         { mAttributes.append(attributes ? attributes : std::string());}
+void MegaChatScheduledMeetingPrivate::setOverrides(const char* overrides)           { mOverrides.append(overrides ? overrides : std::string());}
+void MegaChatScheduledMeetingPrivate::setCancelled(int cancelled)                   { mCancelled = cancelled;}
+
+MegaChatHandle MegaChatScheduledMeetingPrivate::chatid() const                      { return mChatid;}
+MegaChatHandle MegaChatScheduledMeetingPrivate::callid() const                      { return mCallid;}
+MegaChatHandle MegaChatScheduledMeetingPrivate::parentCallid() const                { return mParentCallid;}
+const char* MegaChatScheduledMeetingPrivate::timezone() const                       { return mTimezone.c_str();}
+const char* MegaChatScheduledMeetingPrivate::startDateTime() const                  { return mStartDateTime.c_str();}
+const char* MegaChatScheduledMeetingPrivate::endDateTime() const                    { return mEndDateTime.c_str();}
+const char* MegaChatScheduledMeetingPrivate::title() const                          { return mTitle.c_str();}
+const char* MegaChatScheduledMeetingPrivate::description() const                    { return mDescription.c_str();}
+const char* MegaChatScheduledMeetingPrivate::attributes() const                     { return mAttributes.c_str();}
+const char* MegaChatScheduledMeetingPrivate::overrides() const                      { return mOverrides.c_str();}
+int MegaChatScheduledMeetingPrivate::cancelled() const                              { return mCancelled;}
+MegaChatScheduledFlags* MegaChatScheduledMeetingPrivate::flags() const              { return mFlags.get();}
+MegaChatScheduledRules* MegaChatScheduledMeetingPrivate::rules() const              { return mRules.get();}
+
 MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 {
     mChatid = chat->getChatId();

@@ -873,6 +873,97 @@ private:
     // [optional]: allows us to specify that an event will only occurs on a specific weekday offset of the month. For example, every 2nd Sunday of each month
     std::unique_ptr<mega::MegaIntegerMap> mByMonthWeekDay;
 };
+
+class MegaChatScheduledMeetingPrivate: public MegaChatScheduledMeeting
+{
+public:
+    MegaChatScheduledMeetingPrivate(MegaChatHandle chatid,
+                                    const char* timezone,
+                                    const char* startDateTime,
+                                    const char* endDateTime,
+                                    const char* title,
+                                    const char* description,
+                                    MegaChatHandle callid = MEGACHAT_INVALID_HANDLE,
+                                    MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
+                                    int cancelled = -1,
+                                    const char* attributes = nullptr,
+                                    const char* overrides = nullptr,
+                                    MegaChatScheduledFlags* flags = nullptr,
+                                    MegaChatScheduledRules* rules = nullptr);
+
+    MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting);
+    virtual ~MegaChatScheduledMeetingPrivate();
+    MegaChatScheduledMeetingPrivate* copy();
+
+    void setRules(MegaChatScheduledRules* rules);
+    void setFlags(MegaChatScheduledFlags* flags);
+    void setCancelled(int cancelled);
+    void setOverrides(const char* overrides);
+    void setAttributes(const char* attributes);
+    void setDescription(const char* description);
+    void setTitle(const char* title);
+    void setEndDateTime(const char* endDateTime);
+    void setStartDateTime(const char* startDateTime);
+    void setTimezone(const char* timezone);
+    void setParentCallid(MegaChatHandle parentCallid);
+    void setCallid(MegaChatHandle callid);
+    void setChatid(MegaChatHandle chatid);
+
+    MegaChatHandle chatid() const;
+    MegaChatHandle callid() const;
+    MegaChatHandle parentCallid() const;
+    const char* timezone() const;
+    const char* startDateTime() const;
+    const char* endDateTime() const;
+    const char* title() const;
+    const char* description() const;
+    const char* attributes() const;
+    const char* overrides() const;
+    int cancelled() const;
+    MegaChatScheduledFlags* flags() const;
+    MegaChatScheduledRules* rules() const;
+
+private:
+    // [required]: chat handle
+    MegaChatHandle mChatid;
+
+    // [optional]: scheduled meeting handle
+    MegaChatHandle mCallid;
+
+    // [optional]: parent scheduled meeting handle
+    MegaChatHandle mParentCallid;
+
+    // [required]: timeZone (B64 encoded)
+    std::string mTimezone;
+
+    // [required]: start dateTime (format: 20220726T133000)
+    std::string mStartDateTime;
+
+    // [required]: end dateTime (format: 20220726T133000)
+    std::string mEndDateTime;
+
+    // [required]: meeting title
+    std::string mTitle;
+
+    // [required]: meeting description
+    std::string mDescription;
+
+    // [optional]: attributes to store any additional data (B64 encoded)
+    std::string mAttributes;
+
+    // [optional]: start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
+    std::string mOverrides;
+
+    // [optional]: cancelled flag
+    int mCancelled;
+
+    // [optional]: flags bitmask (used to store additional boolean settings as a bitmask)
+    std::unique_ptr<MegaChatScheduledFlags> mFlags;
+
+    // [optional]: scheduled meetings rules
+    std::unique_ptr<MegaChatScheduledRules> mRules;
+};
+
 class MegaChatAttachedUser;
 class MegaChatRichPreviewPrivate;
 class MegaChatContainsMetaPrivate;

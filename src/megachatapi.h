@@ -6977,6 +6977,147 @@ public:
     static bool isValidInterval(int interval);
 };
 
+/**
+ * @brief This class represents a scheduled meeting. Scheduled Meetings allows the user to specify an event that will occur in the future.
+ * The user can also specify a set of rules for repetition, these rules enable an event to reoccur periodically.
+ */
+class MegaChatScheduledMeeting
+{
+public:
+    virtual ~MegaChatScheduledMeeting();
+
+    /**
+     * @brief Creates a new instance of MegaChatScheduledMeeting
+     *
+     * @param chatid        [required]: chat handle
+     * @param callid        [optional]: scheduled meeting handle
+     * @param parentCallid  [optional]: parent scheduled meeting handle
+     * @param cancelled     [optional]: cancelled flag
+     * @param timezone      [required]: timeZone
+     * @param startDateTime [required]: start dateTime (format: 20220726T133000)
+     * @param endDateTime   [required]: end dateTime (format: 20220726T133000)
+     * @param title         [required]: meeting title
+     * @param description   [required]: meeting description
+     * @param attributes    [optional]: attributes to store any additional data
+     * @param overrides     [optional]: start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
+     * @param flags         [optional]: flags bitmask (used to store additional boolean settings as a bitmask)
+     * @param rules         [optional]: scheduled meetings rules
+     *
+     * @return A pointer to the superclass of the private object
+     */
+    static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid,
+                                                     int cancelled, const char* timezone, const char* startDateTime,
+                                                     const char* endDateTime, const char* title, const char* description, const char* attributes,
+                                                     const char* overrides, MegaChatScheduledFlags* flags, MegaChatScheduledRules* rules);
+
+    /**
+     * @brief Creates a copy of this MegaChatScheduledMeeting object
+     *
+     * The resulting object is fully independent of the source MegaChatScheduledMeeting,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You take the ownership of the returned object
+     *
+     * @return Copy of the MegaChatScheduledMeeting object
+     */
+    MegaChatScheduledMeeting* copy();
+
+    /**
+     * @brief Returns if scheduled meeting is cancelled or not
+     *
+     * @return True if scheduled meeting is cancelled, otherwise returns false
+     */
+    int cancelled() const;
+
+    /**
+     * @brief Returns the MegaChatHandle of the chat
+     *
+     * @return MegaChatHandle of the chat
+     */
+    MegaChatHandle chatid() const;
+
+    /**
+     * @brief Returns the MegaChatHandle that identifies the scheduled meeting
+     *
+     * @return MegaChatHandle that identifies the scheduled meeting
+     */
+    MegaChatHandle callid() const;
+
+    /**
+     * @brief Returns the MegaChatHandle that identifies the parent scheduled meeting
+     *
+     * @return MegaChatHandle that identifies the parent scheduled meeting
+     */
+    MegaChatHandle parentCallid() const;
+
+    /**
+     * @brief Returns the time zone B64 encoded
+     *
+     * @return time zone B64 encoded
+     */
+    const char* timezone() const;
+
+    /**
+     * @brief Returns the start dateTime of the scheduled Meeting (format: 20220726T133000)
+     *
+     * @return the start dateTime of the scheduled Meeting
+     */
+    const char* startDateTime() const;
+
+    /**
+     * @brief Returns the end dateTime of the scheduled Meeting (format: 20220726T133000)
+     *
+     * @return the end dateTime of the scheduled Meeting
+     */
+    const char* endDateTime() const;
+
+    /**
+     * @brief Returns the scheduled meeting title B64 encoded
+     *
+     * @return The title of the scheduled meeting B64 encoded
+     */
+    const char* title() const;
+
+    /**
+     * @brief Returns the scheduled meeting description B64 encoded
+     *
+     * @return The description of the scheduled meeting B64 encoded
+     */
+    const char* description() const;
+
+    /**
+     * @brief Returns additional scheduled meetings attributes B64 encoded
+     *
+     * @return Additional scheduled meetings attributes B64 encoded
+     */
+    const char* attributes() const;
+
+    /**
+     * @brief Returns the start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
+     *
+     * @return the start dateTime of the original meeting series event to be replaced
+     */
+    const char* overrides() const;
+
+    /**
+     * @brief Returns a pointer to MegaChatScheduledFlags that contains the scheduled meetings flags
+     *
+     * The SDK retains the ownership of the MegaChatScheduledFlags
+     *
+     * @return A pointer to MegaChatScheduledFlags that contains the scheduled meetings flags
+     */
+    MegaChatScheduledFlags* flags() const;
+
+    /**
+     * @brief Returns a pointer to MegaChatScheduledRules that contains the scheduled meetings rules
+     *
+     * The SDK retains the ownership of the MegaChatScheduledRules
+     *
+     * @return A pointer to MegaChatScheduledRules that contains the scheduled meetings rules
+     */
+    MegaChatScheduledRules* rules() const;
+};
 }
 
 #endif // MEGACHATAPI_H
