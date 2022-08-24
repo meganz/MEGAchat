@@ -6892,12 +6892,12 @@ public:
     /**
      * @brief Creates a new instance of MegaChatScheduledRules
      *
-     * @param freq           [req]: scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval
-     * @param interval       [opt]: repetition interval in relation to the frequency
-     * @param until          [opt]: specifies when the repetitions should end
-     * @param byWeekDay      [opt]: allows us to specify that an event will only occur on given week day/s
-     * @param byMonthDay     [opt]: allows us to specify that an event will only occur on a given day/s of the month
-     * @param byMonthWeekDay [opt]: allows us to specify that an event will only occurs on a specific weekday offset of the month. (i.e every 2nd Sunday of each month)
+     * @param freq           [required]: scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval
+     * @param interval       [optional]: repetition interval in relation to the frequency
+     * @param until          [optional]: specifies when the repetitions should end
+     * @param byWeekDay      [optional]: allows us to specify that an event will only occur on given week day/s
+     * @param byMonthDay     [optional]: allows us to specify that an event will only occur on a given day/s of the month
+     * @param byMonthWeekDay [optional]: allows us to specify that an event will only occurs on a specific weekday offset of the month. (i.e every 2nd Sunday of each month)
      *
      * @return A pointer to the superclass of the private object
      */
