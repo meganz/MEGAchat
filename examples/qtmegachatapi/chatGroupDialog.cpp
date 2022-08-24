@@ -68,7 +68,7 @@ void ChatGroupDialog::on_buttonBox_accepted()
 {
     if (!mOptionsAdded)
     {
-        peerList.reset(megachat::MegaChatPeerList::createInstance());
+        mPeerList.reset(megachat::MegaChatPeerList::createInstance());
         if (!mIsMeeting)     // no peers for meetings upon creation
         {
             QListWidgetItem *item = 0;
@@ -83,21 +83,21 @@ void ChatGroupDialog::on_buttonBox_accepted()
                         QMessageBox::warning(this, tr("Chat creation"), tr("Invalid user handle"));
                         return;
                     }
-                    peerList->addPeer(userHandle, 2);
+                    mPeerList->addPeer(userHandle, 2);
                 }
             }
         }
 
-        if (mIsMeeting && peerList->size() != 0)
+        if (mIsMeeting && mPeerList->size() != 0)
         {
             QMessageBox::warning(this, tr("Add chatRoom"), tr("Meeting rooms are created without participants. List will be ignored"));
         }
-        else if (peerList->size() == 0 && !mIsPublic)
+        else if (mPeerList->size() == 0 && !mIsPublic)
         {
             QMessageBox::warning(this, tr("Add chatRoom"), tr("Private chats must have at least one participant."));
             return;
         }
-        else if (peerList->size() > 1 && !mIsGroup)
+        else if (mPeerList->size() > 1 && !mIsGroup)
         {
             QMessageBox::warning(this, tr("Add chatRoom"), tr("Individual chats cannot have more than one participant"));
             return;
@@ -121,7 +121,7 @@ void ChatGroupDialog::on_buttonBox_accepted()
 
     if (mIsGroup)
     {
-        std::unique_ptr<megachat::MegaChatListItemList> list(mMegaChatApi->getChatListItemsByPeers(peerList.get()));
+        std::unique_ptr<megachat::MegaChatListItemList> list(mMegaChatApi->getChatListItemsByPeers(mPeerList.get()));
         if (list->size() != 0)
         {
              QMessageBox msgBoxAns;
@@ -154,16 +154,16 @@ void ChatGroupDialog::on_buttonBox_accepted()
         }
         else if (mIsPublic)
         {
-            mMegaChatApi->createPublicChat(peerList.get(), title, speakRequest, waitingRoom, openInvite);   // public chat
+            mMegaChatApi->createPublicChat(mPeerList.get(), title, speakRequest, waitingRoom, openInvite);   // public chat
         }
         else
         {
-            mMegaChatApi->createGroupChat(peerList.get(), title, speakRequest, waitingRoom, openInvite);    // private group chat
+            mMegaChatApi->createGroupChat(mPeerList.get(), title, speakRequest, waitingRoom, openInvite);    // private group chat
         }
     }
     else
     {
-        mMegaChatApi->createChat(false, peerList.get());                                                    // 1on1 chat
+        mMegaChatApi->createChat(false, mPeerList.get());                                                    // 1on1 chat
     }
 
     delete [] title;

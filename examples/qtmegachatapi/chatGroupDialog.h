@@ -20,7 +20,7 @@ class ChatGroupDialog : public QDialog
         bool mIsPublic;
         bool mIsMeeting;
         bool mOptionsAdded;
-        std::unique_ptr<megachat::MegaChatPeerList> peerList;
+        std::unique_ptr<megachat::MegaChatPeerList> mPeerList;
     public:
         ChatGroupDialog(QWidget *parent, bool isGroup, bool isPublic, bool isMeeting, ::megachat::MegaChatApi *megachatApi);
         ~ChatGroupDialog();
