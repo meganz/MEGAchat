@@ -2175,6 +2175,13 @@ MegaChatScheduledFlags* MegaChatScheduledFlags::createInstance()
     return new MegaChatScheduledFlagsPrivate();
 }
 
+MegaChatScheduledFlags* MegaChatScheduledFlags::createInstance(bool emailsDisabled)
+{
+    MegaChatScheduledFlagsPrivate *flags = new MegaChatScheduledFlagsPrivate();
+    flags->setEmailsDisabled(emailsDisabled);
+    return flags;
+}
+
 MegaChatScheduledFlags* MegaChatScheduledFlags::copy()
 {
     return NULL;
