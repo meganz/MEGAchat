@@ -100,6 +100,8 @@ public:
     virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
     virtual mega::MegaHandleList *getMegaHandleList();
     virtual int getParamType();
+    virtual MegaChatScheduledMeeting* getMegaChatScheduledMeeting() const;
+    virtual void setMegaChatScheduledMeeting(MegaChatScheduledMeeting* scheduledMeeting);
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
@@ -136,6 +138,7 @@ protected:
     mega::MegaNodeList* mMegaNodeList;
     mega::MegaHandleList *mMegaHandleList;
     std::map<MegaChatHandle, mega::MegaHandleList*> mMegaHandleListMap;
+    std::unique_ptr<MegaChatScheduledMeeting> mScheduledMeeting;
     int mParamType;
 };
 

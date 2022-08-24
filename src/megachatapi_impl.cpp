@@ -6235,6 +6235,20 @@ int MegaChatRequestPrivate::getParamType()
     return mParamType;
 }
 
+MegaChatScheduledMeeting* MegaChatRequestPrivate::getMegaChatScheduledMeeting() const
+{
+    return mScheduledMeeting.get();
+}
+
+void MegaChatRequestPrivate::setMegaChatScheduledMeeting(MegaChatScheduledMeeting* scheduledMeeting)
+{
+    mScheduledMeeting.reset();
+    if (scheduledMeeting)
+    {
+       mScheduledMeeting.reset(scheduledMeeting->copy());
+    }
+}
+
 void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 {
     if (mMegaNodeList != NULL)

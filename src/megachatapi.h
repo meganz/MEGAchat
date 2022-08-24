@@ -58,6 +58,8 @@ class MegaChatListener;
 class MegaChatNotificationListener;
 class MegaChatListItem;
 class MegaChatNodeHistoryListener;
+class MegaChatScheduledRules;
+class MegaChatScheduledMeeting;
 
 /**
  * @brief Provide information about a session
@@ -2130,6 +2132,16 @@ public:
      * @return mega::MegaHandleList of handles for a given chatid
      */
     virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
+
+    /**
+     * @brief Returns a pointer to a MegaChatScheduledMeeting instance that represents a scheduled meeting
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return a pointer to a MegaChatScheduledMeeting instance that represents a scheduled meeting
+     */
+    virtual MegaChatScheduledMeeting* getMegaChatScheduledMeeting() const;
 
     /**
      * @brief Returns the list of handles related to this request
