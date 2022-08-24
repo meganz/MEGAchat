@@ -2424,6 +2424,20 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+        case MegaChatRequest::TYPE_CREATE_SCHEDULED_MEETING:
+        {
+            MegaChatScheduledMeeting* scheduled_meeting = request->getMegaChatScheduledMeeting();
+            if (!scheduled_meeting)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            // TODO: add sanity checks
+            MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
 #endif
         default:
         {
@@ -3899,6 +3913,23 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
     request->setMegaChatPeerList(peerList);
     request->setText(title);
     request->setNumber(meeting);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::createScheduledMeeting(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
+                                             const char* description, int freq, MegaChatHandle callid, MegaChatHandle parentCallid,
+                                             int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
+                                             const char* until, const MegaIntegerList* byWeekDay, const MegaIntegerList* byMonthDay,
+                                             const MegaIntegerMap* byMonthWeekDay, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_SCHEDULED_MEETING, listener);
+
+    std::unique_ptr<MegaChatScheduledFlags> flags(MegaChatScheduledFlags::createInstance(emailsDisabled));
+    std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(freq, interval, until, byWeekDay, byMonthDay, byMonthWeekDay));
+    std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, callid, parentCallid, cancelled, timezone, startDate,
+                                                                                       endDate, title, description, attributes, overrides, flags.get(), rules.get()));
+    request->setMegaChatScheduledMeeting(scheduledMeeting.get());
     requestQueue.push(request);
     waiter->notify();
 }
@@ -6038,6 +6069,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_REQUEST_HIRES_QUALITY: return "REQUEST_HIRES_QUALITY";
         case TYPE_DEL_SPEAKER: return "DEL_SPEAKER";
         case TYPE_REQUEST_SVC_LAYERS: return "SVC_LAYERS";
+        case TYPE_CREATE_SCHEDULED_MEETING : return "CREATE_SCHEDULED_MEETING";
     }
     return "UNKNOWN";
 }

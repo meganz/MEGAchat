@@ -1962,6 +1962,7 @@ public:
         TYPE_REQUEST_HIGH_RES_VIDEO, TYPE_REQUEST_LOW_RES_VIDEO,
         TYPE_OPEN_VIDEO_DEVICE, TYPE_REQUEST_HIRES_QUALITY,
         TYPE_DEL_SPEAKER, TYPE_REQUEST_SVC_LAYERS,
+        TYPE_CREATE_SCHEDULED_MEETING,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -3758,6 +3759,17 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void createMeeting(const char *title = NULL, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Creates a scheduled meeting
+     *
+     * TODO complete documentation
+     */
+    void createScheduledMeeting(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
+                                const char* description, int freq, MegaChatHandle callid = MEGACHAT_INVALID_HANDLE, MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
+                                int cancelled = -1, bool emailsDisabled = false, const char* attributes = NULL, const char* overrides = NULL, int interval = 0,
+                                const char* until = NULL, const mega::MegaIntegerList* byWeekDay = NULL, const mega::MegaIntegerList* byMonthDay = NULL,
+                                const mega::MegaIntegerMap* byMonthWeekDay = NULL, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Check if there is an existing chat-link for an public chat
@@ -6874,7 +6886,6 @@ public:
     /**
      * @brief Enables or disables the value of emails disabled flag.
      * If this flag is enabled, API won't send out calendar emails for this meeting
-     *
      */
     virtual void setEmailsDisabled(bool /*enabled*/);
 
@@ -7042,7 +7053,7 @@ public:
      *
      * @return Copy of the MegaChatScheduledMeeting object
      */
-    MegaChatScheduledMeeting* copy();
+    virtual MegaChatScheduledMeeting* copy();
 
     /**
      * @brief Returns if scheduled meeting is cancelled or not

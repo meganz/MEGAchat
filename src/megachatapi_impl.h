@@ -1290,6 +1290,12 @@ public:
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
+    void createScheduledMeeting(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
+                                const char* description, int freq, MegaChatHandle callid = MEGACHAT_INVALID_HANDLE, MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
+                                int cancelled = -1, bool emailsDisabled = false, const char* attributes = nullptr, const char* overrides = nullptr, int interval = 0,
+                                const char* until = nullptr, const mega::MegaIntegerList* byWeekDay = nullptr, const mega::MegaIntegerList* byMonthDay = nullptr,
+                                const mega::MegaIntegerMap* byMonthWeekDay = nullptr, MegaChatRequestListener* listener = nullptr);
+
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
     void createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener = NULL);
     void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, MegaChatRequestListener *listener = NULL);

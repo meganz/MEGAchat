@@ -664,6 +664,19 @@ void MegaChatApi::createMeeting(const char *title, MegaChatRequestListener *list
     pImpl->createPublicChat(peers.get(), true, title, listener);
 }
 
+void MegaChatApi::createScheduledMeeting(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
+                                         const char* description, int freq, MegaChatHandle callid, MegaChatHandle parentCallid,
+                                         int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
+                                         const char* until, const MegaIntegerList* byWeekDay, const MegaIntegerList* byMonthDay,
+                                         const MegaIntegerMap* byMonthWeekDay, MegaChatRequestListener* listener)
+{
+     pImpl->createScheduledMeeting(chatid, timezone, startDate, endDate, title,
+                                   description, freq, callid, parentCallid,
+                                   cancelled, emailsDisabled, attributes, overrides, interval,
+                                   until, byWeekDay, byMonthDay,
+                                   byMonthWeekDay, listener);
+}
+
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
     pImpl->createPublicChat(peers, false, title, listener);
