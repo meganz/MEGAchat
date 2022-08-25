@@ -251,6 +251,45 @@ public:
     virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
+/* ScheduledFlags interface to be exposed at intermediate layer */
+class IkarereScheduledFlags
+{
+public:
+    virtual unsigned long getNumericValue() = 0;
+    virtual bool EmailsDisabled() const = 0;
+    virtual bool isEmpty() const = 0;
+};
+
+/* ScheduledRules interface to be exposed at intermediate layer */
+class IkarereScheduledRules
+{
+public:
+    virtual int freq() const = 0;
+    virtual int interval() const = 0;
+    virtual const char* until() const = 0;
+    virtual const std::vector<int64_t>* byWeekDay() = 0;
+    virtual const std::vector<int64_t>* byMonthDay() = 0;
+    virtual const std::map<int64_t, int64_t>* byMonthWeekDay() = 0;
+};
+
+/* ScheduledMeeting interface to be exposed at intermediate layer */
+class IkarereScheduledMeeting
+{
+public:
+    virtual karere::Id chatid() const = 0;
+    virtual karere::Id callid() const = 0;
+    virtual karere::Id parentCallid() const = 0;
+    virtual const char* timezone() const = 0;
+    virtual const char* startDateTime() const = 0;
+    virtual const char* endDateTime() const = 0;
+    virtual const char* title() const = 0;
+    virtual const char* description() const = 0;
+    virtual const char* attributes() const = 0;
+    virtual const char* overrides() const = 0;
+    virtual int cancelled() const = 0;
+    virtual IkarereScheduledFlags* flags() const = 0;
+    virtual IkarereScheduledRules* rules() const = 0;
+};
 
 void globalCleanup();
 
