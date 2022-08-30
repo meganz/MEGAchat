@@ -610,7 +610,7 @@ public:
     void setEmailsDisabled(bool enabled);
 
     // --- IkarereScheduledFlags methods ---
-    unsigned long getNumericValue() override;
+    unsigned long getNumericValue() const override;
     bool EmailsDisabled() const override;
     bool isEmpty() const override;
 
@@ -654,9 +654,9 @@ public:
     int freq() const override;
     int interval() const override;
     const char* until() const override;
-    const std::vector<int64_t>* byWeekDay() override;
-    const std::vector<int64_t>* byMonthDay() override;
-    const std::map<int64_t, int64_t>* byMonthWeekDay() override;
+    const std::vector<int64_t>* byWeekDay() const override;
+    const std::vector<int64_t>* byMonthDay() const override;
+    const std::map<int64_t, int64_t>* byMonthWeekDay() const override;
 
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }

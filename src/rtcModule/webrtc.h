@@ -255,7 +255,7 @@ public:
 class IkarereScheduledFlags
 {
 public:
-    virtual unsigned long getNumericValue() = 0;
+    virtual unsigned long getNumericValue() const = 0;
     virtual bool EmailsDisabled() const = 0;
     virtual bool isEmpty() const = 0;
 };
@@ -267,9 +267,9 @@ public:
     virtual int freq() const = 0;
     virtual int interval() const = 0;
     virtual const char* until() const = 0;
-    virtual const std::vector<int64_t>* byWeekDay() = 0;
-    virtual const std::vector<int64_t>* byMonthDay() = 0;
-    virtual const std::map<int64_t, int64_t>* byMonthWeekDay() = 0;
+    virtual const std::vector<int64_t>* byWeekDay() const = 0;
+    virtual const std::vector<int64_t>* byMonthDay() const = 0;
+    virtual const std::map<int64_t, int64_t>* byMonthWeekDay() const = 0;
 };
 
 /* ScheduledMeeting interface to be exposed at intermediate layer */
