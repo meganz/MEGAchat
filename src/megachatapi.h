@@ -7060,77 +7060,77 @@ public:
      *
      * @return True if scheduled meeting is cancelled, otherwise returns false
      */
-    int cancelled() const;
+    virtual int cancelled() const;
 
     /**
      * @brief Returns the MegaChatHandle of the chat
      *
      * @return MegaChatHandle of the chat
      */
-    MegaChatHandle chatid() const;
+    virtual MegaChatHandle chatid() const;
 
     /**
      * @brief Returns the MegaChatHandle that identifies the scheduled meeting
      *
      * @return MegaChatHandle that identifies the scheduled meeting
      */
-    MegaChatHandle callid() const;
+    virtual MegaChatHandle callid() const;
 
     /**
      * @brief Returns the MegaChatHandle that identifies the parent scheduled meeting
      *
      * @return MegaChatHandle that identifies the parent scheduled meeting
      */
-    MegaChatHandle parentCallid() const;
+    virtual MegaChatHandle parentCallid() const;
 
     /**
      * @brief Returns the time zone B64 encoded
      *
      * @return time zone B64 encoded
      */
-    const char* timezone() const;
+    virtual const char* timezone() const;
 
     /**
      * @brief Returns the start dateTime of the scheduled Meeting (format: 20220726T133000)
      *
      * @return the start dateTime of the scheduled Meeting
      */
-    const char* startDateTime() const;
+    virtual const char* startDateTime() const;
 
     /**
      * @brief Returns the end dateTime of the scheduled Meeting (format: 20220726T133000)
      *
      * @return the end dateTime of the scheduled Meeting
      */
-    const char* endDateTime() const;
+    virtual const char* endDateTime() const;
 
     /**
      * @brief Returns the scheduled meeting title B64 encoded
      *
      * @return The title of the scheduled meeting B64 encoded
      */
-    const char* title() const;
+    virtual const char* title() const;
 
     /**
      * @brief Returns the scheduled meeting description B64 encoded
      *
      * @return The description of the scheduled meeting B64 encoded
      */
-    const char* description() const;
+    virtual const char* description() const;
 
     /**
      * @brief Returns additional scheduled meetings attributes B64 encoded
      *
      * @return Additional scheduled meetings attributes B64 encoded
      */
-    const char* attributes() const;
+    virtual const char* attributes() const;
 
     /**
      * @brief Returns the start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
      *
      * @return the start dateTime of the original meeting series event to be replaced
      */
-    const char* overrides() const;
+    virtual const char* overrides() const;
 
     /**
      * @brief Returns a pointer to MegaChatScheduledFlags that contains the scheduled meetings flags
@@ -7139,7 +7139,7 @@ public:
      *
      * @return A pointer to MegaChatScheduledFlags that contains the scheduled meetings flags
      */
-    MegaChatScheduledFlags* flags() const;
+    virtual MegaChatScheduledFlags* flags() const;
 
     /**
      * @brief Returns a pointer to MegaChatScheduledRules that contains the scheduled meetings rules
@@ -7148,7 +7148,7 @@ public:
      *
      * @return A pointer to MegaChatScheduledRules that contains the scheduled meetings rules
      */
-    MegaChatScheduledRules* rules() const;
+    virtual MegaChatScheduledRules* rules() const;
 };
 }
 

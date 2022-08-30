@@ -809,8 +809,9 @@ class MegaChatScheduledFlagsPrivate: public MegaChatScheduledFlags
 {
 public:
     MegaChatScheduledFlagsPrivate();
-    MegaChatScheduledFlagsPrivate (unsigned long numericValue);
-    MegaChatScheduledFlagsPrivate (MegaChatScheduledFlagsPrivate* flags);
+    MegaChatScheduledFlagsPrivate(unsigned long numericValue);
+    MegaChatScheduledFlagsPrivate(MegaChatScheduledFlagsPrivate* flags);
+    MegaChatScheduledFlagsPrivate(rtcModule::IkarereScheduledFlags* flags);
     virtual ~MegaChatScheduledFlagsPrivate();
     MegaChatScheduledFlagsPrivate* copy() override;
 
@@ -838,6 +839,7 @@ public:
                                   const mega::MegaIntegerMap* byMonthWeekDay = nullptr);
 
     MegaChatScheduledRulesPrivate(MegaChatScheduledRulesPrivate* rules);
+    MegaChatScheduledRulesPrivate(rtcModule::IkarereScheduledRules* rules);
     virtual ~MegaChatScheduledRulesPrivate();
 
     void setFreq(int newFreq);
@@ -895,6 +897,7 @@ public:
                                     MegaChatScheduledRules* rules = nullptr);
 
     MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting);
+    MegaChatScheduledMeetingPrivate(rtcModule::IkarereScheduledMeeting* iScheduledMeeting);
     virtual ~MegaChatScheduledMeetingPrivate();
     MegaChatScheduledMeetingPrivate* copy();
 
@@ -1550,6 +1553,7 @@ public:
     static std::string generateAttachContactJSon(mega::MegaHandleList *contacts, karere::ContactList *contactList);
     static std::string generateGeolocationJSon(float longitude, float latitude, const char* img);
     static std::string generateGiphyJSon(const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title);
+    static std::string generateSchedulingRules(MegaChatScheduledRulesPrivate* rules);
 
     // you take the ownership of returned value. NULL if error
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
