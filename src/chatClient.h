@@ -1004,6 +1004,15 @@ public:
     void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting);
 
     /**
+     * @brief This function allows to create a scheduled meeting.
+     * TODO: complete documentation
+     */
+    promise::Promise<void> createScheduledMeeting(uint64_t chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
+                                             const char* description, int freq, uint64_t callid, uint64_t parentCallid,
+                                             int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
+                                             const char* until, const mega::MegaIntegerList* byWeekDay, const mega::MegaIntegerList* byMonthDay, const mega::MegaIntegerMap* byMonthWeekDay);
+
+    /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
      * @return The decrypted title of the chat
      */

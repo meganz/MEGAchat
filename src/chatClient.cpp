@@ -829,6 +829,21 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
     room->connect();
 }
 
+promise::Promise<void> Client::createScheduledMeeting(uint64_t chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
+                                         const char* description, int freq, uint64_t callid, uint64_t parentCallid,
+                                         int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
+                                         const char* until, const mega::MegaIntegerList* byWeekDay, const mega::MegaIntegerList* byMonthDay, const mega::MegaIntegerMap* byMonthWeekDay)
+{
+    auto wptr = getDelTracker();
+    return api.call(&::mega::MegaApi::createScheduledMeeting, chatid, timezone, startDate, endDate, title, description, freq, callid, parentCallid,
+                    cancelled, emailsDisabled, attributes, overrides, interval, until, byWeekDay, byMonthDay, byMonthWeekDay)
+    .then([wptr](ReqResult result) -> promise::Promise<void>
+    {
+        wptr.throwIfDeleted();
+        return promise::_Void();
+    });
+}
+
 promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, karere::Id ph)
 {
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
