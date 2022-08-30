@@ -6,8 +6,6 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import mega.privacy.android.app.utils.VideoCaptureUtils;
-
 public class MegaChatApiJava {
     MegaChatApi megaChatApi;
     static DelegateMegaChatLogger logger;
@@ -2767,12 +2765,6 @@ public class MegaChatApiJava {
      * @param listener MegaChatRequestListener to track this request
      */
     public void startChatCall(long chatid, boolean enableVideo, boolean enableAudio, MegaChatRequestListenerInterface listener) {
-        // Always try to start the call using the front camera
-        String frontCamera = VideoCaptureUtils.getFrontCamera();
-        if (frontCamera != null) {
-            megaChatApi.setChatVideoInDevice(frontCamera, null);
-        }
-
         megaChatApi.startChatCall(chatid, enableVideo, enableAudio, createDelegateRequestListener(listener));
     }
 
@@ -2807,12 +2799,6 @@ public class MegaChatApiJava {
      * @param listener MegaChatRequestListener to track this request
      */
     public void answerChatCall(long chatid, boolean enableVideo, boolean enableAudio, MegaChatRequestListenerInterface listener) {
-        // Always try to start the call using the front camera
-        String frontCamera = VideoCaptureUtils.getFrontCamera();
-        if (frontCamera != null) {
-            megaChatApi.setChatVideoInDevice(frontCamera, null);
-        }
-
         megaChatApi.answerChatCall(chatid, enableVideo, enableAudio, createDelegateRequestListener(listener));
     }
 

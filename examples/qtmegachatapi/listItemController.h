@@ -74,6 +74,10 @@ public slots:
     void onSetDND();
     void onGetRetentionTime();
     void onSetRetentionTime();
+    void onGetChatOptions();
+    void onSetOpenInvite(bool enable);
+    void onSetSpeakRequest(bool enable);
+    void onSetWaitingRoom(bool enable);
 
 private:
     void onPushReceived(unsigned int type);

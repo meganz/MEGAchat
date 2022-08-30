@@ -83,7 +83,7 @@ public:
     rtc::RefCountReleaseStatus Release() const override;
     void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
 protected:
-    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double &rtt, double txBwe, int64_t &bytesRecv, int64_t &bytesSend);
+    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend);
 
     Stats* mStats = nullptr; // Doesn't take ownership (Belongs to Call)
     uint32_t mHiResId;

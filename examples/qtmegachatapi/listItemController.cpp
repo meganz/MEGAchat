@@ -167,6 +167,34 @@ void ChatListItemController::onSetRetentionTime()
     }
 }
 
+void ChatListItemController::onGetChatOptions()
+{
+    ::mega::unique_ptr <megachat::MegaChatRoom> chatRoom(mMegaChatApi->getChatRoom(mItemId));
+    if (!chatRoom)
+    {
+        return;
+    }
+
+    QMessageBox::information(mMainWindow, tr("ChatOptions"), tr(" ")
+                             .append("<br />OpenInvite: ").append(chatRoom->isOpenInvite() ? "Enabled" : "Disabled")
+                             .append("<br />SpeakRequest: ").append(chatRoom->isSpeakRequest() ? "Enabled" : "Disabled")
+                             .append("<br />Waiting Room :").append(chatRoom->isWaitingRoom() ? "Enabled" : "Disabled"));
+}
+void ChatListItemController::onSetOpenInvite(bool enable)
+{
+    mMegaChatApi->setOpenInvite(mItemId, enable);
+}
+
+void ChatListItemController::onSetSpeakRequest(bool enable)
+{
+    mMegaChatApi->setSpeakRequest(mItemId, enable);
+}
+
+void ChatListItemController::onSetWaitingRoom(bool enable)
+{
+    mMegaChatApi->setWaitingRoom(mItemId, enable);
+}
+
 void ChatListItemController::queryChatLink()
 {
     if (mItemId != MEGACHAT_INVALID_HANDLE)
