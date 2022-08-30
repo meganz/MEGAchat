@@ -105,6 +105,7 @@ public:
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
+    void setStringList(mega::MegaStringList* stringList);
     void setNumber(long long number);
     void setNumRetry(int retry);
     void setFlag(bool flag);
@@ -119,6 +120,7 @@ public:
     void setMegaHandleList(mega::MegaHandleList *handlelist);
     void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
+    void setStringMap(mega::MegaStringMap* stringMap);
 
 protected:
     int mType;
@@ -527,6 +529,7 @@ public:
     void onLastMessageTsUpdated(uint32_t ts) override;
     void onHistoryReloaded() override;
     void onChatModeChanged(bool mode) override;
+    void onChatOptionsChanged(int option) override;
     void onReactionUpdate(karere::Id msgid, const char *reaction, int count) override;
     void onHistoryTruncatedByRetentionTime(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
 
@@ -734,6 +737,9 @@ public:
     bool isActive() const override;
     bool isArchived() const override;
     bool isMeeting() const override;
+    bool isWaitingRoom() const override;
+    bool isOpenInvite() const override;
+    bool isSpeakRequest() const override;
     int64_t getCreationTs() const override;
 
     int getChanges() const override;
@@ -749,6 +755,7 @@ public:
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void changeUnreadCount();
+    void changeChatRoomOption(int option);
     void setNumPreviewers(unsigned int numPrev);
     void setMembersUpdated(MegaChatHandle uh);
     void setUserTyping(MegaChatHandle uh);
@@ -774,6 +781,9 @@ private:
     bool mHasCustomTitle;
     int64_t mCreationTs;
     bool mMeeting = false;
+    bool mWaitingRoom = false;
+    bool mOpenInvite = false;
+    bool mSpeakRequest = false;
 
     std::string mTitle;
     int unreadCount;
@@ -1299,9 +1309,10 @@ public:
                                 const char* until = nullptr, const mega::MegaIntegerList* byWeekDay = nullptr, const mega::MegaIntegerList* byMonthDay = nullptr,
                                 const mega::MegaIntegerMap* byMonthWeekDay = nullptr, MegaChatRequestListener* listener = nullptr);
 
+    void setChatOption(MegaChatHandle chatid, int option, bool enabled, MegaChatRequestListener* listener = NULL);
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
-    void createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener = NULL);
-    void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, MegaChatRequestListener *listener = NULL);
+    void createChat(bool group, MegaChatPeerList* peerList, const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener = NULL);
+    void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, bool speakRequest = false, bool waitingRoom = false, bool openInvite = false,  MegaChatRequestListener *listener = NULL);
     void chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener = NULL);
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
     void autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
@@ -1349,6 +1360,9 @@ public:
     bool isMessageReceptionConfirmationActive() const;
     void saveCurrentState();
     void pushReceived(bool beep, MegaChatHandle chatid, int type, MegaChatRequestListener *listener = NULL);
+    int createChatOptionsBitMask(bool speakRequest, bool waitingRoom, bool openInvite);
+    bool isValidChatOptionsBitMask(int chatOptionsBitMask);
+    static bool hasChatOptionEnabled(int option, int chatOptionsBitMask);
 
 #ifndef KARERE_DISABLE_WEBRTC
 

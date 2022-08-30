@@ -65,8 +65,17 @@ ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatL
         {
             if (!item->isPreview())
             {
-                ui->mAvatar->setText("P");
-                ui->mAvatar->setStyleSheet("color: #43B63D");
+                std::unique_ptr<megachat::MegaChatRoom> chatRoom = std::unique_ptr<megachat::MegaChatRoom>(mMegaChatApi->getChatRoom(mChatId));
+                if (chatRoom && chatRoom->isMeeting())
+                {
+                    ui->mAvatar->setText("M");
+                    ui->mAvatar->setStyleSheet("color: #F28230");
+                }
+                else
+                {
+                    ui->mAvatar->setText("P");
+                    ui->mAvatar->setStyleSheet("color: #43B63D");
+                }
             }
             else
             {
@@ -445,6 +454,32 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     auto actSetRetentionTimeSec = roomMenu->addAction(tr("Set retention time (in seconds)"));
     connect(actSetRetentionTimeSec, &QAction::triggered, mController, [=](){mController->onSetRetentionTime();});
+
+    // chat options
+    //---------------------------------------------------------------------------------------------------------------
+    auto actgetChatOptions = roomMenu->addAction(tr("Get chat Options"));
+    connect(actgetChatOptions, &QAction::triggered, mController, [=](){mController->onGetChatOptions();});
+
+    QMenu *chatOptionsMenu= roomMenu->addMenu("Set chat options");
+
+    auto actEnableOpenInvite = chatOptionsMenu->addAction(tr("[+] Enable Open invite"));
+    connect(actEnableOpenInvite, &QAction::triggered, mController, [=](){mController->onSetOpenInvite(true);});
+
+    auto actDisableOpenInvite = chatOptionsMenu->addAction(tr("[-] Disable Open invite"));
+    connect(actDisableOpenInvite, &QAction::triggered, mController, [=](){mController->onSetOpenInvite(false);});
+
+    auto actEnableSpeakRequest = chatOptionsMenu->addAction(tr("[+] Enable Speak request"));
+    connect(actEnableSpeakRequest, &QAction::triggered, mController, [=](){mController->onSetSpeakRequest(true);});
+
+    auto actDisableSpeakRequest = chatOptionsMenu->addAction(tr("[-] Disable Speak request"));
+    connect(actDisableSpeakRequest, &QAction::triggered, mController, [=](){mController->onSetSpeakRequest(false);});
+
+    auto actEnableWaitingRoom = chatOptionsMenu->addAction(tr("[+] Enable Waiting room"));
+    connect(actEnableWaitingRoom, &QAction::triggered, mController, [=](){mController->onSetWaitingRoom(true);});
+
+    auto actDisableWaitingRoom = chatOptionsMenu->addAction(tr("[-] Disable Waiting room"));
+    connect(actDisableWaitingRoom, &QAction::triggered, mController, [=](){mController->onSetWaitingRoom(false);});
+    //---------------------------------------------------------------------------------------------------------------
 
     auto actTopic = roomMenu->addAction(tr("Set title"));
     connect(actTopic, SIGNAL(triggered()), mController, SLOT(setTitle()));

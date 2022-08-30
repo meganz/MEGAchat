@@ -17,6 +17,7 @@
 #include "rtcModule/webrtc.h"
 #endif
 #include "stringUtils.h"
+#include <mega/types.h>
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -89,6 +90,7 @@ protected:
     bool mHasTitle;             // only true if chat has custom topic (`ct`)
     void notifyTitleChanged();
     void notifyChatModeChanged();
+    void notifyChatOptionsChanged(int option);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic = false,
             std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
@@ -110,6 +112,9 @@ public:
     virtual IApp::IChatListItem* roomGui() = 0;
     virtual bool isMember(karere::Id peerid) const = 0;
     virtual bool isMeeting() const { return false; }
+    virtual bool isWaitingRoom() const { return false; }
+    virtual bool isSpeakRequest() const { return false; }
+    virtual bool isOpenInvite() const { return false; }
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
@@ -347,8 +352,10 @@ protected:
     promise::Promise<void> mMemberNamesResolved;
     bool mAutoJoining = false;
     bool mMeeting = false;
+    ::mega::ChatOptions mChatOptions; // by default chat options are empty
 
     void setChatPrivateMode();
+    void updateChatOptions(mega::ChatOptions_t opt);
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
@@ -378,7 +385,7 @@ protected:
     //Resume from cache
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
-                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting);
+                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting, mega::ChatOptions_t options);
 
     //Load chatLink
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
@@ -436,6 +443,12 @@ public:
      */
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 
+    /**
+     * @brief Allow to enable/disable one of the following chatroom options: (openInvite, speakRequest, waitingRoom)
+     * @returns A void promise, which will fail if the MegaApi request fails.
+     */
+    promise::Promise<void> setChatRoomOption(int option, bool enabled);
+
     /** TODO
      *
      */
@@ -458,6 +471,9 @@ public:
     unsigned long numMembers() const override;
 
     bool isMeeting() const override;
+    bool isWaitingRoom() const override;
+    bool isSpeakRequest() const override;
+    bool isOpenInvite() const override;
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -1110,7 +1126,7 @@ public:
      * the participants.
      */
     promise::Promise<karere::Id>
-    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, const char *title = NULL);
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options = 0, const char* title = NULL);
     void setCommitMode(bool commitEach);
     bool commitEach();
     void saveDb();  // forces a commit
