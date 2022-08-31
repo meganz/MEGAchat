@@ -958,7 +958,7 @@ void ChatMessage::onNodeDownloadOrImport(mega::MegaNode *node, bool import)
         msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
         if (msgBoxAns.exec() == QMessageBox::Ok)
         {
-            mChatWindow->mMegaApi->startDownload(resultNode, target.c_str());
+            mChatWindow->mMegaApi->startDownload(resultNode, target.c_str(), nullptr, nullptr, false, nullptr);
         }
     }
 }

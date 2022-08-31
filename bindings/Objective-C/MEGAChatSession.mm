@@ -44,6 +44,10 @@ using namespace megachat;
     return (MEGAChatSessionStatus) (self.megaChatSession ? self.megaChatSession->getStatus() : 0);
 }
 
+- (MEGAChatSessionTermCode)termCode {
+    return (MEGAChatSessionTermCode) (self.megaChatSession ? self.megaChatSession->getTermCode(): -1);
+}
+
 - (BOOL)hasAudio {
     return self.megaChatSession ? self.megaChatSession->hasAudio() : NO;
 }

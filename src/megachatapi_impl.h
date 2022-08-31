@@ -102,6 +102,7 @@ public:
 
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
+    void setStringList(mega::MegaStringList* stringList);
     void setNumber(long long number);
     void setNumRetry(int retry);
     void setFlag(bool flag);
@@ -116,6 +117,7 @@ public:
     void setMegaHandleList(mega::MegaHandleList *handlelist);
     void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
+    void setStringMap(mega::MegaStringMap* stringMap);
 
 protected:
     int mType;
@@ -181,6 +183,12 @@ public:
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;
     virtual bool isLowResVideo() const override;
+    virtual bool hasScreenShare() const override;
+    virtual bool isHiResScreenShare() const override;
+    virtual bool isLowResScreenShare() const override;
+    virtual bool hasCamera() const override;
+    virtual bool isLowResCamera() const override;
+    virtual bool isHiResCamera() const override;
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
     virtual int getTermCode() const override;
@@ -190,6 +198,7 @@ public:
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
 
+    char* avFlagsToString() const override;
     karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
     void setAudioDetected(bool audioDetected);
@@ -248,6 +257,7 @@ public:
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
+    virtual bool isOwnClientCaller() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
     const char* getGenericMessage() const override;
@@ -299,9 +309,10 @@ protected:
     bool mAudioDetected = false;
     bool mRinging = false;
     bool mIsCaller = false;
+    bool mIsOwnClientCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
-    int mNetworkQuality = rtcModule::kNetworkQualityDefault;
+    int mNetworkQuality = rtcModule::kNetworkQualityGood;
 };
 
 class MegaChatVideoFrame
@@ -523,6 +534,7 @@ public:
     void onLastMessageTsUpdated(uint32_t ts) override;
     void onHistoryReloaded() override;
     void onChatModeChanged(bool mode) override;
+    void onChatOptionsChanged(int option) override;
     void onReactionUpdate(karere::Id msgid, const char *reaction, int count) override;
     void onHistoryTruncatedByRetentionTime(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
 
@@ -609,6 +621,8 @@ public:
     void onOnHold(const rtcModule::ICall& call) override;
     void onAddPeer(const rtcModule::ICall &call, karere::Id peer) override;
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
+    void onNetworkQualityChanged(const rtcModule::ICall &call) override;
+    void onStopOutgoingRinging(const rtcModule::ICall& call) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -729,6 +743,9 @@ public:
     bool isActive() const override;
     bool isArchived() const override;
     bool isMeeting() const override;
+    bool isWaitingRoom() const override;
+    bool isOpenInvite() const override;
+    bool isSpeakRequest() const override;
     int64_t getCreationTs() const override;
 
     int getChanges() const override;
@@ -744,6 +761,7 @@ public:
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void changeUnreadCount();
+    void changeChatRoomOption(int option);
     void setNumPreviewers(unsigned int numPrev);
     void setMembersUpdated(MegaChatHandle uh);
     void setUserTyping(MegaChatHandle uh);
@@ -769,6 +787,9 @@ private:
     bool mHasCustomTitle;
     int64_t mCreationTs;
     bool mMeeting = false;
+    bool mWaitingRoom = false;
+    bool mOpenInvite = false;
+    bool mSpeakRequest = false;
 
     std::string mTitle;
     int unreadCount;
@@ -971,6 +992,7 @@ private:
 
     static int convertInitState(int state);
     static int convertDbError(int errCode);
+    bool isChatroomFromType(const karere::ChatRoom& chat, int type);
 
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);
@@ -1108,9 +1130,11 @@ public:
     char *getMyFullname();
     char *getMyEmail();
     MegaChatRoomList* getChatRooms();
+    MegaChatRoomList* getChatRoomsByType(int type);
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
     MegaChatListItemList *getChatListItems();
+    MegaChatListItemList* getChatListItemsByType(int type);
     MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
     int getUnreadChats();
@@ -1121,9 +1145,10 @@ public:
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
+    void setChatOption(MegaChatHandle chatid, int option, bool enabled, MegaChatRequestListener* listener = NULL);
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
-    void createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener = NULL);
-    void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, MegaChatRequestListener *listener = NULL);
+    void createChat(bool group, MegaChatPeerList* peerList, const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener = NULL);
+    void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, bool speakRequest = false, bool waitingRoom = false, bool openInvite = false,  MegaChatRequestListener *listener = NULL);
     void chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener = NULL);
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
     void autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
@@ -1171,6 +1196,9 @@ public:
     bool isMessageReceptionConfirmationActive() const;
     void saveCurrentState();
     void pushReceived(bool beep, MegaChatHandle chatid, int type, MegaChatRequestListener *listener = NULL);
+    int createChatOptionsBitMask(bool speakRequest, bool waitingRoom, bool openInvite);
+    bool isValidChatOptionsBitMask(int chatOptionsBitMask);
+    static bool hasChatOptionEnabled(int option, int chatOptionsBitMask);
 
 #ifndef KARERE_DISABLE_WEBRTC
 

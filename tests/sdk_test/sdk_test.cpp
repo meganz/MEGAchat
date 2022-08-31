@@ -3875,7 +3875,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 1. Send rich link message
     //=================================//
 
-    std::string messageToSend = "Hello friend, http://mega.nz";
+    std::string messageToSend = "Hello friend, https://mega.nz";
     // Need to do this for the first message as it's send and edited
     chatroomListener->msgEdited[a1] = false;
     chatroomListener->msgEdited[a2] = false;
@@ -4521,7 +4521,15 @@ MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileN
     addTransfer(accountIndex);
     std::string filePath = sourcePath + "/" + fileName;
     mNodeUploadHandle[accountIndex] = INVALID_HANDLE;
-    megaApi[accountIndex]->startUpload(filePath.c_str(), megaApi[accountIndex]->getNodeByPath(targetPath.c_str()), this);
+    megaApi[accountIndex]->startUpload(filePath.c_str()
+                                       , megaApi[accountIndex]->getNodeByPath(targetPath.c_str())
+                                       , nullptr    /*fileName*/
+                                       , 0          /*mtime*/
+                                       , nullptr    /*appdata*/
+                                       , false      /*isSourceTemporary*/
+                                       , false      /*startFirst*/
+                                       , nullptr    /*cancelToken*/
+                                       , this);     /*listener*/
     ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning(accountIndex)), "Expired timeout for upload file");
     ASSERT_CHAT_TEST(!lastErrorTransfer[accountIndex],
                      "Error upload file. Error: " + std::to_string(lastErrorTransfer[accountIndex]) + ". Source: " + filePath + "  target: " + targetPath);
@@ -4553,7 +4561,13 @@ bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
     }
 
     addTransfer(accountIndex);
-    megaApi[accountIndex]->startDownload(nodeToDownload, DOWNLOAD_PATH.c_str(), this);
+    megaApi[accountIndex]->startDownload(nodeToDownload,
+                                         DOWNLOAD_PATH.c_str(),
+                                         nullptr,   /*customName*/
+                                         nullptr,   /*appData*/
+                                         false,     /*startFirst*/
+                                         nullptr,   /*cancelToken*/
+                                         this);
     ASSERT_CHAT_TEST(waitForResponse(&isNotTransferRunning(accountIndex)), "Expired timeout for download file");
     return lastErrorTransfer[accountIndex] == API_OK;
 }
@@ -5772,6 +5786,11 @@ bool MockupCall::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
 bool MockupCall::handlePeerLeft(Cid_t cid, unsigned termcode)
 {
     return true;
+}
+
+bool MockupCall::handleBye(unsigned termcode)
+{
+    return false;
 }
 
 void MockupCall::onSfuConnected()

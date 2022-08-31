@@ -88,6 +88,37 @@ bool MegaChatSession::isLowResVideo() const
     return false;
 }
 
+bool MegaChatSession::hasCamera() const
+{
+    return false;
+}
+
+bool MegaChatSession::isLowResCamera() const
+{
+    return false;
+}
+
+bool MegaChatSession::isHiResCamera() const
+{
+    return false;
+}
+
+
+bool MegaChatSession::hasScreenShare() const
+{
+    return false;
+}
+
+bool MegaChatSession::isHiResScreenShare() const
+{
+    return false;
+}
+
+bool MegaChatSession::isLowResScreenShare() const
+{
+    return false;
+}
+
 bool MegaChatSession::isOnHold() const
 {
     return false;
@@ -126,6 +157,11 @@ bool MegaChatSession::canRecvVideoHiRes() const
 bool MegaChatSession::canRecvVideoLowRes() const
 {
     return false;
+}
+
+char* MegaChatSession::avFlagsToString() const
+{
+    return NULL;
 }
 
 MegaChatCall::~MegaChatCall()
@@ -271,6 +307,11 @@ bool MegaChatCall::isOutgoing() const
     return false;
 }
 
+bool MegaChatCall::isOwnClientCaller() const
+{
+    return false;
+}
+
 MegaChatHandle MegaChatCall::getCaller() const
 {
     return MEGACHAT_INVALID_HANDLE;
@@ -295,7 +336,6 @@ int MegaChatCall::getNetworkQuality() const
 {
     return 0;
 }
-
 
 bool MegaChatCall::hasRequestSpeak() const
 {
@@ -567,6 +607,11 @@ MegaChatRoomList *MegaChatApi::getChatRooms()
     return pImpl->getChatRooms();
 }
 
+MegaChatRoomList* MegaChatApi::getChatRoomsByType(int type)
+{
+    return pImpl->getChatRoomsByType(type);
+}
+
 MegaChatRoom *MegaChatApi::getChatRoom(MegaChatHandle chatid)
 {
     return pImpl->getChatRoom(chatid);
@@ -575,6 +620,11 @@ MegaChatRoom *MegaChatApi::getChatRoom(MegaChatHandle chatid)
 MegaChatRoom *MegaChatApi::getChatRoomByUser(MegaChatHandle userhandle)
 {
     return pImpl->getChatRoomByUser(userhandle);
+}
+
+MegaChatListItemList* MegaChatApi::getChatListItemsByType(int type)
+{
+    return pImpl->getChatListItemsByType(type);
 }
 
 MegaChatListItemList *MegaChatApi::getChatListItems()
@@ -622,6 +672,21 @@ MegaChatHandle MegaChatApi::getChatHandleByUser(MegaChatHandle userhandle)
     return pImpl->getChatHandleByUser(userhandle);
 }
 
+void MegaChatApi::setOpenInvite(MegaChatHandle chatid, bool enabled, MegaChatRequestListener* listener)
+{
+   pImpl->setChatOption(chatid, CHAT_OPTION_OPEN_INVITE, enabled, listener);
+}
+
+void MegaChatApi::setSpeakRequest(MegaChatHandle chatid, bool enabled, MegaChatRequestListener *listener)
+{
+   pImpl->setChatOption(chatid, CHAT_OPTION_SPEAK_REQUEST, enabled, listener);
+}
+
+void MegaChatApi::setWaitingRoom(MegaChatHandle chatid, bool enabled, MegaChatRequestListener *listener)
+{
+   pImpl->setChatOption(chatid, CHAT_OPTION_WAITING_ROOM, enabled, listener);
+}
+
 void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener)
 {
     pImpl->createChat(group, peers, listener);
@@ -629,18 +694,34 @@ void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatReques
 
 void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
-    pImpl->createChat(group, peers, title, listener);
+    pImpl->createChat(group, peers, title, false, false, false, listener);
+}
+
+void MegaChatApi::createGroupChat(MegaChatPeerList* peers, const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener)
+{
+    pImpl->createChat(true, peers, title, speakRequest, waitingRoom, openInvite, listener);
 }
 
 void MegaChatApi::createMeeting(const char *title, MegaChatRequestListener *listener)
 {
     std::unique_ptr<MegaChatPeerList> peers = std::unique_ptr<MegaChatPeerList>(MegaChatPeerList::createInstance());
-    pImpl->createPublicChat(peers.get(), true, title, listener);
+    pImpl->createPublicChat(peers.get(), true, title, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/, listener);
+}
+
+void MegaChatApi::createMeeting(const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener)
+{
+    std::unique_ptr<MegaChatPeerList> peers = std::unique_ptr<MegaChatPeerList>(MegaChatPeerList::createInstance());
+    pImpl->createPublicChat(peers.get(), true, title, speakRequest, waitingRoom, openInvite, listener);
 }
 
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
-    pImpl->createPublicChat(peers, false, title, listener);
+    pImpl->createPublicChat(peers, false, title, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/, listener);
+}
+
+void MegaChatApi::createPublicChat(MegaChatPeerList* peers, const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener)
+{
+    pImpl->createPublicChat(peers, false, title, speakRequest, waitingRoom, openInvite, listener);
 }
 
 void MegaChatApi::queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
@@ -927,8 +1008,6 @@ void MegaChatApi::hangChatCall(MegaChatHandle callid, MegaChatRequestListener *l
 
 void MegaChatApi::endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener)
 {
-    // This method shouldn't be used in this first meeting phase
-    assert(false);
     pImpl->endChatCall(callid, listener);
 }
 
@@ -1117,6 +1196,11 @@ void MegaChatApi::setCatchException(bool enable)
 bool MegaChatApi::hasUrl(const char *text)
 {
     return MegaChatApiImpl::hasUrl(text);
+}
+
+bool MegaChatApi::hasChatOptionEnabled(int option, int chatOptionsBitMask)
+{
+    return MegaChatApiImpl::hasChatOptionEnabled(option, chatOptionsBitMask);
 }
 
 bool MegaChatApi::openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
@@ -1523,6 +1607,21 @@ int64_t MegaChatRoom::getCreationTs() const
 }
 
 bool MegaChatRoom::isMeeting() const
+{
+    return false;
+}
+
+bool MegaChatRoom::isWaitingRoom() const
+{
+    return false;
+}
+
+bool MegaChatRoom::isOpenInvite() const
+{
+    return false;
+}
+
+bool MegaChatRoom::isSpeakRequest() const
 {
     return false;
 }

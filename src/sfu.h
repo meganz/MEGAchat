@@ -58,7 +58,7 @@ public:
     void resetKeys();
 
 protected:
-    Cid_t mCid = 0;
+    Cid_t mCid = 0; // 0 is an invalid Cid
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
@@ -158,6 +158,7 @@ public:
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
+    virtual bool handleBye(unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
     virtual void onSfuDisconnected() = 0;
     virtual void onSendByeCommand() = 0;
@@ -341,6 +342,15 @@ public:
     PeerLeftCommandFunction mComplete;
 };
 
+typedef std::function<bool(unsigned termCode)> ByeCommandFunction;
+class ByeCommand : public Command
+{
+public:
+    ByeCommand(const ByeCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    ByeCommandFunction mComplete;
+};
 
 /**
  * @brief This class allows to handle a connection to the SFU
@@ -388,7 +398,7 @@ public:
     };
 
     static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
-
+    static constexpr uint8_t kNoMediaPathTimeout = 6;        // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     void setIsSendingBye(bool sending);
@@ -410,7 +420,7 @@ public:
     void checkThreadId();
     const karere::Url& getSfuUrl();
 
-    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
+    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, Cid_t prevCid, int speaker = -1, int vthumbs = -1);
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
     bool sendAv(unsigned av);
     bool sendGetVtumbs(const std::vector<Cid_t>& cids);

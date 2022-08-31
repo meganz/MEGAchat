@@ -421,6 +421,15 @@ bool Client::openDb(const std::string& sid)
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
                 }
             }
+            else if (cachedVersionSuffix == "13" && (strcmp(gDbSchemaVersionSuffix, "14") == 0))
+            {
+                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                 db.query("ALTER TABLE `chats` ADD chat_options tinyint default 0");
+                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                 db.commit();
+                 ok = true;
+                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -494,6 +503,7 @@ int Client::importMessages(const char *externalDbPath)
         karere::ChatRoom *chatroom = it.second;
         chatd::Chat &chat = chatroom->chat();
         karere::Id chatid = chatroom->chatid();
+        uint32_t retentionTime = chat.getRetentionTime();
 
         // get id of last message seen from external db
         Id lastSeenId;
@@ -501,12 +511,30 @@ int Client::importMessages(const char *externalDbPath)
         stmtLastSeen << chatid;
         if (stmtLastSeen.step())
         {
+            time_t lastSeenTs = 0;
+            time_t expireRetentionTs = 0;
             lastSeenId = stmtLastSeen.uint64Col(0);
-            chat.seenImport(lastSeenId);
+            if (retentionTime)
+            {
+                // check last seen message ts
+                SqliteStmt stmtLastSeenTs(dbExternal, "select ts from history where chatid=? and msgid=?");
+                stmtLastSeenTs << chatid;
+                stmtLastSeenTs << lastSeenId;
+                if (stmtLastSeenTs.step())
+                {
+                    lastSeenTs = static_cast<time_t> (stmtLastSeen.uint64Col(0));
+                    expireRetentionTs = time(nullptr) - retentionTime;
+                }
+            }
+
+            if (!retentionTime || lastSeenTs > expireRetentionTs)
+            {
+                chat.seenImport(lastSeenId);  // call seen import if no retention time is set or it hasn't expired
+            }
         }
         else    // no SEEN pointer for this chat on external cache (or chat not found)
         {
-            KR_LOG_WARNING("importMessages: SEEN not imported becaus chatid not found in external db (chatid: %s)",
+            KR_LOG_WARNING("importMessages: SEEN not imported because chatid not found in external db (chatid: %s)",
                          chatid.toString().c_str());
         }
 
@@ -634,6 +662,12 @@ int Client::importMessages(const char *externalDbPath)
                 chat.keyImport(keyid, userid, key.buf(), (uint16_t)key.dataSize());
             }
 
+            if (retentionTime && ts <= time(nullptr) - retentionTime)
+            {
+                KR_LOG_DEBUG("importMessages: skipping msg with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                continue;
+            }
+
             chat.msgImport(move(msg), isUpdate);
             (isUpdate) ? countUpdated++ : countAdded++;
 
@@ -683,6 +717,11 @@ int Client::importMessages(const char *externalDbPath)
                 msg->backRefId = stmtMsgUpdated.uint64Col(7);
                 msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
 
+                if (retentionTime && ts <= time(nullptr) - retentionTime)
+                {
+                    KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                    continue;
+                }
                 chat.msgImport(move(msg), true);
                 countUpdated++;
 
@@ -1282,7 +1321,11 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 
         // connect() should be done in main thread, not app's thread, since LWS is single threaded
         // and the `wsi` context must be created by the main thread, where it runs the event's loop
-        marshallCall([this]() { connect(); }, appCtx);
+        marshallCall([this]()
+        {
+            notifyUserStatus(true);
+            connect();
+        }, appCtx);
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);
@@ -2010,7 +2053,7 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
 }
 
 promise::Promise<karere::Id>
-Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, const char *title)
+Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options, const char* title)
 {
     // prepare set of participants
     std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
@@ -2056,7 +2099,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
     auto wptr = getDelTracker();
-    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat, meeting](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
+    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat, meeting, options](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
     {
         if (wptr.deleted())
         {
@@ -2074,7 +2117,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         if (publicchat)
         {
             createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
-            .then([wptr, this, crypto, sdkPeers, enctitleB64, meeting](chatd::KeyCommand *keyCmd) -> ApiPromise
+            .then([wptr, this, crypto, sdkPeers, enctitleB64, meeting, options](chatd::KeyCommand *keyCmd) -> ApiPromise
             {
                 mega::MegaStringMap *userKeyMap;
                 userKeyMap = mega::MegaStringMap::createInstance();
@@ -2113,13 +2156,13 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 //Add entry to map
                 userKeyMap->set(mMyHandle.toString().c_str(), oKeyB64.c_str());
                 return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap,
-                                !enctitleB64.empty() ? enctitleB64.c_str() : nullptr, meeting);
+                                !enctitleB64.empty() ? enctitleB64.c_str() : nullptr, meeting, options);
             });
         }
         else
         {
             createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(),
-                                         !enctitleB64.empty() ? enctitleB64.c_str() : nullptr);
+                                         !enctitleB64.empty() ? enctitleB64.c_str() : nullptr, options);
         }
 
         return createChatPromise
@@ -2325,14 +2368,15 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, static_cast<unsigned char>(aChat.getShard()),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
-  mRoomGui(nullptr), mMeeting(aChat.isMeeting())
+  mRoomGui(nullptr), mMeeting(aChat.isMeeting()), mChatOptions(aChat.getChatOptions())
 {
+    assert(mChatOptions.isValid());
     bool isPublicChat = aChat.isPublicChat();
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
     db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
-             "own_priv, ts_created, archived, mode, meeting) values(?,?,-1,0,?,?,?,?,?)",
-             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat, mMeeting);
+             "own_priv, ts_created, archived, mode, meeting, chat_options) values(?,?,-1,0,?,?,?,?,?,?)",
+             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat, mMeeting, mChatOptions.value());
     db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
 
     // Initialize list of peers and fetch their names
@@ -2396,10 +2440,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 //Resume from cache
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
-    const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting)
+    const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, bool meeting, mega::ChatOptions_t options)
     : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived)
-    , mRoomGui(nullptr), mMeeting(meeting)
+    , mRoomGui(nullptr), mMeeting(meeting), mChatOptions(options)
 {
+    assert(mChatOptions.isValid());
     // Initialize list of peers
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
@@ -2758,6 +2803,21 @@ bool GroupChatRoom::removeMember(uint64_t userid)
 
     return true;
 }
+promise::Promise<void> GroupChatRoom::setChatRoomOption(int option, bool enabled)
+{
+    auto wptr = getDelTracker();
+    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatOption, chatid(), option, enabled)
+    .then([wptr]()
+    {
+        wptr.throwIfDeleted();
+    })
+    .fail([wptr, this](const ::promise::Error& err)
+    {
+        wptr.throwIfDeleted();
+        KR_LOG_ERROR("Error setting chatroom option for chat %s: %s", ID_CSTR(chatid()), err.what());
+        return err;
+    });
+}
 
 promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
 {
@@ -2848,7 +2908,7 @@ void ChatRoomList::loadFromDb()
         deleteRoomFromDb(chatid);
     }
 
-    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key, meeting from chats");
+    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key, meeting, chat_options from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -2895,7 +2955,7 @@ void ChatRoomList::loadFromDb()
                 auxTitle.assign(posTitle, len);
             }
 
-            room = new GroupChatRoom(*this, chatid, static_cast<unsigned char>(stmt.intCol(2)), static_cast<chatd::Priv>(stmt.intCol(3)), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted, stmt.intCol(10));
+            room = new GroupChatRoom(*this, chatid, static_cast<unsigned char>(stmt.intCol(2)), static_cast<chatd::Priv>(stmt.intCol(3)), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted, stmt.intCol(10), static_cast<mega::ChatOptions_t>(stmt.intCol(11)));
         }
         emplace(chatid, room);
     }
@@ -3589,6 +3649,21 @@ bool GroupChatRoom::isMeeting() const
     return mMeeting;
 }
 
+bool GroupChatRoom::isOpenInvite() const
+{
+    return mChatOptions.openInvite();
+}
+
+bool GroupChatRoom::isSpeakRequest() const
+{
+    return mChatOptions.speakRequest();
+}
+
+bool GroupChatRoom::isWaitingRoom() const
+{
+    return mChatOptions.waitingRoom();
+}
+
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
     chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
@@ -3673,6 +3748,18 @@ void ChatRoom::notifyChatModeChanged()
 
         if (mAppChatHandler)
             mAppChatHandler->onChatModeChanged(this->publicChat());
+    }, parent.mKarereClient.appCtx);
+}
+
+void ChatRoom::notifyChatOptionsChanged(int option)
+{
+    callAfterInit(this, [this, option]
+    {
+        // currently not needed to notify apps via onChatListItemUpdate
+        if (mAppChatHandler)
+        {
+            mAppChatHandler->onChatOptionsChanged(option);
+        }
     }, parent.mKarereClient.appCtx);
 }
 
@@ -3886,6 +3973,12 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         // in case of previewMode, it's also updated in cache
     }
 
+    if (!mChatOptions.areEqual(chat.getChatOptions()))
+    {
+        KR_LOG_DEBUG("Chatroom[%s]: API event: chat options have changed", ID_CSTR(mChatid));
+        updateChatOptions(chat.getChatOptions());
+    }
+
     // Own privilege changed
     auto oldPriv = mOwnPriv;
     bool ownPrivChanged = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
@@ -3977,11 +4070,16 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 
 void GroupChatRoom::setChatPrivateMode()
 {
+    if (mMeeting)
+    {
+        mMeeting = false; // in case public chat was a meeting room set mMeeting to false
+    }
+
     //Update strongvelope
     chat().crypto()->setPrivateChatMode();
 
-    //Update cache
-    parent.mKarereClient.db.query("update chats set mode = '0' where chatid = ?", mChatid);
+    //Update cache updating mode and ensure that meeting field is disabled (0)
+    parent.mKarereClient.db.query("update chats set mode = '0', meeting = '0' where chatid = ?", mChatid);
 
     notifyChatModeChanged();
 
@@ -3990,6 +4088,28 @@ void GroupChatRoom::setChatPrivateMode()
         chat().requestUserAttributes(member.first);
         chat().crypto()->fetchUserKeys(member.first);
     }
+}
+
+void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
+{
+    mega::ChatOptions newOptions(opt);
+    mega::ChatOptions oldOptions(mChatOptions);
+
+    if (!newOptions.isValid())
+    {
+        KR_LOG_WARNING("addOrUpdateChatOptions: options value (%d) is out of range", newOptions.value());
+        assert(false);
+        return;
+    }
+
+    // update chat options in ram and db
+    parent.mKarereClient.db.query("update chats set chat_options = ? where chatid = ?", opt, mChatid);
+    mChatOptions.set(opt); // replace old options set by new one
+
+    // compare old and new options set to notify apps those ones that have changed
+    if (oldOptions.speakRequest() != newOptions.speakRequest()) { notifyChatOptionsChanged(mega::ChatOptions::kSpeakRequest); }
+    if (oldOptions.waitingRoom() != newOptions.waitingRoom())   { notifyChatOptionsChanged(mega::ChatOptions::kWaitingRoom); }
+    if (oldOptions.openInvite() != newOptions.openInvite())     { notifyChatOptionsChanged(mega::ChatOptions::kOpenInvite); }
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
@@ -4366,7 +4486,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     }
     mega::MegaTextChatPeerListPrivate peers;
     peers.addPeer(mUserid, chatd::PRIV_OPER);
-    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers, nullptr)
+    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers, nullptr, mega::ChatOptions::kEmpty)
     .then([this](ReqResult result) -> Promise<ChatRoom*>
     {
         auto& list = *result->getMegaTextChatList();

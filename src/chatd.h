@@ -238,6 +238,9 @@ public:
      */
     virtual void onChatModeChanged(bool /*mode*/) {}
 
+    /** Chat options have changed **/
+    virtual void onChatOptionsChanged(int /*option*/) {}
+
     /** @brief We have rejoined the room
      */
     virtual void onRejoinedChat() {}
@@ -1430,10 +1433,9 @@ protected:
     void rejectGeneric(uint8_t opcode, uint8_t reason);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
     void handleTruncate(const Message& msg, Idx idx);
-    void deleteMessagesBefore(Idx idx);
+    void deleteOlderMessagesIncluding(Idx idx);
     void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
-    void truncateByRetentionTime(Idx idx);
     void truncateAttachmentHistory();
 
     /**
