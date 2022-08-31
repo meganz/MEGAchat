@@ -588,7 +588,7 @@ private:
     std::set<karere::Id> mCallStartAttempts;
 };
 
-class karereScheduledFlags: public IkarereScheduledFlags
+class KarereScheduledFlags: public IkarereScheduledFlags
 {
 public:
     typedef enum
@@ -599,11 +599,11 @@ public:
 
     typedef std::bitset<FLAGS_SIZE> karereScheduledFlagsBitSet;
 
-    karereScheduledFlags (unsigned long numericValue);
-    karereScheduledFlags (karereScheduledFlags* flags);
-    karereScheduledFlags (IkarereScheduledFlags* flags);
-    virtual ~karereScheduledFlags();
-    karereScheduledFlags* copy();
+    KarereScheduledFlags (unsigned long numericValue);
+    KarereScheduledFlags (KarereScheduledFlags* flags);
+    KarereScheduledFlags (IkarereScheduledFlags* flags);
+    virtual ~KarereScheduledFlags();
+    KarereScheduledFlags* copy();
 
     // --- setters ---
     void reset();
@@ -618,7 +618,7 @@ private:
     karereScheduledFlagsBitSet mFlags = 0;
 };
 
-class karereScheduledRules: public IkarereScheduledRules
+class KarereScheduledRules: public IkarereScheduledRules
 {
 public:
     typedef enum {
@@ -630,16 +630,16 @@ public:
 
     constexpr static int INTERVAL_INVALID = 0;
 
-    karereScheduledRules(int freq,
+    KarereScheduledRules(int freq,
                    int interval = INTERVAL_INVALID,
                    const char* until = nullptr,
                    const std::vector<int64_t>* byWeekDay = nullptr,
                    const std::vector<int64_t>* byMonthDay = nullptr,
                    const std::map<int64_t, int64_t>* byMonthWeekDay = nullptr);
 
-    karereScheduledRules(karereScheduledRules* rules);
-    karereScheduledRules(IkarereScheduledRules* rules);
-    virtual ~karereScheduledRules();
+    KarereScheduledRules(KarereScheduledRules* rules);
+    KarereScheduledRules(IkarereScheduledRules* rules);
+    virtual ~KarereScheduledRules();
 
     // --- setters ---
     void setFreq(int newFreq);
@@ -648,7 +648,7 @@ public:
     void setByWeekDay(const std::vector<int64_t>* byWeekDay);
     void setByMonthDay(const std::vector<int64_t>* byMonthDay);
     void setByMonthWeekDay(const std::map<int64_t, int64_t>* byMonthWeekDay);
-    karereScheduledRules* copy();
+    KarereScheduledRules* copy();
 
     // --- IkarereScheduledRules methods ---
     int freq() const override;
@@ -681,22 +681,22 @@ private:
     std::unique_ptr<std::map<int64_t, int64_t>> mByMonthWeekDay;
 };
 
-class karereScheduledMeeting: public IkarereScheduledMeeting
+class KarereScheduledMeeting: public IkarereScheduledMeeting
 {
 public:
-    karereScheduledMeeting(karere::Id chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
+    KarereScheduledMeeting(karere::Id chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
                                     const char* title, const char* description, karere::Id callid = karere::Id::inval(),
                                     karere::Id parentCallid = karere::Id::inval(), int cancelled = -1, const char* attributes = nullptr,
-                                    const char* overrides = nullptr, karereScheduledFlags* flags = nullptr,
-                                    karereScheduledRules* rules = nullptr);
+                                    const char* overrides = nullptr, KarereScheduledFlags* flags = nullptr,
+                                    KarereScheduledRules* rules = nullptr);
 
-    karereScheduledMeeting(karereScheduledMeeting* karereScheduledMeeting);
-    karereScheduledMeeting* copy();
-    virtual ~karereScheduledMeeting();
+    KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
+    KarereScheduledMeeting* copy();
+    virtual ~KarereScheduledMeeting();
 
     // --- setters ---
-    void setRules(karereScheduledRules* rules);
-    void setFlags(karereScheduledFlags* flags);
+    void setRules(KarereScheduledRules* rules);
+    void setFlags(KarereScheduledFlags* flags);
     void setCancelled(int cancelled);
     void setOverrides(const char* overrides);
     void setAttributes(const char* attributes);
@@ -759,10 +759,10 @@ private:
     int mCancelled;
 
     // [optional]: flags bitmask (used to store additional boolean settings as a bitmask)
-    std::unique_ptr<karereScheduledFlags> mFlags;
+    std::unique_ptr<KarereScheduledFlags> mFlags;
 
     // [optional]: scheduled meetings rules
-    std::unique_ptr<karereScheduledRules> mRules;
+    std::unique_ptr<KarereScheduledRules> mRules;
 };
 
 void globalCleanup();
