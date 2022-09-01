@@ -1752,13 +1752,18 @@ void Call::sfuDisconnect(const TermCode& termCode)
     RTCM_LOG_DEBUG("callDisconnect, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     mTermCode = termCode; // termcode is only valid at state kStateTerminatingUserParticipation
     setState(CallState::kStateTerminatingUserParticipation);
+
+    // skip kStateClientNoParticipating notification if:
+    bool skipClientNoParticipating = (isDestroying() && mSfuConnection)             // we are destroying call but SFU connection still exists
+            || (mSessions.empty() && mSfuConnection && mSfuConnection->isJoined()); // no more participants but still joined to SFU
+
     if (mSfuConnection)
     {
         mSfuClient.closeSfuConnection(mChatid);
         mSfuConnection = nullptr;
     }
 
-    if (!isDestroying())
+    if (!skipClientNoParticipating)
     {
         mTermCode = kInvalidTermCode;
         setState(CallState::kStateClientNoParticipating);
