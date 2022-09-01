@@ -1679,6 +1679,7 @@ bool Call::handleBye(unsigned termcode)
     karere::marshallCall([wptr, auxTermCode, reason, this]()
     {
         RTCM_LOG_DEBUG("Immediate removing call due to BYE [%d] command received from SFU", auxTermCode);
+        setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
         mRtc.immediateRemoveCall(this, reason, auxTermCode);
     }, mRtc.getAppCtx());
 
@@ -1757,9 +1758,11 @@ void Call::sfuDisconnect(const TermCode& termCode)
         mSfuConnection = nullptr;
     }
 
-    // reset termcode upon set state kStateClientNoParticipating
-    mTermCode = kInvalidTermCode;
-    setState(CallState::kStateClientNoParticipating);
+    if (!isDestroying())
+    {
+        mTermCode = kInvalidTermCode;
+        setState(CallState::kStateClientNoParticipating);
+    }
 }
 
 void Call::onSendByeCommand()
@@ -1831,6 +1834,7 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
         {
             //immediateCallDisconnect will be called inside immediateRemoveCall
+            setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
             mRtc.immediateRemoveCall(this, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
