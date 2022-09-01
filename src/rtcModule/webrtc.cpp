@@ -1728,12 +1728,13 @@ void Call::onSfuDisconnected()
 
 void Call::immediateCallDisconnect(const TermCode& termCode)
 {
+    bool hadParticipants = !mSessions.empty();
     mediaChannelDisconnect(true /*releaseDevices*/);
     clearResources(termCode);
-    sfuDisconnect(termCode);
+    sfuDisconnect(termCode, hadParticipants);
 }
 
-void Call::sfuDisconnect(const TermCode& termCode)
+void Call::sfuDisconnect(const TermCode& termCode, bool hadParticipants)
 {
     if (isTermCodeRetriable(termCode))
     {
@@ -1755,7 +1756,7 @@ void Call::sfuDisconnect(const TermCode& termCode)
 
     // skip kStateClientNoParticipating notification if:
     bool skipClientNoParticipating = (isDestroying() && mSfuConnection)             // we are destroying call but SFU connection still exists
-            || (mSessions.empty() && mSfuConnection && mSfuConnection->isJoined()); // no more participants but still joined to SFU
+            || (!hadParticipants && mSfuConnection && mSfuConnection->isJoined());  // no more participants but still joined to SFU
 
     if (mSfuConnection)
     {
