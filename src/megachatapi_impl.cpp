@@ -7011,6 +7011,7 @@ void MegaChatCallPrivate::setCaller(Id caller)
 void MegaChatCallPrivate::setNotificationType(int notificationType)
 {
     mNotificationType = notificationType;
+    setChange(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION);
 }
 
 void MegaChatCallPrivate::setTermCode(int termCode)
@@ -9352,7 +9353,6 @@ void MegaChatCallHandler::onCallError(rtcModule::ICall &call, int code, const st
     // set manually Notification type, TermCode and message, as we are notifying an SFU error, and that information
     // is temporary, and shouldn't be preserved in original Call object
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION);                                // Change type
     chatCall->setNotificationType(MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR);                           // Notification type
     chatCall->setTermCode(chatCall->convertTermCode(static_cast<rtcModule::TermCode>(code)));           // SFU error
     chatCall->setMessage(errMsg);                                                                       // SFU err message
