@@ -31,6 +31,8 @@ const std::string SpeakOffCommand::COMMAND_NAME       = "SPEAK_OFF";
 const std::string PeerJoinCommand::COMMAND_NAME       = "PEERJOIN";
 const std::string PeerLeftCommand::COMMAND_NAME       = "PEERLEFT";
 const std::string ByeCommand::COMMAND_NAME            = "BYE";
+const std::string ModAddCommand::COMMAND_NAME         = "MOD_ADD";
+const std::string ModDelCommand::COMMAND_NAME         = "MOD_DEL";
 
 const std::string Sdp::endl = "\r\n";
 
@@ -324,7 +326,21 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         parseTracks(peers, vthumbs, vthumbsIterator, false);
     }
 
-    return mComplete(cid, sdp, callDuration, peers, vthumbs, speakers);
+    std::set<karere::Id> moderators;
+    rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
+    if (modsIterator != command.MemberEnd() && modsIterator->value.IsArray())
+    {
+        parseModeratorsObject(moderators, modsIterator);
+    }
+
+    bool ownModerator = false;
+    rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
+    if (modIterator != command.MemberEnd() && modIterator->value.IsUint())
+    {
+        ownModerator = modIterator->value.GetUint();
+    }
+
+    return mComplete(cid, sdp, callDuration, peers, vthumbs, speakers, moderators, ownModerator);
 }
 
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::ConstMemberIterator &it) const
@@ -405,6 +421,22 @@ void AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
         {
             continue;
         }
+    }
+}
+
+void AnswerCommand::parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const
+{
+    assert(it->value.IsArray());
+    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    {
+        if (!it->value[j].IsString())
+        {
+            SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid user handle value");
+            return;
+        }
+        std::string userIdString = it->value[j].GetString();
+        ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+        moderators.emplace(userId);
     }
 }
 
@@ -1382,7 +1414,7 @@ const karere::Url& SfuConnection::getSfuUrl()
 void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
 {
     commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
+    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8), call);
     commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
     commands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
@@ -1397,6 +1429,8 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1), call);
+    commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
+    commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
 }
 
 bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
@@ -2274,5 +2308,42 @@ bool ByeCommand::processCommand(const rapidjson::Document& command)
     return mComplete(reasonIterator->value.GetUint() /*termcode */);
 }
 
+ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool ModAddCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("MOD_ADD: Received data doesn't have 'user' field");
+        return false;
+    }
+    std::string userIdString = reasonIterator->value.GetString();
+    ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+    return mComplete(userId /*userid*/);
+}
+
+ModDelCommand::ModDelCommand(const ModDelCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool ModDelCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("MOD_DEL: Received data doesn't have 'user' field");
+        return false;
+    }
+    std::string userIdString = reasonIterator->value.GetString();
+    ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+    return mComplete(userId /*userid*/);
+}
 }
 #endif

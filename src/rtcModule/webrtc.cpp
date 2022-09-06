@@ -1041,6 +1041,10 @@ void Call::clearResources(const TermCode& termCode)
     disableStats();
     enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
+
+    mModerators.clear();            // clear moderators list and ownModerator
+    mOwnModerator = false;
+
     mVThumb.reset();
     mHiRes.reset();
     mAudio.reset();
@@ -1241,7 +1245,8 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
 }
 
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, const std::vector<sfu::Peer>& peers,
-                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
+                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers
+                               , std::set<karere::Id>& moderators, bool ownMod)
 {
     if (mState != kStateJoining)
     {
@@ -1273,6 +1278,10 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
         orderedCallDisconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
         return false;
     }
+
+    // set moderator list and ownModerator value
+    mOwnModerator = ownMod;
+    mModerators = moderators;
 
     assert(mRtcConn);
     auto wptr = weakHandle();
@@ -1682,6 +1691,43 @@ bool Call::handleBye(unsigned termcode)
         mRtc.immediateRemoveCall(this, reason, auxTermCode);
     }, mRtc.getAppCtx());
 
+    return true;
+}
+
+bool Call::handleModAdd(uint64_t userid)
+{
+    if (userid == mMyPeer->getPeerid())
+    {
+        mOwnModerator = true;
+    }
+
+    if (mModerators.find(userid) != mModerators.end())
+    {
+        RTCM_LOG_WARNING("MOD_ADD: user[%s] already added in moderators list", karere::Id(userid).toString().c_str());
+        return false;
+    }
+
+    RTCM_LOG_DEBUG("MOD_ADD: user[%s] added in moderators list", karere::Id(userid).toString().c_str());
+    mModerators.emplace(userid);
+    return true;
+}
+
+bool Call::handleModDel(uint64_t userid)
+{
+    if (userid == mMyPeer->getPeerid())
+    {
+        mOwnModerator = false;
+    }
+
+    auto it = mModerators.find(userid);
+    if (it == mModerators.end())
+    {
+        RTCM_LOG_WARNING("MOD_DEL: user[%s] not found in moderators list", karere::Id(userid).toString().c_str());
+        return false;
+    }
+
+    RTCM_LOG_DEBUG("MOD_DEL: user[%s] removed from moderators list", karere::Id(userid).toString().c_str());
+    mModerators.erase(it);
     return true;
 }
 
