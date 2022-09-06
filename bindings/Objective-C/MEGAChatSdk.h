@@ -419,6 +419,27 @@ NS_ASSUME_NONNULL_BEGIN
  *
  * @param chatId MegaChatHandle that identifies the chat room
  * @param enabled YES if we want to enable open invite option, otherwise false.
+ */
+- (void)openInvite:(BOOL)enabled chatId:(uint64_t)chatId;
+
+/**
+ * @brief Allows to enable/disable the open invite option for a chat room
+ *
+ * The open invite option allows users with MEGAChatRoomPrivilegeStandard privilege, to invite other users into the chat
+ *
+ * Valid data in the MegaChatRequest object received on callbacks:
+ * - [MegaChatRequest chatHandle] - Returns the handle of the chatroom
+ * - [MegaChatRequest privilege] - Returns MEGAChatOptionOpenInvite
+ * - [MegaChatRequest flag] - Returns YES if enabled was set YES, otherwise it will return false
+ *
+ * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+ * - MEGAChatErrorTypeNoEnt - If the chatroom does not exists or the chatid is invalid.
+ * - MEGAChatErrorTypeArgs - If the chatroom is a 1on1 chat
+ * - MEGAChatErrorTypeAccess - If the caller is not an operator.
+ * - MegaChatErrorTypeExist - If the value of enabled is the same as open invite option
+ *
+ * @param chatId MegaChatHandle that identifies the chat room
+ * @param enabled YES if we want to enable open invite option, otherwise false.
  * @param delegate MegaChatRequestListener to track this request
  */
 - (void)openInvite:(BOOL)enabled chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
