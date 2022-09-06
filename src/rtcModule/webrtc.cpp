@@ -806,6 +806,11 @@ std::set<karere::Id> Call::getParticipants() const
     return mParticipants;
 }
 
+std::set<karere::Id> Call::getModerators() const
+{
+    return mModerators;
+}
+
 std::vector<Cid_t> Call::getSessionsCids() const
 {
     std::vector<Cid_t> returnedValue;

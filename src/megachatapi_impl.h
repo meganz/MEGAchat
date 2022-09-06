@@ -247,12 +247,14 @@ public:
     virtual int getTermCode() const override;
     int getEndCallReason() const override;
     virtual bool isRinging() const override;
+    virtual bool isOwnModerator() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientId) override;
     virtual int getNumParticipants() const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
+    virtual mega::MegaHandleList* getModerators() const override;
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
@@ -293,6 +295,7 @@ protected:
     MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
     int mCallCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle mCallerId;
+    std::set<karere::Id> mModerators;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
@@ -303,6 +306,7 @@ protected:
     bool mIsOwnClientCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
+    bool mOwnModerator = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
 };
 

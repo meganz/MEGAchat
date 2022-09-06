@@ -726,6 +726,17 @@ public:
     virtual bool isRinging() const;
 
     /**
+     * @brief Returns if our own user has moderator role in the call
+     *
+     * Participants with moderator role can:
+     *  - End groupal calls for all participants
+     *  - Approve/reject speaker requests
+     *
+     * @return True if our own user has moderator role in the call
+     */
+    virtual bool isOwnModerator() const;
+
+    /**
      * @brief Get a list with the ids of client that have a session with me
      *
      * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
@@ -791,6 +802,19 @@ public:
      * @return A list of handles with the ids of peers
      */
     virtual mega::MegaHandleList *getPeeridParticipants() const;
+
+    /**
+     * @brief Get a MegaHandleList with the ids of peers that have moderator role in the call
+     *
+     * Participants with moderator role can:
+     *  - End groupal calls for all participants
+     *  - Approve/reject speaker requests
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A MegaHandleList of handles of peers that have moderator role in the call
+     */
+    virtual mega::MegaHandleList* getModerators() const;
 
     /**
      * @brief Get the number of peers participating in the call

@@ -214,6 +214,7 @@ public:
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
 
     virtual std::set<karere::Id> getParticipants() const = 0;
+    virtual std::set<karere::Id> getModerators() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
     virtual ISession* getIsession(Cid_t cid) const = 0;
     virtual bool isOutgoing() const = 0;
