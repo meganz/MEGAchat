@@ -444,20 +444,6 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)openInvite:(BOOL)enabled chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 
-/**
- * @brief Checks if a chat option is enabled in a bitmask
- *
- * Valid values for option are:
- * - MEGAChatOptionSpeakRequest
- * - MEGAChatOptionWaitingRoom
- * - MEGAChatOptionOpenInvite
- *
- * @param option Option to check if it's enabled in a bitmask
- * @param chatOptionsBitMask Bitmask that represents a set of chat options
- * @return YES if specified option is enabled in the bitmask
- */
-- (BOOL)hasChatOptionEnabledForChatOption:(MEGAChatOption)option chatOptionsBitMask:(NSInteger)chatOptionsBitMask;
-
 #pragma mark - Audio and video calls
 
 #ifndef KARERE_DISABLE_WEBRTC
