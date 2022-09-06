@@ -178,6 +178,16 @@ bool Call::isJoined() const
     return mSfuConnection && mSfuConnection->isJoined();
 }
 
+bool Call::isOwnPrivModerator() const
+{
+   return mOwnModerator;
+}
+
+Cid_t Call::getOwnCid() const
+{
+    return mMyPeer->getCid();
+}
+
 void Call::addParticipant(const karere::Id &peer)
 {
     mParticipants.insert(peer);
@@ -935,7 +945,7 @@ void Call::joinSfu()
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
         ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-        mSfuConnection->joinSfu(sdp, ivs, getLocalAvFlags().value(), mMyPeer->getCid(), mSpeakerState, kInitialvthumbCount);
+        mSfuConnection->joinSfu(sdp, ivs, getLocalAvFlags().value(), getOwnCid(), mSpeakerState, kInitialvthumbCount);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -1226,7 +1236,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
         return false;
     }
 
-    if (mMyPeer->getCid() == cid)
+    if (getOwnCid() == cid)
     {
         RTCM_LOG_WARNING("handleAvCommand: Received our own AV flags");
         return false;
@@ -1482,7 +1492,7 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 
     for (Cid_t cid : speakRequests)
     {
-        if (cid != mMyPeer->getCid())
+        if (cid != getOwnCid())
         {
             Session *session = getSession(cid);
             assert(session);
@@ -1507,7 +1517,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
         return false;
     }
 
-    if (mMyPeer->getCid() != cid) // remote peer
+    if (getOwnCid() != cid) // remote peer
     {
         Session *session = getSession(cid);
         assert(session);
@@ -1546,7 +1556,7 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
     // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
-        assert(cid != mMyPeer->getCid());
+        assert(cid != getOwnCid());
         addSpeaker(cid, speaker);
     }
     else if (mSpeakerState == SpeakerState::kPending)
@@ -1576,7 +1586,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
-        assert(cid != mMyPeer->getCid());
+        assert(cid != getOwnCid());
         removeSpeaker(cid);
     }
     else if (mSpeakerState == SpeakerState::kActive)
@@ -2315,7 +2325,7 @@ void Call::initStatsValues()
 
 void Call::enableStats()
 {
-    mStats.mCid = mMyPeer->getCid();
+    mStats.mCid = getOwnCid();
     mStats.mTimeOffset = static_cast<uint64_t>(mOffset);
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()

@@ -269,6 +269,9 @@ public:
     CallState getState() const override;
     bool isOwnClientCaller() const override;
     bool isJoined()  const override;
+    bool isOwnPrivModerator() const override;
+    Cid_t getOwnCid() const override;
+
     // returns true if your user participates of the call
     bool participate() override;
     bool isJoining() const override;
