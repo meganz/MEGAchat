@@ -1755,7 +1755,7 @@ void Call::sfuDisconnect(const TermCode& termCode, bool hadParticipants)
     setState(CallState::kStateTerminatingUserParticipation);
 
     // skip kStateClientNoParticipating notification if:
-    bool skipClientNoParticipating = (isDestroying() && mSfuConnection)             // we are destroying call but SFU connection still exists
+    bool skipClientNoParticipating = (isDestroying())             // we are destroying call
             || (!hadParticipants && mSfuConnection && mSfuConnection->isJoined());  // no more participants but still joined to SFU
 
     if (mSfuConnection)
