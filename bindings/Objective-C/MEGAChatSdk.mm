@@ -1292,8 +1292,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (BOOL)hasChatOptionEnabledForChatOption:(MEGAChatOption)option chatOptionsBitMask:(NSInteger)chatOptionsBitMask {
     if (self.megaChatApi) {
-        self.megaChatApi->hasChatOptionEnabled(option, chatOptionsBitMask);
+        return self.megaChatApi->hasChatOptionEnabled(option, chatOptionsBitMask);
     }
+    return NO;
 }
 
 #pragma mark - Audio and video calls
