@@ -93,6 +93,7 @@ public:
         CHANGE_TYPE_SESSION_ON_HIRES = 0x10,        /// Hi-Res video received
         CHANGE_TYPE_SESSION_ON_HOLD = 0x20,         /// Session is on hold
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
+        CHANGE_TYPE_PERMISSIONS = 0x80,             /// Indicates that peer moderator role status has changed
     };
 
     enum {
@@ -307,6 +308,8 @@ public:
      * - MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL = 0x40
      * Check MegaChatSession::isAudioDetected
      *
+     * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
+     * Check MegaChatSession::isModerator
      */
     virtual int getChanges() const;
 
@@ -362,6 +365,9 @@ public:
      * - MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL = 0x40
      * Check MegaChatSession::isAudioDetected
      *
+     * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
+     * Check MegaChatSession::isModerator
+     *
      * @return true if this session has an specific change
      */
     virtual bool hasChanged(int changeType) const;
@@ -404,6 +410,18 @@ public:
      * @return true if we are ready to receive video in low resolution
      */
     virtual bool canRecvVideoLowRes() const;
+
+    /**
+     * @brief Returns if peer associated to the session, has moderator role in the call
+     *
+     * Participants with moderator role can:
+     *  - End groupal calls for all participants
+     *  - Approve/reject speaker requests
+     *
+     * @return True if peer associated to the session, has moderator role in the call
+     */
+
+    virtual bool isModerator() const;
 
     /**
      * @brief Returns session av flags in a readable format
@@ -457,6 +475,7 @@ public:
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
         CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call (1on1) outgoing ringing has stopped (only valid if our own client has started the call)
+        CHANGE_TYPE_PERMISSIONS = 0x200,            /// Indicates that own peer moderator role status has changed
     };
 
     enum
@@ -598,6 +617,9 @@ public:
      *
      * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
      * Call outgoing ringing has stopped (only valid if our own client has started the call)
+     *
+     * - MegaChatCall::CHANGE_TYPE_PERMISSIONS = 0x200
+     * Own peer moderator role status has changed (Check MegaChatCall::isOwnModerator)
      */
     virtual int getChanges() const;
 
@@ -639,6 +661,9 @@ public:
      *
      * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
      * Call outgoing ringing has stopped (only valid if our own client has started the call)
+     *
+     * - MegaChatCall::CHANGE_TYPE_PERMISSIONS = 0x200
+     * Own peer moderator role status has changed (Check MegaChatCall::isOwnModerator)
      *
      * @return true if this call has an specific change
      */

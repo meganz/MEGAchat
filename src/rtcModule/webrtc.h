@@ -118,6 +118,7 @@ public:
     virtual void onRemoteFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
     virtual void onRemoteAudioDetected(ISession& session) = 0;
+    virtual void onPermissionsChanged(ISession& session) = 0;
 };
 
 class ISession
@@ -137,6 +138,7 @@ public:
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
+    virtual bool isModerator() const = 0;
 };
 
 class ICall;
@@ -155,6 +157,7 @@ public:
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
     virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
     virtual void onStopOutgoingRinging(const ICall& call) = 0;
+    virtual void onPermissionsChanged(const ICall& call) = 0;
 };
 
 class ICall

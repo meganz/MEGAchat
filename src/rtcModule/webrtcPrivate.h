@@ -169,6 +169,7 @@ public:
     void notifyHiResReceived();
     void notifyLowResReceived();
     void disableVideoSlot(VideoResolution videoResolution);
+    void setModerator(bool isModerator);
 
     // ISession methods (called from intermediate layer, upon SessionHandler callbacks and others)
     karere::Id getPeerid() const override;
@@ -184,6 +185,7 @@ public:
     void setVideoRendererHiRes(IVideoRenderer *videoRenderer) override;
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
+    bool isModerator() const override;
 
 private:
     // Data about the partipant in the call relative to this session
@@ -411,6 +413,8 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
+    void setSessionModByUserId(uint64_t userid, bool isMod);
+    void setOwnModerator(bool isModerator);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
@@ -515,7 +519,6 @@ protected:
     Stats mStats;
     SvcDriver mSvcDriver;
     std::set<karere::Id> mModerators;
-    bool mOwnModerator = false;
 
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey(bool reset = false);

@@ -79,9 +79,11 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-
-Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid)
-    : mCid(cid), mPeerid(peerid), mAvFlags(static_cast<uint8_t>(avFlags))
+Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid, bool isModerator)
+    : mCid(cid),
+      mPeerid(peerid),
+      mAvFlags(static_cast<uint8_t>(avFlags)),
+      mIsModerator(isModerator)
 {
 }
 
@@ -89,8 +91,8 @@ Peer::Peer(const Peer &peer)
     : mCid(peer.mCid)
     , mPeerid(peer.mPeerid)
     , mAvFlags(peer.mAvFlags)
+    , mIsModerator(peer.mIsModerator)
 {
-
 }
 
 void Peer::setCid(Cid_t cid)
@@ -149,6 +151,16 @@ void Peer::resetKeys()
 void Peer::setAvFlags(karere::AvFlags flags)
 {
     mAvFlags = flags;
+}
+
+bool Peer::isModerator() const
+{
+    return mIsModerator;
+}
+
+void Peer::setModerator(bool isModerator)
+{
+    mIsModerator = isModerator;
 }
 
 Command::~Command()
@@ -305,11 +317,27 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     // call start ts (ms)
     uint64_t callDuration = tsIterator->value.GetUint64();
 
+    // parse moderators list
+    std::set<karere::Id> moderators;
+    rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
+    if (modsIterator != command.MemberEnd() && modsIterator->value.IsArray())
+    {
+        parseModeratorsObject(moderators, modsIterator);
+    }
+
+    // parse own moderator permission
+    bool ownModerator = false;
+    rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
+    if (modIterator != command.MemberEnd() && modIterator->value.IsUint())
+    {
+        ownModerator = modIterator->value.GetUint();
+    }
+
     std::vector<Peer> peers;
     rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
     if (peersIterator != command.MemberEnd() && peersIterator->value.IsArray())
     {
-        parsePeerObject(peers, peersIterator);
+        parsePeerObject(peers, moderators, peersIterator);
     }
 
     std::map<Cid_t, TrackDescriptor> speakers;
@@ -326,24 +354,10 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         parseTracks(peers, vthumbs, vthumbsIterator, false);
     }
 
-    std::set<karere::Id> moderators;
-    rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
-    if (modsIterator != command.MemberEnd() && modsIterator->value.IsArray())
-    {
-        parseModeratorsObject(moderators, modsIterator);
-    }
-
-    bool ownModerator = false;
-    rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
-    if (modIterator != command.MemberEnd() && modIterator->value.IsUint())
-    {
-        ownModerator = modIterator->value.GetUint();
-    }
-
     return mComplete(cid, sdp, callDuration, peers, vthumbs, speakers, moderators, ownModerator);
 }
 
-void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
     for (unsigned int j = 0; j < it->value.Capacity(); ++j)
@@ -376,8 +390,9 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
                  return;
             }
 
+            bool isModerator = moderators.find(userId) != moderators.end();
             unsigned av = avIterator->value.GetUint();
-            peers.push_back(Peer(userId, av, cid));
+            peers.push_back(Peer(userId, av, cid, isModerator));
         }
         else
         {
@@ -2317,7 +2332,7 @@ ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface
 bool ModAddCommand::processCommand(const rapidjson::Document& command)
 {
     rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
-    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsString())
     {
         SFU_LOG_ERROR("MOD_ADD: Received data doesn't have 'user' field");
         return false;
@@ -2336,7 +2351,7 @@ ModDelCommand::ModDelCommand(const ModDelCommandFunction& complete, SfuInterface
 bool ModDelCommand::processCommand(const rapidjson::Document& command)
 {
     rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
-    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsString())
     {
         SFU_LOG_ERROR("MOD_DEL: Received data doesn't have 'user' field");
         return false;

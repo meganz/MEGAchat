@@ -180,7 +180,7 @@ bool Call::isJoined() const
 
 bool Call::isOwnPrivModerator() const
 {
-   return mOwnModerator;
+   return mMyPeer->isModerator();
 }
 
 Cid_t Call::getOwnCid() const
@@ -1058,7 +1058,7 @@ void Call::clearResources(const TermCode& termCode)
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
 
     mModerators.clear();            // clear moderators list and ownModerator
-    mOwnModerator = false;
+    mMyPeer->setModerator(false);
 
     mVThumb.reset();
     mHiRes.reset();
@@ -1275,6 +1275,10 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     // update max peers seen in call
     mMaxPeers = static_cast<uint8_t> (peers.size() > mMaxPeers ? peers.size() : mMaxPeers);
 
+    // set moderator list and ownModerator value
+    setOwnModerator(ownMod);
+    mModerators = moderators;
+
     std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers) // does not include own cid
     {
@@ -1293,10 +1297,6 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
         orderedCallDisconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
         return false;
     }
-
-    // set moderator list and ownModerator value
-    mOwnModerator = ownMod;
-    mModerators = moderators;
 
     assert(mRtcConn);
     auto wptr = weakHandle();
@@ -1619,9 +1619,11 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
         return false;
     }
 
-    sfu::Peer peer(userid, static_cast<unsigned>(av), cid);
+    bool isModerator = mModerators.find(userid) != mModerators.end();
+    sfu::Peer peer(userid, static_cast<unsigned>(av), cid, isModerator);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler.onNewSession(*mSessions[cid], *this);
+
     // update max peers seen in call
     mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
     generateAndSendNewkey();
@@ -1713,8 +1715,11 @@ bool Call::handleModAdd(uint64_t userid)
 {
     if (userid == mMyPeer->getPeerid())
     {
-        mOwnModerator = true;
+        setOwnModerator(true);
     }
+
+    // update moderator privilege for all sessions that mached with received userid
+    setSessionModByUserId(userid, true);
 
     if (mModerators.find(userid) != mModerators.end())
     {
@@ -1731,8 +1736,11 @@ bool Call::handleModDel(uint64_t userid)
 {
     if (userid == mMyPeer->getPeerid())
     {
-        mOwnModerator = false;
+        setOwnModerator(false);
     }
+
+    // update moderator privilege for all sessions that mached with received userid
+    setSessionModByUserId(userid, false);
 
     auto it = mModerators.find(userid);
     if (it == mModerators.end())
@@ -2397,6 +2405,23 @@ void Call::setDestroying(bool isDestroying)
 bool Call::isDestroying()
 {
     return mIsDestroying;
+}
+
+void Call::setSessionModByUserId(uint64_t userid, bool isMod)
+{
+    for (const auto& session : mSessions)
+    {
+        if (session.second->getPeerid() == userid)
+        {
+            session.second->setModerator(isMod);
+        }
+    }
+}
+
+void Call::setOwnModerator(bool isModerator)
+{
+    mMyPeer->setModerator(isModerator);
+    mCallHandler.onPermissionsChanged(*this);
 }
 
 void Call::updateVideoTracks()
@@ -3375,6 +3400,11 @@ bool Session::hasLowResolutionTrack() const
     return mVthumSlot && mVthumSlot->hasTrack();
 }
 
+bool Session::isModerator() const
+{
+    return mPeer.isModerator();
+}
+
 void Session::notifyHiResReceived()
 {
     mSessionHandler->onHiResReceived(*this);
@@ -3474,6 +3504,12 @@ void Session::disableVideoSlot(VideoResolution videoResolution)
         mVthumSlot = nullptr;
         mSessionHandler->onVThumbReceived(*this);
     }
+}
+
+void Session::setModerator(bool isModerator)
+{
+    mPeer.setModerator(isModerator);
+    mSessionHandler->onPermissionsChanged(*this);
 }
 
 void Session::setSpeakRequested(bool requested)

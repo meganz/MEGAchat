@@ -159,6 +159,11 @@ bool MegaChatSession::canRecvVideoLowRes() const
     return false;
 }
 
+bool MegaChatSession::isModerator() const
+{
+    return false;
+}
+
 char* MegaChatSession::avFlagsToString() const
 {
     return NULL;

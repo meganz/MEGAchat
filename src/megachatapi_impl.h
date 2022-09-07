@@ -197,6 +197,7 @@ public:
     virtual bool hasRequestSpeak() const override;
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
+    virtual bool isModerator() const override;
 
     char* avFlagsToString() const override;
     karere::AvFlags getAvFlags() const; // for internal use
@@ -218,6 +219,7 @@ private:
     bool mAudioDetected = false;
     bool mHasHiResTrack = false;
     bool mHasLowResTrack = false;
+    bool mIsModerator = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
@@ -617,6 +619,7 @@ public:
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
     void onNetworkQualityChanged(const rtcModule::ICall &call) override;
     void onStopOutgoingRinging(const rtcModule::ICall& call) override;
+    void onPermissionsChanged(const rtcModule::ICall& call) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -635,6 +638,7 @@ public:
     void onRemoteFlagsChanged(rtcModule::ISession& session) override;
     void onOnHold(rtcModule::ISession& session) override;
     void onRemoteAudioDetected(rtcModule::ISession& session) override;
+    void onPermissionsChanged(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;

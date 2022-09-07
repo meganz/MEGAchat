@@ -40,7 +40,7 @@ public:
 class Peer
 {
 public:
-    Peer(karere::Id peerid, unsigned avFlags, Cid_t cid = 0);
+    Peer(karere::Id peerid, unsigned avFlags, Cid_t cid = 0, bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -50,6 +50,9 @@ public:
 
     karere::AvFlags getAvFlags() const;
     void setAvFlags(karere::AvFlags flags);
+
+    bool isModerator() const;
+    void setModerator(bool isModerator);
 
     bool hasAnyKey() const;
     Keyid_t getCurrentKeyId() const;
@@ -62,6 +65,7 @@ protected:
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
+    bool mIsModerator = false;
     std::map<Keyid_t, std::string> mKeyMap;
 };
 
@@ -210,7 +214,7 @@ public:
     AnswerCompleteFunction mComplete;
 
 private:
-    void parsePeerObject(std::vector<Peer>&peers, rapidjson::Value::ConstMemberIterator& it) const;
+    void parsePeerObject(std::vector<Peer>& peers, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator& it) const;
     void parseTracks(const std::vector<Peer>&peers, std::map<Cid_t, TrackDescriptor> &tracks, rapidjson::Value::ConstMemberIterator& it, bool audio) const;
     void parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
 };
