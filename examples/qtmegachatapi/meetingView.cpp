@@ -346,8 +346,18 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
     mSetOnHold->setVisible(true);
 }
 
+bool MeetingView::hasSession(megachat::MegaChatHandle h)
+{
+    return mSessionWidgets.find(static_cast<uint32_t>(h)) != mSessionWidgets.end();
+}
+
 void MeetingView::addSession(const megachat::MegaChatSession &session)
 {
+    if (hasSession(session.getClientid()))
+    {
+        return;
+    }
+
     QString cid(std::to_string(session.getClientid()).c_str());
     QVariant data(cid);
     MeetingSession *widget = new MeetingSession(this, session);
