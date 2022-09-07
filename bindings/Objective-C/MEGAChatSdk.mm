@@ -1290,6 +1290,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (BOOL)hasChatOptionEnabledForChatOption:(MEGAChatOption)option chatOptionsBitMask:(NSInteger)chatOptionsBitMask {
+    if (self.megaChatApi) {
+        return self.megaChatApi->hasChatOptionEnabled(option, chatOptionsBitMask);
+    }
+    return NO;
+}
+
 #pragma mark - Audio and video calls
 
 #ifndef KARERE_DISABLE_WEBRTC
