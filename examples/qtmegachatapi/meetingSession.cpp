@@ -24,12 +24,21 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
         if (mAudioLabel)     {layout()->removeWidget(mAudioLabel.get());      mAudioLabel->clear();}
         if (mVideoLabel)     {layout()->removeWidget(mVideoLabel.get());      mVideoLabel->clear();}
         if (mReqSpealLabel)  {layout()->removeWidget(mReqSpealLabel.get());   mReqSpealLabel->clear();}
+        if (mModeratorLabel) {layout()->removeWidget(mModeratorLabel.get());  mModeratorLabel->clear();}
     }
 
     mLayout.reset(new QHBoxLayout());
     mLayout->setAlignment(Qt::AlignLeft);
     setLayout(mLayout.get());
     mCid = static_cast<uint32_t>(session.getClientid());
+
+    if (session.isModerator())
+    {
+        // Moderator lbl
+        mModeratorLabel.reset(new QLabel());
+        mModeratorLabel->setText(QString::fromUtf8("<span style='font-size:20px'>\xE2\x99\x9A</span>"));
+        layout()->addWidget(mModeratorLabel.get());
+    }
 
     // status lbl
     QPixmap statusImg = session.isOnHold()

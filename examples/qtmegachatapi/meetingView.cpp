@@ -135,10 +135,11 @@ void MeetingView::updateAudioMonitor(bool enabled)
 
 void MeetingView::updateLabel(megachat::MegaChatCall *call)
 {
-    std::string txt = "Participants: ";
-    txt.append(std::to_string(call->getNumParticipants()))
-        .append("  State: ")
-        .append(callStateToString(*call));
+    std::string txt = call->isOwnModerator() ? QString::fromUtf8("<span style='font-size:25px'>\xE2\x99\x9A</span>").toStdString() : std::string();
+    txt.append (" Participants: ")
+            .append(std::to_string(call->getNumParticipants()))
+            .append("  State: ")
+            .append(callStateToString(*call));
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
     {
