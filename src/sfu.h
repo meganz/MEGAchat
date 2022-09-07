@@ -65,8 +65,22 @@ protected:
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
-    bool mIsModerator = false;
     std::map<Keyid_t, std::string> mKeyMap;
+
+    /*
+     * Moderator role for this call
+     *
+     * The information about moderator role is only updated from SFU.
+     *  1) ANSWER command: When user receives Answer call, SFU will provide a list with current moderators for this call,
+     *     independently if those users currently has answered or not the call
+     *  2) ADDMOD command: informs that a peer has been granted with moderator role
+     *  3) DELMOD command: informs that a peer has been removed it's moderator role
+     *
+     *  Participants with moderator role can:
+     *  - End groupal calls for all participants
+     *  - Approve/reject speaker requests
+     */
+    bool mIsModerator = false;
 };
 
 class TrackDescriptor

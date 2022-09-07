@@ -518,6 +518,22 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
+
+    /*
+     * List of participants with moderator role
+     *
+     * This list must be updated with any of the following events, independently if those users
+     * currently has answered or not the call.
+     *
+     * The information about moderator role is only updated from SFU.
+     *  1) ANSWER command: When user receives Answer call, SFU will provide a list with current moderators for this call
+     *  2) ADDMOD command: informs that a peer has been granted with moderator role
+     *  3) DELMOD command: informs that a peer has been removed it's moderator role
+     *
+     *  Participants with moderator role can:
+     *  - End groupal calls for all participants
+     *  - Approve/reject speaker requests
+     */
     std::set<karere::Id> mModerators;
 
     Keyid_t generateNextKeyId();
