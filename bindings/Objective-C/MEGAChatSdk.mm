@@ -816,6 +816,23 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)createMeetingWithTitle:(NSString *)title
+                  speakRequest:(BOOL)speakRequest
+                   waitingRoom:(BOOL)waitingRoom
+                    openInvite:(BOOL)openInvite
+                      delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->createMeeting(title.UTF8String,
+                                        speakRequest,
+                                        waitingRoom,
+                                        openInvite,
+                                        [self createDelegateMEGAChatRequestListener:delegate
+                                                                     singleListener:YES
+                                                                          queueType:ListenerQueueTypeGlobalBackground]);
+    }
+}
+
+
 - (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(NSString *)title {
     if (self.megaChatApi) {
         self.megaChatApi->createPublicChat(peers.getCPtr, title.UTF8String);
