@@ -1960,6 +1960,7 @@ public:
         TYPE_REQUEST_HIGH_RES_VIDEO, TYPE_REQUEST_LOW_RES_VIDEO,
         TYPE_OPEN_VIDEO_DEVICE, TYPE_REQUEST_HIRES_QUALITY,
         TYPE_DEL_SPEAKER, TYPE_REQUEST_SVC_LAYERS,
+        TYPE_SET_CHATROOM_OPTIONS,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2550,6 +2551,14 @@ public:
         CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
         CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
         CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
+    };
+
+    enum
+    {
+        CHAT_OPTION_EMPTY            = 0x00,   /// Empty chat options
+        CHAT_OPTION_SPEAK_REQUEST    = 0x01,   /// Speak request
+        CHAT_OPTION_WAITING_ROOM     = 0x02,   /// Waiting room
+        CHAT_OPTION_OPEN_INVITE      = 0x04,   /// Open invite
     };
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
@@ -3593,6 +3602,75 @@ public:
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     /**
+     * @brief Allows to enable/disable the open invite option for a chat room
+     * 
+     * The open invite option allows users with MegaChatRoom::PRIV_STANDARD privilege, to invite other users into the chat
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
+     * - MegaChatRequest::getPrivilege - Returns MegaChatApi::CHAT_OPTION_OPEN_INVITE
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
+     * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
+     * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_EXIST - If the value of enabled is the same as open invite option
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enabled True if we want to enable open invite option, otherwise false.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setOpenInvite(MegaChatHandle chatid, bool enabled, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Allows to enable/disable the speak request option for a chat room
+     * 
+     * If speak request option is enabled, during calls non moderator users, must request permission to speak
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
+     * - MegaChatRequest::getPrivilege - Returns MegaChatApi::CHAT_OPTION_SPEAK_REQUEST
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
+     * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
+     * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_EXIST - If the value of enabled is the same as speak request option
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enabled True if we want to enable speak request option, otherwise false.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setSpeakRequest(MegaChatHandle chatid, bool enabled, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Allows to enable/disable the waiting room option for a chat room
+     * 
+     * If waiting room option is enabled, during calls non moderator members, will be placed into a waiting room.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
+     * - MegaChatRequest::getPrivilege - Returns MegaChatApi:::CHAT_OPTION_WAITING_ROOM
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
+     * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
+     * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_EXIST - If the value of enabled is the same as waiting room option
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enabled True if we want to enable waiting room, otherwise false.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setWaitingRoom(MegaChatHandle chatid, bool enabled, MegaChatRequestListener* listener = NULL);
+
+    /**
      * @brief Creates a chat for one or more participants, allowing you to specify their
      * permissions and if the chat should be a group chat or not (when it is just for 2 participants).
      *
@@ -3672,6 +3750,50 @@ public:
     void createChat(bool group, MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Creates a groupal chat for one or more participants, allowing you to specify their permissions and creation chat options
+     *
+     * The creator of the chat will have moderator level privilege and should not be included in the
+     * list of peers.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
+     * - MegaChatRequest::getPrivilege - Returns zero (private mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+     *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
+     * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
+     *
+     * @note If you are trying to create a chat with more than 1 other person, then it will be forced
+     * to be a group chat.
+     *
+     * @note If peers list contains only one person, group chat is not set and a permament chat already
+     * exists with that person, then this call will return the information for the existing chat, rather
+     * than a new chat.
+     *
+     * @param group Flag to indicate if the chat is a group chat or not
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+     * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+     * A moderator user must grant each user access to the call.
+     * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createGroupChat(MegaChatPeerList* peers, const char* title,  bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener = NULL);
+
+    /**
      * @brief Creates an public chatroom for multiple participants (groupchat)
      *
      * This function allows to create public chats, where the moderator can create chat links to share
@@ -3697,10 +3819,8 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS   - If no peer list is provided or non groupal and public is set.
      * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
      * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
-     * - MegaChatError::ERROR_ACCESS - If no peers are provided for a 1on1 chatroom.
      *
      * @param peers MegaChatPeerList including other users and their privilege level
      * @param title Null-terminated character string with the chat title. If the title
@@ -3708,6 +3828,50 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void createPublicChat(MegaChatPeerList *peers, const char *title = NULL, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Creates an public chatroom for multiple participants (groupchat) allowing you to specify creation chat options
+     *
+     * This function allows to create public chats, where the moderator can create chat links to share
+     * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+     * moderator can create/get a public handle for the chatroom and generate a URL by using
+     * \c MegaChatApi::createChatLink. The chat-link can be deleted at any time by any moderator
+     * by using \c MegaChatApi::removeChatLink.
+     *
+     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::setPublicChatToPrivate.
+     *
+     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatPreview.
+     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::autojoinPublicChat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns always true, since the new chat is a groupchat
+     * - MegaChatRequest::getPrivilege - Returns one (public mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+     *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
+     * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
+     *
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+     * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+     * A moderator user must grant each user access to the call.
+     * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createPublicChat(MegaChatPeerList* peers, const char* title, bool speakRequest, bool waitingRoom, bool openInvite,  MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Creates a meeting
@@ -3736,16 +3900,58 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS   - If no peer list is provided or non groupal and public is set.
      * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
      * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
-     * - MegaChatError::ERROR_ACCESS - If no peers are provided for a 1on1 chatroom.
      *
      * @param title Null-terminated character string with the chat title. If the title
      * is longer than 30 characters, it will be truncated to that maximum length.
      * @param listener MegaChatRequestListener to track this request
      */
     void createMeeting(const char *title = NULL, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Creates a meeting
+     *
+     * This function allows to create public chats, where the moderator can create chat links to share
+     * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+     * moderator can create/get a public handle for the chatroom and generate a URL by using
+     * \c MegaChatApi::createChatLink. The chat-link can be deleted at any time by any moderator
+     * by using \c MegaChatApi::removeChatLink.
+     *
+     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::setPublicChatToPrivate.
+     *
+     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatPreview.
+     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::autojoinPublicChat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns always true, since the new chat is a groupchat
+     * - MegaChatRequest::getPrivilege - Returns one (public mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     * - MegaChatRequest::getNumber - Returns always 1, since the chatroom is a meeting
+     * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+     *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
+     * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
+     *
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+     * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+     * A moderator user must grant each user access to the call.
+     * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createMeeting(const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Check if there is an existing chat-link for an public chat
@@ -5738,6 +5944,20 @@ public:
     static bool hasUrl(const char* text);
 
     /**
+     * @brief Checks if a chat option is enabled in a bitmask
+     *
+     * Valid values for option are:
+     * - MegaChatApi::CHAT_OPTION_SPEAK_REQUEST
+     * - MegaChatApi::CHAT_OPTION_WAITING_ROOM
+     * - MegaChatApi::CHAT_OPTION_OPEN_INVITE
+     *
+     * @param option Option to check if it's enabled in a bitmask
+     * @param chatOptionsBitMask Bitmask that represents a set of chat options
+     * @return True if specified option is enabled in the bitmask
+     */
+    static bool hasChatOptionEnabled(int option, int chatOptionsBitMask);
+
+    /**
      * @brief This method should be called when a node history is opened
      *
      * One node history only can be opened once before it will be closed
@@ -6094,6 +6314,9 @@ public:
         CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
         CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800,  /// The number of previewers has changed
         CHANGE_TYPE_RETENTION_TIME      = 0x1000, /// The retention time has changed
+        CHANGE_TYPE_OPEN_INVITE         = 0x2000, /// The open invite mode option has changed
+        CHANGE_TYPE_SPEAK_REQUEST       = 0x4000, /// The speak request option has changed
+        CHANGE_TYPE_WAITING_ROOM        = 0x8000, /// The waiting room option has changed
     };
 
     enum {
@@ -6442,6 +6665,26 @@ public:
      * @return True if chat is a meeting room
      */
     virtual bool isMeeting() const;
+
+    /**
+     * @brief Returns if waiting room is enabled for a chat
+     * During calls, non moderator members will be placed into a waiting room.
+     * A moderator user must grant each user access to the call.
+     * @return True if waiting room is enabled
+     */
+    virtual bool isWaitingRoom() const;
+
+    /**
+     * @brief Returns if users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+     * @return True if users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+     */
+    virtual bool isOpenInvite() const;
+
+    /**
+     * @brief Returns if during calls, non moderator users, must request permission to speak
+     * @return True if during calls, non moderator users, must request permission to speak.
+     */
+    virtual bool isSpeakRequest() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;

@@ -10,7 +10,8 @@ ChatGroupDialog::ChatGroupDialog(QWidget *parent, bool isGroup, bool isPublic, b
     mMainWin((MainWindow *) parent),
     mIsGroup(isGroup),
     mIsPublic(isPublic),
-    mIsMeeting(isMeeting)
+    mIsMeeting(isMeeting),
+    mOptionsAdded(!isGroup)
 {
     ui->setupUi(this);
 }
@@ -18,6 +19,23 @@ ChatGroupDialog::ChatGroupDialog(QWidget *parent, bool isGroup, bool isPublic, b
 ChatGroupDialog::~ChatGroupDialog()
 {
     delete ui;
+}
+
+void ChatGroupDialog::createOptionsList()
+{
+    ui->mListWidget->clear();
+    ui->mListWidget->addItem(QString("Open Invite"));
+    ui->mListWidget->addItem(QString("Speak Request"));
+    ui->mListWidget->addItem(QString("Waiting Room"));
+
+    QListWidgetItem *item = 0;
+    for (int i = 0; i < ui->mListWidget->count(); ++i)
+    {
+        item = ui->mListWidget->item(i);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(Qt::Unchecked);
+    }
+    mOptionsAdded = true;
 }
 
 void ChatGroupDialog::createChatList(::mega::MegaUserList *contactList)
@@ -48,50 +66,62 @@ void ChatGroupDialog::createChatList(::mega::MegaUserList *contactList)
 
 void ChatGroupDialog::on_buttonBox_accepted()
 {
-    std::unique_ptr<megachat::MegaChatPeerList> peerList(megachat::MegaChatPeerList::createInstance());
-    if (!mIsMeeting)     // no peers for meetings upon creation
+    if (!mOptionsAdded)
     {
-        QListWidgetItem *item = 0;
-        for (int i = 0; i < ui->mListWidget->count(); ++i)
+        mPeerList.reset(megachat::MegaChatPeerList::createInstance());
+        if (!mIsMeeting)     // no peers for meetings upon creation
         {
-            item = ui->mListWidget->item(i);
-            if (item->checkState() == Qt::Checked)
+            QListWidgetItem *item = 0;
+            for (int i = 0; i < ui->mListWidget->count(); ++i)
             {
-                megachat::MegaChatHandle userHandle = mMegaChatApi->getUserHandleByEmail(item->text().toStdString().c_str());
-                if (userHandle == megachat::MEGACHAT_INVALID_HANDLE)
+                item = ui->mListWidget->item(i);
+                if (item->checkState() == Qt::Checked)
                 {
-                    QMessageBox::warning(this, tr("Chat creation"), tr("Invalid user handle"));
-                    return;
+                    megachat::MegaChatHandle userHandle = mMegaChatApi->getUserHandleByEmail(item->text().toStdString().c_str());
+                    if (userHandle == megachat::MEGACHAT_INVALID_HANDLE)
+                    {
+                        QMessageBox::warning(this, tr("Chat creation"), tr("Invalid user handle"));
+                        return;
+                    }
+                    mPeerList->addPeer(userHandle, 2);
                 }
-                peerList->addPeer(userHandle, 2);
             }
         }
-    }
 
-    if (mIsMeeting && peerList->size() != 0)
-    {
-        QMessageBox::warning(this, tr("Add chatRoom"), tr("Meeting rooms are created without participants. List will be ignored"));
-    }
-    else if (peerList->size() == 0 && !mIsPublic)
-    {
-        QMessageBox::warning(this, tr("Add chatRoom"), tr("Private chats must have at least one participant."));
+        if (mIsMeeting && mPeerList->size() != 0)
+        {
+            QMessageBox::warning(this, tr("Add chatRoom"), tr("Meeting rooms are created without participants. List will be ignored"));
+        }
+        else if (mPeerList->size() == 0 && !mIsPublic)
+        {
+            QMessageBox::warning(this, tr("Add chatRoom"), tr("Private chats must have at least one participant."));
+            return;
+        }
+        else if (mPeerList->size() > 1 && !mIsGroup)
+        {
+            QMessageBox::warning(this, tr("Add chatRoom"), tr("Individual chats cannot have more than one participant"));
+            return;
+        }
+
+        // show option list
+        createOptionsList();
+        show();
         return;
     }
-    else if (peerList->size() > 1 && !mIsGroup)
-    {
-        QMessageBox::warning(this, tr("Add chatRoom"), tr("Individual chats cannot have more than one participant"));
-        return;
-    }
 
-    char *title = NULL;
-    if(mIsGroup)
+    bool openInvite = ui->mListWidget->item(0)->checkState() == Qt::Checked;
+    bool speakRequest = ui->mListWidget->item(1)->checkState() == Qt::Checked;
+    bool waitingRoom = ui->mListWidget->item(2)->checkState() == Qt::Checked;
+
+    char* title = NULL;
+    if (mIsGroup)
     {
         title = mMainWin->askChatTitle();
     }
 
     if (mIsGroup)
     {
-        std::unique_ptr<megachat::MegaChatListItemList> list(mMegaChatApi->getChatListItemsByPeers(peerList.get()));
+        std::unique_ptr<megachat::MegaChatListItemList> list(mMegaChatApi->getChatListItemsByPeers(mPeerList.get()));
         if (list->size() != 0)
         {
              QMessageBox msgBoxAns;
@@ -120,20 +150,20 @@ void ChatGroupDialog::on_buttonBox_accepted()
 
         if (mIsMeeting)
         {
-            mMegaChatApi->createMeeting(title);
+            mMegaChatApi->createMeeting(title, speakRequest, waitingRoom, openInvite);                      // meeting room
         }
         else if (mIsPublic)
         {
-            this->mMegaChatApi->createPublicChat(peerList.get(), title);
+            mMegaChatApi->createPublicChat(mPeerList.get(), title, speakRequest, waitingRoom, openInvite);   // public chat
         }
         else
         {
-            mMegaChatApi->createChat(true, peerList.get(), title);
+            mMegaChatApi->createGroupChat(mPeerList.get(), title, speakRequest, waitingRoom, openInvite);    // private group chat
         }
     }
     else
     {
-        mMegaChatApi->createChat(false, peerList.get());
+        mMegaChatApi->createChat(false, mPeerList.get());                                                    // 1on1 chat
     }
 
     delete [] title;

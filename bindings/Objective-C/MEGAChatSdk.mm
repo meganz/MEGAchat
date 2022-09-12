@@ -768,6 +768,42 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)createChatGroupWithPeers:(MEGAChatPeerList *)peers
+                           title:(NSString *)title
+                    speakRequest:(BOOL)speakRequest
+                     waitingRoom:(BOOL)waitingRoom
+                      openInvite:(BOOL)openInvite
+                        delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->createGroupChat(peers.getCPtr,
+                                          title.UTF8String,
+                                          speakRequest,
+                                          waitingRoom,
+                                          openInvite,
+                                          [self createDelegateMEGAChatRequestListener:delegate
+                                                                       singleListener:YES
+                                                                            queueType:ListenerQueueTypeGlobalBackground]);
+    }
+}
+
+- (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers
+                            title:(NSString *)title
+                     speakRequest:(BOOL)speakRequest
+                      waitingRoom:(BOOL)waitingRoom
+                       openInvite:(BOOL)openInvite
+                         delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->createPublicChat(peers.getCPtr,
+                                           title.UTF8String,
+                                           speakRequest,
+                                           waitingRoom,
+                                           openInvite,
+                                           [self createDelegateMEGAChatRequestListener:delegate
+                                                                        singleListener:YES
+                                                                             queueType:ListenerQueueTypeGlobalBackground]);
+    }
+}
+
 - (void)createMeetingWithTitle:(NSString *)title {
     if (self.megaChatApi) {
         self.megaChatApi->createMeeting(title.UTF8String);
@@ -1238,6 +1274,28 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)openInvite:(BOOL)enabled chatId:(uint64_t)chatId {
+    if (self.megaChatApi) {
+        self.megaChatApi->setOpenInvite(chatId, enabled);
+    }
+}
+
+- (void)openInvite:(BOOL)enabled chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->setOpenInvite(chatId,
+                                        enabled,
+                                        [self createDelegateMEGAChatRequestListener:delegate
+                                                                     singleListener:YES
+                                                                          queueType:ListenerQueueTypeGlobalBackground]);
+    }
+}
+
+- (BOOL)hasChatOptionEnabledForChatOption:(MEGAChatOption)option chatOptionsBitMask:(NSInteger)chatOptionsBitMask {
+    if (self.megaChatApi) {
+        return self.megaChatApi->hasChatOptionEnabled(option, chatOptionsBitMask);
+    }
+    return NO;
+}
 
 #pragma mark - Audio and video calls
 
