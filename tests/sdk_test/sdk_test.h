@@ -358,6 +358,7 @@ private:
     bool mCallReceivedRinging[NUM_ACCOUNTS];
     bool mCallInProgress[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
+    bool mCallConnecting[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];

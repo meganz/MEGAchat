@@ -410,6 +410,7 @@ void MegaChatApiTest::SetUp()
         mCallReceivedRinging[i] = false;
         mCallInProgress[i] = false;
         mCallDestroyed[i] = false;
+        mCallConnecting[i] = false;
         mChatIdRingInCall[i] = MEGACHAT_INVALID_HANDLE;
         mTerminationCode[i] = 0;
         mChatIdInProgressCall[i] = MEGACHAT_INVALID_HANDLE;
@@ -5102,6 +5103,11 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         case MegaChatCall::CALL_STATUS_DESTROYED:
             mCallDestroyed[apiIndex] = true;
             break;
+
+        case MegaChatCall::CALL_STATUS_CONNECTING:
+            mCallConnecting[apiIndex] = true;
+            break;
+
         default:
             break;
         }
