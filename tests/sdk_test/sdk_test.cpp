@@ -3145,19 +3145,20 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     waitForResponse(callReceived);
     if (!callReceived)
     {
-        std::unique_ptr<MegaChatListItem> itemSecondary(megaChatApi[a1]->getChatListItem(chatid));
+        std::unique_ptr<MegaChatListItem> itemSecondary(megaChatApi[a2]->getChatListItem(chatid));
         ASSERT_CHAT_TEST(itemSecondary, "Can't retrieve chat list item");
 
-        if (itemSecondary->getLastMessageType() != MegaChatMessage::TYPE_CALL_ENDED)
+        if (itemSecondary->getLastMessageType() == MegaChatMessage::TYPE_CALL_ENDED)
         {
-            // if we haven't received the call for secondary account but neither a call ended management message, the test must fail
-
-            /* we could receive onChatCallUpdate for multiple calls, so we need to know which one we are
-             * expecting(mCallIdExpectedReceived).
-             */
+            // login process for secondary account has taken too much time, so Call has been destroyed with reason kNoAnswer
+            MegaChatMessage* m = megaChatApi[a2]->getMessage(chatid, itemSecondary->getLastMessageId());
+            ASSERT_CHAT_TEST(m && m->getHandleOfAction() == mCallIdExpectedReceived[a2], "Management message of type TYPE_CALL_ENDED not received");
+        }
+        else
+        {
+            // the test must fail, as we haven't received the call for secondary account, but neither a call ended management message
             ASSERT_CHAT_TEST(callReceived, "Timeout expired for receiving a call");
         }
-        // else => login process for secondary account has taken too much time, so Call has been destroyed with reason kNoAnswer
     }
 
     auxCall.reset(megaChatApi[a2]->getChatCall(auxCall->getChatid()));
