@@ -641,6 +641,57 @@ void MegaChatApiTest::postLog(const std::string &msg)
     logger->postLog(msg.c_str());
 }
 
+bool MegaChatApiTest::waitForMultiResponse(std::vector<bool *>responsesReceived, bool any, unsigned int timeout) const
+{
+    std::function<bool()> exit = [&responsesReceived, &any] ()
+    {
+        for (auto r: responsesReceived)
+        {
+            if (any && (*r))    { return true; };   // any response must be received
+            if (!any && !(*r))  { return false; };  // all responses must be received
+        }
+        return any
+                ? false  // none received
+                : true;  // all received
+    };
+
+    timeout *= 1000000; // convert to micro-seconds
+    unsigned int tWaited = 0;    // microseconds
+    bool connRetried = false;
+    while (!exit())
+    {
+        usleep(pollingT);
+
+        if (timeout)
+        {
+            tWaited += pollingT;
+            if (tWaited >= timeout)
+            {
+                return false;   // timeout is expired
+            }
+            else if (!connRetried && tWaited > (pollingT * 10))
+            {
+                for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
+                {
+                    if (megaApi[i] && megaApi[i]->isLoggedIn())
+                    {
+                        megaApi[i]->retryPendingConnections();
+                    }
+
+                    if (megaChatApi[i] && megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION)
+                    {
+                        megaChatApi[i]->retryPendingConnections();
+                    }
+                }
+                connRetried = true;
+            }
+        }
+    }
+
+    return true;    // responses have been received
+}
+
+// this method could be deprecated in favor of waitForMultiResponse, when it's proven it works as expected
 bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeout) const
 {
     timeout *= 1000000; // convert to micro-seconds
