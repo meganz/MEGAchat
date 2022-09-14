@@ -8910,6 +8910,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
 
                 priv = callEndInfo->duration;
                 mCode = MegaChatMessagePrivate::convertEndCallTermCodeToUI(*callEndInfo);
+                hAction = callEndInfo->callid;
                 delete callEndInfo;
             }
             break;
