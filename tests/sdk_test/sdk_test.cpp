@@ -5801,6 +5801,11 @@ bool MockupCall::handlePeerLeft(Cid_t cid, unsigned termcode)
     return true;
 }
 
+bool MockupCall::handleBye(unsigned termcode)
+{
+    return false;
+}
+
 void MockupCall::onSfuConnected()
 {
 

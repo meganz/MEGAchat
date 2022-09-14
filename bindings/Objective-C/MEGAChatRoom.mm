@@ -113,6 +113,10 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->getUserTyping() : MEGACHAT_INVALID_HANDLE;
 }
 
+- (uint64_t)userHandle {
+    return self.megaChatRoom ? self.megaChatRoom->getUserHandle() : MEGACHAT_INVALID_HANDLE;
+}
+
 - (BOOL)isActive {
     return self.megaChatRoom ? self.megaChatRoom->isActive() : NO;
 }
@@ -135,6 +139,10 @@ using namespace megachat;
 
 - (NSUInteger)previewersCount {
     return self.megaChatRoom ? self.megaChatRoom->getNumPreviewers() : 0;
+}
+
+- (BOOL)isOpenInviteEnabled {
+    return self.megaChatRoom ? self.megaChatRoom->isOpenInvite() : NO;
 }
 
 - (NSInteger)peerPrivilegeByHandle:(uint64_t)userHande {

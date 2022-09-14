@@ -15,7 +15,10 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomChangeType) {
     MEGAChatRoomChangeTypeCall             = 0x200,
     MEGAChatRoomChangeTypeChatMode         = 0x400,
     MEGAChatRoomChangeTypeUpdatePreviewers = 0x800,
-    MEGAChatRoomChangeTypeRetentionTime    = 0x1000
+    MEGAChatRoomChangeTypeRetentionTime    = 0x1000,
+    MEGAChatRoomChangeTypeOpenInvite       = 0x2000,
+    MEGAChatRoomChangeTypeSpeakRequest     = 0x4000,
+    MEGAChatRoomChangeTypeWaitingRoom      = 0x8000
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
@@ -47,6 +50,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (readonly, nonatomic) MEGAChatRoomChangeType changes;
 @property (readonly, nonatomic) NSInteger unreadCount;
 @property (readonly, nonatomic) uint64_t userTypingHandle;
+@property (readonly, nonatomic) uint64_t userHandle;
 @property (readonly, nonatomic, getter=isActive) BOOL active;
 @property (readonly, nonatomic, getter=isArchived) BOOL archived;
 @property (readonly, nonatomic, getter=isMeeting) BOOL meeting;
@@ -54,6 +58,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (readonly, nonatomic) uint64_t creationTimeStamp;
 
 @property (readonly, nonatomic) NSUInteger previewersCount;
+@property (nonatomic, readonly, getter=isOpenInviteEnabled) BOOL openInviteEnabled;
 
 
 - (instancetype)clone;

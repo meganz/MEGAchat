@@ -238,6 +238,9 @@ public:
      */
     virtual void onChatModeChanged(bool /*mode*/) {}
 
+    /** Chat options have changed **/
+    virtual void onChatOptionsChanged(int /*option*/) {}
+
     /** @brief We have rejoined the room
      */
     virtual void onRejoinedChat() {}
