@@ -475,7 +475,7 @@ public:
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
         CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call (1on1) outgoing ringing has stopped (only valid if our own client has started the call)
-        CHANGE_TYPE_PERMISSIONS = 0x200,            /// Indicates that own peer moderator role status has changed
+        CHANGE_TYPE_OWN_PERMISSIONS = 0x200,        /// Indicates that own peer moderator role status has changed
     };
 
     enum
@@ -618,7 +618,7 @@ public:
      * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
      * Call outgoing ringing has stopped (only valid if our own client has started the call)
      *
-     * - MegaChatCall::CHANGE_TYPE_PERMISSIONS = 0x200
+     * - MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS = 0x200
      * Own peer moderator role status has changed (Check MegaChatCall::isOwnModerator)
      */
     virtual int getChanges() const;
@@ -662,7 +662,7 @@ public:
      * CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100
      * Call outgoing ringing has stopped (only valid if our own client has started the call)
      *
-     * - MegaChatCall::CHANGE_TYPE_PERMISSIONS = 0x200
+     * - MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS = 0x200
      * Own peer moderator role status has changed (Check MegaChatCall::isOwnModerator)
      *
      * @return true if this call has an specific change

@@ -1763,8 +1763,10 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             bool endCall = request->getFlag();
-            if (endCall && chatroom->isGroup() && !call->isOwnPrivModerator())
+            if (endCall && chatroom->isGroup()
+                    && (!call->isOwnPrivModerator() || chatroom->ownPriv() != MegaChatPeerList::PRIV_MODERATOR))
             {
+                assert(call->isOwnPrivModerator() == chatroom->ownPriv());
                 API_LOG_ERROR("End call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
@@ -2243,8 +2245,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!call->isOwnPrivModerator())
+            if (!call->isOwnPrivModerator() || chatroom->ownPriv() != MegaChatPeerList::PRIV_MODERATOR)
             {
+                assert(call->isOwnPrivModerator() == chatroom->ownPriv());
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK  - You need moderator role to approve speak request");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 assert(false);
@@ -9361,7 +9364,7 @@ void MegaChatCallHandler::onStopOutgoingRinging(const rtcModule::ICall& call)
 void MegaChatCallHandler::onPermissionsChanged(const rtcModule::ICall& call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_PERMISSIONS);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

@@ -258,7 +258,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION)
-            || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_PERMISSIONS))
+            || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS))
     {
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateLabel(call);

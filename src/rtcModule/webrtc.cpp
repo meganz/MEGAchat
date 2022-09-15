@@ -1721,14 +1721,13 @@ bool Call::handleModAdd(uint64_t userid)
     // update moderator privilege for all sessions that mached with received userid
     setSessionModByUserId(userid, true);
 
-    if (mModerators.find(userid) != mModerators.end())
+    if (!mModerators.emplace(userid).second)
     {
         RTCM_LOG_WARNING("MOD_ADD: user[%s] already added in moderators list", karere::Id(userid).toString().c_str());
         return false;
     }
 
     RTCM_LOG_DEBUG("MOD_ADD: user[%s] added in moderators list", karere::Id(userid).toString().c_str());
-    mModerators.emplace(userid);
     return true;
 }
 
@@ -1742,15 +1741,13 @@ bool Call::handleModDel(uint64_t userid)
     // update moderator privilege for all sessions that mached with received userid
     setSessionModByUserId(userid, false);
 
-    auto it = mModerators.find(userid);
-    if (it == mModerators.end())
+    if (!mModerators.erase(userid))
     {
         RTCM_LOG_WARNING("MOD_DEL: user[%s] not found in moderators list", karere::Id(userid).toString().c_str());
         return false;
     }
 
     RTCM_LOG_DEBUG("MOD_DEL: user[%s] removed from moderators list", karere::Id(userid).toString().c_str());
-    mModerators.erase(it);
     return true;
 }
 
