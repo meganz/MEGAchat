@@ -3796,34 +3796,27 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
 
     // B hangs up
-    LOG_debug << "B hangs up the call";
-    bool* flagHangUpCallB = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL];
-    *flagHangUpCallB = false;
     bool* callDestroyedB = &mCallDestroyed[a2]; *callDestroyedB = false;
-    // reset flags of session destruction
-    *sessionWasDestroyedB = false; *sessionWasDestroyedA = false;
+    *sessionWasDestroyedB = false; *sessionWasDestroyedA = false; // reset flags of session destruction
 
-    megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]);
+    LOG_debug << "B hangs up the call";
+    exitFlag = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *exitFlag = false; // from receiver account
+    action = [this, a2](){ megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]); };
+    waitForCallAction(a2 /*performer*/, 3/*maxAttempts*/, exitFlag, "hanging up chat call at account B", maxTimeout, action);
+
     // wait for session destruction checks
     waitForChatCallSessionDestroyedB();
     waitForChatCallSessionDestroyedA();
-    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallB), "Timeout after hang up chat call "
-                     + std::to_string(maxTimeout) + " seconds.");
-    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: "
-                     + std::to_string(lastErrorChat[a2]));
+    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
     LOG_debug << "Call finished for B";
 
     // A hangs up
-    LOG_debug << "A hangs up the call";
-    bool* flagHangUpCallA = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL];
-    *flagHangUpCallA = false;
     bool* callDestroyedA = &mCallDestroyed[a1]; *callDestroyedA = false;
-
-    megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]);
-    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallA), "Timeout after A's hang up chat call "
-                     + std::to_string(maxTimeout) + " seconds.");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: "
-                     + std::to_string(lastErrorChat[a1]));
+    LOG_debug << "A hangs up the call";
+    exitFlag = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *exitFlag = false; // from receiver account
+    action = [this, a1](){ megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]); };
+    waitForCallAction(a1 /*performer*/, 3/*maxAttempts*/, exitFlag, "hanging up chat call at account B", maxTimeout, action);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: " + std::to_string(lastErrorChat[a1]));
     LOG_debug << "Call finished for A";
 
     // Check the call was destroyed at both ends
