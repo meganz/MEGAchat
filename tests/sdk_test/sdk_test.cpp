@@ -642,24 +642,24 @@ void MegaChatApiTest::postLog(const std::string &msg)
     logger->postLog(msg.c_str());
 }
 
-bool MegaChatApiTest::waitForMultiResponse(std::vector<bool *>responsesReceived, bool any, unsigned int timeout) const
+bool MegaChatApiTest::exitWait(const std::vector<bool *>&responsesReceived, bool waitForAll) const
 {
-    std::function<bool()> exit = [&responsesReceived, &any] ()
+    for (auto r: responsesReceived)
     {
-        for (auto r: responsesReceived)
-        {
-            if (any && (*r))    { return true; };   // any response must be received
-            if (!any && !(*r))  { return false; };  // all responses must be received
-        }
-        return any
-                ? false  // none received
-                : true;  // all received
-    };
+        if (!waitForAll && (*r))  { return true; };   // any response must be received
+        if (waitForAll && !(*r))  { return false; };  // all responses must be received
+    }
+    return waitForAll
+            ? true   // all received
+            : false; // none received
+};
 
+bool MegaChatApiTest::waitForMultiResponse(std::vector<bool *>responsesReceived, bool waitForAll, unsigned int timeout) const
+{
     timeout *= 1000000; // convert to micro-seconds
     unsigned int tWaited = 0;    // microseconds
     bool connRetried = false;
-    while (!exit())
+    while (!exitWait(responsesReceived, waitForAll))
     {
         usleep(pollingT);
 
@@ -3595,7 +3595,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
             // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
             action();
-            ASSERT_CHAT_TEST(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, true, timeout), "Timeout expired for " + errStr);
+            ASSERT_CHAT_TEST(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false, timeout), "Timeout expired for " + errStr);
 
             // if performer account gets disconnected from SFU for the target call, wait until reconnect and retry <action>
             if (*callConnecting)
