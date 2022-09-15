@@ -3575,7 +3575,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         }
     };
 
-    // ensures that <action> is executed successfully before maxAttempts and before maxTimeout (600) expires
+    // ensures that <action> is executed successfully before maxAttempts and before timeout expires
     // if call gets disconnected before action is executed, command queue will be cleared, so we need to wait
     // until performer account is connected (CALL_STATUS_IN_PROGRESS) to SFU for that call and re-try <action>
     std::function<void(unsigned int, int, bool*, const char *, unsigned int, std::function<void()>)> waitForCallAction =
@@ -3602,6 +3602,43 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
             {
                ASSERT_CHAT_TEST(++retries < maxAttempts, "Max attempts exceeded for " + errStr);
                waitForChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS);
+            }
+        }
+    };
+
+    // ensures that <action> is executed successfully before maxAttempts and before timeout expires
+    std::function<void(int, std::vector<bool*>, std::vector<string>, std::string, bool,  unsigned int, std::function<void()>)> waitForAction =
+    [this]
+    (int maxAttempts, std::vector<bool*> exitFlags, std::vector<string> flagsStr, std::string actionMsg, bool resetFlags, unsigned int timeout, std::function<void()>action)
+    {
+        ASSERT_CHAT_TEST(exitFlags.size() == flagsStr.size() || flagsStr.empty(), "waitForCallAction: no valid action provided");
+        ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
+
+        if (resetFlags)
+        {
+            for (auto f: exitFlags)
+            {
+                if (f) { *f = false; }
+            }
+        }
+
+        int retries = 0;
+        while (!exitWait(exitFlags, true))
+        {
+            action();
+            if (!waitForMultiResponse(exitFlags, true, timeout))
+            {
+                std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(": ");
+                for (size_t i = 0; i < exitFlags.size(); i++)
+                {
+                    (i > flagsStr.size())
+                            ? msg.append("Flag_").append(std::to_string(i))
+                            : msg.append(flagsStr.at(i));
+
+                    msg.append(" = ").append(*exitFlags.at(i) ? "true" : "false").append(" ");
+                }
+                LOG_debug << msg;
+                ASSERT_CHAT_TEST(++retries <= maxAttempts, "Max attempts exceeded for " + actionMsg);
             }
         }
     };
