@@ -3587,11 +3587,13 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         bool* callConnecting = getChatCallStateFlag(pIdx, MegaChatCall::CALL_STATUS_CONNECTING);
         while (!*exitFlag)
         {
+            ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
+
             // reset call state flags to false before executing the required action
             resetTestChatCallState(pIdx, MegaChatCall::CALL_STATUS_CONNECTING);
             resetTestChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS);
 
-            // execute custom user action and wait until exitFlag is set true OR performer account gets disconnected from SFU for the target call
+            // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
             action();
             ASSERT_CHAT_TEST(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, true, timeout), "Timeout expired for " + errStr);
 
@@ -3604,6 +3606,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         }
     };
 
+    std::function<void()> action = nullptr;
     bool* exitFlag = nullptr;
 
     // Prepare users, and chat room
@@ -3711,60 +3714,51 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
     // B puts the call on hold
     LOG_debug << "B setting the call on hold";
-    bool* chatCallOnHoldA = &mChatCallOnHold[a1]; *chatCallOnHoldA = false;
-
-    megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ true);
-    // A receives that B is on hold
-    ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldA), "Timeout expired for A receiving on hold");
-
+    exitFlag = &mChatCallOnHold[a1]; *exitFlag = false;  // from receiver account
+    action = [this, a2, chatid](){ megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ true); };
+    waitForCallAction(a2 /*performer*/, 3/*maxAttempts*/, exitFlag, "receiving call on hold at account A", maxTimeout, action);
 
     // A puts the call on hold
     LOG_debug << "A setting the call on hold";
-    bool* chatCallOnHoldB = &mChatCallOnHold[a2]; *chatCallOnHoldB = false;
-
-    megaChatApi[a1]->setCallOnHold(chatid, true);
-    // B checks that A is on hold
-    ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldB), "Timeout expired for B receiving on hold");
-
+    exitFlag = &mChatCallOnHold[a2]; *exitFlag = false; // from receiver account
+    action = [this, a1, chatid](){ megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ true); };
+    waitForCallAction(a2 /*performer*/, 3/*maxAttempts*/, exitFlag, "receiving call on hold at account B", maxTimeout, action);
 
     // A releases on hold
-    LOG_debug << "A resuming the call from hold";
-    bool* chatCallOnHoldResumedB = &mChatCallOnHoldResumed[a2]; *chatCallOnHoldResumedB = false;
-
-    megaChatApi[a1]->setCallOnHold(chatid, false);
-    // B checks that A is no longer on hold
-    ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldResumedB),
-                     "Timeout expired for B receiving resume from on hold");
-
+    LOG_debug << "A releasing on hold";
+    exitFlag = &mChatCallOnHoldResumed[a2]; *exitFlag = false; // from receiver account
+    action = [this, a1, chatid](){ megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ false); };
+    waitForCallAction(a2 /*performer*/, 3/*maxAttempts*/, exitFlag, "receiving call resume from on hold at account B", maxTimeout, action);
 
     // B releases on hold
-    LOG_debug << "B resuming the call from hold";
-    bool* chatCallOnHoldResumedA = &mChatCallOnHoldResumed[a1]; *chatCallOnHoldResumedA = false;
-
-    megaChatApi[a2]->setCallOnHold(chatid, false);
-    // A checks that B is no longer on hold
-    ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldResumedA),
-                     "Timeout expired for A receiving resume from on hold");
-
+    LOG_debug << "B releasing on hold";
+    exitFlag = &mChatCallOnHoldResumed[a1]; *exitFlag = false; // from receiver account
+    action = [this, a2, chatid](){ megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ false); };
+    waitForCallAction(a2 /*performer*/, 3/*maxAttempts*/, exitFlag, "receiving call resume from on hold at account A", maxTimeout, action);
 
     // B enables audio monitor
     LOG_debug << "B enabling audio in the call";
-    bool* chatCallAudioEnabledA = &mChatCallAudioEnabled[a1]; *chatCallAudioEnabledA = false;
+    exitFlag = &mChatCallAudioEnabled[a1]; *exitFlag = false; // from receiver account
+    action = [this, a2, chatid](){ megaChatApi[a2]->enableAudio(chatid); };
+    waitForCallAction(a2 /*performer*/, 3/*maxAttempts*/, exitFlag, "receiving audio enabled at account A", maxTimeout, action);
 
-    megaChatApi[a2]->enableAudio(chatid);
-    // A receives B enabled audio
-    ASSERT_CHAT_TEST(waitForResponse(chatCallAudioEnabledA),
-                     "Timeout expired for A receiving audio enabled");
-
+    // A enables audio monitor
+    LOG_debug << "A enabling audio in the call";
+    exitFlag = &mChatCallAudioEnabled[a2]; *exitFlag = false; // from receiver account
+    action = [this, a1, chatid](){ megaChatApi[a1]->enableAudio(chatid); };
+    waitForCallAction(a1 /*performer*/, 3/*maxAttempts*/, exitFlag, "receiving audio enabled at account B", maxTimeout, action);
 
     // B disables audio monitor
     LOG_debug << "B disabling audio in the call";
-    bool* chatCallAudioDisabledA = &mChatCallAudioDisabled[a1]; *chatCallAudioDisabledA = false;
+    exitFlag = &mChatCallAudioDisabled[a1]; *exitFlag = false; // from receiver account
+    action = [this, a2, chatid](){ megaChatApi[a2]->disableAudio(chatid); };
+    waitForCallAction(a2 /*performer*/, 3/*maxAttempts*/, exitFlag, "receiving audio disabled at account A", maxTimeout, action);
 
-    megaChatApi[a2]->disableAudio(chatid);
-    // A receives B disabled audio
-    ASSERT_CHAT_TEST(waitForResponse(chatCallAudioDisabledA),
-                     "Timeout expired for A receiving audio disabled");
+    // A disables audio monitor
+    LOG_debug << "A disabling audio in the call";
+    exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // from receiver account
+    action = [this, a1, chatid](){ megaChatApi[a1]->disableAudio(chatid); };
+    waitForCallAction(a1 /*performer*/, 3/*maxAttempts*/, exitFlag, "receiving audio disabled at account B", maxTimeout, action);
 
 
     // A forces reconnect
