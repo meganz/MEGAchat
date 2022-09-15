@@ -3595,7 +3595,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
             // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
             action();
-            ASSERT_CHAT_TEST(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false, timeout), "Timeout expired for " + errStr);
+            ASSERT_CHAT_TEST(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false /*waitForAll*/, timeout), "Timeout expired for " + errStr);
 
             // if performer account gets disconnected from SFU for the target call, wait until reconnect and retry <action>
             if (*callConnecting)
@@ -3623,10 +3623,10 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         }
 
         int retries = 0;
-        while (!exitWait(exitFlags, true))
+        while (!exitWait(exitFlags, true /*waitForAll*/))
         {
             action();
-            if (!waitForMultiResponse(exitFlags, true, timeout))
+            if (!waitForMultiResponse(exitFlags, true /*waitForAll*/, timeout))
             {
                 std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(": ");
                 for (size_t i = 0; i < exitFlags.size(); i++)
