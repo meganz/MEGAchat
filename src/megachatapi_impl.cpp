@@ -1764,8 +1764,19 @@ void MegaChatApiImpl::sendPendingRequests()
 
             bool endCall = request->getFlag();
             if (endCall && chatroom->isGroup()
-                    && (!call->isOwnPrivModerator() || chatroom->ownPriv() != MegaChatPeerList::PRIV_MODERATOR))
+                    && (!call->isOwnPrivModerator()                                  // if SFU role is non moderator
+                        || chatroom->ownPriv() != MegaChatPeerList::PRIV_MODERATOR)) // if chatd permission is non moderator
             {
+                if (call->isOwnPrivModerator()
+                        != (chatroom->ownPriv() == MegaChatPeerList::PRIV_MODERATOR))
+                {
+                    std::string logMsg = "Chatd and SFU permissions doesn't match for chatid: ";
+                    logMsg.append(call->getChatid().toString().c_str());
+                    logMsg.append(" userid: ");
+                    logMsg.append(mClient->myHandle().toString().c_str());
+                    mMegaApi->sendEvent(99015, logMsg.c_str());
+                }
+
                 assert(call->isOwnPrivModerator() == chatroom->ownPriv());
                 API_LOG_ERROR("End call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
@@ -2247,7 +2258,16 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!call->isOwnPrivModerator() || chatroom->ownPriv() != MegaChatPeerList::PRIV_MODERATOR)
             {
-                assert(call->isOwnPrivModerator() == chatroom->ownPriv());
+                if (call->isOwnPrivModerator()
+                        != (chatroom->ownPriv() == MegaChatPeerList::PRIV_MODERATOR))
+                {
+                    std::string logMsg = "Chatd and SFU permissions doesn't match for chatid: ";
+                    logMsg.append(call->getChatid().toString().c_str());
+                    logMsg.append(" userid: ");
+                    logMsg.append(mClient->myHandle().toString().c_str());
+                    mMegaApi->sendEvent(99015, logMsg.c_str());
+                }
+
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK  - You need moderator role to approve speak request");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 assert(false);
