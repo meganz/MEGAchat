@@ -3690,7 +3690,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
 
-    waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from Account
+    waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
                    std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL], &mCallInProgress[a1], &mCallReceivedRinging[a2]},
                    std::vector<string> { "TYPE_START_CHAT_CALL[a1]", "mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
                    "starting chat call from A",
@@ -3719,7 +3719,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     LOG_debug << "B received the call";
 
 
-    waitForAction (1, // just one attempt as mCallReceivedRinging
+    waitForAction (1, // just one attempt as call could be answered properly at B account but any of the other flags not received
                    std::vector<bool *> { &requestFlagsChat[a2][MegaChatRequest::TYPE_ANSWER_CHAT_CALL],
                                          &mChatCallSessionStatusInProgress[a1],
                                          &mChatCallSilenceReq[a1],
