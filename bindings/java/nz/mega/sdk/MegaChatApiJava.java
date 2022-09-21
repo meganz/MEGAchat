@@ -1302,12 +1302,37 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Set the status of the app
+     * Allows to enable/disable the open invite option for a chat room
      *
+     * The open invite option allows users with MegaChatRoom::PRIV_STANDARD privilege, to invite other users into the chat
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
+     * - MegaChatRequest::getPrivilege - Returns MegaChatApi::CHAT_OPTION_OPEN_INVITE
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
+     * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
+     * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_EXIST - If the value of enabled is the same as open invite option
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enabled True if we want to enable open invite option, otherwise false.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void setOpenInvite(long chatid, boolean enabled, MegaChatRequestListenerInterface listener){
+        megaChatApi.setOpenInvite(chatid, enabled, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Set the status of the app
+     * <p>
      * Apps in mobile devices can be in different status. Typically, foreground and
      * background. The app should define its status in order to receive notifications
      * from server when the app is in background.
-     *
+     * <p>
      * The associated request type with this request is MegaChatRequest::TYPE_SET_BACKGROUND_STATUS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getfLAG - Returns the background status
