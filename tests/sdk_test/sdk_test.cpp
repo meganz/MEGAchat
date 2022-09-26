@@ -3538,7 +3538,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     /* lambda functions to simplify some recurrent operations */
     // gets a pointer to the local flag that indicates if we have reached an specific callstate
     std::function<bool*(unsigned int, int)> getChatCallStateFlag =
-    [this](unsigned int index, int state)
+    [this](unsigned int index, int state) -> bool*
     {
         switch (state)
         {
@@ -3549,7 +3549,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         }
 
         ASSERT_CHAT_TEST(false, "Invalid account index");
-        return static_cast<bool*>(nullptr);
+        return nullptr;
     };
 
     // resets the local flag that indicates if we have reached an specific call state
