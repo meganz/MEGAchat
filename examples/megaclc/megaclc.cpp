@@ -4481,7 +4481,10 @@ void exec_syncremove(ac::ACState& s)
             return;
         }
 
-        g_megaApi->removeSync(targetNode.get(),
+        std::unique_ptr<m::MegaSync> sync(g_megaApi->getSyncByNode(targetNode.get()));
+        m::MegaHandle backupId = sync ? sync->getBackupId() : m::INVALID_HANDLE;
+
+        g_megaApi->removeSync(backupId, m::INVALID_HANDLE,
             new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
             {
                 conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
@@ -4489,7 +4492,7 @@ void exec_syncremove(ac::ACState& s)
     }
     else if (byId)
     {
-        g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()),
+        g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()), m::INVALID_HANDLE,
             new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
                 {
                     conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
@@ -4566,34 +4569,31 @@ void exec_syncxable(ac::ACState& s)
 }
 
 
-void exec_getmybackupsfolder(ac::ACState& s)
+void exec_getmybackupsfolder(ac::ACState&)
 {
-    g_megaApi->getMyBackupsFolder(new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    g_megaApi->getUserAttribute(m::ATTR_MY_BACKUPS_FOLDER,
+                                new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* request, m::MegaError* e)
         {
+            ConsoleLock outstr(cout);
+            outstr << "getUserAttribute ATTR_MY_BACKUPS_FOLDER result: ";
+
             if (e->getErrorCode() != m::MegaError::API_OK)
             {
-                conlock(cout) << "getMyBackupsFolder result: " << e->getErrorString() << endl;
+                outstr << e->getErrorString() << endl;
             }
             else
             {
-
-                conlock(cout) << "getMyBackupsFolder result: " << OwnStr(g_megaApi->getNodePathByNodeHandle(request->getNodeHandle())) << endl;
+                outstr << OwnStr(g_megaApi->getNodePathByNodeHandle(request->getNodeHandle())) << endl;
             }
         }));
 }
 
 void exec_setmybackupsfolder(ac::ACState& s)
 {
-    unique_ptr<m::MegaNode> targetNode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
-    if (!targetNode)
-    {
-        conlock(cout) << "Path not found" << endl;
-        return;
-    }
-
-    g_megaApi->setMyBackupsFolder(targetNode->getHandle(), new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    g_megaApi->setMyBackupsFolder(s.words[1].s.c_str(),
+                                  new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
         {
-            conlock(cout) << "getMyBackupsFolder result: " << e->getErrorString() << endl;
+            conlock(cout) << "setMyBackupsFolder result: " << e->getErrorString() << endl;
         }));
 }
 
