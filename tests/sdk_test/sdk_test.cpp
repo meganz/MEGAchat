@@ -3607,9 +3607,9 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     };
 
     // ensures that <action> is executed successfully before maxAttempts and before timeout expires
-    std::function<void(int, std::vector<bool*>, std::vector<string>, std::string, bool,  unsigned int, std::function<void()>)> waitForAction =
+    std::function<void(int, std::vector<bool*>, const std::vector<string>&, const std::string&, bool,  unsigned int, std::function<void()>)> waitForAction =
     [this]
-    (int maxAttempts, std::vector<bool*> exitFlags, std::vector<string> flagsStr, std::string actionMsg, bool resetFlags, unsigned int timeout, std::function<void()>action)
+    (int maxAttempts, std::vector<bool*> exitFlags, const std::vector<string>& flagsStr, const std::string& actionMsg, bool resetFlags, unsigned int timeout, std::function<void()>action)
     {
         ASSERT_CHAT_TEST(exitFlags.size() == flagsStr.size() || flagsStr.empty(), "waitForCallAction: no valid action provided");
         ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
