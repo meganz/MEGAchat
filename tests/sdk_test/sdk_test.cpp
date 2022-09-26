@@ -649,9 +649,7 @@ bool MegaChatApiTest::exitWait(const std::vector<bool *>&responsesReceived, bool
         if (!waitForAll && (*r))  { return true; };   // any response must be received
         if (waitForAll && !(*r))  { return false; };  // all responses must be received
     }
-    return waitForAll
-            ? true   // all received
-            : false; // none received
+    return waitForAll; // true (all received) false (none received)
 };
 
 bool MegaChatApiTest::waitForMultiResponse(std::vector<bool *>responsesReceived, bool waitForAll, unsigned int timeout) const
@@ -3195,7 +3193,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     char* secondarySession2 = login(a2, secondarySession);
     waitForResponse(callReceived);
-    if (!callReceived)
+    if (!(*callReceived))
     {
         std::unique_ptr<MegaChatListItem> itemSecondary(megaChatApi[a2]->getChatListItem(chatid));
         ASSERT_CHAT_TEST(itemSecondary, "Can't retrieve chat list item");
@@ -3203,7 +3201,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
         if (itemSecondary->getLastMessageType() == MegaChatMessage::TYPE_CALL_ENDED)
         {
             // login process for secondary account has taken too much time, so Call has been destroyed with reason kNoAnswer
-            MegaChatMessage* m = megaChatApi[a2]->getMessage(chatid, itemSecondary->getLastMessageId());
+            std::unique_ptr<MegaChatMessage> m(megaChatApi[a2]->getMessage(chatid, itemSecondary->getLastMessageId()));
             ASSERT_CHAT_TEST(m && m->getHandleOfAction() == mCallIdExpectedReceived[a2], "Management message of type TYPE_CALL_ENDED not received");
         }
         else
