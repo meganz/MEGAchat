@@ -1790,7 +1790,7 @@ void Call::onSendByeCommand()
 
         if (mState == CallState::kStateConnecting)
         {
-            // we have sent BYE command from onConnectionChange (kDisconnected | kFailed | kFailed)
+            // we have sent BYE command from onConnectionChange (kDisconnected | kFailed | kClosed)
             // and now we need to force reconnect to SFU
             mSfuConnection->clearCommandsQueue();
             mSfuConnection->retryPendingConnection(true);
