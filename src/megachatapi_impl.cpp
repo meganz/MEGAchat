@@ -8936,8 +8936,9 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                     megaHandleList->addMegaHandle(callEndInfo->participants[i]);
                 }
 
-                priv = callEndInfo->duration;
+                priv = static_cast<int>(callEndInfo->duration);
                 mCode = MegaChatMessagePrivate::convertEndCallTermCodeToUI(*callEndInfo);
+                hAction = callEndInfo->callid;
                 delete callEndInfo;
             }
             break;
