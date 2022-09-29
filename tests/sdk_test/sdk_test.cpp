@@ -4040,7 +4040,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 1. Send rich link message
     //=================================//
 
-    std::string messageToSend = "Hello friend, https://developer.android.com";
+    std::string messageToSend = "Hello friend, http://mega.nz";
     // Need to do this for the first message as it's send and edited
     chatroomListener->msgEdited[a1] = false;
     chatroomListener->msgEdited[a2] = false;
@@ -4070,7 +4070,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 4. Edit previous message by adding a new URL.
     //======================================================//
 
-    std::string messageToUpdate3 = "Hello friend, sorry, the URL is https://developer.android.com";
+    std::string messageToUpdate3 = "Hello friend, sorry, the URL is https://mega.nz";
     MegaChatMessage* msgUpdated3 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate3, chatroomListener, msgUpdated2->getMsgId());
     checkMessages(msgUpdated3, messageToUpdate3, true);
 
@@ -4078,7 +4078,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 5. Edit previous message by modifying the previous URL.
     //===============================================================//
 
-    std::string messageToUpdate4 = "Argghhh!!! Sorry again!! I meant https://android.com that's the good one!!!";
+    std::string messageToUpdate4 = "Argghhh!!! Sorry again!! I meant https://mega.io that's the good one!!!";
     MegaChatMessage* msgUpdated4 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate4, chatroomListener, msgUpdated3->getMsgId());
     checkMessages(msgUpdated4, messageToUpdate4, true);
 
