@@ -1707,6 +1707,15 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     // Login in secondary account
     char *sessionSecondary = login(a2);
 
+    // Make a1 and a2 contacts
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
+    {
+        makeContact(a1, a2);
+        delete user;
+        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    }
+
     // Create chat link
     flagCreateChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *flagCreateChatLink = false;
     megaChatApi[a1]->createChatLink(chatid, this);
