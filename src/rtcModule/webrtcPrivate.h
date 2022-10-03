@@ -272,7 +272,6 @@ public:
     bool isOwnClientCaller() const override;
     bool isJoined()  const override;
     bool isOwnPrivModerator() const override;
-    Cid_t getOwnCid() const override;
 
     // returns true if your user participates of the call
     bool participate() override;
@@ -413,8 +412,6 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
-    void setSessionModByUserId(uint64_t userid, bool isMod);
-    void setOwnModerator(bool isModerator);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
@@ -558,6 +555,9 @@ protected:
     bool isUdpDisconnected() const;
     bool isTermCodeRetriable(const TermCode& termCode) const;
     bool isDisconnectionTermcode(const TermCode& termCode) const;
+    Cid_t getOwnCid() const;
+    void setSessionModByUserId(uint64_t userid, bool isMod);
+    void setOwnModerator(bool isModerator);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink

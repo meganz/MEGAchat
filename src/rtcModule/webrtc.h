@@ -171,7 +171,6 @@ public:
     virtual bool isOwnClientCaller() const = 0;
     virtual bool isJoined() const = 0;
     virtual bool isOwnPrivModerator() const = 0;
-    virtual Cid_t getOwnCid() const = 0;
 
     virtual void addParticipant(const karere::Id &peer) = 0;
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;

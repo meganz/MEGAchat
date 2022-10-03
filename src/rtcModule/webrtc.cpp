@@ -183,11 +183,6 @@ bool Call::isOwnPrivModerator() const
    return mMyPeer->isModerator();
 }
 
-Cid_t Call::getOwnCid() const
-{
-    return mMyPeer->getCid();
-}
-
 void Call::addParticipant(const karere::Id &peer)
 {
     mParticipants.insert(peer);
@@ -1166,6 +1161,29 @@ bool Call::isTermCodeRetriable(const TermCode& termCode) const
 bool Call::isDisconnectionTermcode(const TermCode& termCode) const
 {
     return termCode & kFlagDisconn;
+}
+
+Cid_t Call::getOwnCid() const
+{
+    return mMyPeer->getCid();
+}
+
+
+void Call::setSessionModByUserId(uint64_t userid, bool isMod)
+{
+    for (const auto& session : mSessions)
+    {
+        if (session.second->getPeerid() == userid)
+        {
+            session.second->setModerator(isMod);
+        }
+    }
+}
+
+void Call::setOwnModerator(bool isModerator)
+{
+    mMyPeer->setModerator(isModerator);
+    mCallHandler.onPermissionsChanged(*this);
 }
 
 bool Call::isValidConnectionTermcode(TermCode termCode) const
@@ -2412,23 +2430,6 @@ void Call::setDestroying(bool isDestroying)
 bool Call::isDestroying()
 {
     return mIsDestroying;
-}
-
-void Call::setSessionModByUserId(uint64_t userid, bool isMod)
-{
-    for (const auto& session : mSessions)
-    {
-        if (session.second->getPeerid() == userid)
-        {
-            session.second->setModerator(isMod);
-        }
-    }
-}
-
-void Call::setOwnModerator(bool isModerator)
-{
-    mMyPeer->setModerator(isModerator);
-    mCallHandler.onPermissionsChanged(*this);
 }
 
 void Call::updateVideoTracks()
