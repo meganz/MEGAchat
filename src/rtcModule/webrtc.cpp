@@ -1705,6 +1705,7 @@ bool Call::handleBye(unsigned termcode)
     karere::marshallCall([wptr, auxTermCode, reason, this]()
     {
         RTCM_LOG_DEBUG("Immediate removing call due to BYE [%d] command received from SFU", auxTermCode);
+        setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
         mRtc.immediateRemoveCall(this, reason, auxTermCode);
     }, mRtc.getAppCtx());
 
@@ -1793,12 +1794,13 @@ void Call::onSfuDisconnected()
 
 void Call::immediateCallDisconnect(const TermCode& termCode)
 {
+    bool hadParticipants = !mSessions.empty();
     mediaChannelDisconnect(true /*releaseDevices*/);
     clearResources(termCode);
-    sfuDisconnect(termCode);
+    sfuDisconnect(termCode, hadParticipants);
 }
 
-void Call::sfuDisconnect(const TermCode& termCode)
+void Call::sfuDisconnect(const TermCode& termCode, bool hadParticipants)
 {
     if (isTermCodeRetriable(termCode))
     {
@@ -1817,15 +1819,22 @@ void Call::sfuDisconnect(const TermCode& termCode)
     RTCM_LOG_DEBUG("callDisconnect, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     mTermCode = termCode; // termcode is only valid at state kStateTerminatingUserParticipation
     setState(CallState::kStateTerminatingUserParticipation);
+
+    // skip kStateClientNoParticipating notification if:
+    bool skipClientNoParticipating = (isDestroying())             // we are destroying call
+            || (!hadParticipants && mSfuConnection && mSfuConnection->isJoined());  // no more participants but still joined to SFU
+
     if (mSfuConnection)
     {
         mSfuClient.closeSfuConnection(mChatid);
         mSfuConnection = nullptr;
     }
 
-    // reset termcode upon set state kStateClientNoParticipating
-    mTermCode = kInvalidTermCode;
-    setState(CallState::kStateClientNoParticipating);
+    if (!skipClientNoParticipating)
+    {
+        mTermCode = kInvalidTermCode;
+        setState(CallState::kStateClientNoParticipating);
+    }
 }
 
 void Call::onSendByeCommand()
@@ -1847,7 +1856,7 @@ void Call::onSendByeCommand()
 
         if (mState == CallState::kStateConnecting)
         {
-            // we have sent BYE command from onConnectionChange (kDisconnected | kFailed | kFailed)
+            // we have sent BYE command from onConnectionChange (kDisconnected | kFailed | kClosed)
             // and now we need to force reconnect to SFU
             mSfuConnection->clearCommandsQueue();
             mSfuConnection->retryPendingConnection(true);
@@ -1897,6 +1906,7 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
         {
             //immediateCallDisconnect will be called inside immediateRemoveCall
+            setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
             mRtc.immediateRemoveCall(this, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
