@@ -1303,7 +1303,7 @@ public:
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
-    void createScheduledMeeting(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
+    void createScheduledMeeting(MegaChatHandle chatid, bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite, const char* timezone, const char* startDate, const char* endDate, const char* title,
                                 const char* description, int freq, MegaChatHandle callid = MEGACHAT_INVALID_HANDLE, MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
                                 int cancelled = -1, bool emailsDisabled = false, const char* attributes = nullptr, const char* overrides = nullptr, int interval = 0,
                                 const char* until = nullptr, const mega::MegaIntegerList* byWeekDay = nullptr, const mega::MegaIntegerList* byMonthDay = nullptr,
