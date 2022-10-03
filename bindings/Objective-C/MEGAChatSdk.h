@@ -286,7 +286,7 @@ NS_ASSUME_NONNULL_BEGIN
  * @param speakRequest True to set that during calls non moderator users, must request permission to speak
  * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
  * A moderator user must grant each user access to the call.
- * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+ * @param openInvite to set that users with MEGAChatRoomPrivilegeStandard privilege, can invite other users into the chat
  * @param delegate MEGAChatRequestDelegate to track this request
  */
 - (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers
@@ -300,6 +300,54 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(nullable NSString *)title;
 - (void)createMeetingWithTitle:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)createMeetingWithTitle:(NSString *)title;
+
+/**
+ * @brief Creates a meeting
+ *
+ * * This function allows to create public chats, where the moderator can create chat links to share
+ * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+ * moderator can create/get a public handle for the chatroom and generate a URL by using
+ * \c [MEGAChatSDK createChatLink]. The chat-link can be deleted at any time by any moderator
+ * by using \c [MEGAChatSDK removeChatLink].
+ *
+ *
+ * The chatroom remains in the public mode until a moderator calls \c [MEGAChatSDK setPublicChatToPrivate].
+ *
+ * Any user can preview the chatroom thanks to the chat-link by using \c [MEGAChatSDK openChatPreview].
+ * Any user can join the chatroom thanks to the chat-link by using \c [MEGAChatSDK autojoinPublicChat].
+ *
+ * Valid data in the MegaChatRequest object received on callbacks:
+ * - [MegaChatRequest flag] - Returns if the new chat is a group chat or permanent chat
+ * - [MegaChatRequest privilege] - Returns zero (private mode)
+ * - [MegaChatRequest megaChatPeerList] - List of participants and their privilege level
+ * - [MegaChatRequest text] - Returns the title of the chat.
+ * - [MegaChatRequest paramType] - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+ *  + To check if speakRequest was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionSpeakRequest
+ *  + To check if waitingRoom was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionWaitingRoom
+ *  + To check if openInvite was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionOpenInvite
+ *
+ * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+ * is MEGAChatErrorTypeOk:
+ * - [MegaChatRequest chatHandle] - Returns the handle of the new chatroom
+ *
+ * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+ * - MEGAChatErrorTypeNoEnt  - If the target user is the same user as caller
+ * - MEGAChatErrorTypeAccess - If the target is not actually contact of the user.
+ *
+ * @param title Null-terminated character string with the chat title. If the title
+ * is longer than 30 characters, it will be truncated to that maximum length.
+ * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+ * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+ * A moderator user must grant each user access to the call.
+ * @param openInvite to set that users with MEGAChatRoomPrivilegeStandard privilege, can invite other users into the chat
+ * @param delegate MEGAChatRequestDelegate to track this request
+ */
+- (void)createMeetingWithTitle:(NSString *)title
+                  speakRequest:(BOOL)speakRequest
+                   waitingRoom:(BOOL)waitingRoom
+                    openInvite:(BOOL)openInvite
+                      delegate:(id<MEGAChatRequestDelegate>)delegate;
+
 - (void)queryChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)queryChatLink:(uint64_t)chatId;
 - (void)createChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
