@@ -5088,4 +5088,273 @@ std::string InitStats::toJson()
     return result;
 }
 
+KarereScheduledFlags::KarereScheduledFlags(unsigned long numericValue)
+    : mFlags(numericValue)
+{
+}
+
+KarereScheduledFlags::KarereScheduledFlags(KarereScheduledFlags* flags)
+    : mFlags(flags ? flags->getNumericValue() : 0)
+{
+}
+
+KarereScheduledFlags::KarereScheduledFlags(IkarereScheduledFlags* flags)
+    : mFlags(flags ? flags->getNumericValue() : 0)
+{
+}
+
+KarereScheduledFlags::KarereScheduledFlags(::mega::ScheduledFlags* flags)
+ : mFlags(flags ? flags->getNumericValue() : 0)
+{
+}
+
+KarereScheduledFlags::~KarereScheduledFlags()
+{
+}
+
+KarereScheduledFlags* KarereScheduledFlags::copy()
+{
+    return new KarereScheduledFlags(this);
+}
+
+void KarereScheduledFlags::reset()
+{
+    mFlags.reset();
+}
+
+void KarereScheduledFlags::setEmailsDisabled(bool enabled)
+{
+    mFlags[FLAGS_DONT_SEND_EMAILS] = enabled;
+}
+
+// --- IkarereScheduledFlags methods ---
+unsigned long KarereScheduledFlags::getNumericValue() const       { return mFlags.to_ulong(); }
+bool KarereScheduledFlags::EmailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
+bool KarereScheduledFlags::isEmpty() const                        { return mFlags.none(); }
+
+/* class scheduledRules */
+KarereScheduledRules::KarereScheduledRules(int freq,
+                              int interval,
+                              const char* until,
+                              const std::vector<int64_t>* byWeekDay,
+                              const std::vector<int64_t>* byMonthDay,
+                              const std::multimap<int64_t, int64_t>* byMonthWeekDay)
+    : mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
+      mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
+      mUntil(until ? until : std::string()),
+      mByWeekDay(byWeekDay ? new std::vector<int64_t>(*byWeekDay) : nullptr),
+      mByMonthDay (byMonthDay ? new std::vector<int64_t>(*byMonthDay) : nullptr),
+      mByMonthWeekDay(byMonthWeekDay ? new std::multimap<int64_t, int64_t>(byMonthWeekDay->begin(), byMonthWeekDay->end()) : nullptr)
+{
+}
+
+KarereScheduledRules::KarereScheduledRules(KarereScheduledRules* rules)
+    : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
+      mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
+      mUntil(rules->until() ? rules->until() : nullptr),
+      mByWeekDay(rules->byWeekDay() ? new std::vector<int64_t>(*rules->byWeekDay()) : nullptr),
+      mByMonthDay (rules->byMonthDay() ? new std::vector<int64_t>(*rules->byMonthDay()) : nullptr),
+      mByMonthWeekDay(rules->byMonthWeekDay() ? new std::multimap<int64_t, int64_t>(rules->byMonthWeekDay()->begin(), rules->byMonthWeekDay()->end()) : nullptr)
+{
+}
+
+KarereScheduledRules::KarereScheduledRules(IkarereScheduledRules* rules)
+    : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
+      mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
+      mUntil(rules->until() ? rules->until() : nullptr),
+      mByWeekDay(rules->byWeekDay() ? new std::vector<int64_t>(*rules->byWeekDay()) : nullptr),
+      mByMonthDay (rules->byMonthDay() ? new std::vector<int64_t>(*rules->byMonthDay()) : nullptr),
+      mByMonthWeekDay(rules->byMonthWeekDay() ? new std::multimap<int64_t, int64_t>(rules->byMonthWeekDay()->begin(), rules->byMonthWeekDay()->end()) : nullptr)
+{
+}
+
+KarereScheduledRules::KarereScheduledRules(::mega::ScheduledRules* rules)
+{
+    mFreq = isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID;
+    mInterval = isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID;
+    mUntil = rules->until() ? rules->until() : nullptr;
+
+    std::vector<int64_t>* auxByWeekDay = nullptr;
+    if (rules->byWeekDay())
+    {
+      const mega::MegaSmallIntVector* inByWeekDay = rules->byWeekDay();
+      auxByWeekDay = new std::vector<int64_t>();
+      auxByWeekDay->reserve(inByWeekDay->size());
+      std::transform(inByWeekDay->begin(), inByWeekDay->end(), std::back_inserter(*auxByWeekDay), [](int64_t x) { return static_cast<uint8_t>(x);});
+    }
+
+    std::vector<int64_t>* auxByMonthDay = nullptr;
+    if (rules->byMonthDay())
+    {
+      const mega::MegaSmallIntVector* inByMonthDay = rules->byMonthDay();
+      auxByMonthDay = new std::vector<int64_t>();
+      auxByMonthDay->reserve(inByMonthDay->size());
+      std::transform(inByMonthDay->begin(), inByMonthDay->end(), std::back_inserter(*auxByMonthDay), [](int64_t x) { return static_cast<uint8_t>(x);});
+    }
+
+    std::multimap<int64_t, int64_t>* auxByMonthWeekDay = nullptr;
+    if (rules->byMonthWeekDay())
+    {
+      auxByMonthWeekDay = new std::multimap<int64_t, int64_t>();
+      const mega::MegaSmallIntMap* inaux = rules->byMonthWeekDay();
+      auxByMonthWeekDay->insert(inaux->begin(), inaux->end());
+    }
+}
+
+KarereScheduledRules::~KarereScheduledRules()
+{
+}
+
+KarereScheduledRules* KarereScheduledRules::copy()
+{
+    return new KarereScheduledRules(this);
+}
+
+void KarereScheduledRules::setByWeekDay(const std::vector<int64_t>* byWeekDay)
+{
+    mByWeekDay.reset();
+    if (byWeekDay) { mByWeekDay.reset(new std::vector<int64_t>(*byWeekDay)); }
+}
+
+void KarereScheduledRules::setByMonthDay(const std::vector<int64_t>* byMonthDay)
+{
+    mByMonthDay.reset();
+    if (byMonthDay) { mByMonthDay.reset(new std::vector<int64_t>(*byMonthDay)); }
+}
+
+void KarereScheduledRules::setByMonthWeekDay(const std::multimap<int64_t, int64_t>* byMonthWeekDay)
+{
+    mByMonthWeekDay.reset();
+    if (byMonthWeekDay) { mByMonthWeekDay.reset(new std::multimap<int64_t, int64_t>(byMonthWeekDay->begin(), byMonthWeekDay->end())); }
+}
+
+void KarereScheduledRules::setFreq(int newFreq)
+{
+    mFreq = isValidFreq(newFreq)
+            ? newFreq
+            : FREQ_INVALID;
+}
+
+void KarereScheduledRules::setInterval(int interval)
+{
+    mInterval = isValidInterval(interval)
+            ? interval
+            : INTERVAL_INVALID;
+}
+
+void KarereScheduledRules::setUntil(const char* until)
+{
+    mUntil.assign(until ? until : std::string());
+}
+
+// --- IkarereScheduledRules methods ---
+int KarereScheduledRules::freq() const                                          { return mFreq; }
+int KarereScheduledRules::interval() const                                      { return mInterval; }
+const char* KarereScheduledRules::until() const                                 { return !mUntil.empty() ? mUntil.c_str() : nullptr; }
+const std::vector<int64_t>* KarereScheduledRules::byWeekDay() const             { return mByWeekDay.get(); }
+const std::vector<int64_t>* KarereScheduledRules::byMonthDay() const            { return mByMonthDay.get(); }
+const std::multimap<int64_t, int64_t>* KarereScheduledRules::byMonthWeekDay() const  { return mByMonthWeekDay.get(); }
+
+/* class scheduledMeeting */
+KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
+                                const char* title, const char* description, karere::Id callid,
+                                karere::Id parentCallid, int cancelled, const char* attributes,
+                                const char* overrides, KarereScheduledFlags* flags, KarereScheduledRules* rules)
+    : mChatid(chatid),
+      mCallid(callid),
+      mParentCallid(parentCallid),
+      mTimezone(timezone ? timezone : std::string()),
+      mStartDateTime(startDateTime ? startDateTime : std::string()),
+      mEndDateTime(endDateTime ? endDateTime : std::string()),
+      mTitle(title ? title : std::string()),
+      mDescription(description ? description : std::string()),
+      mAttributes(attributes ? attributes : std::string()),
+      mOverrides(overrides ? overrides : std::string()),
+      mCancelled(cancelled),
+      mFlags(flags ? flags->copy() : nullptr),
+      mRules(rules ? rules->copy() : nullptr)
+{
+}
+
+KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduledMeeting)
+    : mChatid(scheduledMeeting->chatid()),
+      mCallid(scheduledMeeting->callid()),
+      mParentCallid(scheduledMeeting->parentCallid()),
+      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
+      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
+      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
+      mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
+      mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
+      mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
+      mOverrides(scheduledMeeting->overrides() ? scheduledMeeting->overrides() : std::string()),
+      mCancelled(scheduledMeeting->cancelled()),
+      mFlags(scheduledMeeting->flags() ? new KarereScheduledFlags(scheduledMeeting->flags()) : nullptr),
+      mRules(scheduledMeeting->rules() ? new KarereScheduledRules(scheduledMeeting->rules()) : nullptr)
+{
+}
+
+KarereScheduledMeeting::KarereScheduledMeeting(mega::ScheduledMeeting* scheduledMeeting)
+    : mChatid(scheduledMeeting->chatid()),
+      mCallid(scheduledMeeting->callid()),
+      mParentCallid(scheduledMeeting->parentCallid()),
+      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
+      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
+      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
+      mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
+      mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
+      mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
+      mOverrides(scheduledMeeting->overrides() ? scheduledMeeting->overrides() : std::string()),
+      mCancelled(scheduledMeeting->cancelled()),
+      mFlags(scheduledMeeting->flags() ? new KarereScheduledFlags(scheduledMeeting->flags()) : nullptr),
+      mRules(scheduledMeeting->rules() ? new KarereScheduledRules(scheduledMeeting->rules()) : nullptr)
+{
+}
+
+KarereScheduledMeeting* KarereScheduledMeeting::copy()
+{
+   return new KarereScheduledMeeting(this);
+}
+
+KarereScheduledMeeting::~KarereScheduledMeeting()
+{
+}
+
+void KarereScheduledMeeting::setRules(KarereScheduledRules* rules)
+{
+    mRules.reset();
+    if (rules) { mRules.reset(rules->copy()); }
+}
+
+void KarereScheduledMeeting::setFlags(KarereScheduledFlags* flags)
+{
+    mFlags.reset();
+    if (flags) { mFlags.reset(flags->copy()); }
+}
+
+void KarereScheduledMeeting::setChatid(karere::Id chatid)                 { mChatid = chatid; }
+void KarereScheduledMeeting::setCallid(karere::Id callid)                 { mCallid = callid; }
+void KarereScheduledMeeting::setParentCallid(karere::Id parentCallid)     { mParentCallid = parentCallid; }
+void KarereScheduledMeeting::setTimezone(const char* timezone)            { mTimezone.append(timezone ? timezone : std::string()); }
+void KarereScheduledMeeting::setStartDateTime(const char* startDateTime)  { mStartDateTime.append(startDateTime ? startDateTime : std::string()); }
+void KarereScheduledMeeting::setEndDateTime(const char* endDateTime)      { mEndDateTime.append(endDateTime ? endDateTime : std::string()); }
+void KarereScheduledMeeting::setTitle(const char* title)                  { mTitle.append(title ? title : std::string()); }
+void KarereScheduledMeeting::setDescription(const char* description)      { mDescription.append(description ? description : std::string()); }
+void KarereScheduledMeeting::setAttributes(const char* attributes)        { mAttributes.append(attributes ? attributes : std::string()); }
+void KarereScheduledMeeting::setOverrides(const char* overrides)          { mOverrides.append(overrides ? overrides : std::string()); }
+void KarereScheduledMeeting::setCancelled(int cancelled)                  { mCancelled = cancelled; }
+
+// --- IkarereScheduledMeeting methods ---
+karere::Id KarereScheduledMeeting::chatid() const                         { return mChatid; }
+karere::Id KarereScheduledMeeting::callid() const                         { return mCallid; }
+karere::Id KarereScheduledMeeting::parentCallid() const                   { return mParentCallid; }
+const char* KarereScheduledMeeting::timezone() const                      { return !mTimezone.empty() ? mTimezone.c_str() : nullptr; }
+const char* KarereScheduledMeeting::startDateTime() const                 { return !mStartDateTime.empty() ? mStartDateTime.c_str() : nullptr; }
+const char* KarereScheduledMeeting::endDateTime() const                   { return !mEndDateTime.empty() ? mEndDateTime.c_str() : nullptr; }
+const char* KarereScheduledMeeting::title() const                         { return !mTitle.empty() ? mTitle.c_str() : nullptr; }
+const char* KarereScheduledMeeting::description() const                   { return !mDescription.empty() ? mDescription.c_str() : nullptr; }
+const char* KarereScheduledMeeting::attributes() const                    { return !mAttributes.empty() ? mAttributes.c_str() : nullptr; }
+const char* KarereScheduledMeeting::overrides() const                     { return !mOverrides.empty() ? mOverrides.c_str() : nullptr; }
+int KarereScheduledMeeting::cancelled() const                             { return mCancelled; }
+IkarereScheduledFlags* KarereScheduledMeeting::flags() const              { return mFlags.get(); }
+IkarereScheduledRules* KarereScheduledMeeting::rules() const              { return mRules.get(); }
 }

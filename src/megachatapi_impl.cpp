@@ -7888,7 +7888,7 @@ MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(MegaChatScheduledFl
 {
 }
 
-MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(rtcModule::IkarereScheduledFlags* flags)
+MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(karere::IkarereScheduledFlags* flags)
     : mFlags(flags ? flags->getNumericValue() : 0)
 {
 }
@@ -7943,7 +7943,7 @@ MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(MegaChatScheduledRu
 {
 }
 
-MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(rtcModule::IkarereScheduledRules* rules)
+MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(karere::IkarereScheduledRules* rules)
       : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
         mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
         mUntil(rules->until() ? rules->until() : std::string()),
@@ -8044,7 +8044,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatSchedul
 {
 }
 
-MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(rtcModule::IkarereScheduledMeeting* iScheduledMeeting)
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(karere::IkarereScheduledMeeting* iScheduledMeeting)
     : mChatid(iScheduledMeeting->chatid()),
       mCallid(iScheduledMeeting->callid()),
       mParentCallid(iScheduledMeeting->parentCallid()),

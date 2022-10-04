@@ -1228,5 +1228,227 @@ protected:
     friend class ChatRoom;
     friend class ChatRoomList;
 };
+/* ScheduledFlags interface to be exposed at intermediate layer */
+class IkarereScheduledFlags
+{
+public:
+    virtual unsigned long getNumericValue() const = 0;
+    virtual bool EmailsDisabled() const = 0;
+    virtual bool isEmpty() const = 0;
+};
+
+/* ScheduledRules interface to be exposed at intermediate layer */
+class IkarereScheduledRules
+{
+public:
+    virtual int freq() const = 0;
+    virtual int interval() const = 0;
+    virtual const char* until() const = 0;
+    virtual const std::vector<int64_t>* byWeekDay() const = 0;
+    virtual const std::vector<int64_t>* byMonthDay() const = 0;
+    virtual const std::multimap<int64_t, int64_t>* byMonthWeekDay() const = 0;
+};
+
+/* ScheduledMeeting interface to be exposed at intermediate layer */
+class IkarereScheduledMeeting
+{
+public:
+    virtual karere::Id chatid() const = 0;
+    virtual karere::Id callid() const = 0;
+    virtual karere::Id parentCallid() const = 0;
+    virtual const char* timezone() const = 0;
+    virtual const char* startDateTime() const = 0;
+    virtual const char* endDateTime() const = 0;
+    virtual const char* title() const = 0;
+    virtual const char* description() const = 0;
+    virtual const char* attributes() const = 0;
+    virtual const char* overrides() const = 0;
+    virtual int cancelled() const = 0;
+    virtual IkarereScheduledFlags* flags() const = 0;
+    virtual IkarereScheduledRules* rules() const = 0;
+};
+
+class KarereScheduledFlags: public IkarereScheduledFlags
+{
+public:
+    typedef enum
+    {
+        FLAGS_DONT_SEND_EMAILS = 0, // API won't send out calendar emails for this meeting if it's enabled
+        FLAGS_SIZE             = 1, // size in bits of flags bitmask
+    } scheduled_flags_t;
+
+    // TODO remove
+    typedef std::bitset<FLAGS_SIZE> karereScheduledFlagsBitSet;
+
+    KarereScheduledFlags (unsigned long numericValue);
+    KarereScheduledFlags (KarereScheduledFlags* flags);
+    KarereScheduledFlags (IkarereScheduledFlags* flags);
+    KarereScheduledFlags(::mega::ScheduledFlags* flags);
+    virtual ~KarereScheduledFlags();
+    KarereScheduledFlags* copy();
+
+    // --- setters ---
+    void reset();
+    void setEmailsDisabled(bool enabled);
+
+    // --- IkarereScheduledFlags methods ---
+    unsigned long getNumericValue() const override;
+    bool EmailsDisabled() const override;
+    bool isEmpty() const override;
+
+private:
+    karereScheduledFlagsBitSet mFlags = 0;
+};
+
+class KarereScheduledRules: public IkarereScheduledRules
+{
+public:
+    typedef enum {
+        FREQ_INVALID    = -1,
+        FREQ_DAILY      = 0,
+        FREQ_WEEKLY     = 1,
+        FREQ_MONTHLY    = 2,
+    } freq_type;
+
+    constexpr static int INTERVAL_INVALID = 0;
+
+    KarereScheduledRules(int freq,
+                   int interval = INTERVAL_INVALID,
+                   const char* until = nullptr,
+                   const std::vector<int64_t>* byWeekDay = nullptr,
+                   const std::vector<int64_t>* byMonthDay = nullptr,
+                   const std::multimap<int64_t, int64_t>* byMonthWeekDay = nullptr);
+
+    KarereScheduledRules(KarereScheduledRules* rules);
+    KarereScheduledRules(IkarereScheduledRules* rules);
+    KarereScheduledRules(::mega::ScheduledRules* rules);
+    virtual ~KarereScheduledRules();
+
+    // --- setters ---
+    void setFreq(int newFreq);
+    void setInterval(int interval);
+    void setUntil(const char* until);
+    void setByWeekDay(const std::vector<int64_t>* byWeekDay);
+    void setByMonthDay(const std::vector<int64_t>* byMonthDay);
+    void setByMonthWeekDay(const std::multimap<int64_t, int64_t>* byMonthWeekDay);
+    KarereScheduledRules* copy();
+
+    // --- IkarereScheduledRules methods ---
+    int freq() const override;
+    int interval() const override;
+    const char* until() const override;
+    const std::vector<int64_t>* byWeekDay() const override;
+    const std::vector<int64_t>* byMonthDay() const override;
+    const std::multimap<int64_t, int64_t>* byMonthWeekDay() const override;
+
+    static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
+    static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
+
+private:
+    // [required]: scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
+    int mFreq;
+
+    // [optional]: repetition interval in relation to the frequency
+    int mInterval = 0;
+
+    // [optional]: specifies when the repetitions should end
+    std::string mUntil = nullptr;
+
+    // [optional]: allows us to specify that an event will only occur on given week day/s
+    std::unique_ptr<std::vector<int64_t>> mByWeekDay;
+
+    // [optional]: allows us to specify that an event will only occur on a given day/s of the month
+    std::unique_ptr<std::vector<int64_t>> mByMonthDay;
+
+    // [optional]: allows us to specify that an event will only occurs on a specific weekday offset of the month. For example, every 2nd Sunday of each month
+    std::unique_ptr<std::multimap<int64_t, int64_t>> mByMonthWeekDay;
+};
+
+class KarereScheduledMeeting: public IkarereScheduledMeeting
+{
+public:
+    KarereScheduledMeeting(karere::Id chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
+                                    const char* title, const char* description, karere::Id callid = karere::Id::inval(),
+                                    karere::Id parentCallid = karere::Id::inval(), int cancelled = -1, const char* attributes = nullptr,
+                                    const char* overrides = nullptr, KarereScheduledFlags* flags = nullptr,
+                                    KarereScheduledRules* rules = nullptr);
+
+    KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
+
+    KarereScheduledMeeting(mega::ScheduledMeeting* sm);
+
+    KarereScheduledMeeting* copy();
+    virtual ~KarereScheduledMeeting();
+
+    // --- setters ---
+    void setRules(KarereScheduledRules* rules);
+    void setFlags(KarereScheduledFlags* flags);
+    void setCancelled(int cancelled);
+    void setOverrides(const char* overrides);
+    void setAttributes(const char* attributes);
+    void setDescription(const char* description);
+    void setTitle(const char* title);
+    void setEndDateTime(const char* endDateTime);
+    void setStartDateTime(const char* startDateTime);
+    void setTimezone(const char* timezone);
+    void setParentCallid(karere::Id parentCallid);
+    void setCallid(karere::Id callid);
+    void setChatid(karere::Id chatid);
+
+    // --- IkarereScheduledMeeting methods ---
+    karere::Id chatid() const override;
+    karere::Id callid() const override;
+    karere::Id parentCallid() const override;
+    const char* timezone() const override;
+    const char* startDateTime() const override;
+    const char* endDateTime() const override;
+    const char* title() const override;
+    const char* description() const override;
+    const char* attributes() const override;
+    const char* overrides() const override;
+    int cancelled() const override;
+    IkarereScheduledFlags* flags() const override;
+    IkarereScheduledRules* rules() const override;
+
+private:
+    // [required]: chat handle
+    karere::Id mChatid;
+
+    // [optional]: scheduled meeting handle
+    karere::Id mCallid;
+
+    // [optional]: parent scheduled meeting handle
+    karere::Id mParentCallid;
+
+    // [required]: timeZone (B64 encoded)
+    std::string mTimezone;
+
+    // [required]: start dateTime (format: 20220726T133000)
+    std::string mStartDateTime;
+
+    // [required]: end dateTime (format: 20220726T133000)
+    std::string mEndDateTime;
+
+    // [required]: meeting title
+    std::string mTitle;
+
+    // [required]: meeting description
+    std::string mDescription;
+
+    // [optional]: attributes to store any additional data (B64 encoded)
+    std::string mAttributes;
+
+    // [optional]: start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
+    std::string mOverrides;
+
+    // [optional]: cancelled flag
+    int mCancelled;
+
+    // [optional]: flags bitmask (used to store additional boolean settings as a bitmask)
+    std::unique_ptr<KarereScheduledFlags> mFlags;
+
+    // [optional]: scheduled meetings rules
+    std::unique_ptr<KarereScheduledRules> mRules;
+};
 }
 #endif // CHATCLIENT_H

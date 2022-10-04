@@ -821,7 +821,7 @@ public:
     MegaChatScheduledFlagsPrivate();
     MegaChatScheduledFlagsPrivate(unsigned long numericValue);
     MegaChatScheduledFlagsPrivate(MegaChatScheduledFlagsPrivate* flags);
-    MegaChatScheduledFlagsPrivate(rtcModule::IkarereScheduledFlags* flags);
+    MegaChatScheduledFlagsPrivate(karere::IkarereScheduledFlags* flags);
     virtual ~MegaChatScheduledFlagsPrivate();
     MegaChatScheduledFlagsPrivate* copy() override;
 
@@ -849,7 +849,7 @@ public:
                                   const mega::MegaIntegerMap* byMonthWeekDay = nullptr);
 
     MegaChatScheduledRulesPrivate(MegaChatScheduledRulesPrivate* rules);
-    MegaChatScheduledRulesPrivate(rtcModule::IkarereScheduledRules* rules);
+    MegaChatScheduledRulesPrivate(karere::IkarereScheduledRules* rules);
     virtual ~MegaChatScheduledRulesPrivate();
 
     void setFreq(int newFreq);
@@ -907,7 +907,7 @@ public:
                                     MegaChatScheduledRules* rules = nullptr);
 
     MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting);
-    MegaChatScheduledMeetingPrivate(rtcModule::IkarereScheduledMeeting* iScheduledMeeting);
+    MegaChatScheduledMeetingPrivate(karere::IkarereScheduledMeeting* iScheduledMeeting);
     virtual ~MegaChatScheduledMeetingPrivate();
     MegaChatScheduledMeetingPrivate* copy();
 
