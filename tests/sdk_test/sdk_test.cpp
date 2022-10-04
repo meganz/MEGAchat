@@ -5896,7 +5896,7 @@ bool MockupCall::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, uint64_t ts, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
+bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, uint64_t ts, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod)
 {
     return true;
 }
@@ -5968,6 +5968,16 @@ bool MockupCall::handlePeerLeft(Cid_t cid, unsigned termcode)
 }
 
 bool MockupCall::handleBye(unsigned termcode)
+{
+    return false;
+}
+
+bool MockupCall::handleModAdd(uint64_t)
+{
+    return false;
+}
+
+bool MockupCall::handleModDel(uint64_t)
 {
     return false;
 }
