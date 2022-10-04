@@ -830,7 +830,7 @@ public:
     void setEmailsDisabled(bool enabled) override;
 
     // getters
-    unsigned long getNumericValue();
+    unsigned long getNumericValue() const;
     bool EmailsDisabled() const override;
     bool isEmpty() const override;
 
