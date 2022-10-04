@@ -5098,11 +5098,6 @@ KarereScheduledFlags::KarereScheduledFlags(KarereScheduledFlags* flags)
 {
 }
 
-KarereScheduledFlags::KarereScheduledFlags(IkarereScheduledFlags* flags)
-    : mFlags(flags ? flags->getNumericValue() : 0)
-{
-}
-
 KarereScheduledFlags::KarereScheduledFlags(::mega::ScheduledFlags* flags)
  : mFlags(flags ? flags->getNumericValue() : 0)
 {
@@ -5127,7 +5122,6 @@ void KarereScheduledFlags::setEmailsDisabled(bool enabled)
     mFlags[FLAGS_DONT_SEND_EMAILS] = enabled;
 }
 
-// --- IkarereScheduledFlags methods ---
 unsigned long KarereScheduledFlags::getNumericValue() const       { return mFlags.to_ulong(); }
 bool KarereScheduledFlags::EmailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
 bool KarereScheduledFlags::isEmpty() const                        { return mFlags.none(); }
@@ -5149,16 +5143,6 @@ KarereScheduledRules::KarereScheduledRules(int freq,
 }
 
 KarereScheduledRules::KarereScheduledRules(KarereScheduledRules* rules)
-    : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
-      mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
-      mUntil(rules->until() ? rules->until() : nullptr),
-      mByWeekDay(rules->byWeekDay() ? new std::vector<int64_t>(*rules->byWeekDay()) : nullptr),
-      mByMonthDay (rules->byMonthDay() ? new std::vector<int64_t>(*rules->byMonthDay()) : nullptr),
-      mByMonthWeekDay(rules->byMonthWeekDay() ? new std::multimap<int64_t, int64_t>(rules->byMonthWeekDay()->begin(), rules->byMonthWeekDay()->end()) : nullptr)
-{
-}
-
-KarereScheduledRules::KarereScheduledRules(IkarereScheduledRules* rules)
     : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
       mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
       mUntil(rules->until() ? rules->until() : nullptr),
@@ -5247,7 +5231,6 @@ void KarereScheduledRules::setUntil(const char* until)
     mUntil.assign(until ? until : std::string());
 }
 
-// --- IkarereScheduledRules methods ---
 int KarereScheduledRules::freq() const                                          { return mFreq; }
 int KarereScheduledRules::interval() const                                      { return mInterval; }
 const char* KarereScheduledRules::until() const                                 { return !mUntil.empty() ? mUntil.c_str() : nullptr; }
@@ -5343,7 +5326,6 @@ void KarereScheduledMeeting::setAttributes(const char* attributes)        { mAtt
 void KarereScheduledMeeting::setOverrides(const char* overrides)          { mOverrides.append(overrides ? overrides : std::string()); }
 void KarereScheduledMeeting::setCancelled(int cancelled)                  { mCancelled = cancelled; }
 
-// --- IkarereScheduledMeeting methods ---
 karere::Id KarereScheduledMeeting::chatid() const                         { return mChatid; }
 karere::Id KarereScheduledMeeting::callid() const                         { return mCallid; }
 karere::Id KarereScheduledMeeting::parentCallid() const                   { return mParentCallid; }
@@ -5355,6 +5337,6 @@ const char* KarereScheduledMeeting::description() const                   { retu
 const char* KarereScheduledMeeting::attributes() const                    { return !mAttributes.empty() ? mAttributes.c_str() : nullptr; }
 const char* KarereScheduledMeeting::overrides() const                     { return !mOverrides.empty() ? mOverrides.c_str() : nullptr; }
 int KarereScheduledMeeting::cancelled() const                             { return mCancelled; }
-IkarereScheduledFlags* KarereScheduledMeeting::flags() const              { return mFlags.get(); }
-IkarereScheduledRules* KarereScheduledMeeting::rules() const              { return mRules.get(); }
+KarereScheduledFlags* KarereScheduledMeeting::flags() const              { return mFlags.get(); }
+KarereScheduledRules* KarereScheduledMeeting::rules() const              { return mRules.get(); }
 }

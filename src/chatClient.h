@@ -1228,47 +1228,8 @@ protected:
     friend class ChatRoom;
     friend class ChatRoomList;
 };
-/* ScheduledFlags interface to be exposed at intermediate layer */
-class IkarereScheduledFlags
-{
-public:
-    virtual unsigned long getNumericValue() const = 0;
-    virtual bool EmailsDisabled() const = 0;
-    virtual bool isEmpty() const = 0;
-};
 
-/* ScheduledRules interface to be exposed at intermediate layer */
-class IkarereScheduledRules
-{
-public:
-    virtual int freq() const = 0;
-    virtual int interval() const = 0;
-    virtual const char* until() const = 0;
-    virtual const std::vector<int64_t>* byWeekDay() const = 0;
-    virtual const std::vector<int64_t>* byMonthDay() const = 0;
-    virtual const std::multimap<int64_t, int64_t>* byMonthWeekDay() const = 0;
-};
-
-/* ScheduledMeeting interface to be exposed at intermediate layer */
-class IkarereScheduledMeeting
-{
-public:
-    virtual karere::Id chatid() const = 0;
-    virtual karere::Id callid() const = 0;
-    virtual karere::Id parentCallid() const = 0;
-    virtual const char* timezone() const = 0;
-    virtual const char* startDateTime() const = 0;
-    virtual const char* endDateTime() const = 0;
-    virtual const char* title() const = 0;
-    virtual const char* description() const = 0;
-    virtual const char* attributes() const = 0;
-    virtual const char* overrides() const = 0;
-    virtual int cancelled() const = 0;
-    virtual IkarereScheduledFlags* flags() const = 0;
-    virtual IkarereScheduledRules* rules() const = 0;
-};
-
-class KarereScheduledFlags: public IkarereScheduledFlags
+class KarereScheduledFlags
 {
 public:
     typedef enum
@@ -1282,7 +1243,6 @@ public:
 
     KarereScheduledFlags (unsigned long numericValue);
     KarereScheduledFlags (KarereScheduledFlags* flags);
-    KarereScheduledFlags (IkarereScheduledFlags* flags);
     KarereScheduledFlags(::mega::ScheduledFlags* flags);
     virtual ~KarereScheduledFlags();
     KarereScheduledFlags* copy();
@@ -1291,16 +1251,15 @@ public:
     void reset();
     void setEmailsDisabled(bool enabled);
 
-    // --- IkarereScheduledFlags methods ---
-    unsigned long getNumericValue() const override;
-    bool EmailsDisabled() const override;
-    bool isEmpty() const override;
+    unsigned long getNumericValue() const;
+    bool EmailsDisabled() const;
+    bool isEmpty() const;
 
 private:
     karereScheduledFlagsBitSet mFlags = 0;
 };
 
-class KarereScheduledRules: public IkarereScheduledRules
+class KarereScheduledRules
 {
 public:
     typedef enum {
@@ -1320,7 +1279,6 @@ public:
                    const std::multimap<int64_t, int64_t>* byMonthWeekDay = nullptr);
 
     KarereScheduledRules(KarereScheduledRules* rules);
-    KarereScheduledRules(IkarereScheduledRules* rules);
     KarereScheduledRules(::mega::ScheduledRules* rules);
     virtual ~KarereScheduledRules();
 
@@ -1333,13 +1291,12 @@ public:
     void setByMonthWeekDay(const std::multimap<int64_t, int64_t>* byMonthWeekDay);
     KarereScheduledRules* copy();
 
-    // --- IkarereScheduledRules methods ---
-    int freq() const override;
-    int interval() const override;
-    const char* until() const override;
-    const std::vector<int64_t>* byWeekDay() const override;
-    const std::vector<int64_t>* byMonthDay() const override;
-    const std::multimap<int64_t, int64_t>* byMonthWeekDay() const override;
+    int freq() const;
+    int interval() const;
+    const char* until() const;
+    const std::vector<int64_t>* byWeekDay() const;
+    const std::vector<int64_t>* byMonthDay() const;
+    const std::multimap<int64_t, int64_t>* byMonthWeekDay() const;
 
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
@@ -1364,7 +1321,7 @@ private:
     std::unique_ptr<std::multimap<int64_t, int64_t>> mByMonthWeekDay;
 };
 
-class KarereScheduledMeeting: public IkarereScheduledMeeting
+class KarereScheduledMeeting
 {
 public:
     KarereScheduledMeeting(karere::Id chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
@@ -1395,20 +1352,19 @@ public:
     void setCallid(karere::Id callid);
     void setChatid(karere::Id chatid);
 
-    // --- IkarereScheduledMeeting methods ---
-    karere::Id chatid() const override;
-    karere::Id callid() const override;
-    karere::Id parentCallid() const override;
-    const char* timezone() const override;
-    const char* startDateTime() const override;
-    const char* endDateTime() const override;
-    const char* title() const override;
-    const char* description() const override;
-    const char* attributes() const override;
-    const char* overrides() const override;
-    int cancelled() const override;
-    IkarereScheduledFlags* flags() const override;
-    IkarereScheduledRules* rules() const override;
+    karere::Id chatid() const;
+    karere::Id callid() const;
+    karere::Id parentCallid() const;
+    const char* timezone() const;
+    const char* startDateTime() const;
+    const char* endDateTime() const;
+    const char* title() const;
+    const char* description() const;
+    const char* attributes() const;
+    const char* overrides() const;
+    int cancelled() const;
+    KarereScheduledFlags* flags() const;
+    KarereScheduledRules* rules() const;
 
 private:
     // [required]: chat handle
