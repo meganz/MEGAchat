@@ -60,6 +60,9 @@ class ChatRoom;
 class GroupChatRoom;
 class Contact;
 class ContactList;
+class KarereScheduledFlags;
+class KarereScheduledRules;
+class KarereScheduledMeeting;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 typedef std::map<uint64_t, std::string> AliasesMap;
@@ -354,6 +357,8 @@ protected:
     bool mMeeting = false;
     ::mega::ChatOptions mChatOptions; // by default chat options are empty
 
+    // scheduled meetings map
+    std::map<karere::Id/*schedMeetingId(callid)*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
     void setChatPrivateMode();
     void updateChatOptions(mega::ChatOptions_t opt);
     bool syncMembers(const mega::MegaTextChat& chat);
@@ -1244,6 +1249,7 @@ public:
     KarereScheduledFlags (unsigned long numericValue);
     KarereScheduledFlags (KarereScheduledFlags* flags);
     KarereScheduledFlags(::mega::ScheduledFlags* flags);
+    KarereScheduledFlags(::mega::MegaScheduledFlags* flags);
     virtual ~KarereScheduledFlags();
     KarereScheduledFlags* copy();
 
@@ -1254,6 +1260,7 @@ public:
     unsigned long getNumericValue() const;
     bool EmailsDisabled() const;
     bool isEmpty() const;
+    bool equalTo(::mega::MegaScheduledFlags* aux) const;
 
 private:
     karereScheduledFlagsBitSet mFlags = 0;
@@ -1280,6 +1287,7 @@ public:
 
     KarereScheduledRules(KarereScheduledRules* rules);
     KarereScheduledRules(::mega::ScheduledRules* rules);
+    KarereScheduledRules(::mega::MegaScheduledRules* rules);
     virtual ~KarereScheduledRules();
 
     // --- setters ---
@@ -1297,6 +1305,7 @@ public:
     const std::vector<int64_t>* byWeekDay() const;
     const std::vector<int64_t>* byMonthDay() const;
     const std::multimap<int64_t, int64_t>* byMonthWeekDay() const;
+    bool equalTo (::mega::MegaScheduledRules* aux) const;
 
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
@@ -1309,7 +1318,7 @@ private:
     int mInterval = 0;
 
     // [optional]: specifies when the repetitions should end
-    std::string mUntil = nullptr;
+    std::string mUntil;
 
     // [optional]: allows us to specify that an event will only occur on given week day/s
     std::unique_ptr<std::vector<int64_t>> mByWeekDay;
@@ -1324,6 +1333,23 @@ private:
 class KarereScheduledMeeting
 {
 public:
+    typedef enum
+    {
+        SC_PARENT           = 0,
+        SC_TZONE            = 1,
+        SC_START            = 2,
+        SC_END              = 3,
+        SC_TITLE            = 4,
+        SC_DESC             = 5,
+        SC_ATTR             = 6,
+        SC_OVERR            = 7,
+        SC_CANC             = 8,
+        SC_FLAGS            = 9,
+        SC_RULES            = 10,
+        SC_SIZE             = 11,
+    } scheduled_changed_flags_t;
+    typedef std::bitset<SC_SIZE> sched_bs_t;
+
     KarereScheduledMeeting(karere::Id chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
                                     const char* title, const char* description, karere::Id callid = karere::Id::inval(),
                                     karere::Id parentCallid = karere::Id::inval(), int cancelled = -1, const char* attributes = nullptr,
@@ -1333,6 +1359,7 @@ public:
     KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
 
     KarereScheduledMeeting(mega::ScheduledMeeting* sm);
+    KarereScheduledMeeting(mega::MegaScheduledMeeting* sm);
 
     KarereScheduledMeeting* copy();
     virtual ~KarereScheduledMeeting();
@@ -1365,6 +1392,7 @@ public:
     int cancelled() const;
     KarereScheduledFlags* flags() const;
     KarereScheduledRules* rules() const;
+    sched_bs_t compare(const mega::MegaScheduledMeeting* sm) const;
 
 private:
     // [required]: chat handle
