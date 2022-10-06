@@ -19,6 +19,7 @@ QTMegaChatEvent::QTMegaChatEvent(MegaChatApi *megaChatApi, Type type) : QEvent(t
     call = nullptr;
     callid = MEGACHAT_INVALID_HANDLE;
     session = nullptr;
+    schedMeeting = nullptr;
 }
 
 QTMegaChatEvent::~QTMegaChatEvent()
@@ -32,6 +33,7 @@ QTMegaChatEvent::~QTMegaChatEvent()
     delete msg;
     delete call;
     delete session;
+    delete schedMeeting;
 }
 
 MegaChatApi *QTMegaChatEvent::getMegaChatApi()
@@ -112,6 +114,11 @@ size_t QTMegaChatEvent::getSize()
 MegaChatSession *QTMegaChatEvent::getChatSession()
 {
     return session;
+}
+
+MegaChatScheduledMeeting *QTMegaChatEvent::getSchedMeeting()
+{
+    return schedMeeting;
 }
 
 MegaChatHandle QTMegaChatEvent::getChatCallid()
@@ -197,6 +204,11 @@ void QTMegaChatEvent::setSize(size_t size)
 void QTMegaChatEvent::setChatSession(MegaChatSession *session)
 {
     this->session = session;
+}
+
+void QTMegaChatEvent::setSchedMeeting(MegaChatScheduledMeeting* sm)
+{
+    this->schedMeeting = sm;
 }
 
 void QTMegaChatEvent::setChatCallid(MegaChatHandle callid)

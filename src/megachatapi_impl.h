@@ -622,6 +622,16 @@ private:
     MegaChatApiImpl* mMegaChatApi;
 };
 
+class MegaChatScheduledMeetingHandler: public karere::ScheduledMeetingHandler
+{
+public:
+    MegaChatScheduledMeetingHandler(MegaChatApiImpl* megaChatApi);
+    ~MegaChatScheduledMeetingHandler();
+    void onSchedMeetingChange(const karere::KarereScheduledMeeting* sm, unsigned long diff) override;
+private:
+    MegaChatApiImpl* mMegaChatApi;
+};
+
 class MegaChatSessionHandler : public rtcModule::SessionHandler
 {
 public:
@@ -821,7 +831,7 @@ public:
     MegaChatScheduledFlagsPrivate();
     MegaChatScheduledFlagsPrivate(unsigned long numericValue);
     MegaChatScheduledFlagsPrivate(MegaChatScheduledFlagsPrivate* flags);
-    MegaChatScheduledFlagsPrivate(karere::KarereScheduledFlags* flags);
+    MegaChatScheduledFlagsPrivate(const karere::KarereScheduledFlags* flags);
     virtual ~MegaChatScheduledFlagsPrivate();
     MegaChatScheduledFlagsPrivate* copy() override;
 
@@ -849,7 +859,7 @@ public:
                                   const mega::MegaIntegerMap* byMonthWeekDay = nullptr);
 
     MegaChatScheduledRulesPrivate(MegaChatScheduledRulesPrivate* rules);
-    MegaChatScheduledRulesPrivate(karere::KarereScheduledRules* rules);
+    MegaChatScheduledRulesPrivate(const karere::KarereScheduledRules* rules);
     virtual ~MegaChatScheduledRulesPrivate();
 
     void setFreq(int newFreq);
@@ -907,7 +917,7 @@ public:
                                     MegaChatScheduledRules* rules = nullptr);
 
     MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting);
-    MegaChatScheduledMeetingPrivate(karere::KarereScheduledMeeting* iScheduledMeeting);
+    MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* scheduledMeeting);
     virtual ~MegaChatScheduledMeetingPrivate();
     MegaChatScheduledMeetingPrivate* copy();
 
@@ -924,6 +934,7 @@ public:
     void setParentCallid(MegaChatHandle parentCallid);
     void setCallid(MegaChatHandle callid);
     void setChatid(MegaChatHandle chatid);
+    void setChanged(unsigned long val);
 
     MegaChatHandle chatid() const;
     MegaChatHandle callid() const;
@@ -978,6 +989,9 @@ private:
 
     // [optional]: scheduled meetings rules
     std::unique_ptr<MegaChatScheduledRules> mRules;
+
+    // changed bitmap
+    mega_sched_bs_t mChanged;
 };
 
 class MegaChatAttachedUser;
@@ -1137,6 +1151,7 @@ private:
 
 #ifndef KARERE_DISABLE_WEBRTC
     std::set<MegaChatCallListener *> callListeners;
+    std::set<MegaChatScheduledMeetingListener *> schedMeetingListeners;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersHiRes;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersLowRes;
     std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalVideoListeners;
@@ -1144,6 +1159,7 @@ private:
     mega::MegaStringList *getChatInDevices(const std::set<std::string> &devices);
     void cleanCalls();
     std::unique_ptr<MegaChatCallHandler> mCallHandler;
+    std::unique_ptr<MegaChatScheduledMeetingHandler> mScheduledMeetingHandler;
 #endif
 
     void cleanChatHandlers();
@@ -1209,7 +1225,9 @@ public:
     void setPublicKeyPinning(bool enable);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
+    void addSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
     void removeChatCallListener(MegaChatCallListener *listener);
+    void removeSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
     void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
     void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
 #endif
@@ -1221,6 +1239,9 @@ public:
     void fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaChatError *e);
 
 #ifndef KARERE_DISABLE_WEBRTC
+    // MegaChatScheduledMeetListener callbacks
+    void fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPrivate* sm);
+
     // MegaChatCallListener callbacks
     void fireOnChatCallUpdate(MegaChatCallPrivate *call);
     void fireOnChatSessionUpdate(MegaChatHandle chatid, MegaChatHandle callid, MegaChatSessionPrivate *session);

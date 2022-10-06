@@ -973,6 +973,21 @@ public:
     virtual void onChatSessionUpdate(MegaChatApi* api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session);
 };
 
+/**
+ * @brief Interface to get notifications about scheduled meetings and scheduled meetings occurrences
+ *
+ * You can un/subscribe to changes by using:
+ *
+ *  - MegaChatApi::addSchedMeetingListener / MegaChatApi::removeSchedMeetingListener
+ *
+ */
+class MegaChatScheduledMeetingListener
+{
+public:
+    virtual ~MegaChatScheduledMeetingListener() {}
+    virtual void onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting *sm);
+};
+
 class MegaChatPeerList
 {
 public:
@@ -5908,6 +5923,24 @@ public:
     void removeChatCallListener(MegaChatCallListener *listener);
 
     /**
+     * @brief Register a listener to receive all events about scheduled meetings
+     *
+     * You can use MegaChatApi::removeSchedMeetingListener to stop receiving events.
+     *
+     * @param listener MegaChatScheduledMeetingListener that will receive all scheduled meetings events
+     */
+    void addSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
+
+    /**
+     * @brief Unregister a MegaChatScheduledMeetingListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    void removeSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
+
+    /**
      * @brief Register a listener to receive video from local device for an specific chat room
      *
      * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
@@ -7259,6 +7292,23 @@ public:
 class MegaChatScheduledMeeting
 {
 public:
+    typedef enum
+    {
+       SC_PARENT           = 0,
+       SC_TZONE            = 1,
+       SC_START            = 2,
+       SC_END              = 3,
+       SC_TITLE            = 4,
+       SC_DESC             = 5,
+       SC_ATTR             = 6,
+       SC_OVERR            = 7,
+       SC_CANC             = 8,
+       SC_FLAGS            = 9,
+       SC_RULES            = 10,
+       SC_SIZE             = 11,
+    } scheduled_changed_flags_t;
+    typedef std::bitset<SC_SIZE> mega_sched_bs_t;
+
     virtual ~MegaChatScheduledMeeting();
 
     /**

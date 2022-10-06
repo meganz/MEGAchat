@@ -118,6 +118,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     reqtag = 0;
 #ifndef KARERE_DISABLE_WEBRTC
     mCallHandler = ::mega::make_unique<MegaChatCallHandler>(this);
+    mScheduledMeetingHandler = ::mega::make_unique<MegaChatScheduledMeetingHandler>(this);
 #endif
     //Start blocking thread
     threadExit = 0;
@@ -2707,7 +2708,7 @@ void MegaChatApiImpl::createKarereClient()
         uint8_t caps = karere::kClientIsMobile | karere::kClientSupportLastGreen;
 #endif
 #ifndef KARERE_DISABLE_WEBRTC
-        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mCallHandler, mMegaApi->getBasePath(), caps, this);
+        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mCallHandler, *mScheduledMeetingHandler, mMegaApi->getBasePath(), caps, this);
 #else
         mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, mMegaApi->getBasePath(), caps, this);
 #endif
@@ -3071,6 +3072,18 @@ void MegaChatApiImpl::fireOnChatRequestTemporaryError(MegaChatRequestPrivate *re
 
 #ifndef KARERE_DISABLE_WEBRTC
 
+void MegaChatApiImpl::fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPrivate* sm)
+{
+    if (mTerminating)
+    {
+        return;
+    }
+
+    for (set<MegaChatScheduledMeetingListener *>::iterator it = schedMeetingListeners.begin(); it != schedMeetingListeners.end() ; it++)
+    {
+        (*it)->onChatSchedMeetingUpdate(mChatApi, sm);
+    }
+}
 void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
 {
     if (call->getCallId() == Id::inval())
@@ -5174,6 +5187,30 @@ void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
 
     sdkMutex.lock();
     callListeners.insert(listener);
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::addSchedMeetingListener(MegaChatScheduledMeetingListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    schedMeetingListeners.insert(listener);
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeSchedMeetingListener(MegaChatScheduledMeetingListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    schedMeetingListeners.erase(listener);
     sdkMutex.unlock();
 }
 
@@ -7888,7 +7925,7 @@ MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(MegaChatScheduledFl
 {
 }
 
-MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(karere::KarereScheduledFlags* flags)
+MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(const karere::KarereScheduledFlags* flags)
     : mFlags(flags ? flags->getNumericValue() : 0)
 {
 }
@@ -7943,7 +7980,7 @@ MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(MegaChatScheduledRu
 {
 }
 
-MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(karere::KarereScheduledRules* rules)
+MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const karere::KarereScheduledRules* rules)
       : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
         mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
         mUntil(rules->until() ? rules->until() : std::string()),
@@ -8044,20 +8081,20 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatSchedul
 {
 }
 
-MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(karere::KarereScheduledMeeting* iScheduledMeeting)
-    : mChatid(iScheduledMeeting->chatid()),
-      mCallid(iScheduledMeeting->callid()),
-      mParentCallid(iScheduledMeeting->parentCallid()),
-      mTimezone(iScheduledMeeting->timezone() ? iScheduledMeeting->timezone() : std::string()),
-      mStartDateTime(iScheduledMeeting->startDateTime() ? iScheduledMeeting->startDateTime() : std::string()),
-      mEndDateTime(iScheduledMeeting->endDateTime() ? iScheduledMeeting->endDateTime() : std::string()),
-      mTitle(iScheduledMeeting->title() ? iScheduledMeeting->title() : std::string()),
-      mDescription(iScheduledMeeting->description() ? iScheduledMeeting->description() : std::string()),
-      mAttributes(iScheduledMeeting->attributes() ? iScheduledMeeting->attributes() : std::string()),
-      mOverrides(iScheduledMeeting->overrides() ? iScheduledMeeting->overrides() : std::string()),
-      mCancelled(iScheduledMeeting->cancelled()),
-      mFlags(iScheduledMeeting->flags() ? new MegaChatScheduledFlagsPrivate(iScheduledMeeting->flags()) : nullptr),
-      mRules(iScheduledMeeting->rules() ? new MegaChatScheduledRulesPrivate(iScheduledMeeting->rules()) : nullptr)
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* scheduledMeeting)
+    : mChatid(scheduledMeeting->chatid()),
+      mCallid(scheduledMeeting->callid()),
+      mParentCallid(scheduledMeeting->parentCallid()),
+      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
+      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
+      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
+      mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
+      mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
+      mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
+      mOverrides(scheduledMeeting->overrides() ? scheduledMeeting->overrides() : std::string()),
+      mCancelled(scheduledMeeting->cancelled()),
+      mFlags(scheduledMeeting->flags() ? new MegaChatScheduledFlagsPrivate(scheduledMeeting->flags()) : nullptr),
+      mRules(scheduledMeeting->rules() ? new MegaChatScheduledRulesPrivate(scheduledMeeting->rules()) : nullptr)
 {
 }
 
@@ -8093,6 +8130,7 @@ void MegaChatScheduledMeetingPrivate::setDescription(const char* description)   
 void MegaChatScheduledMeetingPrivate::setAttributes(const char* attributes)         { mAttributes.append(attributes ? attributes : std::string());}
 void MegaChatScheduledMeetingPrivate::setOverrides(const char* overrides)           { mOverrides.append(overrides ? overrides : std::string());}
 void MegaChatScheduledMeetingPrivate::setCancelled(int cancelled)                   { mCancelled = cancelled;}
+void MegaChatScheduledMeetingPrivate::setChanged(unsigned long val)                 { mChanged = mega_sched_bs_t(val); }
 
 MegaChatHandle MegaChatScheduledMeetingPrivate::chatid() const                      { return mChatid;}
 MegaChatHandle MegaChatScheduledMeetingPrivate::callid() const                      { return mCallid;}
@@ -9743,6 +9781,21 @@ void MegaChatCallHandler::onNetworkQualityChanged(const rtcModule::ICall &call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
+MegaChatScheduledMeetingHandler::MegaChatScheduledMeetingHandler(MegaChatApiImpl *megaChatApi)
+{
+    mMegaChatApi = megaChatApi;
+}
+
+MegaChatScheduledMeetingHandler::~MegaChatScheduledMeetingHandler()
+{
+}
+
+void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduledMeeting *sm, unsigned long changed)
+{
+    std::unique_ptr<MegaChatScheduledMeetingPrivate> schedMeeting(new MegaChatScheduledMeetingPrivate(sm));
+    schedMeeting->setChanged(changed);
+    mMegaChatApi->fireOnChatSchedMeetingUpdate(schedMeeting.get());
+}
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {
     mMegaChatApi = megaChatApi;

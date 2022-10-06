@@ -66,6 +66,7 @@ bool Client::isInBackground() const
 Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 #ifndef KARERE_DISABLE_WEBRTC
                rtcModule::CallHandler &callHandler,
+               ScheduledMeetingHandler& scheduledMeetingHandler,
 #endif
                const std::string &appDir, uint8_t caps, void *ctx)
     : mAppDir(appDir),
@@ -77,6 +78,7 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
       mDnsCache(db, chatd::Client::chatdVersion),
 #ifndef KARERE_DISABLE_WEBRTC
       mCallHandler(callHandler),
+      mScheduledMeetingHandler(scheduledMeetingHandler),
 #endif
       mContactList(new ContactList(*this)),
       chats(new ChatRoomList(*this)),
@@ -2450,6 +2452,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
     mRoomGui = addAppItem();
     mIsInitializing = false;
+
+    // Add scheduled meeting list and notify app
+    addSchedMeetings(aChat);
 }
 
 //Resume from cache
@@ -3077,6 +3082,19 @@ void GroupChatRoom::notifyPreviewClosed()
     auto listItem = roomGui();
     if (listItem)
         listItem->onPreviewClosed();
+}
+
+ScheduledMeetingHandler& GroupChatRoom::schedMeetingHandler()
+{
+    return parent.mKarereClient.mScheduledMeetingHandler;
+}
+
+void GroupChatRoom::notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed)
+{
+    callAfterInit(this, [this, sm, changed]
+    {
+        schedMeetingHandler().onSchedMeetingChange(sm, changed);
+    }, parent.mKarereClient.appCtx);
 }
 
 void GroupChatRoom::setRemoved()
@@ -3994,6 +4012,11 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         updateChatOptions(chat.getChatOptions());
     }
 
+    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_MEETING))
+    {
+        updateSchedMeetings(chat);
+    }
+
     // Own privilege changed
     auto oldPriv = mOwnPriv;
     bool ownPrivChanged = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
@@ -4125,6 +4148,68 @@ void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
     if (oldOptions.speakRequest() != newOptions.speakRequest()) { notifyChatOptionsChanged(mega::ChatOptions::kSpeakRequest); }
     if (oldOptions.waitingRoom() != newOptions.waitingRoom())   { notifyChatOptionsChanged(mega::ChatOptions::kWaitingRoom); }
     if (oldOptions.openInvite() != newOptions.openInvite())     { notifyChatOptionsChanged(mega::ChatOptions::kOpenInvite); }
+}
+
+void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
+{
+    if (!chat.getScheduledMeetingList() || !chat.getScheduledMeetingList()->size())
+    {
+        return;
+    }
+    const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingList();
+    for (unsigned int i = 0; i < schedMeetings->size(); i++)
+    {
+        KarereScheduledMeeting::sched_bs_t diff = KarereScheduledMeeting::sched_bs_t().set();
+        std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(schedMeetings->at(i)));
+        auto res = mScheduledMeetings.emplace(aux->callid(), std::move(aux));
+        if (res.second)
+        {
+            notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
+        }
+        else
+        {
+            KR_LOG_WARNING("addSchedMeetings: can't add a scheduled meeting");
+        }
+    }
+}
+
+void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
+{
+    if (!chat.getSchedMeetingsChanged() || !chat.getScheduledMeetingList())
+    {
+        return;
+    }
+
+    const mega::MegaHandleList* changed = chat.getSchedMeetingsChanged();
+    const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingList();
+    for (unsigned int i = 0; i < changed->size(); i++)
+    {
+        auto h = changed->get(i);
+        auto it = mScheduledMeetings.find(h);
+        ::mega::MegaScheduledMeeting* newSched = schedMeetings->getBySchedMeetingId(h);
+
+        KarereScheduledMeeting::sched_bs_t diff = (it == mScheduledMeetings.end())
+                ? KarereScheduledMeeting::sched_bs_t().set()
+                : it->second->compare(newSched);
+
+        if (diff.any())
+        {
+            std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(newSched));
+            if (it != mScheduledMeetings.end())
+            {
+                it->second = std::move(aux);
+                notifySchedMeetingUpdated(it->second.get(),  diff.to_ulong());
+            }
+            else // not found (new scheduled meeting), add it
+            {
+                auto res = mScheduledMeetings.emplace(aux->callid(), std::move(aux));
+                if (res.second)
+                {
+                    notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
+                }
+            }
+        }
+    }
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)

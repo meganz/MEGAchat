@@ -1155,6 +1155,17 @@ void MegaChatApi::removeChatCallListener(MegaChatCallListener *listener)
     pImpl->removeChatCallListener(listener);
 }
 
+void MegaChatApi::addSchedMeetingListener(MegaChatScheduledMeetingListener* listener)
+{
+    pImpl->addSchedMeetingListener(listener);
+}
+
+
+void MegaChatApi::removeSchedMeetingListener(MegaChatScheduledMeetingListener* listener)
+{
+    pImpl->removeSchedMeetingListener(listener);
+}
+
 void MegaChatApi::addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
 {
     pImpl->addChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, listener);
@@ -1672,6 +1683,11 @@ void MegaChatCallListener::onChatCallUpdate(MegaChatApi * /*api*/, MegaChatCall 
 }
 
 void MegaChatCallListener::onChatSessionUpdate(MegaChatApi * /*api*/, MegaChatHandle /*chatid*/, MegaChatHandle /*callid*/, MegaChatSession * /*session*/)
+{
+
+}
+
+void MegaChatScheduledMeetingListener::onChatSchedMeetingUpdate(MegaChatApi* /*api*/, MegaChatScheduledMeeting* /*sm*/)
 {
 
 }

@@ -201,7 +201,8 @@ class MegaChatApiTest :
         public ::mega::MegaLogger,
         public megachat::MegaChatRequestListener,
         public megachat::MegaChatListener,
-        public megachat::MegaChatCallListener
+        public megachat::MegaChatCallListener,
+        public megachat::MegaChatScheduledMeetingListener
 {
 public:
     MegaChatApiTest();
@@ -421,6 +422,8 @@ public:
     virtual void onChatSessionUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid,
                                      megachat::MegaChatHandle callid,
                                      megachat::MegaChatSession *session);
+
+    virtual void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm) override;
 #endif
 };
 

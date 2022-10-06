@@ -34,6 +34,9 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
 #ifndef KARERE_DISABLE_WEBRTC
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
     mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
+
+    megaSchedMeetingListenerDelegate = new megachat::QTMegaChatScheduledMeetingListener(mMegaChatApi, this);
+    mMegaChatApi->addSchedMeetingListener(megaSchedMeetingListenerDelegate);
 #endif
 }
 
@@ -62,6 +65,13 @@ void MainWindow::removeListeners()
         mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
         delete megaChatCallListenerDelegate;
         megaChatCallListenerDelegate = NULL;
+    }
+
+    if(megaSchedMeetingListenerDelegate)
+    {
+        mMegaChatApi->removeSchedMeetingListener(megaSchedMeetingListenerDelegate);
+        delete megaSchedMeetingListenerDelegate;
+        megaSchedMeetingListenerDelegate = NULL;
     }
     #endif
 }
@@ -357,8 +367,9 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     }
 }
 
-
-
+void MainWindow::onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm)
+{
+}
 #endif
 
 void MainWindow::closeEvent(QCloseEvent *event)

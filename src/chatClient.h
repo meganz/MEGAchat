@@ -63,6 +63,7 @@ class ContactList;
 class KarereScheduledFlags;
 class KarereScheduledRules;
 class KarereScheduledMeeting;
+class ScheduledMeetingHandler;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 typedef std::map<uint64_t, std::string> AliasesMap;
@@ -359,8 +360,12 @@ protected:
 
     // scheduled meetings map
     std::map<karere::Id/*schedMeetingId(callid)*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
+
+    ScheduledMeetingHandler& schedMeetingHandler();
     void setChatPrivateMode();
     void updateChatOptions(mega::ChatOptions_t opt);
+    void addSchedMeetings(const mega::MegaTextChat& chat);
+    void updateSchedMeetings(const mega::MegaTextChat& chat);
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
@@ -375,6 +380,7 @@ protected:
     void updateTitleInDb(const std::string &title, int isEncrypted);
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void notifyPreviewClosed();
+    void notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed);
     void setRemoved();
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
@@ -911,6 +917,7 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::CallHandler& mCallHandler; // interface for global events in calls
+    ScheduledMeetingHandler& mScheduledMeetingHandler; // interface for global events in scheduled meetings
     std::unique_ptr<rtcModule::RtcModule> rtc;
 #endif
 
@@ -976,6 +983,7 @@ public:
     Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 #ifndef KARERE_DISABLE_WEBRTC
            rtcModule::CallHandler& callHandler,
+           ScheduledMeetingHandler& mScheduledMeetingHandler,
 #endif
            const std::string &appDir, uint8_t caps, void *ctx);
 
@@ -1433,6 +1441,13 @@ private:
 
     // [optional]: scheduled meetings rules
     std::unique_ptr<KarereScheduledRules> mRules;
+};
+
+class ScheduledMeetingHandler
+{
+public:
+    virtual ~ScheduledMeetingHandler(){}
+    virtual void onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed) = 0;
 };
 }
 #endif // CHATCLIENT_H
