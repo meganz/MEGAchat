@@ -3084,6 +3084,19 @@ void MegaChatApiImpl::fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPriva
         (*it)->onChatSchedMeetingUpdate(mChatApi, sm);
     }
 }
+
+void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(MegaChatScheduledMeetingListPrivate* l)
+{
+    if (mTerminating)
+    {
+        return;
+    }
+
+    for (set<MegaChatScheduledMeetingListener *>::iterator it = schedMeetingListeners.begin(); it != schedMeetingListeners.end() ; it++)
+    {
+        (*it)->onSchedMeetingOccurrencesChange(mChatApi, l);
+    }
+}
 void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
 {
     if (call->getCallId() == Id::inval())
@@ -8146,6 +8159,77 @@ int MegaChatScheduledMeetingPrivate::cancelled() const                          
 MegaChatScheduledFlags* MegaChatScheduledMeetingPrivate::flags() const              { return mFlags.get();}
 MegaChatScheduledRules* MegaChatScheduledMeetingPrivate::rules() const              { return mRules.get();}
 
+MegaChatScheduledMeetingListPrivate::MegaChatScheduledMeetingListPrivate()
+{
+}
+
+MegaChatScheduledMeetingListPrivate::MegaChatScheduledMeetingListPrivate(const MegaChatScheduledMeetingListPrivate& l)
+{
+    mList.reserve(l.size());
+    for (unsigned long i = 0; i < l.size(); i++)
+    {
+        mList.emplace_back(l.at(i)->copy());
+    }
+}
+
+MegaChatScheduledMeetingListPrivate::~MegaChatScheduledMeetingListPrivate()
+{
+    // all objects managed by unique_ptr's containted in mList will be deallocated when mList is destroyed
+}
+
+unsigned long MegaChatScheduledMeetingListPrivate::size() const
+{
+    return mList.size();
+}
+
+MegaChatScheduledMeetingListPrivate* MegaChatScheduledMeetingListPrivate::copy() const
+{
+   return new MegaChatScheduledMeetingListPrivate(*this);
+}
+
+MegaChatScheduledMeeting* MegaChatScheduledMeetingListPrivate::at(unsigned long i) const
+{
+    return mList.at(i).get();
+}
+
+MegaChatScheduledMeeting* MegaChatScheduledMeetingListPrivate::getBySchedMeetingId(MegaChatHandle h) const
+{
+    auto it = std::find_if(mList.begin(),
+                   mList.end(),
+                   [h](const std::unique_ptr<MegaChatScheduledMeeting>& sm) -> bool
+                   {
+                       return h == sm ->callid();
+                   });
+
+    return (it != mList.end())
+        ? it->get()
+        : nullptr;
+}
+
+void MegaChatScheduledMeetingListPrivate::insert(MegaChatScheduledMeeting* sm)
+{
+    mList.emplace_back(sm);
+}
+
+void MegaChatScheduledMeetingListPrivate::remove(MegaChatHandle h)
+{
+    auto it = std::find_if(mList.begin(), mList.end(),
+                           [h](std::unique_ptr<MegaChatScheduledMeeting>& sm) -> bool
+                           {
+                             return h == sm ->callid();
+                           });
+
+    if (it != mList.end())
+    {
+        mList.erase(it);
+    }
+}
+
+void MegaChatScheduledMeetingListPrivate::clear()
+{
+     mList.clear();
+}
+
 MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 {
     mChatid = chat->getChatId();
@@ -9795,6 +9879,16 @@ void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduled
     std::unique_ptr<MegaChatScheduledMeetingPrivate> schedMeeting(new MegaChatScheduledMeetingPrivate(sm));
     schedMeeting->setChanged(changed);
     mMegaChatApi->fireOnChatSchedMeetingUpdate(schedMeeting.get());
+}
+
+void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>&l)
+{
+    std::unique_ptr<MegaChatScheduledMeetingListPrivate> list(new MegaChatScheduledMeetingListPrivate());
+    for (auto it = l.begin(); it != l.end(); it++)
+    {
+        list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+    }
+    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(list.get());
 }
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {

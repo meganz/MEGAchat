@@ -628,6 +628,8 @@ public:
     MegaChatScheduledMeetingHandler(MegaChatApiImpl* megaChatApi);
     ~MegaChatScheduledMeetingHandler();
     void onSchedMeetingChange(const karere::KarereScheduledMeeting* sm, unsigned long diff) override;
+    void onSchedMeetingOccurrencesChange(const std::multimap<karere::Id, std::unique_ptr<karere::KarereScheduledMeeting>>&l) override;
+
 private:
     MegaChatApiImpl* mMegaChatApi;
 };
@@ -994,6 +996,29 @@ private:
     mega_sched_bs_t mChanged;
 };
 
+class MegaChatScheduledMeetingListPrivate: public MegaChatScheduledMeetingList
+{
+public:
+    MegaChatScheduledMeetingListPrivate();
+    MegaChatScheduledMeetingListPrivate(const MegaChatScheduledMeetingListPrivate &l);
+    ~MegaChatScheduledMeetingListPrivate();
+
+    MegaChatScheduledMeetingListPrivate *copy() const override;
+
+    // getters
+    unsigned long size() const override;
+    MegaChatScheduledMeeting* at(unsigned long i) const override;
+    MegaChatScheduledMeeting* getBySchedMeetingId(MegaChatHandle h) const override;
+
+    // setters
+    void insert(MegaChatScheduledMeeting *sm) override;
+    void remove(MegaChatHandle h) override;
+    void clear() override;
+
+private:
+    std::vector<std::unique_ptr<MegaChatScheduledMeeting>> mList;
+};
+
 class MegaChatAttachedUser;
 class MegaChatRichPreviewPrivate;
 class MegaChatContainsMetaPrivate;
@@ -1241,6 +1266,7 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     // MegaChatScheduledMeetListener callbacks
     void fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPrivate* sm);
+    void fireOnSchedMeetingOccurrencesChange(MegaChatScheduledMeetingListPrivate* l);
 
     // MegaChatCallListener callbacks
     void fireOnChatCallUpdate(MegaChatCallPrivate *call);

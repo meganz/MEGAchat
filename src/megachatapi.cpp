@@ -1692,6 +1692,11 @@ void MegaChatScheduledMeetingListener::onChatSchedMeetingUpdate(MegaChatApi* /*a
 
 }
 
+void MegaChatScheduledMeetingListener::onSchedMeetingOccurrencesChange(MegaChatApi* /*api*/, MegaChatScheduledMeetingList* /*l*/)
+{
+
+}
+
 void MegaChatListener::onChatListItemUpdate(MegaChatApi * /*api*/, MegaChatListItem * /*item*/)
 {
 
@@ -2324,3 +2329,22 @@ const char* MegaChatScheduledMeeting::attributes() const                        
 const char* MegaChatScheduledMeeting::overrides() const                         { return NULL; }
 MegaChatScheduledRules* MegaChatScheduledMeeting::rules() const                 { return NULL; }
 MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 { return NULL; }
+
+/* Class MegaChatScheduledMeetingList */
+MegaChatScheduledMeetingList* MegaChatScheduledMeetingList::createInstance()
+{
+    return new MegaChatScheduledMeetingListPrivate();
+}
+
+MegaChatScheduledMeetingList::~MegaChatScheduledMeetingList()
+{
+
+}
+
+MegaChatScheduledMeetingList* MegaChatScheduledMeetingList::copy() const                            { return NULL; }
+unsigned long MegaChatScheduledMeetingList::size() const                                            { return 0; }
+MegaChatScheduledMeeting* MegaChatScheduledMeetingList::at(unsigned long) const                     { return NULL; }
+MegaChatScheduledMeeting* MegaChatScheduledMeetingList::getBySchedMeetingId(MegaChatHandle) const   { return NULL; }
+void MegaChatScheduledMeetingList::insert(MegaChatScheduledMeeting*)                                {}
+void MegaChatScheduledMeetingList::remove(MegaHandle)                                               {}
+void MegaChatScheduledMeetingList::clear()                                                          {}

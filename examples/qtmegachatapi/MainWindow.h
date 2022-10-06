@@ -173,6 +173,7 @@ class MainWindow :
 
         // MegaChatScheduledMeetingListener callbacks
         void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm);
+        void onSchedMeetingOccurrencesChange(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeetingList* l);
 
 #endif
         MegaChatApplication* getApp() const;

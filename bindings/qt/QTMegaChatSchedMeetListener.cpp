@@ -23,6 +23,13 @@ void QTMegaChatScheduledMeetingListener::onChatSchedMeetingUpdate(MegaChatApi* a
     QCoreApplication::postEvent(this, event, INT_MIN);
 }
 
+void QTMegaChatScheduledMeetingListener::onSchedMeetingOccurrencesChange(MegaChatApi* api, MegaChatScheduledMeetingList* l)
+{
+    QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::onSchedMeetingOccurrencesChange);
+    event->setSchedMeetingOccurr(l->copy());
+    QCoreApplication::postEvent(this, event, INT_MIN);
+}
+
 void QTMegaChatScheduledMeetingListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
@@ -30,6 +37,9 @@ void QTMegaChatScheduledMeetingListener::customEvent(QEvent *e)
     {
         case QTMegaChatEvent::onChatSchedMeetingUpdate:
             if (listener) listener->onChatSchedMeetingUpdate(event->getMegaChatApi(), event->getSchedMeeting());
+            break;
+        case QTMegaChatEvent::onSchedMeetingOccurrencesChange:
+            if (listener) listener->onSchedMeetingOccurrencesChange(event->getMegaChatApi(), event->getSchedMeetingOccurr());
             break;
         default:
             break;

@@ -60,6 +60,7 @@ class MegaChatListItem;
 class MegaChatNodeHistoryListener;
 class MegaChatScheduledRules;
 class MegaChatScheduledMeeting;
+class MegaChatScheduledMeetingList;
 
 /**
  * @brief Provide information about a session
@@ -986,6 +987,7 @@ class MegaChatScheduledMeetingListener
 public:
     virtual ~MegaChatScheduledMeetingListener() {}
     virtual void onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting *sm);
+    virtual void onSchedMeetingOccurrencesChange(MegaChatApi* /*api*/, MegaChatScheduledMeetingList* l);
 };
 
 class MegaChatPeerList
@@ -7442,6 +7444,24 @@ public:
      * @return A pointer to MegaChatScheduledRules that contains the scheduled meetings rules
      */
     virtual MegaChatScheduledRules* rules() const;
+};
+
+class MegaChatScheduledMeetingList
+{
+public:
+    static MegaChatScheduledMeetingList* createInstance();
+    virtual ~MegaChatScheduledMeetingList();
+    virtual MegaChatScheduledMeetingList *copy() const;
+
+    // getters
+    virtual unsigned long size() const;
+    virtual MegaChatScheduledMeeting* at(unsigned long i) const;
+    virtual MegaChatScheduledMeeting* getBySchedMeetingId(MegaChatHandle h) const;
+
+    // setters
+    virtual void insert(MegaChatScheduledMeeting* sm);
+    virtual void remove(MegaChatHandle h);
+    virtual void clear();
 };
 }
 

@@ -361,11 +361,18 @@ protected:
     // scheduled meetings map
     std::map<karere::Id/*schedMeetingId(callid)*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
 
+    // maps a scheduled meeting id (callid) to a scheduled meeting occurrence
+    // a scheduled meetings ocurrence is an event based on a scheduled meeting
+    // a scheduled meeting could have one or multiple ocurrences (unique key: <callid, startdatetime>)
+    // (check ScheduledMeeting class documentation)
+    std::multimap<karere::Id/*schedMeetingId(callid)*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetingsOcurrences;
+
     ScheduledMeetingHandler& schedMeetingHandler();
     void setChatPrivateMode();
     void updateChatOptions(mega::ChatOptions_t opt);
     void addSchedMeetings(const mega::MegaTextChat& chat);
     void updateSchedMeetings(const mega::MegaTextChat& chat);
+    void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat);
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
@@ -381,6 +388,7 @@ protected:
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void notifyPreviewClosed();
     void notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed);
+    void notifySchedMeetingOccurrencesUpdated();
     void setRemoved();
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
@@ -1448,6 +1456,7 @@ class ScheduledMeetingHandler
 public:
     virtual ~ScheduledMeetingHandler(){}
     virtual void onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed) = 0;
+    virtual void onSchedMeetingOccurrencesChange(const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>&l) = 0;
 };
 }
 #endif // CHATCLIENT_H

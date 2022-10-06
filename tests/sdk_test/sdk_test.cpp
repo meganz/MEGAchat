@@ -5086,6 +5086,11 @@ void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* /*api*/, m
     // TODO implement
 }
 
+void MegaChatApiTest::onSchedMeetingOccurrencesChange(megachat::MegaChatApi* /*api*/, megachat::MegaChatScheduledMeetingList* /*l*/)
+{
+    // TODO implement
+}
+
 TestChatVideoListener::TestChatVideoListener()
 {
 }

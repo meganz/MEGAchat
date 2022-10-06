@@ -367,9 +367,14 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     }
 }
 
-void MainWindow::onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm)
+void MainWindow::onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting* sm)
 {
 }
+
+void MainWindow::onSchedMeetingOccurrencesChange(MegaChatApi* api, MegaChatScheduledMeetingList* l)
+{
+}
+
 #endif
 
 void MainWindow::closeEvent(QCloseEvent *event)

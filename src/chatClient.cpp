@@ -2455,6 +2455,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
     // Add scheduled meeting list and notify app
     addSchedMeetings(aChat);
+
+    // pending add occurrences
+    addSchedMeetingsOccurrences(aChat);
 }
 
 //Resume from cache
@@ -3094,6 +3097,14 @@ void GroupChatRoom::notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, 
     callAfterInit(this, [this, sm, changed]
     {
         schedMeetingHandler().onSchedMeetingChange(sm, changed);
+    }, parent.mKarereClient.appCtx);
+}
+
+void GroupChatRoom::notifySchedMeetingOccurrencesUpdated()
+{
+    callAfterInit(this, [this]
+    {
+       schedMeetingHandler().onSchedMeetingOccurrencesChange(mScheduledMeetingsOcurrences);
     }, parent.mKarereClient.appCtx);
 }
 
@@ -4017,6 +4028,11 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         updateSchedMeetings(chat);
     }
 
+    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR))
+    {
+        addSchedMeetingsOccurrences(chat);
+    }
+
     // Own privilege changed
     auto oldPriv = mOwnPriv;
     bool ownPrivChanged = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
@@ -4210,6 +4226,26 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
             }
         }
     }
+}
+
+void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
+{
+    // clear list of current scheduled meetings occurrences
+    mScheduledMeetingsOcurrences.clear();
+
+    if (!chat.getScheduledMeetingOccurrencesList())
+    {
+        KR_LOG_DEBUG("addSchedMeetingsOccurrences: empty scheduled meetings occurrences list for chatid");
+        return;
+    }
+
+    const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingOccurrencesList();
+    for (unsigned int i = 0; i < schedMeetings->size(); i++)
+    {
+        std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(schedMeetings->at(i)));
+        mScheduledMeetingsOcurrences.emplace(aux->callid(), std::move(aux));
+    }
+    notifySchedMeetingOccurrencesUpdated();
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
