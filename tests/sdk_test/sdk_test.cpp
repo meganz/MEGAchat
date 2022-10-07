@@ -1707,6 +1707,15 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     // Login in secondary account
     char *sessionSecondary = login(a2);
 
+    // Make a1 and a2 contacts
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
+    {
+        makeContact(a1, a2);
+        delete user;
+        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    }
+
     // Create chat link
     flagCreateChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *flagCreateChatLink = false;
     megaChatApi[a1]->createChatLink(chatid, this);
@@ -4040,7 +4049,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 1. Send rich link message
     //=================================//
 
-    std::string messageToSend = "Hello friend, https://developer.android.com";
+    std::string messageToSend = "Hello friend, http://mega.nz";
     // Need to do this for the first message as it's send and edited
     chatroomListener->msgEdited[a1] = false;
     chatroomListener->msgEdited[a2] = false;
@@ -4070,7 +4079,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 4. Edit previous message by adding a new URL.
     //======================================================//
 
-    std::string messageToUpdate3 = "Hello friend, sorry, the URL is https://developer.android.com";
+    std::string messageToUpdate3 = "Hello friend, sorry, the URL is https://mega.nz";
     MegaChatMessage* msgUpdated3 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate3, chatroomListener, msgUpdated2->getMsgId());
     checkMessages(msgUpdated3, messageToUpdate3, true);
 
@@ -4078,7 +4087,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 5. Edit previous message by modifying the previous URL.
     //===============================================================//
 
-    std::string messageToUpdate4 = "Argghhh!!! Sorry again!! I meant https://android.com that's the good one!!!";
+    std::string messageToUpdate4 = "Argghhh!!! Sorry again!! I meant https://mega.io that's the good one!!!";
     MegaChatMessage* msgUpdated4 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate4, chatroomListener, msgUpdated3->getMsgId());
     checkMessages(msgUpdated4, messageToUpdate4, true);
 
@@ -5887,7 +5896,7 @@ bool MockupCall::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, uint64_t ts, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
+bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, uint64_t ts, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod)
 {
     return true;
 }
@@ -5959,6 +5968,16 @@ bool MockupCall::handlePeerLeft(Cid_t cid, unsigned termcode)
 }
 
 bool MockupCall::handleBye(unsigned termcode)
+{
+    return false;
+}
+
+bool MockupCall::handleModAdd(uint64_t)
+{
+    return false;
+}
+
+bool MockupCall::handleModDel(uint64_t)
 {
     return false;
 }

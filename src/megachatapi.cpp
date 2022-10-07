@@ -159,6 +159,11 @@ bool MegaChatSession::canRecvVideoLowRes() const
     return false;
 }
 
+bool MegaChatSession::isModerator() const
+{
+    return false;
+}
+
 char* MegaChatSession::avFlagsToString() const
 {
     return NULL;
@@ -262,6 +267,11 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
+bool MegaChatCall::isOwnModerator() const
+{
+    return false;
+}
+
 MegaHandleList *MegaChatCall::getSessionsClientid() const
 {
     return NULL;
@@ -283,6 +293,11 @@ int MegaChatCall::getCallCompositionChange() const
 }
 
 MegaHandleList *MegaChatCall::getPeeridParticipants() const
+{
+    return NULL;
+}
+
+MegaHandleList* MegaChatCall::getModerators() const
 {
     return NULL;
 }
