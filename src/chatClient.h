@@ -468,6 +468,15 @@ public:
      */
     promise::Promise<void> setChatRoomOption(int option, bool enabled);
 
+    // maps a scheduled meeting id (callid) to a scheduled meeting
+    // a scheduled meetings allows the user to specify an event that will occur in the future
+    const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
+
+    // maps a scheduled meeting id (callid) to a scheduled meeting occurrence
+    // a scheduled meetings ocurrence is an event based on a scheduled meeting
+    // a scheduled meeting could have one or multiple ocurrences (unique key: <callid, startdatetime>)
+    const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetingsOccurrences() const;
+
     /** TODO
      *
      */
@@ -1048,6 +1057,12 @@ public:
                                              const char* description, int freq, uint64_t callid, uint64_t parentCallid,
                                              int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
                                              const char* until, const mega::MegaIntegerList* byWeekDay, const mega::MegaIntegerList* byMonthDay, const mega::MegaIntegerMap* byMonthWeekDay);
+
+    /**
+     * @brief This function allows to remove a scheduled meeting.
+     * TODO: complete documentation
+     */
+    promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedMeetingId);
 
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.

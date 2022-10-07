@@ -2587,6 +2587,54 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+
+        case MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING:
+        {
+            handle chatid = request->getChatHandle();
+            handle schedMeetingId = request->getUserHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid chatid");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (schedMeetingId == MEGACHAT_INVALID_HANDLE)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid schedMeetingId");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            std::unique_ptr<MegaChatScheduledMeeting>sm (getScheduledMeeting(chatid, schedMeetingId));
+            if (!sm)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            mClient->removeScheduledMeeting(chatid, schedMeetingId)
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request,this](const ::promise::Error& err)
+            {
+                API_LOG_ERROR("Error removing a scheduled meeting: %s", err.what());
+
+                MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
 #endif
         default:
         {
@@ -4124,6 +4172,147 @@ void MegaChatApiImpl::createScheduledMeeting(MegaChatHandle chatid, bool createC
     request->setMegaChatScheduledMeeting(scheduledMeeting.get());
     requestQueue.push(request);
     waiter->notify();
+}
+
+void MegaChatApiImpl::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(schedMeetingId);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingsByChat(MegaChatHandle chatid)
+{
+    MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
+    SdkMutexGuard g(sdkMutex);
+    GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
+    if (chatRoom)
+    {
+        const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetings();
+        for (auto it = map.begin(); it != map.end(); it++)
+        {
+            list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+        }
+    }
+    return list;
+}
+
+MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
+{
+    SdkMutexGuard g(sdkMutex);
+    GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
+    if (chatRoom)
+    {
+        const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetings();
+        auto it = map.find(schedMeetingId);
+        if (it != map.end())
+        {
+            return new MegaChatScheduledMeetingPrivate(it->second.get());
+        }
+    }
+    return nullptr;
+}
+
+MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid)
+{
+    MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
+    SdkMutexGuard g(sdkMutex);
+    GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
+    if (chatRoom)
+    {
+        const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetingsOccurrences();
+        for (auto it = map.begin(); it != map.end(); it++)
+        {
+            list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+        }
+    }
+    return list;
+}
+
+MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingOccurrences(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
+{
+    MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
+    SdkMutexGuard g(sdkMutex);
+    GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
+    if (chatRoom)
+    {
+        const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetingsOccurrences();
+        auto range = map.equal_range(schedMeetingId);
+        for (auto it = range.first; it != range.second; ++it)
+        {
+             list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+        }
+    }
+    return list;
+}
+
+MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime)
+{
+    if (!startDateTime)
+    {
+        return nullptr;
+    }
+
+    SdkMutexGuard g(sdkMutex);
+    GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
+    if (chatRoom)
+    {
+        const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetingsOccurrences();
+        auto range = map.equal_range(schedMeetingId);
+        for (auto it = range.first; it != range.second; ++it)
+        {
+            if (!it->second->startDateTime())
+            {
+                continue;
+            }
+
+            if (!strcmp(startDateTime, it->second->startDateTime()))
+            {
+                return new MegaChatScheduledMeetingPrivate(it->second.get());
+            }
+        }
+    }
+    return nullptr;
+}
+
+MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
+{
+    MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
+    SdkMutexGuard g(sdkMutex);
+    for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+       GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(it->second);
+       if (chatRoom)
+       {
+           const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetings();
+           for (auto it = map.begin(); it != map.end(); it++)
+           {
+               list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+           }
+       }
+    }
+    return list;
+}
+
+MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetingsOccurrences()
+{
+    MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
+    SdkMutexGuard g(sdkMutex);
+    for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    {
+       GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(it->second);
+       if (chatRoom)
+       {
+           const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetingsOccurrences();
+           for (auto it = map.begin(); it != map.end(); it++)
+           {
+               list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+           }
+       }
+    }
+    return list;
 }
 
 void MegaChatApiImpl::chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener)
@@ -6307,6 +6496,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_REQUEST_SVC_LAYERS: return "SVC_LAYERS";
         case TYPE_SET_CHATROOM_OPTIONS: return "TYPE_SET_CHATROOM_OPTIONS";
         case TYPE_CREATE_SCHEDULED_MEETING : return "CREATE_SCHEDULED_MEETING";
+        case TYPE_DELETE_SCHEDULED_MEETING: return "DELETE_SCHEDULED_MEETING";
     }
     return "UNKNOWN";
 }

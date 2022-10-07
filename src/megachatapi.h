@@ -1981,6 +1981,7 @@ public:
         TYPE_DEL_SPEAKER, TYPE_REQUEST_SVC_LAYERS,
         TYPE_SET_CHATROOM_OPTIONS,
         TYPE_CREATE_SCHEDULED_MEETING,
+        TYPE_DELETE_SCHEDULED_MEETING,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -3944,11 +3945,50 @@ public:
      *
      * TODO complete documentation
      */
+    void createChatAndScheduledMeeting(MegaChatHandle chatid, bool publicChat, bool isMeeting, const char* timezone, const char* startDate, const char* endDate, const char* title,
+                                       const char* description, int freq, MegaChatHandle callid = MEGACHAT_INVALID_HANDLE, MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
+                                       int cancelled = -1, bool emailsDisabled = false, const char* attributes = NULL, const char* overrides = NULL, int interval = 0,
+                                       const char* until = NULL, const mega::MegaIntegerList* byWeekDay = NULL, const mega::MegaIntegerList* byMonthDay = NULL,
+                                       const mega::MegaIntegerMap* byMonthWeekDay = NULL, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Creates a scheduled meeting
+     *
+     * TODO complete documentation
+     */
     void createScheduledMeeting(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
                                 const char* description, int freq, MegaChatHandle callid = MEGACHAT_INVALID_HANDLE, MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
                                 int cancelled = -1, bool emailsDisabled = false, const char* attributes = NULL, const char* overrides = NULL, int interval = 0,
                                 const char* until = NULL, const mega::MegaIntegerList* byWeekDay = NULL, const mega::MegaIntegerList* byMonthDay = NULL,
                                 const mega::MegaIntegerMap* byMonthWeekDay = NULL, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Removes a scheduled meeting
+     *
+     * TODO complete documentation
+     */
+    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener = NULL);
+
+    // get all scheduled meetings given a chatid (You take the ownership of the returned value)
+    MegaChatScheduledMeetingList* getScheduledMeetingsByChat(MegaChatHandle chatid);
+
+    // return a specific scheduled meeting given a chatid and a scheduled meeting id (You take the ownership of the returned value)
+    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+
+    // get all scheduled meetings occurrences given a chatid (You take the ownership of the returned value)
+    MegaChatScheduledMeetingList* getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid);
+
+    // get all scheduled meetings occurrences given a chatid and a scheduled meeting id (You take the ownership of the returned value)
+    MegaChatScheduledMeetingList* getScheduledMeetingOccurrences(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+
+    // get a specific scheduled meeting occurrence given a chatid, a scheduled meeting id, and it's start date time (You take the ownership of the returned value)
+    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime);
+
+    // get all scheduled meetings for all chats (You take the ownership of the returned value)
+    MegaChatScheduledMeetingList* getAllScheduledMeetings();
+
+    // get all scheduled meetings occurrences for all chats (You take the ownership of the returned value)
+    MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();
 
     /**
      * @brief Creates a meeting

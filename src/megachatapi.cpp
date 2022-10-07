@@ -690,17 +690,73 @@ void MegaChatApi::createMeeting(const char* title, bool speakRequest, bool waiti
     pImpl->createPublicChat(peers.get(), true, title, speakRequest, waitingRoom, openInvite, listener);
 }
 
+
+void MegaChatApi::createChatAndScheduledMeeting(MegaChatHandle chatid, bool publicChat, bool isMeeting, const char* timezone, const char* startDate, const char* endDate, const char* title,
+                                         const char* description, int freq, MegaChatHandle callid, MegaChatHandle parentCallid,
+                                         int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
+                                         const char* until, const MegaIntegerList* byWeekDay, const MegaIntegerList* byMonthDay,
+                                         const MegaIntegerMap* byMonthWeekDay, MegaChatRequestListener* listener)
+{
+     pImpl->createScheduledMeeting(chatid, true /*createChat*/,isMeeting, publicChat, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/,
+                                   timezone, startDate, endDate, title,
+                                   description, freq, callid, parentCallid,
+                                   cancelled, emailsDisabled, attributes, overrides, interval,
+                                   until, byWeekDay, byMonthDay,
+                                   byMonthWeekDay, listener);
+}
+
 void MegaChatApi::createScheduledMeeting(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
                                          const char* description, int freq, MegaChatHandle callid, MegaChatHandle parentCallid,
                                          int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
                                          const char* until, const MegaIntegerList* byWeekDay, const MegaIntegerList* byMonthDay,
                                          const MegaIntegerMap* byMonthWeekDay, MegaChatRequestListener* listener)
 {
-     pImpl->createScheduledMeeting(chatid, timezone, startDate, endDate, title,
+     pImpl->createScheduledMeeting(chatid, true /*createChat*/, true /*isMeeting*/, true /*publicChat*/, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/,
+                                   timezone, startDate, endDate, title,
                                    description, freq, callid, parentCallid,
                                    cancelled, emailsDisabled, attributes, overrides, interval,
                                    until, byWeekDay, byMonthDay,
                                    byMonthWeekDay, listener);
+}
+
+void MegaChatApi::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener)
+{
+    pImpl->removeScheduledMeeting(chatid, schedMeetingId, listener);
+}
+
+MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingsByChat(MegaChatHandle chatid)
+{
+    return pImpl->getScheduledMeetingsByChat(chatid);
+}
+
+MegaChatScheduledMeeting* MegaChatApi::getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
+{
+    return pImpl->getScheduledMeeting(chatid, schedMeetingId);
+}
+
+MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid)
+{
+    return pImpl->getScheduledMeetingsOccurrencesByChat(chatid);
+}
+
+MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingOccurrences(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
+{
+    return pImpl->getScheduledMeetingOccurrences(chatid, schedMeetingId);
+}
+
+MegaChatScheduledMeeting* MegaChatApi::getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime)
+{
+    return pImpl->getScheduledMeetingOccurrence(chatid, schedMeetingId, startDateTime);
+}
+
+MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetings()
+{
+    return pImpl->getAllScheduledMeetings();
+}
+
+MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetingsOccurrences()
+{
+    return pImpl->getAllScheduledMeetings();
 }
 
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)

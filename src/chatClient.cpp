@@ -855,6 +855,17 @@ promise::Promise<void> Client::createScheduledMeeting(uint64_t chatid, const cha
     });
 }
 
+promise::Promise<void> Client::removeScheduledMeeting(uint64_t chatid, uint64_t schedMeetingId)
+{
+    auto wptr = getDelTracker();
+    return api.call(&::mega::MegaApi::removeScheduledMeeting, chatid, schedMeetingId)
+    .then([wptr](ReqResult result) -> promise::Promise<void>
+    {
+        wptr.throwIfDeleted();
+        return promise::_Void();
+    });
+}
+
 promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, karere::Id ph)
 {
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
@@ -4226,6 +4237,16 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
             }
         }
     }
+}
+
+const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& GroupChatRoom::getScheduledMeetings() const
+{
+    return mScheduledMeetings;
+}
+
+const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& GroupChatRoom::getScheduledMeetingsOccurrences() const
+{
+    return mScheduledMeetingsOcurrences;
 }
 
 void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
