@@ -691,13 +691,13 @@ void MegaChatApi::createMeeting(const char* title, bool speakRequest, bool waiti
 }
 
 
-void MegaChatApi::createChatAndScheduledMeeting(MegaChatHandle chatid, bool publicChat, bool isMeeting, const char* timezone, const char* startDate, const char* endDate, const char* title,
+void MegaChatApi::createChatAndScheduledMeeting(bool publicChat, bool isMeeting, const char* timezone, const char* startDate, const char* endDate, const char* title,
                                          const char* description, int freq, MegaChatHandle callid, MegaChatHandle parentCallid,
                                          int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
                                          const char* until, const MegaIntegerList* byWeekDay, const MegaIntegerList* byMonthDay,
                                          const MegaIntegerMap* byMonthWeekDay, MegaChatRequestListener* listener)
 {
-     pImpl->createScheduledMeeting(chatid, true /*createChat*/,isMeeting, publicChat, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/,
+     pImpl->createScheduledMeeting(MEGACHAT_INVALID_HANDLE, true /*createChat*/,isMeeting, publicChat, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/,
                                    timezone, startDate, endDate, title,
                                    description, freq, callid, parentCallid,
                                    cancelled, emailsDisabled, attributes, overrides, interval,

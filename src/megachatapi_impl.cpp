@@ -2507,7 +2507,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeeting();
             if (!sm || !sm->timezone() || !sm->startDateTime() || !sm->endDateTime()
-                    || !sm->title() || !sm->description() || !sm->rules()
+                    || !sm->title() || !sm->description()
                     || (request->getNumber() /*isMeeting*/ && !request->getPrivilege() /*!publicChat*/))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -2562,9 +2562,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 bool emailDisabled = sm->flags() ? sm->flags()->EmailsDisabled() : false;
 
                 mClient->createScheduledMeeting(chatid, timezone, startDateTime, endDateTime, title,
-                                                         description, rules->freq(), callid, parentCallid,
-                                                         cancelled, emailDisabled, attributes, overrides, rules->interval(),
-                                                         rules->until(), rules->byWeekDay(), rules->byMonthDay(), rules->byMonthWeekDay())
+                                                         description, rules ? rules->freq() : -1 /*change by enum*/, callid, parentCallid,
+                                                         cancelled, emailDisabled, attributes, overrides, rules ? rules->interval() : 0 /*change by enum*/,
+                                                         rules ? rules->until() : nullptr,
+                                                         rules ? rules->byWeekDay() : nullptr,
+                                                         rules ? rules->byMonthDay() : nullptr,
+                                                         rules ? rules->byMonthWeekDay() : nullptr)
                 .then([request, this]()
                 {
                     MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -4161,7 +4164,11 @@ void MegaChatApiImpl::createScheduledMeeting(MegaChatHandle chatid, bool createC
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_SCHEDULED_MEETING, listener);
 
     std::unique_ptr<MegaChatScheduledFlags> flags(MegaChatScheduledFlags::createInstance(emailsDisabled));
-    std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(freq, interval, until, byWeekDay, byMonthDay, byMonthWeekDay));
+    std::unique_ptr<MegaChatScheduledRules> rules;
+    if (MegaChatScheduledRules::isValidFreq(freq))
+    {
+        rules.reset(MegaChatScheduledRules::createInstance(freq, interval, until, byWeekDay, byMonthDay, byMonthWeekDay));
+    }
     std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, callid, parentCallid, cancelled, timezone, startDate,
                                                                                        endDate, title, description, attributes, overrides, flags.get(), rules.get()));
 

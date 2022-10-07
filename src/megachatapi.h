@@ -3945,7 +3945,7 @@ public:
      *
      * TODO complete documentation
      */
-    void createChatAndScheduledMeeting(MegaChatHandle chatid, bool publicChat, bool isMeeting, const char* timezone, const char* startDate, const char* endDate, const char* title,
+    void createChatAndScheduledMeeting(bool publicChat, bool isMeeting, const char* timezone, const char* startDate, const char* endDate, const char* title,
                                        const char* description, int freq, MegaChatHandle callid = MEGACHAT_INVALID_HANDLE, MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
                                        int cancelled = -1, bool emailsDisabled = false, const char* attributes = NULL, const char* overrides = NULL, int interval = 0,
                                        const char* until = NULL, const mega::MegaIntegerList* byWeekDay = NULL, const mega::MegaIntegerList* byMonthDay = NULL,
