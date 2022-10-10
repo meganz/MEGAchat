@@ -435,6 +435,21 @@ bool Client::openDb(const std::string& sid)
                  ok = true;
                  KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "14" && (strcmp(gDbSchemaVersionSuffix, "15") == 0))
+            {
+                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                db.query("CREATE TABLE scheduledMeetings(schedmeetingid int64 unique primary key, chatid int64, organizerid int64, parentid int64, timezone text,"
+                            "start_date_time text, end_date_time text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
+                            "flags int64 default 0, rules blob)");
+
+                db.query("CREATE TABLE scheduledMeetingsOccurr(schedmeetingid int64, chatid int64, organizerid int64, parentid int64, timezone text,"
+                            "start_date_time text, end_date_time text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
+                            "flags int64 default 0, PRIMARY KEY (schedmeetingid, start_date_time))");
+
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -5453,6 +5468,129 @@ bool KarereScheduledRules::equalTo(::mega::MegaScheduledRules* aux) const
     && aux->byWeekDay()->equalTo(mByWeekDay.get())
     && aux->byMonthDay()->equalTo(mByWeekDay.get())
     && aux->byMonthWeekDay()->equalTo(mByMonthWeekDay.get());
+}
+
+bool KarereScheduledRules::serialize(std::string* out)
+{
+    //assert(out && !out->empty());
+    if (!out) { return false; }
+    assert(isValidFreq(mFreq));
+    bool hasInterval = isValidInterval(mInterval);
+    bool hasUntil = !mUntil.empty();
+    bool hasByWeekDay = mByWeekDay.get() && !mByWeekDay->empty();
+    bool hasByMonthDay = mByMonthDay.get() && !mByMonthDay->empty();
+    bool hasByMonthWeekDay = mByMonthWeekDay.get() && !mByMonthWeekDay->empty();
+
+    ::mega::CacheableWriter w(*out);
+    w.serializei32(mFreq);
+    w.serializeexpansionflags(hasInterval, hasUntil, hasByWeekDay, hasByMonthDay, hasByMonthWeekDay);
+
+    if (hasInterval) { w.serializei32(mInterval); }
+    if (hasUntil)    { w.serializestring(mUntil); }
+    if (hasByWeekDay)
+    {
+        w.serializeu64(mByWeekDay->size());
+        for (auto i: *mByWeekDay)
+        {
+            int8_t aux = static_cast<int8_t>(i);
+            w.serializei8(aux);
+        }
+    }
+
+    if (hasByMonthDay)
+    {
+        w.serializeu64(mByMonthDay->size());
+        for (auto i: *mByMonthDay)
+        {
+            int8_t aux = static_cast<int8_t>(i);
+            w.serializei8(aux);
+        }
+    }
+
+    if (hasByMonthWeekDay)
+    {
+        w.serializeu64(mByMonthWeekDay->size()*2);
+        for (auto i: *mByMonthWeekDay)
+        {
+            int8_t key = static_cast<int8_t>(i.first);
+            int8_t val = static_cast<int8_t>(i.second);
+            w.serializei8(key);
+            w.serializei8(val);
+        }
+    }
+    return true;
+}
+
+KarereScheduledRules* KarereScheduledRules::unserialize(std::string* in)
+{
+    if (!in || in->empty())  { return nullptr; }
+    int freq = FREQ_INVALID;
+    int interval = INTERVAL_INVALID;
+    std::string until;
+    std::vector<int64_t> byWeekDay;
+    std::vector<int64_t> byMonthDay;
+    std::multimap<int64_t, int64_t> byMonthWeekDay;
+    unsigned char expansions[8];
+
+    mega::CacheableReader w(*in);
+    w.unserializei32(freq);
+    w.unserializeexpansionflags(expansions, 5);
+
+    bool hasInterval        = expansions[0];
+    bool hasUntil           = expansions[1];
+    bool hasByWeekDay       = expansions[2];
+    bool hasByMonthDay      = expansions[3];
+    bool hasByMonthWeekDay  = expansions[4];
+
+    if (hasInterval) { w.unserializei32(interval); }
+    if (hasUntil)    { w.unserializestring(until); }
+    if (hasByWeekDay)
+    {
+        size_t vectorSize = 0;
+        int8_t element = 0;
+        w.unserializeu64(vectorSize);
+        for (size_t i = 0; i < vectorSize; i++)
+        {
+           element = 0;
+           w.unserializei8(element);
+           byWeekDay.emplace_back(element);
+        }
+    }
+
+    if (hasByMonthDay)
+    {
+        size_t vectorSize = 0;
+        int8_t element = 0;
+        w.unserializeu64(vectorSize);
+        for (size_t i = 0; i < vectorSize; i++)
+        {
+           element = 0;
+           w.unserializei8(element);
+           byMonthDay.emplace_back(element);
+        }
+    }
+
+    if (hasByMonthWeekDay)
+    {
+        size_t mapSize = 0;
+        int8_t key = 0;
+        int8_t value = 0;
+        w.unserializeu64(mapSize);
+        for (size_t i = 0; i < mapSize / 2; i++)
+        {
+           key = value = 0;
+           w.unserializei8(key);
+           w.unserializei8(value);
+           byMonthWeekDay.emplace(key, value);
+        }
+    }
+
+    return new KarereScheduledRules(freq,
+                              hasInterval ? interval : -1,
+                              hasUntil ? until.c_str() : nullptr,
+                              hasByWeekDay ? &byWeekDay : nullptr,
+                              hasByMonthDay ? &byMonthDay: nullptr,
+                              hasByMonthWeekDay ? &byMonthWeekDay: nullptr);
 }
 
 /* class scheduledMeeting */

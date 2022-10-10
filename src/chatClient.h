@@ -1348,6 +1348,9 @@ public:
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
 
+    bool serialize(std::string* out);
+    static KarereScheduledRules* unserialize(std::string* in);
+
 private:
     // [required]: scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
     int mFreq;

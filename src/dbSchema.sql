@@ -46,3 +46,11 @@ CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null, userid 
 
 CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null, reaction text, encReaction blob,
     status tinyint, UNIQUE(chatid, msgid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);
+
+CREATE TABLE scheduledMeetings(schedmeetingid int64 unique primary key, chatid int64, organizerid int64, parentid int64, timezone text,
+    start_date_time text, end_date_time text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,
+    flags int64 default 0, rules blob);
+
+CREATE TABLE scheduledMeetingsOccurr(schedmeetingid int64, chatid int64, organizerid int64, parentid int64, timezone text,
+    start_date_time text, end_date_time text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,
+    flags int64 default 0, PRIMARY KEY (schedmeetingid, start_date_time));
