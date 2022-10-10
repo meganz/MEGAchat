@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -55,18 +55,6 @@
 		A8AA1BF92195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A8AA1BF82195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm */; };
 		A8F96C1A219DE3A2005A3EB6 /* MEGAChatGeolocation.mm in Sources */ = {isa = PBXBuildFile; fileRef = A8F96C19219DE3A2005A3EB6 /* MEGAChatGeolocation.mm */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		A838B1F61E96855400875D96 /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "include/$(PRODUCT_NAME)";
-			dstSubfolderSpec = 16;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2F59F49D251C5B3600DDD2D0 /* MEGAChatGiphy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatGiphy.h; sourceTree = "<group>"; };
@@ -549,7 +537,6 @@
 				A838B2231E96860900875D96 /* ShellScript */,
 				A838B1F41E96855400875D96 /* Sources */,
 				A838B1F51E96855400875D96 /* Frameworks */,
-				A838B1F61E96855400875D96 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -595,6 +582,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		A838B2231E96860900875D96 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -604,7 +592,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd ../../src\ncmake -P genDbSchema.cmake";
+			shellScript = "cd ../../src\ncmake -P genDbSchema.cmake\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -829,7 +817,13 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/base";
+				USER_HEADER_SEARCH_PATHS = (
+					../../../SDK/include/mega/posix,
+					../../../SDK/bindings/ios,
+					../../../SDK/bindings/ios/private,
+					../../../SDK/bindings/ios/3rdparty,
+					../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
+				);
 			};
 			name = Debug;
 		};
@@ -919,7 +913,13 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/base";
+				USER_HEADER_SEARCH_PATHS = (
+					../../../SDK/include/mega/posix,
+					../../../SDK/bindings/ios,
+					../../../SDK/bindings/ios/private,
+					../../../SDK/bindings/ios/3rdparty,
+					../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
+				);
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -1044,7 +1044,13 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/base";
+				USER_HEADER_SEARCH_PATHS = (
+					../../../SDK/include/mega/posix,
+					../../../SDK/bindings/ios,
+					../../../SDK/bindings/ios/private,
+					../../../SDK/bindings/ios/3rdparty,
+					../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
+				);
 				VALIDATE_PRODUCT = YES;
 			};
 			name = QA;

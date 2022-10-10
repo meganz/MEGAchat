@@ -1763,8 +1763,21 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             bool endCall = request->getFlag();
-            if (endCall && chatroom->isGroup() && chatroom->chat().getOwnprivilege() != PRIV_OPER)
+            if (endCall && chatroom->isGroup()
+                    && (!call->isOwnPrivModerator()                                  // if SFU role is non moderator
+                        || chatroom->ownPriv() != MegaChatPeerList::PRIV_MODERATOR)) // if chatd permission is non moderator
             {
+                if (call->isOwnPrivModerator()
+                        != (chatroom->ownPriv() == MegaChatPeerList::PRIV_MODERATOR))
+                {
+                    std::string logMsg = "Chatd and SFU permissions doesn't match for chatid: ";
+                    logMsg.append(call->getChatid().toString().c_str());
+                    logMsg.append(" userid: ");
+                    logMsg.append(mClient->myHandle().toString().c_str());
+                    mMegaApi->sendEvent(99015, logMsg.c_str());
+                }
+
+                assert(call->isOwnPrivModerator() == chatroom->ownPriv());
                 API_LOG_ERROR("End call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
@@ -2243,10 +2256,19 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool moderator = chatroom->chat().getOwnprivilege() == PRIV_OPER;
-            if (!moderator)
+            if (!call->isOwnPrivModerator() || chatroom->ownPriv() != MegaChatPeerList::PRIV_MODERATOR)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK  - You have to be moderator to approve speak request");
+                if (call->isOwnPrivModerator()
+                        != (chatroom->ownPriv() == MegaChatPeerList::PRIV_MODERATOR))
+                {
+                    std::string logMsg = "Chatd and SFU permissions doesn't match for chatid: ";
+                    logMsg.append(call->getChatid().toString().c_str());
+                    logMsg.append(" userid: ");
+                    logMsg.append(mClient->myHandle().toString().c_str());
+                    mMegaApi->sendEvent(99015, logMsg.c_str());
+                }
+
+                API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK  - You need moderator role to approve speak request");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 assert(false);
                 break;
@@ -2489,10 +2511,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (chatroom->ownPriv() != MegaChatPeerList::PRIV_MODERATOR
-                    && cid)
+            if (!call->isOwnPrivModerator() && cid)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - You don't have enough permisions to remove the speaker");
+                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - You need moderator role to remove an active speaker");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
@@ -6374,6 +6395,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , mAudioDetected(session.isAudioDetected())
     , mHasHiResTrack(session.hasHighResolutionTrack())
     , mHasLowResTrack(session.hasLowResolutionTrack())
+    , mIsModerator(session.isModerator())
 {
 }
 
@@ -6388,6 +6410,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , mAudioDetected(session.isAudioDetected())
     , mHasHiResTrack(session.mHasHiResTrack)
     , mHasLowResTrack(session.mHasLowResTrack)
+    , mIsModerator(session.isModerator())
 {
 }
 
@@ -6524,6 +6547,11 @@ bool MegaChatSessionPrivate::canRecvVideoLowRes() const
     return mHasLowResTrack;
 }
 
+bool MegaChatSessionPrivate::isModerator() const
+{
+    return mIsModerator;
+}
+
 void MegaChatSessionPrivate::setState(uint8_t state)
 {
     mState = state;
@@ -6615,7 +6643,14 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     {
         mParticipants.push_back(participant);
     }
+
+    for (auto moderator: call.getModerators())
+    {
+        mModerators.emplace(moderator);
+    }
+
     mRinging = call.isRinging();
+    mOwnModerator = call.isOwnPrivModerator();
 
     std::vector<Cid_t> sessionCids = call.getSessionsCids();
     for (Cid_t cid : sessionCids)
@@ -6637,6 +6672,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mFinalTs = call.mFinalTs;
     mTermCode = call.mTermCode;
     mEndCallReason = call.mEndCallReason;
+    mOwnModerator = call.isOwnModerator();
     mRinging = call.mRinging;
     mIgnored = call.mIgnored;
     mPeerId = call.mPeerId;
@@ -6653,6 +6689,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     }
 
     mParticipants = call.mParticipants;
+    mModerators = call.mModerators;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -6749,6 +6786,11 @@ bool MegaChatCallPrivate::isRinging() const
     return mRinging;
 }
 
+bool MegaChatCallPrivate::isOwnModerator() const
+{
+    return mOwnModerator;
+}
+
 MegaHandleList *MegaChatCallPrivate::getSessionsClientid() const
 {
     MegaHandleListPrivate *sessionList = new MegaHandleListPrivate();
@@ -6797,6 +6839,18 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
     }
 
     return participantsList;
+}
+
+MegaHandleList* MegaChatCallPrivate::getModerators() const
+{
+    MegaHandleListPrivate* moderatorsList = new MegaHandleListPrivate();
+
+    for (const MegaChatHandle& moderator : mModerators)
+    {
+        moderatorsList->addMegaHandle(moderator);
+    }
+
+    return moderatorsList;
 }
 
 bool MegaChatCallPrivate::isIgnored() const
@@ -8908,8 +8962,9 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                     megaHandleList->addMegaHandle(callEndInfo->participants[i]);
                 }
 
-                priv = callEndInfo->duration;
+                priv = static_cast<int>(callEndInfo->duration);
                 mCode = MegaChatMessagePrivate::convertEndCallTermCodeToUI(*callEndInfo);
+                hAction = callEndInfo->callid;
                 delete callEndInfo;
             }
             break;
@@ -9327,6 +9382,13 @@ void MegaChatCallHandler::onStopOutgoingRinging(const rtcModule::ICall& call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
+void MegaChatCallHandler::onPermissionsChanged(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
 void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModule::ICall &call)
 {
     MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);
@@ -9468,6 +9530,13 @@ void MegaChatSessionHandler::onRemoteAudioDetected(rtcModule::ISession& session)
 {
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setAudioDetected(session.isAudioDetected());
+    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
+}
+
+void MegaChatSessionHandler::onPermissionsChanged(rtcModule::ISession& session)
+{
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    megaSession->setChange(MegaChatSession::CHANGE_TYPE_PERMISSIONS);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 #endif
