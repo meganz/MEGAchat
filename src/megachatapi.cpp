@@ -2360,13 +2360,13 @@ bool MegaChatScheduledRules::isValidFreq(int freq)                              
 bool MegaChatScheduledRules::isValidInterval(int interval)                      { return MegaChatScheduledRulesPrivate::isValidInterval(interval);}
 
 /* Class MegaChatScheduledMeeting */
-MegaChatScheduledMeeting* MegaChatScheduledMeeting::createInstance(MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid,
+MegaChatScheduledMeeting* MegaChatScheduledMeeting::createInstance(MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid, MegaChatHandle organizerUserId,
                                                                    int cancelled, const char* timezone, const char* startDateTime,
                                                                    const char* endDateTime, const char* title, const char* description, const char* attributes,
                                                                    const char* overrides, MegaChatScheduledFlags* flags, MegaChatScheduledRules* rules)
 {
     return new MegaChatScheduledMeetingPrivate(chatid, timezone, startDateTime, endDateTime, title,
-                                               description, callid, parentCallid, cancelled,
+                                               description, callid, parentCallid, organizerUserId, cancelled,
                                                attributes, overrides, flags, rules);
 }
 
@@ -2375,6 +2375,7 @@ int MegaChatScheduledMeeting::cancelled() const                                 
 MegaChatHandle MegaChatScheduledMeeting::chatid() const                         { return MEGACHAT_INVALID_HANDLE; }
 MegaChatHandle MegaChatScheduledMeeting::callid() const                         { return MEGACHAT_INVALID_HANDLE; }
 MegaChatHandle MegaChatScheduledMeeting::parentCallid() const                   { return MEGACHAT_INVALID_HANDLE; }
+MegaChatHandle MegaChatScheduledMeeting::organizerUserid() const                { return MEGACHAT_INVALID_HANDLE; }
 MegaChatScheduledMeeting* MegaChatScheduledMeeting::copy()                      { return NULL; }
 const char* MegaChatScheduledMeeting::timezone() const                          { return NULL; }
 const char* MegaChatScheduledMeeting::startDateTime() const                     { return NULL; }

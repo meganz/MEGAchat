@@ -7372,7 +7372,7 @@ public:
      *
      * @return A pointer to the superclass of the private object
      */
-    static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid,
+    static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid, MegaChatHandle organizerUserId,
                                                      int cancelled, const char* timezone, const char* startDateTime,
                                                      const char* endDateTime, const char* title, const char* description, const char* attributes,
                                                      const char* overrides, MegaChatScheduledFlags* flags, MegaChatScheduledRules* rules);
@@ -7417,6 +7417,13 @@ public:
      * @return MegaChatHandle that identifies the parent scheduled meeting
      */
     virtual MegaChatHandle parentCallid() const;
+
+    /**
+     * @brief Returns the MegaChatHandle of the organizer user of the scheduled meeting
+     *
+     * @return MegaChatHandle of the organizer user of the scheduled meeting
+     */
+    virtual MegaChatHandle organizerUserid() const;
 
     /**
      * @brief Returns the time zone B64 encoded

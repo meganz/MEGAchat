@@ -5594,30 +5594,11 @@ KarereScheduledRules* KarereScheduledRules::unserialize(std::string* in)
 }
 
 /* class scheduledMeeting */
-KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
-                                const char* title, const char* description, karere::Id callid,
-                                karere::Id parentCallid, int cancelled, const char* attributes,
-                                const char* overrides, KarereScheduledFlags* flags, KarereScheduledRules* rules)
-    : mChatid(chatid),
-      mCallid(callid),
-      mParentCallid(parentCallid),
-      mTimezone(timezone ? timezone : std::string()),
-      mStartDateTime(startDateTime ? startDateTime : std::string()),
-      mEndDateTime(endDateTime ? endDateTime : std::string()),
-      mTitle(title ? title : std::string()),
-      mDescription(description ? description : std::string()),
-      mAttributes(attributes ? attributes : std::string()),
-      mOverrides(overrides ? overrides : std::string()),
-      mCancelled(cancelled),
-      mFlags(flags ? flags->copy() : nullptr),
-      mRules(rules ? rules->copy() : nullptr)
-{
-}
-
 KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
       mCallid(scheduledMeeting->callid()),
       mParentCallid(scheduledMeeting->parentCallid()),
+      mOrganizerUserId(scheduledMeeting->organizerUserid()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
       mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
       mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
@@ -5635,6 +5616,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(mega::ScheduledMeeting* scheduled
     : mChatid(scheduledMeeting->chatid()),
       mCallid(scheduledMeeting->callid()),
       mParentCallid(scheduledMeeting->parentCallid()),
+      mOrganizerUserId(scheduledMeeting->organizerUserid()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
       mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
       mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
@@ -5652,6 +5634,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(mega::MegaScheduledMeeting* sched
     : mChatid(scheduledMeeting->chatid()),
       mCallid(scheduledMeeting->callid()),
       mParentCallid(scheduledMeeting->parentCallid()),
+      mOrganizerUserId(scheduledMeeting->organizerUserid()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
       mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
       mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
@@ -5689,6 +5672,7 @@ void KarereScheduledMeeting::setFlags(KarereScheduledFlags* flags)
 void KarereScheduledMeeting::setChatid(karere::Id chatid)                 { mChatid = chatid; }
 void KarereScheduledMeeting::setCallid(karere::Id callid)                 { mCallid = callid; }
 void KarereScheduledMeeting::setParentCallid(karere::Id parentCallid)     { mParentCallid = parentCallid; }
+void KarereScheduledMeeting::setOrganizerUserid(karere::Id userid)        { mOrganizerUserId = userid; }
 void KarereScheduledMeeting::setTimezone(const char* timezone)            { mTimezone.append(timezone ? timezone : std::string()); }
 void KarereScheduledMeeting::setStartDateTime(const char* startDateTime)  { mStartDateTime.append(startDateTime ? startDateTime : std::string()); }
 void KarereScheduledMeeting::setEndDateTime(const char* endDateTime)      { mEndDateTime.append(endDateTime ? endDateTime : std::string()); }
@@ -5701,6 +5685,7 @@ void KarereScheduledMeeting::setCancelled(int cancelled)                  { mCan
 karere::Id KarereScheduledMeeting::chatid() const                         { return mChatid; }
 karere::Id KarereScheduledMeeting::callid() const                         { return mCallid; }
 karere::Id KarereScheduledMeeting::parentCallid() const                   { return mParentCallid; }
+karere::Id KarereScheduledMeeting::organizerUserid() const                { return mOrganizerUserId; }
 const char* KarereScheduledMeeting::timezone() const                      { return !mTimezone.empty() ? mTimezone.c_str() : nullptr; }
 const char* KarereScheduledMeeting::startDateTime() const                 { return !mStartDateTime.empty() ? mStartDateTime.c_str() : nullptr; }
 const char* KarereScheduledMeeting::endDateTime() const                   { return !mEndDateTime.empty() ? mEndDateTime.c_str() : nullptr; }

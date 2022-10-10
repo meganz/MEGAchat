@@ -1391,14 +1391,7 @@ public:
     } scheduled_changed_flags_t;
     typedef std::bitset<SC_SIZE> sched_bs_t;
 
-    KarereScheduledMeeting(karere::Id chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
-                                    const char* title, const char* description, karere::Id callid = karere::Id::inval(),
-                                    karere::Id parentCallid = karere::Id::inval(), int cancelled = -1, const char* attributes = nullptr,
-                                    const char* overrides = nullptr, KarereScheduledFlags* flags = nullptr,
-                                    KarereScheduledRules* rules = nullptr);
-
     KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
-
     KarereScheduledMeeting(mega::ScheduledMeeting* sm);
     KarereScheduledMeeting(mega::MegaScheduledMeeting* sm);
 
@@ -1419,10 +1412,12 @@ public:
     void setParentCallid(karere::Id parentCallid);
     void setCallid(karere::Id callid);
     void setChatid(karere::Id chatid);
+    void setOrganizerUserid(karere::Id userid);
 
     karere::Id chatid() const;
     karere::Id callid() const;
     karere::Id parentCallid() const;
+    karere::Id organizerUserid() const;
     const char* timezone() const;
     const char* startDateTime() const;
     const char* endDateTime() const;
@@ -1444,6 +1439,9 @@ private:
 
     // [optional]: parent scheduled meeting handle
     karere::Id mParentCallid;
+
+    // [required]: organizer user handle
+    karere::Id mOrganizerUserId;
 
     // [required]: timeZone (B64 encoded)
     std::string mTimezone;
