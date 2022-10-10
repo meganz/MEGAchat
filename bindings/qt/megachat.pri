@@ -77,7 +77,8 @@ SOURCES += megachatapi.cpp \
             karereDbSchema.cpp \
             net/libwebsocketsIO.cpp \
             waiter/libuvWaiter.cpp \
-            kareredb.cpp
+            kareredb.cpp \
+            chatclientDb.cpp
 
 HEADERS  += asyncTest-framework.h \
             buffer.h \
@@ -143,7 +144,8 @@ HEADERS  += asyncTest-framework.h \
             strongvelope/tlvstore.h \
             strongvelope/strongvelope.h \
             strongvelope/cryptofunctions.h \
-            waiter/libuvWaiter.h
+            waiter/libuvWaiter.h \
+            chatclientDb.h
 
 CONFIG(qt) {
   SOURCES += ../bindings/qt/QTMegaChatEvent.cpp \

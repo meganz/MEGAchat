@@ -27,6 +27,7 @@
 #include "base64url.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "chatclientDb.h"
 
 #ifdef __ANDROID__
     #include <sys/system_properties.h>
@@ -88,6 +89,8 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 // Create the rtc module
     rtc.reset(rtcModule::createRtcModule(api, mCallHandler, mDnsCache, *websocketIO, appCtx,
                                          new rtcModule::RtcCryptoMeetings(*this)));
+
+    mClientDbInterface = new ChatClientSqliteDb(db);
 #endif
 }
 
@@ -3103,6 +3106,11 @@ ScheduledMeetingHandler& GroupChatRoom::schedMeetingHandler()
     return parent.mKarereClient.mScheduledMeetingHandler;
 }
 
+DbClientInterface& GroupChatRoom::getClientDbInterface()
+{
+    return parent.mKarereClient.getClientDbInterface();
+}
+
 void GroupChatRoom::notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed)
 {
     callAfterInit(this, [this, sm, changed]
@@ -4871,6 +4879,12 @@ void Client::setMyEmail(const std::string &email)
 const std::string& Client::getMyEmail() const
 {
     return mMyEmail;
+}
+
+DbClientInterface& Client::getClientDbInterface()
+{
+    assert(mClientDbInterface);
+    return *mClientDbInterface;
 }
 
 std::string encodeFirstName(const std::string& first)

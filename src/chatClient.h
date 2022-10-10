@@ -64,6 +64,7 @@ class KarereScheduledFlags;
 class KarereScheduledRules;
 class KarereScheduledMeeting;
 class ScheduledMeetingHandler;
+class DbClientInterface;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 typedef std::map<uint64_t, std::string> AliasesMap;
@@ -367,6 +368,7 @@ protected:
     // (check ScheduledMeeting class documentation)
     std::multimap<karere::Id/*schedMeetingId(callid)*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetingsOcurrences;
 
+    DbClientInterface& getClientDbInterface();
     ScheduledMeetingHandler& schedMeetingHandler();
     void setChatPrivateMode();
     void updateChatOptions(mega::ChatOptions_t opt);
@@ -983,6 +985,9 @@ protected:
     AliasesMap mAliasesMap;
     bool mIsInBackground = false;
 
+    // client db interface
+    DbClientInterface* mClientDbInterface = nullptr;
+
 public:
 
     /**
@@ -1201,6 +1206,8 @@ public:
     std::string getUserAlias(uint64_t userId);
     void setMyEmail(const std::string &email);
     const std::string& getMyEmail() const;
+
+    DbClientInterface &getClientDbInterface();
 
 protected:
     void heartbeat();
@@ -1472,6 +1479,13 @@ public:
     virtual ~ScheduledMeetingHandler(){}
     virtual void onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed) = 0;
     virtual void onSchedMeetingOccurrencesChange(const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>&l) = 0;
+};
+
+class DbClientInterface
+{
+public:
+    virtual ~DbClientInterface(){}
+    virtual void insertOrUpdateSchedMeeting(const KarereScheduledMeeting* sm) = 0;
 };
 }
 #endif // CHATCLIENT_H
