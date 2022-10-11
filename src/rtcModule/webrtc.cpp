@@ -1350,7 +1350,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
         setState(CallState::kStateInProgress);
 
-        mOffset = duration / 1000;
+        mOffset = duration;
         enableStats();
     })
     .fail([wptr, this](const ::promise::Error& err)
