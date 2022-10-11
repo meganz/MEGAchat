@@ -952,6 +952,9 @@ public:
     const char* attributes() const;
     const char* overrides() const;
     int cancelled() const;
+    bool hasChanged(size_t changeType) const;
+    bool isNew() const;
+    bool isDeleted() const;
     MegaChatScheduledFlags* flags() const;
     MegaChatScheduledRules* rules() const;
 

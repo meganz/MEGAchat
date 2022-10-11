@@ -2372,6 +2372,9 @@ MegaChatScheduledMeeting* MegaChatScheduledMeeting::createInstance(MegaChatHandl
 
 MegaChatScheduledMeeting::~MegaChatScheduledMeeting()                           {}
 int MegaChatScheduledMeeting::cancelled() const                                 { return 0; }
+bool MegaChatScheduledMeeting::hasChanged(size_t /*change*/) const              { return false; }
+bool MegaChatScheduledMeeting::isNew() const                                    { return false; }
+bool MegaChatScheduledMeeting::isDeleted() const                                { return false; }
 MegaChatHandle MegaChatScheduledMeeting::chatid() const                         { return MEGACHAT_INVALID_HANDLE; }
 MegaChatHandle MegaChatScheduledMeeting::callid() const                         { return MEGACHAT_INVALID_HANDLE; }
 MegaChatHandle MegaChatScheduledMeeting::parentCallid() const                   { return MEGACHAT_INVALID_HANDLE; }

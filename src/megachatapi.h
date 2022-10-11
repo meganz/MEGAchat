@@ -7336,18 +7336,19 @@ class MegaChatScheduledMeeting
 public:
     typedef enum
     {
-       SC_PARENT           = 0,
-       SC_TZONE            = 1,
-       SC_START            = 2,
-       SC_END              = 3,
-       SC_TITLE            = 4,
-       SC_DESC             = 5,
-       SC_ATTR             = 6,
-       SC_OVERR            = 7,
-       SC_CANC             = 8,
-       SC_FLAGS            = 9,
-       SC_RULES            = 10,
-       SC_SIZE             = 11,
+       SC_NEW_SCHED        = 0,
+       SC_PARENT           = 1,
+       SC_TZONE            = 2,
+       SC_START            = 3,
+       SC_END              = 4,
+       SC_TITLE            = 5,
+       SC_DESC             = 6,
+       SC_ATTR             = 7,
+       SC_OVERR            = 8,
+       SC_CANC             = 9,
+       SC_FLAGS            = 10,
+       SC_RULES            = 11,
+       SC_SIZE             = 12,
     } scheduled_changed_flags_t;
     typedef std::bitset<SC_SIZE> mega_sched_bs_t;
 
@@ -7396,6 +7397,48 @@ public:
      * @return True if scheduled meeting is cancelled, otherwise returns false
      */
     virtual int cancelled() const;
+
+    /**
+     * @brief Returns true if this scheduled meeting has an specific change
+     *
+     * This value is only useful for call notified by MegaChatScheduledMeetingListener::onChatSchedMeetingUpdate
+     * that can notify about scheduled meetings modifications. The value only will be valid inside
+     * MegaChatScheduledMeetingListener::onChatSchedMeetingUpdate. A copy of MegaChatScheduledMeeting will be
+     * necessary to use outside this callback
+     *
+     * In other cases, the return value of this function will be always false.
+     *
+     * @param changeType The type of change to check. It can be one of the following values:
+     *
+     * - MegaChatScheduledMeeting::SC_PARENT    [1]  - Parent scheduled meeting id has changed
+     * - MegaChatScheduledMeeting::SC_TZONE     [2]  - Timezone has changed
+     * - MegaChatScheduledMeeting::SC_START     [3]  - Start date time has changed
+     * - MegaChatScheduledMeeting::SC_END       [4]  - End date time has changed
+     * - MegaChatScheduledMeeting::SC_TITLE     [5]  - Title has changed
+     * - MegaChatScheduledMeeting::SC_DESC      [6]  - Description has changed
+     * - MegaChatScheduledMeeting::SC_ATTR      [7]  - Attributes have changed
+     * - MegaChatScheduledMeeting::SC_OVERR     [8]  - Override date time has changed
+     * - MegaChatScheduledMeeting::SC_CANC      [9]  - Cancelled flag has changed
+     * - MegaChatScheduledMeeting::SC_FLAGS     [10] - Scheduled meetings flags have changed
+     * - MegaChatScheduledMeeting::SC_RULES     [11] - Repetition rules have changed
+     *
+     * @return true if this scheduled meeting has an specific change
+     */
+    virtual bool hasChanged(size_t change) const;
+
+    /**
+     * @brief Returns if the MegaChatScheduledMeeting is new
+     *
+     * @return True if the MegaChatScheduledMeeting is new
+     */
+    virtual bool isNew() const;
+
+    /**
+     * @brief Returns if the MegaChatScheduledMeeting has been removed
+     *
+     * @return True if the MegaChatScheduledMeeting has been removed
+     */
+    virtual bool isDeleted() const;
 
     /**
      * @brief Returns the MegaChatHandle of the chat
