@@ -1391,6 +1391,12 @@ public:
     } scheduled_changed_flags_t;
     typedef std::bitset<SC_SIZE> sched_bs_t;
 
+    KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const char* timezone, const char* startDateTime, const char* endDateTime,
+                                    const char* title, const char* description, karere::Id callid = karere::Id::inval(),
+                                    karere::Id parentCallid = karere::Id::inval(), int cancelled = -1, const char* attributes = nullptr,
+                                    const char* overrides = nullptr, KarereScheduledFlags* flags = nullptr,
+                                    KarereScheduledRules* rules = nullptr);
+
     KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
     KarereScheduledMeeting(mega::ScheduledMeeting* sm);
     KarereScheduledMeeting(mega::MegaScheduledMeeting* sm);

@@ -5594,6 +5594,27 @@ KarereScheduledRules* KarereScheduledRules::unserialize(std::string* in)
 }
 
 /* class scheduledMeeting */
+KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const char* timezone, const char* startDateTime, const char* endDateTime,
+                                const char* title, const char* description, karere::Id callid,
+                                karere::Id parentCallid, int cancelled, const char* attributes,
+                                const char* overrides, KarereScheduledFlags* flags, KarereScheduledRules* rules)
+    : mChatid(chatid),
+      mCallid(callid),
+      mParentCallid(parentCallid),
+      mOrganizerUserId(organizerid),
+      mTimezone(timezone ? timezone : std::string()),
+      mStartDateTime(startDateTime ? startDateTime : std::string()),
+      mEndDateTime(endDateTime ? endDateTime : std::string()),
+      mTitle(title ? title : std::string()),
+      mDescription(description ? description : std::string()),
+      mAttributes(attributes ? attributes : std::string()),
+      mOverrides(overrides ? overrides : std::string()),
+      mCancelled(cancelled),
+      mFlags(flags ? flags->copy() : nullptr),
+      mRules(rules ? rules->copy() : nullptr)
+{
+}
+
 KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
       mCallid(scheduledMeeting->callid()),
