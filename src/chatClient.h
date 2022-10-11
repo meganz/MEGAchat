@@ -375,6 +375,8 @@ protected:
     void addSchedMeetings(const mega::MegaTextChat& chat);
     void updateSchedMeetings(const mega::MegaTextChat& chat);
     void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat);
+    void loadSchedMeetingsFromDb();
+    void loadSchedMeetingsOccurrFromDb();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
@@ -1337,6 +1339,7 @@ public:
     void setByMonthWeekDay(const std::multimap<int64_t, int64_t>* byMonthWeekDay);
     KarereScheduledRules* copy();
 
+    // --- getters ---
     int freq() const;
     int interval() const;
     const char* until() const;
@@ -1348,8 +1351,9 @@ public:
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
 
-    bool serialize(std::string* out);
-    static KarereScheduledRules* unserialize(std::string* in);
+    // --- methods to un/serialize ---
+    bool serialize(Buffer &out);
+    static KarereScheduledRules* unserialize(Buffer& in);
 
 private:
     // [required]: scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
@@ -1376,18 +1380,19 @@ class KarereScheduledMeeting
 public:
     typedef enum
     {
-        SC_PARENT           = 0,
-        SC_TZONE            = 1,
-        SC_START            = 2,
-        SC_END              = 3,
-        SC_TITLE            = 4,
-        SC_DESC             = 5,
-        SC_ATTR             = 6,
-        SC_OVERR            = 7,
-        SC_CANC             = 8,
-        SC_FLAGS            = 9,
-        SC_RULES            = 10,
-        SC_SIZE             = 11,
+        SC_NEW_SCHED        = 0,
+        SC_PARENT           = 1,
+        SC_TZONE            = 2,
+        SC_START            = 3,
+        SC_END              = 4,
+        SC_TITLE            = 5,
+        SC_DESC             = 6,
+        SC_ATTR             = 7,
+        SC_OVERR            = 8,
+        SC_CANC             = 9,
+        SC_FLAGS            = 10,
+        SC_RULES            = 11,
+        SC_SIZE             = 12,
     } scheduled_changed_flags_t;
     typedef std::bitset<SC_SIZE> sched_bs_t;
 
