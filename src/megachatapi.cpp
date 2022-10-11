@@ -711,7 +711,7 @@ void MegaChatApi::createScheduledMeeting(MegaChatHandle chatid, const char* time
                                          const char* until, const MegaIntegerList* byWeekDay, const MegaIntegerList* byMonthDay,
                                          const MegaIntegerMap* byMonthWeekDay, MegaChatRequestListener* listener)
 {
-     pImpl->createScheduledMeeting(chatid, true /*createChat*/, true /*isMeeting*/, true /*publicChat*/, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/,
+     pImpl->createScheduledMeeting(chatid, false /*createChat*/, false /*isMeeting*/, false /*publicChat*/, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/,
                                    timezone, startDate, endDate, title,
                                    description, freq, callid, parentCallid,
                                    cancelled, emailsDisabled, attributes, overrides, interval,
