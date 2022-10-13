@@ -4252,8 +4252,8 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
         if (!newSched)
         {
             // schedMeetingId was in changed list, but not in sched meeting list from API (it has been removed)
-            getClientDbInterface().removeSchedMeetingBySchedId(newSched->callid());
-            std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(newSched));
+            getClientDbInterface().removeSchedMeetingBySchedId(h);
+            std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(it->second.get()));
             notifySchedMeetingUpdated(aux.get(), 0 /*changed flags set to zero*/);
         }
         else
