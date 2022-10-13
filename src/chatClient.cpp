@@ -5782,17 +5782,30 @@ KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::M
 {
     // scheduled meeting Handle and chatroom can't change
     sched_bs_t bs = 0;
-    if (parentCallid() != sm->parentCallid())            { bs[SC_PARENT] = 1; }
-    if (timezone() != sm->timezone())                    { bs[SC_TZONE] = 1; }
-    if (!strcmp(startDateTime(), sm->startDateTime()))   { bs[SC_START] = 1; }
-    if (!strcmp(endDateTime(), sm->endDateTime()))       { bs[SC_END] = 1; }
-    if (!strcmp(title(), sm->title()))                   { bs[SC_TITLE] = 1; }
-    if (!strcmp(description(), sm->description()))       { bs[SC_DESC] = 1; }
-    if (!strcmp(attributes(), sm->attributes()))         { bs[SC_ATTR] = 1; }
-    if (!strcmp(overrides(), sm->overrides()))           { bs[SC_OVERR] = 1; }
-    if (cancelled() != sm->cancelled())                  { bs[SC_CANC] = 1; }
-    if (!flags()->equalTo(sm->flags()))                  { bs[SC_FLAGS] = 1; }
-    if (!rules()->equalTo(sm->rules()))                  { bs[SC_RULES] = 1; }
+    if (parentCallid() != sm->parentCallid())                                               { bs[SC_PARENT] = 1; }
+    if (timezone() != sm->timezone())                                                       { bs[SC_TZONE] = 1; }
+    if (cancelled() != sm->cancelled())                                                     { bs[SC_CANC] = 1; }
+    if (mStartDateTime.compare(sm->startDateTime() ? sm->startDateTime(): std::string()))   { bs[SC_START] = 1; }
+    if (mEndDateTime.compare(sm->endDateTime() ? sm->endDateTime(): std::string()))         { bs[SC_END] = 1; }
+    if (mTitle.compare(sm->title() ? sm->title(): std::string()))                           { bs[SC_TITLE] = 1; }
+    if (mDescription.compare(sm->description() ? sm->description(): std::string()))         { bs[SC_DESC] = 1; }
+    if (mAttributes.compare(sm->attributes() ? sm->attributes(): std::string()))            { bs[SC_ATTR] = 1; }
+    if (mOverrides.compare(sm->overrides() ? sm->overrides(): std::string()))               { bs[SC_OVERR] = 1; }
+
+    if ((flags() && !sm->flags())
+            || (!flags() && sm->flags())
+            || (flags() && sm->flags() && !flags()->equalTo(sm->flags())))
+    {
+        bs[SC_FLAGS] = 1;
+    }
+
+    if ((rules() && !sm->rules())
+            || (!rules() && sm->rules())
+            || (rules() && sm->rules() && !rules()->equalTo(sm->rules())))
+    {
+        bs[SC_RULES] = 1;
+
+    }
     return bs;
 }
 }
