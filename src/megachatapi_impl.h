@@ -1384,8 +1384,7 @@ public:
     // get a specific scheduled meeting occurrence given a chatid, a scheduled meeting id, and it's start date time
     MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime);
 
-    // get all scheduled meetings for all chats
-    MegaChatScheduledMeetingList* getAllScheduledMeetings();
+    MegaChatScheduledMeetingList* getAllScheduledMeetings(MegaChatScheduledMeeting::scheduled_types_t type);
 
     // get all scheduled meetings occurrences for all chats
     MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();

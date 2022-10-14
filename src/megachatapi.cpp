@@ -751,12 +751,22 @@ MegaChatScheduledMeeting* MegaChatApi::getScheduledMeetingOccurrence(MegaChatHan
 
 MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetings()
 {
-    return pImpl->getAllScheduledMeetings();
+    return pImpl->getAllScheduledMeetings(MegaChatScheduledMeeting::SC_TYPE_ALL);
+}
+
+MegaChatScheduledMeetingList* MegaChatApi::getAllUpcomingScheduledMeetings()
+{
+    return pImpl->getAllScheduledMeetings(MegaChatScheduledMeeting::SC_TYPE_UPCOMING);
+}
+
+MegaChatScheduledMeetingList* MegaChatApi::getAllPastScheduledMeetings()
+{
+    return pImpl->getAllScheduledMeetings(MegaChatScheduledMeeting::SC_TYPE_PAST);
 }
 
 MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetingsOccurrences()
 {
-    return pImpl->getAllScheduledMeetings();
+    return pImpl->getAllScheduledMeetingsOccurrences();
 }
 
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)

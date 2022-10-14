@@ -4284,7 +4284,7 @@ MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeetingOccurrence(MegaCha
     return nullptr;
 }
 
-MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
+MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings(MegaChatScheduledMeeting::scheduled_types_t type)
 {
     MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
     SdkMutexGuard g(sdkMutex);
@@ -4293,10 +4293,37 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
        GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(it->second);
        if (chatRoom)
        {
-           const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetings();
-           for (auto it = map.begin(); it != map.end(); it++)
-           {
-               list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+            const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetings();
+            for (auto it = map.begin(); it != map.end(); it++)
+            {
+                if (!it->second.get()->timezone())
+                {
+                    API_LOG_ERROR("getAllScheduledMeetings: scheduled meeting should have a timezone");
+                    assert(false);
+                    continue;
+                }
+
+                const karere::KarereScheduledMeeting* auxSched = it->second.get();
+                std::string now = ::mega::m_getCurrentTimeAtTimeZone(auxSched->timezone());
+                bool add = false;
+
+                switch (type)
+                {
+                    case MegaChatScheduledMeeting::SC_TYPE_ALL:
+                        add = true;
+                        break;
+                   case MegaChatScheduledMeeting::SC_TYPE_UPCOMING:
+                        add = (!auxSched->rules() && auxSched->startDateTime() > now) || (auxSched->rules() && auxSched->rules()->until() > now);
+                        break;
+                   case MegaChatScheduledMeeting::SC_TYPE_PAST:
+                        add = (!auxSched->rules() && auxSched->startDateTime() <= now) || (auxSched->rules() && auxSched->rules()->until() <= now);
+                        break;
+                }
+
+                if (add)
+                {
+                    list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+                }
            }
        }
     }

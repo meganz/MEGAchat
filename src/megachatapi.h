@@ -3962,11 +3962,7 @@ public:
                                 const char* until = NULL, const mega::MegaIntegerList* byWeekDay = NULL, const mega::MegaIntegerList* byMonthDay = NULL,
                                 const mega::MegaIntegerMap* byMonthWeekDay = NULL, MegaChatRequestListener* listener = NULL);
 
-    /**
-     * @brief Removes a scheduled meeting
-     *
-     * TODO complete documentation
-     */
+    // remove scheduled meeting by scheduled meeting id and chatid
     void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener = NULL);
 
     // get all scheduled meetings given a chatid (You take the ownership of the returned value)
@@ -3986,6 +3982,12 @@ public:
 
     // get all scheduled meetings for all chats (You take the ownership of the returned value)
     MegaChatScheduledMeetingList* getAllScheduledMeetings();
+
+    // get all upcoming scheduled meetings for all chats (You take the ownership of the returned value)
+    MegaChatScheduledMeetingList* getAllUpcomingScheduledMeetings();
+
+    // get all past scheduled meetings for all chats (You take the ownership of the returned value)
+    MegaChatScheduledMeetingList* getAllPastScheduledMeetings();
 
     // get all scheduled meetings occurrences for all chats (You take the ownership of the returned value)
     MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();
@@ -7350,6 +7352,14 @@ public:
        SC_RULES            = 11,
        SC_SIZE             = 12,
     } scheduled_changed_flags_t;
+
+    typedef enum
+    {
+       SC_TYPE_ALL        = 0,
+       SC_TYPE_PAST       = 1,
+       SC_TYPE_UPCOMING   = 2,
+    } scheduled_types_t;
+
     typedef std::bitset<SC_SIZE> mega_sched_bs_t;
 
     virtual ~MegaChatScheduledMeeting();
