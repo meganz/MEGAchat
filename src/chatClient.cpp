@@ -5529,10 +5529,10 @@ bool KarereScheduledRules::equalTo(::mega::MegaScheduledRules* aux) const
 {
     return mFreq == aux->freq()
     && mInterval == aux->interval()
-    && !mUntil.compare(aux->until())
-    && aux->byWeekDay()->equalTo(mByWeekDay.get())
-    && aux->byMonthDay()->equalTo(mByWeekDay.get())
-    && aux->byMonthWeekDay()->equalTo(mByMonthWeekDay.get());
+    && !mUntil.compare(aux->until() ? aux->until() : std::string())
+    && aux->byWeekDay() && aux->byWeekDay()->equalTo(mByWeekDay.get())
+    && aux->byMonthDay() && aux->byMonthDay()->equalTo(mByWeekDay.get())
+    && aux->byMonthWeekDay() && aux->byMonthWeekDay()->equalTo(mByMonthWeekDay.get());
 }
 
 bool KarereScheduledRules::serialize(Buffer& out)

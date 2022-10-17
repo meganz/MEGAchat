@@ -44,7 +44,7 @@ void ChatClientSqliteDb::removeSchedMeetingByChatId(karere::Id id)
 
 void ChatClientSqliteDb::removeSchedMeetingBySchedId(karere::Id id)
 {
-    mDb.query("delete from scheduledMeetings where schedmeetingid = ? or parentid = ?", id, id);
+    mDb.query("delete from scheduledMeetings where schedmeetingid = ?", id);
 }
 
 std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::getSchedMeetingsByChatId(karere::Id id)

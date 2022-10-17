@@ -3948,12 +3948,12 @@ public:
                                                      MegaChatRequestListener* listener = nullptr);
 
     // creates a scheduled meeting from an existing chatroom
-    void createScheduledMeetingFromExistingChat(MegaChatHandle callid, const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+    void createScheduledMeetingFromExistingChat(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
                                              int cancelled, const char* attributes, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules,
                                              MegaChatRequestListener* listener = nullptr);
 
     // updates a scheduled meeting
-    void updateScheduledMeeting(MegaChatHandle callid, MegaChatHandle parentCallid, const char* overrides,
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle callid, const char* overrides,
                                              const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
                                              int cancelled, const char* attributes, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules,
                                              MegaChatRequestListener* listener = nullptr);
