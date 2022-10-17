@@ -4222,10 +4222,8 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
         auto res = mScheduledMeetings.emplace(aux->callid(), std::move(aux));
         if (res.second)
         {
-            notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
-
-            // insert in db
             getClientDbInterface().insertOrUpdateSchedMeeting(res.first->second.get());
+            notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
         }
         else
         {
@@ -4236,7 +4234,7 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
 
 void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
 {
-    if (!chat.getSchedMeetingsChanged() || !chat.getScheduledMeetingList())
+    if (!chat.getSchedMeetingsChanged())
     {
         return;
     }
@@ -4247,14 +4245,24 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
     {
         auto h = changed->get(i);
         auto it = mScheduledMeetings.find(h);
-        ::mega::MegaScheduledMeeting* newSched = apiSchedMeetings->getBySchedMeetingId(h);
+        ::mega::MegaScheduledMeeting* newSched = apiSchedMeetings ? apiSchedMeetings->getBySchedMeetingId(h) : nullptr;
 
-        if (!newSched)
+        if (!newSched) // remove scheduled meeting
         {
-            // schedMeetingId was in changed list, but not in sched meeting list from API (it has been removed)
-            getClientDbInterface().removeSchedMeetingBySchedId(h);
-            std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(it->second.get()));
-            notifySchedMeetingUpdated(aux.get(), 0 /*changed flags set to zero*/);
+            getClientDbInterface().removeSchedMeetingBySchedId(h); // remove from db
+            if (it != mScheduledMeetings.end())
+            {
+                // schedMeetingId was in changed list, but not in sched meeting list from API (it has been removed)
+                // important: SDK will notify deletion of child scheduled meetings when it's parent has been removed
+                std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(it->second.get()));
+                mScheduledMeetings.erase(h);
+                notifySchedMeetingUpdated(aux.get(), 0 /*changed flags set to zero*/);
+            }
+            else // if scheduled meeting we want to remove, no longer exists in ram
+            {
+                 assert(false);
+                 KR_LOG_WARNING("updateSchedMeetings: scheduled meeting %s no longer exists", karere::Id(h).toString().c_str());
+            }
         }
         else
         {
