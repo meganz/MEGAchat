@@ -832,10 +832,10 @@ class MegaChatScheduledFlagsPrivate: public MegaChatScheduledFlags
 public:
     MegaChatScheduledFlagsPrivate();
     MegaChatScheduledFlagsPrivate(unsigned long numericValue);
-    MegaChatScheduledFlagsPrivate(MegaChatScheduledFlagsPrivate* flags);
+    MegaChatScheduledFlagsPrivate(const MegaChatScheduledFlagsPrivate *flags);
     MegaChatScheduledFlagsPrivate(const karere::KarereScheduledFlags* flags);
     virtual ~MegaChatScheduledFlagsPrivate();
-    MegaChatScheduledFlagsPrivate* copy() override;
+    MegaChatScheduledFlagsPrivate* copy() const override;
 
     // setters
     void reset() override;
@@ -860,7 +860,7 @@ public:
                                   const mega::MegaIntegerList* byMonthDay = nullptr,
                                   const mega::MegaIntegerMap* byMonthWeekDay = nullptr);
 
-    MegaChatScheduledRulesPrivate(MegaChatScheduledRulesPrivate* rules);
+    MegaChatScheduledRulesPrivate(const MegaChatScheduledRulesPrivate *rules);
     MegaChatScheduledRulesPrivate(const karere::KarereScheduledRules* rules);
     virtual ~MegaChatScheduledRulesPrivate();
 
@@ -871,13 +871,13 @@ public:
     void setByMonthDay(const mega::MegaIntegerList* byMonthDay);
     void setByMonthWeekDay(const mega::MegaIntegerMap* byMonthWeekDay);
 
-    MegaChatScheduledRulesPrivate* copy() override;
+    MegaChatScheduledRulesPrivate* copy() const override;
     int freq() const override;
     int interval() const override;
     const char* until() const override;
-    const mega::MegaIntegerList* byWeekDay() override;
-    const mega::MegaIntegerList* byMonthDay() override;
-    const mega::MegaIntegerMap* byMonthWeekDay() override;
+    const mega::MegaIntegerList* byWeekDay()  const override;
+    const mega::MegaIntegerList* byMonthDay()  const  override;
+    const mega::MegaIntegerMap* byMonthWeekDay() const override;
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
 
@@ -916,8 +916,8 @@ public:
                                     int cancelled = -1,
                                     const char* attributes = nullptr,
                                     const char* overrides = nullptr,
-                                    MegaChatScheduledFlags* flags = nullptr,
-                                    MegaChatScheduledRules* rules = nullptr);
+                                    const MegaChatScheduledFlags* flags = nullptr,
+                                    const MegaChatScheduledRules* rules = nullptr);
 
     MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting);
     MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* scheduledMeeting);
@@ -1359,12 +1359,12 @@ public:
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
-    // creates a scheduled meeting
-    void createScheduledMeeting(MegaChatHandle chatid, bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite, const char* timezone, const char* startDate, const char* endDate, const char* title,
-                                const char* description, int freq, MegaChatHandle callid = MEGACHAT_INVALID_HANDLE, MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
-                                int cancelled = -1, bool emailsDisabled = false, const char* attributes = nullptr, const char* overrides = nullptr, int interval = 0,
-                                const char* until = nullptr, const mega::MegaIntegerList* byWeekDay = nullptr, const mega::MegaIntegerList* byMonthDay = nullptr,
-                                const mega::MegaIntegerMap* byMonthWeekDay = nullptr, MegaChatRequestListener* listener = nullptr);
+    // creates or update a scheduled meeting
+    void createOrUpdateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid,
+                                                 bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
+                                                 const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+                                                 int cancelled, const char* attributes, const char* overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                 MegaChatRequestListener* listener = nullptr);
 
     // removes a scheduled meeting
     void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener = nullptr);
@@ -1379,12 +1379,12 @@ public:
     MegaChatScheduledMeetingList* getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid);
 
     // get all scheduled meetings occurrences given a chatid and a scheduled meeting id
-    MegaChatScheduledMeetingList* getScheduledMeetingOccurrences(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
 
     // get a specific scheduled meeting occurrence given a chatid, a scheduled meeting id, and it's start date time
     MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime);
 
-    MegaChatScheduledMeetingList* getAllScheduledMeetings(MegaChatScheduledMeeting::scheduled_types_t type);
+    MegaChatScheduledMeetingList* getAllScheduledMeetings();
 
     // get all scheduled meetings occurrences for all chats
     MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();

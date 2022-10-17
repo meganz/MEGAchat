@@ -691,32 +691,33 @@ void MegaChatApi::createMeeting(const char* title, bool speakRequest, bool waiti
 }
 
 
-void MegaChatApi::createChatAndScheduledMeeting(bool publicChat, bool isMeeting, const char* timezone, const char* startDate, const char* endDate, const char* title,
-                                         const char* description, int freq, MegaChatHandle callid, MegaChatHandle parentCallid,
-                                         int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
-                                         const char* until, const MegaIntegerList* byWeekDay, const MegaIntegerList* byMonthDay,
-                                         const MegaIntegerMap* byMonthWeekDay, MegaChatRequestListener* listener)
+void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
+                                                 const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+                                                 int cancelled, const char* attributes, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                 MegaChatRequestListener* listener)
 {
-     pImpl->createScheduledMeeting(MEGACHAT_INVALID_HANDLE, true /*createChat*/,isMeeting, publicChat, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/,
-                                   timezone, startDate, endDate, title,
-                                   description, freq, callid, parentCallid,
-                                   cancelled, emailsDisabled, attributes, overrides, interval,
-                                   until, byWeekDay, byMonthDay,
-                                   byMonthWeekDay, listener);
+    pImpl->createOrUpdateScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, MEGACHAT_INVALID_HANDLE /* callid */, MEGACHAT_INVALID_HANDLE /*parentCallid,*/,
+                                                 true /*createChat*/, isMeeting, publicChat, speakRequest, waitingRoom, openInvite,
+                                                 timezone, startDate, endDate, title, description, cancelled, attributes, nullptr /*overrides*/, flags, rules, listener);
 }
 
-void MegaChatApi::createScheduledMeeting(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
-                                         const char* description, int freq, MegaChatHandle callid, MegaChatHandle parentCallid,
-                                         int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
-                                         const char* until, const MegaIntegerList* byWeekDay, const MegaIntegerList* byMonthDay,
-                                         const MegaIntegerMap* byMonthWeekDay, MegaChatRequestListener* listener)
+void MegaChatApi::createScheduledMeetingFromExistingChat(MegaChatHandle callid, const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+                                         int cancelled, const char* attributes, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules,
+                                         MegaChatRequestListener* listener)
 {
-     pImpl->createScheduledMeeting(chatid, false /*createChat*/, false /*isMeeting*/, false /*publicChat*/, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/,
-                                   timezone, startDate, endDate, title,
-                                   description, freq, callid, parentCallid,
-                                   cancelled, emailsDisabled, attributes, overrides, interval,
-                                   until, byWeekDay, byMonthDay,
-                                   byMonthWeekDay, listener);
+    pImpl->createOrUpdateScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, callid, MEGACHAT_INVALID_HANDLE /*parentCallid,*/,
+                                                 false /*createChat*/, false /*isMeeting*/, false /*publicChat*/, false /*speakRequest*/, false /*bool waitingRoom*/, false /*openInvite*/,
+                                                 timezone, startDate, endDate, title, description, cancelled, attributes, nullptr /*overrides*/, flags, rules, listener);
+}
+
+void MegaChatApi::updateScheduledMeeting(MegaChatHandle callid, MegaChatHandle parentCallid, const char* overrides,
+                                         const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+                                         int cancelled, const char* attributes, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules,
+                                         MegaChatRequestListener* listener)
+{
+    pImpl->createOrUpdateScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, callid, parentCallid,
+                                                 false /*createChat*/, false /*isMeeting*/, false /*publicChat*/, false /*speakRequest*/, false /*bool waitingRoom*/, false /*openInvite*/,
+                                                 timezone, startDate, endDate, title, description, cancelled, attributes, overrides, flags, rules, listener);
 }
 
 void MegaChatApi::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener)
@@ -734,34 +735,24 @@ MegaChatScheduledMeeting* MegaChatApi::getScheduledMeeting(MegaChatHandle chatid
     return pImpl->getScheduledMeeting(chatid, schedMeetingId);
 }
 
+MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetings()
+{
+    return pImpl->getAllScheduledMeetings();
+}
+
 MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid)
 {
     return pImpl->getScheduledMeetingsOccurrencesByChat(chatid);
 }
 
-MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingOccurrences(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
+MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
 {
-    return pImpl->getScheduledMeetingOccurrences(chatid, schedMeetingId);
+    return pImpl->getScheduledMeetingOccurrencesByShedMeetingId(chatid, schedMeetingId);
 }
 
 MegaChatScheduledMeeting* MegaChatApi::getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime)
 {
     return pImpl->getScheduledMeetingOccurrence(chatid, schedMeetingId, startDateTime);
-}
-
-MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetings()
-{
-    return pImpl->getAllScheduledMeetings(MegaChatScheduledMeeting::SC_TYPE_ALL);
-}
-
-MegaChatScheduledMeetingList* MegaChatApi::getAllUpcomingScheduledMeetings()
-{
-    return pImpl->getAllScheduledMeetings(MegaChatScheduledMeeting::SC_TYPE_UPCOMING);
-}
-
-MegaChatScheduledMeetingList* MegaChatApi::getAllPastScheduledMeetings()
-{
-    return pImpl->getAllScheduledMeetings(MegaChatScheduledMeeting::SC_TYPE_PAST);
 }
 
 MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetingsOccurrences()
@@ -2333,7 +2324,7 @@ MegaChatScheduledFlags* MegaChatScheduledFlags::createInstance(bool emailsDisabl
     return flags;
 }
 
-MegaChatScheduledFlags* MegaChatScheduledFlags::copy()
+MegaChatScheduledFlags* MegaChatScheduledFlags::copy() const
 {
     return NULL;
 }
@@ -2359,13 +2350,13 @@ MegaChatScheduledRules* MegaChatScheduledRules::createInstance(int freq,
 }
 
 MegaChatScheduledRules::~MegaChatScheduledRules()                               {}
-MegaChatScheduledRules* MegaChatScheduledRules::copy()                          { return NULL; }
+MegaChatScheduledRules* MegaChatScheduledRules::copy() const                    { return NULL; }
 int MegaChatScheduledRules::freq() const                                        { return 0; }
 int MegaChatScheduledRules::interval() const                                    { return 0; }
 const char* MegaChatScheduledRules::until() const                               { return nullptr; }
-const mega::MegaIntegerList* MegaChatScheduledRules::byWeekDay()                { return nullptr; }
-const mega::MegaIntegerList* MegaChatScheduledRules::byMonthDay()               { return nullptr; }
-const mega::MegaIntegerMap* MegaChatScheduledRules::byMonthWeekDay()            { return nullptr; }
+const mega::MegaIntegerList* MegaChatScheduledRules::byWeekDay() const                { return nullptr; }
+const mega::MegaIntegerList* MegaChatScheduledRules::byMonthDay() const              { return nullptr; }
+const mega::MegaIntegerMap* MegaChatScheduledRules::byMonthWeekDay()   const         { return nullptr; }
 bool MegaChatScheduledRules::isValidFreq(int freq)                              { return MegaChatScheduledRulesPrivate::isValidFreq(freq);}
 bool MegaChatScheduledRules::isValidInterval(int interval)                      { return MegaChatScheduledRulesPrivate::isValidInterval(interval);}
 
@@ -2373,7 +2364,7 @@ bool MegaChatScheduledRules::isValidInterval(int interval)                      
 MegaChatScheduledMeeting* MegaChatScheduledMeeting::createInstance(MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid, MegaChatHandle organizerUserId,
                                                                    int cancelled, const char* timezone, const char* startDateTime,
                                                                    const char* endDateTime, const char* title, const char* description, const char* attributes,
-                                                                   const char* overrides, MegaChatScheduledFlags* flags, MegaChatScheduledRules* rules)
+                                                                   const char* overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules)
 {
     return new MegaChatScheduledMeetingPrivate(chatid, timezone, startDateTime, endDateTime, title,
                                                description, callid, parentCallid, organizerUserId, cancelled,

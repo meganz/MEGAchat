@@ -59,6 +59,7 @@ class MegaChatNotificationListener;
 class MegaChatListItem;
 class MegaChatNodeHistoryListener;
 class MegaChatScheduledRules;
+class MegaChatScheduledFlags;
 class MegaChatScheduledMeeting;
 class MegaChatScheduledMeetingList;
 
@@ -1980,7 +1981,7 @@ public:
         TYPE_OPEN_VIDEO_DEVICE, TYPE_REQUEST_HIRES_QUALITY,
         TYPE_DEL_SPEAKER, TYPE_REQUEST_SVC_LAYERS,
         TYPE_SET_CHATROOM_OPTIONS,
-        TYPE_CREATE_SCHEDULED_MEETING,
+        TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING,
         TYPE_DELETE_SCHEDULED_MEETING,
         TOTAL_OF_REQUEST_TYPES
     };
@@ -3940,27 +3941,22 @@ public:
      */
     void createMeeting(const char *title = NULL, MegaChatRequestListener *listener = NULL);
 
-    /**
-     * @brief Creates a scheduled meeting
-     *
-     * TODO complete documentation
-     */
-    void createChatAndScheduledMeeting(bool publicChat, bool isMeeting, const char* timezone, const char* startDate, const char* endDate, const char* title,
-                                       const char* description, int freq, MegaChatHandle callid = MEGACHAT_INVALID_HANDLE, MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
-                                       int cancelled = -1, bool emailsDisabled = false, const char* attributes = NULL, const char* overrides = NULL, int interval = 0,
-                                       const char* until = NULL, const mega::MegaIntegerList* byWeekDay = NULL, const mega::MegaIntegerList* byMonthDay = NULL,
-                                       const mega::MegaIntegerMap* byMonthWeekDay = NULL, MegaChatRequestListener* listener = NULL);
+    // creates a chatroom and a scheduled meeting
+    void createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
+                                                     const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+                                                     int cancelled, const char* attributes, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                     MegaChatRequestListener* listener = nullptr);
 
-    /**
-     * @brief Creates a scheduled meeting
-     *
-     * TODO complete documentation
-     */
-    void createScheduledMeeting(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
-                                const char* description, int freq, MegaChatHandle callid = MEGACHAT_INVALID_HANDLE, MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
-                                int cancelled = -1, bool emailsDisabled = false, const char* attributes = NULL, const char* overrides = NULL, int interval = 0,
-                                const char* until = NULL, const mega::MegaIntegerList* byWeekDay = NULL, const mega::MegaIntegerList* byMonthDay = NULL,
-                                const mega::MegaIntegerMap* byMonthWeekDay = NULL, MegaChatRequestListener* listener = NULL);
+    // creates a scheduled meeting from an existing chatroom
+    void createScheduledMeetingFromExistingChat(MegaChatHandle callid, const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+                                             int cancelled, const char* attributes, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules,
+                                             MegaChatRequestListener* listener = nullptr);
+
+    // updates a scheduled meeting
+    void updateScheduledMeeting(MegaChatHandle callid, MegaChatHandle parentCallid, const char* overrides,
+                                             const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+                                             int cancelled, const char* attributes, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules,
+                                             MegaChatRequestListener* listener = nullptr);
 
     // remove scheduled meeting by scheduled meeting id and chatid
     void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener = NULL);
@@ -3971,26 +3967,20 @@ public:
     // return a specific scheduled meeting given a chatid and a scheduled meeting id (You take the ownership of the returned value)
     MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
 
+    // get all scheduled meetings for all chats (You take the ownership of the returned value)
+    MegaChatScheduledMeetingList* getAllScheduledMeetings();
+
+    // get all scheduled meetings occurrences for all chats (You take the ownership of the returned value)
+    MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();
+
     // get all scheduled meetings occurrences given a chatid (You take the ownership of the returned value)
     MegaChatScheduledMeetingList* getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid);
 
     // get all scheduled meetings occurrences given a chatid and a scheduled meeting id (You take the ownership of the returned value)
-    MegaChatScheduledMeetingList* getScheduledMeetingOccurrences(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
 
     // get a specific scheduled meeting occurrence given a chatid, a scheduled meeting id, and it's start date time (You take the ownership of the returned value)
     MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime);
-
-    // get all scheduled meetings for all chats (You take the ownership of the returned value)
-    MegaChatScheduledMeetingList* getAllScheduledMeetings();
-
-    // get all upcoming scheduled meetings for all chats (You take the ownership of the returned value)
-    MegaChatScheduledMeetingList* getAllUpcomingScheduledMeetings();
-
-    // get all past scheduled meetings for all chats (You take the ownership of the returned value)
-    MegaChatScheduledMeetingList* getAllPastScheduledMeetings();
-
-    // get all scheduled meetings occurrences for all chats (You take the ownership of the returned value)
-    MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();
 
     /**
      * @brief Creates a meeting
@@ -7196,7 +7186,7 @@ public:
      *
      * @return Copy of the MegaChatScheduledFlags object
      */
-    virtual MegaChatScheduledFlags* copy();
+    virtual MegaChatScheduledFlags* copy() const;
 
     /**
      * @brief Reset the value of all options (to disabled)
@@ -7271,7 +7261,7 @@ public:
      *
      * @return Copy of the MegaChatScheduledRules object
      */
-    virtual MegaChatScheduledRules* copy();
+    virtual MegaChatScheduledRules* copy() const;
 
     /**
      * @brief Returns the frequency of the scheduled meeting: (DAILY | WEEKLY | MONTHLY)
@@ -7298,21 +7288,21 @@ public:
      *
      * @return A MegaIntegerList with the week days when the event will occur
      */
-    virtual const mega::MegaIntegerList* byWeekDay();
+    virtual const mega::MegaIntegerList* byWeekDay() const;
 
     /**
      * @brief Returns a MegaIntegerList with the days of the month when the event will occur
      *
      * @return A MegaIntegerList with the days of the month when the event will occur
      */
-    virtual const mega::MegaIntegerList* byMonthDay();
+    virtual const mega::MegaIntegerList* byMonthDay() const;
 
     /**
      * @brief Returns a MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset (ie: [5,4] event will occur every 5th Thursday of each month)
      *
      * @return A MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset
      */
-    virtual const mega::MegaIntegerMap* byMonthWeekDay();
+    virtual const mega::MegaIntegerMap* byMonthWeekDay() const;
 
     /**
      * @brief Returns if a given frequency is valid or not
@@ -7353,13 +7343,6 @@ public:
        SC_SIZE             = 12,
     } scheduled_changed_flags_t;
 
-    typedef enum
-    {
-       SC_TYPE_ALL        = 0,
-       SC_TYPE_PAST       = 1,
-       SC_TYPE_UPCOMING   = 2,
-    } scheduled_types_t;
-
     typedef std::bitset<SC_SIZE> mega_sched_bs_t;
 
     virtual ~MegaChatScheduledMeeting();
@@ -7386,7 +7369,7 @@ public:
     static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid, MegaChatHandle organizerUserId,
                                                      int cancelled, const char* timezone, const char* startDateTime,
                                                      const char* endDateTime, const char* title, const char* description, const char* attributes,
-                                                     const char* overrides, MegaChatScheduledFlags* flags, MegaChatScheduledRules* rules);
+                                                     const char* overrides, const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules);
 
     /**
      * @brief Creates a copy of this MegaChatScheduledMeeting object
