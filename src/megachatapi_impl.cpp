@@ -4226,7 +4226,7 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
             const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetings();
             for (auto it = map.begin(); it != map.end(); it++)
             {
-                if (!it->second.get()->timezone())
+                if (it->second->timezone().empty())
                 {
                     API_LOG_ERROR("getAllScheduledMeetings: scheduled meeting should have a timezone");
                     assert(false);
@@ -4288,12 +4288,12 @@ MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeetingOccurrence(MegaCha
         auto range = map.equal_range(schedMeetingId);
         for (auto it = range.first; it != range.second; ++it)
         {
-            if (!it->second->startDateTime())
+            if (it->second->startDateTime().empty())
             {
                 continue;
             }
 
-            if (!strcmp(startDateTime, it->second->startDateTime()))
+            if (!it->second->startDateTime().compare(startDateTime ? startDateTime : std::string()))
             {
                 return new MegaChatScheduledMeetingPrivate(it->second.get());
             }
@@ -8297,13 +8297,13 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const karere::K
       mCallid(scheduledMeeting->callid()),
       mParentCallid(scheduledMeeting->parentCallid()),
       mOrganizerUserId(scheduledMeeting->organizerUserid()),
-      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
-      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
-      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
-      mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
-      mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
-      mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
-      mOverrides(scheduledMeeting->overrides() ? scheduledMeeting->overrides() : std::string()),
+      mTimezone(scheduledMeeting->timezone()),
+      mStartDateTime(scheduledMeeting->startDateTime()),
+      mEndDateTime(scheduledMeeting->endDateTime()),
+      mTitle(scheduledMeeting->title()),
+      mDescription(scheduledMeeting->description()),
+      mAttributes(scheduledMeeting->attributes()),
+      mOverrides(scheduledMeeting->overrides()),
       mCancelled(scheduledMeeting->cancelled()),
       mFlags(scheduledMeeting->flags() ? new MegaChatScheduledFlagsPrivate(scheduledMeeting->flags()) : nullptr),
       mRules(scheduledMeeting->rules() ? new MegaChatScheduledRulesPrivate(scheduledMeeting->rules()) : nullptr)

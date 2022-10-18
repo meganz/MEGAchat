@@ -5650,13 +5650,13 @@ KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduled
       mCallid(scheduledMeeting->callid()),
       mParentCallid(scheduledMeeting->parentCallid()),
       mOrganizerUserId(scheduledMeeting->organizerUserid()),
-      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
-      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
-      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
-      mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
-      mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
-      mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
-      mOverrides(scheduledMeeting->overrides() ? scheduledMeeting->overrides() : std::string()),
+      mTimezone(scheduledMeeting->timezone()),
+      mStartDateTime(scheduledMeeting->startDateTime()),
+      mEndDateTime(scheduledMeeting->endDateTime()),
+      mTitle(scheduledMeeting->title()),
+      mDescription(scheduledMeeting->description()),
+      mAttributes(scheduledMeeting->attributes()),
+      mOverrides(scheduledMeeting->overrides()),
       mCancelled(scheduledMeeting->cancelled()),
       mFlags(scheduledMeeting->flags() ? new KarereScheduledFlags(scheduledMeeting->flags()) : nullptr),
       mRules(scheduledMeeting->rules() ? new KarereScheduledRules(scheduledMeeting->rules()) : nullptr)
@@ -5712,13 +5712,13 @@ karere::Id KarereScheduledMeeting::chatid() const                         { retu
 karere::Id KarereScheduledMeeting::callid() const                         { return mCallid; }
 karere::Id KarereScheduledMeeting::parentCallid() const                   { return mParentCallid; }
 karere::Id KarereScheduledMeeting::organizerUserid() const                { return mOrganizerUserId; }
-const char* KarereScheduledMeeting::timezone() const                      { return !mTimezone.empty() ? mTimezone.c_str() : nullptr; }
-const char* KarereScheduledMeeting::startDateTime() const                 { return !mStartDateTime.empty() ? mStartDateTime.c_str() : nullptr; }
-const char* KarereScheduledMeeting::endDateTime() const                   { return !mEndDateTime.empty() ? mEndDateTime.c_str() : nullptr; }
-const char* KarereScheduledMeeting::title() const                         { return !mTitle.empty() ? mTitle.c_str() : nullptr; }
-const char* KarereScheduledMeeting::description() const                   { return !mDescription.empty() ? mDescription.c_str() : nullptr; }
-const char* KarereScheduledMeeting::attributes() const                    { return !mAttributes.empty() ? mAttributes.c_str() : nullptr; }
-const char* KarereScheduledMeeting::overrides() const                     { return !mOverrides.empty() ? mOverrides.c_str() : nullptr; }
+const std::string& KarereScheduledMeeting::timezone() const               { return mTimezone; }
+const std::string& KarereScheduledMeeting::startDateTime() const          { return mStartDateTime; }
+const std::string& KarereScheduledMeeting::endDateTime() const            { return mEndDateTime; }
+const std::string& KarereScheduledMeeting::title() const                  { return mTitle; }
+const std::string& KarereScheduledMeeting::description() const            { return mDescription; }
+const std::string& KarereScheduledMeeting::attributes() const             { return mAttributes; }
+const std::string& KarereScheduledMeeting::overrides() const              { return mOverrides; }
 int KarereScheduledMeeting::cancelled() const                             { return mCancelled; }
 KarereScheduledFlags* KarereScheduledMeeting::flags() const               { return mFlags.get(); }
 KarereScheduledRules* KarereScheduledMeeting::rules() const               { return mRules.get(); }
@@ -5728,7 +5728,7 @@ KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::M
     // scheduled meeting Handle and chatroom can't change
     sched_bs_t bs = 0;
     if (parentCallid() != sm->parentCallid())                                               { bs[SC_PARENT] = 1; }
-    if (timezone() != sm->timezone())                                                       { bs[SC_TZONE] = 1; }
+    if (timezone().compare(sm->timezone() ? sm->timezone() : std::string()))                { bs[SC_TZONE] = 1; }
     if (cancelled() != sm->cancelled())                                                     { bs[SC_CANC] = 1; }
     if (mStartDateTime.compare(sm->startDateTime() ? sm->startDateTime(): std::string()))   { bs[SC_START] = 1; }
     if (mEndDateTime.compare(sm->endDateTime() ? sm->endDateTime(): std::string()))         { bs[SC_END] = 1; }
