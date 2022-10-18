@@ -1288,7 +1288,6 @@ public:
 
     KarereScheduledFlags (unsigned long numericValue);
     KarereScheduledFlags (KarereScheduledFlags* flags);
-    KarereScheduledFlags(::mega::ScheduledFlags* flags);
     KarereScheduledFlags(::mega::MegaScheduledFlags* flags);
     virtual ~KarereScheduledFlags();
     KarereScheduledFlags* copy();
@@ -1326,7 +1325,6 @@ public:
                    const std::multimap<int64_t, int64_t>* byMonthWeekDay = nullptr);
 
     KarereScheduledRules(KarereScheduledRules* rules);
-    KarereScheduledRules(::mega::ScheduledRules* rules);
     KarereScheduledRules(::mega::MegaScheduledRules* rules);
     virtual ~KarereScheduledRules();
     KarereScheduledRules* copy();

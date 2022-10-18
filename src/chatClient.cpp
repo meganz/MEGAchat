@@ -5333,11 +5333,6 @@ KarereScheduledFlags::KarereScheduledFlags(KarereScheduledFlags* flags)
 {
 }
 
-KarereScheduledFlags::KarereScheduledFlags(::mega::ScheduledFlags* flags)
- : mFlags(flags ? flags->getNumericValue() : 0)
-{
-}
-
 KarereScheduledFlags::KarereScheduledFlags(::mega::MegaScheduledFlags* flags)
  : mFlags(flags ? flags->getNumericValue() : 0)
 {
@@ -5396,41 +5391,6 @@ KarereScheduledRules::KarereScheduledRules(KarereScheduledRules* rules)
       mByMonthDay (rules->byMonthDay() ? new std::vector<int64_t>(*rules->byMonthDay()) : nullptr),
       mByMonthWeekDay(rules->byMonthWeekDay() ? new std::multimap<int64_t, int64_t>(rules->byMonthWeekDay()->begin(), rules->byMonthWeekDay()->end()) : nullptr)
 {
-}
-
-KarereScheduledRules::KarereScheduledRules(::mega::ScheduledRules* rules)
-{
-    mFreq = isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID;
-    mInterval = isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID;
-    mUntil = rules->until();
-    std::vector<int64_t>* auxByWeekDay = nullptr;
-    if (rules->byWeekDay())
-    {
-      const mega::MegaSmallIntVector* inByWeekDay = rules->byWeekDay();
-      auxByWeekDay = new std::vector<int64_t>();
-      auxByWeekDay->reserve(inByWeekDay->size());
-      std::transform(inByWeekDay->begin(), inByWeekDay->end(), std::back_inserter(*auxByWeekDay), [](int64_t x) { return static_cast<uint8_t>(x);});
-      mByWeekDay.reset(auxByWeekDay);
-    }
-
-    std::vector<int64_t>* auxByMonthDay = nullptr;
-    if (rules->byMonthDay())
-    {
-      const mega::MegaSmallIntVector* inByMonthDay = rules->byMonthDay();
-      auxByMonthDay = new std::vector<int64_t>();
-      auxByMonthDay->reserve(inByMonthDay->size());
-      std::transform(inByMonthDay->begin(), inByMonthDay->end(), std::back_inserter(*auxByMonthDay), [](int64_t x) { return static_cast<uint8_t>(x);});
-      mByMonthDay.reset(auxByMonthDay);
-    }
-
-    std::multimap<int64_t, int64_t>* auxByMonthWeekDay = nullptr;
-    if (rules->byMonthWeekDay())
-    {
-      auxByMonthWeekDay = new std::multimap<int64_t, int64_t>();
-      const mega::MegaSmallIntMap* inaux = rules->byMonthWeekDay();
-      auxByMonthWeekDay->insert(inaux->begin(), inaux->end());
-      mByMonthWeekDay.reset(auxByMonthWeekDay);
-    }
 }
 
 KarereScheduledRules::KarereScheduledRules(::mega::MegaScheduledRules* rules)
