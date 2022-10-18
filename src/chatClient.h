@@ -1401,22 +1401,6 @@ public:
     KarereScheduledMeeting* copy();
     virtual ~KarereScheduledMeeting();
 
-    // --- setters ---
-    void setRules(KarereScheduledRules* rules);
-    void setFlags(KarereScheduledFlags* flags);
-    void setCancelled(int cancelled);
-    void setOverrides(const char* overrides);
-    void setAttributes(const char* attributes);
-    void setDescription(const char* description);
-    void setTitle(const char* title);
-    void setEndDateTime(const char* endDateTime);
-    void setStartDateTime(const char* startDateTime);
-    void setTimezone(const char* timezone);
-    void setParentCallid(karere::Id parentCallid);
-    void setCallid(karere::Id callid);
-    void setChatid(karere::Id chatid);
-    void setOrganizerUserid(karere::Id userid);
-
     karere::Id chatid() const;
     karere::Id callid() const;
     karere::Id parentCallid() const;

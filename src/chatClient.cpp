@@ -5708,31 +5708,6 @@ KarereScheduledMeeting::~KarereScheduledMeeting()
 {
 }
 
-void KarereScheduledMeeting::setRules(KarereScheduledRules* rules)
-{
-    mRules.reset();
-    if (rules) { mRules.reset(rules->copy()); }
-}
-
-void KarereScheduledMeeting::setFlags(KarereScheduledFlags* flags)
-{
-    mFlags.reset();
-    if (flags) { mFlags.reset(flags->copy()); }
-}
-
-void KarereScheduledMeeting::setChatid(karere::Id chatid)                 { mChatid = chatid; }
-void KarereScheduledMeeting::setCallid(karere::Id callid)                 { mCallid = callid; }
-void KarereScheduledMeeting::setParentCallid(karere::Id parentCallid)     { mParentCallid = parentCallid; }
-void KarereScheduledMeeting::setOrganizerUserid(karere::Id userid)        { mOrganizerUserId = userid; }
-void KarereScheduledMeeting::setTimezone(const char* timezone)            { mTimezone.append(timezone ? timezone : std::string()); }
-void KarereScheduledMeeting::setStartDateTime(const char* startDateTime)  { mStartDateTime.append(startDateTime ? startDateTime : std::string()); }
-void KarereScheduledMeeting::setEndDateTime(const char* endDateTime)      { mEndDateTime.append(endDateTime ? endDateTime : std::string()); }
-void KarereScheduledMeeting::setTitle(const char* title)                  { mTitle.append(title ? title : std::string()); }
-void KarereScheduledMeeting::setDescription(const char* description)      { mDescription.append(description ? description : std::string()); }
-void KarereScheduledMeeting::setAttributes(const char* attributes)        { mAttributes.append(attributes ? attributes : std::string()); }
-void KarereScheduledMeeting::setOverrides(const char* overrides)          { mOverrides.append(overrides ? overrides : std::string()); }
-void KarereScheduledMeeting::setCancelled(int cancelled)                  { mCancelled = cancelled; }
-
 karere::Id KarereScheduledMeeting::chatid() const                         { return mChatid; }
 karere::Id KarereScheduledMeeting::callid() const                         { return mCallid; }
 karere::Id KarereScheduledMeeting::parentCallid() const                   { return mParentCallid; }
