@@ -987,7 +987,7 @@ private:
     std::unique_ptr<MegaChatScheduledRules> mRules;
 
     // changed bitmap
-    mega_sched_bs_t mChanged;
+    megachat_sched_bs_t mChanged;
 };
 
 class MegaChatScheduledMeetingListPrivate: public MegaChatScheduledMeetingList

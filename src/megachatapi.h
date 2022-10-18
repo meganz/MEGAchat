@@ -7343,7 +7343,7 @@ public:
        SC_SIZE             = 12,
     } scheduled_changed_flags_t;
 
-    typedef std::bitset<SC_SIZE> mega_sched_bs_t;
+    typedef std::bitset<SC_SIZE> megachat_sched_bs_t;
 
     virtual ~MegaChatScheduledMeeting();
 
