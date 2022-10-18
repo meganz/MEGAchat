@@ -5368,6 +5368,7 @@ bool KarereScheduledFlags::isEmpty() const                        { return mFlag
 
 bool KarereScheduledFlags::equalTo(::mega::MegaScheduledFlags* aux) const
 {
+    if (!aux) { return false; }
     return getNumericValue() == aux->getNumericValue();
 }
 
@@ -5487,14 +5488,32 @@ const std::vector<int64_t>* KarereScheduledRules::byWeekDay() const             
 const std::vector<int64_t>* KarereScheduledRules::byMonthDay() const            { return mByMonthDay.get(); }
 const std::multimap<int64_t, int64_t>* KarereScheduledRules::byMonthWeekDay() const  { return mByMonthWeekDay.get(); }
 
-bool KarereScheduledRules::equalTo(::mega::MegaScheduledRules* aux) const
+bool KarereScheduledRules::equalTo(::mega::MegaScheduledRules* r) const
 {
-    return mFreq == aux->freq()
-    && mInterval == aux->interval()
-    && !mUntil.compare(aux->until() ? aux->until() : std::string())
-    && aux->byWeekDay() && aux->byWeekDay()->equalTo(mByWeekDay.get())
-    && aux->byMonthDay() && aux->byMonthDay()->equalTo(mByWeekDay.get())
-    && aux->byMonthWeekDay() && aux->byMonthWeekDay()->equalTo(mByMonthWeekDay.get());
+    if (!r)                                                         { return false; }
+    if (mFreq != r->freq())                                         { return false; }
+    if (mInterval != r->interval())                                 { return false; }
+    if (mUntil.compare(r->until() ? r->until() : std::string()))    { return false; }
+
+    if (mByWeekDay || r->byWeekDay())
+    {
+        if (!mByWeekDay || !r->byWeekDay())                         { return false; }
+        if (!r->byWeekDay()->equalTo(mByWeekDay.get()))             { return false; }
+    }
+
+    if (mByMonthDay || r->byMonthDay())
+    {
+        if (!mByMonthDay || !r->byMonthDay())                       { return false; }
+        if (!r->byMonthDay()->equalTo(mByMonthDay.get()))           { return false; }
+    }
+
+    if (mByMonthWeekDay || r->byMonthWeekDay())
+    {
+        if (!mByMonthWeekDay || !r->byMonthWeekDay())               { return false; }
+        if (!r->byMonthWeekDay()->equalTo(mByMonthWeekDay.get()))   { return false; }
+    }
+
+    return true;
 }
 
 bool KarereScheduledRules::serialize(Buffer& out)
@@ -5725,7 +5744,7 @@ KarereScheduledRules* KarereScheduledMeeting::rules() const               { retu
 
 KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::MegaScheduledMeeting* sm) const
 {
-    // scheduled meeting Handle and chatroom can't change
+    // scheduled meeting Handle and chatid can't change
     sched_bs_t bs = 0;
     if (parentCallid() != sm->parentCallid())                                               { bs[SC_PARENT] = 1; }
     if (timezone().compare(sm->timezone() ? sm->timezone() : std::string()))                { bs[SC_TZONE] = 1; }
@@ -5737,19 +5756,16 @@ KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::M
     if (mAttributes.compare(sm->attributes() ? sm->attributes(): std::string()))            { bs[SC_ATTR] = 1; }
     if (mOverrides.compare(sm->overrides() ? sm->overrides(): std::string()))               { bs[SC_OVERR] = 1; }
 
-    if ((flags() && !sm->flags())
-            || (!flags() && sm->flags())
-            || (flags() && sm->flags() && !flags()->equalTo(sm->flags())))
+    if (flags() || sm->flags())
     {
-        bs[SC_FLAGS] = 1;
+        if (!flags() || !sm->flags())                                                       { bs[SC_FLAGS] = 1; }
+        else if (!flags()->equalTo(sm->flags()))                                            { bs[SC_FLAGS] = 1; }
     }
 
-    if ((rules() && !sm->rules())
-            || (!rules() && sm->rules())
-            || (rules() && sm->rules() && !rules()->equalTo(sm->rules())))
+    if (rules() || sm->rules())
     {
-        bs[SC_RULES] = 1;
-
+        if (!rules() || !sm->rules())                                                       { bs[SC_RULES] = 1; }
+        else if (!rules()->equalTo(sm->rules()))                                            { bs[SC_RULES] = 1; }
     }
     return bs;
 }

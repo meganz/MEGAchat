@@ -1338,7 +1338,7 @@ public:
     const std::vector<int64_t>* byWeekDay() const;
     const std::vector<int64_t>* byMonthDay() const;
     const std::multimap<int64_t, int64_t>* byMonthWeekDay() const;
-    bool equalTo (::mega::MegaScheduledRules* aux) const;
+    bool equalTo (::mega::MegaScheduledRules* r) const;
 
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
