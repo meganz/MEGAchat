@@ -1394,7 +1394,6 @@ public:
                                     const std::string& overrides = std::string(), KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
 
     KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
-    KarereScheduledMeeting(mega::ScheduledMeeting* sm);
     KarereScheduledMeeting(mega::MegaScheduledMeeting* sm);
 
     KarereScheduledMeeting* copy();
