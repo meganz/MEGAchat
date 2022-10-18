@@ -1334,7 +1334,7 @@ public:
     // --- getters ---
     int freq() const;
     int interval() const;
-    const char* until() const;
+    const std::string &until() const;
     const std::vector<int64_t>* byWeekDay() const;
     const std::vector<int64_t>* byMonthDay() const;
     const std::multimap<int64_t, int64_t>* byMonthWeekDay() const;
