@@ -24,16 +24,39 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
         mDb.query("insert or replace into scheduledMeetings(schedmeetingid, chatid, organizerid, parentid, timezone, start_date_time, end_date_time, "
               "title, description, attributes, overrides, cancelled, flags, rules)"
               "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-              sm->callid(), sm->chatid(), sm->organizerUserid(), sm->parentCallid(), sm->timezone(), sm->startDateTime(), sm->endDateTime(),
-              sm->title(), sm->description(), sm->attributes(), sm->overrides(), sm->cancelled(), sm->flags()->getNumericValue(), rulesBuf);
+                  sm->callid(),
+                  sm->chatid(),
+                  sm->organizerUserid(),
+                  sm->parentCallid(),
+                  sm->timezone().size() ? sm->timezone().c_str() : nullptr,
+                  sm->startDateTime().size() ? sm->startDateTime().c_str() : nullptr,
+                  sm->endDateTime().size() ? sm->endDateTime().c_str() : nullptr,
+                  sm->title().size() ? sm->title().c_str() : nullptr,
+                  sm->description().size() ? sm->description().c_str() : nullptr,
+                  sm->attributes().size() ? sm->attributes().c_str() : nullptr,
+                  sm->overrides().size() ? sm->overrides().c_str() : nullptr,
+                  sm->cancelled(),
+                  sm->flags()->getNumericValue(),
+                  rulesBuf);
     }
     else
     {
         mDb.query("insert or replace into scheduledMeetings(schedmeetingid, chatid, organizerid, parentid, timezone, start_date_time, end_date_time, "
               "title, description, attributes, overrides, cancelled, flags)"
               "values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-              sm->callid(), sm->chatid(), sm->organizerUserid(), sm->parentCallid(), sm->timezone(), sm->startDateTime(), sm->endDateTime(),
-              sm->title(), sm->description(), sm->attributes(), sm->overrides(), sm->cancelled(), sm->flags()->getNumericValue());
+                  sm->callid(),
+                  sm->chatid(),
+                  sm->organizerUserid(),
+                  sm->parentCallid(),
+                  sm->timezone().size() ? sm->timezone().c_str() : nullptr,
+                  sm->startDateTime().size() ? sm->startDateTime().c_str() : nullptr,
+                  sm->endDateTime().size() ? sm->endDateTime().c_str() : nullptr,
+                  sm->title().size() ? sm->title().c_str() : nullptr,
+                  sm->description().size() ? sm->description().c_str() : nullptr,
+                  sm->attributes().size() ? sm->attributes().c_str() : nullptr,
+                  sm->overrides().size() ? sm->overrides().c_str() : nullptr,
+                  sm->cancelled(),
+                  sm->flags()->getNumericValue());
     }
 }
 
@@ -57,8 +80,19 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeetingOcurr(const KarereScheduledMe
     mDb.query("insert or replace into scheduledMeetingsOccurr(schedmeetingid, chatid, organizerid, parentid, timezone, start_date_time, end_date_time, "
           "title, description, attributes, overrides, cancelled, flags)"
           "values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-          sm->callid(), sm->chatid(), sm->organizerUserid(), sm->parentCallid(), sm->timezone(), sm->startDateTime(), sm->endDateTime(),
-          sm->title(), sm->description(), sm->attributes(), sm->overrides(), sm->cancelled(), sm->flags()->getNumericValue());
+              sm->callid(),
+              sm->chatid(),
+              sm->organizerUserid(),
+              sm->parentCallid(),
+              sm->timezone().size() ? sm->timezone().c_str() : nullptr,
+              sm->startDateTime().size() ? sm->startDateTime().c_str() : nullptr,
+              sm->endDateTime().size() ? sm->endDateTime().c_str() : nullptr,
+              sm->title().size() ? sm->title().c_str() : nullptr,
+              sm->description().size() ? sm->description().c_str() : nullptr,
+              sm->attributes().size() ? sm->attributes().c_str() : nullptr,
+              sm->overrides().size() ? sm->overrides().c_str() : nullptr,
+              sm->cancelled(),
+              sm->flags()->getNumericValue());
 }
 
 void ChatClientSqliteDb::clearSchedMeetingOcurrByChatid(karere::Id id)
