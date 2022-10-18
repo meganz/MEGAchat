@@ -1320,7 +1320,7 @@ public:
 
     KarereScheduledRules(int freq,
                    int interval = INTERVAL_INVALID,
-                   const char* until = nullptr,
+                   const std::string& until = std::string(),
                    const std::vector<int64_t>* byWeekDay = nullptr,
                    const std::vector<int64_t>* byMonthDay = nullptr,
                    const std::multimap<int64_t, int64_t>* byMonthWeekDay = nullptr);

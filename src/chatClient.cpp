@@ -5374,13 +5374,13 @@ bool KarereScheduledFlags::equalTo(::mega::MegaScheduledFlags* aux) const
 /* class scheduledRules */
 KarereScheduledRules::KarereScheduledRules(int freq,
                               int interval,
-                              const char* until,
+                              const std::string& until,
                               const std::vector<int64_t>* byWeekDay,
                               const std::vector<int64_t>* byMonthDay,
                               const std::multimap<int64_t, int64_t>* byMonthWeekDay)
     : mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
       mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
-      mUntil(until ? until : std::string()),
+      mUntil(until),
       mByWeekDay(byWeekDay ? new std::vector<int64_t>(*byWeekDay) : nullptr),
       mByMonthDay (byMonthDay ? new std::vector<int64_t>(*byMonthDay) : nullptr),
       mByMonthWeekDay(byMonthWeekDay ? new std::multimap<int64_t, int64_t>(byMonthWeekDay->begin(), byMonthWeekDay->end()) : nullptr)
@@ -5617,7 +5617,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(Buffer& in)
 
     return new KarereScheduledRules(freq,
                               hasInterval ? interval : -1,
-                              hasUntil ? until.c_str() : nullptr,
+                              until,
                               hasByWeekDay ? &byWeekDay : nullptr,
                               hasByMonthDay ? &byMonthDay: nullptr,
                               hasByMonthWeekDay ? &byMonthWeekDay: nullptr);
