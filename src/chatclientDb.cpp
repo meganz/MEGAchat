@@ -106,10 +106,9 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::loadSch
            rules.reset(KarereScheduledRules::unserialize(buf));
        }
 
-       KarereScheduledMeeting* aux = new KarereScheduledMeeting(chatid, organizerid, timezone.c_str(), start_date_time.c_str(), end_date_time.c_str(), title.c_str(),
-                                                                description.c_str(), schedmeetingid,
-                                                                parentid, cancelled, attributes.c_str(),
-                                                                overrides.c_str(), flags.get(), rules.get());
+       KarereScheduledMeeting* aux = new KarereScheduledMeeting(chatid, organizerid, timezone, start_date_time, end_date_time, title,
+                                                                description, schedmeetingid, parentid, cancelled, attributes, overrides,
+                                                                flags.get(), rules.get());
        v.emplace_back(std::move(aux));
     }
 
