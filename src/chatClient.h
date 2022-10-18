@@ -1329,14 +1329,6 @@ public:
     KarereScheduledRules(::mega::ScheduledRules* rules);
     KarereScheduledRules(::mega::MegaScheduledRules* rules);
     virtual ~KarereScheduledRules();
-
-    // --- setters ---
-    void setFreq(int newFreq);
-    void setInterval(int interval);
-    void setUntil(const char* until);
-    void setByWeekDay(const std::vector<int64_t>* byWeekDay);
-    void setByMonthDay(const std::vector<int64_t>* byMonthDay);
-    void setByMonthWeekDay(const std::multimap<int64_t, int64_t>* byMonthWeekDay);
     KarereScheduledRules* copy();
 
     // --- getters ---

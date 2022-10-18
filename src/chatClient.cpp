@@ -5480,43 +5480,6 @@ KarereScheduledRules* KarereScheduledRules::copy()
     return new KarereScheduledRules(this);
 }
 
-void KarereScheduledRules::setByWeekDay(const std::vector<int64_t>* byWeekDay)
-{
-    mByWeekDay.reset();
-    if (byWeekDay) { mByWeekDay.reset(new std::vector<int64_t>(*byWeekDay)); }
-}
-
-void KarereScheduledRules::setByMonthDay(const std::vector<int64_t>* byMonthDay)
-{
-    mByMonthDay.reset();
-    if (byMonthDay) { mByMonthDay.reset(new std::vector<int64_t>(*byMonthDay)); }
-}
-
-void KarereScheduledRules::setByMonthWeekDay(const std::multimap<int64_t, int64_t>* byMonthWeekDay)
-{
-    mByMonthWeekDay.reset();
-    if (byMonthWeekDay) { mByMonthWeekDay.reset(new std::multimap<int64_t, int64_t>(byMonthWeekDay->begin(), byMonthWeekDay->end())); }
-}
-
-void KarereScheduledRules::setFreq(int newFreq)
-{
-    mFreq = isValidFreq(newFreq)
-            ? newFreq
-            : FREQ_INVALID;
-}
-
-void KarereScheduledRules::setInterval(int interval)
-{
-    mInterval = isValidInterval(interval)
-            ? interval
-            : INTERVAL_INVALID;
-}
-
-void KarereScheduledRules::setUntil(const char* until)
-{
-    mUntil.assign(until ? until : std::string());
-}
-
 int KarereScheduledRules::freq() const                                          { return mFreq; }
 int KarereScheduledRules::interval() const                                      { return mInterval; }
 const char* KarereScheduledRules::until() const                                 { return !mUntil.empty() ? mUntil.c_str() : nullptr; }
