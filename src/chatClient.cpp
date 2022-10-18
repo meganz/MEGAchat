@@ -5402,7 +5402,7 @@ KarereScheduledRules::KarereScheduledRules(::mega::ScheduledRules* rules)
 {
     mFreq = isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID;
     mInterval = isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID;
-    mUntil = rules->until() ? rules->until() : std::string();
+    mUntil = rules->until();
     std::vector<int64_t>* auxByWeekDay = nullptr;
     if (rules->byWeekDay())
     {
