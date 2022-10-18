@@ -41,7 +41,7 @@ std::string Stats::getJson()
     rapidjson::Value callid(rapidjson::kStringType);
     callid.SetString(mCallid.toString().c_str(), json.GetAllocator());
     json.AddMember("callid", callid, json.GetAllocator());
-    json.AddMember("toffs", mTimeOffset, json.GetAllocator());
+    json.AddMember("toffs", mTimeOffset * 1000, json.GetAllocator()); // must be in milliseconds
     json.AddMember("dur", mDuration, json.GetAllocator());
     rapidjson::Value device(rapidjson::kStringType);
     device.SetString(mDevice.c_str(), json.GetAllocator());
