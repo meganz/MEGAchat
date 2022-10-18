@@ -923,21 +923,6 @@ public:
     MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* scheduledMeeting);
     virtual ~MegaChatScheduledMeetingPrivate();
     MegaChatScheduledMeetingPrivate* copy();
-
-    void setRules(MegaChatScheduledRules* rules);
-    void setFlags(MegaChatScheduledFlags* flags);
-    void setCancelled(int cancelled);
-    void setOverrides(const char* overrides);
-    void setAttributes(const char* attributes);
-    void setDescription(const char* description);
-    void setTitle(const char* title);
-    void setEndDateTime(const char* endDateTime);
-    void setStartDateTime(const char* startDateTime);
-    void setTimezone(const char* timezone);
-    void setParentCallid(MegaChatHandle parentCallid);
-    void setOrganizerUserid(MegaChatHandle userid);
-    void setCallid(MegaChatHandle callid);
-    void setChatid(MegaChatHandle chatid);
     void setChanged(unsigned long val);
 
     MegaChatHandle chatid() const;

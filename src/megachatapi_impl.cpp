@@ -8319,32 +8319,7 @@ MegaChatScheduledMeetingPrivate* MegaChatScheduledMeetingPrivate::copy()
    return new MegaChatScheduledMeetingPrivate(this);
 }
 
-void MegaChatScheduledMeetingPrivate::setRules(MegaChatScheduledRules* rules)
-{
-    mRules.reset();
-    if (rules) { mRules.reset(rules->copy()); }
-}
-
-void MegaChatScheduledMeetingPrivate::setFlags(MegaChatScheduledFlags* flags)
-{
-    mFlags.reset();
-    if (flags) { mFlags.reset(flags->copy()); }
-}
-
-void MegaChatScheduledMeetingPrivate::setChatid(MegaChatHandle chatid)              { mChatid = chatid;}
-void MegaChatScheduledMeetingPrivate::setCallid(MegaChatHandle callid)              { mCallid = callid;}
-void MegaChatScheduledMeetingPrivate::setParentCallid(MegaChatHandle parentCallid)  { mParentCallid = parentCallid;}
-void MegaChatScheduledMeetingPrivate::setOrganizerUserid(MegaChatHandle userid)     { mOrganizerUserId = userid; }
-void MegaChatScheduledMeetingPrivate::setTimezone(const char* timezone)             { mTimezone.append(timezone ? timezone : std::string());}
-void MegaChatScheduledMeetingPrivate::setStartDateTime(const char* startDateTime)   { mStartDateTime.append(startDateTime ? startDateTime : std::string());}
-void MegaChatScheduledMeetingPrivate::setEndDateTime(const char* endDateTime)       { mEndDateTime.append(endDateTime ? endDateTime : std::string());}
-void MegaChatScheduledMeetingPrivate::setTitle(const char* title)                   { mTitle.append(title ? title : std::string());}
-void MegaChatScheduledMeetingPrivate::setDescription(const char* description)       { mDescription.append(description ? description : std::string());}
-void MegaChatScheduledMeetingPrivate::setAttributes(const char* attributes)         { mAttributes.append(attributes ? attributes : std::string());}
-void MegaChatScheduledMeetingPrivate::setOverrides(const char* overrides)           { mOverrides.append(overrides ? overrides : std::string());}
-void MegaChatScheduledMeetingPrivate::setCancelled(int cancelled)                   { mCancelled = cancelled;}
 void MegaChatScheduledMeetingPrivate::setChanged(unsigned long val)                 { mChanged = mega_sched_bs_t(val); }
-
 MegaChatHandle MegaChatScheduledMeetingPrivate::chatid() const                      { return mChatid;}
 MegaChatHandle MegaChatScheduledMeetingPrivate::callid() const                      { return mCallid;}
 MegaChatHandle MegaChatScheduledMeetingPrivate::parentCallid() const                { return mParentCallid;}
