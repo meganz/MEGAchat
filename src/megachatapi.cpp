@@ -2405,7 +2405,5 @@ MegaChatScheduledMeetingList::~MegaChatScheduledMeetingList()
 MegaChatScheduledMeetingList* MegaChatScheduledMeetingList::copy() const                            { return NULL; }
 unsigned long MegaChatScheduledMeetingList::size() const                                            { return 0; }
 MegaChatScheduledMeeting* MegaChatScheduledMeetingList::at(unsigned long) const                     { return NULL; }
-MegaChatScheduledMeeting* MegaChatScheduledMeetingList::getBySchedMeetingId(MegaChatHandle) const   { return NULL; }
 void MegaChatScheduledMeetingList::insert(MegaChatScheduledMeeting*)                                {}
-void MegaChatScheduledMeetingList::remove(MegaHandle)                                               {}
 void MegaChatScheduledMeetingList::clear()                                                          {}

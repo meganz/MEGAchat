@@ -1002,11 +1002,9 @@ public:
     // getters
     unsigned long size() const override;
     MegaChatScheduledMeeting* at(unsigned long i) const override;
-    MegaChatScheduledMeeting* getBySchedMeetingId(MegaChatHandle h) const override;
 
     // setters
     void insert(MegaChatScheduledMeeting *sm) override;
-    void remove(MegaChatHandle h) override;
     void clear() override;
 
 private:

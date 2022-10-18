@@ -8375,37 +8375,9 @@ MegaChatScheduledMeeting* MegaChatScheduledMeetingListPrivate::at(unsigned long 
     return mList.at(i).get();
 }
 
-MegaChatScheduledMeeting* MegaChatScheduledMeetingListPrivate::getBySchedMeetingId(MegaChatHandle h) const
-{
-    auto it = std::find_if(mList.begin(),
-                   mList.end(),
-                   [h](const std::unique_ptr<MegaChatScheduledMeeting>& sm) -> bool
-                   {
-                       return h == sm ->callid();
-                   });
-
-    return (it != mList.end())
-        ? it->get()
-        : nullptr;
-}
-
 void MegaChatScheduledMeetingListPrivate::insert(MegaChatScheduledMeeting* sm)
 {
     mList.emplace_back(sm);
-}
-
-void MegaChatScheduledMeetingListPrivate::remove(MegaChatHandle h)
-{
-    auto it = std::find_if(mList.begin(), mList.end(),
-                           [h](std::unique_ptr<MegaChatScheduledMeeting>& sm) -> bool
-                           {
-                             return h == sm ->callid();
-                           });
-
-    if (it != mList.end())
-    {
-        mList.erase(it);
-    }
 }
 
 void MegaChatScheduledMeetingListPrivate::clear()

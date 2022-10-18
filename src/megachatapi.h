@@ -7539,11 +7539,9 @@ public:
     // getters
     virtual unsigned long size() const;
     virtual MegaChatScheduledMeeting* at(unsigned long i) const;
-    virtual MegaChatScheduledMeeting* getBySchedMeetingId(MegaChatHandle h) const;
 
     // setters
     virtual void insert(MegaChatScheduledMeeting* sm);
-    virtual void remove(MegaChatHandle h);
     virtual void clear();
 };
 }
