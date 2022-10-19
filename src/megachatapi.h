@@ -3941,45 +3941,214 @@ public:
      */
     void createMeeting(const char *title = NULL, MegaChatRequestListener *listener = NULL);
 
-    // creates a chatroom and a scheduled meeting
+    /**
+     * @brief Creates a chatroom and a scheduled meeting for that chatroom
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::request->getFlag - Returns always true as we are going to create a new chatroom
+     * - MegaChatRequest::request->getNumber - Returns true if new chat is going to be a Meeting room
+     * - MegaChatRequest::request->getPrivilege - Returns true is new chat is going to be a public chat room
+     * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+     *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
+     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the a MegaChatScheduledMeeting instance with the rest of params that user provided
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the MegaChatScheduledMeeting with definitive data returned from API
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
+     * - MegaChatError::ERROR_ARGS  - if isMeeting is set true but publicChat is set to false
+     *
+     * @param isMeeting True to create a meeting room
+     * @param publicChat True to create a public chat, otherwise false
+     * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+     * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+     * A moderator user must grant each user access to the call.
+     * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+     * @param timezone Timezone where we want to schedule the meeting
+     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
+     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
+     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
+     * @param attributes - not supported yet
+     * @param listener MegaChatRequestListener to track this request
+     */
     void createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
                                                      const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
-                                                     int cancelled, const char* attributes, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                     const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = nullptr,
                                                      MegaChatRequestListener* listener = nullptr);
 
-    // creates a scheduled meeting from an existing chatroom
+    /**
+     * @brief Creates a scheduled meeting from an existing chatroom
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the a MegaChatScheduledMeeting instance with rest of params that user provided
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the MegaChatScheduledMeeting with definitive data returned from API
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param timezone Timezone where we want to schedule the meeting
+     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
+     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
+     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
+     * @param attributes - not supported yet
+     * @param listener MegaChatRequestListener to track this request
+     */
     void createScheduledMeetingFromExistingChat(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
-                                             int cancelled, const char* attributes, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules,
-                                             MegaChatRequestListener* listener = nullptr);
+                                             const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = nullptr, MegaChatRequestListener* listener = nullptr);
 
-    // updates a scheduled meeting
+    /**
+     * @brief Modify an existing scheduled meeting
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the a MegaChatScheduledMeeting instance with rest of params that user provided
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the updated MegaChatScheduledMeeting returned from API
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param callid MegaChatHandle that identifies the scheduled meeting
+     * @param timezone Timezone where we want to schedule the meeting
+     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
+     * @param cancelled True if scheduled meeting is going to be cancelled
+     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
+     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
+     * @param attributes - not supported yet
+     * @param listener MegaChatRequestListener to track this request
+     */
     void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle callid, const char* overrides,
                                              const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
-                                             int cancelled, const char* attributes, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules,
+                                             int cancelled, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules, const char* attributes,
                                              MegaChatRequestListener* listener = nullptr);
-
-    // remove scheduled meeting by scheduled meeting id and chatid
+    /**
+     * @brief Removes a scheduled meeting by scheduled meeting id and chatid
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
+     * - MegaChatRequest::getUserHandle - Returns the scheduled meeting id
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - if chatid or schedMeetingId are invalid
+     * - MegaChatError::ERROR_NOENT - If the chatroom or scheduled meeting does not exists
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param listener MegaChatRequestListener to track this request
+     */
     void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener = NULL);
 
-    // get all scheduled meetings given a chatid (You take the ownership of the returned value)
+    /**
+     * @brief Get a list of all scheduled meeting for a chatroom
+     *
+     * You take the ownership of the returned value
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @return List of MegaChatScheduledMeeting objects for a chatroom.
+     */
     MegaChatScheduledMeetingList* getScheduledMeetingsByChat(MegaChatHandle chatid);
 
-    // return a specific scheduled meeting given a chatid and a scheduled meeting id (You take the ownership of the returned value)
+    /**
+     * @brief Get a scheduled meeting given a chatid and a scheduled meeting id
+     *
+     * You take the ownership of the returned value
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @return A MegaChatScheduledMeeting given a chatid and a scheduled meeting id
+     */
     MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
 
-    // get all scheduled meetings for all chats (You take the ownership of the returned value)
+    /**
+     * @brief Get a list of all scheduled meeting for all chatrooms
+     *
+     * You take the ownership of the returned value
+     *
+     * @return List of MegaChatScheduledMeeting objects for all chatrooms.
+     */
     MegaChatScheduledMeetingList* getAllScheduledMeetings();
 
-    // get all scheduled meetings occurrences for all chats (You take the ownership of the returned value)
+    /**
+     * @brief Get a list of all scheduled meeting occurrences for all chatrooms
+     *
+     * A scheduled meetings occurrence, is future MegaChatCall that will happen in the future
+     * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+     *
+     * You take the ownership of the returned value
+     *
+     * @return List of MegaChatScheduledMeeting objects with all occurrences for all chatrooms.
+     */
     MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();
 
-    // get all scheduled meetings occurrences given a chatid (You take the ownership of the returned value)
+    /**
+     * @brief Get a list of all scheduled meeting occurrences for a chatroom
+     *
+     * A scheduled meetings occurrence, is future MegaChatCall that will happen in the future
+     * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+     *
+     * You take the ownership of the returned value
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @return List of MegaChatScheduledMeeting objects with all occurrences for a chatroom.
+     */
     MegaChatScheduledMeetingList* getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid);
 
-    // get all scheduled meetings occurrences given a chatid and a scheduled meeting id (You take the ownership of the returned value)
+    /**
+     * @brief Get a list of all scheduled meeting occurrences for a scheduled meeting
+     *
+     * A scheduled meetings occurrence is future MegaChatCall that will happen in the future
+     * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+     *
+     * You take the ownership of the returned value
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @return List of MegaChatScheduledMeeting objects with all occurrences for a scheduled meeting.
+     */
     MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
 
-    // get a specific scheduled meeting occurrence given a chatid, a scheduled meeting id, and it's start date time (You take the ownership of the returned value)
+    /**
+     * @brief Get a scheduled meeting occurrence given a chatid, a scheduled meeting id, and a start date time
+     *
+     * A scheduled meetings occurrence is future MegaChatCall that will happen in the future.
+     * As a scheduled meeting can produce multiple occurrences, the way to uniquely identify each one,
+     * is by it's scheduled meeting id and start date time.
+     *
+     * You take the ownership of the returned value
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param startDateTime start datetime of the scheduled meeting
+     * @return A MegaChatScheduledMeeting that represents a scheduled meeting occurrence
+     */
     MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime);
 
     /**
