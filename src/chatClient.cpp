@@ -5371,15 +5371,15 @@ bool KarereScheduledFlags::equalTo(::mega::MegaScheduledFlags* aux) const
 KarereScheduledRules::KarereScheduledRules(int freq,
                               int interval,
                               const std::string& until,
-                              const std::vector<int64_t>* byWeekDay,
-                              const std::vector<int64_t>* byMonthDay,
-                              const std::multimap<int64_t, int64_t>* byMonthWeekDay)
+                              const karere_rules_vector* byWeekDay,
+                              const karere_rules_vector* byMonthDay,
+                              const karere_rules_map* byMonthWeekDay)
     : mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
       mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
       mUntil(until),
-      mByWeekDay(byWeekDay ? new std::vector<int64_t>(*byWeekDay) : nullptr),
-      mByMonthDay (byMonthDay ? new std::vector<int64_t>(*byMonthDay) : nullptr),
-      mByMonthWeekDay(byMonthWeekDay ? new std::multimap<int64_t, int64_t>(byMonthWeekDay->begin(), byMonthWeekDay->end()) : nullptr)
+      mByWeekDay(byWeekDay ? new karere_rules_vector(*byWeekDay) : nullptr),
+      mByMonthDay (byMonthDay ? new karere_rules_vector(*byMonthDay) : nullptr),
+      mByMonthWeekDay(byMonthWeekDay ? new karere_rules_map(byMonthWeekDay->begin(), byMonthWeekDay->end()) : nullptr)
 {
 }
 
@@ -5387,9 +5387,9 @@ KarereScheduledRules::KarereScheduledRules(KarereScheduledRules* rules)
     : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
       mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
       mUntil(rules->until()),
-      mByWeekDay(rules->byWeekDay() ? new std::vector<int64_t>(*rules->byWeekDay()) : nullptr),
-      mByMonthDay (rules->byMonthDay() ? new std::vector<int64_t>(*rules->byMonthDay()) : nullptr),
-      mByMonthWeekDay(rules->byMonthWeekDay() ? new std::multimap<int64_t, int64_t>(rules->byMonthWeekDay()->begin(), rules->byMonthWeekDay()->end()) : nullptr)
+      mByWeekDay(rules->byWeekDay() ? new karere_rules_vector(*rules->byWeekDay()) : nullptr),
+      mByMonthDay (rules->byMonthDay() ? new karere_rules_vector(*rules->byMonthDay()) : nullptr),
+      mByMonthWeekDay(rules->byMonthWeekDay() ? new karere_rules_map(rules->byMonthWeekDay()->begin(), rules->byMonthWeekDay()->end()) : nullptr)
 {
 }
 
@@ -5401,7 +5401,7 @@ KarereScheduledRules::KarereScheduledRules(::mega::MegaScheduledRules* rules)
 
     if (rules->byWeekDay() && rules->byWeekDay()->size())
     {
-        mByWeekDay.reset(new std::vector<int64_t>());
+        mByWeekDay.reset(new karere_rules_vector());
         for (int i = 0; i < rules->byWeekDay()->size(); i++)
         {
             mByWeekDay->emplace_back(rules->byWeekDay()->get(i));
@@ -5410,7 +5410,7 @@ KarereScheduledRules::KarereScheduledRules(::mega::MegaScheduledRules* rules)
 
     if (rules->byMonthDay() && rules->byMonthDay()->size())
     {
-        mByMonthDay.reset(new std::vector<int64_t>());
+        mByMonthDay.reset(new karere_rules_vector());
         for (int i = 0; i < rules->byMonthDay()->size(); i++)
         {
             mByMonthDay->emplace_back(rules->byMonthDay()->get(i));
@@ -5419,7 +5419,7 @@ KarereScheduledRules::KarereScheduledRules(::mega::MegaScheduledRules* rules)
 
     if (rules->byMonthWeekDay() && rules->byMonthWeekDay()->size())
     {
-        mByMonthWeekDay.reset(new std::multimap<int64_t, int64_t>());
+        mByMonthWeekDay.reset(new karere_rules_map());
         for (size_t i = 0; i < rules->byMonthWeekDay()->size(); i++)
         {
             long long key;
@@ -5441,12 +5441,12 @@ KarereScheduledRules* KarereScheduledRules::copy()
     return new KarereScheduledRules(this);
 }
 
-int KarereScheduledRules::freq() const                                          { return mFreq; }
-int KarereScheduledRules::interval() const                                      { return mInterval; }
-const std::string& KarereScheduledRules::until() const                          { return mUntil; }
-const std::vector<int64_t>* KarereScheduledRules::byWeekDay() const             { return mByWeekDay.get(); }
-const std::vector<int64_t>* KarereScheduledRules::byMonthDay() const            { return mByMonthDay.get(); }
-const std::multimap<int64_t, int64_t>* KarereScheduledRules::byMonthWeekDay() const  { return mByMonthWeekDay.get(); }
+int KarereScheduledRules::freq() const                                                      { return mFreq; }
+int KarereScheduledRules::interval() const                                                  { return mInterval; }
+const std::string& KarereScheduledRules::until() const                                      { return mUntil; }
+const KarereScheduledRules::karere_rules_vector* KarereScheduledRules::byWeekDay() const    { return mByWeekDay.get(); }
+const KarereScheduledRules::karere_rules_vector* KarereScheduledRules::byMonthDay() const   { return mByMonthDay.get(); }
+const KarereScheduledRules::karere_rules_map* KarereScheduledRules::byMonthWeekDay() const  { return mByMonthWeekDay.get(); }
 
 bool KarereScheduledRules::equalTo(::mega::MegaScheduledRules* r) const
 {
@@ -5536,9 +5536,10 @@ KarereScheduledRules* KarereScheduledRules::unserialize(Buffer& in)
     int freq = FREQ_INVALID;
     int interval = INTERVAL_INVALID;
     std::string until;
-    std::vector<int64_t> byWeekDay;
-    std::vector<int64_t> byMonthDay;
-    std::multimap<int64_t, int64_t> byMonthWeekDay;
+
+    karere_rules_vector byWeekDay;
+    karere_rules_vector byMonthDay;
+    karere_rules_map byMonthWeekDay;
     unsigned char expansions[8];
 
     mega::CacheableReader w(aux);

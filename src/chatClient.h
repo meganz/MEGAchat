@@ -1317,12 +1317,16 @@ public:
 
     constexpr static int INTERVAL_INVALID = 0;
 
+    // just for karere internal usage
+    typedef std::vector<int8_t> karere_rules_vector;
+    typedef std::multimap<int8_t, int8_t> karere_rules_map;
+
     KarereScheduledRules(int freq,
                    int interval = INTERVAL_INVALID,
                    const std::string& until = std::string(),
-                   const std::vector<int64_t>* byWeekDay = nullptr,
-                   const std::vector<int64_t>* byMonthDay = nullptr,
-                   const std::multimap<int64_t, int64_t>* byMonthWeekDay = nullptr);
+                   const karere_rules_vector* byWeekDay = nullptr,
+                   const karere_rules_vector* byMonthDay = nullptr,
+                   const karere_rules_map* byMonthWeekDay = nullptr);
 
     KarereScheduledRules(KarereScheduledRules* rules);
     KarereScheduledRules(::mega::MegaScheduledRules* rules);
@@ -1333,9 +1337,9 @@ public:
     int freq() const;
     int interval() const;
     const std::string &until() const;
-    const std::vector<int64_t>* byWeekDay() const;
-    const std::vector<int64_t>* byMonthDay() const;
-    const std::multimap<int64_t, int64_t>* byMonthWeekDay() const;
+    const karere_rules_vector* byWeekDay() const;
+    const karere_rules_vector* byMonthDay() const;
+    const karere_rules_map* byMonthWeekDay() const;
     bool equalTo (::mega::MegaScheduledRules* r) const;
 
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
@@ -1356,13 +1360,13 @@ private:
     std::string mUntil;
 
     // allows us to specify that an event will only occur on given week day/s
-    std::unique_ptr<std::vector<int64_t>> mByWeekDay;
+    std::unique_ptr<karere_rules_vector> mByWeekDay;
 
     // allows us to specify that an event will only occur on a given day/s of the month
-    std::unique_ptr<std::vector<int64_t>> mByMonthDay;
+    std::unique_ptr<karere_rules_vector> mByMonthDay;
 
     // allows us to specify that an event will only occurs on a specific weekday offset of the month. For example, every 2nd Sunday of each month
-    std::unique_ptr<std::multimap<int64_t, int64_t>> mByMonthWeekDay;
+    std::unique_ptr<karere_rules_map> mByMonthWeekDay;
 };
 
 class KarereScheduledMeeting
