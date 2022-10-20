@@ -858,7 +858,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
     room->connect();
 }
 
-promise::Promise<void> Client::createScheduledMeeting(uint64_t chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
+promise::Promise<KarereScheduledMeeting*> Client::createScheduledMeeting(uint64_t chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
                                          const char* description, int freq, uint64_t callid, uint64_t parentCallid,
                                          int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
                                          const char* until, const mega::MegaIntegerList* byWeekDay, const mega::MegaIntegerList* byMonthDay, const mega::MegaIntegerMap* byMonthWeekDay)
@@ -866,10 +866,10 @@ promise::Promise<void> Client::createScheduledMeeting(uint64_t chatid, const cha
     auto wptr = getDelTracker();
     return api.call(&::mega::MegaApi::createScheduledMeeting, chatid, timezone, startDate, endDate, title, description, freq, callid, parentCallid,
                     cancelled, emailsDisabled, attributes, overrides, interval, until, byWeekDay, byMonthDay, byMonthWeekDay)
-    .then([wptr](ReqResult result) -> promise::Promise<void>
+    .then([wptr](ReqResult result) -> promise::Promise<KarereScheduledMeeting*>
     {
         wptr.throwIfDeleted();
-        return promise::_Void();
+        return new KarereScheduledMeeting (result->getScheduledMeeting());
     });
 }
 

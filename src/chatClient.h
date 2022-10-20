@@ -1060,7 +1060,7 @@ public:
      * @brief This function allows to create a scheduled meeting.
      * TODO: complete documentation
      */
-    promise::Promise<void> createScheduledMeeting(uint64_t chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
+    promise::Promise<KarereScheduledMeeting*> createScheduledMeeting(uint64_t chatid, const char* timezone, const char* startDate, const char* endDate, const char* title,
                                              const char* description, int freq, uint64_t callid, uint64_t parentCallid,
                                              int cancelled, bool emailsDisabled, const char* attributes, const char* overrides, int interval,
                                              const char* until, const mega::MegaIntegerList* byWeekDay, const mega::MegaIntegerList* byMonthDay, const mega::MegaIntegerMap* byMonthWeekDay);

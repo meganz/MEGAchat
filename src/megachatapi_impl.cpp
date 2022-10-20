@@ -2516,18 +2516,21 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!isValidChatOptionsBitMask(request->getParamType())) // empty bitmask (0) is considered as a valid value
             {
-                errorCode = MegaChatError::ERROR_ACCESS;
+                errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
             promise::Promise<karere::Id> pms;
-            ChatRoom* chatroom = findChatRoom(sm->chatid());
+            ChatRoom* chatroom = sm->chatid() != MEGACHAT_INVALID_HANDLE
+                    ? findChatRoom(sm->chatid())
+                    : nullptr;
+
             bool createChat = request->getFlag();
             if (createChat) // create new chatroom, and then a scheduled meeting on it
             {
                 if (chatroom)
                 {
-                    errorCode = MegaChatError::ERROR_ARGS;
+                    errorCode = MegaChatError::ERROR_EXIST;
                     break;
                 }
 
@@ -2568,8 +2571,13 @@ void MegaChatApiImpl::sendPendingRequests()
                                                          rules ? rules->byWeekDay() : nullptr,
                                                          rules ? rules->byMonthDay() : nullptr,
                                                          rules ? rules->byMonthWeekDay() : nullptr)
-                .then([request, this]()
+                .then([request, this](KarereScheduledMeeting* sm)
                 {
+                    if (sm)
+                    {
+                        std::unique_ptr<MegaChatScheduledMeetingPrivate> auxsm(new MegaChatScheduledMeetingPrivate(sm));
+                        request->setMegaChatScheduledMeeting(auxsm.get());
+                    }
                     MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
                 })
