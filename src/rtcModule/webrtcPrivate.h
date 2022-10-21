@@ -351,7 +351,7 @@ public:
 
     int64_t getInitialTimeStamp() const override;
     int64_t getFinalTimeStamp() const override;
-    int64_t getInitialOffset() const override;
+    int64_t getInitialOffsetinMs() const override;
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
@@ -469,9 +469,9 @@ protected:
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
 
-    int64_t mInitialTs = 0; // when we joined the call
-    int64_t mOffset = 0;    // duration of call when we joined
-    int64_t mFinalTs = 0;   // end of the call
+    int64_t mInitialTs = 0; // when we joined the call (seconds)
+    int64_t mOffset = 0;    // duration of call when we joined (millis)
+    int64_t mFinalTs = 0;   // end of the call (seconds)
     bool mAudioDetected = false;
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)

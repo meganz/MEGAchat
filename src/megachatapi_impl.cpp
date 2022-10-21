@@ -6629,7 +6629,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
-    mInitialTs = call.getInitialTimeStamp() - call.getInitialOffset();
+    mInitialTs = call.getInitialTimeStamp() - call.getInitialOffsetinMs()/1000;
     mFinalTs = call.getFinalTimeStamp();
     mAudioDetected = call.isAudioDetected();
     mNetworkQuality = call.getNetworkQuality();
