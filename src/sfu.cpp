@@ -2313,10 +2313,10 @@ ByeCommand::ByeCommand(const ByeCommandFunction& complete, SfuInterface& call)
 
 bool ByeCommand::processCommand(const rapidjson::Document& command)
 {
-    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("trsn");
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("rsn");
     if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
     {
-        SFU_LOG_ERROR("Received data doesn't have 'trsn' field");
+        SFU_LOG_ERROR("Received data doesn't have 'rsn' field");
         return false;
     }
 
