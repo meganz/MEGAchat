@@ -351,7 +351,7 @@ public:
 
     int64_t getInitialTimeStamp() const override;
     int64_t getFinalTimeStamp() const override;
-    int64_t getInitialOffset() const override;
+    int64_t getInitialOffsetinMs() const override;
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;

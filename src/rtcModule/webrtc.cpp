@@ -527,7 +527,7 @@ int64_t Call::getFinalTimeStamp() const
     return mFinalTs;
 }
 
-int64_t Call::getInitialOffset() const
+int64_t Call::getInitialOffsetinMs() const
 {
     return mOffset;
 }
