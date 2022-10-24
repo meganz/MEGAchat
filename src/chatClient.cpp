@@ -873,10 +873,10 @@ promise::Promise<KarereScheduledMeeting*> Client::createScheduledMeeting(const m
     });
 }
 
-promise::Promise<void> Client::removeScheduledMeeting(uint64_t chatid, uint64_t schedMeetingId)
+promise::Promise<void> Client::removeScheduledMeeting(uint64_t chatid, uint64_t schedId)
 {
     auto wptr = getDelTracker();
-    return api.call(&::mega::MegaApi::removeScheduledMeeting, chatid, schedMeetingId)
+    return api.call(&::mega::MegaApi::removeScheduledMeeting, chatid, schedId)
     .then([wptr](ReqResult result) -> promise::Promise<void>
     {
         wptr.throwIfDeleted();
@@ -4245,14 +4245,14 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
     {
         auto h = changed->get(i);
         auto it = mScheduledMeetings.find(h);
-        ::mega::MegaScheduledMeeting* newSched = apiSchedMeetings ? apiSchedMeetings->getBySchedMeetingId(h) : nullptr;
+        ::mega::MegaScheduledMeeting* newSched = apiSchedMeetings ? apiSchedMeetings->getBySchedId(h) : nullptr;
 
         if (!newSched) // remove scheduled meeting
         {
             getClientDbInterface().removeSchedMeetingBySchedId(h); // remove from db
             if (it != mScheduledMeetings.end())
             {
-                // schedMeetingId was in changed list, but not in sched meeting list from API (it has been removed)
+                // schedId was in changed list, but not in sched meeting list from API (it has been removed)
                 // important: SDK will notify deletion of child scheduled meetings when it's parent has been removed
                 std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(it->second.get()));
                 mScheduledMeetings.erase(h);

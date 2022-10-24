@@ -717,9 +717,9 @@ void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle s
                                                  timezone, startDate, endDate, title, description, cancelled, attributes, overrides, flags, rules, listener);
 }
 
-void MegaChatApi::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener)
+void MegaChatApi::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener)
 {
-    pImpl->removeScheduledMeeting(chatid, schedMeetingId, listener);
+    pImpl->removeScheduledMeeting(chatid, schedId, listener);
 }
 
 MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingsByChat(MegaChatHandle chatid)
@@ -727,9 +727,9 @@ MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingsByChat(MegaChatHa
     return pImpl->getScheduledMeetingsByChat(chatid);
 }
 
-MegaChatScheduledMeeting* MegaChatApi::getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
+MegaChatScheduledMeeting* MegaChatApi::getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId)
 {
-    return pImpl->getScheduledMeeting(chatid, schedMeetingId);
+    return pImpl->getScheduledMeeting(chatid, schedId);
 }
 
 MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetings()
@@ -742,14 +742,14 @@ MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingsOccurrencesByChat
     return pImpl->getScheduledMeetingsOccurrencesByChat(chatid);
 }
 
-MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
+MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedId)
 {
-    return pImpl->getScheduledMeetingOccurrencesByShedMeetingId(chatid, schedMeetingId);
+    return pImpl->getScheduledMeetingOccurrencesByShedId(chatid, schedId);
 }
 
-MegaChatScheduledMeeting* MegaChatApi::getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime)
+MegaChatScheduledMeeting* MegaChatApi::getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime)
 {
-    return pImpl->getScheduledMeetingOccurrence(chatid, schedMeetingId, startDateTime);
+    return pImpl->getScheduledMeetingOccurrence(chatid, schedId, startDateTime);
 }
 
 MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetingsOccurrences()

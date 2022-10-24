@@ -4058,14 +4058,14 @@ public:
      * - MegaChatRequest::getUserHandle - Returns the scheduled meeting id
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS  - if chatid or schedMeetingId are invalid
+     * - MegaChatError::ERROR_ARGS  - if chatid or schedId are invalid
      * - MegaChatError::ERROR_NOENT - If the chatroom or scheduled meeting does not exists
      *
      * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param schedId MegaChatHandle that identifies a scheduled meeting
      * @param listener MegaChatRequestListener to track this request
      */
-    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener = NULL);
+    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Get a list of all scheduled meeting for a chatroom
@@ -4083,10 +4083,10 @@ public:
      * You take the ownership of the returned value
      *
      * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param schedId MegaChatHandle that identifies a scheduled meeting
      * @return A MegaChatScheduledMeeting given a chatid and a scheduled meeting id
      */
-    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId);
 
     /**
      * @brief Get a list of all scheduled meeting for all chatrooms
@@ -4131,10 +4131,10 @@ public:
      * You take the ownership of the returned value
      *
      * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param schedId MegaChatHandle that identifies a scheduled meeting
      * @return List of MegaChatScheduledMeeting objects with all occurrences for a scheduled meeting.
      */
-    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedId);
 
     /**
      * @brief Get a scheduled meeting occurrence given a chatid, a scheduled meeting id, and a start date time
@@ -4145,11 +4145,11 @@ public:
      *
      * You take the ownership of the returned value
      * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param schedId MegaChatHandle that identifies a scheduled meeting
      * @param startDateTime start datetime of the scheduled meeting
      * @return A MegaChatScheduledMeeting that represents a scheduled meeting occurrence
      */
-    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime);
+    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime);
 
     /**
      * @brief Creates a meeting

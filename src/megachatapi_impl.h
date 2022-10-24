@@ -1350,22 +1350,22 @@ public:
                                                  MegaChatRequestListener* listener = nullptr);
 
     // removes a scheduled meeting
-    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener = nullptr);
+    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener = nullptr);
 
     // get all scheduled meetings given a chatid
     MegaChatScheduledMeetingList* getScheduledMeetingsByChat(MegaChatHandle chatid);
 
     // return a specific scheduled meeting given a chatid and a scheduled meeting id
-    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId);
 
     // get all scheduled meetings occurrences given a chatid
     MegaChatScheduledMeetingList* getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid);
 
     // get all scheduled meetings occurrences given a chatid and a scheduled meeting id
-    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedId(MegaChatHandle chatid, MegaChatHandle schedId);
 
     // get a specific scheduled meeting occurrence given a chatid, a scheduled meeting id, and it's start date time
-    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime);
+    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime);
 
     MegaChatScheduledMeetingList* getAllScheduledMeetings();
 

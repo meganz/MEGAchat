@@ -2592,7 +2592,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING:
         {
             handle chatid = request->getChatHandle();
-            handle schedMeetingId = request->getUserHandle();
+            handle schedId = request->getUserHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid chatid");
@@ -2600,9 +2600,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (schedMeetingId == MEGACHAT_INVALID_HANDLE)
+            if (schedId == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid schedMeetingId");
+                API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid schedId");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
@@ -2614,14 +2614,14 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            std::unique_ptr<MegaChatScheduledMeeting>sm (getScheduledMeeting(chatid, schedMeetingId));
+            std::unique_ptr<MegaChatScheduledMeeting>sm (getScheduledMeeting(chatid, schedId));
             if (!sm)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
-            mClient->removeScheduledMeeting(chatid, schedMeetingId)
+            mClient->removeScheduledMeeting(chatid, schedId)
             .then([request, this]()
             {
                 MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -4171,11 +4171,11 @@ void MegaChatApiImpl::createOrUpdateScheduledMeeting(MegaChatHandle chatid, Mega
     waiter->notify();
 }
 
-void MegaChatApiImpl::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener)
+void MegaChatApiImpl::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING, listener);
     request->setChatHandle(chatid);
-    request->setUserHandle(schedMeetingId);
+    request->setUserHandle(schedId);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4196,14 +4196,14 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingsByChat(MegaCh
     return list;
 }
 
-MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
+MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId)
 {
     SdkMutexGuard g(sdkMutex);
     GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
     if (chatRoom)
     {
         const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetings();
-        auto it = map.find(schedMeetingId);
+        auto it = map.find(schedId);
         if (it != map.end())
         {
             return new MegaChatScheduledMeetingPrivate(it->second.get());
@@ -4254,7 +4254,7 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingsOccurrencesBy
     return list;
 }
 
-MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId)
+MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingOccurrencesByShedId(MegaChatHandle chatid, MegaChatHandle schedId)
 {
     MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
     SdkMutexGuard g(sdkMutex);
@@ -4262,7 +4262,7 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingOccurrencesByS
     if (chatRoom)
     {
         const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetingsOccurrences();
-        auto range = map.equal_range(schedMeetingId);
+        auto range = map.equal_range(schedId);
         for (auto it = range.first; it != range.second; ++it)
         {
              list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
@@ -4271,7 +4271,7 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingOccurrencesByS
     return list;
 }
 
-MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime)
+MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime)
 {
     if (!startDateTime)
     {
@@ -4283,7 +4283,7 @@ MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeetingOccurrence(MegaCha
     if (chatRoom)
     {
         const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetingsOccurrences();
-        auto range = map.equal_range(schedMeetingId);
+        auto range = map.equal_range(schedId);
         for (auto it = range.first; it != range.second; ++it)
         {
             if (it->second->startDateTime().empty())

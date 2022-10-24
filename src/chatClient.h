@@ -360,13 +360,13 @@ protected:
     ::mega::ChatOptions mChatOptions; // by default chat options are empty
 
     // scheduled meetings map
-    std::map<karere::Id/*schedMeetingId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
+    std::map<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
 
     // maps a scheduled meeting id to a scheduled meeting occurrence
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
     // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
     // (check ScheduledMeeting class documentation)
-    std::multimap<karere::Id/*schedMeetingId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetingsOcurrences;
+    std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetingsOcurrences;
 
     DbClientInterface& getClientDbInterface();
     ScheduledMeetingHandler& schedMeetingHandler();
@@ -1066,7 +1066,7 @@ public:
      * @brief This function allows to remove a scheduled meeting.
      * TODO: complete documentation
      */
-    promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedMeetingId);
+    promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedId);
 
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
