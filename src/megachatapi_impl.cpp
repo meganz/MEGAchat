@@ -2551,26 +2551,16 @@ void MegaChatApiImpl::sendPendingRequests()
 
             pms.then([request, this, sm](Id chatid)
             {
-                MegaChatScheduledRules* rules = sm->rules();
-                MegaChatHandle callid = sm->callid();
-                MegaChatHandle parentCallid = sm->parentCallid();
-                const char* timezone = sm->timezone();
-                const char* startDateTime = sm->startDateTime();
-                const char* endDateTime = sm->endDateTime();
-                const char* title = sm->title();
-                const char* description = sm->description();
-                const char* attributes = sm->attributes();
-                const char* overrides = sm->overrides();
-                int cancelled = sm->cancelled();
-                bool emailDisabled = sm->flags() ? sm->flags()->EmailsDisabled() : false;
+               std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance(sm->flags()->EmailsDisabled()));
+               std::unique_ptr<::mega::MegaScheduledRules> megaRules(!sm->rules() ? nullptr : ::mega::MegaScheduledRules::createInstance(sm->rules()->freq(), sm->rules()->interval(), sm->rules()->until(),
+                                                                                                                 sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
 
-                mClient->createScheduledMeeting(chatid, timezone, startDateTime, endDateTime, title,
-                                                         description, rules ? rules->freq() : -1 /*change by enum*/, callid, parentCallid,
-                                                         cancelled, emailDisabled, attributes, overrides, rules ? rules->interval() : 0 /*change by enum*/,
-                                                         rules ? rules->until() : nullptr,
-                                                         rules ? rules->byWeekDay() : nullptr,
-                                                         rules ? rules->byMonthDay() : nullptr,
-                                                         rules ? rules->byMonthWeekDay() : nullptr)
+               std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(chatid, sm->callid(), sm->parentCallid(), MEGACHAT_INVALID_HANDLE /* organizer user*/,
+                                                                                                                   sm->cancelled(), sm->timezone(), sm->startDateTime(), sm->endDateTime(),
+                                                                                                                   sm->title(), sm->description(), sm->attributes(), sm->overrides(),
+                                                                                                                   megaFlags.get(), megaRules.get()));
+
+                mClient->createScheduledMeeting(megaSchedMeeting.get())
                 .then([request, this](KarereScheduledMeeting* sm)
                 {
                     if (sm)
