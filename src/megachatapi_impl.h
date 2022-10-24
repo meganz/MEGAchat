@@ -910,8 +910,8 @@ public:
                                     const char* endDateTime,
                                     const char* title,
                                     const char* description,
-                                    MegaChatHandle callid = MEGACHAT_INVALID_HANDLE,
-                                    MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
+                                    MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE,
+                                    MegaChatHandle parentSchedId = MEGACHAT_INVALID_HANDLE,
                                     MegaChatHandle organizerUserId = MEGACHAT_INVALID_HANDLE,
                                     int cancelled = -1,
                                     const char* attributes = nullptr,
@@ -926,8 +926,8 @@ public:
     void setChanged(unsigned long val);
 
     MegaChatHandle chatid() const;
-    MegaChatHandle callid() const;
-    MegaChatHandle parentCallid() const;
+    MegaChatHandle schedId() const;
+    MegaChatHandle parentSchedId() const;
     MegaChatHandle organizerUserid() const;
     const char* timezone() const;
     const char* startDateTime() const;
@@ -948,10 +948,10 @@ private:
     MegaChatHandle mChatid;
 
     // scheduled meeting handle
-    MegaChatHandle mCallid;
+    MegaChatHandle mSchedId;
 
     // parent scheduled meeting handle
-    MegaChatHandle mParentCallid;
+    MegaChatHandle mParentSchedId;
 
     // organizer user handle
     MegaChatHandle mOrganizerUserId;
@@ -1343,29 +1343,29 @@ public:
 
     // Chatrooms management
     // creates or update a scheduled meeting
-    void createOrUpdateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid,
+    void createOrUpdateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId,
                                                  bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
                                                  const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
                                                  int cancelled, const char* attributes, const char* overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                  MegaChatRequestListener* listener = nullptr);
 
     // removes a scheduled meeting
-    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener = nullptr);
+    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener = nullptr);
 
     // get all scheduled meetings given a chatid
     MegaChatScheduledMeetingList* getScheduledMeetingsByChat(MegaChatHandle chatid);
 
     // return a specific scheduled meeting given a chatid and a scheduled meeting id
-    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId);
 
     // get all scheduled meetings occurrences given a chatid
     MegaChatScheduledMeetingList* getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid);
 
     // get all scheduled meetings occurrences given a chatid and a scheduled meeting id
-    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedId(MegaChatHandle chatid, MegaChatHandle schedId);
 
     // get a specific scheduled meeting occurrence given a chatid, a scheduled meeting id, and it's start date time
-    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime);
+    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime);
 
     MegaChatScheduledMeetingList* getAllScheduledMeetings();
 

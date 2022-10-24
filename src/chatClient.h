@@ -360,13 +360,13 @@ protected:
     ::mega::ChatOptions mChatOptions; // by default chat options are empty
 
     // scheduled meetings map
-    std::map<karere::Id/*schedMeetingId(callid)*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
+    std::map<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
 
-    // maps a scheduled meeting id (callid) to a scheduled meeting occurrence
+    // maps a scheduled meeting id to a scheduled meeting occurrence
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
-    // a scheduled meeting could have one or multiple ocurrences (unique key: <callid, startdatetime>)
+    // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
     // (check ScheduledMeeting class documentation)
-    std::multimap<karere::Id/*schedMeetingId(callid)*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetingsOcurrences;
+    std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetingsOcurrences;
 
     DbClientInterface& getClientDbInterface();
     ScheduledMeetingHandler& schedMeetingHandler();
@@ -472,13 +472,13 @@ public:
      */
     promise::Promise<void> setChatRoomOption(int option, bool enabled);
 
-    // maps a scheduled meeting id (callid) to a scheduled meeting
+    // maps a scheduled meeting id to a scheduled meeting
     // a scheduled meetings allows the user to specify an event that will occur in the future
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
 
-    // maps a scheduled meeting id (callid) to a scheduled meeting occurrence
+    // maps a scheduled meeting id to a scheduled meeting occurrence
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
-    // a scheduled meeting could have one or multiple ocurrences (unique key: <callid, startdatetime>)
+    // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
     const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetingsOccurrences() const;
 
     /** TODO
@@ -1066,7 +1066,7 @@ public:
      * @brief This function allows to remove a scheduled meeting.
      * TODO: complete documentation
      */
-    promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedMeetingId);
+    promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedId);
 
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
@@ -1388,8 +1388,8 @@ public:
     typedef std::bitset<SC_SIZE> sched_bs_t;
 
     KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime,
-                                    const std::string& title, const std::string& description, karere::Id callid = karere::Id::inval(),
-                                    karere::Id parentCallid = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
+                                    const std::string& title, const std::string& description, karere::Id schedId = karere::Id::inval(),
+                                    karere::Id parentSchedId = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
                                     const std::string& overrides = std::string(), KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
 
     KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
@@ -1399,8 +1399,8 @@ public:
     virtual ~KarereScheduledMeeting();
 
     karere::Id chatid() const;
-    karere::Id callid() const;
-    karere::Id parentCallid() const;
+    karere::Id schedId() const;
+    karere::Id parentSchedId() const;
     karere::Id organizerUserid() const;
     const std::string& timezone() const;
     const std::string& startDateTime() const;
@@ -1419,10 +1419,10 @@ private:
     karere::Id mChatid;
 
     // scheduled meeting handle
-    karere::Id mCallid;
+    karere::Id mSchedId;
 
     // parent scheduled meeting handle
-    karere::Id mParentCallid;
+    karere::Id mParentSchedId;
 
     // organizer user handle
     karere::Id mOrganizerUserId;

@@ -4033,7 +4033,7 @@ public:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
      *
      * @param chatid MegaChatHandle that identifies a chat room
-     * @param callid MegaChatHandle that identifies the scheduled meeting
+     * @param schedId MegaChatHandle that identifies the scheduled meeting
      * @param timezone Timezone where we want to schedule the meeting
      * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
      * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
@@ -4045,7 +4045,7 @@ public:
      * @param attributes - not supported yet
      * @param listener MegaChatRequestListener to track this request
      */
-    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle callid, const char* overrides,
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId, const char* overrides,
                                              const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
                                              int cancelled, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules, const char* attributes,
                                              MegaChatRequestListener* listener = nullptr);
@@ -4058,14 +4058,14 @@ public:
      * - MegaChatRequest::getUserHandle - Returns the scheduled meeting id
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS  - if chatid or schedMeetingId are invalid
+     * - MegaChatError::ERROR_ARGS  - if chatid or schedId are invalid
      * - MegaChatError::ERROR_NOENT - If the chatroom or scheduled meeting does not exists
      *
      * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param schedId MegaChatHandle that identifies a scheduled meeting
      * @param listener MegaChatRequestListener to track this request
      */
-    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId, MegaChatRequestListener* listener = NULL);
+    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Get a list of all scheduled meeting for a chatroom
@@ -4083,10 +4083,10 @@ public:
      * You take the ownership of the returned value
      *
      * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param schedId MegaChatHandle that identifies a scheduled meeting
      * @return A MegaChatScheduledMeeting given a chatid and a scheduled meeting id
      */
-    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId);
 
     /**
      * @brief Get a list of all scheduled meeting for all chatrooms
@@ -4131,10 +4131,10 @@ public:
      * You take the ownership of the returned value
      *
      * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param schedId MegaChatHandle that identifies a scheduled meeting
      * @return List of MegaChatScheduledMeeting objects with all occurrences for a scheduled meeting.
      */
-    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedMeetingId);
+    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedId);
 
     /**
      * @brief Get a scheduled meeting occurrence given a chatid, a scheduled meeting id, and a start date time
@@ -4145,11 +4145,11 @@ public:
      *
      * You take the ownership of the returned value
      * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedMeetingId MegaChatHandle that identifies a scheduled meeting
+     * @param schedId MegaChatHandle that identifies a scheduled meeting
      * @param startDateTime start datetime of the scheduled meeting
      * @return A MegaChatScheduledMeeting that represents a scheduled meeting occurrence
      */
-    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedMeetingId, const char* startDateTime);
+    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime);
 
     /**
      * @brief Creates a meeting
@@ -7520,8 +7520,8 @@ public:
      * @brief Creates a new instance of MegaChatScheduledMeeting
      *
      * @param chatid        : chat handle
-     * @param callid        : scheduled meeting handle
-     * @param parentCallid  : parent scheduled meeting handle
+     * @param schedId       : scheduled meeting handle
+     * @param parentSchedId : parent scheduled meeting handle
      * @param cancelled     : cancelled flag
      * @param timezone      : timeZone
      * @param startDateTime : start dateTime (format: 20220726T133000)
@@ -7535,7 +7535,7 @@ public:
      *
      * @return A pointer to the superclass of the private object
      */
-    static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid, MegaChatHandle organizerUserId,
+    static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId, MegaChatHandle organizerUserId,
                                                      int cancelled, const char* timezone, const char* startDateTime,
                                                      const char* endDateTime, const char* title, const char* description, const char* attributes,
                                                      const char* overrides, const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules);
@@ -7614,14 +7614,14 @@ public:
      *
      * @return MegaChatHandle that identifies the scheduled meeting
      */
-    virtual MegaChatHandle callid() const;
+    virtual MegaChatHandle schedId() const;
 
     /**
      * @brief Returns the MegaChatHandle that identifies the parent scheduled meeting
      *
      * @return MegaChatHandle that identifies the parent scheduled meeting
      */
-    virtual MegaChatHandle parentCallid() const;
+    virtual MegaChatHandle parentSchedId() const;
 
     /**
      * @brief Returns the MegaChatHandle of the organizer user of the scheduled meeting
