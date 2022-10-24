@@ -438,13 +438,13 @@ bool Client::openDb(const std::string& sid)
             else if (cachedVersionSuffix == "14" && (strcmp(gDbSchemaVersionSuffix, "15") == 0))
             {
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
-                db.query("CREATE TABLE scheduledMeetings(schedmeetingid int64 unique primary key, chatid int64, organizerid int64, parentSchedid int64, timezone text,"
-                            "start_date_time text, end_date_time text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
+                db.query("CREATE TABLE scheduledMeetings(schedid int64 unique primary key, chatid int64, organizerid int64, parentschedid int64, timezone text,"
+                            "startdatetime text, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
                             "flags int64 default 0, rules blob)");
 
-                db.query("CREATE TABLE scheduledMeetingsOccurr(schedmeetingid int64, chatid int64, organizerid int64, parentSchedid int64, timezone text,"
-                            "start_date_time text, end_date_time text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
-                            "flags int64 default 0, PRIMARY KEY (schedmeetingid, start_date_time))");
+                db.query("CREATE TABLE scheduledMeetingsOccurr(schedid int64, chatid int64, organizerid int64, parentschedid int64, timezone text,"
+                            "startdatetime text, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
+                            "flags int64 default 0, PRIMARY KEY (schedid, startdatetime))");
 
                 db.commit();
                 ok = true;
