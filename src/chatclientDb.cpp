@@ -24,7 +24,7 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
         mDb.query("insert or replace into scheduledMeetings(schedmeetingid, chatid, organizerid, parentSchedid, timezone, start_date_time, end_date_time, "
               "title, description, attributes, overrides, cancelled, flags, rules)"
               "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  sm->callid(),
+                  sm->schedId(),
                   sm->chatid(),
                   sm->organizerUserid(),
                   sm->parentSchedId(),
@@ -44,7 +44,7 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
         mDb.query("insert or replace into scheduledMeetings(schedmeetingid, chatid, organizerid, parentSchedid, timezone, start_date_time, end_date_time, "
               "title, description, attributes, overrides, cancelled, flags)"
               "values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  sm->callid(),
+                  sm->schedId(),
                   sm->chatid(),
                   sm->organizerUserid(),
                   sm->parentSchedId(),
@@ -80,7 +80,7 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeetingOcurr(const KarereScheduledMe
     mDb.query("insert or replace into scheduledMeetingsOccurr(schedmeetingid, chatid, organizerid, parentSchedid, timezone, start_date_time, end_date_time, "
           "title, description, attributes, overrides, cancelled, flags)"
           "values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-              sm->callid(),
+              sm->schedId(),
               sm->chatid(),
               sm->organizerUserid(),
               sm->parentSchedId(),

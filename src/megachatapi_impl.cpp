@@ -2555,7 +2555,7 @@ void MegaChatApiImpl::sendPendingRequests()
                std::unique_ptr<::mega::MegaScheduledRules> megaRules(!sm->rules() ? nullptr : ::mega::MegaScheduledRules::createInstance(sm->rules()->freq(), sm->rules()->interval(), sm->rules()->until(),
                                                                                                                  sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
 
-               std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(chatid, sm->callid(), sm->parentSchedId(), MEGACHAT_INVALID_HANDLE /* organizer user*/,
+               std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(chatid, sm->schedId(), sm->parentSchedId(), MEGACHAT_INVALID_HANDLE /* organizer user*/,
                                                                                                                    sm->cancelled(), sm->timezone(), sm->startDateTime(), sm->endDateTime(),
                                                                                                                    sm->title(), sm->description(), sm->attributes(), sm->overrides(),
                                                                                                                    megaFlags.get(), megaRules.get()));
@@ -4152,14 +4152,14 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
     waiter->notify();
 }
 
-void MegaChatApiImpl::createOrUpdateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentSchedId,
+void MegaChatApiImpl::createOrUpdateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId,
                                              bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
                                              const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
                                              int cancelled, const char* attributes, const char* overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                              MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING, listener);
-    std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, callid, parentSchedId, MEGACHAT_INVALID_HANDLE, cancelled, timezone, startDate,
+    std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, parentSchedId, MEGACHAT_INVALID_HANDLE, cancelled, timezone, startDate,
                                                                                        endDate, title, description, attributes, overrides, flags, rules));
 
     request->setFlag(createChat);
@@ -8252,11 +8252,11 @@ const ::mega::MegaIntegerMap* MegaChatScheduledRulesPrivate::byMonthWeekDay() co
 
 /* Class MegaChatScheduledMeetingPrivate */
 MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatHandle chatid, const char* timezone, const char* startDateTime, const char* endDateTime,
-                                                                  const char* title, const char* description, MegaChatHandle callid, MegaChatHandle parentSchedId,
+                                                                  const char* title, const char* description, MegaChatHandle schedId, MegaChatHandle parentSchedId,
                                                                   MegaChatHandle organizerUserId, int cancelled, const char* attributes, const char* overrides,
                                                                   const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules)
     : mChatid(chatid),
-      mCallid(callid),
+      mSchedId(schedId),
       mParentSchedId(parentSchedId),
       mOrganizerUserId(organizerUserId),
       mTimezone(timezone ? timezone : std::string()),
@@ -8275,7 +8275,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatHandle 
 
 MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
-      mCallid(scheduledMeeting->callid()),
+      mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),
       mOrganizerUserId(scheduledMeeting->organizerUserid()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
@@ -8294,7 +8294,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatSchedul
 
 MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
-      mCallid(scheduledMeeting->callid()),
+      mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),
       mOrganizerUserId(scheduledMeeting->organizerUserid()),
       mTimezone(scheduledMeeting->timezone()),
@@ -8323,7 +8323,7 @@ MegaChatScheduledMeetingPrivate* MegaChatScheduledMeetingPrivate::copy()
 void MegaChatScheduledMeetingPrivate::setChanged(unsigned long val)           { mChanged = megachat_sched_bs_t(val); }
 
 MegaChatHandle MegaChatScheduledMeetingPrivate::chatid() const                { return mChatid;}
-MegaChatHandle MegaChatScheduledMeetingPrivate::callid() const                { return mCallid;}
+MegaChatHandle MegaChatScheduledMeetingPrivate::schedId() const                { return mSchedId;}
 MegaChatHandle MegaChatScheduledMeetingPrivate::parentSchedId() const         { return mParentSchedId;}
 MegaChatHandle MegaChatScheduledMeetingPrivate::organizerUserid() const       { return mOrganizerUserId; }
 const char* MegaChatScheduledMeetingPrivate::timezone() const                 { return !mTimezone.empty() ? mTimezone.c_str() : nullptr;}

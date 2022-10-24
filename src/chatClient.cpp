@@ -4219,7 +4219,7 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
     {
         KarereScheduledMeeting::sched_bs_t diff = KarereScheduledMeeting::sched_bs_t().set();
         std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(schedMeetings->at(i)));
-        auto res = mScheduledMeetings.emplace(aux->callid(), std::move(aux));
+        auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
         if (res.second)
         {
             getClientDbInterface().insertOrUpdateSchedMeeting(res.first->second.get());
@@ -4282,7 +4282,7 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
                 }
                 else // not found (new scheduled meeting), add it
                 {
-                    auto res = mScheduledMeetings.emplace(aux->callid(), std::move(aux));
+                    auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
                     if (res.second)
                     {
                         notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
@@ -4325,7 +4325,7 @@ void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
     {
         std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(schedMeetings->at(i)));
         getClientDbInterface().insertOrUpdateSchedMeetingOcurr(aux.get());
-        mScheduledMeetingsOcurrences.emplace(aux->callid(), std::move(aux));
+        mScheduledMeetingsOcurrences.emplace(aux->schedId(), std::move(aux));
     }
     notifySchedMeetingOccurrencesUpdated(); // notify all scheduled meetings occurrences for this chat in one callback
 }
@@ -4336,7 +4336,7 @@ void GroupChatRoom::loadSchedMeetingsFromDb()
     for (unsigned int i = 0; i < schedMeetings.size(); i++)
     {
         std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting((schedMeetings.at(i)).get()));
-        auto res = mScheduledMeetings.emplace(aux->callid(), std::move(aux));
+        auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
         if (res.second)
         {
             notifySchedMeetingUpdated(res.first->second.get(), KarereScheduledMeeting::sched_bs_t().set().to_ulong());
@@ -4351,7 +4351,7 @@ void GroupChatRoom::loadSchedMeetingsOccurrFromDb()
     {
         std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting((schedMeetingsOccurr.at(i)).get()));
         getClientDbInterface().insertOrUpdateSchedMeetingOcurr(aux.get());
-        mScheduledMeetingsOcurrences.emplace(aux->callid(), std::move(aux));
+        mScheduledMeetingsOcurrences.emplace(aux->schedId(), std::move(aux));
     }
     notifySchedMeetingOccurrencesUpdated(); // notify all scheduled meetings occurrences for this chat in one callback
 }
@@ -5605,11 +5605,11 @@ KarereScheduledRules* KarereScheduledRules::unserialize(Buffer& in)
 
 /* class scheduledMeeting */
 KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, const std::string& startDateTime,
-                                               const std::string& endDateTime, const std::string& title, const std::string& description, karere::Id callid,
+                                               const std::string& endDateTime, const std::string& title, const std::string& description, karere::Id schedId,
                                                karere::Id parentSchedId, int cancelled, const std::string& attributes, const std::string& overrides,
                                                KarereScheduledFlags* flags, KarereScheduledRules* rules)
     : mChatid(chatid),
-      mCallid(callid),
+      mSchedId(schedId),
       mParentSchedId(parentSchedId),
       mOrganizerUserId(organizerid),
       mTimezone(timezone),
@@ -5627,7 +5627,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id org
 
 KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
-      mCallid(scheduledMeeting->callid()),
+      mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),
       mOrganizerUserId(scheduledMeeting->organizerUserid()),
       mTimezone(scheduledMeeting->timezone()),
@@ -5645,7 +5645,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduled
 
 KarereScheduledMeeting::KarereScheduledMeeting(mega::MegaScheduledMeeting* scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
-      mCallid(scheduledMeeting->schedId()),
+      mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),
       mOrganizerUserId(scheduledMeeting->organizerUserid()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
@@ -5671,7 +5671,7 @@ KarereScheduledMeeting::~KarereScheduledMeeting()
 }
 
 karere::Id KarereScheduledMeeting::chatid() const                         { return mChatid; }
-karere::Id KarereScheduledMeeting::callid() const                         { return mCallid; }
+karere::Id KarereScheduledMeeting::schedId() const                        { return mSchedId; }
 karere::Id KarereScheduledMeeting::parentSchedId() const                  { return mParentSchedId; }
 karere::Id KarereScheduledMeeting::organizerUserid() const                { return mOrganizerUserId; }
 const std::string& KarereScheduledMeeting::timezone() const               { return mTimezone; }
