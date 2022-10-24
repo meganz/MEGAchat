@@ -911,7 +911,7 @@ public:
                                     const char* title,
                                     const char* description,
                                     MegaChatHandle callid = MEGACHAT_INVALID_HANDLE,
-                                    MegaChatHandle parentCallid = MEGACHAT_INVALID_HANDLE,
+                                    MegaChatHandle parentSchedId = MEGACHAT_INVALID_HANDLE,
                                     MegaChatHandle organizerUserId = MEGACHAT_INVALID_HANDLE,
                                     int cancelled = -1,
                                     const char* attributes = nullptr,
@@ -927,7 +927,7 @@ public:
 
     MegaChatHandle chatid() const;
     MegaChatHandle callid() const;
-    MegaChatHandle parentCallid() const;
+    MegaChatHandle parentSchedId() const;
     MegaChatHandle organizerUserid() const;
     const char* timezone() const;
     const char* startDateTime() const;
@@ -951,7 +951,7 @@ private:
     MegaChatHandle mCallid;
 
     // parent scheduled meeting handle
-    MegaChatHandle mParentCallid;
+    MegaChatHandle mParentSchedId;
 
     // organizer user handle
     MegaChatHandle mOrganizerUserId;
@@ -1343,7 +1343,7 @@ public:
 
     // Chatrooms management
     // creates or update a scheduled meeting
-    void createOrUpdateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid,
+    void createOrUpdateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentSchedId,
                                                  bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
                                                  const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
                                                  int cancelled, const char* attributes, const char* overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,

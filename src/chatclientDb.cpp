@@ -21,13 +21,13 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
             return;
         }
 
-        mDb.query("insert or replace into scheduledMeetings(schedmeetingid, chatid, organizerid, parentid, timezone, start_date_time, end_date_time, "
+        mDb.query("insert or replace into scheduledMeetings(schedmeetingid, chatid, organizerid, parentSchedid, timezone, start_date_time, end_date_time, "
               "title, description, attributes, overrides, cancelled, flags, rules)"
               "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                   sm->callid(),
                   sm->chatid(),
                   sm->organizerUserid(),
-                  sm->parentCallid(),
+                  sm->parentSchedId(),
                   sm->timezone().size() ? sm->timezone().c_str() : nullptr,
                   sm->startDateTime().size() ? sm->startDateTime().c_str() : nullptr,
                   sm->endDateTime().size() ? sm->endDateTime().c_str() : nullptr,
@@ -41,13 +41,13 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
     }
     else
     {
-        mDb.query("insert or replace into scheduledMeetings(schedmeetingid, chatid, organizerid, parentid, timezone, start_date_time, end_date_time, "
+        mDb.query("insert or replace into scheduledMeetings(schedmeetingid, chatid, organizerid, parentSchedid, timezone, start_date_time, end_date_time, "
               "title, description, attributes, overrides, cancelled, flags)"
               "values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                   sm->callid(),
                   sm->chatid(),
                   sm->organizerUserid(),
-                  sm->parentCallid(),
+                  sm->parentSchedId(),
                   sm->timezone().size() ? sm->timezone().c_str() : nullptr,
                   sm->startDateTime().size() ? sm->startDateTime().c_str() : nullptr,
                   sm->endDateTime().size() ? sm->endDateTime().c_str() : nullptr,
@@ -77,13 +77,13 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::getSche
 
 void ChatClientSqliteDb::insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeeting* sm)
 {
-    mDb.query("insert or replace into scheduledMeetingsOccurr(schedmeetingid, chatid, organizerid, parentid, timezone, start_date_time, end_date_time, "
+    mDb.query("insert or replace into scheduledMeetingsOccurr(schedmeetingid, chatid, organizerid, parentSchedid, timezone, start_date_time, end_date_time, "
           "title, description, attributes, overrides, cancelled, flags)"
           "values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
               sm->callid(),
               sm->chatid(),
               sm->organizerUserid(),
-              sm->parentCallid(),
+              sm->parentSchedId(),
               sm->timezone().size() ? sm->timezone().c_str() : nullptr,
               sm->startDateTime().size() ? sm->startDateTime().c_str() : nullptr,
               sm->endDateTime().size() ? sm->endDateTime().c_str() : nullptr,
@@ -108,7 +108,7 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::getSche
 std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::loadSchedMeetings(const karere::Id& id, bool loadingOccurr)
 {
     std::vector<std::unique_ptr<KarereScheduledMeeting>> v;
-    std::string query = "select schedmeetingid, chatid, organizerid, parentid, timezone, start_date_time, end_date_time, title, description, attributes, overrides, cancelled, ";
+    std::string query = "select schedmeetingid, chatid, organizerid, parentSchedid, timezone, start_date_time, end_date_time, title, description, attributes, overrides, cancelled, ";
 
     loadingOccurr
             ? query.append("flags from scheduledMeetingsOccurr where chatid = ?")   // load scheduled meeting occurrences
@@ -122,7 +122,7 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::loadSch
        karere::Id schedmeetingid = stmt.int64Col(0) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(0));
        karere::Id chatid = stmt.int64Col(1) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(1));
        karere::Id organizerid = stmt.int64Col(2) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(2));
-       karere::Id parentid = stmt.int64Col(3) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(3));
+       karere::Id parentSchedid = stmt.int64Col(3) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(3));
        std::string timezone(stmt.stringCol(4));
        std::string start_date_time(stmt.stringCol(5));
        std::string end_date_time(stmt.stringCol(6));
@@ -141,7 +141,7 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::loadSch
        }
 
        KarereScheduledMeeting* aux = new KarereScheduledMeeting(chatid, organizerid, timezone, start_date_time, end_date_time, title,
-                                                                description, schedmeetingid, parentid, cancelled, attributes, overrides,
+                                                                description, schedmeetingid, parentSchedid, cancelled, attributes, overrides,
                                                                 flags.get(), rules.get());
        v.emplace_back(std::move(aux));
     }

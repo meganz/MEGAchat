@@ -7521,7 +7521,7 @@ public:
      *
      * @param chatid        : chat handle
      * @param callid        : scheduled meeting handle
-     * @param parentCallid  : parent scheduled meeting handle
+     * @param parentSchedId : parent scheduled meeting handle
      * @param cancelled     : cancelled flag
      * @param timezone      : timeZone
      * @param startDateTime : start dateTime (format: 20220726T133000)
@@ -7535,7 +7535,7 @@ public:
      *
      * @return A pointer to the superclass of the private object
      */
-    static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentCallid, MegaChatHandle organizerUserId,
+    static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle callid, MegaChatHandle parentSchedId, MegaChatHandle organizerUserId,
                                                      int cancelled, const char* timezone, const char* startDateTime,
                                                      const char* endDateTime, const char* title, const char* description, const char* attributes,
                                                      const char* overrides, const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules);
@@ -7621,7 +7621,7 @@ public:
      *
      * @return MegaChatHandle that identifies the parent scheduled meeting
      */
-    virtual MegaChatHandle parentCallid() const;
+    virtual MegaChatHandle parentSchedId() const;
 
     /**
      * @brief Returns the MegaChatHandle of the organizer user of the scheduled meeting

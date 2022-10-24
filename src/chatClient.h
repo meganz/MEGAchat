@@ -1389,7 +1389,7 @@ public:
 
     KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime,
                                     const std::string& title, const std::string& description, karere::Id callid = karere::Id::inval(),
-                                    karere::Id parentCallid = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
+                                    karere::Id parentSchedId = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
                                     const std::string& overrides = std::string(), KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
 
     KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
@@ -1400,7 +1400,7 @@ public:
 
     karere::Id chatid() const;
     karere::Id callid() const;
-    karere::Id parentCallid() const;
+    karere::Id parentSchedId() const;
     karere::Id organizerUserid() const;
     const std::string& timezone() const;
     const std::string& startDateTime() const;
@@ -1422,7 +1422,7 @@ private:
     karere::Id mCallid;
 
     // parent scheduled meeting handle
-    karere::Id mParentCallid;
+    karere::Id mParentSchedId;
 
     // organizer user handle
     karere::Id mOrganizerUserId;
