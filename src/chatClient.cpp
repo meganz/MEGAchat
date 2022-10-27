@@ -1071,7 +1071,7 @@ Client::InitState Client::initWithAnonymousSession()
 {
     if (mInitState > kInitCreated)
     {
-        KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
+        KR_LOG_WARNING("init: karere is already initialized. Current state: %s", initStateStr());
         return mInitState;
     }
 

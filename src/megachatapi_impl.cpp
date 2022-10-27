@@ -2596,7 +2596,7 @@ int MegaChatApiImpl::initAnonymous()
     createKarereClient();
 
     int state = mClient->initWithAnonymousSession();
-    if (state != karere::Client::kInitAnonymousMode)
+    if (state >= karere::Client::kInitErrFirst)
     {
         // there's been an error during initialization
         localLogout();
