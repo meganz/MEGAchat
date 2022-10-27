@@ -2566,7 +2566,9 @@ public:
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
         INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
         INIT_ANONYMOUS              = 4,    /// Initialization successful for anonymous operation
-        INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> it requires login+fetchnodes
+        INIT_TERMINATED             = 5,    /// Client is disconnected and terminated
+        INIT_NO_CACHE               = 7,    /// Cache not available for \c sid provided --> it requires login+fetchnodes
+        INIT_INVALID_SESSION        = 10    /// Session has expired or has been closed
     };
 
     enum
@@ -2800,12 +2802,14 @@ public:
      *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
      *  - MegaChatApi::INIT_ONLINE_SESSION = 3
      *  - MegaChatApi::INIT_ANONYMOUS = 4
+     *  - MegaChatApi::INIT_TERMINATED = 5
      *  - MegaChatApi::INIT_NO_CACHE = 7
+     *  - MegaChatApi::INIT_INVALID_SESSION = 10
      *
      * If \c MegaChatApi::init() has not been called yet, this function returns INIT_NOT_DONE
      *
-     * If the chat-engine is being terminated because the session is expired, it returns 10.
-     * If the chat-engine is being logged out, it returns 4.
+     * If the chat-engine is being terminated because the session is expired, it returns INIT_INVALID_SESSION.
+     * If the chat-engine is being logged out, it returns INIT_TERMINATED.
      *
      * @return The current initialization state
      */
