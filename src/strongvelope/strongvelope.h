@@ -99,6 +99,8 @@ enum
     TLV_TYPE_PRIVILEGE          = 0x0c,
     TLV_TYPE_KEYBLOB            = 0x0f,
     TLV_TYPE_OPENMODE           = 0x10,
+    TLV_TYPE_SCHED_ID           = 0x11,
+    TLV_TYPE_SCHED_CHANGESET    = 0x12,
     TLV_TYPES_COUNT
 };
 
@@ -164,6 +166,7 @@ struct ParsedMessage: public karere::DeleteTrackable
     ProtocolHandler& mProtoHandler;
     uint8_t protocolVersion;
     karere::Id sender;
+    karere::Id mSchedId;
     Key<32> nonce;
     Buffer payload;
     Buffer signedContent;
@@ -177,9 +180,12 @@ struct ParsedMessage: public karere::DeleteTrackable
     uint32_t keyId;
     uint32_t prevKeyId;
     Buffer encryptedKey; //may contain also the prev key, concatenated
+    unsigned long mSchedChanged = 0;
+    std::unique_ptr<std::vector<std::string>> mSchedInfo;
 
     std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
     std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
+    std::unique_ptr<chatd::Message::SchedMeetingInfo> mSchedMeetingInfo;
 
     ParsedMessage(const chatd::Message& src, ProtocolHandler& protoHandler);
     bool verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey);

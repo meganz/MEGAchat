@@ -2136,6 +2136,21 @@ int MegaChatMessage::getTermCode() const
     return 0;
 }
 
+const MegaStringList* MegaChatMessage::getSchedInfo() const
+{
+    return NULL;
+}
+
+unsigned long MegaChatMessage::getSchedChanged() const
+{
+    return 0;
+}
+
+MegaChatHandle MegaChatMessage::getSchedId() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 void MegaChatLogger::log(int , const char *)
 {
 

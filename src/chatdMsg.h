@@ -5,6 +5,7 @@
 #include <string>
 #include <buffer.h>
 #include <memory>
+#include <map>
 #include "karereId.h"
 
 enum
@@ -557,7 +558,8 @@ public:
         kMsgPublicHandleDelete  = 0x09,
         kMsgSetPrivateMode      = 0x0A,
         kMsgSetRetentionTime    = 0x0B,
-        kMsgManagementHighest   = 0x0B,
+        kMsgSchedMeeting        = 0x0C,
+        kMsgManagementHighest   = 0x0C,
         kMsgOffset              = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst           = 0x65,
         kMsgAttachment          = 0x65,   // kMsgNormal's subtype = 0x10
@@ -663,6 +665,89 @@ public:
         {
             return userIndex(userId) != -1;
         }
+    };
+
+    class SchedMeetingInfo
+    {
+        public:
+            karere::Id mSchedId;
+            unsigned long mSchedChanged;
+            std::unique_ptr<std::map<std::string, std::string>> mSchedInfo;
+
+            static SchedMeetingInfo* fromBuffer(const char* buffer, size_t len)
+            {
+                SchedMeetingInfo* info = new SchedMeetingInfo;
+                size_t numEntries;
+                unsigned int lenSchedId = sizeof (info->mSchedId);
+                unsigned int lenSchedChanged = sizeof (info->mSchedChanged);
+                unsigned int lenNumEntries = sizeof (numEntries);
+
+                if (!buffer || len < (lenSchedId + lenSchedChanged + lenNumEntries))
+                {
+                    delete info;
+                    return NULL;
+                }
+
+                unsigned int position = 0;
+                memcpy(&info->mSchedId, &buffer[position], lenSchedId);
+                position += lenSchedId;
+                memcpy(&info->mSchedChanged, &buffer[position], lenSchedChanged);
+                position += lenSchedChanged;
+                memcpy(&numEntries, &buffer[position], lenNumEntries);
+                position += lenNumEntries;
+
+                if (numEntries)
+                {
+                    assert(numEntries == 2); // currently we just store title
+                    info->mSchedInfo.reset(new std::map<std::string,std::string>());
+                    for (size_t i = 0; i < numEntries/2; )
+                    {
+                        if (len < (position + sizeof(size_t)))
+                        {
+                            delete info;
+                            return NULL;
+                        }
+                        size_t keylen = 0;
+                        memcpy(&keylen, &buffer[position], sizeof(keylen));
+                        position += sizeof(keylen);
+
+                        if (len < (position + keylen))
+                        {
+                            delete info;
+                            return NULL;
+                        }
+
+                        std::unique_ptr<char[]> key(new char[keylen + 1]);
+                        memcpy(key.get(), &buffer[position], keylen);
+                        key[keylen] = '\0';
+                        position += keylen;
+
+                        if (len < (position + sizeof(size_t)))
+                        {
+                            delete info;
+                            return NULL;
+                        }
+                        size_t valLen = 0;
+                        memcpy(&valLen, &buffer[position], sizeof(valLen));
+                        position += sizeof(valLen);
+
+                        if (len < (position + valLen))
+                        {
+                            delete info;
+                            return NULL;
+                        }
+
+                        std::unique_ptr<char[]> val(new char[valLen + 1]);
+                        memcpy(val.get(), &buffer[position], valLen);
+                        position += valLen;
+                        val[valLen] = '\0';
+
+                        (*info->mSchedInfo)[key.get()] = val.get();
+                        i++;
+                    }
+                }
+                return info;
+            }
     };
 
     class CallEndedInfo
@@ -804,6 +889,30 @@ public:
         for (size_t i = 0; i < numParticipants; i++)
         {
             append(&src.participants[i], sizeof(src.participants[i]));
+        }
+    }
+
+    void createSchedMeetingInfo(const SchedMeetingInfo& src)
+    {
+        assert(empty());
+        append(&src.mSchedId, sizeof(src.mSchedId));
+        append(&src.mSchedChanged, sizeof(src.mSchedChanged));
+        size_t numEntries = src.mSchedInfo ? src.mSchedInfo->size() * 2 : 0;
+        append(&numEntries, sizeof(numEntries));
+
+        if (src.mSchedInfo)
+        {
+            assert(src.mSchedInfo->size() == 1); // currentlu we just store title
+            for (auto it = src.mSchedInfo->begin() ; it != src.mSchedInfo->end(); it++)
+            {
+                size_t keySize = it->first.size();
+                append(&keySize, sizeof(keySize));
+                append(it->first.data(), it->first.size());
+
+                size_t valSize = it->second.size();
+                append(&valSize, sizeof(valSize));
+                append(it->second.data(), it->second.size());
+            }
         }
     }
 

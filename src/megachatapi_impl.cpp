@@ -9450,6 +9450,10 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     megaNodeList = msg->getMegaNodeList() ? msg->getMegaNodeList()->copy() : NULL;
     megaHandleList = msg->getMegaHandleList() ? msg->getMegaHandleList()->copy() : NULL;
 
+    mSchedId = msg->getSchedId();
+    mSchedChanged = msg->getSchedChanged();
+    mSchedInfo = msg->getSchedInfo() ? unique_ptr<MegaStringList>(msg->getSchedInfo()->copy()) : nullptr;
+
     if (msg->getUsersCount() != 0)
     {
         megaChatUsers = new std::vector<MegaChatAttachedUser>();
@@ -9546,7 +9550,27 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             }
             break;
         }
+        case MegaChatMessage::TYPE_SCHED_MEETING:
+        {
+            megaHandleList = new MegaHandleListPrivate();
+            std::unique_ptr<Message::SchedMeetingInfo> schedInfo(Message::SchedMeetingInfo::fromBuffer(msg.buf(), msg.size()));
+            if (schedInfo)
+            {
+                mSchedId = schedInfo->mSchedId;
+                mSchedChanged = schedInfo->mSchedChanged;
 
+                if (!schedInfo->mSchedInfo->empty())
+                {
+                    mSchedInfo.reset(::mega::MegaStringList::createInstance());
+                    for (auto m: *schedInfo->mSchedInfo.get())
+                    {
+                        mSchedInfo->add(m.first.c_str());
+                        mSchedInfo->add(m.second.c_str());
+                    }
+                }
+            }
+           break;
+        }
         case MegaChatMessage::TYPE_SET_RETENTION_TIME:
         {
           // Interpret retentionTime as int32_t to store it in an existing member.
@@ -9840,6 +9864,21 @@ unsigned MegaChatMessagePrivate::getRetentionTime() const
 int MegaChatMessagePrivate::getTermCode() const
 {
     return mCode;
+}
+
+const MegaStringList* MegaChatMessagePrivate::getSchedInfo() const
+{
+    return mSchedInfo.get();
+}
+
+unsigned long MegaChatMessagePrivate::getSchedChanged() const
+{
+    return mSchedChanged;
+}
+
+MegaChatHandle MegaChatMessagePrivate::getSchedId() const
+{
+    return mSchedId;
 }
 
 bool MegaChatMessagePrivate::isGiphy() const

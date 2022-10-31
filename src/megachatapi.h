@@ -1493,7 +1493,8 @@ public:
         TYPE_PUBLIC_HANDLE_DELETE   = 9,    /// Management message indicating a public handle has been removed
         TYPE_SET_PRIVATE_MODE       = 10,   /// Management message indicating the chat mode has been set to private
         TYPE_SET_RETENTION_TIME     = 11,   /// Management message indicating the retention time has changed
-        TYPE_HIGHEST_MANAGEMENT     = 11,
+        TYPE_SCHED_MEETING          = 12,   /// Management message indicating that a scheduled meeting is created/updated
+        TYPE_HIGHEST_MANAGEMENT     = 12,
         TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
@@ -1855,6 +1856,40 @@ public:
      * @return Call termination code
      */
     virtual int getTermCode() const;
+
+    /**
+     * @brief Returns a MegaStringList list with the old and new values
+     * for scheduled meetings params changed
+     * Improve documentation
+     *
+     * This funcion returns a valid value for:
+     *  - MegaChatMessage::TYPE_SCHED_MEETING
+     *
+     * @return a MegaStringList list with the old and new values
+     * for scheduled meetings params changed
+     */
+    virtual const mega::MegaStringList* getSchedInfo() const;
+
+    /**
+     * @brief Return the scheduled meeting set of changes
+     * Improve documentation
+     *
+     * This funcion returns a valid value for:
+     *  - MegaChatMessage::TYPE_SCHED_MEETING
+     *
+     * @return the scheduled meeting set of changes
+     */
+    virtual unsigned long getSchedChanged() const;
+
+    /**
+     * @brief Return the scheduled meeting id
+     *
+     * This funcion returns a valid value for:
+     *  - MegaChatMessage::TYPE_SCHED_MEETING
+     *
+     * @return the scheduled meeting id
+     */
+    virtual MegaChatHandle getSchedId() const;
 
      /** @brief Return the id for messages in manual sending status / queue
      *

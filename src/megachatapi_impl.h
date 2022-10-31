@@ -1054,6 +1054,10 @@ public:
     unsigned getRetentionTime() const override;
     int getTermCode() const override;
 
+    const mega::MegaStringList* getSchedInfo() const override;
+    unsigned long getSchedChanged() const override;
+    MegaChatHandle getSchedId() const override;
+
     int getChanges() const override;
     bool hasChanged(int changeType) const override;
 
@@ -1091,6 +1095,9 @@ private:
     mega::MegaNodeList *megaNodeList = NULL;
     mega::MegaHandleList *megaHandleList = NULL;
     const MegaChatContainsMeta *mContainsMeta = NULL;
+    MegaChatHandle mSchedId;
+    unsigned long mSchedChanged;
+    std::unique_ptr<::mega::MegaStringList> mSchedInfo;
 };
 
 //Thread safe request queue
