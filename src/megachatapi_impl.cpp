@@ -2636,6 +2636,65 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_EVENTS:
+        {
+            handle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid chatid");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            const char* since = request->getText();
+            const char* until = request->getLink();
+            unsigned int min = static_cast<unsigned int>(request->getPrivilege());
+            unsigned int count = static_cast<unsigned int>(request->getNumber());
+
+            const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatroom->getScheduledMeetingsOccurrences();
+            if (!min || map.size() <= min)
+            {
+                mClient->fetchScheduledMeetingOccurrences(chatid, since, until, count)
+                .then([request](std::vector<std::unique_ptr<KarereScheduledMeeting>>* result)
+                {
+                    std::unique_ptr<std::vector<std::unique_ptr<KarereScheduledMeeting>>> auxList(std::move(result));
+                    if (!auxList->empty())
+                    {
+                        std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
+                        for (auto const& sm: *auxList)
+                        {
+                            l->insert(new MegaChatScheduledMeetingPrivate(sm.get()));
+                        }
+                        request->setMegaChatScheduledMeetingList(l.get());
+                    }
+                })
+                .fail([request, this](const ::promise::Error& err)
+                {
+                    API_LOG_ERROR("Error fetching scheduled meetings occurrences: %s", err.what());
+
+                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
+            }
+            else
+            {
+                std::unique_ptr<MegaChatScheduledMeetingList> list(MegaChatScheduledMeetingList::createInstance());
+                for (auto it = map.begin(); it != map.end(); it++)
+                {
+                    list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+                }
+                request->setMegaChatScheduledMeetingList(list.get());
+            }
+
+            break;
+        }
 #endif
         default:
         {
@@ -4317,6 +4376,18 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetingsOccurrence
        }
     }
     return list;
+}
+
+void MegaChatApiImpl::fetchScheduledMeetingOccurrences(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_EVENTS, listener);
+    request->setChatHandle(chatid);
+    request->setText(since);
+    request->setLink(until);
+    request->setNumber(count);
+    request->setPrivilege(static_cast<int>(min));
+    requestQueue.push(request);
+    waiter->notify();
 }
 
 void MegaChatApiImpl::chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener)
@@ -6501,6 +6572,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_CHATROOM_OPTIONS: return "TYPE_SET_CHATROOM_OPTIONS";
         case TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING : return "CREATE_SCHEDULED_MEETING";
         case TYPE_DELETE_SCHEDULED_MEETING: return "DELETE_SCHEDULED_MEETING";
+        case TYPE_FETCH_SCHEDULED_MEETING_EVENTS: return "TYPE_FETCH_SCHEDULED_MEETING_EVENTS";
     }
     return "UNKNOWN";
 }

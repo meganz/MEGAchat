@@ -1372,6 +1372,8 @@ public:
     // get all scheduled meetings occurrences for all chats
     MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();
 
+    void fetchScheduledMeetingOccurrences(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min, MegaChatRequestListener* listener);
+
     void setChatOption(MegaChatHandle chatid, int option, bool enabled, MegaChatRequestListener* listener = NULL);
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
     void createChat(bool group, MegaChatPeerList* peerList, const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener = NULL);

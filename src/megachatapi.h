@@ -1982,7 +1982,7 @@ public:
         TYPE_DEL_SPEAKER, TYPE_REQUEST_SVC_LAYERS,
         TYPE_SET_CHATROOM_OPTIONS,
         TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING,
-        TYPE_DELETE_SCHEDULED_MEETING,
+        TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_EVENTS,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -4108,6 +4108,8 @@ public:
      * @return List of MegaChatScheduledMeeting objects with all occurrences for all chatrooms.
      */
     MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();
+
+    void fetchScheduledMeetingOccurrences(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min = 10, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Get a list of all scheduled meeting occurrences for a chatroom

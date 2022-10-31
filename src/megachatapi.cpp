@@ -757,6 +757,11 @@ MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetingsOccurrences()
     return pImpl->getAllScheduledMeetingsOccurrences();
 }
 
+void MegaChatApi::fetchScheduledMeetingOccurrences(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min, MegaChatRequestListener* listener)
+{
+    pImpl->fetchScheduledMeetingOccurrences(chatid, since, until, count, min, listener);
+}
+
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
     pImpl->createPublicChat(peers, false, title, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/, listener);

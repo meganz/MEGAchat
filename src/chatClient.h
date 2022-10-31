@@ -1062,6 +1062,9 @@ public:
      */
     promise::Promise<KarereScheduledMeeting*> createScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting);
 
+
+    promise::Promise<std::vector<std::unique_ptr<KarereScheduledMeeting> > *> fetchScheduledMeetingOccurrences(uint64_t chatid, const char* since, const char* until, unsigned int count);
+
     /**
      * @brief This function allows to remove a scheduled meeting.
      * TODO: complete documentation

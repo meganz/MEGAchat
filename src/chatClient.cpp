@@ -873,6 +873,24 @@ promise::Promise<KarereScheduledMeeting*> Client::createScheduledMeeting(const m
     });
 }
 
+promise::Promise<std::vector<std::unique_ptr<KarereScheduledMeeting>>*>
+Client::fetchScheduledMeetingOccurrences(uint64_t chatid, const char* since, const char* until, unsigned int count)
+{
+    auto wptr = getDelTracker();
+    return api.call(&::mega::MegaApi::fetchScheduledMeetingEvents, chatid, since, until, count)
+    .then([wptr](ReqResult result) -> promise::Promise<std::vector<std::unique_ptr<KarereScheduledMeeting>>*>
+    {
+        wptr.throwIfDeleted();
+        std::vector<std::unique_ptr<KarereScheduledMeeting>>* out = new std::vector<std::unique_ptr<KarereScheduledMeeting>>();
+        const mega::MegaScheduledMeetingList* l = result->getMegaScheduledMeetingList();
+        for (unsigned long i = 0; i <= l->size(); i++)
+        {
+            out->emplace_back(new KarereScheduledMeeting(l->at(i)));
+        }
+        return std::move(out);
+    });
+}
+
 promise::Promise<void> Client::removeScheduledMeeting(uint64_t chatid, uint64_t schedId)
 {
     auto wptr = getDelTracker();
