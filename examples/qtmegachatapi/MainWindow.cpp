@@ -267,7 +267,8 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         itemController->getMeetingView()->updateVideoButtonText(*call);
     }
 
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION))
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION)
+            || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS))
     {
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateLabel(call);
@@ -341,11 +342,22 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         }
     }
 
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS))
+    {
+        meetingView->updateSession(*session);
+    }
+
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
     {
         if (session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
         {
             meetingView->addSession(*session);
+            ChatListItemController* itemController = getChatControllerById(chatid);
+            std::unique_ptr<MegaChatCall> call(mMegaChatApi->getChatCallByCallId(callid));
+            if (call && itemController)
+            {
+                itemController->getMeetingView()->updateLabel(call.get());
+            }
         }
         else // SESSION_STATUS_DESTROYED
         {

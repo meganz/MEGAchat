@@ -36,7 +36,7 @@
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
-
+static constexpr unsigned int maxAttempts = 3;
 static const unsigned int maxTimeout = 600;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 2;
@@ -228,6 +228,8 @@ public:
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
     void postLog(const std::string &msg);
 
+    bool exitWait(const std::vector<bool *>&responsesReceived, bool any) const;
+    bool waitForMultiResponse(std::vector<bool *>responsesReceived, bool any, unsigned int timeout = maxTimeout) const;
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
     void TEST_ResumeSession(unsigned int accountIndex);
@@ -358,6 +360,7 @@ private:
     bool mCallReceivedRinging[NUM_ACCOUNTS];
     bool mCallInProgress[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
+    bool mCallConnecting[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
@@ -586,7 +589,7 @@ class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
@@ -601,6 +604,8 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(unsigned termcode) override;
+    bool handleModAdd(uint64_t userid) override;
+    bool handleModDel(uint64_t userid) override;
     void onSfuConnected() override;
     void onSendByeCommand() override;
     void onSfuDisconnected() override;

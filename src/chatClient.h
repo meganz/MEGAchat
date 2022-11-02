@@ -861,28 +861,28 @@ public:
          /** \c init() has been called with no \c sid. The client is waiting
          * for the completion of a full fetchnodes from the SDK on a new session.
          */
-        kInitWaitingNewSession,
+        kInitWaitingNewSession = 1,
 
         /** \c init() has been called with a \c sid, there is a valid cache for that
          * \sid, and the client is successfully initialized for offline operation */
-        kInitHasOfflineSession,
+        kInitHasOfflineSession = 2,
 
         /** Karere has sucessfully initialized and the SDK/API is online.
          * Note that the karere client itself (chat, presence) is not online.
          * It has to be explicitly connected via \c connect()
          */
-        kInitHasOnlineSession,
+        kInitHasOnlineSession = 3,
 
         /** \c Karere has sucessfully initialized in anonymous mode */
-        kInitAnonymousMode,
+        kInitAnonymousMode = 4,
 
         /** Client has disconnected and terminated */
-        kInitTerminated,
+        kInitTerminated = 5,
 
         /** The first init state error code. All values equal or greater than this
          * represent error states
          */
-        kInitErrFirst,
+        kInitErrFirst = 6,
 
         /** Unspecified init error */
         kInitErrGeneric = kInitErrFirst,
@@ -894,7 +894,7 @@ public:
          * and receive all actionpackets again, so that karere can have a chance
          * to initialize its state from scratch
          */
-        kInitErrNoCache,
+        kInitErrNoCache = 7,
 
         /** A problem was fund while initializing from a seemingly valid karere cache.
          * This error is not recoverable. The client is probably in a bogus state,
@@ -904,18 +904,15 @@ public:
          * In that case, the recoverable kInitErrNoCache will occur but
          * karere will continue by creating the cache from scratch.
          */
-        kInitErrCorruptCache,
+        kInitErrCorruptCache = 8,
 
         /** The session given to init() was different than the session with which
          * the SDK was initialized
          */
-        kInitErrSidMismatch,
-
-        /** init() has already been called on that client instance */
-        kInitErrAlready,
+        kInitErrSidMismatch = 9,
 
         /** The session has expired or has been closed. */
-        kInitErrSidInvalid
+        kInitErrSidInvalid = 10
     };
 
     enum

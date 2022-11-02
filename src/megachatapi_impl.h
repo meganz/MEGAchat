@@ -201,6 +201,7 @@ public:
     virtual bool hasRequestSpeak() const override;
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
+    virtual bool isModerator() const override;
 
     char* avFlagsToString() const override;
     karere::AvFlags getAvFlags() const; // for internal use
@@ -222,6 +223,7 @@ private:
     bool mAudioDetected = false;
     bool mHasHiResTrack = false;
     bool mHasLowResTrack = false;
+    bool mIsModerator = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
@@ -251,12 +253,14 @@ public:
     virtual int getTermCode() const override;
     int getEndCallReason() const override;
     virtual bool isRinging() const override;
+    virtual bool isOwnModerator() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientId) override;
     virtual int getNumParticipants() const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
+    virtual mega::MegaHandleList* getModerators() const override;
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
@@ -297,6 +301,7 @@ protected:
     MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
     int mCallCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle mCallerId;
+    std::set<karere::Id> mModerators;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
@@ -307,6 +312,7 @@ protected:
     bool mIsOwnClientCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
+    bool mOwnModerator = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
 };
 
@@ -617,6 +623,7 @@ public:
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
     void onNetworkQualityChanged(const rtcModule::ICall &call) override;
     void onStopOutgoingRinging(const rtcModule::ICall& call) override;
+    void onPermissionsChanged(const rtcModule::ICall& call) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -647,6 +654,7 @@ public:
     void onRemoteFlagsChanged(rtcModule::ISession& session) override;
     void onOnHold(rtcModule::ISession& session) override;
     void onRemoteAudioDetected(rtcModule::ISession& session) override;
+    void onPermissionsChanged(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;

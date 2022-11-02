@@ -461,7 +461,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
         {
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;
-            if (client && client->mTlsSession.saveToStorage())
+            if (wsi && client && client->mTlsSession.saveToStorage())
             {
                 WEBSOCKETS_LOG_DEBUG("TLS session retrying to save to persistent storage for %s:%d",
                                      client->mTlsSession.hostname.c_str(), client->mTlsSession.port);

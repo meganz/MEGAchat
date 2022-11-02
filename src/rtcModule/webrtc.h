@@ -118,6 +118,7 @@ public:
     virtual void onRemoteFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
     virtual void onRemoteAudioDetected(ISession& session) = 0;
+    virtual void onPermissionsChanged(ISession& session) = 0;
 };
 
 class ISession
@@ -137,6 +138,7 @@ public:
     virtual void setVideoRendererHiRes(IVideoRenderer *videoRederer) = 0;
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
+    virtual bool isModerator() const = 0;
 };
 
 class ICall;
@@ -155,6 +157,7 @@ public:
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
     virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
     virtual void onStopOutgoingRinging(const ICall& call) = 0;
+    virtual void onPermissionsChanged(const ICall& call) = 0;
 };
 
 class ICall
@@ -167,6 +170,7 @@ public:
     virtual CallState getState() const = 0;
     virtual bool isOwnClientCaller() const = 0;
     virtual bool isJoined() const = 0;
+    virtual bool isOwnPrivModerator() const = 0;
 
     virtual void addParticipant(const karere::Id &peer) = 0;
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
@@ -212,12 +216,13 @@ public:
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
 
     virtual std::set<karere::Id> getParticipants() const = 0;
+    virtual std::set<karere::Id> getModerators() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
     virtual ISession* getIsession(Cid_t cid) const = 0;
     virtual bool isOutgoing() const = 0;
     virtual int64_t getInitialTimeStamp() const = 0;
     virtual int64_t getFinalTimeStamp() const = 0;
-    virtual int64_t getInitialOffset() const = 0;
+    virtual int64_t getInitialOffsetinMs() const = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual void setAudioDetected(bool audioDetected) = 0;

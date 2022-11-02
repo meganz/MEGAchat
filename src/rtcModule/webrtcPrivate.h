@@ -169,6 +169,7 @@ public:
     void notifyHiResReceived();
     void notifyLowResReceived();
     void disableVideoSlot(VideoResolution videoResolution);
+    void setModerator(bool isModerator);
 
     // ISession methods (called from intermediate layer, upon SessionHandler callbacks and others)
     karere::Id getPeerid() const override;
@@ -184,6 +185,7 @@ public:
     void setVideoRendererHiRes(IVideoRenderer *videoRenderer) override;
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
+    bool isModerator() const override;
 
 private:
     // Data about the partipant in the call relative to this session
@@ -269,6 +271,8 @@ public:
     CallState getState() const override;
     bool isOwnClientCaller() const override;
     bool isJoined()  const override;
+    bool isOwnPrivModerator() const override;
+
     // returns true if your user participates of the call
     bool participate() override;
     bool isJoining() const override;
@@ -338,6 +342,7 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
+    std::set<karere::Id> getModerators() const override;
     std::set<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
@@ -346,7 +351,7 @@ public:
 
     int64_t getInitialTimeStamp() const override;
     int64_t getFinalTimeStamp() const override;
-    int64_t getInitialOffset() const override;
+    int64_t getInitialOffsetinMs() const override;
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
@@ -366,7 +371,7 @@ public:
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
-    void sfuDisconnect(const TermCode &termCode);
+    void sfuDisconnect(const TermCode &termCode, bool hadParticipants);
 
     // ordered call disconnect by sending BYE command before performing SFU and media channel disconnect
     void orderedCallDisconnect(TermCode termCode, const std::string &msg);
@@ -410,7 +415,7 @@ public:
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
@@ -428,6 +433,8 @@ public:
     void onSfuConnected() override;
     void onSfuDisconnected() override;
     void onSendByeCommand() override;
+    bool handleModAdd (uint64_t userid) override;
+    bool handleModDel (uint64_t userid) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
@@ -462,9 +469,9 @@ protected:
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
 
-    int64_t mInitialTs = 0; // when we joined the call
-    int64_t mOffset = 0;    // duration of call when we joined
-    int64_t mFinalTs = 0;   // end of the call
+    int64_t mInitialTs = 0; // when we joined the call (seconds)
+    int64_t mOffset = 0;    // duration of call when we joined (millis)
+    int64_t mFinalTs = 0;   // end of the call (seconds)
     bool mAudioDetected = false;
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
@@ -508,6 +515,24 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
+
+    /*
+     * List of participants with moderator role
+     *
+     * This list must be updated with any of the following events, independently if those users
+     * currently has answered or not the call.
+     *
+     * The information about moderator role is only updated from SFU.
+     *  1) ANSWER command: When user receives Answer call, SFU will provide a list with current moderators for this call
+     *  2) ADDMOD command: informs that a peer has been granted with moderator role
+     *  3) DELMOD command: informs that a peer has been removed it's moderator role
+     *
+     *  Participants with moderator role can:
+     *  - End groupal calls for all participants
+     *  - Approve/reject speaker requests
+     */
+    std::set<karere::Id> mModerators;
+
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey(bool reset = false);
     // associate slots with their corresponding sessions (video)
@@ -530,6 +555,9 @@ protected:
     bool isUdpDisconnected() const;
     bool isTermCodeRetriable(const TermCode& termCode) const;
     bool isDisconnectionTermcode(const TermCode& termCode) const;
+    Cid_t getOwnCid() const;
+    void setSessionModByUserId(uint64_t userid, bool isMod);
+    void setOwnModerator(bool isModerator);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink

@@ -141,6 +141,10 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->getNumPreviewers() : 0;
 }
 
+- (BOOL)isOpenInviteEnabled {
+    return self.megaChatRoom ? self.megaChatRoom->isOpenInvite() : NO;
+}
+
 - (NSInteger)peerPrivilegeByHandle:(uint64_t)userHande {
     return self.megaChatRoom ? self.megaChatRoom->getPeerPrivilegeByHandle(userHande) : -2;
 }

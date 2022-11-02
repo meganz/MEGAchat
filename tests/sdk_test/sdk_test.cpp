@@ -410,6 +410,7 @@ void MegaChatApiTest::SetUp()
         mCallReceivedRinging[i] = false;
         mCallInProgress[i] = false;
         mCallDestroyed[i] = false;
+        mCallConnecting[i] = false;
         mChatIdRingInCall[i] = MEGACHAT_INVALID_HANDLE;
         mTerminationCode[i] = 0;
         mChatIdInProgressCall[i] = MEGACHAT_INVALID_HANDLE;
@@ -641,6 +642,55 @@ void MegaChatApiTest::postLog(const std::string &msg)
     logger->postLog(msg.c_str());
 }
 
+bool MegaChatApiTest::exitWait(const std::vector<bool *>&responsesReceived, bool waitForAll) const
+{
+    for (auto r: responsesReceived)
+    {
+        if (!waitForAll && (*r))  { return true; };   // any response must be received
+        if (waitForAll && !(*r))  { return false; };  // all responses must be received
+    }
+    return waitForAll; // true (all received) false (none received)
+};
+
+bool MegaChatApiTest::waitForMultiResponse(std::vector<bool *>responsesReceived, bool waitForAll, unsigned int timeout) const
+{
+    timeout *= 1000000; // convert to micro-seconds
+    unsigned int tWaited = 0;    // microseconds
+    bool connRetried = false;
+    while (!exitWait(responsesReceived, waitForAll))
+    {
+        usleep(pollingT);
+
+        if (timeout)
+        {
+            tWaited += pollingT;
+            if (tWaited >= timeout)
+            {
+                return false;   // timeout is expired
+            }
+            else if (!connRetried && tWaited > (pollingT * 10))
+            {
+                for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
+                {
+                    if (megaApi[i] && megaApi[i]->isLoggedIn())
+                    {
+                        megaApi[i]->retryPendingConnections();
+                    }
+
+                    if (megaChatApi[i] && megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION)
+                    {
+                        megaChatApi[i]->retryPendingConnections();
+                    }
+                }
+                connRetried = true;
+            }
+        }
+    }
+
+    return true;    // responses have been received
+}
+
+// this method could be deprecated in favor of waitForMultiResponse, when it's proven it works as expected
 bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeout) const
 {
     timeout *= 1000000; // convert to micro-seconds
@@ -1656,6 +1706,15 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     /// Public chats test
     // Login in secondary account
     char *sessionSecondary = login(a2);
+
+    // Make a1 and a2 contacts
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
+    {
+        makeContact(a1, a2);
+        delete user;
+        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    }
 
     // Create chat link
     flagCreateChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *flagCreateChatLink = false;
@@ -3141,12 +3200,26 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
         mCallIdExpectedReceived[a2] = auxCall->getCallId();
     }
 
-    char *secondarySession2 = login(a2, secondarySession);
+    char* secondarySession2 = login(a2, secondarySession);
+    waitForResponse(callReceived);
+    if (!(*callReceived))
+    {
+        std::unique_ptr<MegaChatListItem> itemSecondary(megaChatApi[a2]->getChatListItem(chatid));
+        ASSERT_CHAT_TEST(itemSecondary, "Can't retrieve chat list item");
 
-    /* we could receive onChatCallUpdate for multiple calls, so we need to know which one we are
-     * expecting(mCallIdExpectedReceived).
-     */
-    ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
+        if (itemSecondary->getLastMessageType() == MegaChatMessage::TYPE_CALL_ENDED)
+        {
+            // login process for secondary account has taken too much time, so Call has been destroyed with reason kNoAnswer
+            std::unique_ptr<MegaChatMessage> m(megaChatApi[a2]->getMessage(chatid, itemSecondary->getLastMessageId()));
+            ASSERT_CHAT_TEST(m && m->getHandleOfAction() == mCallIdExpectedReceived[a2], "Management message of type TYPE_CALL_ENDED not received");
+        }
+        else
+        {
+            // the test must fail, as we haven't received the call for secondary account, but neither a call ended management message
+            ASSERT_CHAT_TEST(callReceived, "Timeout expired for receiving a call");
+        }
+    }
+
     auxCall.reset(megaChatApi[a2]->getChatCall(auxCall->getChatid()));
     ASSERT_CHAT_TEST(auxCall, "Can't retrieve call by callid");
 
@@ -3471,6 +3544,115 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
  */
 void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 {
+    /* lambda functions to simplify some recurrent operations */
+    // gets a pointer to the local flag that indicates if we have reached an specific callstate
+    std::function<bool*(unsigned int, int)> getChatCallStateFlag =
+    [this](unsigned int index, int state) -> bool*
+    {
+        switch (state)
+        {
+            case MegaChatCall::CALL_STATUS_INITIAL:     return &mCallReceived[index];
+            case MegaChatCall::CALL_STATUS_CONNECTING:  return &mCallConnecting[index];
+            case MegaChatCall::CALL_STATUS_IN_PROGRESS: return &mCallInProgress[index];
+            default:                                    break;
+        }
+
+        ASSERT_CHAT_TEST(false, "Invalid account index");
+        return nullptr;
+    };
+
+    // resets the local flag that indicates if we have reached an specific call state
+    std::function<void(unsigned int, int)> resetTestChatCallState =
+    [getChatCallStateFlag](unsigned int index, int state)
+    {
+        bool* statusReceived = getChatCallStateFlag(index, state);
+        if (statusReceived)    { *statusReceived = false; }
+    };
+
+    // waits for a specific callstate
+    std::function<void(unsigned int, int)> waitForChatCallState =
+    [this, getChatCallStateFlag](unsigned int index, int state)
+    {
+        bool* statusReceived = getChatCallStateFlag(index, state);
+        if (statusReceived)
+        {
+            ASSERT_CHAT_TEST(waitForResponse(statusReceived),
+                             "Timeout expired for receiving call state: " + std::to_string(state) +
+                             " for account index [" + std::to_string(index) + "]") ;
+        }
+    };
+
+    // ensures that <action> is executed successfully before maxAttempts and before timeout expires
+    // if call gets disconnected before action is executed, command queue will be cleared, so we need to wait
+    // until performer account is connected (CALL_STATUS_IN_PROGRESS) to SFU for that call and re-try <action>
+    std::function<void(unsigned int, int, bool*, const char *, unsigned int, std::function<void()>)> waitForCallAction =
+    [this, &resetTestChatCallState, &getChatCallStateFlag, &waitForChatCallState]
+    (unsigned int pIdx, int maxAttempts, bool* exitFlag,  const char* errMsg, unsigned int timeout, std::function<void()>action)
+    {
+        int retries = 0;
+        std::string errStr = errMsg ? errMsg : "executing provided action";
+        bool* callConnecting = getChatCallStateFlag(pIdx, MegaChatCall::CALL_STATUS_CONNECTING);
+        while (!*exitFlag)
+        {
+            ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
+
+            // reset call state flags to false before executing the required action
+            resetTestChatCallState(pIdx, MegaChatCall::CALL_STATUS_CONNECTING);
+            resetTestChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS);
+
+            // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
+            action();
+            ASSERT_CHAT_TEST(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false /*waitForAll*/, timeout), "Timeout expired for " + errStr);
+
+            // if performer account gets disconnected from SFU for the target call, wait until reconnect and retry <action>
+            if (*callConnecting)
+            {
+               ASSERT_CHAT_TEST(++retries < maxAttempts, "Max attempts exceeded for " + errStr);
+               waitForChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS);
+            }
+        }
+    };
+
+    // ensures that <action> is executed successfully before maxAttempts and before timeout expires
+    std::function<void(int, std::vector<bool*>, const std::vector<string>&, const std::string&, bool,  unsigned int, std::function<void()>)> waitForAction =
+    [this]
+    (int maxAttempts, std::vector<bool*> exitFlags, const std::vector<string>& flagsStr, const std::string& actionMsg, bool resetFlags, unsigned int timeout, std::function<void()>action)
+    {
+        ASSERT_CHAT_TEST(exitFlags.size() == flagsStr.size() || flagsStr.empty(), "waitForCallAction: no valid action provided");
+        ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
+
+        if (resetFlags)
+        {
+            for (auto f: exitFlags)
+            {
+                if (f) { *f = false; }
+            }
+        }
+
+        int retries = 0;
+        while (!exitWait(exitFlags, true /*waitForAll*/))
+        {
+            action();
+            if (!waitForMultiResponse(exitFlags, true /*waitForAll*/, timeout))
+            {
+                std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(": ");
+                for (size_t i = 0; i < exitFlags.size(); i++)
+                {
+                    (i > flagsStr.size())
+                            ? msg.append("Flag_").append(std::to_string(i))
+                            : msg.append(flagsStr.at(i));
+
+                    msg.append(" = ").append(*exitFlags.at(i) ? "true" : "false").append(" ");
+                }
+                LOG_debug << msg;
+                ASSERT_CHAT_TEST(++retries <= maxAttempts, "Max attempts exceeded for " + actionMsg);
+            }
+        }
+    };
+
+    std::function<void()> action = nullptr;
+    bool* exitFlag = nullptr;
+
     // Prepare users, and chat room
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
@@ -3510,23 +3692,20 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
     // A starts a groupal meeting without audio, nor video
     LOG_debug << "Start Call";
-    bool* flagRequestStartChatCallA = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL];
-    *flagRequestStartChatCallA = false;
-    bool* callInProgressA = &mCallInProgress[a1]; *callInProgressA = false;
-    bool* callReceivedRingingB = &mCallReceivedRinging[a2]; *callReceivedRingingB = false;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
     mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
 
-    megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false);
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestStartChatCallA),
-                     "Timeout after start chat call " + std::to_string(maxTimeout)
-                     + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1],
-                     "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
-    ASSERT_CHAT_TEST(waitForResponse(callInProgressA),
-                     "Timeout expired for the groupal call to be in progress");
+    waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
+                   std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL], &mCallInProgress[a1], &mCallReceivedRinging[a2]},
+                   std::vector<string> { "TYPE_START_CHAT_CALL[a1]", "mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
+                   "starting chat call from A",
+                   true /*reset flags*/,
+                   maxTimeout,
+                   [this, a1, chatid](){ megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false); });
+
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
 
     // B picks up the call
     LOG_debug << "B picking up the call";
@@ -3536,8 +3715,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     {
         mCallIdExpectedReceived[a2] = auxCall->getCallId();
     }
-    ASSERT_CHAT_TEST(waitForResponse(callReceivedRingingB),
-                     "Timeout expired on B for receiving a call");
+
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] != MEGACHAT_INVALID_HANDLE,
                      "Invalid Chatid from call emisor");
     ASSERT_CHAT_TEST(((mCallIdJoining[a1] == mCallIdRingIn[a2])
@@ -3546,6 +3724,80 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] != MEGACHAT_INVALID_HANDLE,
                      "Invalid Chatid for B from A (call emisor)");
     LOG_debug << "B received the call";
+
+
+    waitForAction (1, // just one attempt as call could be answered properly at B account but any of the other flags not received
+                   std::vector<bool *> { &requestFlagsChat[a2][MegaChatRequest::TYPE_ANSWER_CHAT_CALL],
+                                         &mChatCallSessionStatusInProgress[a1],
+                                         &mChatCallSilenceReq[a1],
+                                         &mChatCallSessionStatusInProgress[a2],
+                                         &mChatCallSilenceReq[a2]
+                                       },
+                   std::vector<string> { "TYPE_ANSWER_CHAT_CALL[a2]",
+                                         "mChatCallSessionStatusInProgress[a1]",
+                                         "mChatCallSilenceReq[a1]",
+                                         "mChatCallSessionStatusInProgress[a2]",
+                                         "mChatCallSilenceReq[a2]"
+                                         },
+                   "answering chat call from B",
+                   true /*reset flags*/,
+                   maxTimeout,
+                   [this, a2, chatid](){ megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false); });
+
+    // B puts the call on hold
+    LOG_debug << "B setting the call on hold";
+    exitFlag = &mChatCallOnHold[a1]; *exitFlag = false;  // from receiver account
+    action = [this, a2, chatid](){ megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ true); };
+    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving call on hold at account A", maxTimeout, action);
+
+    // A puts the call on hold
+    LOG_debug << "A setting the call on hold";
+    exitFlag = &mChatCallOnHold[a2]; *exitFlag = false; // from receiver account
+    action = [this, a1, chatid](){ megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ true); };
+    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving call on hold at account B", maxTimeout, action);
+
+    // A releases on hold
+    LOG_debug << "A releasing on hold";
+    exitFlag = &mChatCallOnHoldResumed[a2]; *exitFlag = false; // from receiver account
+    action = [this, a1, chatid](){ megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ false); };
+    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving call resume from on hold at account B", maxTimeout, action);
+
+    // B releases on hold
+    LOG_debug << "B releasing on hold";
+    exitFlag = &mChatCallOnHoldResumed[a1]; *exitFlag = false; // from receiver account
+    action = [this, a2, chatid](){ megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ false); };
+    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving call resume from on hold at account A", maxTimeout, action);
+
+    // B enables audio monitor
+    LOG_debug << "B enabling audio in the call";
+    exitFlag = &mChatCallAudioEnabled[a1]; *exitFlag = false; // from receiver account
+    action = [this, a2, chatid](){ megaChatApi[a2]->enableAudio(chatid); };
+    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving audio enabled at account A", maxTimeout, action);
+
+    // A enables audio monitor
+    LOG_debug << "A enabling audio in the call";
+    exitFlag = &mChatCallAudioEnabled[a2]; *exitFlag = false; // from receiver account
+    action = [this, a1, chatid](){ megaChatApi[a1]->enableAudio(chatid); };
+    waitForCallAction(a1 /*performer*/, maxAttempts, exitFlag, "receiving audio enabled at account B", maxTimeout, action);
+
+    // B disables audio monitor
+    LOG_debug << "B disabling audio in the call";
+    exitFlag = &mChatCallAudioDisabled[a1]; *exitFlag = false; // from receiver account
+    action = [this, a2, chatid](){ megaChatApi[a2]->disableAudio(chatid); };
+    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving audio disabled at account A", maxTimeout, action);
+
+    // A disables audio monitor
+    LOG_debug << "A disabling audio in the call";
+    exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // from receiver account
+    action = [this, a1, chatid](){ megaChatApi[a1]->disableAudio(chatid); };
+    waitForCallAction(a1 /*performer*/, maxAttempts, exitFlag, "receiving audio disabled at account B", maxTimeout, action);
+
+    // A forces reconnect
+    LOG_debug << "A forcing a reconnect";
+    bool* chatCallReconnectA = &mChatCallReconnection[a1]; *chatCallReconnectA = false;
+    bool* sessionWasDestroyedA = &mChatSessionWasDestroyed[a1]; *sessionWasDestroyedA = false;
+    bool* sessionWasDestroyedB = &mChatSessionWasDestroyed[a2]; *sessionWasDestroyedB = false;
+
     bool* chatCallSessionStatusInProgressA = &mChatCallSessionStatusInProgress[a1];
     *chatCallSessionStatusInProgressA = false;
     bool* chatCallSilenceReqA = &mChatCallSilenceReq[a1]; *chatCallSilenceReqA = false;
@@ -3553,93 +3805,23 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     *chatCallSessionStatusInProgressB = false;
     bool* chatCallSilenceReqB = &mChatCallSilenceReq[a2]; *chatCallSilenceReqB = false;
 
-    megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false);
     std::function<void()> waitForChatCallReadyA =
-        [this, &chatCallSessionStatusInProgressA, &chatCallSilenceReqA]()
-        {
-            ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressA),
-                             "Timeout expired for A receiving chat call in progress");
-            ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqA),
-                             "Timeout expired for A receiving speak request to false");
-        };
-    waitForChatCallReadyA();
+      [this, &chatCallSessionStatusInProgressA, &chatCallSilenceReqA]()
+      {
+          ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressA),
+                           "Timeout expired for A receiving chat call in progress");
+          ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqA),
+                           "Timeout expired for A receiving speak request to false");
+      };
+
     std::function<void()> waitForChatCallReadyB =
-        [this, &chatCallSessionStatusInProgressB, &chatCallSilenceReqB] ()
-        {
-            ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressB),
-                             "Timeout expired for B receiving chat call in progress");
-            ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqB),
-                             "Timeout expired for B receiving speak request to false");
-        };
-    waitForChatCallReadyB();
-
-
-    // B puts the call on hold
-    LOG_debug << "B setting the call on hold";
-    bool* chatCallOnHoldA = &mChatCallOnHold[a1]; *chatCallOnHoldA = false;
-
-    megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ true);
-    // A receives that B is on hold
-    ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldA), "Timeout expired for A receiving on hold");
-
-
-    // A puts the call on hold
-    LOG_debug << "A setting the call on hold";
-    bool* chatCallOnHoldB = &mChatCallOnHold[a2]; *chatCallOnHoldB = false;
-
-    megaChatApi[a1]->setCallOnHold(chatid, true);
-    // B checks that A is on hold
-    ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldB), "Timeout expired for B receiving on hold");
-
-
-    // A releases on hold
-    LOG_debug << "A resuming the call from hold";
-    bool* chatCallOnHoldResumedB = &mChatCallOnHoldResumed[a2]; *chatCallOnHoldResumedB = false;
-
-    megaChatApi[a1]->setCallOnHold(chatid, false);
-    // B checks that A is no longer on hold
-    ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldResumedB),
-                     "Timeout expired for B receiving resume from on hold");
-
-
-    // B releases on hold
-    LOG_debug << "B resuming the call from hold";
-    bool* chatCallOnHoldResumedA = &mChatCallOnHoldResumed[a1]; *chatCallOnHoldResumedA = false;
-
-    megaChatApi[a2]->setCallOnHold(chatid, false);
-    // A checks that B is no longer on hold
-    ASSERT_CHAT_TEST(waitForResponse(chatCallOnHoldResumedA),
-                     "Timeout expired for A receiving resume from on hold");
-
-
-    // B enables audio monitor
-    LOG_debug << "B enabling audio in the call";
-    bool* chatCallAudioEnabledA = &mChatCallAudioEnabled[a1]; *chatCallAudioEnabledA = false;
-
-    megaChatApi[a2]->enableAudio(chatid);
-    // A receives B enabled audio
-    ASSERT_CHAT_TEST(waitForResponse(chatCallAudioEnabledA),
-                     "Timeout expired for A receiving audio enabled");
-
-
-    // B disables audio monitor
-    LOG_debug << "B disabling audio in the call";
-    bool* chatCallAudioDisabledA = &mChatCallAudioDisabled[a1]; *chatCallAudioDisabledA = false;
-
-    megaChatApi[a2]->disableAudio(chatid);
-    // A receives B disabled audio
-    ASSERT_CHAT_TEST(waitForResponse(chatCallAudioDisabledA),
-                     "Timeout expired for A receiving audio disabled");
-
-
-    // A forces reconnect
-    LOG_debug << "A forcing a reconnect";
-    bool* chatCallReconnectA = &mChatCallReconnection[a1]; *chatCallReconnectA = false;
-    bool* sessionWasDestroyedA = &mChatSessionWasDestroyed[a1]; *sessionWasDestroyedA = false;
-    bool* sessionWasDestroyedB = &mChatSessionWasDestroyed[a2]; *sessionWasDestroyedB = false;
-    // reset flags of connection signals
-    *chatCallSessionStatusInProgressA = false; *chatCallSilenceReqA = false;
-    *chatCallSessionStatusInProgressB = false; *chatCallSilenceReqB = false;
+      [this, &chatCallSessionStatusInProgressB, &chatCallSilenceReqB] ()
+      {
+          ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressB),
+                           "Timeout expired for B receiving chat call in progress");
+          ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqB),
+                           "Timeout expired for B receiving speak request to false");
+      };
 
     megaChatApi[a1]->retryPendingConnections(true);
     // wait for session destruction checks
@@ -3665,36 +3847,28 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     // A confirms new mega chat session is ready
     waitForChatCallReadyA();
 
-
     // B hangs up
-    LOG_debug << "B hangs up the call";
-    bool* flagHangUpCallB = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL];
-    *flagHangUpCallB = false;
     bool* callDestroyedB = &mCallDestroyed[a2]; *callDestroyedB = false;
-    // reset flags of session destruction
-    *sessionWasDestroyedB = false; *sessionWasDestroyedA = false;
+    *sessionWasDestroyedB = false; *sessionWasDestroyedA = false; // reset flags of session destruction
 
-    megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]);
+    LOG_debug << "B hangs up the call";
+    exitFlag = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *exitFlag = false; // from receiver account
+    action = [this, a2](){ megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]); };
+    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "hanging up chat call at account B", maxTimeout, action);
+
     // wait for session destruction checks
     waitForChatCallSessionDestroyedB();
     waitForChatCallSessionDestroyedA();
-    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallB), "Timeout after hang up chat call "
-                     + std::to_string(maxTimeout) + " seconds.");
-    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: "
-                     + std::to_string(lastErrorChat[a2]));
+    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
     LOG_debug << "Call finished for B";
 
     // A hangs up
-    LOG_debug << "A hangs up the call";
-    bool* flagHangUpCallA = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL];
-    *flagHangUpCallA = false;
     bool* callDestroyedA = &mCallDestroyed[a1]; *callDestroyedA = false;
-
-    megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]);
-    ASSERT_CHAT_TEST(waitForResponse(flagHangUpCallA), "Timeout after A's hang up chat call "
-                     + std::to_string(maxTimeout) + " seconds.");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: "
-                     + std::to_string(lastErrorChat[a1]));
+    LOG_debug << "A hangs up the call";
+    exitFlag = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *exitFlag = false; // from receiver account
+    action = [this, a1](){ megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]); };
+    waitForCallAction(a1 /*performer*/, maxAttempts, exitFlag, "hanging up chat call at account B", maxTimeout, action);
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: " + std::to_string(lastErrorChat[a1]));
     LOG_debug << "Call finished for A";
 
     // Check the call was destroyed at both ends
@@ -3875,7 +4049,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 1. Send rich link message
     //=================================//
 
-    std::string messageToSend = "Hello friend, https://mega.nz";
+    std::string messageToSend = "Hello friend, http://mega.nz";
     // Need to do this for the first message as it's send and edited
     chatroomListener->msgEdited[a1] = false;
     chatroomListener->msgEdited[a2] = false;
@@ -5037,6 +5211,11 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         case MegaChatCall::CALL_STATUS_DESTROYED:
             mCallDestroyed[apiIndex] = true;
             break;
+
+        case MegaChatCall::CALL_STATUS_CONNECTING:
+            mCallConnecting[apiIndex] = true;
+            break;
+
         default:
             break;
         }
@@ -5726,7 +5905,7 @@ bool MockupCall::handleAvCommand(Cid_t cid, unsigned av)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, uint64_t ts, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers)
+bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, uint64_t ts, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod)
 {
     return true;
 }
@@ -5798,6 +5977,16 @@ bool MockupCall::handlePeerLeft(Cid_t cid, unsigned termcode)
 }
 
 bool MockupCall::handleBye(unsigned termcode)
+{
+    return false;
+}
+
+bool MockupCall::handleModAdd(uint64_t)
+{
+    return false;
+}
+
+bool MockupCall::handleModDel(uint64_t)
 {
     return false;
 }
