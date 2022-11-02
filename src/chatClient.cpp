@@ -5457,20 +5457,58 @@ bool KarereScheduledRules::equalTo(::mega::MegaScheduledRules* r) const
 
     if (mByWeekDay || r->byWeekDay())
     {
-        if (!mByWeekDay || !r->byWeekDay())                         { return false; }
-        if (!r->byWeekDay()->equalTo(mByWeekDay.get()))             { return false; }
+        if ((!mByWeekDay || !r->byWeekDay()) ||
+                mByWeekDay->size() != static_cast<size_t>(r->byWeekDay()->size()))
+        {
+            return false;
+        }
+
+        for (int i = 0; i < r->byWeekDay()->size(); i++)
+        {
+            if (r->byWeekDay()->get(i) != mByWeekDay->at(static_cast<size_t>(i)))
+            {
+                return false;
+            }
+        }
     }
 
     if (mByMonthDay || r->byMonthDay())
     {
-        if (!mByMonthDay || !r->byMonthDay())                       { return false; }
-        if (!r->byMonthDay()->equalTo(mByMonthDay.get()))           { return false; }
+        if ((!mByMonthDay || !r->byMonthDay()) ||
+                mByMonthDay->size() != static_cast<size_t>(r->byMonthDay()->size()))
+        {
+            return false;
+        }
+
+        for (int i = 0; i < r->byMonthDay()->size(); i++)
+        {
+            if (r->byMonthDay()->get(i) != mByMonthDay->at(static_cast<size_t>(i)))
+            {
+                return false;
+            }
+        }
     }
 
     if (mByMonthWeekDay || r->byMonthWeekDay())
     {
-        if (!mByMonthWeekDay || !r->byMonthWeekDay())               { return false; }
-        if (!r->byMonthWeekDay()->equalTo(mByMonthWeekDay.get()))   { return false; }
+        if ((!mByMonthWeekDay || !r->byMonthWeekDay()) ||
+                mByMonthWeekDay->size() != static_cast<size_t>(r->byMonthWeekDay()->size()))
+        {
+            return false;
+        }
+
+        karere_rules_map auxMap;
+        for (unsigned long long i = 0; i < r->byMonthWeekDay()->size(); i++)
+        {
+            long long auxkey;
+            long long auxvalue;
+            if (r->byMonthWeekDay()->at(i, auxkey, auxvalue))
+            {
+                auxMap.emplace(auxkey, auxvalue);
+            }
+        }
+
+        if (*mByMonthWeekDay != auxMap) { return false; }
     }
 
     return true;
