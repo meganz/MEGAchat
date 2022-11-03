@@ -4110,13 +4110,20 @@ public:
     /**
      * @brief Get a list of all scheduled meeting occurrences for a chatroom
      *
-     * A scheduled meetings occurrence, is future MegaChatCall that will happen in the future
+     * A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
      * A scheduled meeting can produce one or multiple scheduled meeting occurrences
      *
-     * You take the ownership of the returned value
+     * The associated request type with this request is MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_EVENTS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
+     * - MegaChatRequest::getMegaChatScheduledMeetingList - Returns a list of scheduled meeting occurrences
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - if chatid is invalid
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not exists
      *
      * @param chatid MegaChatHandle that identifies a chat room
-     * @return List of MegaChatScheduledMeeting objects with all occurrences for a chatroom.
+     * @param listener MegaChatRequestListener to track this request
      */
     void fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatRequestListener* listener = NULL);
 
