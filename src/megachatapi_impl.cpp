@@ -9449,8 +9449,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     rowId = msg->getRowId();
     megaNodeList = msg->getMegaNodeList() ? msg->getMegaNodeList()->copy() : NULL;
     megaHandleList = msg->getMegaHandleList() ? msg->getMegaHandleList()->copy() : NULL;
-
-    mSchedId = msg->getSchedId();
     mSchedChanged = msg->getSchedChanged();
     mSchedInfo = msg->getSchedInfo() ? unique_ptr<MegaStringList>(msg->getSchedInfo()->copy()) : nullptr;
 
@@ -9556,7 +9554,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             std::unique_ptr<Message::SchedMeetingInfo> schedInfo(Message::SchedMeetingInfo::fromBuffer(msg.buf(), msg.size()));
             if (schedInfo)
             {
-                mSchedId = schedInfo->mSchedId;
+                hAction = schedInfo->mSchedId; // reuse hAction to store schedId
                 mSchedChanged = schedInfo->mSchedChanged;
 
                 if (!schedInfo->mSchedInfo->empty())
@@ -9874,11 +9872,6 @@ const MegaStringList* MegaChatMessagePrivate::getSchedInfo() const
 unsigned long MegaChatMessagePrivate::getSchedChanged() const
 {
     return mSchedChanged;
-}
-
-MegaChatHandle MegaChatMessagePrivate::getSchedId() const
-{
-    return mSchedId;
 }
 
 bool MegaChatMessagePrivate::isGiphy() const

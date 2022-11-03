@@ -1603,10 +1603,16 @@ public:
     virtual int getMsgIndex() const;
 
     /**
-     * @brief Returns the handle of the user.
+     * @brief Returns a MegaChatHandle
      *
-     * @return For outgoing messages, it returns the handle of the target user.
-     * For incoming messages, it returns the handle of the sender.
+     * If MegaChatMessage::getType returns MegaChatMessage::TYPE_SCHED_MEETING, this method
+     * returns the scheduled meeting id, of the updated scheduled meeting
+     *
+     * If MegaChatMessage::getType doesn't returns MegaChatMessage::TYPE_SCHED_MEETING, this method returns:
+     *  - For outgoing messages, the handle of the target user.
+     *  - For incoming messages, the handle of the sender.
+     *
+     * @return a MegaChatHandle
      */
     virtual MegaChatHandle getUserHandle() const;
 
@@ -1880,16 +1886,6 @@ public:
      * @return the scheduled meeting set of changes
      */
     virtual unsigned long getSchedChanged() const;
-
-    /**
-     * @brief Return the scheduled meeting id
-     *
-     * This funcion returns a valid value for:
-     *  - MegaChatMessage::TYPE_SCHED_MEETING
-     *
-     * @return the scheduled meeting id
-     */
-    virtual MegaChatHandle getSchedId() const;
 
      /** @brief Return the id for messages in manual sending status / queue
      *

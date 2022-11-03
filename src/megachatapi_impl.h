@@ -1095,7 +1095,6 @@ private:
     mega::MegaNodeList *megaNodeList = NULL;
     mega::MegaHandleList *megaHandleList = NULL;
     const MegaChatContainsMeta *mContainsMeta = NULL;
-    MegaChatHandle mSchedId;
     unsigned long mSchedChanged;
     std::unique_ptr<::mega::MegaStringList> mSchedInfo;
 };
