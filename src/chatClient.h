@@ -482,7 +482,7 @@ public:
     // maps a scheduled meeting id to a scheduled meeting occurrence
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
     // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
-    promise::Promise<std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>*>
+    promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
     getFutureScheduledMeetingsOccurrences() const;
 
     /** TODO

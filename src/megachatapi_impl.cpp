@@ -2655,20 +2655,19 @@ void MegaChatApiImpl::sendPendingRequests()
 
             unsigned int min = static_cast<unsigned int>(request->getPrivilege());
 
-            promise::Promise<std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>*> pms;
+            promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>> pms;
             if (chatroom->getNumOccurrences() < min)
             {
-                pms.resolve(nullptr);
+                pms.resolve(std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>());
             }
             else
             {
                 pms = chatroom->getFutureScheduledMeetingsOccurrences();
             }
 
-            pms.then([this, request, chatid, min](std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>* res)
+            pms.then([this, request, chatid, min](std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
             {
-                std::unique_ptr<std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>>map(res);
-                if (!min || !map || map->size() <= min) // fetch fresh occurrences from API
+                if (!min || res.size() <= min) // fetch fresh occurrences from API
                 {
                     mClient->fetchScheduledMeetingOccurrences(chatid, request->getText(),                     /*since*/
                                                               request->getLink(),                             /*until*/
@@ -2697,7 +2696,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 else
                 {
                     std::unique_ptr<MegaChatScheduledMeetingList> list(MegaChatScheduledMeetingList::createInstance());
-                    for (auto it = map->begin(); it != map->end(); it++)
+                    for (auto it = res.begin(); it != res.end(); it++)
                     {
                         list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
                     }

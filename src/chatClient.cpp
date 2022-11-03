@@ -4324,12 +4324,12 @@ size_t GroupChatRoom::getNumOccurrences()
     return mScheduledMeetingsOcurrences.size();
 }
 
-promise::Promise<std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>*>
+promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
 GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
 {
     auto wptr = getDelTracker();
     return parent.mKarereClient.api.call(&mega::MegaApi::fetchTimeZoneFromLocal)
-    .then([wptr, this](ReqResult result) -> Promise<std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>*>
+    .then([wptr, this](ReqResult result) -> Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
     {
         wptr.throwIfDeleted();
         if (!result->getMegaTimeZoneDetails())
@@ -4337,7 +4337,7 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
             return ::promise::Error("Empty timezone list returned from API");
         }
 
-        std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>* m = new std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>();
+        std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>> m;
         mega::MegaTimeZoneDetails* tzDetails = result->getMegaTimeZoneDetails();
 
         const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = mScheduledMeetingsOcurrences;
@@ -4353,7 +4353,7 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
 
                     if (schedTs > time(nullptr) /*now (unix timestamp [UTC])*/)
                     {
-                        m->emplace(it->second->schedId(), it->second->copy());
+                        m.emplace(it->second->schedId(), it->second->copy());
                     }
                 }
             }
