@@ -2674,13 +2674,12 @@ void MegaChatApiImpl::sendPendingRequests()
                                                               request->getLink(),                             /*until*/
                                                               static_cast<unsigned int>(request->getNumber()) /*count*/)
 
-                    .then([request](std::vector<std::unique_ptr<KarereScheduledMeeting>>* result)
+                    .then([request](std::vector<std::shared_ptr<KarereScheduledMeeting>> result)
                     {
-                        std::unique_ptr<std::vector<std::unique_ptr<KarereScheduledMeeting>>> auxList(std::move(result));
-                        if (!auxList->empty())
+                        if (!result.empty())
                         {
                             std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
-                            for (auto const& sm: *auxList)
+                            for (auto const& sm: result)
                             {
                                 l->insert(new MegaChatScheduledMeetingPrivate(sm.get()));
                             }
