@@ -1874,18 +1874,7 @@ public:
      * @return a MegaStringList list with the old and new values
      * for scheduled meetings params changed
      */
-    virtual const mega::MegaStringList* getSchedInfo() const;
-
-    /**
-     * @brief Return the scheduled meeting set of changes
-     * Improve documentation
-     *
-     * This funcion returns a valid value for:
-     *  - MegaChatMessage::TYPE_SCHED_MEETING
-     *
-     * @return the scheduled meeting set of changes
-     */
-    virtual unsigned long getSchedChanged() const;
+    virtual const mega::MegaStringList* getStringList() const;
 
      /** @brief Return the id for messages in manual sending status / queue
      *

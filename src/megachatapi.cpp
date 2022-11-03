@@ -1453,6 +1453,11 @@ MegaChatScheduledMeeting* MegaChatRequest::getMegaChatScheduledMeeting() const
     return NULL;
 }
 
+MegaChatScheduledMeetingList* MegaChatRequest::getMegaChatScheduledMeetingList() const
+{
+    return NULL;
+}
+
 int MegaChatRequest::getParamType()
 {
     return -1;
@@ -2136,14 +2141,9 @@ int MegaChatMessage::getTermCode() const
     return 0;
 }
 
-const MegaStringList* MegaChatMessage::getSchedInfo() const
+const MegaStringList* MegaChatMessage::getStringList() const
 {
     return NULL;
-}
-
-unsigned long MegaChatMessage::getSchedChanged() const
-{
-    return 0;
 }
 
 void MegaChatLogger::log(int , const char *)

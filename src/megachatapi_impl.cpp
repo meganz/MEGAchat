@@ -9449,8 +9449,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     rowId = msg->getRowId();
     megaNodeList = msg->getMegaNodeList() ? msg->getMegaNodeList()->copy() : NULL;
     megaHandleList = msg->getMegaHandleList() ? msg->getMegaHandleList()->copy() : NULL;
-    mSchedChanged = msg->getSchedChanged();
-    mSchedInfo = msg->getSchedInfo() ? unique_ptr<MegaStringList>(msg->getSchedInfo()->copy()) : nullptr;
+    mStringList = msg->getStringList() ? unique_ptr<MegaStringList>(msg->getStringList()->copy()) : nullptr;
 
     if (msg->getUsersCount() != 0)
     {
@@ -9555,15 +9554,18 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             if (schedInfo)
             {
                 hAction = schedInfo->mSchedId; // reuse hAction to store schedId
-                mSchedChanged = schedInfo->mSchedChanged;
+                priv = static_cast<int>(schedInfo->mSchedChanged);
 
-                if (!schedInfo->mSchedInfo->empty())
+                if (schedInfo->mSchedInfo && !schedInfo->mSchedInfo->empty())
                 {
-                    mSchedInfo.reset(::mega::MegaStringList::createInstance());
+                    mStringList.reset(::mega::MegaStringList::createInstance());
                     for (auto m: *schedInfo->mSchedInfo.get())
                     {
-                        mSchedInfo->add(m.first.c_str());
-                        mSchedInfo->add(m.second.c_str());
+                        if (m.first == karere::SC_TITLE) // currently just store old - new title
+                        {
+                            mStringList->add(m.second.first.c_str());
+                            mStringList->add(m.second.second.c_str());
+                        }
                     }
                 }
             }
@@ -9864,14 +9866,9 @@ int MegaChatMessagePrivate::getTermCode() const
     return mCode;
 }
 
-const MegaStringList* MegaChatMessagePrivate::getSchedInfo() const
+const MegaStringList* MegaChatMessagePrivate::getStringList() const
 {
-    return mSchedInfo.get();
-}
-
-unsigned long MegaChatMessagePrivate::getSchedChanged() const
-{
-    return mSchedChanged;
+    return mStringList.get();
 }
 
 bool MegaChatMessagePrivate::isGiphy() const

@@ -7,6 +7,9 @@
 #include <memory>
 #include <map>
 #include "karereId.h"
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <karereCommon.h>
 
 enum
 {
@@ -670,82 +673,80 @@ public:
     class SchedMeetingInfo
     {
         public:
+            // scheduled meeting id
             karere::Id mSchedId;
+
+            // bitmask with the changed fields
             unsigned long mSchedChanged;
-            std::unique_ptr<std::map<std::string, std::string>> mSchedInfo;
+
+            // maps a field id to a pair of strings <old value, new value>
+            std::unique_ptr<std::map<unsigned int, std::pair<std::string, std::string>>> mSchedInfo;
 
             static SchedMeetingInfo* fromBuffer(const char* buffer, size_t len)
             {
-                SchedMeetingInfo* info = new SchedMeetingInfo;
-                size_t numEntries;
-                unsigned int lenSchedId = sizeof (info->mSchedId);
-                unsigned int lenSchedChanged = sizeof (info->mSchedChanged);
-                unsigned int lenNumEntries = sizeof (numEntries);
-
-                if (!buffer || len < (lenSchedId + lenSchedChanged + lenNumEntries))
+                if (!buffer || len < (sizeof (karere::Id) /*lenSchedId*/ + sizeof (karere::Id)/*lenJson*/))
                 {
-                    delete info;
                     return NULL;
                 }
 
+                // read schedId
                 unsigned int position = 0;
-                memcpy(&info->mSchedId, &buffer[position], lenSchedId);
-                position += lenSchedId;
-                memcpy(&info->mSchedChanged, &buffer[position], lenSchedChanged);
-                position += lenSchedChanged;
-                memcpy(&numEntries, &buffer[position], lenNumEntries);
-                position += lenNumEntries;
+                karere::Id schedId;
+                unsigned int idDataSize = sizeof(karere::Id);
+                memcpy(&schedId, &buffer[position], idDataSize);
+                position += idDataSize;
 
-                if (numEntries)
+                // read json length
+                size_t changedLen = 0;
+                unsigned int lenDataSize = sizeof(size_t);
+                memcpy(&changedLen, &buffer[position], lenDataSize);
+                position += lenDataSize;
+
+                if (len < (position + changedLen))
                 {
-                    assert(numEntries == 2); // currently we just store title
-                    info->mSchedInfo.reset(new std::map<std::string,std::string>());
-                    for (size_t i = 0; i < numEntries/2; )
+                    return NULL;
+                }
+
+                // read changed fields in json format
+                std::unique_ptr<char[]> changedJson(new char[changedLen + 1]);
+                memcpy(changedJson.get(), &buffer[position], changedLen);
+                changedJson[changedLen] = '\0';
+                position += changedLen;
+
+                rapidjson::StringStream stringStream(changedJson.get());
+                rapidjson::Document document;
+                document.ParseStream(stringStream);
+                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                {
+                   return NULL;
+                }
+
+                SchedMeetingInfo* info = new SchedMeetingInfo;
+                karere::karere_sched_bs_t bs = 0;
+                if (document.FindMember("tz") != document.MemberEnd())  { bs[karere::SC_TZONE] = 1; }
+                if (document.FindMember("s") != document.MemberEnd())   { bs[karere::SC_START] = 1; }
+                if (document.FindMember("e") != document.MemberEnd())   { bs[karere::SC_END] = 1; }
+                if (document.FindMember("d") != document.MemberEnd())   { bs[karere::SC_DESC] = 1; }
+                if (document.FindMember("p") != document.MemberEnd())   { bs[karere::SC_PARENT] = 1; }
+                if (document.FindMember("c") != document.MemberEnd())   { bs[karere::SC_CANC] = 1; }
+                if (document.FindMember("o") != document.MemberEnd())   { bs[karere::SC_OVERR] = 1; }
+                if (document.FindMember("f") != document.MemberEnd())   { bs[karere::SC_FLAGS] = 1; }
+                if (document.FindMember("r") != document.MemberEnd())   { bs[karere::SC_RULES] = 1; }
+                if (document.FindMember("at") != document.MemberEnd())  { bs[karere::SC_ATTR] = 1; }
+
+                rapidjson::Value::ConstMemberIterator itTitle = document.FindMember("t");
+                if (itTitle != document.MemberEnd())
+                {
+                    bs[karere::SC_TITLE] = 1;
+                    if (itTitle->value.IsArray() && itTitle->value.Size() == 2)
                     {
-                        if (len < (position + sizeof(size_t)))
-                        {
-                            delete info;
-                            return NULL;
-                        }
-                        size_t keylen = 0;
-                        memcpy(&keylen, &buffer[position], sizeof(keylen));
-                        position += sizeof(keylen);
-
-                        if (len < (position + keylen))
-                        {
-                            delete info;
-                            return NULL;
-                        }
-
-                        std::unique_ptr<char[]> key(new char[keylen + 1]);
-                        memcpy(key.get(), &buffer[position], keylen);
-                        key[keylen] = '\0';
-                        position += keylen;
-
-                        if (len < (position + sizeof(size_t)))
-                        {
-                            delete info;
-                            return NULL;
-                        }
-                        size_t valLen = 0;
-                        memcpy(&valLen, &buffer[position], sizeof(valLen));
-                        position += sizeof(valLen);
-
-                        if (len < (position + valLen))
-                        {
-                            delete info;
-                            return NULL;
-                        }
-
-                        std::unique_ptr<char[]> val(new char[valLen + 1]);
-                        memcpy(val.get(), &buffer[position], valLen);
-                        position += valLen;
-                        val[valLen] = '\0';
-
-                        (*info->mSchedInfo)[key.get()] = val.get();
-                        i++;
+                        info->mSchedInfo.reset(new std::map<unsigned int, std::pair<std::string, std::string>>());
+                        info->mSchedInfo->emplace(karere::SC_TITLE,
+                                    std::pair<std::string, std::string>(itTitle->value[0].GetString(), itTitle->value[1].GetString()));
                     }
                 }
+                info->mSchedId = schedId;
+                info->mSchedChanged = bs.to_ulong();
                 return info;
             }
     };
@@ -892,28 +893,13 @@ public:
         }
     }
 
-    void createSchedMeetingInfo(const SchedMeetingInfo& src)
+    void createSchedMeetingInfo(const karere::Id& id, const Buffer& changedJson)
     {
         assert(empty());
-        append(&src.mSchedId, sizeof(src.mSchedId));
-        append(&src.mSchedChanged, sizeof(src.mSchedChanged));
-        size_t numEntries = src.mSchedInfo ? src.mSchedInfo->size() * 2 : 0;
-        append(&numEntries, sizeof(numEntries));
-
-        if (src.mSchedInfo)
-        {
-            assert(src.mSchedInfo->size() == 1); // currently we just store title
-            for (auto it = src.mSchedInfo->begin() ; it != src.mSchedInfo->end(); it++)
-            {
-                size_t keySize = it->first.size();
-                append(&keySize, sizeof(keySize));
-                append(it->first.data(), it->first.size());
-
-                size_t valSize = it->second.size();
-                append(&valSize, sizeof(valSize));
-                append(it->second.data(), it->second.size());
-            }
-        }
+        append(&id, sizeof(karere::Id));
+        size_t changedSize = changedJson.dataSize();
+        append(&changedSize, sizeof(size_t));
+        append(changedJson.buf(), changedJson.dataSize());
     }
 
     static const char* statusToStr(unsigned status)

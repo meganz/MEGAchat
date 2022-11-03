@@ -166,12 +166,12 @@ struct ParsedMessage: public karere::DeleteTrackable
     ProtocolHandler& mProtoHandler;
     uint8_t protocolVersion;
     karere::Id sender;
-    karere::Id mSchedId;
     Key<32> nonce;
     Buffer payload;
     Buffer signedContent;
     Buffer signature;
     unsigned char type;
+    karere::Id mUserId;
 
     /** True when the message is posted in open mode. It allows to decrypt the `ct` of management
      * messages related to topic changes, which must use unified-key instead of embedded key in `ct` */
@@ -180,12 +180,10 @@ struct ParsedMessage: public karere::DeleteTrackable
     uint32_t keyId;
     uint32_t prevKeyId;
     Buffer encryptedKey; //may contain also the prev key, concatenated
-    unsigned long mSchedChanged = 0;
     std::unique_ptr<std::vector<std::string>> mSchedInfo;
 
     std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
     std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
-    std::unique_ptr<chatd::Message::SchedMeetingInfo> mSchedMeetingInfo;
 
     ParsedMessage(const chatd::Message& src, ProtocolHandler& protoHandler);
     bool verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey);

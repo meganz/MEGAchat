@@ -31,9 +31,6 @@
 #include <locale>
 #include <karereCommon.h>
 
-#include <rapidjson/document.h>
-#include <rapidjson/stringbuffer.h>
-
 namespace strongvelope
 {
 using namespace karere;
@@ -249,10 +246,6 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
     {
         callEndedInfo.reset(new chatd::Message::CallEndedInfo());
     }
-    else if (type == chatd::Message::kMsgSchedMeeting)
-    {
-        mSchedMeetingInfo.reset(new chatd::Message::SchedMeetingInfo());
-    }
 
     TlvParser tlv(binaryMessage, offset);
     TlvRecord record(binaryMessage);
@@ -393,51 +386,14 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_SCHED_ID:
             {
-                assert(mSchedMeetingInfo);
-                mSchedMeetingInfo->mSchedId = record.read<uint64_t>();
+                mUserId = record.read<uint64_t>();
                 break;
             }
             case TLV_TYPE_SCHED_CHANGESET:
             {
-                assert(mSchedMeetingInfo);
-                Buffer schedMeetingChangeSet(record.buf(), record.dataLen);
-                std::string json = mega::Base64::atob(std::string (schedMeetingChangeSet.buf(), schedMeetingChangeSet.dataSize()));
-                if (json.empty())
-                {
-                    break;
-                }
-
-                rapidjson::StringStream stringStream(json.c_str());
-                rapidjson::Document document;
-                document.ParseStream(stringStream);
-                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
-                {
-                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "ParsedMessage: Parser json error at TLV_TYPE_SCHED_CHANGESET");
-                }
-
-                karere_sched_bs_t bs = 0;
-                if (document.FindMember("tz") != document.MemberEnd())  { bs[SC_TZONE] = 1; }
-                if (document.FindMember("s") != document.MemberEnd())   { bs[SC_START] = 1; }
-                if (document.FindMember("e") != document.MemberEnd())   { bs[SC_END] = 1; }
-                if (document.FindMember("d") != document.MemberEnd())   { bs[SC_DESC] = 1; }
-                if (document.FindMember("p") != document.MemberEnd())   { bs[SC_PARENT] = 1; }
-                if (document.FindMember("c") != document.MemberEnd())   { bs[SC_CANC] = 1; }
-                if (document.FindMember("o") != document.MemberEnd())   { bs[SC_OVERR] = 1; }
-                if (document.FindMember("f") != document.MemberEnd())   { bs[SC_FLAGS] = 1; }
-                if (document.FindMember("r") != document.MemberEnd())   { bs[SC_RULES] = 1; }
-                if (document.FindMember("at") != document.MemberEnd())  { bs[SC_ATTR] = 1; }
-
-                rapidjson::Value::ConstMemberIterator itTitle = document.FindMember("t");
-                if (itTitle != document.MemberEnd())
-                {
-                    bs[SC_TITLE] = 1;
-                    if (itTitle->value.IsArray() && itTitle->value.Size() == 2)
-                    {
-                        mSchedMeetingInfo->mSchedInfo.reset(new std::map<std::string,std::string>());
-                        mSchedMeetingInfo->mSchedInfo->emplace(itTitle->value[0].GetString(), itTitle->value[1].GetString()); // old title - new title
-                    }
-                }
-                mSchedMeetingInfo->mSchedChanged = bs.to_ulong();
+                // reuse encryptedKey to store json with changed fields for scheduled meeting
+                std::string changedJson =mega::Base64::atob(std::string(record.buf(), record.dataLen));
+                encryptedKey.assign(changedJson.data(), changedJson.size());
                 break;
             }
             default:
@@ -1163,9 +1119,9 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
         case Message::kMsgSchedMeeting:
         {
-            assert(parsedMsg->mSchedMeetingInfo);
             msg->userid = parsedMsg->sender;
-            msg->createSchedMeetingInfo(*(parsedMsg->mSchedMeetingInfo));
+            msg->createSchedMeetingInfo(parsedMsg->mUserId,
+                                        parsedMsg->encryptedKey /*sched meetings fields changed json */);
             msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
