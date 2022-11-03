@@ -4319,9 +4319,47 @@ const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& GroupChatRo
     return mScheduledMeetings;
 }
 
-const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& GroupChatRoom::getScheduledMeetingsOccurrences() const
+size_t GroupChatRoom::getNumOccurrences()
 {
-    return mScheduledMeetingsOcurrences;
+    return mScheduledMeetingsOcurrences.size();
+}
+
+promise::Promise<std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>*>
+GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
+{
+    auto wptr = getDelTracker();
+    return parent.mKarereClient.api.call(&mega::MegaApi::fetchTimeZoneFromLocal)
+    .then([wptr, this](ReqResult result) -> Promise<std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>*>
+    {
+        wptr.throwIfDeleted();
+        if (!result->getMegaTimeZoneDetails())
+        {
+            return ::promise::Error("Empty timezone list returned from API");
+        }
+
+        std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>* m = new std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>();
+        mega::MegaTimeZoneDetails* tzDetails = result->getMegaTimeZoneDetails();
+
+        const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = mScheduledMeetingsOcurrences;
+        for (auto it = map.begin(); it != map.end(); it++)
+        {
+            for (int i = 0; i < tzDetails->getNumTimeZones(); i++)
+            {
+                if (!it->second.get()->timezone().compare(tzDetails->getTimeZone(i)))
+                {
+                    // convert ISO8601 string into unix timestamp, and apply offset relative to Scheduled meeting configured timezone
+                    time_t schedTs = ::mega::stringToTimestamp(it->second.get()->startDateTime(), ::mega::FORMAT_ISO8601);
+                    schedTs += tzDetails->getTimeOffset(i);
+
+                    if (schedTs > time(nullptr) /*now (unix timestamp [UTC])*/)
+                    {
+                        m->emplace(it->second->schedId(), it->second->copy());
+                    }
+                }
+            }
+        }
+        return m;
+    });
 }
 
 void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)

@@ -476,10 +476,14 @@ public:
     // a scheduled meetings allows the user to specify an event that will occur in the future
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
 
+    // get the number of scheduled meeting occurrences for a chatroom
+    size_t getNumOccurrences();
+
     // maps a scheduled meeting id to a scheduled meeting occurrence
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
     // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
-    const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetingsOccurrences() const;
+    promise::Promise<std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>*>
+    getFutureScheduledMeetingsOccurrences() const;
 
     /** TODO
      *

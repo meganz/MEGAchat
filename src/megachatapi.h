@@ -4108,20 +4108,6 @@ public:
     MegaChatScheduledMeetingList* getAllScheduledMeetings();
 
     /**
-     * @brief Get a list of all scheduled meeting occurrences for all chatrooms
-     *
-     * A scheduled meetings occurrence, is future MegaChatCall that will happen in the future
-     * A scheduled meeting can produce one or multiple scheduled meeting occurrences
-     *
-     * You take the ownership of the returned value
-     *
-     * @return List of MegaChatScheduledMeeting objects with all occurrences for all chatrooms.
-     */
-    MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();
-
-    void fetchScheduledMeetingOccurrences(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min = 10, MegaChatRequestListener* listener = NULL);
-
-    /**
      * @brief Get a list of all scheduled meeting occurrences for a chatroom
      *
      * A scheduled meetings occurrence, is future MegaChatCall that will happen in the future
@@ -4132,36 +4118,7 @@ public:
      * @param chatid MegaChatHandle that identifies a chat room
      * @return List of MegaChatScheduledMeeting objects with all occurrences for a chatroom.
      */
-    MegaChatScheduledMeetingList* getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid);
-
-    /**
-     * @brief Get a list of all scheduled meeting occurrences for a scheduled meeting
-     *
-     * A scheduled meetings occurrence is future MegaChatCall that will happen in the future
-     * A scheduled meeting can produce one or multiple scheduled meeting occurrences
-     *
-     * You take the ownership of the returned value
-     *
-     * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedId MegaChatHandle that identifies a scheduled meeting
-     * @return List of MegaChatScheduledMeeting objects with all occurrences for a scheduled meeting.
-     */
-    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedId);
-
-    /**
-     * @brief Get a scheduled meeting occurrence given a chatid, a scheduled meeting id, and a start date time
-     *
-     * A scheduled meetings occurrence is future MegaChatCall that will happen in the future.
-     * As a scheduled meeting can produce multiple occurrences, the way to uniquely identify each one,
-     * is by it's scheduled meeting id and start date time.
-     *
-     * You take the ownership of the returned value
-     * @param chatid MegaChatHandle that identifies a chat room
-     * @param schedId MegaChatHandle that identifies a scheduled meeting
-     * @param startDateTime start datetime of the scheduled meeting
-     * @return A MegaChatScheduledMeeting that represents a scheduled meeting occurrence
-     */
-    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime);
+    void fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Creates a meeting
@@ -7525,6 +7482,7 @@ public:
     } scheduled_changed_flags_t;
 
     typedef std::bitset<SC_SIZE> megachat_sched_bs_t;
+    static unsigned int constexpr MIN_OCURRENCES = 10;
 
     virtual ~MegaChatScheduledMeeting();
 

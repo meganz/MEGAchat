@@ -737,29 +737,9 @@ MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetings()
     return pImpl->getAllScheduledMeetings();
 }
 
-MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid)
+void MegaChatApi::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatRequestListener* listener)
 {
-    return pImpl->getScheduledMeetingsOccurrencesByChat(chatid);
-}
-
-MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedId)
-{
-    return pImpl->getScheduledMeetingOccurrencesByShedId(chatid, schedId);
-}
-
-MegaChatScheduledMeeting* MegaChatApi::getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime)
-{
-    return pImpl->getScheduledMeetingOccurrence(chatid, schedId, startDateTime);
-}
-
-MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetingsOccurrences()
-{
-    return pImpl->getAllScheduledMeetingsOccurrences();
-}
-
-void MegaChatApi::fetchScheduledMeetingOccurrences(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min, MegaChatRequestListener* listener)
-{
-    pImpl->fetchScheduledMeetingOccurrences(chatid, since, until, count, min, listener);
+    pImpl->fetchScheduledMeetingOccurrencesByChat(chatid, nullptr /*since*/, nullptr /*until*/, 0 /*count*/, MegaChatScheduledMeeting::MIN_OCURRENCES, listener);
 }
 
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
