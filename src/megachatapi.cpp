@@ -2141,6 +2141,11 @@ int MegaChatMessage::getTermCode() const
     return 0;
 }
 
+bool MegaChatMessage::hasSchedMeetingChanged(unsigned int change) const
+{
+    return false;
+}
+
 const MegaStringList* MegaChatMessage::getStringList() const
 {
     return NULL;

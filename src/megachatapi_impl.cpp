@@ -9866,6 +9866,17 @@ int MegaChatMessagePrivate::getTermCode() const
     return mCode;
 }
 
+bool MegaChatMessagePrivate::hasSchedMeetingChanged(unsigned int change) const
+{
+    if (type != TYPE_SCHED_MEETING)
+    {
+        return false;
+    }
+
+    KarereScheduledMeeting::sched_bs_t bs = static_cast<unsigned long>(priv);
+    return bs[change];
+}
+
 const MegaStringList* MegaChatMessagePrivate::getStringList() const
 {
     return mStringList.get();

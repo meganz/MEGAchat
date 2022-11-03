@@ -1053,6 +1053,7 @@ public:
     int getDuration() const override;
     unsigned getRetentionTime() const override;
     int getTermCode() const override;
+    bool hasSchedMeetingChanged(unsigned int change) const override;
 
     const mega::MegaStringList* getStringList() const override;
 
