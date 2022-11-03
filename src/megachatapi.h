@@ -2165,6 +2165,16 @@ public:
     virtual MegaChatScheduledMeeting* getMegaChatScheduledMeeting() const;
 
     /**
+     * @brief Returns the scheduled meeting list
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return scheduled meeting list
+     */
+    virtual MegaChatScheduledMeetingList* getMegaChatScheduledMeetingList() const;
+
+    /**
      * @brief Returns the list of handles related to this request
      *
      * The SDK retains the ownership of the returned value. It will be valid until

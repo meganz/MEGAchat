@@ -6775,12 +6775,27 @@ MegaChatScheduledMeeting* MegaChatRequestPrivate::getMegaChatScheduledMeeting() 
     return mScheduledMeeting.get();
 }
 
+MegaChatScheduledMeetingList* MegaChatRequestPrivate::getMegaChatScheduledMeetingList() const
+{
+    return mScheduledMeetingList.get();
+}
+
 void MegaChatRequestPrivate::setMegaChatScheduledMeeting(MegaChatScheduledMeeting* scheduledMeeting)
 {
     mScheduledMeeting.reset();
     if (scheduledMeeting)
     {
        mScheduledMeeting.reset(scheduledMeeting->copy());
+    }
+}
+
+void MegaChatRequestPrivate::setMegaChatScheduledMeetingList(const MegaChatScheduledMeetingList* schedMeetingList)
+{
+    mScheduledMeetingList.reset();
+
+    if (schedMeetingList)
+    {
+       mScheduledMeetingList = unique_ptr<MegaChatScheduledMeetingList>(schedMeetingList->copy());
     }
 }
 
