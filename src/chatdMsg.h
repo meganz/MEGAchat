@@ -902,7 +902,7 @@ public:
 
         if (src.mSchedInfo)
         {
-            assert(src.mSchedInfo->size() == 1); // currentlu we just store title
+            assert(src.mSchedInfo->size() == 1); // currently we just store title
             for (auto it = src.mSchedInfo->begin() ; it != src.mSchedInfo->end(); it++)
             {
                 size_t keySize = it->first.size();
