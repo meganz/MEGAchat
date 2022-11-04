@@ -4352,7 +4352,6 @@ void GroupChatRoom::loadSchedMeetingsOccurrFromDb()
     for (unsigned int i = 0; i < schedMeetingsOccurr.size(); i++)
     {
         std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting((schedMeetingsOccurr.at(i)).get()));
-        getClientDbInterface().insertOrUpdateSchedMeetingOcurr(aux.get());
         mScheduledMeetingsOcurrences.emplace(aux->schedId(), std::move(aux));
     }
     notifySchedMeetingOccurrencesUpdated(); // notify all scheduled meetings occurrences for this chat in one callback
