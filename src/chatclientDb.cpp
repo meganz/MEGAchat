@@ -78,24 +78,23 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::getSche
     return loadSchedMeetings(id, false /*loadingOccurr*/);
 }
 
-void ChatClientSqliteDb::insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeeting* sm)
+void ChatClientSqliteDb::insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeeting& sm)
 {
     mDb.query("insert or replace into scheduledMeetingsOccurr(schedid, chatid, organizerid, parentschedid, timezone, startdatetime, enddatetime, "
           "title, description, attributes, overrides, cancelled, flags)"
           "values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-              sm->schedId(),
-              sm->chatid(),
-              sm->organizerUserid(),
-              sm->parentSchedId(),
-              sm->timezone().size() ? sm->timezone().c_str() : nullptr,
-              sm->startDateTime().size() ? sm->startDateTime().c_str() : nullptr,
-              sm->endDateTime().size() ? sm->endDateTime().c_str() : nullptr,
-              sm->title().size() ? sm->title().c_str() : nullptr,
-              sm->description().size() ? sm->description().c_str() : nullptr,
-              sm->attributes().size() ? sm->attributes().c_str() : nullptr,
-              sm->overrides().size() ? sm->overrides().c_str() : nullptr,
-              sm->cancelled(),
-              sm->flags()->getNumericValue());
+              sm.schedId(),
+              sm.chatid(),
+              sm.organizerUserid(),
+              sm.parentSchedId(),
+              sm.timezone().size() ? sm.timezone().c_str() : nullptr,
+              sm.startDateTime().size() ? sm.startDateTime().c_str() : nullptr,
+              sm.endDateTime().size() ? sm.endDateTime().c_str() : nullptr,
+              sm.title().size() ? sm.title().c_str() : nullptr,
+              sm.description().size() ? sm.description().c_str() : nullptr,
+              sm.attributes().size() ? sm.attributes().c_str() : nullptr,
+              sm.overrides().size() ? sm.overrides().c_str() : nullptr,
+              sm.cancelled(),
 }
 
 void ChatClientSqliteDb::clearSchedMeetingOcurrByChatid(karere::Id id)
