@@ -90,7 +90,7 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
     rtc.reset(rtcModule::createRtcModule(api, mCallHandler, mDnsCache, *websocketIO, appCtx,
                                          new rtcModule::RtcCryptoMeetings(*this)));
 
-    mClientDbInterface = new ChatClientSqliteDb(db);
+    mClientDbInterface = ::mega::make_unique<ChatClientSqliteDb>(db);
 #endif
 }
 
@@ -4235,13 +4235,13 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
     const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingList();
     for (unsigned int i = 0; i < schedMeetings->size(); i++)
     {
-        KarereScheduledMeeting::sched_bs_t diff = KarereScheduledMeeting::sched_bs_t().set();
-        std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(schedMeetings->at(i)));
+        std::unique_ptr<KarereScheduledMeeting> aux = ::mega::make_unique<KarereScheduledMeeting>(schedMeetings->at(i));
         auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
         if (res.second)
         {
-            getClientDbInterface().insertOrUpdateSchedMeeting(res.first->second.get());
-            notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
+            assert(res.first->second);
+            getClientDbInterface().insertOrUpdateSchedMeeting(*res.first->second);
+            notifySchedMeetingUpdated(res.first->second.get(), 1 /* same than 2^SC_NEW_SCHED */);
         }
         else
         {
@@ -4284,19 +4284,20 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
         else
         {
             KarereScheduledMeeting::sched_bs_t diff = (it == mScheduledMeetings.end())
-                    ? KarereScheduledMeeting::sched_bs_t().set()
+                    ? KarereScheduledMeeting::sched_bs_t(1) // same than 2^SC_NEW_SCHED
                     : it->second->compare(newSched);
 
             if (diff.any())
             {
-                std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(newSched));
+                std::unique_ptr<KarereScheduledMeeting> aux = mega::make_unique<KarereScheduledMeeting>(newSched);
                 if (it != mScheduledMeetings.end())
                 {
                     it->second = std::move(aux);
-                    notifySchedMeetingUpdated(it->second.get(),  diff.to_ulong());
+                    notifySchedMeetingUpdated(it->second.get(), diff.to_ulong());
 
                     // insert in db
-                    getClientDbInterface().insertOrUpdateSchedMeeting(it->second.get());
+                    assert(it->second);
+                    getClientDbInterface().insertOrUpdateSchedMeeting(*it->second);
                 }
                 else // not found (new scheduled meeting), add it
                 {
@@ -4305,8 +4306,8 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
                     {
                         notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
 
-                        // insert in db
-                        getClientDbInterface().insertOrUpdateSchedMeeting(res.first->second.get());
+                        assert(res.first->second);
+                        getClientDbInterface().insertOrUpdateSchedMeeting(*res.first->second);
                     }
                 }
             }
@@ -4379,8 +4380,8 @@ void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
     const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingOccurrencesList();
     for (unsigned int i = 0; i < schedMeetings->size(); i++)
     {
-        std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(schedMeetings->at(i)));
-        getClientDbInterface().insertOrUpdateSchedMeetingOcurr(aux.get());
+        std::unique_ptr<KarereScheduledMeeting> aux = mega::make_unique<KarereScheduledMeeting>(schedMeetings->at(i));
+        getClientDbInterface().insertOrUpdateSchedMeetingOcurr(*aux);
         mScheduledMeetingsOcurrences.emplace(aux->schedId(), std::move(aux));
     }
     notifySchedMeetingOccurrencesUpdated(); // notify all scheduled meetings occurrences for this chat in one callback
@@ -4395,7 +4396,7 @@ void GroupChatRoom::loadSchedMeetingsFromDb()
         auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
         if (res.second)
         {
-            notifySchedMeetingUpdated(res.first->second.get(), KarereScheduledMeeting::sched_bs_t().set().to_ulong());
+            notifySchedMeetingUpdated(res.first->second.get(), 1 /* same than 2^SC_NEW_SCHED */);
         }
     }
 }
@@ -4406,7 +4407,6 @@ void GroupChatRoom::loadSchedMeetingsOccurrFromDb()
     for (unsigned int i = 0; i < schedMeetingsOccurr.size(); i++)
     {
         std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting((schedMeetingsOccurr.at(i)).get()));
-        getClientDbInterface().insertOrUpdateSchedMeetingOcurr(aux.get());
         mScheduledMeetingsOcurrences.emplace(aux->schedId(), std::move(aux));
     }
     notifySchedMeetingOccurrencesUpdated(); // notify all scheduled meetings occurrences for this chat in one callback
@@ -5384,12 +5384,12 @@ KarereScheduledFlags::KarereScheduledFlags(unsigned long numericValue)
 {
 }
 
-KarereScheduledFlags::KarereScheduledFlags(KarereScheduledFlags* flags)
+KarereScheduledFlags::KarereScheduledFlags(const KarereScheduledFlags *flags)
     : mFlags(flags ? flags->getNumericValue() : 0)
 {
 }
 
-KarereScheduledFlags::KarereScheduledFlags(::mega::MegaScheduledFlags* flags)
+KarereScheduledFlags::KarereScheduledFlags(const mega::MegaScheduledFlags *flags)
  : mFlags(flags ? flags->getNumericValue() : 0)
 {
 }
@@ -5408,13 +5408,7 @@ void KarereScheduledFlags::reset()
     mFlags.reset();
 }
 
-void KarereScheduledFlags::setEmailsDisabled(bool enabled)
-{
-    mFlags[FLAGS_DONT_SEND_EMAILS] = enabled;
-}
-
 unsigned long KarereScheduledFlags::getNumericValue() const       { return mFlags.to_ulong(); }
-bool KarereScheduledFlags::EmailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
 bool KarereScheduledFlags::isEmpty() const                        { return mFlags.none(); }
 
 bool KarereScheduledFlags::equalTo(::mega::MegaScheduledFlags* aux) const
@@ -5439,7 +5433,7 @@ KarereScheduledRules::KarereScheduledRules(int freq,
 {
 }
 
-KarereScheduledRules::KarereScheduledRules(KarereScheduledRules* rules)
+KarereScheduledRules::KarereScheduledRules(const KarereScheduledRules *rules)
     : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
       mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
       mUntil(rules->until()),
@@ -5449,7 +5443,7 @@ KarereScheduledRules::KarereScheduledRules(KarereScheduledRules* rules)
 {
 }
 
-KarereScheduledRules::KarereScheduledRules(::mega::MegaScheduledRules* rules)
+KarereScheduledRules::KarereScheduledRules(const mega::MegaScheduledRules *rules)
 {
     mFreq = isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID;
     mInterval = isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID;
@@ -5504,7 +5498,7 @@ const KarereScheduledRules::karere_rules_vector* KarereScheduledRules::byWeekDay
 const KarereScheduledRules::karere_rules_vector* KarereScheduledRules::byMonthDay() const   { return mByMonthDay.get(); }
 const KarereScheduledRules::karere_rules_map* KarereScheduledRules::byMonthWeekDay() const  { return mByMonthWeekDay.get(); }
 
-bool KarereScheduledRules::equalTo(::mega::MegaScheduledRules* r) const
+bool KarereScheduledRules::equalTo(const ::mega::MegaScheduledRules* r) const
 {
     if (!r)                                                         { return false; }
     if (mFreq != r->freq())                                         { return false; }
@@ -5513,26 +5507,64 @@ bool KarereScheduledRules::equalTo(::mega::MegaScheduledRules* r) const
 
     if (mByWeekDay || r->byWeekDay())
     {
-        if (!mByWeekDay || !r->byWeekDay())                         { return false; }
-        if (!r->byWeekDay()->equalTo(mByWeekDay.get()))             { return false; }
+        if ((!mByWeekDay || !r->byWeekDay()) ||
+                mByWeekDay->size() != static_cast<size_t>(r->byWeekDay()->size()))
+        {
+            return false;
+        }
+
+        for (int i = 0; i < r->byWeekDay()->size(); i++)
+        {
+            if (r->byWeekDay()->get(i) != mByWeekDay->at(static_cast<size_t>(i)))
+            {
+                return false;
+            }
+        }
     }
 
     if (mByMonthDay || r->byMonthDay())
     {
-        if (!mByMonthDay || !r->byMonthDay())                       { return false; }
-        if (!r->byMonthDay()->equalTo(mByMonthDay.get()))           { return false; }
+        if ((!mByMonthDay || !r->byMonthDay()) ||
+                mByMonthDay->size() != static_cast<size_t>(r->byMonthDay()->size()))
+        {
+            return false;
+        }
+
+        for (int i = 0; i < r->byMonthDay()->size(); i++)
+        {
+            if (r->byMonthDay()->get(i) != mByMonthDay->at(static_cast<size_t>(i)))
+            {
+                return false;
+            }
+        }
     }
 
     if (mByMonthWeekDay || r->byMonthWeekDay())
     {
-        if (!mByMonthWeekDay || !r->byMonthWeekDay())               { return false; }
-        if (!r->byMonthWeekDay()->equalTo(mByMonthWeekDay.get()))   { return false; }
+        if ((!mByMonthWeekDay || !r->byMonthWeekDay()) ||
+                mByMonthWeekDay->size() != static_cast<size_t>(r->byMonthWeekDay()->size()))
+        {
+            return false;
+        }
+
+        karere_rules_map auxMap;
+        for (unsigned long long i = 0; i < r->byMonthWeekDay()->size(); i++)
+        {
+            long long auxkey;
+            long long auxvalue;
+            if (r->byMonthWeekDay()->at(i, auxkey, auxvalue))
+            {
+                auxMap.emplace(auxkey, auxvalue);
+            }
+        }
+
+        if (*mByMonthWeekDay != auxMap) { return false; }
     }
 
     return true;
 }
 
-bool KarereScheduledRules::serialize(Buffer& out)
+bool KarereScheduledRules::serialize(Buffer& out) const
 {
     assert(isValidFreq(mFreq));
     std::string aux;
@@ -5584,7 +5616,7 @@ bool KarereScheduledRules::serialize(Buffer& out)
     return true;
 }
 
-KarereScheduledRules* KarereScheduledRules::unserialize(Buffer& in)
+KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
 {
     if (in.empty())  { return nullptr; }
 
@@ -5681,7 +5713,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id org
 {
 }
 
-KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduledMeeting)
+KarereScheduledMeeting::KarereScheduledMeeting(const KarereScheduledMeeting *scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
       mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),
@@ -5699,7 +5731,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduled
 {
 }
 
-KarereScheduledMeeting::KarereScheduledMeeting(mega::MegaScheduledMeeting* scheduledMeeting)
+KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting *scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
       mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),

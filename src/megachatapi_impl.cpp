@@ -2542,8 +2542,8 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             promise::Promise<karere::Id> pms;
-            ChatRoom* chatroom = sm->chatid() != MEGACHAT_INVALID_HANDLE
-                    ? findChatRoom(sm->chatid())
+            ChatRoom* chatroom = sm->chatId() != MEGACHAT_INVALID_HANDLE
+                    ? findChatRoom(sm->chatId())
                     : nullptr;
 
             bool createChat = request->getFlag();
@@ -2567,7 +2567,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
-                pms.resolve(sm->chatid());
+                pms.resolve(sm->chatId());
             }
 
             pms.then([request, this, sm](Id chatid)
@@ -3224,7 +3224,7 @@ void MegaChatApiImpl::fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPriva
         return;
     }
 
-    for (set<MegaChatScheduledMeetingListener *>::iterator it = schedMeetingListeners.begin(); it != schedMeetingListeners.end() ; it++)
+    for (set<MegaChatScheduledMeetingListener *>::iterator it = mSchedMeetingListeners.begin(); it != mSchedMeetingListeners.end() ; it++)
     {
         (*it)->onChatSchedMeetingUpdate(mChatApi, sm);
     }
@@ -3237,7 +3237,7 @@ void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(MegaChatScheduledMeeti
         return;
     }
 
-    for (set<MegaChatScheduledMeetingListener *>::iterator it = schedMeetingListeners.begin(); it != schedMeetingListeners.end() ; it++)
+    for (set<MegaChatScheduledMeetingListener *>::iterator it = mSchedMeetingListeners.begin(); it != mSchedMeetingListeners.end() ; it++)
     {
         (*it)->onSchedMeetingOccurrencesChange(mChatApi, l);
     }
@@ -5431,7 +5431,7 @@ void MegaChatApiImpl::addSchedMeetingListener(MegaChatScheduledMeetingListener *
     }
 
     sdkMutex.lock();
-    schedMeetingListeners.insert(listener);
+    mSchedMeetingListeners.insert(listener);
     sdkMutex.unlock();
 }
 
@@ -5443,7 +5443,7 @@ void MegaChatApiImpl::removeSchedMeetingListener(MegaChatScheduledMeetingListene
     }
 
     sdkMutex.lock();
-    schedMeetingListeners.erase(listener);
+    mSchedMeetingListeners.erase(listener);
     sdkMutex.unlock();
 }
 
@@ -8268,9 +8268,9 @@ MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const karere::Karer
       : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
         mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
         mUntil(rules->until()),
-        mByWeekDay(rules->byWeekDay() ? MegaIntegerList::createInstanceFromBytesList(*rules->byWeekDay()) : nullptr),
-        mByMonthDay(rules->byMonthDay() ? MegaIntegerList::createInstanceFromBytesList(*rules->byMonthDay()) : nullptr),
-        mByMonthWeekDay(rules->byMonthWeekDay() ? MegaIntegerMap::createInstanceFromBytesMap(*rules->byMonthWeekDay()) : nullptr)
+        mByWeekDay(rules->byWeekDay() ? new MegaIntegerListPrivate(*rules->byWeekDay()) : nullptr),
+        mByMonthDay(rules->byMonthDay() ? new MegaIntegerListPrivate (*rules->byMonthDay()) : nullptr),
+        mByMonthWeekDay(rules->byMonthWeekDay() ? new MegaIntegerMapPrivate(*rules->byMonthWeekDay()) : nullptr)
 {
 }
 
@@ -8350,11 +8350,11 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatHandle 
 {
 }
 
-MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting)
-    : mChatid(scheduledMeeting->chatid()),
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate* scheduledMeeting)
+    : mChatid(scheduledMeeting->chatId()),
       mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),
-      mOrganizerUserId(scheduledMeeting->organizerUserid()),
+      mOrganizerUserId(scheduledMeeting->organizerUserId()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
       mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
       mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
@@ -8365,7 +8365,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatSchedul
       mCancelled(scheduledMeeting->cancelled()),
       mFlags(scheduledMeeting->flags() ? scheduledMeeting->flags()->copy() : nullptr),
       mRules(scheduledMeeting->rules() ? scheduledMeeting->rules()->copy() : nullptr),
-      mChanged(megachat_sched_bs_t(0))
+      mChanged(scheduledMeeting->getChanged())
 {
 }
 
@@ -8397,12 +8397,20 @@ MegaChatScheduledMeetingPrivate* MegaChatScheduledMeetingPrivate::copy()
    return new MegaChatScheduledMeetingPrivate(this);
 }
 
-void MegaChatScheduledMeetingPrivate::setChanged(unsigned long val)           { mChanged = megachat_sched_bs_t(val); }
+void MegaChatScheduledMeetingPrivate::setChanged(unsigned long val)
+{
+    mChanged = megachat_sched_bs_t(val);
+}
 
-MegaChatHandle MegaChatScheduledMeetingPrivate::chatid() const                { return mChatid;}
-MegaChatHandle MegaChatScheduledMeetingPrivate::schedId() const                { return mSchedId;}
+MegaChatScheduledMeetingPrivate::megachat_sched_bs_t MegaChatScheduledMeetingPrivate::getChanged() const
+{
+    return mChanged;
+}
+
+MegaChatHandle MegaChatScheduledMeetingPrivate::chatId() const                { return mChatid;}
+MegaChatHandle MegaChatScheduledMeetingPrivate::schedId() const               { return mSchedId;}
 MegaChatHandle MegaChatScheduledMeetingPrivate::parentSchedId() const         { return mParentSchedId;}
-MegaChatHandle MegaChatScheduledMeetingPrivate::organizerUserid() const       { return mOrganizerUserId; }
+MegaChatHandle MegaChatScheduledMeetingPrivate::organizerUserId() const       { return mOrganizerUserId; }
 const char* MegaChatScheduledMeetingPrivate::timezone() const                 { return !mTimezone.empty() ? mTimezone.c_str() : nullptr;}
 const char* MegaChatScheduledMeetingPrivate::startDateTime() const            { return !mStartDateTime.empty() ? mStartDateTime.c_str() : nullptr;}
 const char* MegaChatScheduledMeetingPrivate::endDateTime() const              { return !mEndDateTime.empty() ? mEndDateTime.c_str() : nullptr;}
@@ -8412,7 +8420,7 @@ const char* MegaChatScheduledMeetingPrivate::attributes() const               { 
 const char* MegaChatScheduledMeetingPrivate::overrides() const                { return !mOverrides.empty() ? mOverrides.c_str() : nullptr;}
 int MegaChatScheduledMeetingPrivate::cancelled() const                        { return mCancelled;}
 bool MegaChatScheduledMeetingPrivate::hasChanged(size_t change) const         { return mChanged[change]; }
-bool MegaChatScheduledMeetingPrivate::isNew() const                           { return mChanged.all(); }
+bool MegaChatScheduledMeetingPrivate::isNew() const                           { return mChanged[SC_NEW_SCHED]; }
 bool MegaChatScheduledMeetingPrivate::isDeleted() const                       { return mChanged.none(); }
 MegaChatScheduledFlags* MegaChatScheduledMeetingPrivate::flags() const        { return mFlags.get();}
 MegaChatScheduledRules* MegaChatScheduledMeetingPrivate::rules() const        { return mRules.get();}

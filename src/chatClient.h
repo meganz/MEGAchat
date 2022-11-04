@@ -936,10 +936,10 @@ public:
     DNScache mDnsCache;         // dns cache
 
     std::unique_ptr<chatd::Client> mChatdClient;
+    ScheduledMeetingHandler& mScheduledMeetingHandler; // interface for global events in scheduled meetings
 
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::CallHandler& mCallHandler; // interface for global events in calls
-    ScheduledMeetingHandler& mScheduledMeetingHandler; // interface for global events in scheduled meetings
     std::unique_ptr<rtcModule::RtcModule> rtc;
 #endif
 
@@ -989,7 +989,7 @@ protected:
     bool mIsInBackground = false;
 
     // client db interface
-    DbClientInterface* mClientDbInterface = nullptr;
+    std::unique_ptr<DbClientInterface> mClientDbInterface;
 
 public:
 
@@ -1288,17 +1288,14 @@ public:
     typedef std::bitset<FLAGS_SIZE> karereScheduledFlagsBitSet;
 
     KarereScheduledFlags (unsigned long numericValue);
-    KarereScheduledFlags (KarereScheduledFlags* flags);
-    KarereScheduledFlags(::mega::MegaScheduledFlags* flags);
+    KarereScheduledFlags (const KarereScheduledFlags* flags);
+    KarereScheduledFlags(const ::mega::MegaScheduledFlags* flags);
     virtual ~KarereScheduledFlags();
     KarereScheduledFlags* copy();
 
     // --- setters ---
     void reset();
-    void setEmailsDisabled(bool enabled);
-
     unsigned long getNumericValue() const;
-    bool EmailsDisabled() const;
     bool isEmpty() const;
     bool equalTo(::mega::MegaScheduledFlags* aux) const;
 
@@ -1329,8 +1326,8 @@ public:
                    const karere_rules_vector* byMonthDay = nullptr,
                    const karere_rules_map* byMonthWeekDay = nullptr);
 
-    KarereScheduledRules(KarereScheduledRules* rules);
-    KarereScheduledRules(::mega::MegaScheduledRules* rules);
+    KarereScheduledRules(const KarereScheduledRules* rules);
+    KarereScheduledRules(const ::mega::MegaScheduledRules* rules);
     virtual ~KarereScheduledRules();
     KarereScheduledRules* copy();
 
@@ -1341,14 +1338,14 @@ public:
     const karere_rules_vector* byWeekDay() const;
     const karere_rules_vector* byMonthDay() const;
     const karere_rules_map* byMonthWeekDay() const;
-    bool equalTo (::mega::MegaScheduledRules* r) const;
+    bool equalTo (const mega::MegaScheduledRules *r) const;
 
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
 
     // --- methods to un/serialize ---
-    bool serialize(Buffer &out);
-    static KarereScheduledRules* unserialize(Buffer& in);
+    bool serialize(Buffer& out) const;
+    static KarereScheduledRules* unserialize(const Buffer& in);
 
 private:
     // scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
@@ -1396,8 +1393,8 @@ public:
                                     karere::Id parentSchedId = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
                                     const std::string& overrides = std::string(), KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
 
-    KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
-    KarereScheduledMeeting(mega::MegaScheduledMeeting* sm);
+    KarereScheduledMeeting(const KarereScheduledMeeting* karereScheduledMeeting);
+    KarereScheduledMeeting(const mega::MegaScheduledMeeting* sm);
 
     KarereScheduledMeeting* copy();
     virtual ~KarereScheduledMeeting();
@@ -1474,11 +1471,11 @@ class DbClientInterface
 {
 public:
     virtual ~DbClientInterface(){}
-    virtual void insertOrUpdateSchedMeeting(const KarereScheduledMeeting* sm) = 0;
+    virtual void insertOrUpdateSchedMeeting(const KarereScheduledMeeting& sm) = 0;
     virtual void removeSchedMeetingBySchedId(karere::Id id) = 0;
     virtual void removeSchedMeetingByChatId(karere::Id id) = 0;
     virtual std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsByChatId(karere::Id id) = 0;
-    virtual void insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeeting* sm) = 0;
+    virtual void insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeeting& sm) = 0;
     virtual void clearSchedMeetingOcurrByChatid(karere::Id id) = 0;
     virtual std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsOccurByChatId(karere::Id id) = 0;
 };
