@@ -1542,7 +1542,8 @@ public:
         TYPE_PUBLIC_HANDLE_DELETE   = 9,    /// Management message indicating a public handle has been removed
         TYPE_SET_PRIVATE_MODE       = 10,   /// Management message indicating the chat mode has been set to private
         TYPE_SET_RETENTION_TIME     = 11,   /// Management message indicating the retention time has changed
-        TYPE_HIGHEST_MANAGEMENT     = 11,
+        TYPE_SCHED_MEETING          = 12,   /// Management message indicating that a scheduled meeting is created/updated
+        TYPE_HIGHEST_MANAGEMENT     = 12,
         TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
@@ -1651,10 +1652,16 @@ public:
     virtual int getMsgIndex() const;
 
     /**
-     * @brief Returns the handle of the user.
+     * @brief Returns a MegaChatHandle
      *
-     * @return For outgoing messages, it returns the handle of the target user.
-     * For incoming messages, it returns the handle of the sender.
+     * If MegaChatMessage::getType returns MegaChatMessage::TYPE_SCHED_MEETING, this method
+     * returns the scheduled meeting id, of the updated scheduled meeting
+     *
+     * If MegaChatMessage::getType doesn't returns MegaChatMessage::TYPE_SCHED_MEETING, this method returns:
+     *  - For outgoing messages, the handle of the target user.
+     *  - For incoming messages, the handle of the sender.
+     *
+     * @return a MegaChatHandle
      */
     virtual MegaChatHandle getUserHandle() const;
 
@@ -1758,7 +1765,7 @@ public:
      *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: handle of the user who is added/removed
      *  - MegaChatMessage::TYPE_PRIV_CHANGE: handle of the user whose privilege is changed
      *  - MegaChatMessage::TYPE_REVOKE_ATTACHMENT: handle of the node which access has been revoked
-     *
+     *  - MegaChatMessage::TYPE_SCHED_MEETING: scheduled meeting handle of the updated scheduled meeting
      * @return Handle of the user/node, depending on the type of message
      */
     virtual MegaChatHandle getHandleOfAction() const;
@@ -1771,6 +1778,7 @@ public:
      *      - When a peer is removed: MegaChatRoom::PRIV_RM
      *      - When a peer is added: MegaChatRoom::PRIV_UNKNOWN
      *  - MegaChatMessage::TYPE_PRIV_CHANGE: the new privilege of the user
+     *  - MegaChatMessage::TYPE_SCHED_MEETING: bitmask with the scheduled meeting changed fields (check hasSchedMeetingChanged)
      *
      * @return Privilege level as above
      */
@@ -1904,6 +1912,41 @@ public:
      * @return Call termination code
      */
     virtual int getTermCode() const;
+
+    /**
+     * @brief Returns true if this scheduled meeting associated to this message has an specific change
+     *
+     * This funcion returns a valid value for: MegaChatMessage::TYPE_SCHED_MEETING
+     * In other cases, the return value of this function will be always false.
+     *
+     * @param changeType The type of change to check. It can be one of the following values:
+     * - MegaChatScheduledMeeting::SC_PARENT    [1]  - Parent scheduled meeting id has changed
+     * - MegaChatScheduledMeeting::SC_TZONE     [2]  - Timezone has changed
+     * - MegaChatScheduledMeeting::SC_START     [3]  - Start date time has changed
+     * - MegaChatScheduledMeeting::SC_END       [4]  - End date time has changed
+     * - MegaChatScheduledMeeting::SC_TITLE     [5]  - Title has changed
+     * - MegaChatScheduledMeeting::SC_DESC      [6]  - Description has changed
+     * - MegaChatScheduledMeeting::SC_ATTR      [7]  - Attributes have changed
+     * - MegaChatScheduledMeeting::SC_OVERR     [8]  - Override date time has changed
+     * - MegaChatScheduledMeeting::SC_CANC      [9]  - Cancelled flag has changed
+     * - MegaChatScheduledMeeting::SC_FLAGS     [10] - Scheduled meetings flags have changed
+     * - MegaChatScheduledMeeting::SC_RULES     [11] - Repetition rules have changed
+     *
+     * @return true if this scheduled meeting associated to this message has an specific change
+     */
+    virtual bool hasSchedMeetingChanged(unsigned int change) const;
+
+    /**
+     * @brief Returns a MegaStringList list relative to the action
+     *
+     * This funcion returns a valid value for:
+     * - MegaChatMessage::TYPE_SCHED_MEETING: the first element of the list, represents the old title,
+     *   and the second element of the list, represents the new title
+     *
+     * @return a MegaStringList list relative to the action
+     * for scheduled meetings params changed
+     */
+    virtual const mega::MegaStringList* getStringList() const;
 
      /** @brief Return the id for messages in manual sending status / queue
      *

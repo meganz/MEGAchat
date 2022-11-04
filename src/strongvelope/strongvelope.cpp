@@ -384,6 +384,18 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 openmode = true;
                 break;
             }
+            case TLV_TYPE_SCHED_ID:
+            {
+                mUserId = record.read<uint64_t>();
+                break;
+            }
+            case TLV_TYPE_SCHED_CHANGESET:
+            {
+                // reuse encryptedKey to store json with changed fields for scheduled meeting
+                std::string changedJson =mega::Base64::atob(std::string(record.buf(), record.dataLen));
+                encryptedKey.assign(changedJson.data(), changedJson.size());
+                break;
+            }
             default:
                 throw std::runtime_error("Unknown TLV record type "+std::to_string(record.type)+" in message "+binaryMessage.id().toString());
         }
@@ -1105,7 +1117,14 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
             msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
-
+        case Message::kMsgSchedMeeting:
+        {
+            msg->userid = parsedMsg->sender;
+            msg->createSchedMeetingInfo(parsedMsg->mUserId,
+                                        parsedMsg->encryptedKey /*sched meetings fields changed json */);
+            msg->setEncrypted(Message::kNotEncrypted);
+            return msg;
+        }
         default:
             return ::promise::Error("Unknown management message type "+
                 std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ENOTYPE);

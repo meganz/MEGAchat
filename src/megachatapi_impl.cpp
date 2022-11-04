@@ -9503,6 +9503,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     rowId = msg->getRowId();
     megaNodeList = msg->getMegaNodeList() ? msg->getMegaNodeList()->copy() : NULL;
     megaHandleList = msg->getMegaHandleList() ? msg->getMegaHandleList()->copy() : NULL;
+    mStringList = msg->getStringList() ? unique_ptr<MegaStringList>(msg->getStringList()->copy()) : nullptr;
 
     if (msg->getUsersCount() != 0)
     {
@@ -9601,7 +9602,30 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             }
             break;
         }
+        case MegaChatMessage::TYPE_SCHED_MEETING:
+        {
+            megaHandleList = new MegaHandleListPrivate();
+            std::unique_ptr<Message::SchedMeetingInfo> schedInfo(Message::SchedMeetingInfo::fromBuffer(msg.buf(), msg.size()));
+            if (schedInfo)
+            {
+                hAction = schedInfo->mSchedId; // reuse hAction to store schedId
+                priv = static_cast<int>(schedInfo->mSchedChanged);
 
+                if (schedInfo->mSchedInfo && !schedInfo->mSchedInfo->empty())
+                {
+                    mStringList.reset(::mega::MegaStringList::createInstance());
+                    for (auto m: *schedInfo->mSchedInfo.get())
+                    {
+                        if (m.first == karere::SC_TITLE) // currently just store old - new title
+                        {
+                            mStringList->add(m.second.first.c_str());
+                            mStringList->add(m.second.second.c_str());
+                        }
+                    }
+                }
+            }
+           break;
+        }
         case MegaChatMessage::TYPE_SET_RETENTION_TIME:
         {
           // Interpret retentionTime as int32_t to store it in an existing member.
@@ -9895,6 +9919,22 @@ unsigned MegaChatMessagePrivate::getRetentionTime() const
 int MegaChatMessagePrivate::getTermCode() const
 {
     return mCode;
+}
+
+bool MegaChatMessagePrivate::hasSchedMeetingChanged(unsigned int change) const
+{
+    if (type != TYPE_SCHED_MEETING)
+    {
+        return false;
+    }
+
+    KarereScheduledMeeting::sched_bs_t bs = static_cast<unsigned long>(priv);
+    return bs[change];
+}
+
+const MegaStringList* MegaChatMessagePrivate::getStringList() const
+{
+    return mStringList.get();
 }
 
 bool MegaChatMessagePrivate::isGiphy() const
