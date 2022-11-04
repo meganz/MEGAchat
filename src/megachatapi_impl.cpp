@@ -8412,7 +8412,7 @@ const char* MegaChatScheduledMeetingPrivate::attributes() const               { 
 const char* MegaChatScheduledMeetingPrivate::overrides() const                { return !mOverrides.empty() ? mOverrides.c_str() : nullptr;}
 int MegaChatScheduledMeetingPrivate::cancelled() const                        { return mCancelled;}
 bool MegaChatScheduledMeetingPrivate::hasChanged(size_t change) const         { return mChanged[change]; }
-bool MegaChatScheduledMeetingPrivate::isNew() const                           { return mChanged.all(); }
+bool MegaChatScheduledMeetingPrivate::isNew() const                           { return mChanged[SC_NEW_SCHED]; }
 bool MegaChatScheduledMeetingPrivate::isDeleted() const                       { return mChanged.none(); }
 MegaChatScheduledFlags* MegaChatScheduledMeetingPrivate::flags() const        { return mFlags.get();}
 MegaChatScheduledRules* MegaChatScheduledMeetingPrivate::rules() const        { return mRules.get();}

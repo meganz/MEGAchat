@@ -4217,14 +4217,13 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
     const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingList();
     for (unsigned int i = 0; i < schedMeetings->size(); i++)
     {
-        KarereScheduledMeeting::sched_bs_t diff = KarereScheduledMeeting::sched_bs_t().set();
         std::unique_ptr<KarereScheduledMeeting> aux = ::mega::make_unique<KarereScheduledMeeting>(schedMeetings->at(i));
         auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
         if (res.second)
         {
             assert(res.first->second);
             getClientDbInterface().insertOrUpdateSchedMeeting(*res.first->second);
-            notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
+            notifySchedMeetingUpdated(res.first->second.get(), 1 /* same than 2^SC_NEW_SCHED */);
         }
         else
         {
@@ -4267,7 +4266,7 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
         else
         {
             KarereScheduledMeeting::sched_bs_t diff = (it == mScheduledMeetings.end())
-                    ? KarereScheduledMeeting::sched_bs_t().set()
+                    ? KarereScheduledMeeting::sched_bs_t(1) // same than 2^SC_NEW_SCHED
                     : it->second->compare(newSched);
 
             if (diff.any())
@@ -4276,7 +4275,7 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
                 if (it != mScheduledMeetings.end())
                 {
                     it->second = std::move(aux);
-                    notifySchedMeetingUpdated(it->second.get(),  diff.to_ulong());
+                    notifySchedMeetingUpdated(it->second.get(), diff.to_ulong());
 
                     // insert in db
                     assert(it->second);
@@ -4341,7 +4340,7 @@ void GroupChatRoom::loadSchedMeetingsFromDb()
         auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
         if (res.second)
         {
-            notifySchedMeetingUpdated(res.first->second.get(), KarereScheduledMeeting::sched_bs_t().set().to_ulong());
+            notifySchedMeetingUpdated(res.first->second.get(), 1 /* same than 2^SC_NEW_SCHED */);
         }
     }
 }
