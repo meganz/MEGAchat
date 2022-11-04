@@ -8260,9 +8260,9 @@ MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const karere::Karer
       : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
         mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
         mUntil(rules->until()),
-        mByWeekDay(rules->byWeekDay() ? MegaIntegerList::createInstanceFromBytesList(*rules->byWeekDay()) : nullptr),
-        mByMonthDay(rules->byMonthDay() ? MegaIntegerList::createInstanceFromBytesList(*rules->byMonthDay()) : nullptr),
-        mByMonthWeekDay(rules->byMonthWeekDay() ? MegaIntegerMap::createInstanceFromBytesMap(*rules->byMonthWeekDay()) : nullptr)
+        mByWeekDay(rules->byWeekDay() ? new MegaIntegerListPrivate(*rules->byWeekDay()) : nullptr),
+        mByMonthDay(rules->byMonthDay() ? new MegaIntegerListPrivate (*rules->byMonthDay()) : nullptr),
+        mByMonthWeekDay(rules->byMonthWeekDay() ? new MegaIntegerMapPrivate(*rules->byMonthWeekDay()) : nullptr)
 {
 }
 
